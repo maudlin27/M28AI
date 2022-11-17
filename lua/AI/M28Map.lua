@@ -72,8 +72,8 @@ end
 
 function GetPositionFromPathingSegments(iSegmentX, iSegmentZ)
     --If given base level segment positions
-    local x = iSegmentX * iSizeOfBaseLevelSegment - iLandZoneSegmentSize * 0.5 + rMapPlayableArea[1]
-    local z = iSegmentZ * iSizeOfBaseLevelSegment - iLandZoneSegmentSize * 0.5 + rMapPlayableArea[2]
+    local x = iSegmentX * iLandZoneSegmentSize - iLandZoneSegmentSize * 0.5 + rMapPlayableArea[1]
+    local z = iSegmentZ * iLandZoneSegmentSize - iLandZoneSegmentSize * 0.5 + rMapPlayableArea[2]
     return {x, GetTerrainHeight(x, z), z}
 end
 
@@ -133,7 +133,7 @@ function RecordMexForPathingGroup()
                 if bDebugMessages == true then
                     LOG(sFunctionRef..': iCurMex='..iCurMex..'; About to get segment group for pathing='..sPathing..'; location='..repru((tMexLocation or {'nil'}))..'; iCurResourceGroup='..(iCurResourceGroup or 'nil'))
                     local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tMexLocation)
-                    LOG(sFunctionRef..': Pathing segments='..(iSegmentX or 'nil')..'; iSegmentZ='..(iSegmentZ or 'nil')..'; rMapPlayableArea='..repru(rMapPlayableArea)..'; iSizeOfBaseLevelSegment='..(iSizeOfBaseLevelSegment or 'nil'))
+                    LOG(sFunctionRef..': Pathing segments='..(iSegmentX or 'nil')..'; iSegmentZ='..(iSegmentZ or 'nil')..'; rMapPlayableArea='..repru(rMapPlayableArea)..'; iLandZoneSegmentSize='..(iLandZoneSegmentSize or 'nil'))
                 end
                 if tMexByPathingAndGrouping[sPathing][iCurResourceGroup] == nil then
                     tMexByPathingAndGrouping[sPathing][iCurResourceGroup] = {}
@@ -383,6 +383,11 @@ function SetupMap()
     else
         rMapPlayableArea = {0, 0, ScenarioInfo.size[1], ScenarioInfo.size[2]}
     end
+
+    --Generate pathing
+    local NavGen = import("/lua/sim/navgenerator.lua")
+    NavGen.Generate()
+
 
     RecordMexForPathingGroup()
 
