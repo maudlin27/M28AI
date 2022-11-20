@@ -61,11 +61,14 @@ subrefPlateauEngineers = 'M27PlateauEngineers' --[x] is engineer unique ref (per
 --Plateaus - Land zone variables
 subrefPlateauLandZones = 'M27PlateauLandZones' --against the main plateau table, stores info on land zones for that plateau
 subrefLandZoneCount = 'M27PlateauZoneCount' --against the main plateau table, records how many land zones there are (alternative to table.getn on the land zones)
-iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one side of the square that is the lowest resolution land zones go to
+iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one side of the square that is the lowest resolution land zones go to; each segment that is land pathable gets assigned to a land zone
 tLandZonesByPlateau = {} --[x] is the plateau group number, returns a table where [y] is the land zone number, which then returns details on the land zone
 subrefLZMexCount = 'MexCount' --against tLandZonesByPlateau[iPlateau][iLZ], returns number of mexes in the LZ
 subrefLZMexLocations = 'MexLoc' --against tLandZonesByPlateau[iPlateau][iLZ], returns table of mex locations in the LZ
 subrefLZReclaimMass = 'ReclaimMass' --against tLandZonesByPlateau[iPlateau][iLZ], returns total mass reclaim in the LZ
+
+--Land pathing segment data
+tLandSegmentsAssignedZone = {} --[x][z] should be the x and z segments baed on iLandZoneSegmentSize, and should return the land zone number, or nil if there is none
 
 function GetPathingSegmentFromPosition(tPosition)
     --The map is divided into equal sized square segments; this can be used to get the segment X and Z references
@@ -94,7 +97,7 @@ end
 
 function SetupPlayableAreaAndSegmentSizes()
     --Sets up key values needed to divide the map up into segments - shoudl be called as one of the first pieces of code
-    local bDebugMessages = true if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'DetermineReclaimAndLandSegmentSizes'
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
     if ScenarioInfo.MapData.PlayableRect then
@@ -124,7 +127,7 @@ end
 
 function RecordResourcePoint(sResourceType,x,y,z,size)
     --called by hook into simInit, more reliable method of figuring out if have adaptive map
-    local bDebugMessages = true if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordResourcePoint'
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': sResourceType='..sResourceType..'; x='..x..'; y='..y..'; z='..z..'; size='..repru(size)..'; Mass count pre update='..table.getn(tMassPoints)..'; Hydro points pre update='..table.getn(tHydroPoints)) end
@@ -143,7 +146,7 @@ function GetSegmentGroupOfLocation(sPathing, tLocation)
 end
 
 function RecordMexForPathingGroup()
-    local bDebugMessages = true if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordMexForPathingGroup'
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': About to record mexes for each pathing group. MassPoints='..repru(tMassPoints)) end
@@ -198,7 +201,7 @@ function RecordMexForPathingGroup()
 end
 
 function RecordAllPlateaus()
-    local bDebugMessages = true if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordAllPlateaus'
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
     --Records any plateaus that contain mexes, along with info on the plateau such as a rectangle that covers the entire plateau
@@ -424,19 +427,88 @@ function AddMexToLandZone(iPlateauGroup, iOptionalLandZone, iPlateauMexRef, tTem
     tAllPlateausWithMexes[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZMexCount] = tAllPlateausWithMexes[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZMexCount] + 1
     table.insert(tAllPlateausWithMexes[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZMexLocations], tAllPlateausWithMexes[iPlateauGroup][subrefPlateauMexes][iPlateauMexRef])
     tTempLandZoneByMexRef[iPlateauMexRef] = iLandZone
+    local iCurSegmentX, iCurSegmentZ = GetPathingSegmentFromPosition(tAllPlateausWithMexes[iPlateauGroup][subrefPlateauMexes][iPlateauMexRef])
+    if not(tLandSegmentsAssignedZone[iCurSegmentX]) then tLandSegmentsAssignedZone[iCurSegmentX] = {} end
+    tLandSegmentsAssignedZone[iCurSegmentX][iCurSegmentZ] = iLandZone
+end
+
+function AssignSegmentsNearMexesToLandZones()
+    --Assigns every land pathable segment to a land zone
+    local iMaxSegmentSearchDistance = math.max(4, math.ceil(50 / iLandZoneSegmentSize))
+    local iDistanceCap = math.max(50, iMaxSegmentSearchDistance * iLandZoneSegmentSize)
+    local iBaseSegmentX, iBaseSegmentZ
+    local iPathingGroupWanted
+    local tCurPosition
+    local iCurZone
+    local iCurTravelDist
+    local tTempZoneTravelDistanceBySegment = {} --[x][z] are the segment x and z values, returns a table with a key which is the zone ID, which returns the travel distance for that zone
+    local tTempSegmentsWithDistance = {}
+    local iCurSegmentX, iCurSegmentZ
+    for iPlateauGroup, tPlateauSubtable in tAllPlateausWithMexes do
+        for iMex, tMex in tPlateauSubtable[subrefPlateauMexes] do
+            iBaseSegmentX, iBaseSegmentZ = GetPathingSegmentFromPosition(tMex)
+            iPathingGroupWanted = NavUtils.GetLabel(refPathingTypeLand, tMex)
+            iCurZone = tLandSegmentsAssignedZone[iBaseSegmentX][iBaseSegmentZ]
+            for iSegmentXAdjust = 1, iMaxSegmentSearchDistance, 1 do
+                iCurSegmentX = iBaseSegmentX + iSegmentXAdjust
+                if not(tLandSegmentsAssignedZone[iCurSegmentX]) then
+                    tLandSegmentsAssignedZone[iCurSegmentX] = {}
+                    tTempZoneTravelDistanceBySegment[iCurSegmentX] = {}
+                end
+                for iSegmentZAdjust = 1, iMaxSegmentSearchDistance, 1 do
+                    iCurSegmentZ = iBaseSegmentZ + iSegmentZAdjust
+                    tCurPosition = GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)
+                    if NavUtils.GetLabel(refPathingTypeLand, tCurPosition) == iPathingGroupWanted then
+                        if not(tTempZoneTravelDistanceBySegment[iCurSegmentX][iCurSegmentZ]) then
+                            tTempZoneTravelDistanceBySegment[iCurSegmentX][iCurSegmentZ] = {}
+                        end
+                        iCurTravelDist = M28Utilities.GetTravelDistanceBetweenPositions(tMex, tCurPosition)
+                        if (iCurTravelDist or 100000) < iDistanceCap then
+                            tTempZoneTravelDistanceBySegment[iCurSegmentX][iCurSegmentZ][iCurZone] = math.min(iCurTravelDist, (tTempZoneTravelDistanceBySegment[iCurSegmentX][iCurSegmentZ][iCurZone] or 100000))
+                            if not(tTempSegmentsWithDistance[iCurSegmentX]) then tTempSegmentsWithDistance[iCurSegmentX] = {} end
+                            tTempSegmentsWithDistance[iCurSegmentX][iCurSegmentZ] = true
+                        end
+                    end
+                end
+            end
+
+        end
+    end
+    --Now go through each segment considered and pick the lowest value
+    local iLowestDistance
+    local iLowestZone
+    for iCurSegmentX, tSubtable in tTempSegmentsWithDistance do
+        if not(tLandSegmentsAssignedZone[iCurSegmentX]) then tLandSegmentsAssignedZone[iCurSegmentX] = {} end
+        for iCurSegmentZ, bConsidered in tSubtable do
+            iLowestDistance = 10000
+            for iZone, iDistance in tTempZoneTravelDistanceBySegment[iCurSegmentX][iCurSegmentZ] do
+                if iDistance < iLowestDistance then
+                    iLowestDistance = iDistance
+                    iLowestZone = iZone
+                end
+            end
+            tLandSegmentsAssignedZone[iCurSegmentX][iCurSegmentZ] = iLowestZone
+        end
+    end
+    --iLandZoneSegmentSize
+end
+
+
+function AssignRemainingSegmentsToLandZones()
+    M28Utilities.ErrorHandler('To add code')
 end
 
 function SetupLandZones()
     --Divdeds the map into land pathable zones based on mex placement
     --Intended to be called at start of game when AI is created (so after siminit and recordresourcepoints has run)
 
-    local bDebugMessages = true if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SetupLandZones'
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
 
 
     --Key config values
-    local iNearbyMexRange = 35 --Initially mexes will be grouped together based on this
+    local iNearbyMexRange = 40 --Initially mexes will be grouped together based on this
 
 
     if bDebugMessages == true then LOG('About to setup land zones') end
@@ -444,9 +516,10 @@ function SetupLandZones()
     local tiLandZoneByMexRef
 
     function AddNearbyMexesToLandZone(iPlateauGroup, iCurLandZone, tMex)
+        local iLandGroupWanted = NavUtils.GetLabel(refPathingTypeLand, tMex)
         for iAltMex, tAltMex in tAllPlateausWithMexes[iPlateauGroup][subrefPlateauMexes] do
             if not(tiLandZoneByMexRef[iAltMex]) then
-                if not(IsUnderwater(tAltMex, false, 0.1)) then
+                if NavUtils.GetLabel(refPathingTypeLand, tAltMex) == iLandGroupWanted and not(IsUnderwater(tAltMex, false, 0.1)) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering iAltMex='..iAltMex..'; Distance straight line='..M28Utilities.GetDistanceBetweenPositions(tAltMex, tMex)..'; Travel distance='..M28Utilities.GetTravelDistanceBetweenPositions(tAltMex, tMex)) end
                     if M28Utilities.GetTravelDistanceBetweenPositions(tAltMex, tMex) <= iNearbyMexRange then
                         AddMexToLandZone(iPlateauGroup, iCurLandZone, iAltMex, tiLandZoneByMexRef)
@@ -477,12 +550,16 @@ function SetupLandZones()
                 end
             end
         end
-
-        --Debug - draw the groupings of mexes with rectangles around them:
-        if bDebugMessages == true then
-            LOG(sFunctionRef..': Finished recording land zone mexes for iPlateauGroup='..iPlateauGroup..'; tiLandZoneByMexRef='..repru(tiLandZoneByMexRef)..'; tAllPlateausWithMexes[iPlateauGroup][subrefPlateauLandZones]='..repru(tAllPlateausWithMexes[iPlateauGroup][subrefPlateauLandZones]))
-            local iColour = math.random(1,7)
-
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished recording land zone mexes for iPlateauGroup='..iPlateauGroup..'; Size of land zones table='..table.getn(tAllPlateausWithMexes[iPlateauGroup][subrefPlateauLandZones])) end
+    end
+    bDebugMessages = true
+    --Debug - draw the groupings of mexes with rectangles around them:
+    if bDebugMessages == true then
+        local iColour = 0
+        for iPlateauGroup, tPlateauSubtable in tAllPlateausWithMexes do
+            LOG(sFunctionRef..': About to draw results of land zones for iPlateauGroup='..iPlateauGroup..'; tiLandZoneByMexRef='..repru(tiLandZoneByMexRef)..'; tAllPlateausWithMexes[iPlateauGroup][subrefPlateauLandZones]='..repru(tAllPlateausWithMexes[iPlateauGroup][subrefPlateauLandZones]))
+            iColour = iColour + 1
+            if iColour > 7 then iColour = 1 end
             --Draw the mex groupings
             for iZone, tZone in tAllPlateausWithMexes[iPlateauGroup][subrefPlateauLandZones] do
                 local iMinX = 100000
@@ -500,6 +577,10 @@ function SetupLandZones()
             end
         end
     end
+
+    AssignSegmentsNearMexesToLandZones()
+
+    AssignRemainingSegmentsToLandZones()
 
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
@@ -524,13 +605,59 @@ function IsUnderwater(tPosition, bReturnSurfaceHeightInstead, iOptionalAmountToB
 end
 
 function GetMapWaterHeight()
-    M28Utilities.ErrorHandler('Code needs adding')
-    iMapWaterHeight = 1
+    local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetMapWaterHeight'
+    M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
+    --rMapPlayableArea = {0,0, 256, 256} --{x1,z1, x2,z2} - Set at start of the game, use instead of the scenarioinfo method
+    local iWaterCount = 0
+    local iWaterLevel = 10000
+    local iCurTerrainHeight = 10000
+    local iInterval = 1
+    for iX = rMapPlayableArea[1] + iInterval, rMapPlayableArea[3], iInterval do
+        for iZ = rMapPlayableArea[2] + iInterval, rMapPlayableArea[4], iInterval do
+            iCurTerrainHeight =  GetTerrainHeight(iX, iZ)
+            if GetSurfaceHeight(iX, iZ) > GetTerrainHeight(iX, iZ) then
+                iWaterCount = iWaterCount + 1
+                iWaterLevel = math.min(iWaterLevel, GetSurfaceHeight(iX, iZ))
+                if bDebugMessages == true then LOG(sFunctionRef..': Found water at position X-Z='..iX..'-'..iZ..'; Surface height='..GetSurfaceHeight(iX, iZ)..'; Terrain height='..GetTerrainHeight(iX, iZ)) end
+                if iWaterCount >= 3 then
+                    break
+                end
+            else
+                --Backup for maps like theta passage arch - have commented out as running on theta passage with interval of 1 it never triggers a water count in the first place, but could remove comments if do come across this issue
+                --if bDebugMessages == true and iWaterCount > 0 and GetTerrainHeight(iX, iZ) < iWaterLevel and iWaterLevel < 10000 then LOG(sFunctionRef..': Have suspected arch previously so will adjust water level to terrain height='..GetTerrainHeight(iX, iZ)..'; for iX-Z='..iX..'-'..iZ..'; prev iWaterLevel='..iWaterLevel) end
+                --iWaterLevel = math.min(iWaterLevel, GetTerrainHeight(iX, iZ))
+            end
+        end
+        if iWaterCount >= 3 then break end
+    end
+    if iWaterCount == 0 then iMapWaterHeight = 0
+    else
+        iMapWaterHeight = iWaterLevel
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, iWaterCount='..iWaterCount..'; iMapWaterHeight='..iMapWaterHeight) end
+    M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
+end
+
+
+
+
+
+function TempTest()
+
+    --Open palms - draw line between 2 of the mexes in the bottom left part of the main (land pathable fro mbase) area:
+    local tStart = {180.5, 15.001953125, 429.5}
+    local tEnd = {199.5, 14.314453125, 459.5}
+    M28Utilities.DrawLocation(tStart, 2)
+    M28Utilities.DrawLocation(tEnd, 3)
+    local tFullPath, iPathSize, iDistance = NavUtils.PathTo('Land', tStart, tEnd, nil)
+    M28Utilities.DrawPath(tFullPath, 1, nil)
+
 end
 
 function SetupMap()
     --Sets up non-brain specific info on the map
-    local bDebugMessages = true if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SetupMap'
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
 
@@ -548,20 +675,8 @@ function SetupMap()
 
     RecordAllPlateaus() --Needed first since will organise land zones by plateau
 
-    TempTest()
+    --TempTest()
     SetupLandZones()
 
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
-end
-
-function TempTest()
-
-    --Open palms - draw line between 2 of the mexes in the bottom left part of the main (land pathable fro mbase) area:
-    local tStart = {180.5, 15.001953125, 429.5}
-    local tEnd = {199.5, 14.314453125, 459.5}
-    M28Utilities.DrawLocation(tStart, 2)
-    M28Utilities.DrawLocation(tEnd, 3)
-    local tFullPath, iPathSize, iDistance = NavUtils.PathTo('Land', tStart, tEnd, nil)
-    M28Utilities.DrawPath(tFullPath, 1, nil)
-
 end

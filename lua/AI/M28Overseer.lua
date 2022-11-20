@@ -13,7 +13,7 @@ bInitialSetup = false
 
 
 function BrainCreated(aiBrain)
-    local bDebugMessages = true if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'BrainCreated'
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
 

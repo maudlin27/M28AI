@@ -301,23 +301,29 @@ function GetTravelDistanceBetweenPositions(tStart, tEnd)
     local tFullPath, iPathSize, iDistance = NavUtils.PathTo('Land', tStart, tEnd, nil)
 
 
-    --Option 1 - recalculate all distances saved in comments for if want to revert to this:
+    --Option 1 - recalculate all distances (during testing as at 2022-11-20 sometimes even if go with option 2 below the distance is significantly lower than option 1 gives:
     local iTravelDistance = 0
+    if not(tFullPath) then
+        LOG('ERROR - dont have any path, will draw start and end')
+        DrawPath({tStart, tEnd}, 2)
+    end
     tFullPath[0] = tStart
-    for iPath = 1, iPathSize do
+    tFullPath[iPathSize + 1] = tEnd
+    for iPath = 1, iPathSize + 1 do
         --iTravelDistance = iTravelDistance + GetDistanceBetweenPositions(tFullPath[iPath - 1], tFullPath[iPath])
         iTravelDistance = iTravelDistance + VDist2(tFullPath[iPath - 1][1], tFullPath[iPath - 1][3], tFullPath[iPath][1], tFullPath[iPath][3])
     end
-    --return iTravelDistance
+    return iTravelDistance
 
 
-    --TEMP FOR DEBUG:
+    --[[
+    --Below log is for debug
     local iDistanceAddingStartAndEnd = iDistance + VDist2(tStart[1], tStart[3], tFullPath[1][1], tFullPath[1][3]) + VDist2(tEnd[1], tEnd[3], tFullPath[iPathSize][1], tFullPath[iPathSize][3])
     if iTravelDistance > iDistanceAddingStartAndEnd then
         LOG('Just got pathing distance, iDistanceAddingStartAndEnd='..iDistanceAddingStartAndEnd..'; iTravelDistance='..iTravelDistance..'; base distance value before adjust='..iDistance..' from '..repru(tStart)..' to '..repru(tEnd)..'; iPathSize='..(iPathSize or 'nil')..'; Reprs of path='..reprs(tFullPath)..'; Distance in straight line from start to first point in path='..GetDistanceBetweenPositions(tStart, tFullPath[1])..'; Dist from last path point to end='..GetDistanceBetweenPositions(tFullPath[iPathSize], tEnd)..'; Distance if take iDistance+this='..(iDistance + GetDistanceBetweenPositions(tStart, tFullPath[1]) + GetDistanceBetweenPositions(tFullPath[iPathSize], tEnd)))
     end
-    --Option 2 - just add in the first distance:
-    return iDistance + VDist2(tStart[1], tStart[3], tFullPath[1][1], tFullPath[1][3]) + VDist2(tEnd[1], tEnd[3], tFullPath[iPathSize][1], tFullPath[iPathSize][3])
+    --Option 2 - just add in the first and last distance to the distance determined by the pathing algorithm:
+    return iDistance + VDist2(tStart[1], tStart[3], tFullPath[1][1], tFullPath[1][3]) + VDist2(tEnd[1], tEnd[3], tFullPath[iPathSize][1], tFullPath[iPathSize][3])--]]
 
 
 end
