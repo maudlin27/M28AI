@@ -432,9 +432,28 @@ function AddMexToLandZone(iPlateauGroup, iOptionalLandZone, iPlateauMexRef, tTem
     tLandSegmentsAssignedZone[iCurSegmentX][iCurSegmentZ] = iLandZone
 end
 
+function AssignTempSegmentsWithDistance(tTempSegmentsWithDistance)
+    local iLowestDistance
+    local iLowestZone
+    for iCurSegmentX, tSubtable in tTempSegmentsWithDistance do
+        if not(tLandSegmentsAssignedZone[iCurSegmentX]) then tLandSegmentsAssignedZone[iCurSegmentX] = {} end
+        for iCurSegmentZ, bConsidered in tSubtable do
+            iLowestDistance = 10000
+            iLowestZone = nil
+            for iZone, iDistance in tTempZoneTravelDistanceBySegment[iCurSegmentX][iCurSegmentZ] do
+                if iDistance < iLowestDistance then
+                    iLowestDistance = iDistance
+                    iLowestZone = iZone
+                end
+            end
+            tLandSegmentsAssignedZone[iCurSegmentX][iCurSegmentZ] = iLowestZone
+        end
+    end
+end
+
 function AssignSegmentsNearMexesToLandZones()
     --Assigns every land pathable segment to a land zone
-    local iMaxSegmentSearchDistance = math.max(4, math.ceil(50 / iLandZoneSegmentSize))
+    local iMaxSegmentSearchDistance = math.max(4, math.ceil(50 / iLandZoneSegmentSize)) --NOTE: If changing this consider if also want to change the value for AssignRemainingSegmentsToLandZones
     local iDistanceCap = math.max(50, iMaxSegmentSearchDistance * iLandZoneSegmentSize)
     local iBaseSegmentX, iBaseSegmentZ
     local iPathingGroupWanted
@@ -475,26 +494,62 @@ function AssignSegmentsNearMexesToLandZones()
         end
     end
     --Now go through each segment considered and pick the lowest value
-    local iLowestDistance
-    local iLowestZone
-    for iCurSegmentX, tSubtable in tTempSegmentsWithDistance do
-        if not(tLandSegmentsAssignedZone[iCurSegmentX]) then tLandSegmentsAssignedZone[iCurSegmentX] = {} end
-        for iCurSegmentZ, bConsidered in tSubtable do
-            iLowestDistance = 10000
-            for iZone, iDistance in tTempZoneTravelDistanceBySegment[iCurSegmentX][iCurSegmentZ] do
-                if iDistance < iLowestDistance then
-                    iLowestDistance = iDistance
-                    iLowestZone = iZone
-                end
-            end
-            tLandSegmentsAssignedZone[iCurSegmentX][iCurSegmentZ] = iLowestZone
-        end
-    end
+    AssignTempSegmentsWithDistance(tTempSegmentsWithDistance)
     --iLandZoneSegmentSize
 end
 
 
 function AssignRemainingSegmentsToLandZones()
+    --rMapPlayableArea = {0,0, 256, 256} --{x1,z1, x2,z2}
+    local iMaxSegmentX, iMaxSegmentZ = GetPathingSegmentFromPosition({rMapPlayableArea[3], 0, rMapPlayableArea[4]})
+    local iPathingGroupWanted
+
+    local iMaxSegmentSearchDistance = math.max(3, math.ceil(40 / iLandZoneSegmentSize)) --NOTE: If changing this consider if also want to change the value for AssignSegmentsNearMexesToLandZones; for first draft have this as slightly lower
+    local iDistanceCap = math.max(40, iMaxSegmentSearchDistance * iLandZoneSegmentSize)
+
+    local tCurPosition
+    local tTempZoneTravelDistanceBySegment = {}
+    local tTempSegmentsWithDistance = {}
+    local iCurTravelDist
+    local tBasePosition, iCurZone
+
+    for iBaseSegmentX = 1, iMaxSegmentX do
+        if not(tLandSegmentsAssignedZone[iBaseSegmentX]) then tLandSegmentsAssignedZone[iBaseSegmentX] = {} end
+        for iBaseSegmentZ = 1, iMaxSegmentZ do
+            tBasePosition = GetPositionFromPathingSegments(iBaseSegmentX, iBaseSegmentZ)
+            iPathingGroupWanted = NavUtils.GetLabel(refPathingTypeLand, tBasePosition)
+            if (iPathingGroupWanted or 0) > 0 then
+                --Cycle through adjacent segments
+                for iCurSegmentX = iBaseSegmentX - iMaxSegmentSearchDistance, iBaseSegmentX + iMaxSegmentSearchDistance, 1 do
+                    if not(tTempZoneTravelDistanceBySegment[iCurSegmentX]) then
+                        tTempZoneTravelDistanceBySegment[iCurSegmentX] = {}
+                    end
+                    for iCurSegmentZ = iBaseSegmentZ - iMaxSegmentSearchDistance, iBaseSegmentZ + iMaxSegmentSearchDistance, 1 do
+                        --Does the segment have a land zone assigned?
+                        if tLandSegmentsAssignedZone[iCurSegmentX] and tLandSegmentsAssignedZone[iCurSegmentX][iCurSegmentZ] then
+                            tCurPosition = GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)
+                            if NavUtils.GetLabel(refPathingTypeLand, tCurPosition) == iPathingGroupWanted then
+                                if not(tTempZoneTravelDistanceBySegment[iCurSegmentX][iCurSegmentZ]) then
+                                    tTempZoneTravelDistanceBySegment[iCurSegmentX][iCurSegmentZ] = {}
+                                end
+                                iCurTravelDist = M28Utilities.GetTravelDistanceBetweenPositions(tBasePosition, tCurPosition)
+                                if (iCurTravelDist or 100000) < iDistanceCap then
+                                    iCurZone = tLandSegmentsAssignedZone[iCurSegmentX][iCurSegmentZ]
+                                    tTempZoneTravelDistanceBySegment[iCurSegmentX][iCurSegmentZ][iCurZone] = math.min(iCurTravelDist, (tTempZoneTravelDistanceBySegment[iCurSegmentX][iCurSegmentZ][iCurZone] or 100000))
+                                    if not(tTempSegmentsWithDistance[iCurSegmentX]) then tTempSegmentsWithDistance[iCurSegmentX] = {} end
+                                    tTempSegmentsWithDistance[iCurSegmentX][iCurSegmentZ] = true
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    --Now go through each segment considered and pick the lowest value
+    AssignTempSegmentsWithDistance(tTempSegmentsWithDistance)
+
+
     M28Utilities.ErrorHandler('To add code')
 end
 
