@@ -99,6 +99,8 @@ end
 function ForkedDrawRectangle(rRect, iColour, iDisplayCount)
     --Only call via cork thread
     --Draws lines around rRect; rRect should be a rect table, with keys x0, x1, y0, y1
+    --iColour - if it isn't a number from 1 to 8 then it will try and use the value as the hex key instead
+
     local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ForkedDrawRectangle'
     if bDebugMessages == true then LOG(sFunctionRef..': rRect='..repru(rRect)) end
@@ -112,7 +114,8 @@ function ForkedDrawRectangle(rRect, iColour, iDisplayCount)
     elseif iColour == 5 then sColour = 'ff27408b' --Light Blue
     elseif iColour == 6 then sColour = 'ff1e90ff' --Cyan (might actually be white as well?)
     elseif iColour == 7 then sColour = 'ffffffff' --white
-    else sColour = 'ffFF6060' --Orangy pink
+    elseif iColour == 8 then sColour = 'ffFF6060' --Orangy pink
+    else sColour = iColour
     end
 
 
@@ -125,30 +128,30 @@ function ForkedDrawRectangle(rRect, iColour, iDisplayCount)
     local iCurDrawCount = 0
     local iCount = 0
     while true do
-        iCount = iCount + 1
-        if iCount > 10000 then ErrorHandler('Infinite loop') break end
-        for iValX = 1, 2 do
-            for iValZ = 1, 2 do
-                if iValX == 1 then
-                    iCurX = rRect['x0']
-                    if iValZ == 1 then iCurZ = rRect['y0'] else iCurZ = rRect['y1'] end
-                else
-                    iCurX = rRect['x1']
-                    if iValZ == 1 then iCurZ = rRect['y1'] else iCurZ = rRect['y0'] end
-                end
-
-                tLastPos = tCurPos
-                tCurPos = {iCurX, GetTerrainHeight(iCurX, iCurZ), iCurZ}
-                if tLastPos then
-                    if bDebugMessages == true then LOG(sFunctionRef..': tLastPos='..repru(tLastPos)..'; tCurPos='..repru(tCurPos)) end
-                    DrawLine(tLastPos, tCurPos, sColour)
-                end
-            end
-        end
-        iCurDrawCount = iCurDrawCount + 1
-        if iCurDrawCount > iDisplayCount then return end
-        coroutine.yield(2) --Any more and lines will flash instead of being constant
+    iCount = iCount + 1
+    if iCount > 10000 then ErrorHandler('Infinite loop') break end
+    for iValX = 1, 2 do
+    for iValZ = 1, 2 do
+    if iValX == 1 then
+    iCurX = rRect['x0']
+    if iValZ == 1 then iCurZ = rRect['y0'] else iCurZ = rRect['y1'] end
+    else
+    iCurX = rRect['x1']
+    if iValZ == 1 then iCurZ = rRect['y1'] else iCurZ = rRect['y0'] end
     end
+
+    tLastPos = tCurPos
+    tCurPos = {iCurX, GetTerrainHeight(iCurX, iCurZ), iCurZ}
+    if tLastPos then
+    if bDebugMessages == true then LOG(sFunctionRef..': tLastPos='..repru(tLastPos)..'; tCurPos='..repru(tCurPos)) end
+    DrawLine(tLastPos, tCurPos, sColour)
+    end
+    end
+    end
+    iCurDrawCount = iCurDrawCount + 1
+    if iCurDrawCount > iDisplayCount then return end
+        coroutine.yield(2) --Any more and lines will flash instead of being constant
+        end
 end
 
 function DrawRectangle(rRectangle, iOptionalColour, iOptionalTimeInTicks, iOptionalSizeIncrease)
@@ -211,41 +214,161 @@ function DrawPath(tPath, iOptionalColour, iOptionalTimeInTicks)
 
 end
 
-
+function GetApproxTravelDistanceBetweenPositions(tStart, tEnd)
+    --Similar to GetTravelDistanceBetweenPositions, but will only precisely calculate the distance from the start to the first point, and then rely on the base pathing distance calculation
+    local tFullPath, iPathSize, iDistance = NavUtils.PathTo('Land', tStart, tEnd, nil)
+    if tFullPath then
+        if tFullPath[iPathSize][1] == tEnd[1] and tFullPath[iPathSize][3] == tEnd[3] then
+            return iDistance + VDist2(tFullPath[1][1], tFullPath[1][3], tStart[1], tStart[3])
+        else
+            return iDistance + VDist2(tFullPath[1][1], tFullPath[1][3], tStart[1], tStart[3]) + VDist2(tFullPath[iPathSize][1], tFullPath[iPathSize][3])
+        end
+    else
+        return nil
+    end
+end
 function GetTravelDistanceBetweenPositions(tStart, tEnd)
     --Returns the distance for a land unit to move from tStart to tEnd using Jips pathing algorithm
+    --Returns nil if cant path there
 
     --4th argument could be NavUtils.PathToDefaultOptions(), e.g. local tFullPath, iPathSize, iDistance = NavUtils.PathTo('Land', tStart, tEnd, NavUtils.PathToDefaultOptions()); left as nil:
     local tFullPath, iPathSize, iDistance = NavUtils.PathTo('Land', tStart, tEnd, nil)
+    if tFullPath then
+
+        --Option 1 - recalculate all distances (during testing as at 2022-11-20 sometimes even if go with option 2 below the distance is significantly lower than option 1 gives:
+        local iTravelDistance = 0
+        tFullPath[0] = tStart
+        tFullPath[iPathSize + 1] = tEnd
+        for iPath = 1, iPathSize + 1 do
+            --iTravelDistance = iTravelDistance + GetDistanceBetweenPositions(tFullPath[iPath - 1], tFullPath[iPath])
+            iTravelDistance = iTravelDistance + VDist2(tFullPath[iPath - 1][1], tFullPath[iPath - 1][3], tFullPath[iPath][1], tFullPath[iPath][3])
+        end
+        return iTravelDistance
 
 
-    --Option 1 - recalculate all distances (during testing as at 2022-11-20 sometimes even if go with option 2 below the distance is significantly lower than option 1 gives:
-    local iTravelDistance = 0
-    if not(tFullPath) then
-        LOG('ERROR - dont have any path, will draw start and end')
-        DrawPath({tStart, tEnd}, 2)
+        --[[
+        --Below log is for debug
+        local iDistanceAddingStartAndEnd = iDistance + VDist2(tStart[1], tStart[3], tFullPath[1][1], tFullPath[1][3]) + VDist2(tEnd[1], tEnd[3], tFullPath[iPathSize][1], tFullPath[iPathSize][3])
+        if iTravelDistance > iDistanceAddingStartAndEnd then
+            LOG('Just got pathing distance, iDistanceAddingStartAndEnd='..iDistanceAddingStartAndEnd..'; iTravelDistance='..iTravelDistance..'; base distance value before adjust='..iDistance..' from '..repru(tStart)..' to '..repru(tEnd)..'; iPathSize='..(iPathSize or 'nil')..'; Reprs of path='..reprs(tFullPath)..'; Distance in straight line from start to first point in path='..GetDistanceBetweenPositions(tStart, tFullPath[1])..'; Dist from last path point to end='..GetDistanceBetweenPositions(tFullPath[iPathSize], tEnd)..'; Distance if take iDistance+this='..(iDistance + GetDistanceBetweenPositions(tStart, tFullPath[1]) + GetDistanceBetweenPositions(tFullPath[iPathSize], tEnd)))
+        end
+        --Option 2 - just add in the first and last distance to the distance determined by the pathing algorithm:
+        return iDistance + VDist2(tStart[1], tStart[3], tFullPath[1][1], tFullPath[1][3]) + VDist2(tEnd[1], tEnd[3], tFullPath[iPathSize][1], tFullPath[iPathSize][3])--]]
+    else
+        return nil
     end
-    tFullPath[0] = tStart
-    tFullPath[iPathSize + 1] = tEnd
-    for iPath = 1, iPathSize + 1 do
-        --iTravelDistance = iTravelDistance + GetDistanceBetweenPositions(tFullPath[iPath - 1], tFullPath[iPath])
-        iTravelDistance = iTravelDistance + VDist2(tFullPath[iPath - 1][1], tFullPath[iPath - 1][3], tFullPath[iPath][1], tFullPath[iPath][3])
-    end
-    return iTravelDistance
-
-
-    --[[
-    --Below log is for debug
-    local iDistanceAddingStartAndEnd = iDistance + VDist2(tStart[1], tStart[3], tFullPath[1][1], tFullPath[1][3]) + VDist2(tEnd[1], tEnd[3], tFullPath[iPathSize][1], tFullPath[iPathSize][3])
-    if iTravelDistance > iDistanceAddingStartAndEnd then
-        LOG('Just got pathing distance, iDistanceAddingStartAndEnd='..iDistanceAddingStartAndEnd..'; iTravelDistance='..iTravelDistance..'; base distance value before adjust='..iDistance..' from '..repru(tStart)..' to '..repru(tEnd)..'; iPathSize='..(iPathSize or 'nil')..'; Reprs of path='..reprs(tFullPath)..'; Distance in straight line from start to first point in path='..GetDistanceBetweenPositions(tStart, tFullPath[1])..'; Dist from last path point to end='..GetDistanceBetweenPositions(tFullPath[iPathSize], tEnd)..'; Distance if take iDistance+this='..(iDistance + GetDistanceBetweenPositions(tStart, tFullPath[1]) + GetDistanceBetweenPositions(tFullPath[iPathSize], tEnd)))
-    end
-    --Option 2 - just add in the first and last distance to the distance determined by the pathing algorithm:
-    return iDistance + VDist2(tStart[1], tStart[3], tFullPath[1][1], tFullPath[1][3]) + VDist2(tEnd[1], tEnd[3], tFullPath[iPathSize][1], tFullPath[iPathSize][3])--]]
-
-
 end
 function GetDistanceBetweenPositions(tPosition1, tPosition2)
     --Done for convenience and to reduce risk of human error if were to use vdist2 directly; returns the distance in a straight line (ignoring pathing) between 2 positions
     return VDist2(tPosition1[1], tPosition1[3], tPosition2[1], tPosition2[3])
+end
+
+--Thanks to Relent0r and chp2001 for the below
+GenerateDistinctColorTable = function(num)
+    local function factorial(n,min)
+        if n>min and n>1 then
+            return n*factorial(n-1)
+        else
+            return n
+        end
+    end
+    local function combintoid(a,b,c)
+        local o=tostring(0)
+        local tab={a,b,c}
+        local tabid={}
+        for k,v in tab do
+            local n=v
+            tabid[k]=tostring(v)
+            while n<1000 do
+                n=n*10
+                tabid[k]=o..tabid[k]
+            end
+        end
+        return tabid[1]..tabid[2]..tabid[3]
+    end
+    local i=0
+    local n=1
+    while i<num do
+        n=n+1
+        i=n*n*n-n
+    end
+    local ViableValues={}
+    for x=0,256,256/(n-1) do
+        table.insert(ViableValues,ToColour(0,256,x/256))
+    end
+    local colortable={}
+    local combinations={}
+    --[[for k,v in ViableValues do
+        table.insert(colortable,v..v..v)
+        combinations[combintoid(k,k,k)]=1
+    end]]
+    local max=ViableValues[table.getn(ViableValues)]
+    local min=ViableValues[1]
+    local primaries={min..min..min,max..max..min,max..min..max,min..max..max,max..min..min,min..max..min,min..min..max,max..max..max}
+    combinations[combintoid(max,max,min)]=1
+    combinations[combintoid(max,min,max)]=1
+    combinations[combintoid(min,max,max)]=1
+    combinations[combintoid(max,min,min)]=1
+    combinations[combintoid(min,max,min)]=1
+    combinations[combintoid(min,min,max)]=1
+    combinations[combintoid(max,max,max)]=1
+    combinations[combintoid(min,min,min)]=1
+    for a,d in ViableValues do
+        for b,e in ViableValues do
+            for c,f in ViableValues do
+                if not combinations[combintoid(a,b,c)] and not (a==b and b==c) then
+                    table.insert(colortable,d..e..f)
+                    combinations[combintoid(a,b,c)]=1
+                end
+            end
+        end
+    end
+    for _,v in primaries do
+        table.insert(colortable,v)
+    end
+    return colortable
+end
+
+
+GrabRandomDistinctColour = function(num)
+    --Thanks to Relent0r and chp2001 for the below
+    --[[Example of how to create random colour string refs such that have 100 unique colours to choose from:
+    local tColourTable = M28Utilities.GenerateDistinctColorTable(100)
+    function GetUniqueColour(iNumberRef)
+        local iColour = iLandZoneRef
+        while iColour >= 100 do
+            iColour = iColour - 100
+        end
+        return tColourTable[iColour]
+    end
+    --]]
+
+    local output=GenerateDistinctColorTable(num)
+    return output[math.random(table.getn(output))]
+end
+
+ToColour = function(min,max,ratio)
+    local ToBase16 = function(num)
+        if num<10 then
+            return tostring(num)
+        elseif num==10 then
+            return 'a'
+        elseif num==11 then
+            return 'b'
+        elseif num==12 then
+            return 'c'
+        elseif num==13 then
+            return 'd'
+        elseif num==14 then
+            return 'e'
+        else
+            return 'f'
+        end
+    end
+    local baseones=0
+    local basetwos=0
+    local numinit=math.abs(math.ceil((max-min)*ratio+min))
+    basetwos=math.floor(numinit/16)
+    baseones=numinit-basetwos*16
+    return ToBase16(basetwos)..ToBase16(baseones)
 end
