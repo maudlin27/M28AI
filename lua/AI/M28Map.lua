@@ -19,6 +19,8 @@ refPathingTypeAll = {refPathingTypeAmphibious, refPathingTypeNavy, refPathingTyp
 
 --Map size
 rMapPlayableArea = {0,0, 256, 256} --{x1,z1, x2,z2} - Set at start of the game, use instead of the scenarioinfo method
+iMaxLandSegmentX = 1
+iMaxLandSegmentZ = 1
 
 iMapWaterHeight = 0 --Surface height of water on the map
 
@@ -62,13 +64,13 @@ subrefPlateauEngineers = 'M27PlateauEngineers' --[x] is engineer unique ref (per
 subrefPlateauLandZones = 'M27PlateauLandZones' --against the main plateau table, stores info on land zones for that plateau
 subrefLandZoneCount = 'M27PlateauZoneCount' --against the main plateau table, records how many land zones there are (alternative to table.getn on the land zones)
 iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one side of the square that is the lowest resolution land zones go to; each segment that is land pathable gets assigned to a land zone
-tLandZonesByPlateau = {} --[x] is the plateau group number, returns a table where [y] is the land zone number, which then returns details on the land zone
+tLandZonesByPlateau = {} --[x] is the plateau group number, returns a table where [y] is the land zone number, which then returns details on the land zone; use tLandZoneBySegment to get a zone reference from land segments
 subrefLZMexCount = 'MexCount' --against tLandZonesByPlateau[iPlateau][iLZ], returns number of mexes in the LZ
 subrefLZMexLocations = 'MexLoc' --against tLandZonesByPlateau[iPlateau][iLZ], returns table of mex locations in the LZ
 subrefLZReclaimMass = 'ReclaimMass' --against tLandZonesByPlateau[iPlateau][iLZ], returns total mass reclaim in the LZ
 
 --Land pathing segment data
-tLandSegmentsAssignedZone = {} --[x][z] should be the x and z segments baed on iLandZoneSegmentSize, and should return the land zone number, or nil if there is none
+tLandZoneBySegment = {} --[x][z] should be the x and z segments baed on iLandZoneSegmentSize, and should return the land zone number, or nil if there is none
 tTempZoneTravelDistanceBySegment = {} --[x][z] should be the x and z segments, used to temporarily store the distance values for segments at start of the game when setting up land zones
 
 function GetPathingSegmentFromPosition(tPosition)
@@ -79,7 +81,7 @@ end
 function GetPositionFromPathingSegments(iSegmentX, iSegmentZ)
     --If given base level segment positions
     local x = iSegmentX * iLandZoneSegmentSize - iLandZoneSegmentSize * 0.5 + rMapPlayableArea[1]
-    local z = iSegmentZ * iLandZoneSegmentSize - iLandZoneSegmentSize * 0.5 + rMapPlayableArea[2]
+    local z = iSegmentZ * iLandZoneSegmentSize - iLandZoneSegmentSize * 0.5 + rMapPlayableArea[2] --If changing this, then also update AssignRemainingSegmentsToLandZone which manually does this for performance
     return {x, GetTerrainHeight(x, z), z}
 end
 
@@ -114,6 +116,9 @@ function SetupPlayableAreaAndSegmentSizes()
 
     --50000 = SegmentCount^2; SegmentCount = iTotalSize / SegmentSize; (TotalSize/SegmentSize)^2 = 50k; SemgentSize = TotalSize/Sqrt(50k)
     iLandZoneSegmentSize = math.ceil(iHighestSize / math.sqrt(iTableSizeCap))
+
+    --Record the max values
+    iMaxLandSegmentX, iMaxLandSegmentZ = GetPathingSegmentFromPosition({rMapPlayableArea[3], 0, rMapPlayableArea[4]})
 
     if bDebugMessages == true then LOG(sFunctionRef..': iHighestSize='..iHighestSize..'; iTableSizeCap='..iTableSizeCap..'; iLandZoneSegmentSize='..iLandZoneSegmentSize) end
 
@@ -401,9 +406,14 @@ function RecordAllPlateaus()
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
-function AddNewLandZone(iPlateauGroup)
-    --Basic variable setup - assumes that information about the zone will be added later
-    --To get the land zone created by this, use iLandZone = tAllPlateausWithMexes[iPlateauGroup][subrefLandZoneCount]
+function AddNewLandZoneReferenceToPlateau(iPlateauGroup)
+    --Adds a new land zone reference number to iPlateauGroup, assumes that information about the zone will be added later
+    --To get the land zone created by this immediately after it is created, use iLandZone = tAllPlateausWithMexes[iPlateauGroup][subrefLandZoneCount]
+    local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AddNewLandZoneReferenceToPlateau'
+    M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
+
+
     if not(tAllPlateausWithMexes[iPlateauGroup]) then
         --Presumably we have a plateau with no mexes
         tAllPlateausWithMexes[iPlateauGroup] = {}
@@ -419,55 +429,42 @@ function AddNewLandZone(iPlateauGroup)
     tAllPlateausWithMexes[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZMexCount] = 0
     tAllPlateausWithMexes[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZMexLocations] = {}
     tAllPlateausWithMexes[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZReclaimMass] = 0
+
+    M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
-function CreateNewLandZoneAndAddNearbyUnassignedSegments(iBaseSegmentX, iBaseSegmentZ)
+
+
+function CreateNewLandZoneAtSegment(iBaseSegmentX, iBaseSegmentZ)
+    --Creates a new land zone reference at the land segment given by iBaseSegmentX-iBaseSegmentZ (includes adding new land zone reference to the plateau group that these segments are part of)
+    local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'CreateNewLandZoneAtSegment'
+    M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
 
     --First check we dont have a zone assigned already (redundancy)
-    if not(tLandSegmentsAssignedZone[iBaseSegmentX][iBaseSegmentZ]) then
+    if not(tLandZoneBySegment[iBaseSegmentX][iBaseSegmentZ]) then
         --PlateauGroup ref will be the amphibious pathing ref from navutils.getlabel (since that's what is used to define mexes by amphibious pathing group, and plateau recognition then uses the same reference)
         local tMidpoint = GetPositionFromPathingSegments(iBaseSegmentX, iBaseSegmentZ)
-        local iPlateauGroup NavUtils.GetLabel(refPathingTypeAmphibious, tMidpoint)
-        AddNewLandZone(iPlateauGroup)
+        local iPlateauGroup = NavUtils.GetLabel(refPathingTypeAmphibious, tMidpoint)
+        AddNewLandZoneReferenceToPlateau(iPlateauGroup)
         local iLandZone = tAllPlateausWithMexes[iPlateauGroup][subrefLandZoneCount]
-        tLandSegmentsAssignedZone[iBaseSegmentX][iBaseSegmentZ] = iLandZone
-        --Add any nearby segments that dont have a land zone and are nearby
-
-
-        --[[ Paste of code from a lower down function that likely want to tweak to use here
-        for iCurSegmentX = iBaseSegmentX - iMaxSegmentSearchDistance, iBaseSegmentX + iMaxSegmentSearchDistance, 1 do
-                    for iCurSegmentZ = iBaseSegmentZ - iMaxSegmentSearchDistance, iBaseSegmentZ + iMaxSegmentSearchDistance, 1 do
-                        --Does the segment have a land zone assigned, and we haven't just assigned it in this loop?
-                        if tLandSegmentsAssignedZone[iCurSegmentX] and tLandSegmentsAssignedZone[iCurSegmentX][iCurSegmentZ] and (not(tTempZoneTravelDistanceBySegment[iCurSegmentX]) or not(tTempZoneTravelDistanceBySegment[iCurSegmentX][iCurSegmentZ])) then
-                            tCurPosition = GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)
-                            if NavUtils.GetLabel(refPathingTypeLand, tCurPosition) == iPathingGroupWanted then
-
-                                iCurTravelDist = M28Utilities.GetTravelDistanceBetweenPositions(tBasePosition, tCurPosition)
-                                if (iCurTravelDist or 100000) < iDistanceCap then
-                                    --Update the distance between the bsae segment and a segment in iCurZone to the lower of the current distance and any previously recorded distance
-                                    iCurZone = tLandSegmentsAssignedZone[iCurSegmentX][iCurSegmentZ]
-                                    tTempZoneTravelDistanceBySegment[iBaseSegmentX][iBaseSegmentZ][iCurZone] = math.min(iCurTravelDist, (tTempZoneTravelDistanceBySegment[iBaseSegmentX][iBaseSegmentZ][iCurZone] or 100000))
-                                end
-                            end
-                        end
-                    end
-                end
-
-                if not(tTempZoneTravelDistanceBySegment[iBaseSegmentX][iBaseSegmentZ]) then
-                    if not(tSegmentsWithoutNearbyZone[iBaseSegmentX]) then tSegmentsWithoutNearbyZone[iBaseSegmentX] = {} end
-                    tSegmentsWithoutNearbyZone[iBaseSegmentX][iBaseSegmentZ] = true
-                end
-                ]]--
-
+        tLandZoneBySegment[iBaseSegmentX][iBaseSegmentZ] = iLandZone
     end
+    M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
 function AddMexToLandZone(iPlateauGroup, iOptionalLandZone, iPlateauMexRef, tTempLandZoneByMexRef)
     --Determine the land zone if it isnt specified
+
+    local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AddMexToLandZone'
+    M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
+
+
     local iLandZone
     if iOptionalLandZone then iLandZone = iOptionalLandZone
     else
-        AddNewLandZone(iPlateauGroup)
+        AddNewLandZoneReferenceToPlateau(iPlateauGroup)
         iLandZone = tAllPlateausWithMexes[iPlateauGroup][subrefLandZoneCount]
     end
 
@@ -476,37 +473,53 @@ function AddMexToLandZone(iPlateauGroup, iOptionalLandZone, iPlateauMexRef, tTem
     table.insert(tAllPlateausWithMexes[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZMexLocations], tAllPlateausWithMexes[iPlateauGroup][subrefPlateauMexes][iPlateauMexRef])
     tTempLandZoneByMexRef[iPlateauMexRef] = iLandZone
     local iCurSegmentX, iCurSegmentZ = GetPathingSegmentFromPosition(tAllPlateausWithMexes[iPlateauGroup][subrefPlateauMexes][iPlateauMexRef])
-    if not(tLandSegmentsAssignedZone[iCurSegmentX]) then tLandSegmentsAssignedZone[iCurSegmentX] = {} end
-    tLandSegmentsAssignedZone[iCurSegmentX][iCurSegmentZ] = iLandZone
+    if not(tLandZoneBySegment[iCurSegmentX]) then tLandZoneBySegment[iCurSegmentX] = {} end
+    tLandZoneBySegment[iCurSegmentX][iCurSegmentZ] = iLandZone
+
+    M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
 function AssignTempSegmentsWithDistance()
     --Assumes tTempZoneTravelDistanceBySegment has been setup and is a table that has [xsegment][zsegment] values and returns a tablle with [zone] as the key, with the distance to a previously recorded segment in that zone
     --Goes through all the distance values in tTempZoneTravelDistanceBySegment and picks the lowest distance, and then assigns the X+Z segment to that land zone
 
+    local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AssignTempSegmentsWithDistance'
+    M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
+
+
     local iLowestDistance
     local iLowestZone
     for iCurSegmentX, tSubtable in tTempZoneTravelDistanceBySegment do
-        if not(tLandSegmentsAssignedZone[iCurSegmentX]) then tLandSegmentsAssignedZone[iCurSegmentX] = {} end
-        for iCurSegmentZ, bConsidered in tSubtable do
+        if not(tLandZoneBySegment[iCurSegmentX]) then tLandZoneBySegment[iCurSegmentX] = {} end
+        for iCurSegmentZ, tDistanceByZone in tSubtable do
             --Have we not recorded a zone for this segment?
-            if not(tLandSegmentsAssignedZone[iCurSegmentX][iCurSegmentZ]) then
+            if not(tLandZoneBySegment[iCurSegmentX][iCurSegmentZ]) then
                 iLowestDistance = 10000
                 iLowestZone = nil
-                for iZone, iDistance in tTempZoneTravelDistanceBySegment[iCurSegmentX][iCurSegmentZ] do
+                for iZone, iDistance in tDistanceByZone do
                     if iDistance < iLowestDistance then
                         iLowestDistance = iDistance
                         iLowestZone = iZone
                     end
                 end
-                tLandSegmentsAssignedZone[iCurSegmentX][iCurSegmentZ] = iLowestZone
+                tLandZoneBySegment[iCurSegmentX][iCurSegmentZ] = iLowestZone
             end
+            tTempZoneTravelDistanceBySegment[iCurSegmentX][iCurSegmentZ] = nil --Clear the value so when we cycle through in the future we dont have to worry about
         end
     end
+
+    M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
 function AssignSegmentsNearMexesToLandZones()
     --Assigns every land pathable segment to a land zone
+
+    local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AssignSegmentsNearMexesToLandZones'
+    M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
+
+
     local iMaxSegmentSearchDistance = math.max(4, math.ceil(50 / iLandZoneSegmentSize)) --NOTE: If changing this consider if also want to change the value for AssignRemainingSegmentsToLandZones
     local iDistanceCap = math.max(50, iMaxSegmentSearchDistance * iLandZoneSegmentSize)
     local iBaseSegmentX, iBaseSegmentZ
@@ -520,17 +533,18 @@ function AssignSegmentsNearMexesToLandZones()
         for iMex, tMex in tPlateauSubtable[subrefPlateauMexes] do
             iBaseSegmentX, iBaseSegmentZ = GetPathingSegmentFromPosition(tMex)
             iPathingGroupWanted = NavUtils.GetLabel(refPathingTypeLand, tMex)
-            iCurZone = tLandSegmentsAssignedZone[iBaseSegmentX][iBaseSegmentZ]
+            iCurZone = tLandZoneBySegment[iBaseSegmentX][iBaseSegmentZ]
             for iSegmentXAdjust = 1, iMaxSegmentSearchDistance, 1 do
                 iCurSegmentX = iBaseSegmentX + iSegmentXAdjust
-                if not(tLandSegmentsAssignedZone[iCurSegmentX]) then
-                    tLandSegmentsAssignedZone[iCurSegmentX] = {}
+                if not(tLandZoneBySegment[iCurSegmentX]) then
+                    tLandZoneBySegment[iCurSegmentX] = {}
                     tTempZoneTravelDistanceBySegment[iCurSegmentX] = {}
                 end
                 for iSegmentZAdjust = 1, iMaxSegmentSearchDistance, 1 do
                     iCurSegmentZ = iBaseSegmentZ + iSegmentZAdjust
                     tCurPosition = GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)
                     if NavUtils.GetLabel(refPathingTypeLand, tCurPosition) == iPathingGroupWanted then
+                        if not(tTempZoneTravelDistanceBySegment[iCurSegmentX]) then tTempZoneTravelDistanceBySegment[iCurSegmentX] = {} end
                         if not(tTempZoneTravelDistanceBySegment[iCurSegmentX][iCurSegmentZ]) then
                             tTempZoneTravelDistanceBySegment[iCurSegmentX][iCurSegmentZ] = {}
                         end
@@ -546,14 +560,131 @@ function AssignSegmentsNearMexesToLandZones()
     end
     --Now go through each segment in tTempZoneTravelDistanceBySegment and pick the lowest value
     AssignTempSegmentsWithDistance()
-    --iLandZoneSegmentSize
+
+    M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
+end
+
+function RecordTemporaryTravelDistanceForBaseSegment(iBaseSegmentX, iBaseSegmentZ, iLandPathingGroupWanted, tBasePosition, iMaxSegmentSearchDistance, iDistanceCap)
+    --Cycle through adjacent segments to see if they have a zone, and if so check how far away the segment is from the base segment
+    local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordTemporaryTravelDistanceForBaseSegment'
+    M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
+    if iBaseSegmentX == 1 then bDebugMessages = true end
+
+    local tCurPosition
+    local iCurZone, iCurTravelDist
+    local bAbort = false --if we find a really close location then will stop looking for better ones
+
+    if bDebugMessages == true then LOG(sFunctionRef..': About to look for segments near base segment '..iBaseSegmentX..'-'..iBaseSegmentZ..'; iMaxSegmentSearchDistance='..iMaxSegmentSearchDistance..'; iDistanceCap='..iDistanceCap..'; iLandPathingGroupWanted='..(iLandPathingGroupWanted or 'nil')) end
+
+    local iAbortThreshold --= iLandZoneSegmentSize + 1
+
+    function CheckAndRecordTemporaryDistanceForCurSegment(iCurSegmentX, iCurSegmentZ)
+        --Does the segment have a land zone assigned, and we haven't just assigned it in this loop?
+        if bDebugMessages == true then
+            LOG(sFunctionRef..': Considering curSegmentX-z='..iCurSegmentX..'-'..iCurSegmentZ..'; Will note if we have a landzone for this')
+            if tLandZoneBySegment[iCurSegmentX] then LOG('tLandZoneBySegment[iCurSegmentX][iCurSegmentZ]='..repru(tLandZoneBySegment[iCurSegmentX][iCurSegmentZ]))
+            else
+                LOG('Dont have any land zone for anything with semgnet X='..iCurSegmentX)
+            end
+        end
+        if tLandZoneBySegment[iCurSegmentX] and tLandZoneBySegment[iCurSegmentX][iCurSegmentZ] then --and (not(tTempZoneTravelDistanceBySegment[iCurSegmentX]) or not(tTempZoneTravelDistanceBySegment[iCurSegmentX][iCurSegmentZ])) then
+            tCurPosition = GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)
+            if bDebugMessages == true then LOG(sFunctionRef..': Have a land zone for CurSegmentX-Z'..iCurSegmentX..'-'..iCurSegmentZ..'; Pathing label of this segment='..NavUtils.GetLabel(refPathingTypeLand, tCurPosition)..'; iLandPathingGroupWanted='..iLandPathingGroupWanted) end
+            if NavUtils.GetLabel(refPathingTypeLand, tCurPosition) == iLandPathingGroupWanted then
+
+                iCurTravelDist = M28Utilities.GetTravelDistanceBetweenPositions(tBasePosition, tCurPosition)
+                if bDebugMessages == true then LOG(sFunctionRef..': iCurTravelDist='..iCurTravelDist) end
+                if (iCurTravelDist or 100000) < iDistanceCap then
+
+                    --Update the distance between the bsae segment and a segment in iCurZone to the lower of the current distance and any previously recorded distance
+                    iCurZone = tLandZoneBySegment[iCurSegmentX][iCurSegmentZ]
+                    if bDebugMessages == true then LOG(sFunctionRef..': We have a segment nearby with a land zone, iCurZone='..iCurZone..'; will record iCurTravelDist of '..iCurTravelDist..'; against the base segment') end
+                    tTempZoneTravelDistanceBySegment[iBaseSegmentX][iBaseSegmentZ][iCurZone] = math.min(iCurTravelDist, (tTempZoneTravelDistanceBySegment[iBaseSegmentX][iBaseSegmentZ][iCurZone] or 100000))
+                    if iCurTravelDist <= iAbortThreshold then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Found a really close segment so will stop looking for more') end
+                        bAbort = true
+                    end
+                end
+            end
+        end
+    end
+
+    local iMaxAdjustedX, iMaxAdjustedZ, iMinAdjustedX, iMinAdjustedZ, iZInterval
+
+    for iAdjustmentSize = 1, iMaxSegmentSearchDistance do
+        iAbortThreshold = iLandZoneSegmentSize * (iAdjustmentSize + 0.5)
+        iMaxAdjustedX = math.min(iAdjustmentSize + iBaseSegmentX, iMaxLandSegmentX)
+        iMaxAdjustedZ = math.min(iAdjustmentSize + iBaseSegmentZ, iMaxLandSegmentZ)
+        iMinAdjustedX = math.max(1, iBaseSegmentX-iAdjustmentSize)
+        iMinAdjustedZ = math.max(1, iBaseSegmentZ-iAdjustmentSize)
+        iZInterval = math.max(1, iMaxAdjustedZ - iMinAdjustedZ)
+
+
+
+        for iCurSegmentX = iMinAdjustedX, iMaxAdjustedX, 1 do
+            if iCurSegmentX == iMinAdjustedX or iCurSegmentX == iMaxAdjustedX then
+                for iCurSegmentZ = iMinAdjustedZ, iMaxAdjustedZ, 1 do
+                    CheckAndRecordTemporaryDistanceForCurSegment(iCurSegmentX, iCurSegmentZ)
+                    if bAbort then break end
+                end
+            else
+                for iCurSegmentZ = iMinAdjustedZ, iMaxAdjustedZ, iZInterval do
+                    CheckAndRecordTemporaryDistanceForCurSegment(iCurSegmentX, iCurSegmentZ)
+                    if bAbort then break end
+                end
+            end
+            if bAbort then break end
+        end
+    end
+
+    --Conider core segments first as most of the time we should ahve a really close segment
+    --[[
+    if bDebugMessages == true then LOG(sFunctionRef..': About to check the immediately adjacent segments to base segment '..iBaseSegmentX..'-'..iBaseSegmentZ..'; iAbortThreshold='..iAbortThreshold) end
+    local tNearestSegment = {}
+    for iCurSegmentX = math.max(1, iBaseSegmentX - 1), math.min(iBaseSegmentX + 1, iMaxLandSegmentX) , 1 do
+        if not(tNearestSegment[iCurSegmentX]) then tNearestSegment[iCurSegmentX] = {} end
+        for iCurSegmentZ = math.max(1, iBaseSegmentZ - 1), math.min(iBaseSegmentZ + 1, iMaxLandSegmentZ), 1 do
+            if iCurSegmentX == iBaseSegmentX and iCurSegmentZ == iBaseSegmentZ then
+                --Do nothing
+            else
+                CheckAndRecordTemporaryDistanceForCurSegment(iCurSegmentX, iCurSegmentZ)
+                if bAbort then break end
+            end
+            tNearestSegment[iCurSegmentX][iCurSegmentZ] = true
+        end
+        if bAbort then break end
+    end
+
+    iAbortThreshold = iAbortThreshold + iLandZoneSegmentSize
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished checking adjacent segments, increased iAbortThreshold='..iAbortThreshold..'; bAbort='..tostring(bAbort)) end
+
+    if iMaxSegmentSearchDistance > 1 and not(bAbort) then
+        for iCurSegmentX = math.max(1, iBaseSegmentX - iMaxSegmentSearchDistance), math.min(iBaseSegmentX + iMaxSegmentSearchDistance, iMaxLandSegmentX) , 1 do
+            for iCurSegmentZ = math.max(1, iBaseSegmentZ - iMaxSegmentSearchDistance), math.min(iBaseSegmentZ + iMaxSegmentSearchDistance, iMaxLandSegmentZ), 1 do
+                if tNearestSegment[iCurSegmentX] and tNearestSegment[iCurSegmentX][iCurSegmentZ] then
+                    --do nothing
+                else
+                    CheckAndRecordTemporaryDistanceForCurSegment(iCurSegmentX, iCurSegmentZ)
+                    if bAbort then break end
+                end
+            end
+            if bAbort then break end
+        end
+    end--]]
+    if bDebugMessages == true then LOG(sFunctionRef..': Finsihed recording if we have any nearby zones that can path here, tTempZoneTravelDistanceBySegment for base segment '..iBaseSegmentX..'-'..iBaseSegmentZ..'='..repru(tTempZoneTravelDistanceBySegment[iBaseSegmentX][iBaseSegmentZ])..'; bAbort='..tostring(bAbort)) end
+
+    M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
 
 function AssignRemainingSegmentsToLandZones()
+    local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AssignRemainingSegmentsToLandZones'
+    M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
+
     --rMapPlayableArea = {0,0, 256, 256} --{x1,z1, x2,z2}
-    local iMaxSegmentX, iMaxSegmentZ = GetPathingSegmentFromPosition({rMapPlayableArea[3], 0, rMapPlayableArea[4]})
-    local iPathingGroupWanted
+    local iLandPathingGroupWanted
 
     local iMaxSegmentSearchDistance = math.max(3, math.ceil(40 / iLandZoneSegmentSize)) --NOTE: If changing this consider if also want to change the value for AssignSegmentsNearMexesToLandZones; for first draft have this as slightly lower
     local iDistanceCap = math.max(40, iMaxSegmentSearchDistance * iLandZoneSegmentSize)
@@ -563,74 +694,114 @@ function AssignRemainingSegmentsToLandZones()
     local iCurTravelDist
     local tBasePosition, iCurZone
     local tSegmentsWithoutNearbyZone = {}
+    local tNewlyCreatedBaseZones = {}
+    local tSamePathingGroupNearbySegments = {} --returns a table of X-Z values for all nearby segments
 
-    for iBaseSegmentX = 1, iMaxSegmentX do
-        if not(tLandSegmentsAssignedZone[iBaseSegmentX]) then tLandSegmentsAssignedZone[iBaseSegmentX] = {} end
+
+    --Create a new zone for any locations with no nearby pathable zones
+
+    local iNewZoneCount = 0
+    local iBasePositionX = - iLandZoneSegmentSize * 0.5 + rMapPlayableArea[1]
+    local iBasePositionZ
+    for iBaseSegmentX = 1, iMaxLandSegmentX do
+        iBasePositionX = iBasePositionX + iLandZoneSegmentSize --Manually done instead of GetPositionFromPathingSegments for performance
+        iBasePositionZ = - iLandZoneSegmentSize * 0.5 + rMapPlayableArea[2]
+
+        if iBaseSegmentX == 1 then bDebugMessages = true else bDebugMessages = false end
+        if not(tLandZoneBySegment[iBaseSegmentX]) then tLandZoneBySegment[iBaseSegmentX] = {} end
         if not(tTempZoneTravelDistanceBySegment[iBaseSegmentX]) then
             tTempZoneTravelDistanceBySegment[iBaseSegmentX] = {}
         end
-        for iBaseSegmentZ = 1, iMaxSegmentZ do
-            tBasePosition = GetPositionFromPathingSegments(iBaseSegmentX, iBaseSegmentZ)
-            iPathingGroupWanted = NavUtils.GetLabel(refPathingTypeLand, tBasePosition)
-            if (iPathingGroupWanted or 0) > 0 then
-                if not(tTempZoneTravelDistanceBySegment[iBaseSegmentX][iBaseSegmentZ]) then
-                    tTempZoneTravelDistanceBySegment[iBaseSegmentX][iBaseSegmentZ] = {}
+        for iBaseSegmentZ = 1, iMaxLandSegmentZ do
+            iBasePositionZ = iBasePositionZ + iLandZoneSegmentSize
+            --Check we dont already have a zone assigned
+            if not(tLandZoneBySegment[iBaseSegmentX] and tLandZoneBySegment[iBaseSegmentX][iBaseSegmentZ]) then
+                tBasePosition = {iBasePositionX, 0, iBasePositionZ} --GetPositionFromPathingSegments(iBaseSegmentX, iBaseSegmentZ)
+                iLandPathingGroupWanted = NavUtils.GetLabel(refPathingTypeLand, tBasePosition)
+                if (iLandPathingGroupWanted or 0) > 0 then
+                    --Dont create a new zone if we have a nearby zone
+                    if not(tTempZoneTravelDistanceBySegment[iBaseSegmentX][iBaseSegmentZ]) then
+                        tTempZoneTravelDistanceBySegment[iBaseSegmentX][iBaseSegmentZ] = {}
+                    end
+
+                    --Cycle through adjacent segments to see if they have a zone, and if so check how far away the segment is from the base segment
+                    RecordTemporaryTravelDistanceForBaseSegment(iBaseSegmentX, iBaseSegmentZ, iLandPathingGroupWanted, tBasePosition, iMaxSegmentSearchDistance, iDistanceCap)
+
+                    --Create a new zone if no segments nearby that already have a land zone that we can path to
+                    if M28Utilities.IsTableEmpty(tTempZoneTravelDistanceBySegment[iBaseSegmentX][iBaseSegmentZ]) then
+                        CreateNewLandZoneAtSegment(iBaseSegmentX, iBaseSegmentZ)
+                        iNewZoneCount = iNewZoneCount + 1
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef..': Have no temp travel distance recorded so have created a new land zone for segmentX-Z='..iBaseSegmentX..'-'..iBaseSegmentZ..'; will draw midpoint in red. iNewZoneCount='..iNewZoneCount..'; Land zone ref that created='..tLandZoneBySegment[iBaseSegmentX][iBaseSegmentZ])
+                            M28Utilities.DrawLocation(GetPositionFromPathingSegments(iBaseSegmentX, iBaseSegmentZ))
+                        end
+
+                        if not(tNewlyCreatedBaseZones[iBaseSegmentX]) then tNewlyCreatedBaseZones[iBaseSegmentX] = {} end
+                        tNewlyCreatedBaseZones[iBaseSegmentX][iBaseSegmentZ] = true
+                        --[[if iNewZoneCount >= 10 then
+                            WaitTicks(1)
+                            iNewZoneCount = 0
+                        end--]]
+                    end
                 end
+            end
+        end
+        --WaitTicks(1)
+        bDebugMessages = true
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished all iBaseSegmentX='..iBaseSegmentX..'; moving to next X segments, systemtime='..GetSystemTimeSecondsOnlyForProfileUse()) end
+        bDebugMessages = false
+    end
+    --Now go through each segment considered and pick the lowest value distance as the assigned land zone
+    AssignTempSegmentsWithDistance()
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished assigning land ones to any segments with a temp distance, systemtime='..GetSystemTimeSecondsOnlyForProfileUse()) end
 
-                --Cycle through adjacent segments to see if they have a zone, and if so check how far away the segment is from the base segment
-                for iCurSegmentX = iBaseSegmentX - iMaxSegmentSearchDistance, iBaseSegmentX + iMaxSegmentSearchDistance, 1 do
-                    for iCurSegmentZ = iBaseSegmentZ - iMaxSegmentSearchDistance, iBaseSegmentZ + iMaxSegmentSearchDistance, 1 do
-                        --Does the segment have a land zone assigned, and we haven't just assigned it in this loop?
-                        if tLandSegmentsAssignedZone[iCurSegmentX] and tLandSegmentsAssignedZone[iCurSegmentX][iCurSegmentZ] and (not(tTempZoneTravelDistanceBySegment[iCurSegmentX]) or not(tTempZoneTravelDistanceBySegment[iCurSegmentX][iCurSegmentZ])) then
-                            tCurPosition = GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)
-                            if NavUtils.GetLabel(refPathingTypeLand, tCurPosition) == iPathingGroupWanted then
-
-                                iCurTravelDist = M28Utilities.GetTravelDistanceBetweenPositions(tBasePosition, tCurPosition)
-                                if (iCurTravelDist or 100000) < iDistanceCap then
-                                    --Update the distance between the bsae segment and a segment in iCurZone to the lower of the current distance and any previously recorded distance
-                                    iCurZone = tLandSegmentsAssignedZone[iCurSegmentX][iCurSegmentZ]
-                                    tTempZoneTravelDistanceBySegment[iBaseSegmentX][iBaseSegmentZ][iCurZone] = math.min(iCurTravelDist, (tTempZoneTravelDistanceBySegment[iBaseSegmentX][iBaseSegmentZ][iCurZone] or 100000))
+    --Now that we have recorded land zones for locations with no nearby land zone, repeat the process of going through segments without a zone, but only for segments around those that we have created
+    if M28Utilities.IsTableEmpty(tNewlyCreatedBaseZones) == false then
+        for iBaseSegmentX, tSubtable in tNewlyCreatedBaseZones do
+            for iBaseSegmentZ, bRecorded in tNewlyCreatedBaseZones do
+                tBasePosition = GetPositionFromPathingSegments(iBaseSegmentX, iBaseSegmentZ)
+                iLandPathingGroupWanted = NavUtils.GetLabel(refPathingTypeLand, tBasePosition)
+                if (iLandPathingGroupWanted or 0) > 0 then
+                    for iCurSegmentX = math.max(1, iBaseSegmentX -  iMaxSegmentSearchDistance), math.min(iMaxLandSegmentX, iBaseSegmentX + iMaxSegmentSearchDistance) do
+                        for iCurSegmentZ = math.max(1, iBaseSegmentZ -  iMaxSegmentSearchDistance), math.min(iMaxLandSegmentZ, iBaseSegmentZ + iMaxSegmentSearchDistance) do
+                            if not(tLandZoneBySegment[iCurSegmentX]) or not(tLandZoneBySegment[iCurSegmentX][iCurSegmentZ]) then
+                                tCurPosition = GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)
+                                if NavUtils.GetLabel(refPathingTypeLand, tCurPosition) == iLandPathingGroupWanted then
+                                    RecordTemporaryTravelDistanceForBaseSegment(iCurSegmentX, iCurSegmentZ, iLandPathingGroupWanted, tBasePosition, iMaxSegmentSearchDistance, iDistanceCap)
                                 end
                             end
                         end
                     end
                 end
-
-                if not(tTempZoneTravelDistanceBySegment[iBaseSegmentX][iBaseSegmentZ]) then
-                    if not(tSegmentsWithoutNearbyZone[iBaseSegmentX]) then tSegmentsWithoutNearbyZone[iBaseSegmentX] = {} end
-                    tSegmentsWithoutNearbyZone[iBaseSegmentX][iBaseSegmentZ] = true
-                end
             end
         end
     end
-    --Now go through each segment considered and pick the lowest value
+    --Now go through each segment considered above and pick the lowest value distance as the assigned land zone
     AssignTempSegmentsWithDistance()
 
 
-    --Now cycle through any zones that dont have a segment (recorded in tSegmentsWithoutNearbyZone), and create new zones for them
-    if M28Utilities.IsTableEmpty(tSegmentsWithoutNearbyZone) == false then
-        for iBaseSegmentX, tSubtable in tSegmentsWithoutNearbyZone do
-            for iBaseSegmentZ, bConsidered in tSegmentsWithoutNearbyZone do
-                --Redundancy - make sure we dont have a zone assigned
-                if not(tLandSegmentsAssignedZone[iBaseSegmentX][iBaseSegmentZ]) then
-                    CreateNewLandZoneAndAddNearbyUnassignedSegments(iBaseSegmentX, iBaseSegmentZ)
+    --Redundancy - cycle through any zones that dont have a segment and create new zones for them - hopefully this shouldnt be possible provided we have setup the segment search ranges correctly above
+    for iBaseSegmentX = 1, iMaxLandSegmentX do
+        for iBaseSegmentZ = 1, iMaxLandSegmentZ do
+            if not(tLandZoneBySegment[iBaseSegmentX][iBaseSegmentZ]) then
+                tBasePosition = GetPositionFromPathingSegments(iBaseSegmentX, iBaseSegmentZ)
+                iLandPathingGroupWanted = NavUtils.GetLabel(refPathingTypeLand, tBasePosition)
+                if (iLandPathingGroupWanted or 0) > 1 then
+                    M28Utilities.ErrorHandler('Have an unassigned land zone='..iBaseSegmentX..'-'..iBaseSegmentZ)
+                    CreateNewLandZoneAtSegment(iBaseSegmentX, iBaseSegmentZ)
+                    RecordTemporaryTravelDistanceForBaseSegment(iBaseSegmentX, iBaseSegmentZ, iLandPathingGroupWanted, tBasePosition, iMaxSegmentSearchDistance, iDistanceCap)
+                    AssignTempSegmentsWithDistance()
                 end
             end
         end
     end
-
-
-    M28Utilities.ErrorHandler('To add code')
+    M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
-function SetupLandZones()
-    --Divdeds the map into land pathable zones based on mex placement
-    --Intended to be called at start of game when AI is created (so after siminit and recordresourcepoints has run)
-
+function AssignMexesALandZone()
     local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'SetupLandZones'
+    local sFunctionRef = 'AssignMexesALandZone'
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
-
 
     --Key config values
     local iNearbyMexRange = 40 --Initially mexes will be grouped together based on this
@@ -703,12 +874,46 @@ function SetupLandZones()
         end
     end
 
+    M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
+end
+
+function SetupLandZones()
+    --Divdeds the map into land pathable zones based on mex placement
+    --Intended to be called at start of game when AI is created (so after siminit and recordresourcepoints has run)
+
+    local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'SetupLandZones'
+    M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
+
+
+    AssignMexesALandZone()
+
     AssignSegmentsNearMexesToLandZones()
 
     AssignRemainingSegmentsToLandZones()
 
     --Clear variables that we no longer need:
     tTempZoneTravelDistanceBySegment =  nil
+
+    --If debug enabled, draw land zones
+    if bDebugMessages == true then
+        function GetColourFromLandZoneNumber(iLandZoneRef)
+            local iColour = iLandZoneRef
+            while iColour >= 8 do
+                iColour = iColour / 8
+            end
+            return math.ceil(math.max(1, iColour))
+        end
+        LOG(sFunctionRef..': Will now draw every land zone in every plateau, cycling the colour used')
+        local tLocation, iLandZoneRef
+        for iCurSegmentX = 1, iMaxLandSegmentX do
+            for iCurSegmentZ = 1, iMaxLandSegmentZ do
+                tLocation = GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)
+                iLandZoneRef = tLandZoneBySegment[iCurSegmentX][iCurSegmentZ]
+                M28Utilities.DrawLocation(tLocation, GetColourFromLandZoneNumber(iLandZoneRef), nil, iLandZoneSegmentSize - 0.1)
+            end
+        end
+    end
 
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
