@@ -647,7 +647,7 @@ local function AssignSegmentsNearMexesToLandZones()
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
-function RecordTemporaryTravelDistanceForBaseSegment(iBaseSegmentX, iBaseSegmentZ, iLandPathingGroupWanted, tBasePosition, iMaxSegmentSearchDistance, iDistanceCap, bUseRoughPathingDistance)
+local function RecordTemporaryTravelDistanceForBaseSegment(iBaseSegmentX, iBaseSegmentZ, iLandPathingGroupWanted, tBasePosition, iMaxSegmentSearchDistance, iDistanceCap, bUseRoughPathingDistance)
     --Cycle through segments adjacent to the base segment to see if they have a land zone assigned; if they do, check how far it takes to path to the base segment, and record in the tTempZoneTravelDistanceBySegment any zones that are within the distance cap
     --iMaxSegmentSearchDistance - number of segments to search (will do +/- this)
     --iDistanceCap - will ignore any segment zones further away than this
@@ -736,7 +736,7 @@ function RecordTemporaryTravelDistanceForBaseSegment(iBaseSegmentX, iBaseSegment
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
-function AssignNearbySegmentsToSameLandZone(iBaseSegmentX, iBaseSegmentZ, iLandZone, iSegmentSearchRange, iDistanceCap)
+local function AssignNearbySegmentsToSameLandZone(iBaseSegmentX, iBaseSegmentZ, iLandZone, iSegmentSearchRange, iDistanceCap)
     --Cycles through every segment within iSegmentSearchRange of the base segment X-Z value, and if the pathing distance is within the distance cap iDistanceCap then will assign it to iLandZone
     local iCurTravelDist
     for iCurSegmentX = math.max(1, iBaseSegmentX - iSegmentSearchRange), math.min(iBaseSegmentX + iSegmentSearchRange, iMaxLandSegmentX), 1 do
@@ -753,7 +753,7 @@ function AssignNearbySegmentsToSameLandZone(iBaseSegmentX, iBaseSegmentZ, iLandZ
 end
 
 
-function AssignRemainingSegmentsToLandZones()
+local function AssignRemainingSegmentsToLandZones()
     --Cycles through key points on the map and if they ahve no nearby land zone then creates a new land zone
     --then cycles through every segment on the map and if it has no land zone assigns it to the nearest existing land zone
     local bDebugMessages = true if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -861,7 +861,7 @@ function AssignRemainingSegmentsToLandZones()
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
-function AssignMexesALandZone()
+local function AssignMexesALandZone()
     --Cycles through every mex and assigns it to a new land zone, unless it is near another mex in which case they should both use the same land zone
 
     local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -940,7 +940,7 @@ function AssignMexesALandZone()
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
-function DrawLandZones()
+local function DrawLandZones()
     --For debug use - will draw each land zone in a plateau in a different colour to allow a visual check of how land zones have been created.  Can be called part-way through the process (e.g. to show land zones after the initial mex creation and nearby areas)
     local bDebugMessages = true if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'DrawLandZones'
@@ -974,7 +974,7 @@ function DrawLandZones()
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
-function SetupLandZones()
+local function SetupLandZones()
     --Divides the map into 'land zones' based on mex placement and plateau groups, which is to form the basis for managing land units.  Land zones are areas that can be pathed by land units and are intended to group the map based on how long it takes to travel
     --Intended to be called at start of game when AI is created (so after siminit and recordresourcepoints has run), and after plateaus have been generated
     --Broadly, will group nearby mexes together in the same land zone, along with the nearby area; then will look for any places on the map with no nearby land zone and create a zone for these, and then go through the whole map and ensure every land pathable area has an assigned land zone
@@ -1042,7 +1042,7 @@ function IsUnderwater(tPosition, bReturnSurfaceHeightInstead, iOptionalAmountToB
     end
 end
 
-function GetMapWaterHeight()
+local function GetMapWaterHeight()
     --Updates iMapWaterHeight to the water height on the map (if the map has water)
     local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetMapWaterHeight'
@@ -1083,7 +1083,7 @@ end
 
 
 
-function TempTest()
+local function TempTest()
     --used to temporarily test map related functionality
 
     --[[
