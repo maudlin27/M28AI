@@ -73,12 +73,17 @@ subrefLZReclaimMass = 'ReclaimMass' --against tLandZonesByPlateau[iPlateau][iLZ]
 tLandZoneBySegment = {} --[x][z] should be the x and z segments baed on iLandZoneSegmentSize, and should return the land zone number, or nil if there is none
 tTempZoneTravelDistanceBySegment = {} --[x][z] should be the x and z segments, used to temporarily store the distance values for segments at start of the game when setting up land zones
 
+---@param tPosition table
+---@return number, number
 function GetPathingSegmentFromPosition(tPosition)
     --The map is divided into equal sized square segments with each segment allocated to a land zone; this can be used to get the segment X and Z references
     --tPosition shoudl be {x,y,z} format, although y value is ignored)
     return math.floor( (tPosition[1] - rMapPlayableArea[1]) / iLandZoneSegmentSize) + 1, math.floor((tPosition[3] - rMapPlayableArea[2]) / iLandZoneSegmentSize) + 1
 end
 
+---@param iSegmentX number
+---@param iSegmentZ number
+---@return table
 function GetPositionFromPathingSegments(iSegmentX, iSegmentZ)
     --Returns the position/location of land segment X and Z references iSegmentX and iSegmentZ (i.e. the map is divided into equal sized square segments, with each segment allocated to a land zone)
     local x = iSegmentX * iLandZoneSegmentSize - iLandZoneSegmentSize * 0.5 + rMapPlayableArea[1]
@@ -86,6 +91,9 @@ function GetPositionFromPathingSegments(iSegmentX, iSegmentZ)
     return {x, GetTerrainHeight(x, z), z}
 end
 
+---@param tPosition table
+---@param bOptionalShouldBePathable boolean
+---@return number, number
 function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBePathable)
     --Returns the plateau reference of tPosition (where tPosition is {x,y,z}), and the Land zone reference for that position
     --returns nil if cant find valid plateau or land zone
@@ -130,12 +138,17 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
     return iPlateauGroup, iLandZone
 end
 
+---@param tLocation table
+---@return number, number
 function GetReclaimSegmentsFromLocation(tLocation)
     --Returns the reclaim segment X and Z values for a given location on the map (i.e. map is divided into reclaim segment squares which are a different size to land zone segments)
     --tLocation should be in the {x,y,z} format, although y value is ignored
     return math.ceil(tLocation[1] / iReclaimSegmentSizeX), math.ceil(tLocation[3] / iReclaimSegmentSizeZ)
 end
 
+---@param iReclaimSegmentX number
+---@param iReclaimSegmentZ number
+---@return table
 function GetReclaimLocationFromSegment(iReclaimSegmentX, iReclaimSegmentZ)
     --If given the reclaim segment X and Z values, then will convert this into an {x,y,z} position
     --e.g. segment (1,1) will be 0 to ReclaimSegmentSizeX and 0 to ReclaimSegmentSizeZ in size
@@ -178,6 +191,10 @@ local function SetupPlayableAreaAndSegmentSizes()
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
+---@param sResourceType string
+---@param x number
+---@param y number
+---@param z number
 function RecordResourcePoint(sResourceType,x,y,z,size)
     --called by hook into simInit, more reliable method of figuring out if have adaptive map than using markers, as not all mass markers may have mexes generated on an adaptive map
     --Whenever a resource location is created in the map, this is called, and will record the resource location into a table of mex points (tMassPoints) and hydro points (tHydroPoints) for referencing in later code
@@ -195,6 +212,9 @@ function RecordResourcePoint(sResourceType,x,y,z,size)
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
+---@param sPathing string
+---@param tLocation table
+---@return number
 function GetSegmentGroupOfLocation(sPathing, tLocation)
     --Included for backwards compatibility with M27 logic; better to use the below line directly
     --Returns a reference number based on sPathing that groups areas based on whether they can path to each other (so if two locations have the same reference, they can path to each other)
