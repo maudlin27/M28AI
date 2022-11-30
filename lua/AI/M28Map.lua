@@ -7,6 +7,7 @@
 local M28Profiling = import('/mods/M28AI/lua/AI/M28Profiling.lua')
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 local NavUtils = import("/lua/sim/navutils.lua")
+local FAFColour = import("/lua/shared/color.lua")
 
 --Pathing types
 --NavLayers 'Land' | 'Water' | 'Amphibious' | 'Hover' | 'Air'
@@ -73,12 +74,17 @@ subrefLZReclaimMass = 'ReclaimMass' --against tLandZonesByPlateau[iPlateau][iLZ]
 tLandZoneBySegment = {} --[x][z] should be the x and z segments baed on iLandZoneSegmentSize, and should return the land zone number, or nil if there is none
 tTempZoneTravelDistanceBySegment = {} --[x][z] should be the x and z segments, used to temporarily store the distance values for segments at start of the game when setting up land zones
 
+---@param tPosition table
+---@return number, number
 function GetPathingSegmentFromPosition(tPosition)
     --The map is divided into equal sized square segments with each segment allocated to a land zone; this can be used to get the segment X and Z references
     --tPosition shoudl be {x,y,z} format, although y value is ignored)
     return math.floor( (tPosition[1] - rMapPlayableArea[1]) / iLandZoneSegmentSize) + 1, math.floor((tPosition[3] - rMapPlayableArea[2]) / iLandZoneSegmentSize) + 1
 end
 
+---@param iSegmentX number
+---@param iSegmentZ number
+---@return table
 function GetPositionFromPathingSegments(iSegmentX, iSegmentZ)
     --Returns the position/location of land segment X and Z references iSegmentX and iSegmentZ (i.e. the map is divided into equal sized square segments, with each segment allocated to a land zone)
     local x = iSegmentX * iLandZoneSegmentSize - iLandZoneSegmentSize * 0.5 + rMapPlayableArea[1]
@@ -86,6 +92,9 @@ function GetPositionFromPathingSegments(iSegmentX, iSegmentZ)
     return {x, GetTerrainHeight(x, z), z}
 end
 
+---@param tPosition table
+---@param bOptionalShouldBePathable boolean
+---@return number, number
 function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBePathable)
     --Returns the plateau reference of tPosition (where tPosition is {x,y,z}), and the Land zone reference for that position
     --returns nil if cant find valid plateau or land zone
@@ -130,12 +139,17 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
     return iPlateauGroup, iLandZone
 end
 
+---@param tLocation table
+---@return number, number
 function GetReclaimSegmentsFromLocation(tLocation)
     --Returns the reclaim segment X and Z values for a given location on the map (i.e. map is divided into reclaim segment squares which are a different size to land zone segments)
     --tLocation should be in the {x,y,z} format, although y value is ignored
     return math.ceil(tLocation[1] / iReclaimSegmentSizeX), math.ceil(tLocation[3] / iReclaimSegmentSizeZ)
 end
 
+---@param iReclaimSegmentX number
+---@param iReclaimSegmentZ number
+---@return table
 function GetReclaimLocationFromSegment(iReclaimSegmentX, iReclaimSegmentZ)
     --If given the reclaim segment X and Z values, then will convert this into an {x,y,z} position
     --e.g. segment (1,1) will be 0 to ReclaimSegmentSizeX and 0 to ReclaimSegmentSizeZ in size
@@ -145,7 +159,7 @@ function GetReclaimLocationFromSegment(iReclaimSegmentX, iReclaimSegmentZ)
     return {iX, GetSurfaceHeight(iX, iZ), iZ}
 end
 
-function SetupPlayableAreaAndSegmentSizes()
+local function SetupPlayableAreaAndSegmentSizes()
     --Sets up key values needed to divide the map up into segments (small squares) for both land zone segments and reclaim segments - should be called as one of the first pieces of code
     local bDebugMessages = true if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'DetermineReclaimAndLandSegmentSizes'
@@ -178,6 +192,10 @@ function SetupPlayableAreaAndSegmentSizes()
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
+---@param sResourceType string
+---@param x number
+---@param y number
+---@param z number
 function RecordResourcePoint(sResourceType,x,y,z,size)
     --called by hook into simInit, more reliable method of figuring out if have adaptive map than using markers, as not all mass markers may have mexes generated on an adaptive map
     --Whenever a resource location is created in the map, this is called, and will record the resource location into a table of mex points (tMassPoints) and hydro points (tHydroPoints) for referencing in later code
@@ -195,6 +213,9 @@ function RecordResourcePoint(sResourceType,x,y,z,size)
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
+---@param sPathing string
+---@param tLocation table
+---@return number
 function GetSegmentGroupOfLocation(sPathing, tLocation)
     --Included for backwards compatibility with M27 logic; better to use the below line directly
     --Returns a reference number based on sPathing that groups areas based on whether they can path to each other (so if two locations have the same reference, they can path to each other)
@@ -202,7 +223,7 @@ function GetSegmentGroupOfLocation(sPathing, tLocation)
     return NavUtils.GetLabel(sPathing, tLocation)
 end
 
-function RecordMexForPathingGroup()
+local function RecordMexForPathingGroup()
     --Cycles through every mex on the map, and includes it in a table of mexes that is grouped by pathing type, so in future we can easily cycle through mexes for a particular pathing type
     --e.g. after running this, can use tMexByPathingAndGrouping[sPathing][iPathingGroup] where sPathing is the refPathingType variable, and ipathingGroup is the NavUtils.GetLabel(sPathing, tLocation) reference
     local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -259,7 +280,7 @@ function RecordMexForPathingGroup()
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
-function RecordAllPlateaus()
+local function RecordAllPlateaus()
     --Records any plateaus that contain mexes, along with info on the plateau
     --tAllPlateaus[iSegmentGroup] can be used to then reference subtables with further information on the plateau, where iSegmentGroup is the result of NavUtils.GetLabel(refPathingTypeAmphibious, {x,y,z})
 
@@ -462,7 +483,8 @@ function RecordAllPlateaus()
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
-function AddNewLandZoneReferenceToPlateau(iPlateauGroup)
+---@param iPlateauGroup number
+local function AddNewLandZoneReferenceToPlateau(iPlateauGroup)
     --Adds a new land zone reference number to iPlateauGroup, assumes that information about the zone will be added later
     --Intended to be called as part of wider code for recording a land zone, e.g. from CreateNewLandZoneAtSegment and similar functions
         --iPlateauGroup is the result of NavUtils.GetLabel(refPathingTypeAmphibious, tLocation)
@@ -492,8 +514,9 @@ function AddNewLandZoneReferenceToPlateau(iPlateauGroup)
 end
 
 
-
-function CreateNewLandZoneAtSegment(iBaseSegmentX, iBaseSegmentZ)
+---@param iBaseSegmentX number
+---@param iBaseSegmentZ number
+local function CreateNewLandZoneAtSegment(iBaseSegmentX, iBaseSegmentZ)
     --Creates a new land zone reference at the land segment given by iBaseSegmentX-iBaseSegmentZ (includes adding new land zone reference to the plateau group that these segments are part of)
     --iBaseSegmentX and Z are the land segment X and Z references
     local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -513,7 +536,11 @@ function CreateNewLandZoneAtSegment(iBaseSegmentX, iBaseSegmentZ)
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
-function AddMexToLandZone(iPlateauGroup, iOptionalLandZone, iPlateauMexRef, tTempLandZoneByMexRef)
+---@param iPlateauGroup number
+---@param iOptionalLandZone number
+---@param iPlateauMexRef number
+---@param tTempLandZoneByMexRef table
+local function AddMexToLandZone(iPlateauGroup, iOptionalLandZone, iPlateauMexRef, tTempLandZoneByMexRef)
     --Determine the land zone if it isnt specified
         --iPlateauGroup is the result of NavUtils.GetLabel(refPathingTypeAmphibious, tLocation)
         --iOptionalLandZone - if not specified, then this will create a new land zone for iPlateauGroup and use htis reference
@@ -543,7 +570,7 @@ function AddMexToLandZone(iPlateauGroup, iOptionalLandZone, iPlateauMexRef, tTem
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
-function AssignTempSegmentsWithDistance()
+local function AssignTempSegmentsWithDistance()
     --Used to go through the temporary table tTempZoneTravelDistanceBySegment and assign any segments within here to the nearest land zone
     --i.e. Assumes tTempZoneTravelDistanceBySegment has been setup and is a table that has [SegmentX][SegmentZ] values that returns a table with [zone] as the key, which in turn returns the pathing distance from SegmentX-SegmentZ for each zone
     --Goes through all the distance values in tTempZoneTravelDistanceBySegment and picks the lowest distance, and then assigns the X+Z segment to land zone that corresponds to that distance, then clears the table tTempZoneTravelDistanceBySegment
@@ -584,7 +611,7 @@ function AssignTempSegmentsWithDistance()
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
-function AssignSegmentsNearMexesToLandZones()
+local function AssignSegmentsNearMexesToLandZones()
     --Assigns every land pathable segment near a mex to that mex's land zone (where mexes from multiple zones are nearby then it picks the closest one)
 
     local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -647,7 +674,14 @@ function AssignSegmentsNearMexesToLandZones()
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
-function RecordTemporaryTravelDistanceForBaseSegment(iBaseSegmentX, iBaseSegmentZ, iLandPathingGroupWanted, tBasePosition, iMaxSegmentSearchDistance, iDistanceCap, bUseRoughPathingDistance)
+---@param iBaseSegmentX number
+---@param iBaseSegmentZ number
+---@param iLandPathingGroupWanted number
+---@param tBasePosition table
+---@param iMaxSegmentSearchDistance number
+---@param iDistanceCap number
+---@param bUseRoughPathingDistance boolean
+local function RecordTemporaryTravelDistanceForBaseSegment(iBaseSegmentX, iBaseSegmentZ, iLandPathingGroupWanted, tBasePosition, iMaxSegmentSearchDistance, iDistanceCap, bUseRoughPathingDistance)
     --Cycle through segments adjacent to the base segment to see if they have a land zone assigned; if they do, check how far it takes to path to the base segment, and record in the tTempZoneTravelDistanceBySegment any zones that are within the distance cap
     --iMaxSegmentSearchDistance - number of segments to search (will do +/- this)
     --iDistanceCap - will ignore any segment zones further away than this
@@ -736,7 +770,12 @@ function RecordTemporaryTravelDistanceForBaseSegment(iBaseSegmentX, iBaseSegment
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
-function AssignNearbySegmentsToSameLandZone(iBaseSegmentX, iBaseSegmentZ, iLandZone, iSegmentSearchRange, iDistanceCap)
+---@param iBaseSegmentX number
+---@param iBaseSegmentZ number
+---@param iLandZone number
+---@param iSegmentSearchRange number
+---@param iDistanceCap number
+local function AssignNearbySegmentsToSameLandZone(iBaseSegmentX, iBaseSegmentZ, iLandZone, iSegmentSearchRange, iDistanceCap)
     --Cycles through every segment within iSegmentSearchRange of the base segment X-Z value, and if the pathing distance is within the distance cap iDistanceCap then will assign it to iLandZone
     local iCurTravelDist
     for iCurSegmentX = math.max(1, iBaseSegmentX - iSegmentSearchRange), math.min(iBaseSegmentX + iSegmentSearchRange, iMaxLandSegmentX), 1 do
@@ -753,7 +792,7 @@ function AssignNearbySegmentsToSameLandZone(iBaseSegmentX, iBaseSegmentZ, iLandZ
 end
 
 
-function AssignRemainingSegmentsToLandZones()
+local function AssignRemainingSegmentsToLandZones()
     --Cycles through key points on the map and if they ahve no nearby land zone then creates a new land zone
     --then cycles through every segment on the map and if it has no land zone assigns it to the nearest existing land zone
     local bDebugMessages = true if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -861,7 +900,7 @@ function AssignRemainingSegmentsToLandZones()
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
-function AssignMexesALandZone()
+local function AssignMexesALandZone()
     --Cycles through every mex and assigns it to a new land zone, unless it is near another mex in which case they should both use the same land zone
 
     local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -940,20 +979,23 @@ function AssignMexesALandZone()
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
-function DrawLandZones()
+local function DrawLandZones()
     --For debug use - will draw each land zone in a plateau in a different colour to allow a visual check of how land zones have been created.  Can be called part-way through the process (e.g. to show land zones after the initial mex creation and nearby areas)
     local bDebugMessages = true if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'DrawLandZones'
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
 
-    local tColourTable = M28Utilities.GenerateDistinctColorTable(100)
+    --Create fixed colours per ref
+    local iUniqueColourCount = 30
+    local tColourTable = M28Utilities.GenerateUniqueColourTable(iUniqueColourCount)
 
     --Subfunction which assigns a unique colour to each land zone
     function GetColourFromLandZoneNumber(iLandZoneRef)
         local iColour = iLandZoneRef
-        while iColour >= 100 do
-            iColour = iColour - 100
+        while iColour >= iUniqueColourCount do
+            iColour = iColour - iUniqueColourCount
         end
+
         return tColourTable[iColour]
     end
 
@@ -974,7 +1016,7 @@ function DrawLandZones()
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
-function SetupLandZones()
+local function SetupLandZones()
     --Divides the map into 'land zones' based on mex placement and plateau groups, which is to form the basis for managing land units.  Land zones are areas that can be pathed by land units and are intended to group the map based on how long it takes to travel
     --Intended to be called at start of game when AI is created (so after siminit and recordresourcepoints has run), and after plateaus have been generated
     --Broadly, will group nearby mexes together in the same land zone, along with the nearby area; then will look for any places on the map with no nearby land zone and create a zone for these, and then go through the whole map and ensure every land pathable area has an assigned land zone
@@ -1023,6 +1065,10 @@ function SetupLandZones()
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
+---@param tPosition table
+---@param bReturnSufaceHeightInstead boolean
+---@param iOptionalAmountToBeUnderwatner number
+---@return boolean
 function IsUnderwater(tPosition, bReturnSurfaceHeightInstead, iOptionalAmountToBeUnderwater)
     --Returns true if tPosition underwater, otherwise returns false
     --bReturnSurfaceHeightInstead:: Return the actual height at which underwater, instead of true/false
@@ -1042,7 +1088,7 @@ function IsUnderwater(tPosition, bReturnSurfaceHeightInstead, iOptionalAmountToB
     end
 end
 
-function GetMapWaterHeight()
+local function GetMapWaterHeight()
     --Updates iMapWaterHeight to the water height on the map (if the map has water)
     local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetMapWaterHeight'
@@ -1078,34 +1124,6 @@ function GetMapWaterHeight()
     end
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, iWaterCount='..iWaterCount..'; iMapWaterHeight='..iMapWaterHeight) end
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
-end
-
-
-
-
-function TempTest()
-    --used to temporarily test map related functionality
-
-    --[[
-    --Open palms - draw line between 2 of the mexes in the bottom left part of the main (land pathable fro mbase) area:
-    local tStart = {180.5, 15.001953125, 429.5}
-    local tEnd = {199.5, 14.314453125, 459.5}
-    M28Utilities.DrawLocation(tStart, 2)
-    M28Utilities.DrawLocation(tEnd, 3)
-    local tFullPath, iPathSize, iDistance = NavUtils.PathTo('Land', tStart, tEnd, nil)
-    for iValue = 1, 10 do
-        local sRandomColour = M28Utilities.GrabRandomDistinctColour(1)
-        LOG('Will GrabRandomDistinctColour,='..sRandomColour)
-        local tNewLocation = {tStart[1] + (iValue) * 3, 0, tStart[3] + (iValue) * 3}
-        tNewLocation[2] = GetSurfaceHeight(tNewLocation[1], tNewLocation[3])
-
-        M28Utilities.DrawLocation( tNewLocation, sRandomColour )
-        --M28Utilities.DrawPath(tFullPath, sRandomColour, nil)
-    end
-
-    M28Utilities.DrawPath(tFullPath, 1, nil)--]]
-
-    M28Utilities.ErrorHandler('Disable for final') --In case forget to turn off this function
 end
 
 function SetupMap()
