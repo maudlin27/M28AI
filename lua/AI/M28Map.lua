@@ -7,6 +7,7 @@
 local M28Profiling = import('/mods/M28AI/lua/AI/M28Profiling.lua')
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 local NavUtils = import("/lua/sim/navutils.lua")
+local FAFColour = import("/lua/shared/color.lua")
 
 --Pathing types
 --NavLayers 'Land' | 'Water' | 'Amphibious' | 'Hover' | 'Air'
@@ -984,14 +985,17 @@ local function DrawLandZones()
     local sFunctionRef = 'DrawLandZones'
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
 
-    local tColourTable = M28Utilities.GenerateDistinctColorTable(100)
+    --Create fixed colours per ref
+    local iUniqueColourCount = 30
+    local tColourTable = M28Utilities.GenerateUniqueColourTable(iUniqueColourCount)
 
     --Subfunction which assigns a unique colour to each land zone
     function GetColourFromLandZoneNumber(iLandZoneRef)
         local iColour = iLandZoneRef
-        while iColour >= 100 do
-            iColour = iColour - 100
+        while iColour >= iUniqueColourCount do
+            iColour = iColour - iUniqueColourCount
         end
+
         return tColourTable[iColour]
     end
 
@@ -1120,34 +1124,6 @@ local function GetMapWaterHeight()
     end
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, iWaterCount='..iWaterCount..'; iMapWaterHeight='..iMapWaterHeight) end
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
-end
-
-
-
-
-local function TempTest()
-    --used to temporarily test map related functionality
-
-    --[[
-    --Open palms - draw line between 2 of the mexes in the bottom left part of the main (land pathable fro mbase) area:
-    local tStart = {180.5, 15.001953125, 429.5}
-    local tEnd = {199.5, 14.314453125, 459.5}
-    M28Utilities.DrawLocation(tStart, 2)
-    M28Utilities.DrawLocation(tEnd, 3)
-    local tFullPath, iPathSize, iDistance = NavUtils.PathTo('Land', tStart, tEnd, nil)
-    for iValue = 1, 10 do
-        local sRandomColour = M28Utilities.GrabRandomDistinctColour(1)
-        LOG('Will GrabRandomDistinctColour,='..sRandomColour)
-        local tNewLocation = {tStart[1] + (iValue) * 3, 0, tStart[3] + (iValue) * 3}
-        tNewLocation[2] = GetSurfaceHeight(tNewLocation[1], tNewLocation[3])
-
-        M28Utilities.DrawLocation( tNewLocation, sRandomColour )
-        --M28Utilities.DrawPath(tFullPath, sRandomColour, nil)
-    end
-
-    M28Utilities.DrawPath(tFullPath, 1, nil)--]]
-
-    M28Utilities.ErrorHandler('Disable for final') --In case forget to turn off this function
 end
 
 function SetupMap()

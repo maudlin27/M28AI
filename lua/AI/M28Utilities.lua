@@ -263,112 +263,23 @@ function GetDistanceBetweenPositions(tPosition1, tPosition2)
     return VDist2(tPosition1[1], tPosition1[3], tPosition2[1], tPosition2[3])
 end
 
---Thanks to Relent0r and chp2001 for the below
-GenerateDistinctColorTable = function(num)
-    local function factorial(n,min)
-        if n>min and n>1 then
-            return n*factorial(n-1)
-        else
-            return n
-        end
+function GenerateUniqueColourTable(iTableSize)
+    local FAFColour = import("/lua/shared/color.lua")
+    local tColourTable = {}
+    local tInterval = {{0.13, 0.23, 0.37}, {0.13,0.37,0.23},{0.23,0.13,.37},{0.23,0.37,0.13},{0.37,0.13,0.23},{0.37,0.23,0.13}}
+    local tiIntervalToUse = tInterval[math.random(table.getn(tInterval))]
+    local iCurR = 0
+    local iCurG = 0
+    local iCurB = 0
+    for iEntry = 1, iTableSize do
+        iCurR = iCurR + tiIntervalToUse[1]
+        if iCurR > 1 then iCurR = iCurR - 1 end
+        iCurG = iCurG + tiIntervalToUse[2]
+        if iCurG > 1 then iCurG = iCurG - 1 end
+        iCurB = iCurB + tiIntervalToUse[3]
+        if iCurB > 1 then iCurB = iCurB - 1 end
+        tColourTable[iEntry] = FAFColour.ColorRGB(iCurR, iCurG, iCurB, nil)
     end
-    local function combintoid(a,b,c)
-        local o=tostring(0)
-        local tab={a,b,c}
-        local tabid={}
-        for k,v in tab do
-            local n=v
-            tabid[k]=tostring(v)
-            while n<1000 do
-                n=n*10
-                tabid[k]=o..tabid[k]
-            end
-        end
-        return tabid[1]..tabid[2]..tabid[3]
-    end
-    local i=0
-    local n=1
-    while i<num do
-        n=n+1
-        i=n*n*n-n
-    end
-    local ViableValues={}
-    for x=0,256,256/(n-1) do
-        table.insert(ViableValues,ToColour(0,256,x/256))
-    end
-    local colortable={}
-    local combinations={}
-    --[[for k,v in ViableValues do
-        table.insert(colortable,v..v..v)
-        combinations[combintoid(k,k,k)]=1
-    end]]
-    local max=ViableValues[table.getn(ViableValues)]
-    local min=ViableValues[1]
-    local primaries={min..min..min,max..max..min,max..min..max,min..max..max,max..min..min,min..max..min,min..min..max,max..max..max}
-    combinations[combintoid(max,max,min)]=1
-    combinations[combintoid(max,min,max)]=1
-    combinations[combintoid(min,max,max)]=1
-    combinations[combintoid(max,min,min)]=1
-    combinations[combintoid(min,max,min)]=1
-    combinations[combintoid(min,min,max)]=1
-    combinations[combintoid(max,max,max)]=1
-    combinations[combintoid(min,min,min)]=1
-    for a,d in ViableValues do
-        for b,e in ViableValues do
-            for c,f in ViableValues do
-                if not combinations[combintoid(a,b,c)] and not (a==b and b==c) then
-                    table.insert(colortable,d..e..f)
-                    combinations[combintoid(a,b,c)]=1
-                end
-            end
-        end
-    end
-    for _,v in primaries do
-        table.insert(colortable,v)
-    end
-    return colortable
-end
+    return tColourTable
 
-
-GrabRandomDistinctColour = function(num)
-    --Thanks to Relent0r and chp2001 for the below
-    --[[Example of how to create random colour string refs such that have 100 unique colours to choose from:
-    local tColourTable = M28Utilities.GenerateDistinctColorTable(100)
-    function GetUniqueColour(iNumberRef)
-        local iColour = iLandZoneRef
-        while iColour >= 100 do
-            iColour = iColour - 100
-        end
-        return tColourTable[iColour]
-    end
-    --]]
-
-    local output=GenerateDistinctColorTable(num)
-    return output[math.random(table.getn(output))]
-end
-
-ToColour = function(min,max,ratio)
-    local ToBase16 = function(num)
-        if num<10 then
-            return tostring(num)
-        elseif num==10 then
-            return 'a'
-        elseif num==11 then
-            return 'b'
-        elseif num==12 then
-            return 'c'
-        elseif num==13 then
-            return 'd'
-        elseif num==14 then
-            return 'e'
-        else
-            return 'f'
-        end
-    end
-    local baseones=0
-    local basetwos=0
-    local numinit=math.abs(math.ceil((max-min)*ratio+min))
-    basetwos=math.floor(numinit/16)
-    baseones=numinit-basetwos*16
-    return ToBase16(basetwos)..ToBase16(baseones)
 end
