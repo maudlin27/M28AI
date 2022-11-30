@@ -482,6 +482,7 @@ local function RecordAllPlateaus()
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
+---@param iPlateauGroup number
 local function AddNewLandZoneReferenceToPlateau(iPlateauGroup)
     --Adds a new land zone reference number to iPlateauGroup, assumes that information about the zone will be added later
     --Intended to be called as part of wider code for recording a land zone, e.g. from CreateNewLandZoneAtSegment and similar functions
@@ -512,7 +513,8 @@ local function AddNewLandZoneReferenceToPlateau(iPlateauGroup)
 end
 
 
-
+---@param iBaseSegmentX number
+---@param iBaseSegmentZ number
 local function CreateNewLandZoneAtSegment(iBaseSegmentX, iBaseSegmentZ)
     --Creates a new land zone reference at the land segment given by iBaseSegmentX-iBaseSegmentZ (includes adding new land zone reference to the plateau group that these segments are part of)
     --iBaseSegmentX and Z are the land segment X and Z references
@@ -533,6 +535,10 @@ local function CreateNewLandZoneAtSegment(iBaseSegmentX, iBaseSegmentZ)
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
+---@param iPlateauGroup number
+---@param iOptionalLandZone number
+---@param iPlateauMexRef number
+---@param tTempLandZoneByMexRef table
 local function AddMexToLandZone(iPlateauGroup, iOptionalLandZone, iPlateauMexRef, tTempLandZoneByMexRef)
     --Determine the land zone if it isnt specified
         --iPlateauGroup is the result of NavUtils.GetLabel(refPathingTypeAmphibious, tLocation)
@@ -667,6 +673,13 @@ local function AssignSegmentsNearMexesToLandZones()
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
+---@param iBaseSegmentX number
+---@param iBaseSegmentZ number
+---@param iLandPathingGroupWanted number
+---@param tBasePosition table
+---@param iMaxSegmentSearchDistance number
+---@param iDistanceCap number
+---@param bUseRoughPathingDistance boolean
 local function RecordTemporaryTravelDistanceForBaseSegment(iBaseSegmentX, iBaseSegmentZ, iLandPathingGroupWanted, tBasePosition, iMaxSegmentSearchDistance, iDistanceCap, bUseRoughPathingDistance)
     --Cycle through segments adjacent to the base segment to see if they have a land zone assigned; if they do, check how far it takes to path to the base segment, and record in the tTempZoneTravelDistanceBySegment any zones that are within the distance cap
     --iMaxSegmentSearchDistance - number of segments to search (will do +/- this)
@@ -756,6 +769,11 @@ local function RecordTemporaryTravelDistanceForBaseSegment(iBaseSegmentX, iBaseS
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
+---@param iBaseSegmentX number
+---@param iBaseSegmentZ number
+---@param iLandZone number
+---@param iSegmentSearchRange number
+---@param iDistanceCap number
 local function AssignNearbySegmentsToSameLandZone(iBaseSegmentX, iBaseSegmentZ, iLandZone, iSegmentSearchRange, iDistanceCap)
     --Cycles through every segment within iSegmentSearchRange of the base segment X-Z value, and if the pathing distance is within the distance cap iDistanceCap then will assign it to iLandZone
     local iCurTravelDist
@@ -1043,6 +1061,10 @@ local function SetupLandZones()
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
+---@param tPosition table
+---@param bReturnSufaceHeightInstead boolean
+---@param iOptionalAmountToBeUnderwatner number
+---@return boolean
 function IsUnderwater(tPosition, bReturnSurfaceHeightInstead, iOptionalAmountToBeUnderwater)
     --Returns true if tPosition underwater, otherwise returns false
     --bReturnSurfaceHeightInstead:: Return the actual height at which underwater, instead of true/false
