@@ -647,51 +647,7 @@ local function AssignSegmentsNearMexesToLandZones()
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
 end
 
---Below sub-function will consider the segment iCurSegmentX-iCurSegmentZ, if it has a land zone assigned then will check how far it is to the base segment and if it satisfies the requirements then will record in the temporary table of distances
-local function CheckAndRecordTemporaryDistanceForCurSegment(iCurSegmentX, iCurSegmentZ, iBaseSegmentX, iBaseSegmentZ, tBasePosition, iLandPathingGroupWanted, iAbortThreshold, iDistanceCap, bUseRoughPathingDistance)
-    local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'CheckAndRecordTemporaryDistanceForCurSegment'
-    M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
-
-    local tCurPosition, iCurTravelDist, iCurZone
-    local bAbort
-
-    --Does the segment have a land zone assigned, and we haven't just assigned it in this loop?
-    if bDebugMessages == true then
-        LOG(sFunctionRef..': Considering curSegmentX-z='..iCurSegmentX..'-'..iCurSegmentZ..'; Will note if we have a landzone for this')
-        if tLandZoneBySegment[iCurSegmentX] then LOG('tLandZoneBySegment[iCurSegmentX][iCurSegmentZ]='..repru(tLandZoneBySegment[iCurSegmentX][iCurSegmentZ]))
-        else
-            LOG('Dont have any land zone for anything with semgnet X='..iCurSegmentX)
-        end
-    end
-    if tLandZoneBySegment[iCurSegmentX] and tLandZoneBySegment[iCurSegmentX][iCurSegmentZ] then --and (not(tTempZoneTravelDistanceBySegment[iCurSegmentX]) or not(tTempZoneTravelDistanceBySegment[iCurSegmentX][iCurSegmentZ])) then
-        tCurPosition = GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)
-        if bDebugMessages == true then LOG(sFunctionRef..': Have a land zone for CurSegmentX-Z'..iCurSegmentX..'-'..iCurSegmentZ..'; Pathing label of this segment='..NavUtils.GetLabel(refPathingTypeLand, tCurPosition)..'; iLandPathingGroupWanted='..iLandPathingGroupWanted) end
-        if NavUtils.GetLabel(refPathingTypeLand, tCurPosition) == iLandPathingGroupWanted then
-
-            if bUseRoughPathingDistance then
-                iCurTravelDist = M28Utilities.GetApproxTravelDistanceBetweenPositions(tBasePosition, tCurPosition)
-            else
-                iCurTravelDist = M28Utilities.GetTravelDistanceBetweenPositions(tBasePosition, tCurPosition)
-            end
-            if bDebugMessages == true then LOG(sFunctionRef..': iCurTravelDist='..iCurTravelDist) end
-            if (iCurTravelDist or 100000) < iDistanceCap then
-
-                --Update the distance between the bsae segment and a segment in iCurZone to the lower of the current distance and any previously recorded distance
-                iCurZone = tLandZoneBySegment[iCurSegmentX][iCurSegmentZ]
-                if bDebugMessages == true then LOG(sFunctionRef..': We have a segment nearby with a land zone, iCurZone='..iCurZone..'; will record iCurTravelDist of '..iCurTravelDist..'; against the base segment') end
-                tTempZoneTravelDistanceBySegment[iBaseSegmentX][iBaseSegmentZ][iCurZone] = math.min(iCurTravelDist, (tTempZoneTravelDistanceBySegment[iBaseSegmentX][iBaseSegmentZ][iCurZone] or 100000))
-                if iCurTravelDist <= iAbortThreshold then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Found a really close segment so will stop looking for more') end
-                    bAbort = true
-                end
-            end
-        end
-    end
-    M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
-end
-
-local function RecordTemporaryTravelDistanceForBaseSegment(iBaseSegmentX, iBaseSegmentZ, iLandPathingGroupWanted, tBasePosition, iMaxSegmentSearchDistance, iDistanceCap, bUseRoughPathingDistance)
+function RecordTemporaryTravelDistanceForBaseSegment(iBaseSegmentX, iBaseSegmentZ, iLandPathingGroupWanted, tBasePosition, iMaxSegmentSearchDistance, iDistanceCap, bUseRoughPathingDistance)
     --Cycle through segments adjacent to the base segment to see if they have a land zone assigned; if they do, check how far it takes to path to the base segment, and record in the tTempZoneTravelDistanceBySegment any zones that are within the distance cap
     --iMaxSegmentSearchDistance - number of segments to search (will do +/- this)
     --iDistanceCap - will ignore any segment zones further away than this
@@ -709,7 +665,41 @@ local function RecordTemporaryTravelDistanceForBaseSegment(iBaseSegmentX, iBaseS
 
     local iAbortThreshold --This is used so we can stop looking through nearby segments if we find one that is likely to be the closest we will find
 
+    --Below sub-function will consider the segment iCurSegmentX-iCurSegmentZ, if it has a land zone assigned then will check how far it is to the base segment and if it satisfies the requirements then will record in the temporary table of distances
+    function CheckAndRecordTemporaryDistanceForCurSegment(iCurSegmentX, iCurSegmentZ)
+        --Does the segment have a land zone assigned, and we haven't just assigned it in this loop?
+        if bDebugMessages == true then
+            LOG(sFunctionRef..': Considering curSegmentX-z='..iCurSegmentX..'-'..iCurSegmentZ..'; Will note if we have a landzone for this')
+            if tLandZoneBySegment[iCurSegmentX] then LOG('tLandZoneBySegment[iCurSegmentX][iCurSegmentZ]='..repru(tLandZoneBySegment[iCurSegmentX][iCurSegmentZ]))
+            else
+                LOG('Dont have any land zone for anything with semgnet X='..iCurSegmentX)
+            end
+        end
+        if tLandZoneBySegment[iCurSegmentX] and tLandZoneBySegment[iCurSegmentX][iCurSegmentZ] then --and (not(tTempZoneTravelDistanceBySegment[iCurSegmentX]) or not(tTempZoneTravelDistanceBySegment[iCurSegmentX][iCurSegmentZ])) then
+            tCurPosition = GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)
+            if bDebugMessages == true then LOG(sFunctionRef..': Have a land zone for CurSegmentX-Z'..iCurSegmentX..'-'..iCurSegmentZ..'; Pathing label of this segment='..NavUtils.GetLabel(refPathingTypeLand, tCurPosition)..'; iLandPathingGroupWanted='..iLandPathingGroupWanted) end
+            if NavUtils.GetLabel(refPathingTypeLand, tCurPosition) == iLandPathingGroupWanted then
 
+                if bUseRoughPathingDistance then
+                    iCurTravelDist = M28Utilities.GetApproxTravelDistanceBetweenPositions(tBasePosition, tCurPosition)
+                else
+                    iCurTravelDist = M28Utilities.GetTravelDistanceBetweenPositions(tBasePosition, tCurPosition)
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': iCurTravelDist='..iCurTravelDist) end
+                if (iCurTravelDist or 100000) < iDistanceCap then
+
+                    --Update the distance between the bsae segment and a segment in iCurZone to the lower of the current distance and any previously recorded distance
+                    iCurZone = tLandZoneBySegment[iCurSegmentX][iCurSegmentZ]
+                    if bDebugMessages == true then LOG(sFunctionRef..': We have a segment nearby with a land zone, iCurZone='..iCurZone..'; will record iCurTravelDist of '..iCurTravelDist..'; against the base segment') end
+                    tTempZoneTravelDistanceBySegment[iBaseSegmentX][iBaseSegmentZ][iCurZone] = math.min(iCurTravelDist, (tTempZoneTravelDistanceBySegment[iBaseSegmentX][iBaseSegmentZ][iCurZone] or 100000))
+                    if iCurTravelDist <= iAbortThreshold then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Found a really close segment so will stop looking for more') end
+                        bAbort = true
+                    end
+                end
+            end
+        end
+    end
 
     local iMaxAdjustedX, iMaxAdjustedZ, iMinAdjustedX, iMinAdjustedZ, iZInterval
 
@@ -728,12 +718,12 @@ local function RecordTemporaryTravelDistanceForBaseSegment(iBaseSegmentX, iBaseS
             --Since we are starting from the closest segments and moving out, we effectively want to cycle through a hollow square of segments with each change in iAdjustmentSize:
             if iCurSegmentX == iMinAdjustedX or iCurSegmentX == iMaxAdjustedX then
                 for iCurSegmentZ = iMinAdjustedZ, iMaxAdjustedZ, 1 do
-                    CheckAndRecordTemporaryDistanceForCurSegment(iCurSegmentX, iCurSegmentZ, iBaseSegmentX, iBaseSegmentZ, tBasePosition, iLandPathingGroupWanted, iAbortThreshold, iDistanceCap, bUseRoughPathingDistance)
+                    CheckAndRecordTemporaryDistanceForCurSegment(iCurSegmentX, iCurSegmentZ)
                     if bAbort then break end
                 end
             else
                 for iCurSegmentZ = iMinAdjustedZ, iMaxAdjustedZ, iZInterval do
-                    CheckAndRecordTemporaryDistanceForCurSegment(iCurSegmentX, iCurSegmentZ, iBaseSegmentX, iBaseSegmentZ, tBasePosition, iLandPathingGroupWanted, iAbortThreshold, iDistanceCap, bUseRoughPathingDistance)
+                    CheckAndRecordTemporaryDistanceForCurSegment(iCurSegmentX, iCurSegmentZ)
                     if bAbort then break end
                 end
             end
