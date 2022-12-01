@@ -3,5 +3,8 @@
 --- Created by maudlin27.
 --- DateTime: 16/11/2022 07:31
 ---
+
+
+M28RunVeryFast = true --Game starts off at +10 speed if set to adjustable
 M28RunProfiling = false --Records data on how long most functions are taking; if setting to true part-way through game then need to also run ForkThread(M27Utilities.ProfilerActualTimePerTick)
 M28ProfilingIgnoreFirst2Seconds = true --Means logic relating to pathing generation gets ignored

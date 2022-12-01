@@ -161,7 +161,7 @@ end
 
 local function SetupPlayableAreaAndSegmentSizes()
     --Sets up key values needed to divide the map up into segments (small squares) for both land zone segments and reclaim segments - should be called as one of the first pieces of code
-    local bDebugMessages = true if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'DetermineReclaimAndLandSegmentSizes'
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
     if ScenarioInfo.MapData.PlayableRect then
@@ -689,7 +689,6 @@ local function RecordTemporaryTravelDistanceForBaseSegment(iBaseSegmentX, iBaseS
     local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordTemporaryTravelDistanceForBaseSegment'
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
-    if iBaseSegmentX == 1 then bDebugMessages = true end
 
     local tCurPosition
     local iCurZone, iCurTravelDist
@@ -795,7 +794,7 @@ end
 local function AssignRemainingSegmentsToLandZones()
     --Cycles through key points on the map and if they ahve no nearby land zone then creates a new land zone
     --then cycles through every segment on the map and if it has no land zone assigns it to the nearest existing land zone
-    local bDebugMessages = true if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AssignRemainingSegmentsToLandZones'
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
 
@@ -950,7 +949,6 @@ local function AssignMexesALandZone()
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Finished recording land zone mexes for iPlateauGroup='..iPlateauGroup..'; Size of land zones table='..table.getn(tAllPlateaus[iPlateauGroup][subrefPlateauLandZones])) end
     end
-    bDebugMessages = true
     --Debug - draw the groupings of mexes with rectangles around them to show how they've been grouped, with a different colour for each plateau group:
     if bDebugMessages == true then
         local iColour = 0
@@ -981,7 +979,7 @@ end
 
 local function DrawLandZones()
     --For debug use - will draw each land zone in a plateau in a different colour to allow a visual check of how land zones have been created.  Can be called part-way through the process (e.g. to show land zones after the initial mex creation and nearby areas)
-    local bDebugMessages = true if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'DrawLandZones'
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
 
@@ -1027,7 +1025,7 @@ local function SetupLandZones()
     --To return both the plateau reference, and the land zone reference, of a position tPosiiton, use the function GetPlateauAndLandZoneReferenceFromPosition(tPosition) (which will return nil if it doesnt have a value)
 
 
-    local bDebugMessages = true if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SetupLandZones'
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of land zone generation, system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
@@ -1053,7 +1051,6 @@ local function SetupLandZones()
 
     --Clear variables that we no longer need:
     tTempZoneTravelDistanceBySegment =  nil
-    bDebugMessages = true
 
 
     --If debug is enabled, draw land zones (different colour for each land zone on a plateau)
