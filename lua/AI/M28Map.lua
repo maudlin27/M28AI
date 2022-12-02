@@ -35,35 +35,35 @@ tHydroByPathingAndGrouping = {} --as above but for hydros
 --Plateaus - core
 tAllPlateaus = {} --[x] = AmphibiousPathingGroup, [y]: subrefs, e.g. subrefPlateauMexes;
 --aibrain variables for plateaus:
-reftPlateausOfInterest = 'M27PlateausOfInterest' --[x] = Amphibious pathing group; will record a table of the pathing groups we're interested in expanding to, returns the location of then earest mex
-refiLastPlateausUpdate = 'M27LastTimeUpdatedPlateau' --gametime that we last updated the plateaus
-reftOurPlateauInformation = 'M27OurPlateauInformation' --[x] = AmphibiousPathingGroup; [y] = subref, e.g. subrefPlateauLandFactories; Used to store details such as factories on the plateau
-refiOurBasePlateauGroup = 'M27PlateausOurBaseGroup' --Segment group of our base (so can easily check somewhere is in a dif plateau)
+reftPlateausOfInterest = 'M28PlateausOfInterest' --[x] = Amphibious pathing group; will record a table of the pathing groups we're interested in expanding to, returns the location of then earest mex
+refiLastPlateausUpdate = 'M28LastTimeUpdatedPlateau' --gametime that we last updated the plateaus
+reftOurPlateauInformation = 'M28OurPlateauInformation' --[x] = AmphibiousPathingGroup; [y] = subref, e.g. subrefPlateauLandFactories; Used to store details such as factories on the plateau
+refiOurBasePlateauGroup = 'M28PlateausOurBaseGroup' --Segment group of our base (so can easily check somewhere is in a dif plateau)
 
 --subrefs for tables
 --tAllPlateaus subrefs
-subrefPlateauMexes = 'M27PlateauMex' --[x] = mex count, returns mex position
-subrefPlateauMinXZ = 'M27PlateauMinXZ' --{x,z} min values
-subrefPlateauMaxXZ = 'M27PlateauMaxXZ' --{x,z} max values - i.e. can create a rectangle covering entire plateau using min and max xz values
-subrefPlateauTotalMexCount = 'M27PlateauMexCount' --Number of mexes on the plateau
-subrefPlateauReclaimSegments = 'M27PlateauReclaimSegments' --[x] = reclaim segment x, [z] = reclaim segment z, returns true if part of plateau
-subrefPlateauMidpoint = 'M27PlateauMidpoint' --Location of the midpoint of the plateau
-subrefPlateauMaxRadius = 'M27PlateauMaxRadius' --Radius to use to ensure the circle coveres the square of the plateau
-subrefPlateauContainsActiveStart = 'M27PlateauContainsActiveStart' --True if the plateau is pathable amphibiously to a start position that was active at the start of the game
+subrefPlateauMexes = 'M28PlateauMex' --[x] = mex count, returns mex position
+subrefPlateauMinXZ = 'M28PlateauMinXZ' --{x,z} min values
+subrefPlateauMaxXZ = 'M28PlateauMaxXZ' --{x,z} max values - i.e. can create a rectangle covering entire plateau using min and max xz values
+subrefPlateauTotalMexCount = 'M28PlateauMexCount' --Number of mexes on the plateau
+subrefPlateauReclaimSegments = 'M28PlateauReclaimSegments' --[x] = reclaim segment x, [z] = reclaim segment z, returns true if part of plateau
+subrefPlateauMidpoint = 'M28PlateauMidpoint' --Location of the midpoint of the plateau
+subrefPlateauMaxRadius = 'M28PlateauMaxRadius' --Radius to use to ensure the circle coveres the square of the plateau
+subrefPlateauContainsActiveStart = 'M28PlateauContainsActiveStart' --True if the plateau is pathable amphibiously to a start position that was active at the start of the game
 
 --reftOurPlateauInformation subrefs (NOTE: If adding more info here need to update in several places, including ReRecordUnitsAndPlatoonsInPlateaus)
-subrefPlateauLandFactories = 'M27PlateauLandFactories'
+subrefPlateauLandFactories = 'M28PlateauLandFactories'
 
-subrefPlateauLandCombatPlatoons = 'M27PlateauLandCombatPlatoons'
-subrefPlateauIndirectPlatoons = 'M27PlateauIndirectPlatoons'
-subrefPlateauMAAPlatoons = 'M27PlateauMAAPlatoons'
-subrefPlateauScoutPlatoons = 'M27PlateauScoutPlatoons'
+subrefPlateauLandCombatPlatoons = 'M28PlateauLandCombatPlatoons'
+subrefPlateauIndirectPlatoons = 'M28PlateauIndirectPlatoons'
+subrefPlateauMAAPlatoons = 'M28PlateauMAAPlatoons'
+subrefPlateauScoutPlatoons = 'M28PlateauScoutPlatoons'
 
-subrefPlateauEngineers = 'M27PlateauEngineers' --[x] is engineer unique ref (per m27engineeroverseer), returns engineer object
+subrefPlateauEngineers = 'M28PlateauEngineers' --[x] is engineer unique ref (per m27engineeroverseer), returns engineer object
 
 --Plateaus - Land zone variables
-subrefPlateauLandZones = 'M27PlateauLandZones' --against the main plateau table, stores info on land zones for that plateau
-subrefLandZoneCount = 'M27PlateauZoneCount' --against the main plateau table, records how many land zones there are (alternative to table.getn on the land zones)
+subrefPlateauLandZones = 'M28PlateauLandZones' --against the main plateau table, stores info on land zones for that plateau
+subrefLandZoneCount = 'M28PlateauZoneCount' --against the main plateau table, records how many land zones there are (alternative to table.getn on the land zones)
 iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one side of the square that is the lowest resolution land zones go to; each segment that is land pathable gets assigned to a land zone
 tLandZonesByPlateau = {} --[x] is the plateau group number, returns a table where [y] is the land zone number, which then returns details on the land zone; use tLandZoneBySegment to get a zone reference from land segments
 subrefLZMexCount = 'MexCount' --against tLandZonesByPlateau[iPlateau][iLZ], returns number of mexes in the LZ

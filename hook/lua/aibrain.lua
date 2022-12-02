@@ -1,4 +1,5 @@
 local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
+local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 
 M28AIBrainClass = AIBrain
 AIBrain = Class(M28AIBrainClass) {

@@ -8,6 +8,8 @@ local NavUtils = import("/lua/sim/navutils.lua")
 
 tErrorCountByMessage = {} --WHenever we have an error, then the error message is a key that gets included in this table
 
+bM28AIInGame = false --true if have M28 AI in the game (used to avoid considering callback logic further)
+
 
 function ErrorHandler(sErrorMessage, bWarningNotError)
     --Intended to be put in code wherever a condition isn't met that should be, so can debug it without the code crashing
@@ -30,8 +32,8 @@ function ErrorHandler(sErrorMessage, bWarningNotError)
         if math.floor(iCount / iInterval) == iCount/iInterval then bShowError = true end
     end
     if bShowError then
-        local sErrorBase = 'M27ERROR '
-        if bWarningNotError then sErrorBase = 'M27WARNING: ' end
+        local sErrorBase = 'M28ERROR '
+        if bWarningNotError then sErrorBase = 'M28WARNING: ' end
         sErrorBase = sErrorBase..'Count='..iCount..': GameTime '..math.floor(GetGameTimeSeconds())..': '
         sErrorMessage = sErrorBase..sErrorMessage
         local a, s = pcall(assert, false, sErrorMessage)
@@ -62,8 +64,8 @@ function ErrorHandler(sErrorMessage, bWarningNotError)
         if math.floor(iCount / iInterval) == iCount/iInterval then bShowError = true end
     end
     if bShowError then
-        local sErrorBase = 'M27ERROR '
-        if bWarningNotError then sErrorBase = 'M27WARNING: ' end
+        local sErrorBase = 'M28ERROR '
+        if bWarningNotError then sErrorBase = 'M28WARNING: ' end
         sErrorBase = sErrorBase..'Count='..iCount..': GameTime '..math.floor(GetGameTimeSeconds())..': '
         sErrorMessage = sErrorBase..sErrorMessage
         local a, s = pcall(assert, false, sErrorMessage)

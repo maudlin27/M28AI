@@ -3,6 +3,9 @@
 --- Created by maudlin27.
 --- DateTime: 30/11/2022 22:36
 ---
+local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
+
+
 --Order info
 reftiLastOrders = 'M28OrdersLastOrders' --Against unit, table first of the order number (1 = first order given, 2 = 2nd etc., qhere they were queued), which returns a table containing all the details of the order (including the order type per the below reference integers)
 
@@ -125,6 +128,7 @@ function IssueTrackedGroundAttack(oUnit, tOrderPosition, iDistanceToReissueOrder
 end
 
 --[[function IssueTrackedOrder(oUnit, iOrderType, tOrderPosition, oOrderTarget, sOrderBlueprint)
+--Decided not to implement below as hopefully using separate functions should be better performance wise, and also issueformmove and aggressive move will require a table of units instead of individual units if they ever get implemented
     --tOrderPosition - this should only be completed if it is requried for the order
     if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} end
     table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = iOrderType, [subreftOrderPosition] = tOrderPosition, [subrefoOrderTarget] = oOrderTarget, [subrefsOrderBlueprint] = sOrderBlueprint})

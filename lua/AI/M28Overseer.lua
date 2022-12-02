@@ -8,6 +8,7 @@ local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
 local M28Profiling = import('/mods/M28AI/lua/AI/M28Profiling.lua')
 local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
+local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
 
 
 
@@ -20,11 +21,18 @@ function BrainCreated(aiBrain)
     M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
 
     if bDebugMessages == true then LOG(sFunctionRef..': M28 Brain has just been created for aiBrain '..aiBrain.Nickname..'; Index='..aiBrain:GetArmyIndex()) end
+
+    aiBrain.M28AI = true
+
+
     if not(bInitialSetup) then
         bInitialSetup = true
         _G.repru = rawget(_G, 'repru') or repr --With thanks to Balthazar for suggesting this for where e.g. FAF develop has a function that isnt yet in FAF main
         if bDebugMessages == true then LOG(sFunctionRef..': About to do one-off setup for all brains') end
+        M28Utilities.bM28AIInGame = true
+
         ForkThread(M28Map.SetupMap)
+
     end
 
     ForkThread(OverseerManager, aiBrain)
@@ -51,12 +59,24 @@ function TestCustom(aiBrain)
     end
 end
 
+function Initialisation(aiBrain)
+    ForkThread(M28Economy.EconomyInitialisation, aiBrain)
+end
+
 function OverseerManager(aiBrain)
+    --Make sure map setup will be done
+    WaitTicks(1)
+    --Initialise main systems
+    ForkThread(Initialisation, aiBrain)
+
+    --Wait until we can give orders before doing main logic
     while (GetGameTimeSeconds() <= 4.5) do
         WaitTicks(1)
     end
     while not(aiBrain:IsDefeated()) and not(aiBrain.M28IsDefeated) do
         TestCustom(aiBrain)
+
+        ForkThread(M28Economy.RefreshEconomyData, aiBrain)
         WaitSeconds(1)
     end
 end
