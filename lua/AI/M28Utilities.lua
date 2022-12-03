@@ -3,8 +3,9 @@
 --- Created by maudlin27.
 --- DateTime: 16/11/2022 07:26
 ---
-local M28Profiling = import('/mods/M28AI/lua/AI/M28Profiling.lua')
+local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local NavUtils = import("/lua/sim/navutils.lua")
+local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
 
 tErrorCountByMessage = {} --WHenever we have an error, then the error message is a key that gets included in this table
 
@@ -103,7 +104,7 @@ function ForkedDrawRectangle(rRect, iColour, iDisplayCount)
     --Draws lines around rRect; rRect should be a rect table, with keys x0, x1, y0, y1
     --iColour - if it isn't a number from 1 to 8 then it will try and use the value as the hex key instead
 
-    local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ForkedDrawRectangle'
     if bDebugMessages == true then LOG(sFunctionRef..': rRect='..repru(rRect)) end
 
@@ -169,7 +170,7 @@ function DrawLocation(tLocation, iOptionalColour, iOptionalTimeInTicks, iOptiona
 end
 
 function ForkedDrawLine(tStart, tEnd, iColour, iDisplayCount)
-    local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ForkedDrawLine'
     if bDebugMessages == true then LOG(sFunctionRef..': rRect='..repru(rRect)) end
 
@@ -229,12 +230,12 @@ function GetApproxTravelDistanceBetweenPositions(tStart, tEnd)
         return nil
     end
 end
-function GetTravelDistanceBetweenPositions(tStart, tEnd)
+function GetTravelDistanceBetweenPositions(tStart, tEnd, sPathing)
     --Returns the distance for a land unit to move from tStart to tEnd using Jips pathing algorithm
     --Returns nil if cant path there
 
     --4th argument could be NavUtils.PathToDefaultOptions(), e.g. local tFullPath, iPathSize, iDistance = NavUtils.PathTo('Land', tStart, tEnd, NavUtils.PathToDefaultOptions()); left as nil:
-    local tFullPath, iPathSize, iDistance = NavUtils.PathTo('Land', tStart, tEnd, nil)
+    local tFullPath, iPathSize, iDistance = NavUtils.PathTo((sPathing or 'Land'), tStart, tEnd, nil)
     if tFullPath then
 
         --Option 1 - recalculate all distances (during testing as at 2022-11-20 sometimes even if go with option 2 below the distance is significantly lower than option 1 gives:
@@ -284,4 +285,140 @@ function GenerateUniqueColourTable(iTableSize)
     end
     return tColourTable
 
+end
+
+function GetNearestUnit(tUnits, tCurPos, bUseActualTravelDistance, sPathingToUse)
+    --returns the nearest unit in tUnits from tCurPos
+
+    local sFunctionRef = 'GetNearestUnit'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    local iMinDist = 1000000
+    local iCurDist
+    local iNearestUnit
+    local bValidUnit = false
+    local iPlayerArmyIndex
+    local iUnitArmyIndex
+    if bDebugMessages == true then LOG('GetNearestUnit: tUnits table size='..table.getn(tUnits)) end
+    for iUnit, oUnit in tUnits do
+        if not(oUnit.Dead) then
+            if bUseActualTravelDistance then iCurDist = GetTravelDistanceBetweenPositions(oUnit:GetPosition(), tCurPos, sPathingToUse)
+            else iCurDist = GetDistanceBetweenPositions(oUnit:GetPosition(), tCurPos)
+            end
+            if bDebugMessages == true then LOG('GetNearestUnit: iUnit='..iUnit..'; iCurDist='..iCurDist..'; iMinDist='..iMinDist) end
+            if iCurDist < iMinDist then
+                iMinDist = iCurDist
+                iNearestUnit = iUnit
+            end
+        end
+    end
+
+    if bDebugMessages == true then
+        if iNearestUnit == nil then LOG('Nearest unit is nil')
+        else LOG('Nearest unit ID='..tUnits[iNearestUnit].UnitId)
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    if iNearestUnit then return tUnits[iNearestUnit]
+    else return nil end
+end
+
+function ConvertAngleToRadians(iAngle)
+    return iAngle * math.pi / 180
+end
+
+function ConvertRadiansToAngle(iRadians)
+    --Assumes radians when converted would result in north being 180 degrees, east 90 degrees, south 0 degrees, west 270 degrees
+
+    --iRadians = iAngle * math.pi / 180
+    --180 * iRadians = iAngle * math.pi
+    --iAngle = 180 * iRadians / math.pi
+    local iAngle = 360 - (180 * iRadians / math.pi) - 180
+    if iAngle < 0 then iAngle = iAngle + 360 end
+    return iAngle
+end
+
+function GetAngleDifference(iAngle1, iAngle2)
+    --returns positive value from 0 to 180 for the difference between two positions (i.e. if turn by the angle closest to there)
+    local iAngleDif = math.abs(iAngle1 - iAngle2)
+    if iAngleDif > 180 then iAngleDif = math.abs(iAngleDif - 360) end
+    return iAngleDif
+end
+
+function GetAngleFromAToB(tLocA, tLocB)
+    --Returns an angle 0 = north, 90 = east, etc. based on direction of tLocB from tLocA
+    local iTheta
+    if tLocA[1] == tLocB[1] then
+        --Will get infinite if try and use this; is [3] the same?
+        if tLocA[3] >= tLocB[3] then --Start is below end, so End is north of start (or LocA == LocB and want 0)
+            iTheta = 0
+        else
+            --Start Z value is lower than end, so start is above end, so if facing end from start we are facing south
+            iTheta = 180
+        end
+    elseif tLocA[3] == tLocB[3] then
+        --Have dif in X values but not Z values, so moving in straight line east or west:
+        if tLocA[1] < tLocB[1] then --Start is to left of end, so if facing end from start we are facing 90 degrees (Moving east)
+            iTheta = 90
+        else --must be moving west
+            iTheta = 270
+        end
+    else
+        iTheta = math.atan(math.abs(tLocA[3] - tLocB[3]) / math.abs(tLocA[1] - tLocB[1])) * 180 / math.pi
+        if tLocB[1] > tLocA[1] then
+            if tLocB[3] > tLocA[3] then
+                return 90 + iTheta
+            else return 90 - iTheta
+            end
+        else
+            if tLocB[3] > tLocA[3] then
+                return 270 - iTheta
+            else return 270 + iTheta
+            end
+        end
+    end
+    return iTheta
+end
+
+function MoveInDirection(tStart, iAngle, iDistance, bKeepInMapBounds, bTravelUnderwater)
+    --iAngle: 0 = north, 90 = east, etc.; use GetAngleFromAToB if need angle from 2 positions
+    --tStart = {x,y,z} (y isnt used)
+    --if bKeepInMapBounds is true then will limit to map bounds
+    --bTravelUnderwater - if true then will get the terrain height instead of the surface height
+
+    --local bDebugMessages = false if bGlobalDebugOverride == true then   bDebugMessages = true end
+    --local sFunctionRef = 'MoveInDirection'
+    local iTheta = ConvertAngleToRadians(iAngle)
+    --if bDebugMessages == true then LOG(sFunctionRef..': iAngle='..(iAngle or 'nil')..'; iTheta='..(iTheta or 'nil')..'; iDistance='..(iDistance or 'nil')) end
+    local iXAdj = math.sin(iTheta) * iDistance
+    local iZAdj = -(math.cos(iTheta) * iDistance)
+
+    if not(bKeepInMapBounds) then
+        --if bDebugMessages == true then LOG(sFunctionRef..': Are within map bounds, iXAdj='..iXAdj..'; iZAdj='..iZAdj..'; iTheta='..iTheta..'; position='..repru({tStart[1] + iXAdj, GetSurfaceHeight(tStart[1] + iXAdj, tStart[3] + iZAdj), tStart[3] + iZAdj})) end
+        if bTravelUnderwater then
+            return {tStart[1] + iXAdj, GetTerrainHeight(tStart[1] + iXAdj, tStart[3] + iZAdj), tStart[3] + iZAdj}
+        else
+            return {tStart[1] + iXAdj, GetSurfaceHeight(tStart[1] + iXAdj, tStart[3] + iZAdj), tStart[3] + iZAdj}
+        end
+    else
+        local tTargetPosition
+        if bTravelUnderwater then
+            tTargetPosition = {tStart[1] + iXAdj, GetTerrainHeight(tStart[1] + iXAdj, tStart[3] + iZAdj), tStart[3] + iZAdj}
+        else
+            tTargetPosition = {tStart[1] + iXAdj, GetSurfaceHeight(tStart[1] + iXAdj, tStart[3] + iZAdj), tStart[3] + iZAdj}
+        end
+        --Get actual distance required to keep within map bounds
+        local iNewDistWanted = 10000
+        if tTargetPosition[1] < M28Map.rMapPlayableArea[1] then iNewDistWanted = iDistance * (tStart[1] - M28Map.rMapPlayableArea[1]) / (tStart[1] - tTargetPosition[1]) end
+        if tTargetPosition[3] < M28Map.rMapPlayableArea[2] then iNewDistWanted = math.min(iNewDistWanted, iDistance * (tStart[3] - M28Map.rMapPlayableArea[2]) / (tStart[3] - tTargetPosition[3])) end
+        if tTargetPosition[1] > M28Map.rMapPlayableArea[3] then iNewDistWanted = math.min(iNewDistWanted, iDistance * (M28Map.rMapPlayableArea[3] - tStart[1]) / (tTargetPosition[1] - tStart[1])) end
+        if tTargetPosition[3] > M28Map.rMapPlayableArea[4] then iNewDistWanted = math.min(iNewDistWanted, iDistance * (M28Map.rMapPlayableArea[4] - tStart[3]) / (tTargetPosition[3] - tStart[3])) end
+
+        if iNewDistWanted == 10000 then
+            return tTargetPosition
+        else
+            --Are out of playable area, so adjust the position; Can use the ratio of the amount we have moved left/right or top/down vs the long line length to work out the long line length if we reduce the left/right so its within playable area
+            return MoveInDirection(tStart, iAngle, iNewDistWanted - 0.1, false)
+        end
+    end
 end

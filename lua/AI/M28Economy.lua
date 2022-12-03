@@ -4,7 +4,7 @@
 --- DateTime: 02/12/2022 08:37
 ---
 
-local M28Profiling = import('/mods/M28AI/lua/AI/M28Profiling.lua')
+local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 
@@ -24,9 +24,9 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed)
         --Does the unit have an M28 aiBrain?
         local aiBrain = oUnit:GetAIBrain()
         if aiBrain.M28AI then
-            local bDebugMessages = true if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
+            local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
             local sFunctionRef = 'UpdateGrossIncomeForUnit'
-            M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
             if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bDestroyed='..tostring(bDestroyed or false)..': Unit aiBrain='..oUnit:GetAIBrain().Nickname..'; Brain recorded for economy='..((oUnit[refoBrainRecordedForEconomy] or {'nil'}).Nickname or 'nil')) end
 
@@ -56,16 +56,16 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed)
             end
 
 
-            M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         end
     end
 end
 
 function RefreshEconomyGrossValues(aiBrain)
     --Updates recorded gross mass and energy for each unit
-    local bDebugMessages = true if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RefreshEconomyGrossValues'
-    M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local tEconomyUnits = aiBrain:GetListOfUnits(categories.MASSPRODUCTION + categories.MASSFABRICATION + categories.ENERGYPRODUCTION, false, true)
     if bDebugMessages == true then LOG(sFunctionRef..': refreshing gross income for every unit we own, size of tEconomyUnits='..table.getn(tEconomyUnits)) end
@@ -76,14 +76,14 @@ function RefreshEconomyGrossValues(aiBrain)
 end
 
 function RefreshEconomyData(aiBrain)
-    local bDebugMessages = true if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RefreshEconomyData'
-    M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     aiBrain[refiNetEnergyBaseIncome] = math.min(aiBrain[refiGrossEnergyBaseIncome] - aiBrain:GetEconomyRequested('ENERGY'), aiBrain:GetEconomyTrend('ENERGY'))
     aiBrain[refiNetMassBaseIncome] = aiBrain[refiGrossMassBaseIncome] - math.max(aiBrain:GetEconomyRequested('MASS'), -(aiBrain:GetEconomyTrend('MASS') - aiBrain:GetEconomyIncome('MASS')))
 
     if bDebugMessages == true then LOG(sFunctionRef..': Finished refreshing economy data, time='..GetGameTimeSeconds()..'; Energy gross='..aiBrain[refiGrossEnergyBaseIncome]..'; Energy net='..aiBrain[refiNetEnergyBaseIncome]..'; Mass gross='..aiBrain[refiGrossMassBaseIncome]..'; Mass net='..aiBrain[refiNetMassBaseIncome]) end
-    M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function EconomyMainLoop(aiBrain)

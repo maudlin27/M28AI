@@ -8,7 +8,7 @@ local M28Config = import('/mods/M28AI/lua/M28Config.lua')
 
 --Profiling variables
 bGlobalDebugOverride = false --will turn debugmessages to true for all functions (where has been enabled)
-refiLastSystemTimeRecorded = 'M28ProfilingLastSystemTime' --Used for simple profiler to just measure how long something is taking without all the logs
+refiLastSystemTimeRecorded = 'M28ProfilerLastSystemTime' --Used for simple profiler to just measure how long something is taking without all the logs
 
 refProfilerStart = 0
 refProfilerEnd = 1
@@ -103,7 +103,7 @@ function FunctionProfiler(sFunctionRef, sStartOrEndRef)
                 end
                 local iCurTimeTaken = GetSystemTimeSecondsOnlyForProfileUse() - tProfilerFunctionStart[sFunctionRef][iCount]
 
-                if M28Config.M28ProfilingIgnoreFirst2Seconds and iGameTimeInTicks <= 20 then iCurTimeTaken = 0 end
+                if M28Config.M28ProfilerIgnoreFirst2Seconds and iGameTimeInTicks <= 20 then iCurTimeTaken = 0 end
                 --if bDebugMessages == true then LOG('FunctionProfiler: '..sFunctionRef..': refProfilerEnd; iCount='..iCount..'; iCurTimeTaken='..iCurTimeTaken..'; tProfilerFunctionStart[sFunctionRef][iCount]='..tProfilerFunctionStart[sFunctionRef][iCount]) end
                 if not(tProfilerTimeTakenCumulative[sFunctionRef]) then tProfilerTimeTakenCumulative[sFunctionRef] = 0 end
                 tProfilerTimeTakenCumulative[sFunctionRef] = tProfilerTimeTakenCumulative[sFunctionRef] + iCurTimeTaken

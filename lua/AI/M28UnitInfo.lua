@@ -191,3 +191,19 @@ function IsUnitValid(oUnit)
     end
     return false
 end
+
+function GetUnitPathingType(oUnit)
+    --Returns Land, Amphibious, Air or Water or None
+    --if oUnit and not(oUnit.Dead) and oUnit.GetBlueprint then
+    local mType = __blueprints[oUnit.UnitId].Physics.MotionType
+    if (mType == 'RULEUMT_AmphibiousFloating' or mType == 'RULEUMT_Hover' or mType == 'RULEUMT_Amphibious') then
+        return refPathingTypeAmphibious
+    elseif (mType == 'RULEUMT_Water' or mType == 'RULEUMT_SurfacingSub') then
+        return refPathingTypeNavy
+    elseif mType == 'RULEUMT_Air' then
+        return refPathingTypeAir
+    elseif (mType == 'RULEUMT_Biped' or mType == 'RULEUMT_Land') then
+        return refPathingTypeLand
+    else return refPathingTypeNone
+    end
+end

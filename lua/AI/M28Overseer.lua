@@ -6,9 +6,10 @@
 
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
-local M28Profiling = import('/mods/M28AI/lua/AI/M28Profiling.lua')
+local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
 local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
+local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
 
 
 
@@ -16,9 +17,9 @@ bInitialSetup = false
 
 
 function BrainCreated(aiBrain)
-    local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'BrainCreated'
-    M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if bDebugMessages == true then LOG(sFunctionRef..': M28 Brain has just been created for aiBrain '..aiBrain.Nickname..'; Index='..aiBrain:GetArmyIndex()) end
 
@@ -37,7 +38,7 @@ function BrainCreated(aiBrain)
 
     ForkThread(OverseerManager, aiBrain)
 
-    M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 
 end
 
@@ -61,6 +62,7 @@ end
 
 function Initialisation(aiBrain)
     ForkThread(M28Economy.EconomyInitialisation, aiBrain)
+    ForkThread(M28ACU.ManageACU, aiBrain)
 end
 
 function OverseerManager(aiBrain)
@@ -73,8 +75,11 @@ function OverseerManager(aiBrain)
     while (GetGameTimeSeconds() <= 4.5) do
         WaitTicks(1)
     end
+
     while not(aiBrain:IsDefeated()) and not(aiBrain.M28IsDefeated) do
         TestCustom(aiBrain)
+
+
 
         ForkThread(M28Economy.RefreshEconomyData, aiBrain)
         WaitSeconds(1)

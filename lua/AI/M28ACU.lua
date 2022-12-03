@@ -5,6 +5,92 @@
 ---
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
+local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
+local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
+local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
+local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
+local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
+
+
+--ACU specific variables against the ACU
+refbDoingInitialBuildOrder = 'M28ACUInitialBO'
+
+function ACUActionBuildFactory(aiBrain, oACU)
+    local sFunctionRef = 'ACUActionBuildFactory'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iMaxAreaToSearch = 35
+    local iCategoryToBuild = M28UnitInfo.refCategoryLandFactory
+    if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAllFactories) >= 2 and iCategoryToBuild == M28UnitInfo.refCategoryLandFactory then
+        iMaxAreaToSearch = 20
+    end
+
+    if bDebugMessages == true then LOG(sFunctionRef..': refiMinLandFactoryBeforeOtherTypes='..aiBrain[M27Overseer.refiMinLandFactoryBeforeOtherTypes]) end
+
+    --Do we have a nearby factory under construction?
+    local tNearbyFactories = aiBrain:GetUnitsAroundPoint(iCategoryToBuild, oACU:GetPosition(), iMaxAreaToSearch, 'Ally')
+
+
+    local oNearestPartComplete
+    if M28Utilities.IsTableEmpty(tNearbyFactories) == false then
+        local iClosestFactory = 10000
+        local iCurDist
+        for iUnit, oUnit in tNearbyFactories do
+            if oUnit:GetFractionComplete() < 1 then
+                iCurDist = M28Utilities.GetTravelDistanceBetweenPositions(oUnit:GetPosition(), oACU:GetPosition(), M28Map.refPathingTypeLand)
+                if iCurDist < iClosestFactory then
+                    oNearestPartComplete = oUnit
+                    iClosestFactory = iCurDist
+                end
+            end
+        end
+    end
+    if oNearestPartComplete then
+        M28Orders.IssueTrackedGuard(oACU, oNearestPartComplete, false)
+    else
+        --No nearby under construction factory, so build one
+                --BuildStructureNearLocation(aiBrain, oEngineer, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy, tAlternativePositionToLookFrom, bLookForPartCompleteBuildings, bLookForQueuedBuildings, oUnitToBuildBy, bNeverBuildRandom, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, iOptionalEngiActionRef)
+        M28Engineer.BuildStructureNearLocation(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearch, M28UnitInfo.refCategoryMex, nil,                   false,                         false,                  nil,                nil,            M28UnitInfo.refCategoryEngineer)
+    end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function GetACUEarlyGameOrders(aiBrain, oACU)
+    --Are we already building something?
+    if not(oACU:IsUnitState('Building')) then
+        --Do we want to build a mex, hydro or factory?
+        if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory) == 0 then
+            ACUActionBuildFactory(aiBrain, oACU)
+        elseif aiBrain[M28Economy.refiGrossEnergyIncome] <= 10 then
+            ACUActionBuildPower(aiBrain, oACU)
+        elseif aiBrain[M28Economy.refiGrossMassIncome] <= 0.8 then
+            ACUActionBuildMex(aiBrain, oACU)
+        end
+    end
+end
+
+function GetACUOrder(aiBrain, oACU)
+    --Early game - do we want to build factory/power?
+    if oACU[refbDoingInitialBuildOrder] then
+        GetACUEarlyGameOrders(aiBrain, oACU)
+
+        --Have we finished our initial build order?
+        if aiBrain:GetEconomyStored('MASS') == 0 and aiBrain[M28Economy.refiGrossMassIncome] >= 0.3 and aiBrain[M28Economy.refiGrossEnergyIncome] >= 10 then
+            bDoingInitialBuildOrder = false
+        end
+    else
+        --Placeholder - assist nearest factory
+        if not(oACU:IsUnitState('Building')) and not(oACU:IsUnitState('Guarding')) then
+            local tOurFactories = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryAllFactories, false, true)
+            local oNearestFactory = M28Utilities.GetNearestUnit(aiBrain:GetListOfUnits(M28UnitInfo.refCategoryAllFactories, false, true), oACU:GetPosition(), true, M28Map.refPathingTypeAmphibious)
+            if M28UnitInfo.IsUnitValid(oNearestFactory) then
+                M28Orders.IssueTrackedGuard(oACU, oNearestFactory, false)
+            end
+        end
+    end
+end
 
 function ManageACU(aiBrain)
     --First get our ACU
@@ -19,12 +105,19 @@ function ManageACU(aiBrain)
         end
         if oACU then break end
 
+        oACU[refbDoingInitialBuildOrder] = true
+
         WaitTicks(1)
     end
 
+    --Wait until ok for us to give orders
+    while (GetGameTimeSeconds() <= 4.5) do
+        WaitTicks(1)
+    end
 
     while M28UnitInfo.IsUnitValid(oACU) do
-        --Early game - do we want to build factory/power?
+        GetACUOrder(aiBrain, oACU)
+
         WaitSeconds(1)
     end
 end

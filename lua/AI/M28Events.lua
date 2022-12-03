@@ -9,7 +9,8 @@
 local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
-local M28Profiling = import('/mods/M28AI/lua/AI/M28Profiling.lua')
+local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
+local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
 
 function OnPlayerDefeated(aiBrain)
     
@@ -18,10 +19,10 @@ end
 function OnACUKilled(oUnit)
     if M28Utilities.bM28AIInGame then
         local sFunctionRef = 'OnACUKilled'
-        local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
-        M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-        M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
 end
 
@@ -31,8 +32,8 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
 
     if M28Utilities.bM28AIInGame then
         local sFunctionRef = 'OnKilled'
-        local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
-        M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         local refbAlreadyRun = 'M28EventsOnKilledRun'
         if not(oUnitKilled[refbAlreadyRun]) then
             oUnitKilled[refbAlreadyRun] = true
@@ -65,7 +66,7 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
             elseif bDebugMessages == true then LOG(sFunctionRef..': Unit killed doesnt have a brain')
             end
         end
-        M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
 end
 
@@ -73,9 +74,9 @@ function OnMexDeath(oUnit)
     --Make the mex status available
     if M28Utilities.bM28AIInGame then
         local sFunctionRef = 'OnMexDeath'
-        M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         
-        M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
 end
 
@@ -83,10 +84,10 @@ function OnPropDestroyed(oProp)
     --Confirmed manually this triggers e.g. if a bomber destroys a rock, and if a tree is reclaimed
     if M28Utilities.bM28AIInGame then
         local sFunctionRef = 'OnPropDestroyed'
-        local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
-        M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-        M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
 end
 
@@ -101,8 +102,8 @@ function OnUnitDeath(oUnit)
         --Some callbacks line onkilled will call this as well to make sure it is run (since for some things like when an ACU is killed it doesnt trigger directly)
     if M28Utilities.bM28AIInGame then
         local sFunctionRef = 'OnUnitDeath'
-        local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
-        M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
         if bDebugMessages == true then LOG(sFunctionRef..'Hook successful. oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; IsACU='..tostring(M28Utilities.IsACU(oUnit))..'; GameTime='..GetGameTimeSeconds()) end
@@ -115,7 +116,7 @@ function OnUnitDeath(oUnit)
                     LOG(sFunctionRef..': Unit killed has a cache position, will draw in blue around it')
                     M28Utilities.DrawLocation(oUnit.CachePosition, nil, 1, 100, nil)
                 end
-                --ForkThread(M28MapInfo.RecordThatWeWantToUpdateReclaimAtLocation, oUnit.CachePosition, 0)
+                --ForkThread(M28Map.RecordThatWeWantToUpdateReclaimAtLocation, oUnit.CachePosition, 0)
             else
                 if oUnit.GetAIBrain then
                     --Ythotha deathball avoidance
@@ -135,7 +136,7 @@ function OnUnitDeath(oUnit)
                 end
             end
         end
-        M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
 end
 
@@ -194,14 +195,18 @@ function OnConstructed(oEngineer, oJustBuilt)
     if M28Utilities.bM28AIInGame then
         if oJustBuilt:GetAIBrain().M28AI and not(oJustBuilt.M28OnConstructedCalled) then
             local sFunctionRef = 'OnConstructed'
-            local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
-            M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
+            local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
             oJustBuilt.M28OnConstructedCalled = true
 
             M28Economy.UpdateGrossIncomeForUnit(oJustBuilt)
 
+            if EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
+                M28ACU.GetACUOrder(oJustBuilt:GetAIBrain(), oEngineer)
+            end
 
-            M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
+
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 
 
 
@@ -213,11 +218,11 @@ end
 function OnReclaimStarted(oEngineer, oReclaim)
     if M28Utilities.bM28AIInGame then
         local sFunctionRef = 'OnReclaimStarted'
-        local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
-        M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         
 
-        M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
 end
 
@@ -225,14 +230,14 @@ function OnReclaimFinished(oEngineer, oReclaim)
     if M28Utilities.bM28AIInGame then
         --Update the segment that the reclaim is at, or the engineer if hte reclaim doesnt have one
         local sFunctionRef = 'OnReclaimFinished'
-        local bDebugMessages = false if M28Profiling.bGlobalDebugOverride == true then   bDebugMessages = true end
-        M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerStart)
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
         if bDebugMessages == true then LOG(sFunctionRef..': oEngineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' has just finished reclaiming, gametime='..GetGameTimeSeconds()) end
 
 
         
-        M28Profiling.FunctionProfiler(sFunctionRef, M28Profiling.refProfilerEnd)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
 end
 
