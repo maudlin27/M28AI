@@ -17,7 +17,7 @@ refbDoingInitialBuildOrder = 'M28ACUInitialBO'
 
 function ACUActionBuildFactory(aiBrain, oACU)
     local sFunctionRef = 'ACUActionBuildFactory'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iMaxAreaToSearch = 35
@@ -25,9 +25,6 @@ function ACUActionBuildFactory(aiBrain, oACU)
     if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAllFactories) >= 2 and iCategoryToBuild == M28UnitInfo.refCategoryLandFactory then
         iMaxAreaToSearch = 20
     end
-
-    if bDebugMessages == true then LOG(sFunctionRef..': refiMinLandFactoryBeforeOtherTypes='..aiBrain[M27Overseer.refiMinLandFactoryBeforeOtherTypes]) end
-
     --Do we have a nearby factory under construction?
     local tNearbyFactories = aiBrain:GetUnitsAroundPoint(iCategoryToBuild, oACU:GetPosition(), iMaxAreaToSearch, 'Ally')
 
@@ -36,7 +33,7 @@ function ACUActionBuildFactory(aiBrain, oACU)
     if M28Utilities.IsTableEmpty(tNearbyFactories) == false then
         local iClosestFactory = 10000
         local iCurDist
-        for iUnit, oUnit in tNearbyFactories do
+        for _, oUnit in tNearbyFactories do
             if oUnit:GetFractionComplete() < 1 then
                 iCurDist = M28Utilities.GetTravelDistanceBetweenPositions(oUnit:GetPosition(), oACU:GetPosition(), M28Map.refPathingTypeLand)
                 if iCurDist < iClosestFactory then
@@ -47,52 +44,80 @@ function ACUActionBuildFactory(aiBrain, oACU)
         end
     end
     if oNearestPartComplete then
+        if bDebugMessages == true then LOG(sFunctionRef..': Will assist part complete building='..oNearestPartComplete.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestPartComplete)) end
         M28Orders.IssueTrackedGuard(oACU, oNearestPartComplete, false)
     else
         --No nearby under construction factory, so build one
-                --BuildStructureNearLocation(aiBrain, oEngineer, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy, tAlternativePositionToLookFrom, bLookForPartCompleteBuildings, bLookForQueuedBuildings, oUnitToBuildBy, bNeverBuildRandom, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, iOptionalEngiActionRef)
-        M28Engineer.BuildStructureNearLocation(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearch, M28UnitInfo.refCategoryMex, nil,                   false,                         false,                  nil,                nil,            M28UnitInfo.refCategoryEngineer)
+        --GetLocationAndBlueprintToBuild(aiBrain, oEngineer, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy,         tAlternativePositionToLookFrom, bLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure)
+        local sBlueprint, tBuildLocation = M28Engineer.GetLocationAndBlueprintToBuild(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearch, M28UnitInfo.refCategoryMex, nil,                           false,                      nil,         M28UnitInfo.refCategoryEngineer, nil)
+        if bDebugMessages == true then
+            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oACU:GetPosition())
+            LOG(sFunctionRef..': Factory blueprint='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation)..'; ACU plateau and land zone based on cur position='..iPlateau..'; iLandZone='..(iLandZone or 'nil'))
+        end
+        if sBlueprint and tBuildLocation then
+            M28Orders.IssueTrackedBuild(oACU, tBuildLocation, sBlueprint, false)
+        end
     end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function GetACUEarlyGameOrders(aiBrain, oACU)
+    local sFunctionRef = 'GetACUEarlyGameOrders'
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     --Are we already building something?
+    if bDebugMessages == true then LOG(sFunctionRef..': ACU unit state='..M28UnitInfo.GetUnitState(oACU)) end
     if not(oACU:IsUnitState('Building')) then
         --Do we want to build a mex, hydro or factory?
+        if bDebugMessages == true then LOG(sFunctionRef..': Current land factories='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory)..'; Gross energy income='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; Gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]) end
         if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory) == 0 then
             ACUActionBuildFactory(aiBrain, oACU)
-        elseif aiBrain[M28Economy.refiGrossEnergyIncome] <= 10 then
+        elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] <= 10 then
             ACUActionBuildPower(aiBrain, oACU)
-        elseif aiBrain[M28Economy.refiGrossMassIncome] <= 0.8 then
+        elseif aiBrain[M28Economy.refiGrossMassBaseIncome] <= 0.8 then
             ACUActionBuildMex(aiBrain, oACU)
         end
+    else
+        if bDebugMessages == true then LOG(sFunctionRef..': Are building so wont give any new orders') end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function GetACUOrder(aiBrain, oACU)
     --Early game - do we want to build factory/power?
+    local sFunctionRef = 'GetACUOrder'
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': oACU[refbDoingInitialBuildOrder]='..tostring(oACU[refbDoingInitialBuildOrder])) end
+
     if oACU[refbDoingInitialBuildOrder] then
         GetACUEarlyGameOrders(aiBrain, oACU)
 
         --Have we finished our initial build order?
-        if aiBrain:GetEconomyStored('MASS') == 0 and aiBrain[M28Economy.refiGrossMassIncome] >= 0.3 and aiBrain[M28Economy.refiGrossEnergyIncome] >= 10 then
+        if bDebugMessages == true then LOG(sFunctionRef..': Checking if have finished initial build order, Economy stored mass='..aiBrain:GetEconomyStored('MASS')..'; Gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; Gross energy income='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]) end
+        if aiBrain:GetEconomyStored('MASS') == 0 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 0.3 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 10 then
             bDoingInitialBuildOrder = false
         end
     else
         --Placeholder - assist nearest factory
+        if bDebugMessages == true then LOG(sFunctionRef..': Will give backup assist factory order if not building or guarding, ACU unit state='..M28UnitInfo.GetUnitState(oACU)) end
         if not(oACU:IsUnitState('Building')) and not(oACU:IsUnitState('Guarding')) then
-            local tOurFactories = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryAllFactories, false, true)
             local oNearestFactory = M28Utilities.GetNearestUnit(aiBrain:GetListOfUnits(M28UnitInfo.refCategoryAllFactories, false, true), oACU:GetPosition(), true, M28Map.refPathingTypeAmphibious)
             if M28UnitInfo.IsUnitValid(oNearestFactory) then
                 M28Orders.IssueTrackedGuard(oACU, oNearestFactory, false)
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function ManageACU(aiBrain)
+    local sFunctionRef = 'ManageACU'
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --First get our ACU
     local oACU
     while not(oACU) do
@@ -103,21 +128,27 @@ function ManageACU(aiBrain)
                 break
             end
         end
-        if oACU then break end
-
-        oACU[refbDoingInitialBuildOrder] = true
-
+        if bDebugMessages == true then LOG(sFunctionRef..': Looking for ACU that we own, is oACU valid='..tostring(M28UnitInfo.IsUnitValid(oACU))) end
+        if oACU then
+            oACU[refbDoingInitialBuildOrder] = true
+            break
+        end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
 
     --Wait until ok for us to give orders
     while (GetGameTimeSeconds() <= 4.5) do
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
 
     while M28UnitInfo.IsUnitValid(oACU) do
         GetACUOrder(aiBrain, oACU)
-
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitSeconds(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
 end

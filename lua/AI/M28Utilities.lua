@@ -422,3 +422,108 @@ function MoveInDirection(tStart, iAngle, iDistance, bKeepInMapBounds, bTravelUnd
         end
     end
 end
+
+function ConvertLocationToReference(tLocation)
+    --Rounds tLocation down for X and Z, and uses these to provide a unique string reference (for use for table keys)
+    return ('X'..math.floor(tLocation[1])..'Z'..math.floor(tLocation[3]))
+end
+
+function RemoveEntriesFromArrayBasedOnCondition(tArray, fnKeepCurEntry)
+    --Alternative to table.remove, intended as a faster option where potentially removing more than one entry; only for use on tables with a sequential integer key starting at 1 (i.e. {[1]=asdf, [2] = asdf, ...})
+    --fnKeepCurEntry is a function (that should do specific for each use case) that decides what entries we want to remove from the table
+    --This means if we are removing multiple entries from a table at once, we only reindex the table once (vs table.remove which reindexes it every time we remove an entry)
+    --Based on approach outlined by 'Mitch' in https://stackoverflow.com/questions/12394841/safely-remove-items-from-an-array-table-while-iterating
+
+    --[[Example of using this: The below removes test2 from the array:
+    local tTestArray = {[1] = 'Test1', [2] = 'Test2', [3] = 'Test3', [4] = 'Test4'}
+    local function WantToKeep(tArray, iEntry)
+        if tArray[iEntry] == 'Test2' then return false else return true end
+    end
+    M28Utilities.RemoveEntriesFromArrayBasedOnCondition(tTestArray, WantToKeep)
+    LOG('Finished updating array, tTestArray='..repru(tTestArray))
+    --]]
+    
+    local iRevisedIndex = 1
+    local iTableSize = table.getn(tArray)
+
+    for iOrigIndex=1, iTableSize do
+        if fnKeepCurEntry(tArray, iOrigIndex) then --I.e. this should run the logic to decide whether we want to keep this entry of the table or remove it
+            --We want to keep the entry; Move the original index to be the revised index number (so if e.g. a table of 1,2,3 removed 2, then this would've resulted in the revised index being 2 (i.e. it starts at 1, then icnreases by 1 for the first valid entry); this then means we change the table index for orig index 3 to be 2
+            if (iOrigIndex ~= iRevisedIndex) then
+                tArray[iRevisedIndex] = tArray[iOrigIndex];
+                tArray[iOrigIndex] = nil;
+            end
+            iRevisedIndex = iRevisedIndex + 1; --i.e. this will be the position of where the next value that we keep will be located
+        else
+            tArray[iOrigIndex] = nil;
+        end
+    end
+    return tArray;
+end
+
+function DoesCategoryContainCategory(iCategoryWanted, iCategoryToSearch, bOnlyContainsThisCategory)
+    --Not very efficient so consider alternative such as recording variables if going to be running lots of times
+    local tsUnitIDs = EntityCategoryGetUnitList(iCategoryToSearch)
+    if bOnlyContainsThisCategory then
+        for iRef, sRef in tsUnitIDs do
+            if not(EntityCategoryContains(iCategoryWanted, sRef)) then return false end
+        end
+        return true
+    else
+        for iRef, sRef in tsUnitIDs do
+            if EntityCategoryContains(iCategoryWanted, sRef) then return true end
+        end
+    end
+end
+
+function spairs(t, order)
+    --Required by the sort tables function
+    --Code with thanks to Michal Kottman https://stackoverflow.com/questions/15706270/sort-a-table-in-lua
+    -- collect the keys
+    local keys = {}
+    local iKeyCount = 0
+    for k in pairs(t) do
+        iKeyCount = iKeyCount+1
+        keys[iKeyCount] = k end
+
+    -- if order function given, sort by it by passing the table and keys a, b,
+    -- otherwise just sort the keys
+    if order then
+        table.sort(keys, function(a,b) return order(t, a, b) end)
+    else
+        table.sort(keys)
+    end
+
+    -- return the iterator function
+    local i = 0
+    return function()
+        i = i + 1
+        if keys[i] then
+            return keys[i], t[keys[i]]
+        end
+    end
+end
+
+function SortTableBySubtable(tTableToSort, sSortByRef, bLowToHigh)
+    --NOTE: This doesnt update tTableToSort.  Instead it returns a 1-off table reference that you can use e.g. to loop through each entry.  Its returning function(table), which means if you try and store it as a table variable, then further references to it will re-run the function causing issues
+    --[[ e.g. of a table where this will work:
+    local tPreSortedThreatGroup = {}
+    local sThreatGroup
+    for i1 = 1, 4 do
+        sThreatGroup = 'M27'..i1
+        tPreSortedThreatGroup[sThreatGroup] = {}
+        if i1 == 1 then
+            tPreSortedThreatGroup[sThreatGroup][refiDistanceFromOurBase] = 100
+        elseif i1 == 4 then tPreSortedThreatGroup[sThreatGroup][refiDistanceFromOurBase] = 200
+        else tPreSortedThreatGroup[sThreatGroup][refiDistanceFromOurBase] = math.random(1, 99)
+        end
+    end
+    for iEntry, tValue in SortTableBySubtable(tPreSortedThreatGroup, refiDistanceFromOurBase, true) then will iterate through the values from low to high
+    ]]--
+
+    if bLowToHigh == nil then bLowToHigh = true end
+    if bLowToHigh == true then
+        return spairs(tTableToSort, function(t,a,b) return t[b][sSortByRef] > t[a][sSortByRef] end)
+    else return spairs(tTableToSort, function(t,a,b) return t[b][sSortByRef] < t[a][sSortByRef] end)
+    end
+end

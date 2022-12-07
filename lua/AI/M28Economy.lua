@@ -24,7 +24,7 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed)
         --Does the unit have an M28 aiBrain?
         local aiBrain = oUnit:GetAIBrain()
         if aiBrain.M28AI then
-            local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+            local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
             local sFunctionRef = 'UpdateGrossIncomeForUnit'
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -63,7 +63,7 @@ end
 
 function RefreshEconomyGrossValues(aiBrain)
     --Updates recorded gross mass and energy for each unit
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RefreshEconomyGrossValues'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -76,7 +76,7 @@ function RefreshEconomyGrossValues(aiBrain)
 end
 
 function RefreshEconomyData(aiBrain)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RefreshEconomyData'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     aiBrain[refiNetEnergyBaseIncome] = math.min(aiBrain[refiGrossEnergyBaseIncome] - aiBrain:GetEconomyRequested('ENERGY'), aiBrain:GetEconomyTrend('ENERGY'))

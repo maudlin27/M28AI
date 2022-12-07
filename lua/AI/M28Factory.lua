@@ -9,6 +9,9 @@ local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
 local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
 local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
+local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
+
+local reftBlueprintPriorityOverride = 'M28FactoryPreferredBlueprintByCategory' --[x] is the blueprint ref, if there's a priority override it returns a numerical value (higher number = higher priority)
 
 function GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, iOptionalCategoryThatMustBeAbleToBuild, bGetCheapest, bIgnoreTechDifferences)
     --returns nil if cant find any blueprints that can build
@@ -190,5 +193,54 @@ function GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFacto
         return tBestBlueprints[iBPToBuild]
     end
 
+
+end
+
+function DetermineWhatToBuild(aiBrain, oFactory)
+    local sBPIDToBuild
+
+    M28Utilities.ErrorHandler('Need to add code')
+
+    --Special case - Cybran and UEF - if building loyalists or titans, then check if want to switch to bricks/percies
+    if sBPIDToBuild == 'url0303' then --Loyalist
+        if M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.TECH3) >= 5 then
+            aiBrain[reftBlueprintPriorityOverride]['url0303'] = nil --loyalist
+            aiBrain[reftBlueprintPriorityOverride]['xrl0305'] = 1 --brick
+        end
+    elseif sBPIDToBuild == 'uel0303' then --Titan
+        if M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.TECH3) >= 15 then
+            aiBrain[reftBlueprintPriorityOverride]['url0303'] = nil --Titan
+            aiBrain[reftBlueprintPriorityOverride]['xel0305'] = 1 --Percival
+        end
+    end
+    return sBPIDToBuild
+end
+
+function SetPreferredUnitsByCategory(aiBrain)
+    --If have multiple units that can build for a particular category, this will specify what to build
+    --special cases where want to prioritise one unit over another where multiple of same type satisfy the category
+    --NOTE: This gets ignored if we have coded in special cases where we want to pick the fastest or slowest unit
+    aiBrain[reftBlueprintPriorityOverride] = {}
+    --T1
+    aiBrain[reftBlueprintPriorityOverride]['ual0201'] = 1 --Aurora (instead of LAB)
+    aiBrain[reftBlueprintPriorityOverride]['url0107'] = 1 --Mantis (instead of LAB)
+    aiBrain[reftBlueprintPriorityOverride]['uel0201'] = 1 --Striker (instead of mechmarine)
+    aiBrain[reftBlueprintPriorityOverride]['xsl0201'] = 1 --Thaam (instead of combat scout)
+    --T2
+    aiBrain[reftBlueprintPriorityOverride]['uel0202'] = 1 --Pillar (instead of mongoose or riptide)
+    aiBrain[reftBlueprintPriorityOverride]['xsl0202'] = 1 --Ilshavoh (instead of hover tank)
+    aiBrain[reftBlueprintPriorityOverride]['url0202'] = 1 --Rhino (instead of hover tank)
+    aiBrain[reftBlueprintPriorityOverride]['ual0202'] = 1 --Obsidian (instead of blaze)
+    --T3
+    aiBrain[reftBlueprintPriorityOverride]['uel0303'] = 1 --Titan (instead of Percy)
+    aiBrain[reftBlueprintPriorityOverride]['ual0303'] = 1 --Harby (instead of sniper bot)
+    --aiBrain[reftBlueprintPriorityOverride]['ual0304'] = 1 --Mobile t3 arti instead of shield disrupter
+    aiBrain[reftBlueprintPriorityOverride]['url0303'] = 1 --Loyalist (instead of Brick)
+    --aiBrain[reftBlueprintPriorityOverride]['xrl0305'] = 1 --Brick
+    aiBrain[reftBlueprintPriorityOverride]['xsl0303'] = 1 --Siege tank (instead of sniper bot)
+    aiBrain[reftBlueprintPriorityOverride]['xsl0301'] = 1 --Seraphim basic SACU (instead of preset)
+
+    --Engineers
+    aiBrain[reftBlueprintPriorityOverride]['uel0208'] = 1 --T2 Engi (instead of sparky)
 
 end

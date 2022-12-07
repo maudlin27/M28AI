@@ -11,6 +11,7 @@ local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
 local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
+local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 
 function OnPlayerDefeated(aiBrain)
     
@@ -119,19 +120,35 @@ function OnUnitDeath(oUnit)
                 --ForkThread(M28Map.RecordThatWeWantToUpdateReclaimAtLocation, oUnit.CachePosition, 0)
             else
                 if oUnit.GetAIBrain then
+                    --------Non-M28 Specific logic------
                     --Ythotha deathball avoidance
                     --Note -seraphimunits.lua contains SEnergyBallUnit which looks like it is for when the death ball is spawned; ID is XSL0402; SpawnElectroStorm is in the ythotha script
                     --Sandbox test - have c.36s from ythotha dying to energy ball dying, so want to run away for half of this (18s) plus extra time based on how far away we already were
                     if EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental * categories.SERAPHIM, oUnit.UnitId) then
                         OnYthothaDeath(oUnit)
                     end
+                    if EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oUnit.UnitId) and (EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) or oUnit:GetFractionComplete() < 1) then
+                        M28Engineer.SearchForBuildableLocationsNearDestroyedBuilding(oUnit)
+                    end
 
 
-                -------M28 specific logic---------
+
+
+                    -------M28 specific logic---------
                     --Is the unit owned by M28AI?
                     if oUnit:GetAIBrain().M28AI then
                         --Run unit type specific on death logic
                         M28Economy.UpdateGrossIncomeForUnit(oUnit, true)
+                        if EntityCategoryContains(M28UnitInfo.refCategoryScathis, oUnit.UnitId) then
+                            if M28Utilities.IsTableEmpty(M28Engineer.tAllScathis) == false then
+                                for iScathis, oScathis in M28Engineer.tAllScathis do
+                                    if oScathis == oUnit then
+                                        table.remove(M28Engineer.tAllScathis, iScathis) --Only doing this once so can get away with using table.remove, otherwise would want to use M28Utilities.ArrayRemove
+                                        break
+                                    end
+                                end
+                            end
+                        end
                     end
                 end
             end
@@ -172,7 +189,7 @@ end
 
 --[[
 function OnProjectileFired(oWeapon, oMuzzle)
-    local bDebugMessages = false if M28Utilities.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'OnProjectileFired'
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code') end
     if oWeapon.GetBlueprint then
@@ -193,18 +210,30 @@ function OnConstructed(oEngineer, oJustBuilt)
 
     --NOTE: This is called every time an engineer stops building a unit whose fractioncomplete is 100%, so can be called multiple times
     if M28Utilities.bM28AIInGame then
+        --M28 specific
         if oJustBuilt:GetAIBrain().M28AI and not(oJustBuilt.M28OnConstructedCalled) then
             local sFunctionRef = 'OnConstructed'
             local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
             oJustBuilt.M28OnConstructedCalled = true
 
-            M28Economy.UpdateGrossIncomeForUnit(oJustBuilt)
+            --Logic based on the unit that was just built:
 
-            if EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
-                M28ACU.GetACUOrder(oJustBuilt:GetAIBrain(), oEngineer)
+            --Check build locations for units not built at a factory
+            if EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId) then
+                M28Engineer.CheckIfBuildableLocationsNearPositionStillValid(oJustBuilt:GetAIBrain(), oJustBuilt:GetPosition())
             end
 
+            --Update economy tracking (this function will check if it is an economic unit as part of it)
+            M28Economy.UpdateGrossIncomeForUnit(oJustBuilt)
+            if EntityCategoryContains(M28UnitInfo.refCategoryScathis, oJustBuilt.UnitId) then
+                table.insert(M28Engineer.tAllScathis, oJustBuilt)
+            end
+
+            --Logic based on the engineer
+            if EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
+                M28ACU.GetACUOrder(oEngineer:GetAIBrain(), oEngineer)
+            end
 
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 

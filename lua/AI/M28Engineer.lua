@@ -10,11 +10,21 @@ local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
 local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
+local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
+local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 local NavUtils = import("/lua/sim/navutils.lua")
 
---Against unit varaibles
-refiEngineerCurUniqueReference = 'M28EngineerCurUniqueReference' --aiBrain stores the xth engineer object its given an action to, so this can be used as a unique reference
 
+--Global variables
+bBuildLocationLoopActive = false --true if have a loop that is checking for build locations
+tsBlueprintsBySize = {[1] = 'ueb2101', [2] = 'ueb1101', [6] = 'ueb1201', [8] = 'ueb1301', [9]='xrl0403', [10]='uab0304', [16] = 'xsa0402', [24] = 'uaa0310'} --Blueprints to use when trying to find locations that can buid on for a building of a particular size
+tAllScathis = {} --If a scathis is constructed it gets recorded here (and we then check this for build locations to avoid trying to build on a scathis); for performance reasons will just use a single global table
+
+--against brain:
+--refiEngineerCurUniqueReference - this is also against unit so is declared in below section rather than here
+
+--Against unit varaibles
+refiEngineerCurUniqueReference = 'M28EngineerCurUniqueReference' --Against both aiBrain and engineer; aiBrain stores the xth engineer object its given an action to, so this can be used as a unique reference
 
 
 --Actions for engineers (dont have as local variables due to cap on how many local variables we can have)
@@ -87,6 +97,1029 @@ function GetEngineerUniqueCount(oEngineer)
     return iUniqueRef
 end
 
+function CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iEngiActionToIgnore, bClearActionsIfNotStartedBuilding, bCheckForQueuedBuildings, bCheckForOverlappingBuildings)
+    --iEngiActionToIgnore, bClearActionsIfNotStartedBuilding and bCheckForOverlappingBuildings are optional
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'CanBuildAtLocation'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --if EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, sBlueprintToBuild) then bDebugMessages = true end
+
+    if bDebugMessages == true then LOG(sFunctionRef..': About to see if we can build '..sBlueprintToBuild..' at '..repru(tTargetLocation)..'; iEngiActionToIgnore='..(iEngiActionToIgnore or 'nil')..'; bClearActionsIfNotStartedBuilding='..tostring((bClearActionsIfNotStartedBuilding or false))..'; surface height at target='..GetSurfaceHeight(tTargetLocation[1], tTargetLocation[3])) end
+
+    local bCanBuildStructure = false
+    if aiBrain:CanBuildStructureAt(sBlueprintToBuild, tTargetLocation) == true then
+        bCanBuildStructure = true
+        if bCheckForQueuedBuildings == true then
+            M28Utilities.ErrorHandler('Need to add code - have commented out old M27 code for now - change so it will consider any queued buildings by land zone locations rather than checking every single location')
+            --Check if any engi actions queued up that would stop this
+            --[[local iBuildingRadius = math.max(__blueprints[sBlueprintToBuild].Physics.SkirtSizeX * 0.5 - 1,0)  --E.g. if building a t1 power, it has a size of 2, and radius of 1; when it's queued, the location and blocks within 1 of it will all be marked as being built on (i.e. a 3x3 area).  Hence, if considering building another power, if we dont reduce the search range by 1, it will lead to spacing things out more than needed
+            local sLocationRef
+            local tLocationToCheck
+            local bIgnoreAction
+            if bDebugMessages == true then LOG(sFunctionRef..': Can build structure at the location, checking if we already have building queued up for this location. iBuildingRadius='..iBuildingRadius) end
+            --tiEngiActionsThatDontBuild
+            for iAdjustX = -iBuildingRadius, iBuildingRadius, 1 do
+                for iAdjustZ = -iBuildingRadius, iBuildingRadius, 1 do
+                    tLocationToCheck = {tTargetLocation[1] + iAdjustX, 0, tTargetLocation[3] + iAdjustZ}
+                    tLocationToCheck[2] = GetSurfaceHeight(tLocationToCheck[1], tLocationToCheck[3])
+                    sLocationRef = M28Utilities.ConvertLocationToStringRef(tLocationToCheck)
+                    if bDebugMessages == true then LOG(sFunctionRef..': iAdjustX='..iAdjustX..'; iAdjustZ='..iAdjustZ..'; sLocationRef='..sLocationRef..'; Is table empty for this='..tostring(M28Utilities.IsTableEmpty(aiBrain[reftEngineerAssignmentsByLocation][sLocationRef]))) end
+                    if M28Utilities.IsTableEmpty(aiBrain[reftEngineerAssignmentsByLocation][sLocationRef]) == false then
+                        for iActionRef, tSubtable in aiBrain[reftEngineerAssignmentsByLocation][sLocationRef] do
+                            bIgnoreAction = false
+                            for _, iActionToIgnore in tiEngiActionsThatDontBuild do
+                                if iActionRef == iActionToIgnore then
+                                    bIgnoreAction = true
+                                    break
+                                end
+                            end
+                            if iEngiActionToIgnore and iActionRef == iEngiActionToIgnore then bIgnoreAction = true end
+                            if bDebugMessages == true then LOG(sFunctionRef..': iActionRef='..iActionRef..'; bIgnoreAction='..tostring(bIgnoreAction)) end                            if not(bIgnoreAction) then
+                            bCanBuildStructure = false
+                            --Do we want to cancel any blocking units?
+                            if bClearActionsIfNotStartedBuilding then
+                                for iUniqueEngiRef, oEngineer in tSubtable do
+                                    if bDebugMessages == true then LOG(sFunctionRef..': About to clear oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' which was recorded as having iActionRef='..iActionRef) end
+                                    M28Orders.IssueTrackedClearCommands({oEngineer})
+                                    ClearEngineerActionTrackers(aiBrain, oEngineer, true)
+                                end
+                                bCanBuildStructure = M28Utilities.IsTableEmpty(aiBrain[reftEngineerAssignmentsByLocation][sLocationRef][iActionRef])
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have just cleared any blocking units; bCanBuildStructure='..tostring(bCanBuildStructure)) end
+                            end
+                            if not(bCanBuildStructure) then break end
+                        end
+                        end
+                    end
+                    if not(bCanBuildStructure) then break end
+                end
+                if not(bCanBuildStructure) then break end
+            end--]]
+        end
+        if bCanBuildStructure then
+            local iSkirtSizeRadius = __blueprints[sBlueprintToBuild].Physics.SkirtSizeX * 0.5
+
+            --Check in case scathis is blocking us
+            if M28Utilities.IsTableEmpty(tAllScathis) == false then
+                for iUnit, oUnit in tAllScathis do
+                    if M28Utilities.GetDistanceBetweenPositions(tTargetLocation, oUnit:GetPosition()) < (iSkirtSizeRadius + oUnit:GetBlueprint().Physics.SkirtSizeX * 0.5) then
+                        bCanBuildStructure = false
+                        if bDebugMessages == true then LOG(sFunctionRef..': Are too close to a scathis so wont build here') end
+                        break
+                    end
+                end
+            end
+
+            if bCanBuildStructure and bCheckForOverlappingBuildings then
+
+                --Thanks to jip for flagging there's an engine bug where in rare situations units can be built slightly overlapping even if aiBrain:CanBuildStructureAt returns true - comments in the code Jip linked to suggested this is only where a building has upgraded
+                -- compute build locations and issue the capping
+
+                -- find all units that may prevent us from building
+                local tNearbyStructures = GetUnitsInRect(tTargetLocation[1] - (iSkirtSizeRadius + 4), tTargetLocation[3] - (iSkirtSizeRadius + 4), tTargetLocation[1] + (iSkirtSizeRadius + 4), tTargetLocation[3] + (iSkirtSizeRadius + 4))
+                if M28Utilities.IsTableEmpty(tNearbyStructures) == false then
+                    tNearbyStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryUpgraded, tNearbyStructures)
+                    local iClosestDistance
+                    if M28Utilities.IsTableEmpty(tNearbyStructures) == false then
+                        for iStructure, oStructure in tNearbyStructures do
+                            if not(oStructure.Dead) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': oStructure='..oStructure.UnitId..M28UnitInfo.GetUnitLifetimeCount(oStructure)..'; position='..repru(oStructure:GetPosition())..'; target location='..repru(tTargetLocation)..'; target building ID='..sBlueprintToBuild..'; 50% of target building skirt size='..iSkirtSizeRadius..'; 50% of oStructure skrit size='..oStructure:GetBlueprint().Physics.SkirtSizeX * 0.5) end
+                                iClosestDistance = math.max(math.abs(oStructure:GetPosition()[1] - tTargetLocation[1]), math.abs(oStructure:GetPosition()[3] - tTargetLocation[3]))
+                                if iClosestDistance < (iSkirtSizeRadius + oStructure:GetBlueprint().Physics.SkirtSizeX * 0.5) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Cant build as iClosestDistance='..iClosestDistance..'which is less than the two skirt sizes') end
+                                    bCanBuildStructure = false
+                                    break
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            if not(bCanBuildStructure) and bDebugMessages == true then LOG(sFunctionRef..': Skirt size is overlaping with a building that could have upgraded so will return false') end
+        end
+    elseif bDebugMessages == true then LOG(sFunctionRef..': Cant build structure at the location')
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, bCanBuildStructure='..tostring(bCanBuildStructure)) end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return bCanBuildStructure
+end
+
+function CheckIfBuildableLocationsNearPositionStillValid(aiBrain, tLocation)
+    local iPlateauGroup, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tLocation)
+    if iLandZone > 0 then
+        local sGenericBlueprint
+        if M28Utilities.IsTableEmpty(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize])) == false then
+            for iSize, tOldBuildableLocations in M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize] do
+                sGenericBlueprint = tsBlueprintBySize[iSize]
+                --Is the location still valid?
+                local function StillKeepLocation(tArray, iEntry)
+                    return aiBrain:CanBuildStructureAt(sGenericBlueprint, tArray[iEntry]) --Done instead of the detailed test since will have already passed the detailed test to get here and want something quick as will be running potentially tens of thousands of times
+                end
+                M28Utilities.RemoveEntriesFromArrayBasedOnCondition(tOldBuildableLocations, StillKeepLocation)    --Done instead of table.gen to avoid reindexing array multiple times in the same cycle
+            end
+        end
+        --Search for more building locations for every building where we havent considered the full amount
+        for iSize, tOldBuildableLocations in M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize] do
+            if M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTotalSegmentCount] > (M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationSegmentCountBySize][iSize] or 0) then
+                SearchForBuildableLocationsForLandZone(aiBrain, iPlateauGroup, iLandZone, iSize, tsBlueprintsBySize[iSize])
+            end
+        end
+    end
+end
+
+
+function SearchForBuildableLocationsForLandZone(aiBrain, iPlateauGroup, iLandZone, iSize, sBlueprint, iOptionalMaxSegmentsToConsider)
+    --Updates the plateau with a general buildable locations (if there are any) for iLandZone, based on sBlueprint; replaces the value for iSize with -1 if no such locations can be found
+    --Will treat locations immediately adjacent to mexes as being unbuildable, to avoid taking up mass storage positions
+    --iOptionalMaxSegmentsToConsider - will stop searching if reach this number of segments
+    local sGenericBlueprint =  tsBlueprintsBySize[iSize]
+    if not(sGenericBlueprint) then
+        if sBlueprint then
+            sGenericBlueprint = sBlueprint
+            tsBlueprintsBySize[iSize] = sBlueprint
+        else
+            M28Utilities.ErrorHandler('Dont have a blueprint for unit size '..iSize..' and dont have a backup blueprint specified')
+            return nil --Long term if come across this want to come up with logic to analyse every blueprint to look for such a unit; however in most cases we should be ok due to above recording if we try to build anything of an unexpected size anyway
+        end
+    end
+
+    local tCurPosition
+    local iLocationsFound = 0
+    M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize] = {}
+    local iSegmentStart = (M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationSegmentCountBySize][iSize] or 0) + 1
+    local iTotalSegments = table.getn(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZSegments])
+    if iSegmentStart > iTotalSegments then iSegmentStart = 1 end
+    local iSegmentsConsidered = 0
+    local tSegmentXZ
+    local iMaxSegmentsToConsiderWithMatches = math.max(50, (iOptionalMaxSegmentsToConsider or 0))
+    local iMaxSegmentsToConsiderWithoutMatches = math.max(500, (iOptionalMaxSegmentsToConsider or 0))
+
+
+    --Cycle through every segment in the land zone and see if we can build the desired unit at the segment midpoint
+    for iSegmentCount = iSegmentStart, iTotalSegments do
+        iSegmentsConsidered = iSegmentsConsidered + 1
+        tSegmentXZ = M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZSegments][iSegmentCount]
+        tCurPosition = M28Map.GetPositionFromPathingSegments(tSegmentXZ[1], tSegmentXZ[2])
+        if CanBuildAtLocation(aiBrain, sGenericBlueprint, tCurPosition, nil, false, false) then
+            table.insert(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize], tCurPosition)
+            iLocationsFound = iLocationsFound + 1
+        end
+        if (iOptionalMaxSegmentsToConsider and iSegmentsConsidered >= iOptionalMaxSegmentsToConsider) or (iLocationsFound >= 16 and iSegmentsConsidered >= iMaxSegmentsToConsiderWithMatches) or (iSegmentsConsidered >= iMaxSegmentsToConsiderWithoutMatches and iLocationsFound >= 1) then
+            break
+        end
+    end
+    M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationSegmentCountBySize][iSize] = math.min(iTotalSegments, iSegmentStart + iSegmentsConsidered - 1)
+    if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize]) then
+        M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize] = -1
+    end
+end
+
+
+function GetAvailableLandZoneBuildLocations(aiBrain, tLocation, sBlueprint)
+    --Returns locations assigned to the zone for building sBlueprint, if any exist, or returns nil if none exists
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetAvailableLandZoneBuildLocations'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iPlateauGroup, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tLocation)
+    if iLandZone > 0 then
+        local iSize = M28UnitInfo.GetBuildingSize(sBlueprint)
+        --Have we tried to get a location for this size before?
+        if bDebugMessages == true then LOG(sFunctionRef..': tLocation='..repru(tLocation)..'; sBlueprint='..sBlueprint..'; iSize='..iSize..'; iPlateauGroup='..iPlateauGroup..'; iLandZone='..iLandZone..'; M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize]='..repru(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize])..'; Segments considered for build locations='..repru(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationSegmentCountBySize])..'; Total segments in LZ='..M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTotalSegmentCount]) end
+        if not(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize]) or M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationSegmentCountBySize] < M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTotalSegmentCount] then
+            SearchForBuildableLocationsForLandZone(aiBrain, iPlateauGroup, iLandZone, iSize, sBlueprint)
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished searching for more buildable locations, result of locations for this size='..repru(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize])..'; Segments considered='..(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationSegmentCountBySize][iSize] or 'nil')) end
+        end
+        if M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize] == -1 then
+            if bDebugMessages == true then LOG(sFunctionRef..': No valid buildable locations for this land zone') end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return nil
+        else
+            if bDebugMessages == true then LOG(sFunctionRef..': Have valid buidlable locations so will return these') end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize]
+        end
+    end
+end
+
+function SearchForBuildableLocationsNearDestroyedBuilding(oDestroyedBuilding)
+    --Searhces all segments around oDestroyedBuilding in the same land zone, and if we can build in them for a particular size, then records that location as a buildable location for that size for the land zone
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'SearchForBuildableLocationsNearDestroyedBuilding'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+    local iPlateauGroup, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oDestroyedBuilding:GetPosition())
+    if iLandZone > 0 then
+        --Cycle through each size that we ahve considered for this land zone
+        if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize]) == false then
+            if M28Utilities.IsTableEmpty(M28Overseer.tAllActiveM28Brains) == false then
+                local aiBrain
+                for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
+                    aiBrain = oBrain
+                    if not(oBrain.M28IsDefeated) then
+                        break
+                    end
+                end
+                local tRelevantSegments
+                local tPotentialValidLocationsToBuild
+                local iBaseSegmentX, iBaseSegmentZ = M28Map.GetPathingSegmentFromPosition(oDestroyedBuilding:GetPosition())
+                local iMaxLandSegmentX, iMaxLandSegmentZ = M28Map.GetPathingSegmentFromPosition({M28Map.rMapPlayableArea[3], 0, M28Map.rMapPlayableArea[4]})
+                local iBuildingSize = M28UnitInfo.GetBuildingSize(oDestroyedBuilding.UnitId)
+                local iMaxSegmentAdjust
+                local iCurSearchCount = 0
+                local tCurPosition
+                local iTotalWaitCount = 0
+
+                for iSize, tBuildableLocations in M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize] do
+                    --Work out the segments of relevance for the building just destroyed that has now freed up some space
+                    tRelevantSegments = {}
+                    tPotentialValidLocationsToBuild = {}
+                    iMaxSegmentAdjust = math.ceil((iBuildingSize + iSize) * 0.5 / M28Map.iLandZoneSegmentSize)
+                    for iCurSegmentX = math.max(1, iBaseSegmentX - iMaxSegmentAdjust), math.min(iBaseSegmentX + iMaxSegmentAdjust, iMaxLandSegmentX) do
+                        for iCurSegmentZ = math.max(1, iBaseSegmentZ - iMaxSegmentAdjust), math.min(iBaseSegmentZ + iMaxSegmentAdjust, iMaxLandSegmentZ) do
+                            --Are we in the same land zone?
+                            if M28Map.tLandZoneBySegment[iCurSegmentX][iCurSegmentZ] == iLandZone then
+                                tCurPosition = M28Map.GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)
+                                if CanBuildAtLocation(aiBrain, tsBlueprintsBySize[iSize], tCurPosition, nil, false, false) then
+                                    table.insert(tPotentialValidLocationsToBuild, tCurPosition)
+                                end
+
+                                iCurSearchCount = iCurSearchCount + 1
+                                if iCurSearchCount >= 50 then
+                                    iCurSearchCount = 0
+                                    iTotalWaitCount = iTotalWaitCount + 1
+                                    WaitTicks(1)
+                                end
+                            end
+                        end
+                    end
+                    if M28Utilities.IsTableEmpty(tPotentialValidLocationsToBuild) == false then
+                        --Check they are all still valid
+                        if iTotalWaitCount > 0 then
+                            function StillValid(tArray, iEntry)
+                                return aiBrain:CanBuildStructureAt(tsBlueprintsBySize[iSize], tArray[iEntry])
+                            end
+                            M28Utilities.RemoveEntriesFromArrayBasedOnCondition(tPotentialValidLocationsToBuild, StillValid)
+                        end
+                        if M28Utilities.IsTableEmpty(tPotentialValidLocationsToBuild) == false then --Incase no longer have any entries as a result of the above
+                            local tValidLocations = {}
+                            local bInTable
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering what potential locations are valid; iPlateauGroup='..iPlateauGroup..'; iLandZone='..iLandZone..'; tBuildableLocations='..repru(tBuildableLocations)..'; tPotentialValidLocationsToBuild='..repru(tPotentialValidLocationsToBuild)) end
+                            if M28Utilities.IsTableEmpty(tBuildableLocations) then
+                                tValidLocations = tPotentialValidLocationsToBuild
+                                if bDebugMessages == true then LOG(sFunctionRef..': Dont have any buildable locations so valid locations will be all of the potential valid locations to build') end
+                            else
+                                for iPotentialLocation, tPotentialLocation in tPotentialValidLocationsToBuild do
+                                    --Is it in the table already?
+                                    bInTable = false
+
+                                    for iExistingLocation, tExistingLocation in tBuildableLocations do
+                                        if tExistingLocation[1] == tPotentialLocation[1] and tExistingLocation[3] == tPotentialLocation[3] then
+                                            bInTable = true
+                                            break
+                                        end
+                                    end
+                                    if not(bInTable) then
+                                        table.insert(tValidLocations, tPotentialLocation)
+                                    end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': tValidLocations after considering whether potential locations are in existing buildabnle locations table='..repru(tValidLocations)) end
+                                end
+                            end
+                            if M28Utilities.IsTableEmpty(tValidLocations) == false then
+                                if tBuildableLocations == -1 then
+                                    tBuildableLocations = {}
+                                end
+                                for iNewLocation, tNewLocation in tValidLocations do
+                                    table.insert(tBuildableLocations, tNewLocation)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function GetPotentialAdjacencyLocations(aiBrain, sBlueprintToBuild, tTargetLocation, iMaxAreaToSearch, iCatToBuildBy, oUnitToBuildBy, bStopWhenHaveValidLocation)
+    --Returns a table of all locations that are valid buildable locations for sBlueprintToBuild where it will benefit from an adjacencybonus with iCatToBuildBy or oUnitToBuildBy
+    --bStopWhenHaveValidLocation - if we are happy to get the first result then this will abort as soon as a valid location is found
+    --Returns {} if no valid locations can be found
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetPotentialAdjacencyLocations'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local tPotentialLocations = {}
+    local toPossibleBuildingsToBuildBy = {}
+    local iPlateauGroup, iLandZone --Values are set if we have a cat to build by (but need here as refer to again later on)
+
+    if iCatToBuildBy then
+        --sBlueprintBuildBy = M28FactoryOverseer.GetBlueprintsThatCanBuildOfCategory(aiBrain, iCatToBuildBy, oEngineer)--, false, false)
+        iPlateauGroup, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
+        if bDebugMessages == true then LOG(sFunctionRef..': Have a cat to build by, tTargetLocation='..repru(tTargetLocation)..'; iPlateauGroup='..iPlateauGroup..'; iLandZone='..iLandZone..'; Is table of allied units in this LZ empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZSubteamData][M28Map.subrefLZSTAlliedUnits]))) end
+        if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZSubteamData][M28Map.subrefLZSTAlliedUnits]) == false then
+            local tRelevantBuildingsInSameLandZone = EntityCategoryFilterDown(iCatToBuildBy, M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZSubteamData][M28Map.subrefLZSTAlliedUnits])
+            if M28Utilities.IsTableEmpty(tRelevantBuildingsInSameLandZone) == false then
+                for iUnit, oUnit in tRelevantBuildingsInSameLandZone do
+                    if oUnit:GetAIBrain() == aiBrain then
+                        if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tTargetLocation) <= iMaxAreaToSearch then
+                            table.insert(toPossibleBuildingsToBuildBy, oUnit)
+                        end
+                    end
+                end
+            end
+        end
+    elseif oUnitToBuildBy and not(oUnitToBuildBy.Dead) then
+        --sBlueprintBuildBy = oUnitToBuildBy.UnitId
+        toPossibleBuildingsToBuildBy = {oUnitToBuildBy}
+    else M28Utilities.ErrorHandler('No adjacency category or unit specified')
+    end
+
+    local bAbort = false
+    local iNewBuildingRadius = M28UnitInfo.GetBuildingSize(sBlueprintToBuild) * 0.5
+    local function AddAdjacencyLocationsToPotentialLocations(tAdjacencyBuildingPosition, iAdjacencyBuildingRadius, iNewBuildingRadius)
+        local iCurZ, iCurX
+        local iCycleSize = math.abs(iAdjacencyBuildingRadius - iNewBuildingRadius)
+
+        --First go along top and bottom:
+        for iZFactor = -1, 1, 2 do
+            iCurZ = tAdjacencyBuildingPosition[3] + (iAdjacencyBuildingRadius + iNewBuildingRadius) * iZFactor
+            for iCurX = tAdjacencyBuildingPosition[1] - iCycleSize, tAdjacencyBuildingPosition[1] + iCycleSize, 1 do
+                if CanBuildAtLocation(aiBrain, sBlueprintToBuild, { iCurX, 0, iCurZ}, nil, false, true, false) then
+                    table.insert(tPotentialLocations, {iCurX, GetSurfaceHeight(iCurX, iCurZ), iCurZ})
+                    if bStopWhenHaveValidLocation then bAbort = true break end
+                end
+            end
+            if bAbort then break end
+        end
+
+        --Next go along the sides:
+        if not(bAbort) then
+            for iXFactor = -1, 1, 2 do
+                iCurX = tAdjacencyBuildingPosition[1] + (iAdjacencyBuildingRadius + iNewBuildingRadius) * iXFactor
+                for iCurZ = tAdjacencyBuildingPosition[3] - iCycleSize, tAdjacencyBuildingPosition[3] + iCycleSize, 1 do
+                    if CanBuildAtLocation(aiBrain, sBlueprintToBuild, { iCurX, 0, iCurZ}, nil, false, true, false) then
+                        table.insert(tPotentialLocations, {iCurX, GetSurfaceHeight(iCurX, iCurZ), iCurZ})
+                        if bStopWhenHaveValidLocation then bAbort = true break end
+                    end
+                end
+                if bAbort then break end
+            end
+        end
+    end
+
+
+    if M28Utilities.IsTableEmpty(toPossibleBuildingsToBuildBy) == false then
+        if bDebugMessages == true then LOG(sFunctionRef..': Have possible buildings to build by, so will consider best location') end
+        local iAdjacencyBuildingRadius
+        local tAdjacencyBuildingPosition
+        local iCurZ, iCurX
+        local iCycleSize
+        for iBuilding, oBuilding in toPossibleBuildingsToBuildBy do
+            iAdjacencyBuildingRadius = M28UnitInfo.GetBuildingSize(oBuilding.UnitId)
+            AddAdjacencyLocationsToPotentialLocations(oBuilding:GetPosition(), iAdjacencyBuildingRadius, iNewBuildingRadius)
+            if bAbort then break end
+        end
+    else
+        --No nearby buildings of the desired kind - if we want to build by a mex or hydro then consider unbuilt resource locations
+        local tResourceLocations
+        local iAdjacencyBuildingRadius
+        if M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryMex, iCatToBuildBy, false) then
+            tResourceLocations = M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]
+            iAdjacencyBuildingRadius = 1
+            if bDebugMessages == true then LOG(sFunctionRef..': Want to build by a mex so recording tResourceLocations based on iPlateauGroup='..(iPlateauGroup or 'nil')..' and iLandZone='..(iLandZone or 'nil')) end
+        elseif M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryHydro, iCatToBuildBy, false) then
+            tResourceLocations = M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroLocations]
+            iAdjacencyBuildingRadius = 3
+        end
+        if tResourceLocations then
+            for iCurResource, tCurResource in tResourceLocations do
+                AddAdjacencyLocationsToPotentialLocations(tCurResource, iAdjacencyBuildingRadius, iNewBuildingRadius)
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return tPotentialLocations
+end
+
+function GetLocationAndBlueprintToBuild(aiBrain, oEngineer, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy, tAlternativePositionToLookFrom, bLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure)
+    --Determines the blueprint and location for oEngineer to build at and returns these or nil if no suitable locations can be found
+    --iCatToBuildBy: Optional, specify if want to look for adjacency locations; Note to factor in 50% of the builder's size and 50% of the likely adjacency building size
+
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetLocationAndBlueprintToBuild'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, Engineer UC='..GetEngineerUniqueCount(oEngineer)..'; Engineer LC='..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; Techlevel='..M28UnitInfo.GetUnitTechLevel(oEngineer)..'; tAlternativePositionToLookFrom='..repru(tAlternativePositionToLookFrom or {'nil'})..'; bBuildCheapestStructure='..tostring((bBuildCheapestStructure or false))..'; All blueprints that meet the category='..repru(EntityCategoryGetUnitList(iCategoryToBuild))..'; iMaxAreaToSearch='..(iMaxAreaToSearch or 'nil')) end
+
+    --Get the blueprint to build
+    --GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, iOptionalCategoryThatMustBeAbleToBuild, bGetCheapest)
+    local sBlueprintToBuild = M28Factory.GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oEngineer, false, false, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure)
+
+    if sBlueprintToBuild == nil then
+        M28Utilities.ErrorHandler('sBlueprintToBuild is nil, could happen e.g. if try and get sparky to build sxomething it cant - refer to log for more details')
+        if not(iCategoryToBuild) then LOG(sFunctionRef..': No category to build. oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; UC='..GetEngineerUniqueCount(oEngineer))
+        else
+            LOG(sFunctionRef..': Had category to build. oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; UC='..GetEngineerUniqueCount(oEngineer)..'; All blueprints that satisfy the category='..repru(EntityCategoryGetUnitList(iCategoryToBuild)))
+        end
+    else
+        --Adjust the search range and record key info needed for the search
+        local tEngineerPosition = oEngineer:GetPosition()
+        local tTargetLocation = (tAlternativePositionToLookFrom or tEngineerPosition)
+        local tPotentialBuildLocations = {}
+
+        --Increase max area to search if dealing with czar or similarly large unit due to its size
+        if __blueprints[sBlueprintToBuild].Physics.SkirtSizeX >= 10 then
+            iMaxAreaToSearch = iMaxAreaToSearch * 1.5
+            if bDebugMessages == true then LOG(sFunctionRef..': Building a large unit such as a czar, increased iMaxAreaToSearch to '..iMaxAreaToSearch) end
+        end
+        --Reduce max area to search if dealing with a shield
+        if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, sBlueprintToBuild) then
+            iMaxAreaToSearch = math.min(iMaxAreaToSearch, (__blueprints[sBlueprintToBuild].Defense.Shield.ShieldSize or 0) * 0.5)
+            if bDebugMessages == true then LOG(sFunctionRef..': Dealing with a shield so reduce max area to search based on half of shield size. iMaxAreaToSearch='..(iMaxAreaToSearch or 'nil')..'; shield size='..__blueprints[sBlueprintToBuild].Defense.Shield.ShieldSize or 0) end
+        end
+
+        if not(tTargetLocation) then tTargetLocation = tEngineerPosition end
+
+        if bDebugMessages == true then LOG(sFunctionRef..': sBlueprintToBuild='..(sBlueprintToBuild or 'nil')..'; Location to look from='..repru(tTargetLocation)) end
+        --Mex or hydro - consider the resource locations
+        if EntityCategoryContains(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryHydro, sBlueprintToBuild) then
+            local iPlateauGroup, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
+            local tResourceLocations
+            if EntityCategoryContains(M28UnitInfo.refCategoryMex, sBlueprintToBuild) then
+                tResourceLocations = M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]
+            else
+                tResourceLocations = M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroLocations]
+            end
+            if tResourceLocations then
+                --Cycle through and include any that are buildable
+                for iCurResource, tCurResource in tResourceLocations do
+                    if CanBuildAtLocation(aiBrain, sBlueprintToBuild, tCurResource, nil, false, true, false) then
+                        table.insert(tPotentialBuildLocations, tCurResource)
+                    end
+                end
+            end
+        else
+            --Get adjacency location if we want adjacency
+            if iCatToBuildBy or oUnitToBuildBy then
+                tPotentialBuildLocations = GetPotentialAdjacencyLocations(aiBrain, sBlueprintToBuild, tTargetLocation, iMaxAreaToSearch, iCatToBuildBy, oUnitToBuildBy)
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished getting potential adjacency locations, tPotentialBuildLocations='..repru(tPotentialBuildLocations)) end
+            end
+            if M28Utilities.IsTableEmpty(tPotentialBuildLocations) then
+                --use the predefined build locations for the land zoneM28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone]M28Map.subrefLZBuildLocationSegmentCountBySize][iSize]
+                local iPlateauGroup, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
+                local iSize = M28UnitInfo.GetBuildingSize(sBlueprintToBuild)
+                if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have searched all segments in the land zone before, tLocation='..repru(tTargetLocation)..'; sBlueprintToBuild='..sBlueprintToBuild..'; iSize='..iSize..'; iPlateauGroup='..iPlateauGroup..'; iLandZone='..iLandZone..'; M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize]='..repru(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize])..'; Segments considered for build locations='..repru(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationSegmentCountBySize])..'; Total segments in LZ='..M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTotalSegmentCount]) end
+                if (M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationSegmentCountBySize][iSize] or 0) < M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTotalSegmentCount] then
+                    GetAvailableLandZoneBuildLocations(aiBrain, tTargetLocation, sBlueprintToBuild)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Finished searching for available build locations for the land zone, build locations for size '..iSize..'='..repru(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize])) end
+                end
+                tPotentialBuildLocations = M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][M28UnitInfo.GetBuildingSize(sBlueprintToBuild)]
+                if bDebugMessages == true then LOG(sFunctionRef..': No adjacency locations or not looking for adjacency; tPotentialBuildLocations based on land zone build locations for iSize='..M28UnitInfo.GetBuildingSize(sBlueprintToBuild)..'='..repru(tPotentialBuildLocations)..'; will draw each location in light blue')
+                    for iEntry, tEntry in tPotentialBuildLocations do
+                        M28Utilities.DrawLocation(tEntry, 5)
+                    end
+                end
+            end
+        end
+
+        --Pick the preferred build location
+        if M28Utilities.IsTableEmpty(tPotentialBuildLocations) == false then
+                                --GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLocation, tPotentialBuildLocations, iOptionalMaxDistanceFromTargetLocation)
+            local tBestLocation = GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLocation, tPotentialBuildLocations, iMaxAreaToSearch)
+            if tBestLocation then return sBlueprintToBuild, tBestLocation end
+        end
+    end
+    return nil, nil
+end
+
+function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLocation, tPotentialBuildLocations, iOptionalMaxDistanceFromTargetLocation)
+    --Assumes we have already checked for: Adjacency; In the same land zone; Valid location to build
+    --WIll then consider: If engineer can build without moving; How far away it is from the engineer; if it will block mex adjacency, and (if we specify a maximum distance) if it is within the max distance
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetBestBuildLocationForTarget'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+    local iHighestPriority = 0
+    local iCurPriority, iCurDistance
+    local iBestLocationRef
+    local oEngiBP = oEngineer:GetBlueprint()
+    local iNewBuildingRadius = M28UnitInfo.GetBuildingSize(sBlueprintToBuild) * 0.5
+    local iBuilderRange = (oEngiBP.Economy.MaxBuildDistance or 5) + math.min(oEngiBP.SizeX, oEngiBP.SizeZ) + iNewBuildingRadius - 0.5
+    local rBuildAreaRect
+    local iMaxRange = iOptionalMaxDistanceFromTargetLocation or 200
+
+
+    for iCurLocation, tCurLocation in tPotentialBuildLocations do
+        iCurPriority = 0
+        iCurDistance = M28Utilities.GetDistanceBetweenPositions(tTargetLocation, tCurLocation)
+        if iCurDistance <= iMaxRange then
+            if iCurDistance <= iBuilderRange then iCurPriority = iCurPriority + 3 end
+            rBuildAreaRect = Rect(tCurLocation[1] - iNewBuildingRadius, tCurLocation[3] - iNewBuildingRadius, tCurLocation[1] + iNewBuildingRadius, tCurLocation[3] + iNewBuildingRadius)
+            if M28Map.GetReclaimInRectangle(1, rBuildAreaRect) == false then iCurPriority = iCurPriority + 3 end
+            if M28Conditions.AreMobileLandUnitsInRect(rBuildAreaRect) then iCurPriority = iCurPriority + 3 end
+            if iCurDistance <= 50 then
+                if iCurDistance <= 10 then
+                    iCurPriority = iCurPriority + 3
+                elseif iCurDistance <= 25 then
+                    iCurPriority = iCurPriority + 2
+                else
+                    iCurPriority = iCurPriority + 1
+                end
+            end
+        end
+        if iCurPriority > iHighestPriority then
+            iHighestPriority = iCurPriority
+            iBestLocationRef = iCurLocation
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    if iBestLocationRef then return tPotentialBuildLocations[iBestLocationRef]
+    else return nil
+    end
+end
+
+
+
+function GetBestBuildLocationForTargetOld(tablePosTarget, sTargetBuildingBPID, sNewBuildingBPID, bCheckValid, aiBrain, bReturnOnlyBestMatch, pBuilderPos, iMaxAreaToSearch, iBuilderRange, bIgnoreOutsideBuildArea, bBetterIfNoReclaim, bPreferCloseToEnemy, bPreferFarFromEnemy, bLookForQueuedBuildings)
+    --Returns all co-ordinates that will result in a sNewBuildingBPID being built adjacent to PosTarget; if bCheckValid is true (default) then will also check it's a valid location to build
+    -- tablePosTarget can either be a table (e.g. a table of mex locations), or just a single position
+    --bIgnoreOutsideBuildArea - if true then ignore any locations outside of the builder's build area
+    --bReturnOnlyBestMatch: if true then applies prioritisation and returns only the best match
+    --bBetterIfNoReclaim - if true, then will ignore any build location that contains any reclaim (to avoid ACU trying to build somewhere that it has to walk to and reclaim)
+    --bPreferCloseToEnemy, bPreferFarFromEnemy - optional variables, if either is set then will give +0.5 priority to locations that are closer/further to enemy
+    --bLookForQueuedBuildings - optional, defaults to true, if true then check if any engineer has been assigned to buidl to that location already
+
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end --True if want most log messages to print
+    local sFunctionRef = 'GetBestBuildLocationForTargetOld'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    --if sNewBuildingBPID == 'uab1101' then bDebugMessages = true end
+    --if EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, sNewBuildingBPID) then bDebugMessages = true end
+
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, tablePosTarget='..repru(tablePosTarget)..'; sTargetBuildingBPID='..(sTargetBuildingBPID or 'nil')..'; sNewBuildingBPID='..(sNewBuildingBPID or 'nil')..'; bCheckValid='..tostring((bCheckValid or false))..'; bReturnOnlyBestMatch='..tostring(bReturnOnlyBestMatch or false)..'; pBuilderPos='..repru(pBuilderPos)..'; iMaxAreaToSearch='..(iMaxAreaToSearch or 'nil')..'; iBuilderRange='..(iBuilderRange or 'nil')..'; bIgnoreOutsideBuildArea='..tostring(bIgnoreOutsideBuildArea or false)..'; bBetterIfNoReclaim='..tostring(bBetterIfNoReclaim or false)..'; bPreferCloseToEnemy='..tostring(bPreferCloseToEnemy or false)..'; bPreferFarFromEnemy='..tostring(bPreferFarFromEnemy or false)..'; bLookForQueuedBuildings='..tostring(bLookForQueuedBuildings or false)) end
+
+
+
+    if bCheckValid == nil then bCheckValid = false end
+    if aiBrain == nil then bCheckValid = false end
+    if bReturnOnlyBestMatch == nil then bReturnOnlyBestMatch = false end
+    local tStartPosition = M27MapInfo.PlayerStartPoints[aiBrain.M27StartPositionNumber]
+    local tEnemyStartPosition = M27MapInfo.GetPrimaryEnemyBaseLocation(aiBrain)
+    local iDistanceToEnemy
+    local iMinDistanceToEnemy = 10000
+    local iMaxDistanceToEnemy = 0
+    if pBuilderPos == nil then
+        ErrorHandler('pBuilderPos is nil')
+        pBuilderPos = tStartPosition
+        bIgnoreOutsideBuildArea = false
+    end
+    if iBuilderRange == nil then iBuilderRange = 5 end
+    if iMaxAreaToSearch == nil then iMaxAreaToSearch = iBuilderRange + 10 end
+    if bIgnoreOutsideBuildArea == nil then bIgnoreOutsideBuildArea = false end
+    if bBetterIfNoReclaim == nil then bBetterIfNoReclaim = false end
+    if bLookForQueuedBuildings == nil then bLookForQueuedBuildings = true end
+
+    local bWantAdjacency = true
+
+    if sTargetBuildingBPID == nil then
+        bWantAdjacency = false
+    end
+
+    local bDontBuildByMex = true
+    if bWantAdjacency and EntityCategoryContains(categories.MASSEXTRACTION, sTargetBuildingBPID) then bDontBuildByMex = false end
+    if bDebugMessages == true then LOG(sFunctionRef..': sNewBuildingBPID='..sNewBuildingBPID..'; sTargetBuildingBPID='..(sTargetBuildingBPID or 'nil')..'; tablePosTarget='..repru(tablePosTarget)..'; bBetterIfNoReclaim='..tostring(bBetterIfNoReclaim or false)..'; bPreferCloseToEnemy='..tostring(bPreferCloseToEnemy or false)..'; bPreferFarFromEnemy='..tostring(bPreferFarFromEnemy or false)) end
+    --local TargetSize = GetBuildingTypeInfo(TargetBuildingType, 1)
+    local TargetSize
+    if bWantAdjacency then TargetSize = M28UnitInfo.GetBuildingSize(sTargetBuildingBPID) end
+
+    --local tNewBuildingSize = GetBuildingTypeInfo(NewBuildingType, 1)
+    local tNewBuildingSize = M28UnitInfo.GetBuildingSize(sNewBuildingBPID)
+    local fSizeMod = 0.5
+    local iRectangleSizeReduction = 0
+    local iNewBuildingRadius = tNewBuildingSize[1] * fSizeMod
+    if bDebugMessages == true and bWantAdjacency then LOG(sFunctionRef..': TargetSize='..repru(TargetSize)..'; NewBuildingSize='..repru(tNewBuildingSize)..'; iBuilderRange='..iBuilderRange..'; Gross energy income='..aiBrain[M27EconomyOverseer.refiGrossEnergyBaseIncome]..'; Does building contain t1 land fac='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryLandFactory * categories.TECH1, sNewBuildingBPID))) end
+    local iBuildRangeExtension = iNewBuildingRadius
+    local bBuildNearerHydro = false --If want to try and build factory closer to hydro so engi has less distance to travel
+    local tNearestHydro
+    local iHydroBaseDistance = 10000
+    if aiBrain[M27EconomyOverseer.refiGrossEnergyBaseIncome] <= 10 and iBuilderRange >= 9 and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory * categories.TECH1, sNewBuildingBPID) then --proxy for assuming are dealing with an ACU building factory
+        --Do we have a nearby hydro?
+        local tHydroTableToBuildNear
+        bBuildNearerHydro, tHydroTableToBuildNear = M27Conditions.HydroNearACUAndBase(aiBrain, true, true, true)
+        local iCurHydroDist
+        for iHydroTable, tHydroLocation in tHydroTableToBuildNear do
+            iCurHydroDist = M27Utilities.GetDistanceBetweenPositions(tHydroLocation, M27MapInfo.PlayerStartPoints[aiBrain.M27StartPositionNumber])
+            if iCurHydroDist < iHydroBaseDistance then
+                iHydroBaseDistance = iCurHydroDist
+                tNearestHydro = {tHydroLocation[1], tHydroLocation[2], tHydroLocation[3]}
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Think are building our first factory, bBuildNearerHydro='..tostring(bBuildNearerHydro)) end
+
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Increasing builder distance from '..iBuilderRange..' by '..iBuildRangeExtension..'; bBuildNearerHydro='..tostring(bBuildNearerHydro)..'; tNearestHydro='..repru(tNearestHydro)..'; iHydroBaseDistance='..iHydroBaseDistance) end
+    iBuilderRange = iBuilderRange + iBuildRangeExtension
+    iMaxAreaToSearch = math.max(iMaxAreaToSearch, iBuilderRange + tNewBuildingSize[1])
+
+
+    local iMaxX, iMinX, iMaxZ, iMinZ, iTargetMaxX, iTargetMinX, iTargetMaxZ, iTargetMinZ, OptionsX, OptionsZ
+    local iNewX, iNewZ
+    local iValidPosCount = 0
+    local CurPosition = {}
+    local PossiblePositions = {}
+    local iValidPositionPriorities = {}
+    local iValidPositionDistanceToEnemy = {}
+    local iPriority
+    local iDistanceBetween
+    local iMaxPriority = -100
+    local tBestPosition = {}
+    local bMultipleTargets = M28Utilities.IsTableArray(tablePosTarget[1])
+    local iTotalTargets = 1
+    local PosTarget = {}
+    if bMultipleTargets == true then iTotalTargets = M27Utilities.GetTableSize(tablePosTarget) end
+    local bNewBuildingLargerThanNewTarget = false
+    if TargetSize[1] < tNewBuildingSize[1] or TargetSize[2] < tNewBuildingSize[2] then bNewBuildingLargerThanNewTarget = true end
+
+    local rPlayableArea
+    if M27MapInfo.bNoRushActive then
+        rPlayableArea = {aiBrain[M27MapInfo.reftNoRushCentre][1] - M27MapInfo.iNoRushRange,aiBrain[M27MapInfo.reftNoRushCentre][3] - M27MapInfo.iNoRushRange, aiBrain[M27MapInfo.reftNoRushCentre][1] + M27MapInfo.iNoRushRange,aiBrain[M27MapInfo.reftNoRushCentre][3] + M27MapInfo.iNoRushRange}
+    else
+        rPlayableArea = M27MapInfo.rMapPlayableArea
+    end
+    local iMaxMapX = rPlayableArea[3]
+    local iMaxMapZ = rPlayableArea[4]
+
+    local bHaveGoodMatch
+    local iMapBoundarySize = 4
+    local iActualMaxSearchRange
+    local iIncrementSize = 4
+    if bWantAdjacency then
+        iIncrementSize = 1
+        iActualMaxSearchRange = math.min(iMaxAreaToSearch + iNewBuildingRadius, TargetSize[1] * fSizeMod + iNewBuildingRadius)
+    else iActualMaxSearchRange = math.min(iMaxAreaToSearch + iNewBuildingRadius, iBuilderRange)
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': About to try and build '..sNewBuildingBPID..' adjacent to '..(sTargetBuildingBPID or 'nil')..'; bDontBuildByMex='..tostring(bDontBuildByMex)..'; iTotalTargets='..iTotalTargets) end
+
+    for iCurTarget = 1, iTotalTargets do
+        if bMultipleTargets == true then
+            PosTarget = tablePosTarget[iCurTarget]
+        else
+            PosTarget = tablePosTarget
+        end
+        --LOG('PosTarget[1]='..PosTarget[1])
+        --LOG('TargetSize[1]='..TargetSize[1])
+        --LOG('tNewBuildingSize[1]='..tNewBuildingSize[1])
+        if bWantAdjacency then
+            iMaxX = PosTarget[1] + TargetSize[1] * fSizeMod + iNewBuildingRadius
+            if iMaxX > (iMaxMapX - iNewBuildingRadius) then iMaxX = iMaxMapX - iNewBuildingRadius end
+            iMinX = PosTarget[1] - TargetSize[1] * fSizeMod - tNewBuildingSize[1]* fSizeMod
+            if iMinX < (rPlayableArea[1] + iMapBoundarySize + iNewBuildingRadius) then iMinX = rPlayableArea[1] + iMapBoundarySize + iNewBuildingRadius end
+            iMaxZ = PosTarget[3] + TargetSize[2] * fSizeMod + tNewBuildingSize[2]* fSizeMod
+            if iMaxZ > (iMaxMapZ - iNewBuildingRadius) then iMaxZ = iMaxMapZ - iNewBuildingRadius end
+            iMinZ = PosTarget[3] - TargetSize[2] * fSizeMod - tNewBuildingSize[2]* fSizeMod
+            if iMinZ < (rPlayableArea[2] + iMapBoundarySize + iNewBuildingRadius) then iMinZ = rPlayableArea[2] + iMapBoundarySize + iNewBuildingRadius end
+
+            iTargetMaxX = PosTarget[1] + TargetSize[1] * fSizeMod
+            iTargetMinX = PosTarget[1] - TargetSize[1] * fSizeMod
+            iTargetMaxZ = PosTarget[3] + TargetSize[2] * fSizeMod
+            iTargetMinZ = PosTarget[3] - TargetSize[2] * fSizeMod
+        else --Not interested in adjacency
+            iMaxX = math.min(PosTarget[1] + iActualMaxSearchRange, iMaxMapX - iNewBuildingRadius)
+            iMinX = math.max(PosTarget[1] - iActualMaxSearchRange,  rPlayableArea[1] + iMapBoundarySize + iNewBuildingRadius)
+            iMaxZ = math.min(PosTarget[3] + iActualMaxSearchRange, iMaxMapZ - iNewBuildingRadius)
+            iMinZ = math.max(PosTarget[3] - iActualMaxSearchRange,  rPlayableArea[2] + iMapBoundarySize + iNewBuildingRadius)
+            if bDebugMessages == true then LOG(sFunctionRef..': Dont have adjancy so X Min-Max='..iMinX..'-'..iMaxX..'; Z Min-Max='..iMinZ..'-'..iMaxZ..'; iActualMaxSearchRange='..iActualMaxSearchRange) end
+        end
+        OptionsX = math.floor(iMaxX - iMinX)
+        OptionsZ = math.floor(iMaxZ - iMinZ)
+        if bDebugMessages == true then LOG(sFunctionRef..':About to cycle through potential adjacency locations for iCurTarget='..iCurTarget..'; iTotalTargets='..iTotalTargets..'; iMinX-iMaxX='..iMinX..'-'..iMaxX..'; iMinZ-iMaxZ='..iMinZ..'-'..iMaxZ..'; OptionsX='..OptionsX..'; OptionsZ='..OptionsZ..'; bWantAdjacency='..tostring(bWantAdjacency))end
+
+        for xi = 0, OptionsX, iIncrementSize do
+            iNewX = iMinX + xi
+            --if iNewX >= (iMinX + TargetSize[1]*fSizeMod) or iNewX >= (iTargetMaxX - iNewBuildingRadius) then
+            for zi = 0, OptionsZ, iIncrementSize do
+                iPriority = 0
+                iNewZ = iMinZ + zi
+
+                --if iNewZ < (iTargetMinZ + tNewBuildingSize[2]* fSizeMod) or iNewZ > (iTargetMaxZ - tNewBuildingSize[2]* fSizeMod) then
+                --ignore corner results (new building larger than target):
+                local bIgnore = false
+                if bWantAdjacency then
+                    if bNewBuildingLargerThanNewTarget == true then
+                        if iNewX - iNewBuildingRadius > iTargetMinX or iNewX + iNewBuildingRadius < iTargetMaxX then
+                            if iNewZ - iNewBuildingRadius > iTargetMinZ or iNewZ + iNewBuildingRadius < iTargetMaxZ then
+                                iPriority = iPriority - 4
+                                --bIgnore = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': Corner position so no adjacency - priority decreased; iNewX='..iNewX..'; iNewZ='..iNewZ) end
+                            end
+                        end
+                    else
+                        if bDebugMessages == true then LOG(sFunctionRef..': Seeing if X or Z are within required range for adjacency. iNewX='..iNewX..'; iTargetMinX='..iTargetMinX..'; iTargetMaxX='..iTargetMaxX) end
+                        if iNewX >= iTargetMinX and iNewX <= iTargetMaxX then
+                            if bDebugMessages == true then LOG(sFunctionRef..': x value is within the required range for adjacency, now checking if z values are') end
+                            --z value needs to be right by the min or max values:
+                            if iNewZ == (iTargetMinZ - iNewBuildingRadius) or iNewZ == (iTargetMaxZ + iNewBuildingRadius) then
+                                --valid co-ordinate
+                                if bDebugMessages == true then LOG(sFunctionRef..': Should benefit from adjacency') end
+                            else
+                                --If it's within the target building area then ignore, otherwise record with lower priority as no adjacency:
+                                if iNewZ < (iTargetMinZ - iNewBuildingRadius) or iNewZ > (iTargetMaxZ + iNewBuildingRadius) then
+                                    iPriority = iPriority - 4
+                                else bIgnore = true end
+                                if bDebugMessages == true then LOG(sFunctionRef..': NewBuilding <= NewTarget size 1 - failed to find adjacency match so reducing priority by 4; iNewX='..iNewX..'; iNewZ='..iNewZ..'; iTargetMinX='..iTargetMinX..'; iTargetMaxX='..iTargetMaxX..'; iTargetMinZ='..iTargetMinZ..'; iTargetMaxZ='..iTargetMaxZ..'; iNewBuildingRadius='..iNewBuildingRadius..'; tNewBuildingSize[1] * fSizeMod='..tNewBuildingSize[1] * fSizeMod) end
+                            end
+                        else
+                            if iNewZ >= iTargetMinZ and iNewZ <= iTargetMaxZ then
+                                if iNewX == (iTargetMinX - iNewBuildingRadius) or iNewX == (iTargetMaxX + iNewBuildingRadius) then
+                                    --Valid match
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Should benefit from adjacency') end
+                                else
+                                    --If it's within the target building area then ignore, otherwise record with lower priority as no adjacency:
+                                    if iNewX < (iTargetMinX - iNewBuildingRadius) or iNewX > (iTargetMaxX + iNewBuildingRadius) then
+                                        iPriority = iPriority - 4
+                                    else bIgnore = true end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': NewBuilding <= NewTarget size 2 - failed to find adjacency match so reducing priority by 4; iNewX='..iNewX..'; iNewZ='..iNewZ..'; iTargetMinX='..iTargetMinX..'; iTargetMaxX='..iTargetMaxX..'; iTargetMinZ='..iTargetMinZ..'; iTargetMaxZ='..iTargetMaxZ..'; iNewBuildingRadius='..iNewBuildingRadius..'; tNewBuildingSize[1] * fSizeMod='..tNewBuildingSize[1] * fSizeMod) end
+                                end
+                            else
+                                if (iNewX < (iTargetMinX - iNewBuildingRadius) or iNewX > (iTargetMaxX + iNewBuildingRadius)) and (iNewZ < (iTargetMinZ - iNewBuildingRadius) or iNewZ > (iTargetMaxZ + iNewBuildingRadius)) then
+                                    --should be valid just no adjacency
+                                    iPriority = iPriority - 4
+                                else bIgnore = true end
+                                if bDebugMessages == true then LOG(sFunctionRef..': NewBuilding <= NewTarget size 3 - failed to find adjacency match so reducing priority by 4; iNewX='..iNewX..'; iNewZ='..iNewZ..'; iTargetMinX='..iTargetMinX..'; iTargetMaxX='..iTargetMaxX..'; iTargetMinZ='..iTargetMinZ..'; iTargetMaxZ='..iTargetMaxZ..'; iNewBuildingRadius='..iNewBuildingRadius..'; tNewBuildingSize[1] * fSizeMod='..tNewBuildingSize[1] * fSizeMod) end
+                            end
+                        end
+                        -- If bCheckValid then see if aiBrain can build the desired structure at the location
+                    end
+                end
+                --Check if already queued up
+                --if bIgnore == false and bLookForQueuedBuildings == true then
+                --bIgnore = not(CanBuildAtLocation(aiBrain, sNewBuildingBPID, { iNewX, GetSurfaceHeight(iNewX, iNewZ), iNewZ }, nil, nil, bLookForQueuedBuildings))
+
+                --[[local sLocationRef = M27Utilities.ConvertLocationToReference({iNewX, 0, iNewZ})
+        --reftEngineerAssignmentsByLocation --[x][y][z];  x is the unique location ref (need to use ConvertLocationToReference in utilities to use), [y] is the actionref, z is the engineer unique ref assigned to this location
+        if aiBrain[reftEngineerAssignmentsByLocation] and aiBrain[reftEngineerAssignmentsByLocation][sLocationRef] then
+            if M28Utilities.IsTableEmpty(aiBrain[reftEngineerAssignmentsByLocation][sLocationRef]) == false then bIgnore = true end
+        end--]]
+                --end
+                local rBuildAreaRect
+                if bIgnore == false then
+                    --Check for reclaim:
+                    if bBetterIfNoReclaim == true then
+
+                        rBuildAreaRect = Rect(iNewX - iNewBuildingRadius + iRectangleSizeReduction, iNewZ - iNewBuildingRadius + iRectangleSizeReduction, iNewX + iNewBuildingRadius - iRectangleSizeReduction, iNewZ + iNewBuildingRadius - iRectangleSizeReduction)
+                        --ReturnType: 1 = true/false: GetReclaimInRectangle(iReturnType, rRectangleToSearch)
+                        if M27MapInfo.GetReclaimInRectangle(1, rBuildAreaRect) == true then
+                            if bBuildNearerHydro then iPriority = iPriority - 6 --backup to reduce the risk we build close to hydro despite reclaim blocking us in later priority adjustment
+                            else
+                                iPriority = iPriority - 4
+                            end
+                        end
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef..': Want to avoid reclaim if we can; Checking if any reclaim in the area, rBuildAreaRec='..repru(rBuildAreaRect)..'; iNewBuildingRadius='..iNewBuildingRadius..'; iRectangleSizeReduction='..iRectangleSizeReduction..'; iNewX-Z='..iNewX..'-'..iNewZ..'; M27MapInfo.GetReclaimInRectangle(1, rBuildAreaRect)='..tostring((M27MapInfo.GetReclaimInRectangle(1, rBuildAreaRect) or false)))
+                        end
+                    end
+                end
+                if bIgnore ==  false then
+                    CurPosition = {iNewX, GetSurfaceHeight(iNewX, iNewZ), iNewZ}
+
+                    if bCheckValid then
+                        if not(CanBuildAtLocation(aiBrain, sNewBuildingBPID, CurPosition, nil, false, bLookForQueuedBuildings)) then
+                            --if aiBrain:CanBuildStructureAt(sNewBuildingBPID, CurPosition) == false or not(M28Utilities.IsTableEmpty(aiBrain[reftEngineerAssignmentsByLocation][M27Utilities.ConvertLocationToReference(CurPosition)])) then
+                            bIgnore = true
+                            if bDebugMessages == true then
+                                if bDebugMessages == true then
+                                    LOG(sFunctionRef..': aiBrain cant build at iNewX='..iNewX..'; iNewZ='..iNewZ..'; CurPosition='..CurPosition[1]..'-'..CurPosition[2]..'-'..CurPosition[3])
+                                end
+                            end
+                        end
+                    end
+                end
+                --Ignore if -ve priority and already have better:
+                if iPriority < 0 and iMaxPriority > iPriority then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Ignoring location as priority too low; iPriority='..iPriority..';iMaxPriority='..iMaxPriority..'; iNewX='..iNewX..'; iNewZ='..iNewZ) end
+                    bIgnore = true end
+
+                if bIgnore == false then
+                    if not(bIgnore) and aiBrain[M27Overseer.refbDefendAgainstArti] then
+                        if M27Logic.IsLocationUnderFriendlyFixedShield(aiBrain, CurPosition) then
+                            iPriority = iPriority + 15
+                        end
+                    end
+                    -- We now have a co-ordinate that should result in newbuilding being built adjacent to target building (unless negative priority); check other conditions/priorities
+                    iPriority = iPriority + 1
+
+
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have valid build location, iPriority pre considering build distance='..iPriority..'; CurPosition[1]='..CurPosition[1]..'-'..CurPosition[2]..'-'..CurPosition[3]) end
+                    if bIgnoreOutsideBuildArea == true or bReturnOnlyBestMatch == true then iDistanceBetween = M27Utilities.GetDistanceBetweenBuildingPositions(pBuilderPos, CurPosition, iNewBuildingRadius) end
+                    --if bIgnoreOutsideBuildArea == true or bReturnOnlyBestMatch == true then iDistanceBetween = GetDistanceBetweenPositions(pBuilderPos, PosTarget) end
+                    if bReturnOnlyBestMatch == true then
+                        --Check if within build area:
+                        if iDistanceBetween <= iMaxAreaToSearch then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is within build area, iDistanceBetween='..iDistanceBetween..'; iMaxAreaToSearch='..iMaxAreaToSearch) end
+                            if iDistanceBetween > 0 then
+                                iPriority = iPriority + 4
+                            else iPriority = iPriority + 1
+                            end
+                            if iDistanceBetween <= iBuilderRange then iPriority = iPriority + 2 end
+                        end
+                        --Deduct 3 if ACU would have to move to build - should hopefully be covered by above
+                        --if pBuilderPos[1] >= iNewX - tNewBuildingSize[1] * fSizeMod and pBuilderPos[1] <= iNewX + tNewBuildingSize[1] * fSizeMod then
+                        --if pBuilderPos[3] >= iNewZ - tNewBuildingSize[2] * fSizeMod and pBuilderPos[3] <= iNewX + tNewBuildingSize[2] * fSizeMod then
+                        --iPriority = iPriority - 3
+                        --end
+                        --end
+                        --Check if level with target (makes it easier for other buildings to get adjacency):
+                        if bWantAdjacency then
+                            if CurPosition[1] - iNewBuildingRadius == iTargetMinX then iPriority = iPriority + 1 end
+                            if CurPosition[1] + iNewBuildingRadius == iTargetMaxX then iPriority = iPriority + 1 end
+                            if CurPosition[3] - iNewBuildingRadius == iTargetMinZ then iPriority = iPriority + 1 end
+                            if CurPosition[3] + iNewBuildingRadius == iTargetMaxZ then iPriority = iPriority + 1 end
+                        end
+                    end
+                    if bIgnoreOutsideBuildArea == true then
+                        if iDistanceBetween > iMaxAreaToSearch then
+                            bIgnore = true
+                            if bDebugMessages == true then LOG(sFunctionRef..': Ignoring as iDistanceBetween='..iDistanceBetween..'; normal dist='..M27Utilities.GetDistanceBetweenPositions(pBuilderPos, CurPosition)) end
+                        else iPriority = iPriority - 2
+                        end
+                    end
+
+                    --Check if any units in the area (if not then icnrease priority)
+                    if AreMobileUnitsInRect(rBuildAreaRect) == false then
+                        if bDebugMessages == true then LOG(sFunctionRef..': No mobile units are in the build area rectangle='..repru(rBuildAreaRect)) end
+                        iPriority = iPriority + 1
+                    else
+                        if bDebugMessages == true then LOG(sFunctionRef..': mobile units are in the build area rectangle='..repru(rBuildAreaRect)) end
+                    end
+
+                    --Check if want to weight for if its closer or further from start (jsut enough that it affects equal priority locations)
+                    if bPreferCloseToEnemy or bPreferFarFromEnemy then
+                        iDistanceToEnemy = M27Utilities.GetDistanceBetweenPositions(CurPosition, tEnemyStartPosition)
+                        if iDistanceToEnemy < iMinDistanceToEnemy then iMinDistanceToEnemy = iDistanceToEnemy end
+                        if iDistanceToEnemy > iMaxDistanceToEnemy then iMaxDistanceToEnemy = iDistanceToEnemy end
+                    end
+
+                    --Adjust priority for first factory so build closer to hydro
+                    if bBuildNearerHydro and not(bIgnore) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Priority pre hydro adjust='..iPriority..'; iHydroBaseDistance='..iHydroBaseDistance) end
+                        iPriority = iPriority + iHydroBaseDistance - M27Utilities.GetDistanceBetweenPositions(CurPosition, tNearestHydro)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Priority post hydro adjust='..iPriority) end
+                    end
+
+                    if bIgnore == false then
+                        --Check not blocking a mex
+                        if bDebugMessages == true then LOG(sFunctionRef..': About to check whether we will block a mex by building '..sNewBuildingBPID..' and CurPosition='..repru(CurPosition)) end
+                        if bDontBuildByMex and WillBuildingBlockMex(sNewBuildingBPID, CurPosition) then bIgnore = true end
+
+                        if bIgnore == false then
+                            iValidPosCount = iValidPosCount + 1
+                            PossiblePositions[iValidPosCount] = CurPosition
+                            iValidPositionPriorities[iValidPosCount] = iPriority
+                            iValidPositionDistanceToEnemy[iValidPosCount] = iDistanceToEnemy
+                            if iPriority > iMaxPriority then
+                                iMaxPriority = iPriority
+                                if bReturnOnlyBestMatch == true then
+                                    tBestPosition = CurPosition
+                                end
+                            end
+                            if bDebugMessages == true then if bReturnOnlyBestMatch == true then LOG('iPriority='..iPriority..'; iDistanceBetween='..iDistanceBetween) end end
+                            if bDebugMessages == true then LOG(sFunctionRef..': iValidPosCount='..iValidPosCount..'; PossiblePositions[iValidPosCount][1-2-3]='..PossiblePositions[iValidPosCount][1]..'-'..PossiblePositions[iValidPosCount][2]..'-'..PossiblePositions[iValidPosCount][3]..'; bReturnOnlyBestMatch='..tostring(bReturnOnlyBestMatch)) end
+                        end
+                    end
+                end
+                if bDebugMessages == true then
+                    LOG(sFunctionRef..': End of considering this option, bIgnore='..tostring(bIgnore)..'; iPriority='..iPriority)
+                    if bIgnore == true or iPriority < 0 then
+                        if M28Utilities.IsTableEmpty(CurPosition) == false then
+                            LOG(sFunctionRef..': WIll draw a red circle as are wanting to ignore or the location has negative priority')
+                            M27Utilities.DrawLocation(CurPosition, nil, 2, 100)
+                        else
+                            LOG(sFunctionRef..': CurPosition is empty, will happen if we ignored all results')
+                        end
+                    else
+                        LOG('WIll draw a white circle as dont want to ignore and priority is 0 or more')
+                        M27Utilities.DrawLocation(CurPosition, nil, 7, 100)
+                    end
+                end
+                --end
+            end
+            --end
+        end
+    end
+    if iValidPosCount >= 1 then
+        --Check if want to weight for if its closer or further from start (jsut enough that it affects equal priority locations)
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering if closest or furthest from enemy; bPreferCloseToEnemy='..tostring(bPreferCloseToEnemy)..'; bPreferFarFromEnemy='..tostring(bPreferFarFromEnemy)) end
+        if bPreferCloseToEnemy or bPreferFarFromEnemy then
+            for iPosition, tPosition in PossiblePositions do
+                iDistanceToEnemy = iValidPositionDistanceToEnemy[iPosition]
+                iPriority = iValidPositionPriorities[iPosition]
+                bHaveGoodMatch = false
+                if bPreferFarFromEnemy == true and iDistanceToEnemy >= iMaxDistanceToEnemy then bHaveGoodMatch = true
+                elseif bPreferCloseToEnemy == true and iDistanceToEnemy <= iMinDistanceToEnemy then bHaveGoodMatch = true end
+                if bDebugMessages == true then LOG(sFunctionRef..': iPosition='..iPosition..'; tPosition='..repru(tPosition)..'iPriority pre distance='..iPriority..'; iDistanceToEnemy='..iDistanceToEnemy..'; iMaxDistanceToEnemy='..iMaxDistanceToEnemy..'; iMinDistanceToEnemy='..iMinDistanceToEnemy..'; bHaveGoodMatch='..tostring(bHaveGoodMatch)) end
+                if bHaveGoodMatch == true then
+                    iPriority = iPriority + 0.5
+                    if iPriority > iMaxPriority then
+                        iMaxPriority = iPriority
+                        tBestPosition = tPosition
+                    end
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Near end of code, will return value depending on specifics') end
+        if bReturnOnlyBestMatch then
+            --Firebase specific - build within shield if there is one nearby
+            if tBestPosition and EntityCategoryContains(M28UnitInfo.refCategoryFirebaseSuitable, sNewBuildingBPID) then
+                local iSearchRange = 20
+                local iExtraDist = 0
+                if EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryT2Radar + categories.TECH3, sNewBuildingBPID) then
+                    iSearchRange = 40
+                    iExtraDist = 20
+                end
+                local tNearbyShields = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedShield, tBestPosition, iSearchRange, 'Ally')
+                if M28Utilities.IsTableEmpty(tNearbyShields) == false and not(M27Logic.IsLocationUnderFriendlyFixedShield(aiBrain, tBestPosition)) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have shields nearby so will see if can move closer to shield') end
+
+                    local tClosestShield = M27Utilities.GetNearestUnit(tNearbyShields, tBestPosition, aiBrain):GetPosition()
+                    local iDistToShield = M27Utilities.GetDistanceBetweenPositions(tClosestShield, tBestPosition)
+                    if iDistToShield >= 4 then
+                        local tValidCloserLocation
+                        local tCloserBuildLocation
+                        local iAngleToShield = M27Utilities.GetAngleFromAToB(tBestPosition, tClosestShield)
+                        for iTravelDist = 2, math.min(math.floor(iDistToShield / 2)*2 - 2) + iExtraDist, 2 do
+                            tCloserBuildLocation = M27Utilities.MoveInDirection(tBestPosition, iAngleToShield, iTravelDist, true)
+                            if CanBuildAtLocation(aiBrain, sNewBuildingBPID, tCloserBuildLocation, nil, false, bLookForQueuedBuildings) then
+                                tValidCloserLocation = {tCloserBuildLocation[1], tCloserBuildLocation[2], tCloserBuildLocation[3]}
+                                if M27Logic.IsLocationUnderFriendlyFixedShield(aiBrain, tValidCloserLocation) then
+                                    break
+                                end
+                            end
+                        end
+                        if not(tValidCloserLocation) and table.getn(tNearbyShields) > 1 then
+                            --Try again for other shields, with random x and z movement
+                            local tCurShieldPosition, iShieldSize, iRandX, iRandZ, iAngleToUnit
+                            for iShield, oShield in tNearbyShields do
+                                tCurShieldPosition = oShield:GetPosition()
+                                iShieldSize = oShield:GetBlueprint().Defense.Shield.ShieldSize * 0.5
+                                iAngleToUnit = M27Utilities.GetAngleFromAToB(tCurShieldPosition, tBestPosition)
+                                if not(tCurShieldPosition[1] == tClosestShield[1]) and not(tCurShieldPosition[3] == tClosestShield[3]) then
+                                    iDistToShield = M27Utilities.GetDistanceBetweenPositions(tCurShieldPosition, tBestPosition)
+                                    if iDistToShield >= 6 then
+                                        for iDistFromShieldToUnit = math.floor(iShieldSize / 2) * 2, 4, -2 do
+                                            iRandX = math.random(-(iDistFromShieldToUnit - iShieldSize)*0.5, (iDistFromShieldToUnit - iShieldSize)*0.5)
+                                            iRandZ = math.random(-(iDistFromShieldToUnit - iShieldSize)*0.5, (iDistFromShieldToUnit - iShieldSize)*0.5)
+                                            tCloserBuildLocation = M27Utilities.MoveInDirection(tCurShieldPosition, iAngleToUnit, iDistFromShieldToUnit, true)
+                                            tCloserBuildLocation[1] = tCloserBuildLocation[1] + iRandX
+                                            tCloserBuildLocation[3] = tCloserBuildLocation[3] + iRandZ
+                                            if CanBuildAtLocation(aiBrain, sNewBuildingBPID, tCloserBuildLocation, nil, false, bLookForQueuedBuildings) then
+                                                tValidCloserLocation = {tCloserBuildLocation[1], tCloserBuildLocation[2], tCloserBuildLocation[3]}
+                                                if M27Logic.IsLocationUnderFriendlyFixedShield(aiBrain, tValidCloserLocation) then
+                                                    break
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                        if tValidCloserLocation then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Have a valid location that is closr to the shield='..repru(tValidCloserLocation)..'; prev best position was '..repru(tBestPosition)) end
+                            tBestPosition = {tValidCloserLocation[1], tValidCloserLocation[2], tValidCloserLocation[3]}
+                        end
+                    end
+
+                end
+            end
+
+            if bDebugMessages == true then
+                LOG(sFunctionRef..': Returning best possible position; tBestPosition[1]='..tBestPosition[1]..'-'..tBestPosition[2]..'-'..tBestPosition[3]..'; iMaxPriority='..iMaxPriority)
+                LOG(sFunctionRef..': iMaxMapX='..iMaxMapX..'; iMaxMapZ='..iMaxMapZ..'tBestPosition='..repru(tBestPosition)..'; our start position='..repru(M27MapInfo.PlayerStartPoints[aiBrain.M27StartPositionNumber])..'; PossiblePositions='..repru(PossiblePositions)..'; will draw in black with the best location in white')
+                --DrawLocations(tableLocations, relativeStart, iColour, iDisplayCount, bSingleLocation, iCircleSize, bCopyTable)
+                M27Utilities.DrawLocations(PossiblePositions, nil, 3, 10, false, nil, true)
+                M27Utilities.DrawLocation(tBestPosition, nil, 7, 100) --draws best position in white
+            end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return tBestPosition
+        else
+            if bDebugMessages == true then LOG(sFunctionRef..': Returning table of possible positions; PossiblePositions[1][1]='..PossiblePositions[1][1]..'-'..PossiblePositions[1][2]..'-'..PossiblePositions[1][3]) end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return PossiblePositions
+        end
+    else
+        if bDebugMessages == true then LOG(sFunctionRef..': No valid matches found. PosTarget='..PosTarget[1]..'-'..PosTarget[3]) end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return nil
+    end
+
+end
+
+
+
 function MoveNearConstruction(aiBrain, oBuilder, tLocation, sBlueprintID, iBuildDistanceMod, bReturnMovePathInstead, bUpdatePlatoonMovePath, bReturnNilIfAlreadyMovingNearConstruction, bReturnMoveLocationifGivenOne)
     --gives oBuilder a move command to get them within range of building on tLocation, factoring in the size of buildingType
     --sBlueprintID - if nil, then will treat the action as having a size of 0
@@ -98,6 +1131,7 @@ function MoveNearConstruction(aiBrain, oBuilder, tLocation, sBlueprintID, iBuild
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'MoveNearConstruction'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    M28Utilities.ErrorHandler('Want to redo to make use of pathing logic')
     --if EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, sBlueprintID) then bDebugMessages = true end
     --if oBuilder == M28Utilities.GetACU(aiBrain) then bDebugMessages = true end
     if bDebugMessages == true then
@@ -307,7 +1341,7 @@ function BuildStructureNearLocation(aiBrain, oEngineer, iCategoryToBuild, iMaxAr
     --bLookForQueuedBuildings: Optional, if true, then doesnt choose a target if another engineer already has that target function ref assigned to build something
     --Returns nil if dealing with a non-resource based building
 
-    local bDebugMessages = false if M28Utilities.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'BuildStructureNearLocation'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -316,7 +1350,7 @@ function BuildStructureNearLocation(aiBrain, oEngineer, iCategoryToBuild, iMaxAr
 
     local bAbortConstruction = false
 
---Get the blueprint to build
+    --Get the blueprint to build
     --GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, iOptionalCategoryThatMustBeAbleToBuild, bGetCheapest)
     local sBlueprintToBuild = M28Factory.GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oEngineer, false, false, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure)
     local tTargetLocation
@@ -328,7 +1362,7 @@ function BuildStructureNearLocation(aiBrain, oEngineer, iCategoryToBuild, iMaxAr
         end
     else
 
---Adjust the search range and record key info needed for the search
+        --Adjust the search range and record key info needed for the search
         local tEngineerPosition = oEngineer:GetPosition()
         tTargetLocation = (tAlternativePositionToLookFrom or tEngineerPosition)
         --Increase max area to search if dealing with czar or similarly large unit due to its size
@@ -365,7 +1399,7 @@ function BuildStructureNearLocation(aiBrain, oEngineer, iCategoryToBuild, iMaxAr
         end
 
 
---If specified, first check if there's an existing part complete building we can help complete instead of starting a new building
+        --If specified, first check if there's an existing part complete building we can help complete instead of starting a new building
         --Check if is an existing building of the type wanted first:
         local oPartCompleteBuilding
         if bLookForPartCompleteBuildings then
@@ -386,7 +1420,7 @@ function BuildStructureNearLocation(aiBrain, oEngineer, iCategoryToBuild, iMaxAr
 
 
             if not(bMexHydroOrStorage) then
---For non-extraction buildings, if we have specified we want to build adjacent to something then look for nearby buildings that can give us the adjacency wanted
+                --For non-extraction buildings, if we have specified we want to build adjacent to something then look for nearby buildings that can give us the adjacency wanted
                 if iCatToBuildBy or oUnitToBuildBy then
                     local toPossibleBuildingsToBuildBy
                     local iBuildingCount = 0
@@ -494,9 +1528,9 @@ function BuildStructureNearLocation(aiBrain, oEngineer, iCategoryToBuild, iMaxAr
                             if not(tTargetLocation) then bAbortConstruction = true end
                         else
                             if bDebugMessages == true then LOG(sFunctionRef..': About to call GetBestBuildLocation; iBuildingCount='..iBuildingCount..'; sBlueprintBuildBy='..(sBlueprintBuildBy or 'nil')) end
---Go through all possible adjacent build locations identified, and choose the best one
+                            --Go through all possible adjacent build locations identified, and choose the best one
                             tTargetLocation = GetBestBuildLocationForTarget(tPossibleTargets, sBlueprintBuildBy, sBlueprintToBuild, true, aiBrain, true, tTargetLocation, iMaxAreaToSearch, iBuilderRange, false, true, bBuildNearToEnemy, not(bBuildNearToEnemy), bLookForQueuedBuildings)
---Double-check the resulting location is valid
+                            --Double-check the resulting location is valid
                             if M28Utilities.IsTableEmpty(tTargetLocation) == true then
                                 if bDebugMessages == true then LOG('Adjacency location is empty, will try finding anywhere to build') end
                                 bFindRandomLocation = not(bNeverBuildRandom)
@@ -524,7 +1558,7 @@ function BuildStructureNearLocation(aiBrain, oEngineer, iCategoryToBuild, iMaxAr
                         if bDebugMessages == true then LOG(sFunctionRef..': Cant find any valid buildings for adjacency') end
                     end
                 else
---If no was adjacency wanted, then either build at the target location, or find a random location to build (subject to some unit specific points)
+                    --If no was adjacency wanted, then either build at the target location, or find a random location to build (subject to some unit specific points)
                     if bDebugMessages == true then LOG(sFunctionRef..': Dont have a category to build by, will look for random location unless current target is valid or we are a shield') end
                     if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, sBlueprintToBuild) then
                         local bBuildAwayFromEnemy = false
@@ -630,7 +1664,7 @@ function BuildStructureNearLocation(aiBrain, oEngineer, iCategoryToBuild, iMaxAr
                 end
             end
         end
---Switch to random location if an amphibious unit cant path there and its not a resource based location
+        --Switch to random location if an amphibious unit cant path there and its not a resource based location
         if not(bFindRandomLocation) and not(bAbortConstruction) then -- and not(bMexHydroOrStorage) then
             if not(NavUtils.GetLabel(sPathing, tTargetLocation) == NavUtils.GetLabel(sPathing, oEngineer:GetPosition())) then
                 bFindRandomLocation = not(bNeverBuildRandom)
@@ -649,7 +1683,7 @@ function BuildStructureNearLocation(aiBrain, oEngineer, iCategoryToBuild, iMaxAr
             bAbortConstruction = true
         end
 
---Look for a random location if we failed to find a suitable location in the above steps
+        --Look for a random location if we failed to find a suitable location in the above steps
         if bFindRandomLocation == true and not(bAbortConstruction) then
             if bDebugMessages == true then LOG(sFunctionRef..': Are finding a random location to build unless current location is valid; sBlueprintToBuild='..sBlueprintToBuild..'; iMaxAreaToSearch='..(iMaxAreaToSearch or 'nil')) end
             if M28Utilities.IsTableEmpty(tTargetLocation) == true then tTargetLocation = (tAlternativePositionToLookFrom or tEngineerPosition) end
@@ -682,7 +1716,7 @@ function BuildStructureNearLocation(aiBrain, oEngineer, iCategoryToBuild, iMaxAr
             else if bDebugMessages == true then LOG(sFunctionRef..': No need for random place as current targetlocation is valid, ='..repru(tTargetLocation)) end
             end
         end
---Only proceed with sending a build order (or repair order for a part complete building) if we had success in the earlier steps
+        --Only proceed with sending a build order (or repair order for a part complete building) if we had success in the earlier steps
         if bAbortConstruction == false then
             if bDebugMessages == true then LOG(sFunctionRef..': Not aborting function so will try to move near construction if we have a valid location') end
             if M28Utilities.IsTableEmpty(tTargetLocation) == false and sBlueprintToBuild then
@@ -775,4 +1809,109 @@ function GetPartCompleteBuilding(aiBrain, oBuilder, iCategoryToBuild, iBuildingS
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return oNearestPartCompleteBuilding
+end
+
+function SlowlyRefreshBuildableLandZoneLocations(oOrigBrain)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'SlowlyRefreshBuildableLandZoneLocations'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    bBuildLocationLoopActive = true
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    WaitTicks(1)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    local iSearchesConsideredThisTick
+    local iTicksWaitedThisCycle
+    local iSegmentsBeforeWaiting = 16 --Must be a multiple of 2, i.e. 2^x results in this
+    local aiBrain = oOrigBrain
+
+    --First update every start position that has an M28 brain to make sure we have a decent number of options recorded for a land factory and smaller
+    for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
+        if bDebugMessages == true then LOG(sFunctionRef..': About to start recording buildable locations for the starting land zone for oBrain='..oBrain.Nickname..'; Index='..oBrain:GetArmyIndex()..'; Start pos='..repru(M28Map.tPlayerStartPoints[oBrain:GetArmyIndex()])) end
+        local iPlateauGroup, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.tPlayerStartPoints[oBrain:GetArmyIndex()])
+        local tiRelevantSizes = {1,2,6,8}
+        for iRef, iSize in tiRelevantSizes do
+            SearchForBuildableLocationsForLandZone(aiBrain, iPlateauGroup, iLandZone, iSize, tsBlueprintsBySize[iSize], iSegmentsBeforeWaiting * 10)
+        end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitTicks(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    end
+
+    while true do
+        --Get a new brain if needed
+        if aiBrain.M28IsDefeated then
+            aiBrain = nil
+            for iBrain, oBrain in ArmyBrains do
+                if oBrain.M28AI and not(oBrain.M28IsDefeated) then
+                    aiBrain = oBrain
+                    break
+                end
+            end
+            if not(aiBrain) then
+                break
+            end
+        end
+
+        iTicksWaitedThisCycle = 0
+        iSearchesConsideredThisTick = 0
+
+        --Cycle through every plateau
+        for iPlateauGroup, tPlateauSubtable in M28Map.tAllPlateaus do
+            for iLandZone, tLandZoneInfo in tPlateauSubtable do
+                if tLandZoneInfo[M28Map.subrefLZBuildLocationsBySize] then
+                    for iSize, tBuildLocations in tLandZoneInfo[M28Map.subrefLZBuildLocationsBySize] do
+                        if tBuildLocations == -1 then
+                            SearchForBuildableLocationsForLandZone(aiBrain, iPlateauGroup, iLandZone, iSize, tsBlueprintsBySize[iSize], iSegmentsBeforeWaiting)
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            WaitTicks(1)
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                            iSearchesConsideredThisTick = 0
+                            iTicksWaitedThisCycle = iTicksWaitedThisCycle + 1
+                            while (tBuildLocations == -1 and tPlateauSubtable[M28Map.subrefLZBuildLocationSegmentCountBySize][iSize] < tLandZoneInfo[M28Map.subrefLZTotalSegmentCount]) do
+                                SearchForBuildableLocationsForLandZone(aiBrain, iPlateauGroup, iLandZone, iSize, tsBlueprintsBySize[iSize], iSegmentsBeforeWaiting)
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                WaitTicks(1)
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                                iSearchesConsideredThisTick = 0
+                                if iTicksWaitedThisCycle >= 10000 then
+                                    M28Utilities.ErrorHandler('Potential infinite loop error as have waited 10k ticks, will abort current loop')
+                                    break
+                                end
+                            end
+                        end
+                        if iSearchesConsideredThisTick > 0 then
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            WaitTicks(1)
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                            iTicksWaitedThisCycle = iTicksWaitedThisCycle + 1
+                            iSearchesConsideredThisTick = 0
+                        end
+                    end
+                end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitTicks(1)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                iTicksWaitedThisCycle = iTicksWaitedThisCycle + 1
+            end
+        end
+        if iTicksWaitedThisCycle < 1000 then
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitTicks(1000 - iTicksWaitedThisCycle)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            iSegmentsBeforeWaiting = math.max(2, iSegmentsBeforeWaiting * 0.5)
+        elseif iTicksWaitedThisCycle >= 3000 then
+            iSegmentsBeforeWaiting = math.min(64, iSegmentsBeforeWaiting * 2)
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function EngineerInitialisation(aiBrain)
+    --Variable declaration
+    aiBrain[refiEngineerCurUniqueReference] = 0
+
+    if not(bBuildLocationLoopActive) then
+        ForkThread(SlowlyRefreshBuildableLandZoneLocations, aiBrain)
+    end
 end

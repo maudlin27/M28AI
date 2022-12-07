@@ -10,10 +10,13 @@ local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
 local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
 local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
+local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
+local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
 
 
 
 bInitialSetup = false
+tAllActiveM28Brains = {} --[x] is just a unique integer starting with 1 (so table.getn works on this), not the armyindex; returns the aiBrain object
 
 
 function BrainCreated(aiBrain)
@@ -24,6 +27,7 @@ function BrainCreated(aiBrain)
     if bDebugMessages == true then LOG(sFunctionRef..': M28 Brain has just been created for aiBrain '..aiBrain.Nickname..'; Index='..aiBrain:GetArmyIndex()) end
 
     aiBrain.M28AI = true
+    table.insert(tAllActiveM28Brains, aiBrain)
 
 
     if not(bInitialSetup) then
@@ -43,8 +47,17 @@ function BrainCreated(aiBrain)
 end
 
 function TestCustom(aiBrain)
+    --Test alternative to table.remove for sequentially indexed numerical keys
+    local tTestArray = {[1] = 'Test1', [2] = 'Test2', [3] = 'Test3', [4] = 'Test4'}
+    local function WantToKeep(tArray, i, j)
+        if tArray[i] == 'Test2' then return false else return true end
+    end
+    M28Utilities.RemoveEntriesFromArrayBasedOnCondition(tTestArray, WantToKeep)
+    LOG('Finished updating array, tTestArray='..repru(tTestArray))
+    
+    
     --Check for sparky and how many orders it has
-    local tOurSparkies = aiBrain:GetListOfUnits(categories.FIELDENGINEER, false, true)
+    --[[local tOurSparkies = aiBrain:GetListOfUnits(categories.FIELDENGINEER, false, true)
     if M28Utilities.IsTableEmpty(tOurSparkies) == false then
         for iUnit, oUnit in tOurSparkies do
             local tQueue = oUnit:GetCommandQueue()
@@ -57,15 +70,21 @@ function TestCustom(aiBrain)
                 end
             end
         end
-    end
+    end--]]
+
+    M28Utilities.ErrorHandler('Disable testcustom code for final')
 end
 
 function Initialisation(aiBrain)
     ForkThread(M28Economy.EconomyInitialisation, aiBrain)
+    ForkThread(M28Engineer.EngineerInitialisation, aiBrain)
     ForkThread(M28ACU.ManageACU, aiBrain)
+    ForkThread(M28Factory.SetPreferredUnitsByCategory, aiBrain)
 end
 
 function OverseerManager(aiBrain)
+    --TestCustom(aiBrain)
+
     --Make sure map setup will be done
     WaitTicks(1)
     --Initialise main systems
@@ -77,9 +96,7 @@ function OverseerManager(aiBrain)
     end
 
     while not(aiBrain:IsDefeated()) and not(aiBrain.M28IsDefeated) do
-        TestCustom(aiBrain)
-
-
+        --TestCustom(aiBrain)
 
         ForkThread(M28Economy.RefreshEconomyData, aiBrain)
         WaitSeconds(1)

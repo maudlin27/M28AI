@@ -36,9 +36,9 @@ tFunctionCallByName = {}
 iFunctionCurCount = 0
 
 tiProfilerStartCountByFunction = {} --[functionref] - Used if want to temporarily check how many times a function is called - have this update in the function itself, along with the end count
---example of usage of the above: --M27Utilities.tiProfilerStartCountByFunction[sFunctionRef] = (M27Utilities.tiProfilerStartCountByFunction[sFunctionRef] or 0) + 1 LOG(sFunctionRef..': M27Utilities.tiProfilerStartCountByFunction[sFunctionRef]='..M27Utilities.tiProfilerStartCountByFunction[sFunctionRef])
+--example of usage of the above: --M28Utilities.tiProfilerStartCountByFunction[sFunctionRef] = (M28Utilities.tiProfilerStartCountByFunction[sFunctionRef] or 0) + 1 LOG(sFunctionRef..': M28Utilities.tiProfilerStartCountByFunction[sFunctionRef]='..M28Utilities.tiProfilerStartCountByFunction[sFunctionRef])
 tiProfilerEndCountByFunction = {} --[functionref] - Used if want to temporarily check how many times a function is called - have this update in the function itself, along with the end count
---Example of usage of the above: M27Utilities.tiProfilerEndCountByFunction[sFunctionRef] = (M27Utilities.tiProfilerEndCountByFunction[sFunctionRef] or 0) + 1 LOG(sFunctionRef..': M27Utilities.tiProfilerEndCountByFunction[sFunctionRef]='..M27Utilities.tiProfilerEndCountByFunction[sFunctionRef])
+--Example of usage of the above: M28Utilities.tiProfilerEndCountByFunction[sFunctionRef] = (M28Utilities.tiProfilerEndCountByFunction[sFunctionRef] or 0) + 1 LOG(sFunctionRef..': M28Utilities.tiProfilerEndCountByFunction[sFunctionRef]='..M28Utilities.tiProfilerEndCountByFunction[sFunctionRef])
 
 
 

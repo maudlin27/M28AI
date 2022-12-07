@@ -31,6 +31,8 @@ tHydroPoints = {} --[x] is an integer count, returns the location of a hydro poi
 tMexByPathingAndGrouping = {} --Stores position of each mex based on the pathing group that it's part of; [a][b][c]: [a] = pathing type ('Land' etc.); [b] = Segment grouping; [c] = Mex position
 tHydroByPathingAndGrouping = {} --as above but for hydros
 
+--Player start points
+tPlayerStartPoints = {} --Will be updated whenever a brain is created, index is the army index, i.e. do tPlayerStartPoints[aiBrain:GetArmyIndex()] to get a table {x,y,z} that is the army's start position; more convenient than aiBrain:GetArmyStartPos() which returns x and z values but not as a table
 
 --Plateaus - core
 tAllPlateaus = {} --[x] = AmphibiousPathingGroup, [y]: subrefs, e.g. subrefPlateauMexes;
@@ -59,7 +61,7 @@ subrefPlateauIndirectPlatoons = 'M28PlateauIndirectPlatoons'
 subrefPlateauMAAPlatoons = 'M28PlateauMAAPlatoons'
 subrefPlateauScoutPlatoons = 'M28PlateauScoutPlatoons'
 
-subrefPlateauEngineers = 'M28PlateauEngineers' --[x] is engineer unique ref (per m27engineeroverseer), returns engineer object
+subrefPlateauEngineers = 'M28PlateauEngineers' --[x] is engineer unique ref (per m28engineer), returns engineer object
 
 --Plateaus - Land zone variables
 subrefPlateauLandZones = 'M28PlateauLandZones' --against the main plateau table, stores info on land zones for that plateau
@@ -71,6 +73,14 @@ subrefLZMexLocations = 'MexLoc' --against tLandZonesByPlateau[iPlateau][iLZ], re
 subrefLZReclaimMass = 'ReclaimMass' --against tLandZonesByPlateau[iPlateau][iLZ], returns total mass reclaim in the LZ
 subrefLZMidpoint = 'Midpoint' --against tLandZonesByPlateau[iPlateau][iLZ], returns the midpoint of the land zone, e.g. get with tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iZone][subrefLZMidpoint]
 subrefLZHydroLocations = 'HydroLoc' --similar to MexLocations
+subrefLZBuildLocationsBySize = 'BuildLoc' --contains a table, with the index being the unit's highest footprint size, which returns a location that should be buildable in this zone;  only populated on demand (i.e. if we want to try and build something there by references to the predefined location), e.g. tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZBuildLocationsBySize][iSize]
+subrefLZBuildLocationSegmentCountBySize = 'BuildSegment' --[x] is the building size considered, returns Number of segments that we have considered when identifying segment build locations for the land zone for that particular size
+subrefLZSegments = 'Segments' --Contains a table which returns the X and Z segment values for every segment assigned to this land zone
+subrefLZTotalSegmentCount = 'SegCount' --Number of segments in a land zone
+--Land zone subteam data:
+subrefLZSubteamData = 'Subteam' --Table for all the data by subteam for a plateau's land zone
+subrefLZSTAlliedUnits = 'Allies' --table of all allied units in the land zone
+subrefLZSTEnemyUnits = 'Enemies' --table of all enemy units in the land zone
 
 --Land pathing segment data
 tLandZoneBySegment = {} --[x][z] should be the x and z segments baed on iLandZoneSegmentSize, and should return the land zone number, or nil if there is none
@@ -510,8 +520,57 @@ local function AddNewLandZoneReferenceToPlateau(iPlateauGroup)
     tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone] = {}
     tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZMexCount] = 0
     tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZMexLocations] = {}
+    tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZHydroLocations] = {}
     tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZReclaimMass] = 0
+    tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZBuildLocationsBySize] = {}
+    tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZBuildLocationSegmentCountBySize] = {}
+    tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZSegments] = {}
+    tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZTotalSegmentCount] = 0
+    LOG('Finished setting up variables for iPlateauGroup='..iPlateauGroup..'; iLandZone='..iLandZone)
 
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function RecordSegmentLandZone(iSegmentX, iSegmentZ, iPlateauGroup, iLandZone)
+    if not(tLandZoneBySegment[iSegmentX]) then tLandZoneBySegment[iSegmentX] = {} end
+    tLandZoneBySegment[iSegmentX][iSegmentZ] = iLandZone
+    if not(tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZSegments]) then
+        LOG('ERROR - RecordSegmentLandZoneTempLog: iSegmentX='..(iSegmentX or 'nil')..'; iSegmentZ='..(iSegmentZ or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iPlateauGroup='..(iPlateauGroup or 'nil')..'; tAllPlateaus[iPlateauGroup][subrefPlateauLandZones]='..repru(tAllPlateaus[iPlateauGroup][subrefPlateauLandZones]))
+    end
+    table.insert(tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZSegments], {iSegmentX, iSegmentZ})
+    tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZTotalSegmentCount] = tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZTotalSegmentCount] + 1
+end
+
+local function ReorderLandZoneSegmentsForEachPlateau()
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ReorderLandZoneSegmentsForEachPlateau'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --Updates tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZSegments] so it is sorted based on the distance to the middle of the zone
+    local iMidSegmentX, iMidSegmentZ
+    local tiSegmentsByDistance
+    local tiSortedSegmentsByDistance
+    for iPlateau, tPlateauSubtable in tAllPlateaus do
+        for iLandZone, tLZSubtable in tPlateauSubtable[subrefPlateauLandZones] do
+            tiSegmentsByDistance = {}
+            tiSortedSegmentsByDistance = {}
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Midpoint='..repru(tLZSubtable[subrefLZMidpoint])) end
+            iMidSegmentX, iMidSegmentZ = GetPathingSegmentFromPosition(tLZSubtable[subrefLZMidpoint])
+            if bDebugMessages == true then LOG(sFunctionRef..': About to reorder the segments in iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Segments before sorting='..repru(tLZSubtable[subrefLZSegments])) end
+            for iSegmentRef, tSegmentXZ in tLZSubtable[subrefLZSegments] do
+                table.insert(tiSegmentsByDistance, {['Segments']={tSegmentXZ[1], tSegmentXZ[2]}, ['Distance']=(math.abs(tSegmentXZ[1] - iMidSegmentX) + math.abs(tSegmentXZ[2] - iMidSegmentZ))})
+            end
+            --Now sort by distance
+            tLZSubtable[subrefLZSegments] = {}
+            if bDebugMessages == true then LOG(sFunctionRef..': tiSegmentsByDistance='..repru(tiSegmentsByDistance)) end
+            for iEntry, tValue in M28Utilities.SortTableBySubtable(tiSegmentsByDistance, 'Distance', true) do
+                if bDebugMessages == true then LOG(sFunctionRef..': iEntry='..iEntry..';tValue='..repru(tValue)..'; Inserting value '..repru(tValue['Segments'])..' into the main LZSubtable') end
+                table.insert(tLZSubtable[subrefLZSegments], tValue['Segments'])
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished sorting for iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Segments after sorting='..repru(tLZSubtable[subrefLZSegments])) end
+        end
+    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -531,9 +590,11 @@ local function CreateNewLandZoneAtSegment(iBaseSegmentX, iBaseSegmentZ)
         local tMidpoint = GetPositionFromPathingSegments(iBaseSegmentX, iBaseSegmentZ)
         local iPlateauGroup = NavUtils.GetLabel(refPathingTypeAmphibious, tMidpoint)
         AddNewLandZoneReferenceToPlateau(iPlateauGroup)
-        local iLandZone = tAllPlateaus[iPlateauGroup][subrefLandZoneCount]
-        if not(tLandZoneBySegment[iBaseSegmentX]) then tLandZoneBySegment[iBaseSegmentX] = {} end
-        tLandZoneBySegment[iBaseSegmentX][iBaseSegmentZ] = iLandZone
+        LOG('Have just created a new land zone reference for base segment XZ='..iBaseSegmentX..'-'..iBaseSegmentZ..' in the iPlateauGroup='..iPlateauGroup)
+        RecordSegmentLandZone(iBaseSegmentX, iBaseSegmentZ, iPlateauGroup, tAllPlateaus[iPlateauGroup][subrefLandZoneCount])
+
+    else
+        M28Utilities.ErrorHandler('Trying to create a new zone for base segment '..iBaseSegmentX..'-'..iBaseSegmentZ..' when it already has a land zone assigned '..tLandZoneBySegment[iBaseSegmentX][iBaseSegmentZ])
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -566,8 +627,7 @@ local function AddMexToLandZone(iPlateauGroup, iOptionalLandZone, iPlateauMexRef
     table.insert(tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZMexLocations], tAllPlateaus[iPlateauGroup][subrefPlateauMexes][iPlateauMexRef])
     tTempLandZoneByMexRef[iPlateauMexRef] = iLandZone
     local iCurSegmentX, iCurSegmentZ = GetPathingSegmentFromPosition(tAllPlateaus[iPlateauGroup][subrefPlateauMexes][iPlateauMexRef])
-    if not(tLandZoneBySegment[iCurSegmentX]) then tLandZoneBySegment[iCurSegmentX] = {} end
-    tLandZoneBySegment[iCurSegmentX][iCurSegmentZ] = iLandZone
+    RecordSegmentLandZone(iCurSegmentX, iCurSegmentZ, iPlateauGroup, iLandZone)
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -602,7 +662,7 @@ local function AssignTempSegmentsWithDistance()
                                 iLowestZone = iZone
                             end
                         end
-                        tLandZoneBySegment[iCurSegmentX][iCurSegmentZ] = iLowestZone
+                        RecordSegmentLandZone(iCurSegmentX, iCurSegmentZ, NavUtils.GetLabel(refPathingTypeAmphibious, GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)), iLowestZone)
                     end
                 end
                 tTempZoneTravelDistanceBySegment[iCurSegmentX][iCurSegmentZ] = nil --Clear the value so when we cycle through in the future we dont reconsider this
@@ -776,16 +836,19 @@ end
 ---@param iLandZone number
 ---@param iSegmentSearchRange number
 ---@param iDistanceCap number
-local function AssignNearbySegmentsToSameLandZone(iBaseSegmentX, iBaseSegmentZ, iLandZone, iSegmentSearchRange, iDistanceCap)
-    --Cycles through every segment within iSegmentSearchRange of the base segment X-Z value, and if the pathing distance is within the distance cap iDistanceCap then will assign it to iLandZone
+local function AssignNearbySegmentsToSameLandZone(iBaseSegmentX, iBaseSegmentZ, iSegmentSearchRange, iDistanceCap)
+    --Cycles through every segment within iSegmentSearchRange of the base segment X-Z value, and if the pathing distance is within the distance cap iDistanceCap then will assign it to the same land zone as the base segment X and Z
+    local iLandZone = tLandZoneBySegment[iBaseSegmentX][iBaseSegmentZ]
     local iCurTravelDist
+    local tBaseMidpoint = GetPositionFromPathingSegments(iBaseSegmentX, iBaseSegmentZ)
+    local iPlateauGroup = NavUtils.GetLabel(refPathingTypeAmphibious, tBaseMidpoint)
     for iCurSegmentX = math.max(1, iBaseSegmentX - iSegmentSearchRange), math.min(iBaseSegmentX + iSegmentSearchRange, iMaxLandSegmentX), 1 do
         for iCurSegmentZ = math.max(1, iBaseSegmentZ - iSegmentSearchRange), math.min(iBaseSegmentZ + iSegmentSearchRange, iMaxLandSegmentZ), 1 do
             if not(tLandZoneBySegment[iCurSegmentX][iCurSegmentZ]) then
-                iCurTravelDist = M28Utilities.GetTravelDistanceBetweenPositions(GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ), GetPositionFromPathingSegments(iBaseSegmentX, iBaseSegmentZ))
+                iCurTravelDist = M28Utilities.GetTravelDistanceBetweenPositions(GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ), tBaseMidpoint)
                 if (iCurTravelDist or 100000) <= iDistanceCap then
                     if not(tLandZoneBySegment[iCurSegmentX]) then tLandZoneBySegment[iCurSegmentX] = {} end
-                    tLandZoneBySegment[iCurSegmentX][iCurSegmentZ] = iLandZone
+                    RecordSegmentLandZone(iCurSegmentX, iCurSegmentZ, iPlateauGroup, iLandZone)
                 end
             end
         end
@@ -1008,6 +1071,7 @@ local function DrawLandZones()
             iLandZoneRef = tLandZoneBySegment[iCurSegmentX][iCurSegmentZ]
             if (iLandZoneRef or 0) > 0 then
                 tLocation = GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)
+                if bDebugMessages == true then LOG(sFunctionRef..': Land zone ref for segments X-Z='..iCurSegmentX..'-'..iCurSegmentZ..' = '..iLandZoneRef..'; Plataeu ref based on navutils='..NavUtils.GetLabel(refPathingTypeAmphibious, tLocation)) end
                 --M28Utilities.DrawLocation(tLocation, GetColourFromLandZoneNumber(iLandZoneRef), nil, iLandZoneSegmentSize - 0.1)
                 M28Utilities.DrawLocation(tLocation, GetColourFromLandZoneNumber(iLandZoneRef), nil, iLandZoneSegmentSize - 0.1)
             end
@@ -1019,6 +1083,13 @@ end
 
 local function RecordLandZoneMidpoint()
     --Cycles through each land zone, and calculates the average positio nof the mexes.  If this is in the asme land zone then records this as the midpoint, toehrwise records the first mex as the midpoint
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordLandZoneMidpoint'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local tAverage, iAveragePlateau, iAverageLandZone
+
+
     for iPlateauGroup, tPlateauSubtable in tAllPlateaus do
         for iZone, tZone in tAllPlateaus[iPlateauGroup][subrefPlateauLandZones] do
             local iMinX = 100000
@@ -1026,22 +1097,40 @@ local function RecordLandZoneMidpoint()
             local iMinZ = 100000
             local iMaxZ = 0
 
-            for iMex, tMex in tZone[subrefLZMexLocations] do
-                iMinX = math.min(tMex[1], iMinX)
-                iMaxX = math.max(tMex[1], iMaxX)
-                iMinZ = math.min(tMex[3], iMinZ)
-                iMaxZ = math.max(tMex[3], iMaxZ)
+            if M28Utilities.IsTableEmpty(tZone[subrefLZMexLocations]) == false then
+                for iMex, tMex in tZone[subrefLZMexLocations] do
+                    iMinX = math.min(tMex[1], iMinX)
+                    iMaxX = math.max(tMex[1], iMaxX)
+                    iMinZ = math.min(tMex[3], iMinZ)
+                    iMaxZ = math.max(tMex[3], iMaxZ)
+                end
+            else
+                --No mexes for the plateau, so cycle through every zone and record the lowest and largest X and Z values
+                for iSegment, tSegmentXZ in tZone[subrefLZSegments] do
+                    iMinX = math.min(iMinX, tSegmentXZ[1])
+                    iMinZ = math.min(iMinZ, tSegmentXZ[2])
+                    iMaxX = math.max(iMaxX, tSegmentXZ[1])
+                    iMaxZ = math.max(iMaxZ, tSegmentXZ[2])
+                end
             end
-            local tAverage = {(iMinX + iMaxX)*0.5, 0, (iMinZ + iMaxZ) * 0.5}
-            local iAveragePlateau, iAverageLandZone = GetPlateauAndLandZoneReferenceFromPosition(tAverage, false)
-            if iAveragePlateau == iPlateauGroup and iAverageLandZone == iZone then
+            tAverage = {(iMinX + iMaxX)*0.5, 0, (iMinZ + iMaxZ) * 0.5}
+            iAveragePlateau, iAverageLandZone = GetPlateauAndLandZoneReferenceFromPosition(tAverage, false)
+            if (iAveragePlateau == iPlateauGroup and iAverageLandZone == iZone) or M28Utilities.IsTableEmpty(tZone[subrefLZMexLocations]) then
                 tZone[subrefLZMidpoint] = {tAverage[1], GetSurfaceHeight(tAverage[1], tAverage[3]), tAverage[3]}
             else
                 tZone[subrefLZMidpoint] = {tZone[subrefLZMexLocations][1][1], tZone[subrefLZMexLocations][1][2], tZone[subrefLZMexLocations][1][3]}
             end
-            M28Utilities.DrawRectangle(Rect(iMinX, iMinZ, iMaxX, iMaxZ), iColour, 1000, 10)
+            if bDebugMessages == true then
+                local iColour = iPlateauGroup
+                while iColour > 8 do
+                    iColour = iColour - 8
+                end
+                M28Utilities.DrawRectangle(Rect(iMinX, iMinZ, iMaxX, iMaxZ), iColour, 1000, 10)
+                if bDebugMessages == true then LOG(sFunctionRef..': Midpoint for iPlateauGroup='..iPlateauGroup..' and zone='..iZone..' = '..repru(tZone[subrefLZMidpoint])) end
+            end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 local function RecordHydroInLandZones()
@@ -1097,6 +1186,7 @@ local function SetupLandZones()
 
     RecordLandZoneMidpoint()
     RecordHydroInLandZones()
+    ReorderLandZoneSegmentsForEachPlateau()
 
 
     --If debug is enabled, draw land zones (different colour for each land zone on a plateau)
@@ -1167,6 +1257,103 @@ local function GetMapWaterHeight()
     end
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, iWaterCount='..iWaterCount..'; iMapWaterHeight='..iMapWaterHeight) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function GetReclaimablesResourceValue(tReclaimables, bAlsoReturnLargestReclaimPosition, iIgnoreReclaimIfNotMoreThanThis, bAlsoReturnAmountOfHighestIndividualReclaim, bEnergyNotMass)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetReclaimablesResourceValue'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bAlsoReturnLargestReclaimPosition == nil then bAlsoReturnLargestReclaimPosition = false end
+    if iIgnoreReclaimIfNotMoreThanThis == nil then iIgnoreReclaimIfNotMoreThanThis = 0 end
+    if iIgnoreReclaimIfNotMoreThanThis < 0 then iIgnoreReclaimIfNotMoreThanThis = 0 end
+
+    local sResourceRef = 'MaxMassReclaim'
+    if bEnergyNotMass then sResourceRef = 'MaxEnergyReclaim' end
+
+    local tWreckPos = {}
+    local iTotalResourceValue = 0
+    local iLargestCurReclaim = 0
+    local tReclaimPos = {}
+    if tReclaimables and table.getn( tReclaimables ) > 0 then
+        for _, v in tReclaimables do
+            tWreckPos = v.CachePosition
+            if tWreckPos[1] then
+                if v[sResourceRef] > iIgnoreReclaimIfNotMoreThanThis then
+                    if not(v:BeenDestroyed()) then
+                        iTotalResourceValue = iTotalResourceValue + v[sResourceRef]
+                        if bAlsoReturnLargestReclaimPosition and v.MaxMassReclaim > iLargestCurReclaim then
+                            iLargestCurReclaim = v.MaxMassReclaim
+                            tReclaimPos = {tWreckPos[1], tWreckPos[2], tWreckPos[3]}
+                        end
+                    end
+                end
+            else
+                if not(v.MaxMassReclaim == nil) then
+                    if v.MaxMassReclaim > 0 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Warning - have ignored wreck location despite it having a mass reclaim value') end
+                    end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    if bAlsoReturnLargestReclaimPosition then
+        if bAlsoReturnAmountOfHighestIndividualReclaim then return iTotalResourceValue, tReclaimPos, iLargestCurReclaim
+        else return iTotalResourceValue, tReclaimPos end
+    else
+        if bAlsoReturnAmountOfHighestIndividualReclaim then return iTotalResourceValue, iLargestCurReclaim
+        else return iTotalResourceValue end
+    end
+end
+
+function GetReclaimInRectangle(iReturnType, rRectangleToSearch, bForceDebug)
+    --iReturnType: 1 = true/false; 2 = number of wrecks; 3 = total mass, 4 = valid wrecks, 5 = energy
+    local sFunctionRef = 'GetReclaimInRectangle'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    local bDebugMessages = bForceDebug if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    --NOTE: Best to try and debug via forcedebug, as dont want to run for everything due to how intensive the log of reclaim is
+    --Have also commented out one of the logs to help with performance
+
+    local tReclaimables = GetReclaimablesInRect(rRectangleToSearch)
+    local iWreckCount = 0
+    local iTotalResourceValue
+    local bHaveReclaim = false
+    local tValidWrecks = {}
+    if M28Utilities.IsTableEmpty(tReclaimables) == false then
+        if bDebugMessages == true then LOG(sFunctionRef..': iReturnType='..iReturnType..'; rRectangleToSearch='..repru(rRectangleToSearch)) end
+        if iReturnType == 3 or iReturnType == 5 then
+            if iReturnType == 3 then iTotalResourceValue = GetReclaimablesResourceValue(tReclaimables, false, 0, false, false)
+            else iTotalResourceValue = GetReclaimablesResourceValue(tReclaimables, false, 0, false, true)
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': iTotalResourceValue='..iTotalResourceValue) end
+        else
+            for _, v in tReclaimables do
+                --if bDebugMessages == true then LOG(sFunctionRef..': _='.._..'; repr of reclaimable='..repru(tReclaimables)) end
+                local WreckPos = v.CachePosition
+                if not(WreckPos[1]==nil) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': _='.._..'; Cur mass value='..(v.MaxMassReclaim or 0)..'; Energy value='..(v.MaxEnergyReclaim or 0)) end
+                    if (v.MaxMassReclaim or 0) > 0 or (v.MaxEnergyReclaim or 0) > 0 then
+                        if bDebugMessages == true then LOG('Been destroyed='..tostring(v:BeenDestroyed())) end
+                        if not(v:BeenDestroyed()) then
+                            iWreckCount = iWreckCount + 1
+                            bHaveReclaim = true
+                            if iReturnType == 1 then break
+                            elseif iReturnType == 4 then tValidWrecks[iWreckCount] = v end
+                        end
+                    end
+                end
+            end
+        end
+    elseif bDebugMessages == true then LOG(sFunctionRef..': tReclaimables is empty')
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': rRectangleToSearch='..repru(rRectangleToSearch)..'; bHaveReclaim='..tostring(bHaveReclaim)..'; iWreckCount='..iWreckCount) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    if iReturnType == 1 then return bHaveReclaim
+    elseif iReturnType == 2 then return iWreckCount
+    elseif iReturnType == 3 or iReturnType == 5 then return iTotalResourceValue
+    elseif iReturnType == 4 then return tValidWrecks
+    else M28Utilities.ErrorHandler('Invalid return type')
+    end
 end
 
 function SetupMap()

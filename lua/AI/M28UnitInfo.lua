@@ -207,3 +207,91 @@ function GetUnitPathingType(oUnit)
     else return refPathingTypeNone
     end
 end
+
+function GetBlueprintFromID(sBlueprintID)
+    --returns blueprint based on the blueprintID
+    return __blueprints[string.lower(sBlueprintID)]
+end
+
+function GetBuildingSizeTable(sBlueprintID)
+    --Returns table with X and Z size of sBlueprintID
+    local tSizeXZ = {}
+    local oBlueprint = GetBlueprintFromID(sBlueprintID)
+    tSizeXZ[1] = oBlueprint.Physics.SkirtSizeX
+    tSizeXZ[2] = oBlueprint.Physics.SkirtSizeZ
+    return tSizeXZ
+end
+
+function GetBuildingSize(sBlueprintID)
+    --Similar to GetBuildingSizeTable but returns a single value for the highest size
+    local oBlueprint = GetBlueprintFromID(sBlueprintID)
+    return math.max(oBlueprint.Physics.SkirtSizeX, oBlueprint.Physics.SkirtSizeZ)
+end
+
+function GetUnitState(oUnit)
+    --Returns a string containing oUnit's unit state. Returns '' if no unit state.
+    local sUnitState = ''
+    local sAllUnitStates = {'Immobile',
+                            'Moving',
+                            'Attacking',
+                            'Guarding',
+                            'Building',
+                            'Upgrading',
+                            'WaitingForTransport',
+                            'TransportLoading',
+                            'TransportUnloading',
+                            'MovingDown',
+                            'MovingUp',
+                            'Patrolling',
+                            'Busy',
+                            'Attached',
+                            'BeingReclaimed',
+                            'Repairing',
+                            'Diving',
+                            'Surfacing',
+                            'Teleporting',
+                            'Ferrying',
+                            'WaitForFerry',
+                            'AssistMoving',
+                            'PathFinding',
+                            'ProblemGettingToGoal',
+                            'NeedToTerminateTask',
+                            'Capturing',
+                            'BeingCaptured',
+                            'Reclaiming',
+                            'AssistingCommander',
+                            'Refueling',
+                            'GuardBusy',
+                            'ForceSpeedThrough',
+                            'UnSelectable',
+                            'DoNotTarget',
+                            'LandingOnPlatform',
+                            'CannotFindPlaceToLand',
+                            'BeingUpgraded',
+                            'Enhancing',
+                            'BeingBuilt',
+                            'NoReclaim',
+                            'NoCost',
+                            'BlockCommandQueue',
+                            'MakingAttackRun',
+                            'HoldingPattern',
+                            'SiloBuildingAmmo' }
+    for _, sState in sAllUnitStates do
+        if oUnit:IsUnitState(sState) == true then
+            sUnitState = sState
+            break
+        end
+    end
+    return sUnitState
+end
+
+function GetUnitTechLevel(oUnit)
+    local sUnitId = oUnit.UnitId
+    local iTechLevel = 1
+    if EntityCategoryContains(categories.TECH1, sUnitId) then iTechLevel = 1
+    elseif EntityCategoryContains(categories.TECH2, sUnitId) then iTechLevel = 2
+    elseif EntityCategoryContains(categories.TECH3, sUnitId) then iTechLevel = 3
+    elseif EntityCategoryContains(categories.EXPERIMENTAL, sUnitId) then iTechLevel = 4
+    end
+    return iTechLevel
+end
