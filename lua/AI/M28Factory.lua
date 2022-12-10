@@ -78,7 +78,7 @@ function GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFacto
                         end
 
                         for iAltBlueprint, sAltBlueprint in tsBlueprintsMeetingDesiredCategoriesToBuild do
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if sAltBlueprint='..sAltBlueprint..' has a category that matches with what sBLueprint can build') end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if sAltBlueprint='..(sAltBlueprint or 'nil')..' has a category that matches with what sBLueprint can build') end
                             if EntityCategoryContains(iCategoriesThatBlueprintCanBuild, sAltBlueprint) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Can build the desired category') end
                                 bCanBuildRequiredCategory = true

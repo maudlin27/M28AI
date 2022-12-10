@@ -10,10 +10,51 @@ local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
 local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
+local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
 
 
 --ACU specific variables against the ACU
 refbDoingInitialBuildOrder = 'M28ACUInitialBO'
+
+function ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearch, iOptionalAdjacencyCategory, iOptionalCategoryBuiltUnitCanBuild)
+    local sFunctionRef = 'ACUBuildUnit'
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    
+    --Do we have a nearby unit of the type we want to build under construction?
+    local tNearbyUnitsOfCategoryToBuild = aiBrain:GetUnitsAroundPoint(iCategoryToBuild, oACU:GetPosition(), iMaxAreaToSearch, 'Ally')
+    local oNearestPartComplete
+    if M28Utilities.IsTableEmpty(tNearbyUnitsOfCategoryToBuild) == false then
+        local iClosestUnit = 10000
+        local iCurDist
+        for _, oUnit in tNearbyUnitsOfCategoryToBuild do
+            if oUnit:GetFractionComplete() < 1 then
+                iCurDist = M28Utilities.GetTravelDistanceBetweenPositions(oUnit:GetPosition(), oACU:GetPosition(), M28Map.refPathingTypeLand)
+                if iCurDist < iClosestUnit then
+                    oNearestPartComplete = oUnit
+                    iClosestUnit = iCurDist
+                end
+            end
+        end
+    end
+    if oNearestPartComplete then
+        if bDebugMessages == true then LOG(sFunctionRef..': Will assist part complete building='..oNearestPartComplete.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestPartComplete)) end
+        M28Orders.IssueTrackedGuard(oACU, oNearestPartComplete, false)
+    else
+        --No nearby under construction factory, so build one
+        --GetLocationAndBlueprintToBuild(aiBrain, oEngineer, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy,         tAlternativePositionToLookFrom, bLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure)
+        local sBlueprint, tBuildLocation = M28Engineer.GetLocationAndBlueprintToBuild(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearch, iOptionalAdjacencyCategory, nil,                           false,                      nil,         iOptionalCategoryBuiltUnitCanBuild, nil)
+        if bDebugMessages == true then
+            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oACU:GetPosition())
+            LOG(sFunctionRef..': Blueprint to build='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation)..'; ACU plateau and land zone based on cur position='..iPlateau..'; iLandZone='..(iLandZone or 'nil'))
+        end
+        if sBlueprint and tBuildLocation then
+            M28Orders.IssueTrackedBuild(oACU, tBuildLocation, sBlueprint, false)
+        end
+    end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
 
 function ACUActionBuildFactory(aiBrain, oACU)
     local sFunctionRef = 'ACUActionBuildFactory'
@@ -25,39 +66,24 @@ function ACUActionBuildFactory(aiBrain, oACU)
     if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAllFactories) >= 2 and iCategoryToBuild == M28UnitInfo.refCategoryLandFactory then
         iMaxAreaToSearch = 20
     end
-    --Do we have a nearby factory under construction?
-    local tNearbyFactories = aiBrain:GetUnitsAroundPoint(iCategoryToBuild, oACU:GetPosition(), iMaxAreaToSearch, 'Ally')
+    ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearch, M28UnitInfo.refCategoryMex, M28UnitInfo.refCategoryEngineer)
 
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
 
-    local oNearestPartComplete
-    if M28Utilities.IsTableEmpty(tNearbyFactories) == false then
-        local iClosestFactory = 10000
-        local iCurDist
-        for _, oUnit in tNearbyFactories do
-            if oUnit:GetFractionComplete() < 1 then
-                iCurDist = M28Utilities.GetTravelDistanceBetweenPositions(oUnit:GetPosition(), oACU:GetPosition(), M28Map.refPathingTypeLand)
-                if iCurDist < iClosestFactory then
-                    oNearestPartComplete = oUnit
-                    iClosestFactory = iCurDist
-                end
-            end
-        end
+function ACUActionBuildPower(aiBrain, oACU)
+    local sFunctionRef = 'ACUActionBuildPower'
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iCategoryToBuild = M28UnitInfo.refCategoryPower
+    local iMaxAreaToSearch = 16
+    local iOptionalAdjacencyCategory
+    if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) > 0 then iOptionalAdjacencyCategory = M28UnitInfo.refCategoryAirFactory
+    elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] <= 11 then iOptionalAdjacencyCategory = M28UnitInfo.refCategoryLandFactory
     end
-    if oNearestPartComplete then
-        if bDebugMessages == true then LOG(sFunctionRef..': Will assist part complete building='..oNearestPartComplete.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestPartComplete)) end
-        M28Orders.IssueTrackedGuard(oACU, oNearestPartComplete, false)
-    else
-        --No nearby under construction factory, so build one
-        --GetLocationAndBlueprintToBuild(aiBrain, oEngineer, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy,         tAlternativePositionToLookFrom, bLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure)
-        local sBlueprint, tBuildLocation = M28Engineer.GetLocationAndBlueprintToBuild(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearch, M28UnitInfo.refCategoryMex, nil,                           false,                      nil,         M28UnitInfo.refCategoryEngineer, nil)
-        if bDebugMessages == true then
-            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oACU:GetPosition())
-            LOG(sFunctionRef..': Factory blueprint='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation)..'; ACU plateau and land zone based on cur position='..iPlateau..'; iLandZone='..(iLandZone or 'nil'))
-        end
-        if sBlueprint and tBuildLocation then
-            M28Orders.IssueTrackedBuild(oACU, tBuildLocation, sBlueprint, false)
-        end
-    end
+    if bDebugMessages == true then LOG(sFunctionRef..': About to tell ACU to build power; is optional adjacency category nil='..tostring(iOptionalAdjacencyCategory == nil)) end
+    ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearch, iOptionalAdjacencyCategory, nil)
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -144,6 +170,9 @@ function ManageACU(aiBrain)
         WaitTicks(1)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
+
+    --Make sure ACU is recorded
+    M28Team.AssignUnitToZoneOrPond(aiBrain, oACU)
 
     while M28UnitInfo.IsUnitValid(oACU) do
         GetACUOrder(aiBrain, oACU)

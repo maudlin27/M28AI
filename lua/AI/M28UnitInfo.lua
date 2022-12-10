@@ -4,6 +4,11 @@
 --- DateTime: 01/12/2022 08:18
 ---
 
+--Variables against units;
+reftLastKnownPositionByTeam = 'M28UnitLastPos' --[x] is the M28 team ref, returns the last known position of the unit
+reftAssignedPlateauAndLandZoneByTeam = 'M28UnitPlateauAndZone' --[x] is the M28 team ref, returns a table {iPlateauGroup, iLandZoneRef}
+reftbConsideredForAssignmentByTeam = 'M28UnitConsideredForAssignment' --[x] is the M28 team ref, returns true if have sent at least once to be assigned to a plateau/land zone/air logic/navy logic
+
 --Categories:
 --Buildings - eco
 refCategoryMex = categories.STRUCTURE * categories.MASSEXTRACTION - categories.NAVAL --Some mods add a naval mex which causes issues as we will try and build on land mexes without naval exclusion

@@ -15,6 +15,9 @@ refiNetEnergyBaseIncome = 'M28EnergyNetIncome' --against aiBrain
 refiGrossMassBaseIncome = 'M28MassGrossIncome' --against aiBrain
 refiNetMassBaseIncome = 'M28MassNetIncome' --against aiBrain
 
+--Factory tech variables
+refiOurHighestFactoryTechLevel = 'M28HighestFactoryTech' --against aiBrain
+
 --Against unit variables:
 refoBrainRecordedForEconomy = 'M28EconomyBrainRecordedUnit' --Stores the M28 brain that has factored in this unit's mass and energy income
 

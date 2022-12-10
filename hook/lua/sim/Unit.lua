@@ -63,6 +63,10 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
             ForkThread(M28Events.OnDetectedBy, self, index)
             return M28OldUnit.OnDetectedBy(self, index)
         end,
+        OnCreate = function(self)
+            M28OldUnit.OnCreate(self)
+            ForkThread(M28Events.OnCreate, self)
+        end,
     }
 end
 

@@ -12,12 +12,102 @@ local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
 local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
 local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
-
+local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
+local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 
 
 bInitialSetup = false
 tAllActiveM28Brains = {} --[x] is just a unique integer starting with 1 (so table.getn works on this), not the armyindex; returns the aiBrain object
+tAllAIBrainsByArmyIndex = {} --[x] is the brain army index, returns the aibrain
 
+--aiBrain variables
+refiDistanceToNearestEnemyBase = 'M28OverseerDistToNearestEnemyBase'
+refoNearestEnemyBrain = 'M28Overseernearestenemybrain'
+
+function GetNearestEnemyBrain(aiBrain)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetNearestEnemyBrain'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if (aiBrain[refoNearestEnemyBrain] and not(aiBrain[refoNearestEnemyBrain].M28IsDefeated) and not(aiBrain[refoNearestEnemyBrain]:IsDefeated())) or aiBrain.M28IsDefeated then
+        return aiBrain[refoNearestEnemyBrain]
+    else
+        if bDebugMessages == true then LOG(sFunctionRef..': Dont have a valid nearest enemy already recorded so will get a new one; are all enemies defeated for team '..aiBrain.M28Team..'='..tostring(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbAllEnemiesDefeated])) end
+        local oNearestBrain
+        if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbAllEnemiesDefeated] then
+            --All enemies defeated so will consider civilians as enemy brains
+            local oCivilianBrain
+            for iCurBrain, oBrain in ArmyBrains do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering obrain '..oBrain.Nickname..'; is enemy to us='..tostring(IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()))) end
+                if IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) then
+                    oNearestBrain = oBrain
+                    break
+                elseif M28Conditions.IsCivilianBrain(oBrain) then
+                    oCivilianBrain = oBrain
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': All normal enemies defeated, oNearestBrain='..(oNearestBrain.Nickname or 'nil')..'; oCivilianBrain='..(oCivilianBrain.Nickname or 'nil')) end
+
+            if not (oNearestBrain) then
+                oNearestBrain = oCivilianBrain
+            end
+        else
+            local iCurDist
+            local iMinDistToEnemy = 10000000
+
+            if bDebugMessages == true then LOG(sFunctionRef .. ': Start before looping through brains; aiBrain personality=' .. ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality .. '; brain.Name=' .. aiBrain.Name) end
+
+            for iCurBrain, oBrain in ArmyBrains do
+                if bDebugMessages == true then LOG(sFunctionRef .. ': Start of brain loop, iCurBrain=' .. iCurBrain .. '; brain personality=' .. ScenarioInfo.ArmySetup[oBrain.Name].AIPersonality .. '; brain Nickname=' .. oBrain.Nickname .. '; Brain index=' .. oBrain:GetArmyIndex() .. '; if brain isnt equal to our AI brain then will get its start position etc. IsCivilian='..tostring(M28Conditions.IsCivilianBrain(oBrain))..'; IsEnemy='..tostring(IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()))) end
+                if not (oBrain == aiBrain) and (not (M28Conditions.IsCivilianBrain(oBrain)) and IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex())) then
+                    if bDebugMessages == true then LOG(sFunctionRef .. ': Brain is dif to aiBrain and a non civilian enemy so will record its start position number if it doesnt have one already') end
+
+                    if not (oBrain:IsDefeated()) and not (oBrain.M28IsDefeated) then
+                        if bDebugMessages == true then LOG(sFunctionRef .. ': brain with index' .. oBrain:GetArmyIndex() .. ' is not defeated and is an enemy') end
+                        iCurDist = M28Utilities.GetDistanceBetweenPositions(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()], M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+                        if iCurDist < iMinDistToEnemy then
+                            iMinDistToEnemy = iCurDist
+                            oNearestBrain = oBrain
+                        end
+                    end
+
+                    --Strange bug where still returns true for empty slot - below line to avoid this:
+                    --[[if GetGameTimeSeconds() <= 5 or brain:GetCurrentUnits(categories.ALLUNITS) > 0 then
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef .. ': brain has some units')
+                        end
+                        if M28Map.PlayerStartPoints[brain:GetArmyIndex()] then
+                            iDistToCurEnemy = M28Utilities.GetDistanceBetweenPositions(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()], M28Map.PlayerStartPoints[brain:GetArmyIndex()])
+                            if bDebugMessages == true then LOG(sFunctionRef..': Dist between brain and aibrain start points='..iDistToCurEnemy) end
+                            if iDistToCurEnemy < iMinDistToEnemy then
+                                iMinDistToEnemy = iDistToCurEnemy
+                                iNearestEnemyIndex = brain:GetArmyIndex()
+                                if bDebugMessages == true then
+                                    LOG(sFunctionRef .. ': Current nearest enemy index=' .. iNearestEnemyIndex .. '; startp osition of this enemy=' .. repru(M28Map.PlayerStartPoints[iNearestEnemyIndex]))
+                                end
+                            end
+                        else
+                            if bDebugMessages == true then
+                                LOG(sFunctionRef .. ': Map info doesnt have a start point for brain with index=' .. brain:GetArmyIndex()..' and nickanme='..(brain.Nickname or 'nil')..'; PlayerStartPoints='..repru(M28Map.PlayerStartPoints))
+                            end
+                        end
+                    else
+                        --Can have some cases where have an aibrain but no units, e.g. map Africa has ARMY_9 aibrain name, with no personality, that has no units; will flag the brain as being defeated to be safe if getgametimeseonds is more than 1min
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef .. ': WARNING: brain isnt defeated but has no units; brain:ArmyIndex=' .. brain:GetArmyIndex())
+                        end
+                        if GetGameTimeSeconds() >= 60 then brain.M28IsDefeated = true end
+                    end--]]
+                end
+            end
+        end
+        aiBrain[refoNearestEnemyBrain] = oNearestBrain
+        if not(oNearestBrain) then
+            M28Utilities.ErrorHandler('Couldnt find a nearest brain to aiBrain='..aiBrain.Nickname)
+        end
+    end
+    return aiBrain[refoNearestEnemyBrain]
+end
 
 function BrainCreated(aiBrain)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -75,7 +165,12 @@ function TestCustom(aiBrain)
     M28Utilities.ErrorHandler('Disable testcustom code for final')
 end
 
+
+
+
 function Initialisation(aiBrain)
+    --Called after 1 tick has passed so all aibrains should hopefully exist now
+    ForkThread(M28Team.RecordAllPlayers, aiBrain)
     ForkThread(M28Economy.EconomyInitialisation, aiBrain)
     ForkThread(M28Engineer.EngineerInitialisation, aiBrain)
     ForkThread(M28ACU.ManageACU, aiBrain)

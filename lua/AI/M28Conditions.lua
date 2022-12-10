@@ -29,9 +29,9 @@ function AreMobileLandUnitsInRect(rRectangleToSearch)
 end
 
 function GetLifetimeBuildCount(aiBrain, category)
-    local bDebugMessages = false if M27Utilities.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetLifetimeBuildCount'
-    M27Utilities.FunctionProfiler(sFunctionRef, M27Utilities.refProfilerStart)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     local iTotalBuilt = 0
     local testCat = category
     if type(category) == 'string' then
@@ -42,18 +42,79 @@ function GetLifetimeBuildCount(aiBrain, category)
     local iCurCount
 
     if tUnitBPIDs == nil then
-        M27Utilities.ErrorHandler('tUnitBPIDs is nil, so wont have built any')
+        M28Utilities.ErrorHandler('tUnitBPIDs is nil, so wont have built any')
         iTotalBuilt = 0
     else
         if bDebugMessages == true then LOG(sFunctionRef..': cycling through tUnitBPIDs') end
         for _, sBPID in tUnitBPIDs do
             oCurBlueprint = __blueprints[sBPID]
-            iCurCount = aiBrain.M27LifetimeUnitCount[sBPID]
+            iCurCount = aiBrain.M28LifetimeUnitCount[sBPID]
             if iCurCount == nil then iCurCount = 0 end
             if bDebugMessages == true then LOG(sFunctionRef..': sBPID='..sBPID..'; LifetimeCount='..iCurCount) end
             iTotalBuilt = iTotalBuilt + iCurCount
         end
     end
-    M27Utilities.FunctionProfiler(sFunctionRef, M27Utilities.refProfilerEnd)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return iTotalBuilt
+end
+
+function IsCivilianBrain(aiBrain)
+    --Is this an AI brain?
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'IsCivilianBrain'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if aiBrain.M28IsCivilian == nil then
+        local bIsCivilian = false
+        if bDebugMessages == true then
+            LOG(sFunctionRef..': Brain index='..aiBrain:GetArmyIndex()..'; BrainType='..(aiBrain.BrainType or 'nil')..'; Personality='..ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality..'; reprs of brain='..reprs(aiBrain))
+        end
+        --Basic check that it appears to have the values we'd expect
+        --if aiBrain.BrainType and aiBrain.Name then
+        if aiBrain.BrainType == nil or aiBrain.BrainType == "AI" or string.find(aiBrain.BrainType, "AI") then
+            if bDebugMessages == true then LOG('Dealing with an AI brain') end
+            --Does it have no personality?
+            if not(ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality) or ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == "" then
+                if bDebugMessages == true then LOG(sFunctionRef..': Index='..aiBrain:GetArmyIndex()..'; Has no AI personality so will treat as being a civilian brain unless nickname contains AI or AIX and doesnt contain civilian') end
+                bIsCivilian = true
+                if string.find(aiBrain.Nickname, '%(AI') and not(string.find(aiBrain.Nickname, "civilian")) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': AI nickanme suggests its an actual AI and the developer has forgotten to give it a personality') end
+                    bIsCivilian = false
+                end
+            end
+        end
+        aiBrain.M28IsCivilian = bIsCivilian
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return aiBrain.M28IsCivilian
+end
+
+function GetLifetimeBuildCount(aiBrain, category)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetLifetimeBuildCount'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    local iTotalBuilt = 0
+    local testCat = category
+    if type(category) == 'string' then
+        testCat = ParseEntityCategory(category)
+    end
+    local tUnitBPIDs = EntityCategoryGetUnitList(category)
+    local oCurBlueprint
+    local iCurCount
+
+    if tUnitBPIDs == nil then
+        M28Utilities.ErrorHandler('tUnitBPIDs is nil, so wont have built any')
+        iTotalBuilt = 0
+    else
+        if bDebugMessages == true then LOG(sFunctionRef..': cycling through tUnitBPIDs') end
+        for _, sBPID in tUnitBPIDs do
+            oCurBlueprint = __blueprints[sBPID]
+            iCurCount = aiBrain.M28LifetimeUnitCount[sBPID]
+            if iCurCount == nil then iCurCount = 0 end
+            if bDebugMessages == true then LOG(sFunctionRef..': sBPID='..sBPID..'; LifetimeCount='..iCurCount) end
+            iTotalBuilt = iTotalBuilt + iCurCount
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return iTotalBuilt
 end

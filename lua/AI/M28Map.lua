@@ -7,7 +7,11 @@
 local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 local NavUtils = import("/lua/sim/navutils.lua")
-local FAFColour = import("/lua/shared/color.lua")
+local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
+local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
+local M28Logic = import('/mods/M28AI/lua/AI/M28Logic.lua')
+local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
+
 
 --Pathing types
 --NavLayers 'Land' | 'Water' | 'Amphibious' | 'Hover' | 'Air'
@@ -32,7 +36,7 @@ tMexByPathingAndGrouping = {} --Stores position of each mex based on the pathing
 tHydroByPathingAndGrouping = {} --as above but for hydros
 
 --Player start points
-tPlayerStartPoints = {} --Will be updated whenever a brain is created, index is the army index, i.e. do tPlayerStartPoints[aiBrain:GetArmyIndex()] to get a table {x,y,z} that is the army's start position; more convenient than aiBrain:GetArmyStartPos() which returns x and z values but not as a table
+PlayerStartPoints = {} --[x] is aiBrain army index, returns the start position {x,y,z}; Will be updated whenever a brain is created, index is the army index, i.e. do PlayerStartPoints[aiBrain:GetArmyIndex()] to get a table {x,y,z} that is the army's start position; more convenient than aiBrain:GetArmyStartPos() which returns x and z values but not as a table
 
 --Plateaus - core
 tAllPlateaus = {} --[x] = AmphibiousPathingGroup, [y]: subrefs, e.g. subrefPlateauMexes;
@@ -67,24 +71,31 @@ subrefPlateauEngineers = 'M28PlateauEngineers' --[x] is engineer unique ref (per
 subrefPlateauLandZones = 'M28PlateauLandZones' --against the main plateau table, stores info on land zones for that plateau
 subrefLandZoneCount = 'M28PlateauZoneCount' --against the main plateau table, records how many land zones there are (alternative to table.getn on the land zones)
 iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one side of the square that is the lowest resolution land zones go to; each segment that is land pathable gets assigned to a land zone
-tLandZonesByPlateau = {} --[x] is the plateau group number, returns a table where [y] is the land zone number, which then returns details on the land zone; use tLandZoneBySegment to get a zone reference from land segments
-subrefLZMexCount = 'MexCount' --against tLandZonesByPlateau[iPlateau][iLZ], returns number of mexes in the LZ
-subrefLZMexLocations = 'MexLoc' --against tLandZonesByPlateau[iPlateau][iLZ], returns table of mex locations in the LZ, e.g. get with tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iZone][subrefLZMexLocations]
-subrefLZReclaimMass = 'ReclaimMass' --against tLandZonesByPlateau[iPlateau][iLZ], returns total mass reclaim in the LZ
-subrefLZMidpoint = 'Midpoint' --against tLandZonesByPlateau[iPlateau][iLZ], returns the midpoint of the land zone, e.g. get with tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iZone][subrefLZMidpoint]
+subrefLZMexCount = 'MexCount' --against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone], returns number of mexes in the LZ
+subrefLZMexLocations = 'MexLoc' --against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone], returns table of mex locations in the LZ, e.g. get with tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iZone][subrefLZMexLocations]
+subrefLZReclaimMass = 'ReclaimMass' --against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone], returns total mass reclaim in the LZ
+subrefLZMidpoint = 'Midpoint' --against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone], returns the midpoint of the land zone, e.g. get with tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iZone][subrefLZMidpoint]
 subrefLZHydroLocations = 'HydroLoc' --similar to MexLocations
 subrefLZBuildLocationsBySize = 'BuildLoc' --contains a table, with the index being the unit's highest footprint size, which returns a location that should be buildable in this zone;  only populated on demand (i.e. if we want to try and build something there by references to the predefined location), e.g. tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZBuildLocationsBySize][iSize]
 subrefLZBuildLocationSegmentCountBySize = 'BuildSegment' --[x] is the building size considered, returns Number of segments that we have considered when identifying segment build locations for the land zone for that particular size
 subrefLZSegments = 'Segments' --Contains a table which returns the X and Z segment values for every segment assigned to this land zone
 subrefLZTotalSegmentCount = 'SegCount' --Number of segments in a land zone
---Land zone subteam data:
-subrefLZSubteamData = 'Subteam' --Table for all the data by subteam for a plateau's land zone
-subrefLZSTAlliedUnits = 'Allies' --table of all allied units in the land zone
-subrefLZSTEnemyUnits = 'Enemies' --table of all enemy units in the land zone
+--Land zone subteam data (update M28Teams.TeamInitialisation function to include varaibles here so dont have to check if they exist each time)
+subrefLZTeamData = 'Subteam' --tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZTeamData] - Table for all the data by team for a plateau's land zone
+subrefLZTAlliedUnits = 'Allies' --table of all allied units in the land zone
+subrefLZTEnemyUnits = 'Enemies' --table of all enemy units in the land zone
 
 --Land pathing segment data
 tLandZoneBySegment = {} --[x][z] should be the x and z segments baed on iLandZoneSegmentSize, and should return the land zone number, or nil if there is none
 tTempZoneTravelDistanceBySegment = {} --[x][z] should be the x and z segments, used to temporarily store the distance values for segments at start of the game when setting up land zones
+
+
+--General aiBrain variables
+reftPrimaryEnemyBaseLocation = 'M28PrimaryEnemyBase' --against aiBrain, returns location of the nearest enemy base
+refiLastTimeCheckedEnemyBaseLocation = 'M28MapLastTimeCheckedEnemyBase' --against aiBrain, gametimeseconds that last checked the enemy base location
+reftMidpointToPrimaryEnemyBase = 'M28MapMidpointToPrimaryEnemy' --against aiBrain, midpoint between the start position and the nearest enemy start position
+refbCanPathToEnemyBaseWithLand = 'M28MapCanPathToEnemyWithLand'
+refbCanPathToEnemyBaseWithAmphibious = 'M28MapCanPathToEnemyWithAmphibious'
 
 ---@param tPosition table
 ---@return number, number
@@ -1354,6 +1365,161 @@ function GetReclaimInRectangle(iReturnType, rRectangleToSearch, bForceDebug)
     elseif iReturnType == 4 then return tValidWrecks
     else M28Utilities.ErrorHandler('Invalid return type')
     end
+end
+
+function SetWhetherCanPathToEnemy(aiBrain)
+    --Set flag for whether AI can path to enemy base
+    --Also updates other values that are based on the nearest enemy
+
+    local sFunctionRef = 'SetWhetherCanPathToEnemy'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if not(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbAllEnemiesDefeated]) then
+        local tEnemyStartPosition = GetPrimaryEnemyBaseLocation(aiBrain)
+        local tOurBase = PlayerStartPoints[aiBrain:GetArmyIndex()]
+
+        if NavUtils.GetLabel(refPathingTypeLand, tOurBase) == NavUtils.GetLabel(refPathingTypeLand, tEnemyStartPosition) and not(IsUnderwater({tOurBase[1], GetTerrainHeight(tOurBase[1], tOurBase[3]), tOurBase[3]})) then
+            aiBrain[refbCanPathToEnemyBaseWithLand] = true
+        else aiBrain[refbCanPathToEnemyBaseWithLand] = false
+        end
+
+        if NavUtils.GetLabel(refPathingTypeAmphibious, tOurBase) == NavUtils.GetLabel(refPathingTypeAmphibious, tEnemyStartPosition) then
+            aiBrain[refbCanPathToEnemyBaseWithAmphibious] = true
+        else aiBrain[refbCanPathToEnemyBaseWithAmphibious] = false end
+
+        aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] = M28Utilities.GetDistanceBetweenPositions(PlayerStartPoints[aiBrain:GetArmyIndex()], tEnemyStartPosition)
+        M28Team.tSubteamData[aiBrain.M28Subteam][M28Team.subrefiMaxScoutRadius] = math.max(1500, (M28Team.tSubteamData[aiBrain.M28Subteam][M28Team.subrefiMaxScoutRadius] or 1500), aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] * 1.5)
+
+        --Record mitpoint between base (makes it easier to calc mod distance
+        aiBrain[reftMidpointToPrimaryEnemyBase] = M28Utilities.MoveInDirection(PlayerStartPoints[aiBrain:GetArmyIndex()], M28Utilities.GetAngleFromAToB(PlayerStartPoints[aiBrain:GetArmyIndex()], tEnemyStartPosition), aiBrain[M28Overseer.refiDistanceToNearestEnemyBase], false)
+    end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function UpdateNewPrimaryBaseLocation(aiBrain)
+    --Updates reftPrimaryEnemyBaseLocation to the nearest enemy start position (unless there are no structures there in which case it searches for a better start position)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'UpdateNewPrimaryBaseLocation'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --local refiTimeOfLastUpdate = 'M27RefTimeOfLastLocationUpdate'
+    --LOG(sFunctionRef..': aiBrain='..aiBrain:GetArmyIndex()..'; Start position='..(aiBrain:GetArmyIndex() or 'nil'))
+    if bDebugMessages == true then LOG(sFunctionRef..': About to get new primary base location for brain '..aiBrain.Nickname..' unless it is civilian or defeated. IsCivilian='..tostring(M28Conditions.IsCivilianBrain(aiBrain))..'; .M28IsDefeated='..tostring((aiBrain.M28IsDefeated or false))) end
+    if not(M28Conditions.IsCivilianBrain(aiBrain)) and not(aiBrain.M28IsDefeated) and not(aiBrain:IsDefeated()) then
+        local tPrevPosition
+        if aiBrain[reftPrimaryEnemyBaseLocation] then tPrevPosition = {aiBrain[reftPrimaryEnemyBaseLocation][1], aiBrain[reftPrimaryEnemyBaseLocation][2], aiBrain[reftPrimaryEnemyBaseLocation][3]} end
+        if bDebugMessages == true then LOG(sFunctionRef..': Team='..(aiBrain.M28Team or 'nil')..'; Are all enemies defated for this team='..tostring(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbAllEnemiesDefeated] or false)) end
+        if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbAllEnemiesDefeated] then
+            local tFriendlyBrainStartPoints = {}
+            local iFriendlyBrainCount = 0
+            tFriendlyBrainStartPoints[iFriendlyBrainCount] = {PlayerStartPoints[aiBrain:GetArmyIndex()][1], PlayerStartPoints[aiBrain:GetArmyIndex()][2], PlayerStartPoints[aiBrain:GetArmyIndex()][3]}
+            if bDebugMessages == true then LOG(sFunctionRef..': Have no enemies, so will get average of friendly brain start points provided not the centre of the map. Is table of friendly ally active brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveBrains]))) end
+
+            for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveBrains] do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering ally brain index='..oBrain:GetArmyIndex()..'; Nickname='..(oBrain.Nickname or 'nil')..'; Start point='..repru((PlayerStartPoints[oBrain:GetArmyIndex()] or {'nil'}))) end
+                --if not(oBrain == aiBrain) then
+                iFriendlyBrainCount = iFriendlyBrainCount + 1
+                tFriendlyBrainStartPoints[iFriendlyBrainCount] = {PlayerStartPoints[oBrain:GetArmyIndex()][1], PlayerStartPoints[oBrain:GetArmyIndex()][2], PlayerStartPoints[oBrain:GetArmyIndex()][3]}
+                --end
+            end
+            local tAverageTeamPosition
+            if iFriendlyBrainCount == 1 then tAverageTeamPosition = tFriendlyBrainStartPoints[iFriendlyBrainCount]
+            else tAverageTeamPosition = M28Utilities.GetAverageOfLocations(tFriendlyBrainStartPoints)
+            end
+
+            if bDebugMessages == true then LOG(sFunctionRef..': iFriendlyBrainCount='..iFriendlyBrainCount..'; Friendly brain start points='..repru((tFriendlyBrainStartPoints or {'nil'}))..'; tAverageTeamPosition='..repru(tAverageTeamPosition)..'; rMapPlayableArea='..repru(rMapPlayableArea)) end
+
+            if M28Utilities.GetDistanceBetweenPositions(tAverageTeamPosition, {rMapPlayableArea[1] + (rMapPlayableArea[3] - rMapPlayableArea[1])*0.5, 0, rMapPlayableArea[2] + (rMapPlayableArea[4] - rMapPlayableArea[2])*0.5}) <= 50 then
+                --Average is really close to middle of the map, so just  assume enemy base is in the opposite direction to us
+                aiBrain[reftPrimaryEnemyBaseLocation] = GetOppositeLocation(PlayerStartPoints[aiBrain:GetArmyIndex()])
+            else
+                --Average isnt really close to mid of map, so assume enemy base is in opposite directino to average
+                aiBrain[reftPrimaryEnemyBaseLocation] = GetOppositeLocation(tAverageTeamPosition)
+            end
+        else --Still have enemies that are alive
+            local tEnemyBase = PlayerStartPoints[M28Logic.GetNearestEnemyIndex(aiBrain)]
+            if bDebugMessages == true then LOG(sFunctionRef..': Nearest enemy index='..(M28Logic.GetNearestEnemyIndex(aiBrain) or 'nil')..'; tEnemyBase='..repru(tEnemyBase)) end
+            --Is this different from the current location we are using?
+            if not(tEnemyBase[1] == aiBrain[reftPrimaryEnemyBaseLocation][1]) or not(tEnemyBase[3] == aiBrain[reftPrimaryEnemyBaseLocation][3]) then
+                aiBrain[refiLastTimeCheckedEnemyBaseLocation] = GetGameTimeSeconds()
+                aiBrain[reftPrimaryEnemyBaseLocation] = {tEnemyBase[1], tEnemyBase[2], tEnemyBase[3]}
+            end
+            --Below is from M27 - not sure if still need it; it is also based in part on how long since we last scouted the location with an air scout and whether there were any enemy buildings there, but land zone logic should give an alternative way of checking if any buildings there
+            --[[if aiBrain.M28AI then
+                --Consider if we want to check for alternative locations to the actual enemy start:
+                --Have we recently checked for a base location; --Do we have at least T2 (as a basic guide that this isn't the start of the game), has at least 3m of gametime elapsed, and have scouted the enemy base location recently, and have built at least 1 air scout this game?
+                if GetGameTimeSeconds() - (aiBrain[refiLastTimeCheckedEnemyBaseLocation] or -1000) >= 10 and GetGameTimeSeconds() >= 180 then
+                    --(below includes alternative condition just in case there are strange unit restrictions)
+                    if M28Utilities.IsTableEmpty(ScenarioInfo.Options.RestrictedCategories) or (GetGameTimeSeconds() >= 600 or (aiBrain[M28Economy.refiOurHighestFactoryTechLevel] >= 2 and not(M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryAirScout) < 2))) then
+                        if not(IsEnemyStartPositionValid(aiBrain, tEnemyBase)) then
+                            aiBrain[reftPrimaryEnemyBaseLocation] = nil
+                            local iNearestEnemyBase = 10000
+                            local tNearestEnemyBase
+                            --Cycle through every valid enemy brain and pick the nearest one, if there is one
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will cycle through each brain to identify nearest enemy base') end
+                            for iCurBrain, brain in ArmyBrains do
+                                if not(brain == aiBrain) and not(M27Logic.IsCivilianBrain(brain)) and IsEnemy(brain:GetArmyIndex(), aiBrain:GetArmyIndex()) and (not(brain:IsDefeated() and not(brain.M27IsDefeated)) or not(ScenarioInfo.Options.Victory == "demoralization")) then
+                                    if M28Utilities.GetDistanceBetweenPositions(PlayerStartPoints[brain:GetArmyIndex()], PlayerStartPoints[aiBrain:GetArmyIndex()]) < iNearestEnemyBase then
+                                        if IsEnemyStartPositionValid(aiBrain, PlayerStartPoints[brain:GetArmyIndex()]) then
+                                            iNearestEnemyBase = M28Utilities.GetDistanceBetweenPositions(PlayerStartPoints[brain:GetArmyIndex()], PlayerStartPoints[aiBrain:GetArmyIndex()])
+                                            tNearestEnemyBase = {PlayerStartPoints[brain:GetArmyIndex()][1], PlayerStartPoints[brain:GetArmyIndex()][2], PlayerStartPoints[brain:GetArmyIndex()][3]}
+                                        end
+                                    end
+                                end
+                            end
+                            aiBrain[reftPrimaryEnemyBaseLocation] = tNearestEnemyBase
+                            if not(aiBrain[reftPrimaryEnemyBaseLocation]) then
+                                local tiCategoriesToConsider = {M27UnitInfo.refCategoryExperimentalStructure + M27UnitInfo.refCategorySML + M27UnitInfo.refCategoryFixedT3Arti, M27UnitInfo.refCategoryT3Mex, M27UnitInfo.refCategoryT2Mex, M27UnitInfo.refCategoryAirFactory + M27UnitInfo.refCategoryLandFactory}
+                                local tEnemyUnits
+                                tNearestEnemyBase = nil
+                                for iRef, iCategory in tiCategoriesToConsider do
+                                    tEnemyUnits = aiBrain:GetUnitsAroundPoint(iCategory, PlayerStartPoints[aiBrain:GetArmyIndex()], 10000, 'Enemy')
+                                    if M28Utilities.IsTableEmpty(tEnemyUnits) == false then
+                                        tNearestEnemyBase = M28Utilities.GetNearestUnit(tEnemyUnits, PlayerStartPoints[aiBrain:GetArmyIndex()], aiBrain, nil, nil):GetPosition()
+                                        break
+                                    end
+                                end
+                                if tNearestEnemyBase then aiBrain[reftPrimaryEnemyBaseLocation] = tNearestEnemyBase
+                                else
+                                    --Cant find anywhere so just pick the furthest away enemy start location
+                                    iNearestEnemyBase = 10000
+                                    for iCurBrain, brain in ArmyBrains do
+                                        if not(brain == aiBrain) and not(M27Logic.IsCivilianBrain(brain)) and IsEnemy(brain:GetArmyIndex(), aiBrain:GetArmyIndex()) then
+                                            if M28Utilities.GetDistanceBetweenPositions(PlayerStartPoints[brain:GetArmyIndex()], PlayerStartPoints[aiBrain:GetArmyIndex()]) < iNearestEnemyBase then
+                                                iNearestEnemyBase = M28Utilities.GetDistanceBetweenPositions(PlayerStartPoints[brain:GetArmyIndex()], PlayerStartPoints[aiBrain:GetArmyIndex()])
+                                                tNearestEnemyBase = {PlayerStartPoints[brain:GetArmyIndex()][1], PlayerStartPoints[brain:GetArmyIndex()][2], PlayerStartPoints[brain:GetArmyIndex()][3]}
+                                            end
+                                        end
+                                    end
+                                    aiBrain[reftPrimaryEnemyBaseLocation] = tNearestEnemyBase
+                                end
+                            end
+                        end
+                    end
+                end
+            end--]]
+        end
+        --Have we changed position and are dealing with an M27 brain?
+        if aiBrain.M28AI and not(tPrevPosition[1] == aiBrain[reftPrimaryEnemyBaseLocation][1] and tPrevPosition[3] == aiBrain[reftPrimaryEnemyBaseLocation][3]) then
+            --We have changed position so update any global variables that reference this
+            if bDebugMessages == true then LOG(sFunctionRef..': Will update whether we can path to enemy') end
+            ForkThread(SetWhetherCanPathToEnemy, aiBrain)
+        end
+
+        aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] = M28Utilities.GetDistanceBetweenPositions(PlayerStartPoints[aiBrain:GetArmyIndex()], aiBrain[reftPrimaryEnemyBaseLocation])
+    elseif bDebugMessages == true then LOG(sFunctionRef..': Dealing with a civilian brain')
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, primary enemy base location='..repru(aiBrain[reftPrimaryEnemyBaseLocation])) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function GetPrimaryEnemyBaseLocation(aiBrain)
+    --Returns a table {x,y,z} - usually this is the start position of the nearest enemy base.  However in certain cases it will be different
+    --Used as the main location for the AI to evaluate things such as threats and make decisions; by default will be the nearest enemy start position
+
+    --Done as a function so easier to adjust in the future if decide we want to
+    if not(aiBrain[reftPrimaryEnemyBaseLocation]) then UpdateNewPrimaryBaseLocation(aiBrain) end
+    return aiBrain[reftPrimaryEnemyBaseLocation]
 end
 
 function SetupMap()

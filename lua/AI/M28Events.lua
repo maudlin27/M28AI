@@ -12,9 +12,11 @@ local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
 local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
 local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
+local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
+local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 
 function OnPlayerDefeated(aiBrain)
-    
+    M28Utilities.ErrorHandler('To add code')
 end
 
 function OnACUKilled(oUnit)
@@ -22,7 +24,7 @@ function OnACUKilled(oUnit)
         local sFunctionRef = 'OnACUKilled'
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+        M28Utilities.ErrorHandler('To add code')
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
 end
@@ -94,7 +96,7 @@ end
 
 function OnYthothaDeath(oUnit)
     --Called when a ythotha (oUnit) is flagged as dying or being killed        
-
+    M28Utilities.ErrorHandler('To add code')
 end
 
 
@@ -202,7 +204,11 @@ end--]]
 
 function OnConstructionStarted(oEngineer, oConstruction, sOrder)
     if M28Utilities.bM28AIInGame then
-            
+        --Make sure we have assigned the unit to a land zone - superceded by OnCreate
+        --[[if M28Utilities.bM28AIInGame then
+            local aiBrain = oConstruction:GetAIBrain()
+            M28Team.ConsiderAssigningUnitToZoneForBrain(aiBrain, oConstruction) --This function includes check of whether this is an M28 brain
+        end--]]
     end
 end
 function OnConstructed(oEngineer, oJustBuilt)
@@ -287,17 +293,18 @@ function OnTransportUnload(oUnit, oTransport, bone)
 end
 
 function OnDetectedBy(oUnitDetected, iBrainIndex)
-    --Appears to be called when iBrainIndex detects oUnitDetected
+    --Appears to be called when iBrainIndex detects oUnitDetected, triggers for teammate units but not own units?
 
     --For now used to make sure we have up to date unit info
     if M28Utilities.bM28AIInGame then
         local aiBrain = ArmyBrains[iBrainIndex]
-        --LOG('OnDetectedBy: UnitID='..oUnitDetected.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitDetected)..'; tAllAIBrainsByArmyIndex[iBrainIndex] name='..M28Overseer.tAllAIBrainsByArmyIndex[iBrainIndex].Nickname..'; ArmyBrains nickname='..ArmyBrains[iBrainIndex].Nickname..'; Does entity contain navy='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnitDetected.UnitId))..'; aiBrain.M28AI='..tostring((aiBrain.M28AI or false)))
-        if aiBrain.M28AI then
-            if not(oUnitDetected[M28UnitInfo.reftLastKnownPosition]) and M28UnitInfo.IsUnitValid(oUnitDetected) and aiBrain.M28Team then
-                --LOG('OnDetectedBy: aiBrain='..aiBrain.Nickname..' has just detected unit '..oUnitDetected.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitDetected))
-                --M28Navy.UpdateUnitPond(oUnitDetected, aiBrain.M28Team, IsEnemy(iBrainIndex, oUnitDetected:GetAIBrain():GetArmyIndex()))
-            end            
-        end
+        LOG('OnDetectedBy: UnitID='..oUnitDetected.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitDetected)..'; tAllAIBrainsByArmyIndex[iBrainIndex] name='..M28Overseer.tAllAIBrainsByArmyIndex[iBrainIndex].Nickname..'; ArmyBrains nickname='..ArmyBrains[iBrainIndex].Nickname..'; Does entity contain navy='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnitDetected.UnitId))..'; aiBrain.M28AI='..tostring((aiBrain.M28AI or false)))
+        M28Team.ConsiderAssigningUnitToZoneForBrain(aiBrain, oUnitDetected) --This function includes check of whether this is an M28 brain
+    end
+end
+
+function OnCreate(oUnit)
+    if M28Utilities.bM28AIInGame then
+        M28Team.ConsiderAssigningUnitToZoneForBrain(oUnit:GetAIBrain(), oUnit) --This function includes check of whether this is an M28 brain
     end
 end

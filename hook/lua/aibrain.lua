@@ -14,7 +14,8 @@ AIBrain = Class(M28AIBrainClass) {
         LOG('OnCreateAI hook for ai with personality '..ScenarioInfo.ArmySetup[self.Name].AIPersonality)
         --Logic to run for all brains
         local iStartPositionX, iStartPositionZ = self:GetArmyStartPos()
-        M28Map.tPlayerStartPoints[self:GetArmyIndex()] = {iStartPositionX, GetSurfaceHeight(iStartPositionX, iStartPositionZ), iStartPositionZ}
+        M28Map.PlayerStartPoints[self:GetArmyIndex()] = {iStartPositionX, GetSurfaceHeight(iStartPositionX, iStartPositionZ), iStartPositionZ}
+        M28Overseer.tAllAIBrainsByArmyIndex[self:GetArmyIndex()] = self
 
         if ScenarioInfo.ArmySetup[self.Name].AIPersonality == 'm28ai' or ScenarioInfo.ArmySetup[self.Name].AIPersonality == 'm28aicheat' then
             LOG('M28 brain created')
@@ -28,5 +29,13 @@ AIBrain = Class(M28AIBrainClass) {
             M28AIBrainClass.OnCreateAI(self, planName)
         end
     end,
+
+    OnCreateHuman = function(self, planName)
+        M28AIBrainClass.OnCreateHuman(self, planName)
+        local iStartPositionX, iStartPositionZ = self:GetArmyStartPos()
+        M28Map.PlayerStartPoints[self:GetArmyIndex()] = {iStartPositionX, GetSurfaceHeight(iStartPositionX, iStartPositionZ), iStartPositionZ}
+        M28Overseer.tAllAIBrainsByArmyIndex[self:GetArmyIndex()] = self
+        LOG('Human player brain '..self.Nickname..' created; start position='..repru(M28Map.PlayerStartPoints[self:GetArmyIndex()]))
+    end
 }
 

@@ -428,6 +428,12 @@ function ConvertLocationToReference(tLocation)
     return ('X'..math.floor(tLocation[1])..'Z'..math.floor(tLocation[3]))
 end
 
+function RemoveEntriesFromTableForSearch(tArray, fnKeepCurEntry)
+--Only included to help locate RemoveEntriesFromArrayBasedOnCondition - below is redundancy in case we actually used this by mistake
+--NOTE: Doesnt work on all tables, must be an array, i.e. the key is 1, 2, 3.....x
+    RemoveEntriesFromArrayBasedOnCondition(tArray, fnKeepCurEntry)
+end
+
 function RemoveEntriesFromArrayBasedOnCondition(tArray, fnKeepCurEntry)
     --Alternative to table.remove, intended as a faster option where potentially removing more than one entry; only for use on tables with a sequential integer key starting at 1 (i.e. {[1]=asdf, [2] = asdf, ...})
     --fnKeepCurEntry is a function (that should do specific for each use case) that decides what entries we want to remove from the table
@@ -442,6 +448,8 @@ function RemoveEntriesFromArrayBasedOnCondition(tArray, fnKeepCurEntry)
     M28Utilities.RemoveEntriesFromArrayBasedOnCondition(tTestArray, WantToKeep)
     LOG('Finished updating array, tTestArray='..repru(tTestArray))
     --]]
+
+    --NOTE: If want something more complex, then just copy the below code and adapt, e.g. if want to add removed entries to a different table
     
     local iRevisedIndex = 1
     local iTableSize = table.getn(tArray)
@@ -526,4 +534,17 @@ function SortTableBySubtable(tTableToSort, sSortByRef, bLowToHigh)
         return spairs(tTableToSort, function(t,a,b) return t[b][sSortByRef] > t[a][sSortByRef] end)
     else return spairs(tTableToSort, function(t,a,b) return t[b][sSortByRef] < t[a][sSortByRef] end)
     end
+end
+
+function GetAverageOfLocations(tAllLocations)
+    local tTotalPos = {0,0,0}
+    local iLocationCount = 0
+    for iLocation, tLocation in tAllLocations do
+        tTotalPos[1] = tTotalPos[1] + tLocation[1]
+        tTotalPos[3] = tTotalPos[3] + tLocation[3]
+        iLocationCount = iLocationCount + 1
+    end
+    local tAveragePos = {tTotalPos[1] / iLocationCount, 0, tTotalPos[3] / iLocationCount}
+    tAveragePos[2] = GetSurfaceHeight(tAveragePos[1], tAveragePos[3])
+    return tAveragePos
 end
