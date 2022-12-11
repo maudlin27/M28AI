@@ -175,6 +175,7 @@ function Initialisation(aiBrain)
     ForkThread(M28Engineer.EngineerInitialisation, aiBrain)
     ForkThread(M28ACU.ManageACU, aiBrain)
     ForkThread(M28Factory.SetPreferredUnitsByCategory, aiBrain)
+    ForkThread(M28Factory.IdleFactoryMonitor, aiBrain)
 end
 
 function OverseerManager(aiBrain)

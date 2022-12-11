@@ -60,8 +60,14 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
     end
 end
 
+function ManageLandZone(aiBrain, iTeam, iPlateau, iLandZone)
+    --Record enemy threat
+
+
+end
+
 function RefreshAllLandZoneUnits(aiBrain, iTeam)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RefreshAllLandZoneUnits'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -113,6 +119,9 @@ function RefreshAllLandZoneUnits(aiBrain, iTeam)
                     UpdateUnitPositionsAndLandZone(aiBrain, tLZData[M28Map.subrefLZTAlliedUnits], iTeam, iPlateau, iLandZone, false)
                 end
 
+                ManageLandZone(aiBrain, iTeam, iPlateau, iLandZone)
+                iCurCycleRefreshCount = iCurCycleRefreshCount + 1
+
                 if iCurCycleRefreshCount >= iRefreshThreshold then
                     iCurRefreshCount = iCurRefreshCount + iCurCycleRefreshCount
                     iCurCycleRefreshCount = 0
@@ -130,6 +139,11 @@ function RefreshAllLandZoneUnits(aiBrain, iTeam)
     tLZRefreshCountByTeam[iTeam] = iCurRefreshCount
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ManageLandZones(aiBrain, iTeam)
+    --Cycles through every land zone for iTeam and manages orders for it
+
 end
 
 function LandZoneOverseer(iTeam)

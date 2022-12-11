@@ -12,8 +12,9 @@ local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 
 local reftBlueprintPriorityOverride = 'M28FactoryPreferredBlueprintByCategory' --[x] is the blueprint ref, if there's a priority override it returns a numerical value (higher number = higher priority)
+local refiTimeSinceLastOrderCheck = 'M28FactoryTimeSinceLastCheck' --against factory, gametime in seconds when the factory was last identified as idle with no order
 
-function GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, iOptionalCategoryThatMustBeAbleToBuild, bGetCheapest, bIgnoreTechDifferences)
+function GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
     --returns nil if cant find any blueprints that can build
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetBlueprintsThatCanBuildOfCategory'
@@ -196,11 +197,20 @@ function GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFacto
 
 end
 
+function GetCategoryToBuildForLandFactory(aiBrain, oFactory)
+    local iCategoryToBuild = M28UnitInfo.refCategoryEngineer --Placeholder
+    return iCategoryToBuild
+end
+
 function DetermineWhatToBuild(aiBrain, oFactory)
-    local sBPIDToBuild
+    local iCategoryToBuild
+    if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oFactory.UnitId) then
+        iCategoryToBuild = GetCategoryToBuildForLandFactory(aiBrain, oFactory)
+    else
+        M28Utilities.ErrorHandler('Need to add code')
+    end
 
-    M28Utilities.ErrorHandler('Need to add code')
-
+    local sBPIDToBuild = GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oFactory, nil, nil, nil, nil, false)
     --Special case - Cybran and UEF - if building loyalists or titans, then check if want to switch to bricks/percies
     if sBPIDToBuild == 'url0303' then --Loyalist
         if M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.TECH3) >= 5 then
@@ -214,6 +224,44 @@ function DetermineWhatToBuild(aiBrain, oFactory)
         end
     end
     return sBPIDToBuild
+end
+
+function IsFactoryReadyToBuild(oFactory)
+    if oFactory:GetFractionComplete() == 1 and oFactory:GetWorkProgress() == 0 and oFactory:GetFractionComplete() == 1 and not(oFactory:IsUnitState('Building')) and not(oFactory:IsUnitState('Upgrading')) and not(oFactory:IsUnitState('Busy')) and M28Utilities.IsTableEmpty(oFactory:GetCommandQueue()) then
+        return true
+    end
+    return false
+end
+
+function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait)
+    local sFunctionRef = 'DecideAndBuildUnitForFactory'
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iTicksWaited = 0
+
+    local bProceed = bDontWait
+    if not(bProceed) then
+        bProceed = IsFactoryReadyToBuild(oFactory)
+    end
+
+    while not(bProceed) do
+        WaitTicks(1)
+        iTicksWaited = iTicksWaited + 1
+        bProceed = IsFactoryReadyToBuild(oFactory)
+        if M28UnitInfo.IsUnitValid(oFactory) == false then return nil end
+        if iTicksWaited >= 200 then
+            M28Utilities.ErrorHandler('oFactory has waited more than 200 ticks and still isnt showing as ready to build, oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; brain nickname='..oFactory:GetAIBrain().Nickname..'; Work progress='..oFactory:GetWorkProgress()..'; Factory fraction complete='..oFactory:GetFractionComplete()..'; Factory status='..M28UnitInfo.GetUnitState(oFactory)..'; Is command queue empty='..M28Utilities.IsTableEmpty(oFactory:GetCommandQueue()))
+            break
+        end
+    end
+
+    local sBPToBuild = DetermineWhatToBuild(aiBrain, oFactory)
+    if bDebugMessages == true then LOG(sFunctionRef..': oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; sBPToBuild='..(sBPToBuild or 'nil')..'; Does factory have an empty command queue='..tostring(M28Utilities.IsTableEmpty(oFactory:GetCommandQueue()))..'; Factory work progress='..oFactory:GetWorkProgress()..'; Factory unit state='..M28UnitInfo.GetUnitState(oFactory)) end
+    if sBPToBuild then
+        M28Orders.IssueTrackedFactoryBuild(oFactory, sBPToBuild, bDontWait)
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function SetPreferredUnitsByCategory(aiBrain)
@@ -243,4 +291,27 @@ function SetPreferredUnitsByCategory(aiBrain)
     --Engineers
     aiBrain[reftBlueprintPriorityOverride]['uel0208'] = 1 --T2 Engi (instead of sparky)
 
+end
+
+
+function IdleFactoryMonitor(aiBrain)
+    --Cycles through every factory owned by aiBrain, max of 1 factory per tick, to check if it is idle
+    while not(aiBrain.M28IsDefeated) do
+        local tOurFactories = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryFactory, false, true)
+        local tCommandQueue
+        local sBPToBuild
+        if M28Utilities.IsTableEmpty(tOurFactories) == false then
+            for iFactory, oFactory in tOurFactories do
+                if M28UnitInfo.IsUnitValid(oFactory) and oFactory:GetFractionComplete() == 1 then
+                    tCommandQueue = oFactory:GetCommandQueue()
+                    if M28Utilities.IsTableEmpty(tCommandQueue) and GetGameTimeSeconds() - (oFactory[refiTimeSinceLastOrderCheck] or 0) >= 5 then
+                        oFactory[refiTimeSinceLastOrderCheck] = GetGameTimeSeconds()
+                        ForkThread(DecideAndBuildUnitForFactory, aiBrain, oFactory)
+                    end
+                end
+                WaitTicks(1)
+            end
+        end
+        WaitTicks(1)
+    end
 end

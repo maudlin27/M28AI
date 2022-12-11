@@ -29,13 +29,14 @@ refiOrderOvercharge = 10
 refiOrderUpgrade = 11
 refiOrderTransportLoad = 12
 refiOrderIssueGroundAttack = 13
+refiOrderIssueFactoryBuild = 14
 
 function IssueTrackedClearCommands(oUnit)
     oUnit[reftiLastOrders] = nil
     IssueClearCommands({oUnit})
 end
 
-local function UpdateRecordedOrders(oUnit)
+function UpdateRecordedOrders(oUnit)
     --Checks a unit's command queue and removes items if we have fewer items than we recorded
     local iRecordedOrders
     if not(oUnit[reftiLastOrders]) then
@@ -95,6 +96,33 @@ function IssueTrackedAttack(oUnit, oOrderTarget, bAddToExistingQueue)
     end
 end
 
+function IssueTrackedMoveAndBuild(oUnit, tBuildLocation, sOrderBlueprint, tMoveTarget, iDistanceToReorderMoveTarget, bAddToExistingQueue)
+    UpdateRecordedOrders(oUnit)
+    local bDontAlreadyHaveOrder = true
+    local iLastOrderCount = 0
+    if oUnit[reftiLastOrders] then
+        iLastOrderCount = table.getn(oUnit[reftiLastOrders])
+        if iLastOrderCount >= 2 then
+            local tLastOrder = oUnit[reftiLastOrders][iLastOrderCount]
+            if tLastOrder[subrefiOrderType] == refiOrderIssueBuild and sOrderBlueprint == tLastOrder[subrefsOrderBlueprint] and M28Utilities.GetDistanceBetweenPositions(tBuildLocation, tLastOrder[subreftOrderPosition]) <= 0.5 then
+                local tSecondLastOrder = oUnit[reftiLastOrders][iLastOrderCount - 1]
+                if tSecondLastOrder[subrefiOrderType] == refiOrderIssueMove and M28Utilities.GetDistanceBetweenPositions(tMoveTarget, tSecondLastOrder[subreftOrderPosition]) < (iDistanceToReorderMoveTarget or 0.01) then
+                    bDontAlreadyHaveOrder = false
+                end
+            end
+        end
+    end
+    if bDontAlreadyHaveOrder then
+        if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
+        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} end
+        table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueMove, [subreftOrderPosition] = tMoveTarget})
+        IssueMove({oUnit}, tMoveTarget)
+
+        table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueBuild, [subrefsOrderBlueprint] = sOrderBlueprint, [subreftOrderPosition] = tBuildLocation})
+        IssueBuildMobile({ oUnit }, tBuildLocation, sOrderBlueprint, {})
+    end
+end
+
 function IssueTrackedBuild(oUnit, tOrderPosition, sOrderBlueprint, bAddToExistingQueue)
     UpdateRecordedOrders(oUnit)
     local tLastOrder
@@ -106,6 +134,19 @@ function IssueTrackedBuild(oUnit, tOrderPosition, sOrderBlueprint, bAddToExistin
         IssueBuildMobile({ oUnit }, tOrderPosition, sOrderBlueprint, {})
     end
 end
+
+function IssueTrackedFactoryBuild(oUnit, sOrderBlueprint, bAddToExistingQueue)
+    UpdateRecordedOrders(oUnit)
+    local tLastOrder
+    if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][table.getn(oUnit[reftiLastOrders])] end
+    if not(tLastOrder[subrefiOrderType] == refiOrderIssueFactoryBuild and sOrderBlueprint == tLastOrder[subrefsOrderBlueprint]) then
+        if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
+        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} end
+        table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueFactoryBuild, [subrefsOrderBlueprint] = sOrderBlueprint})
+        IssueBuildFactory({ oUnit }, sOrderBlueprint, 1)
+    end
+end
+
 
 function IssueTrackedReclaim(oUnit, oOrderTarget, bAddToExistingQueue)
     UpdateRecordedOrders(oUnit)
@@ -139,6 +180,19 @@ function IssueTrackedGuard(oUnit, oOrderTarget, bAddToExistingQueue)
     local tLastOrder
     if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][table.getn(oUnit[reftiLastOrders])] end
     if not(tLastOrder[subrefiOrderType] == refiOrderIssueGuard and oOrderTarget == tLastOrder[subrefoOrderTarget]) then
+        if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
+        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} end
+        table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueGuard, [subrefoOrderTarget] = oOrderTarget})
+        IssueGuard({oUnit}, oOrderTarget)
+    end
+end
+
+function IssueTrackedRepair(oUnit, oOrderTarget, bAddToExistingQueue)
+    UpdateRecordedOrders(oUnit)
+    --Issue order if we arent already trying to attack them
+    local tLastOrder
+    if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][table.getn(oUnit[reftiLastOrders])] end
+    if not(tLastOrder[subrefiOrderType] == refiOrderIssueRepair and oOrderTarget == tLastOrder[subrefoOrderTarget]) then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} end
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueGuard, [subrefoOrderTarget] = oOrderTarget})

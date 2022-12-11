@@ -4,6 +4,8 @@
 --- DateTime: 01/12/2022 08:18
 ---
 
+local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
+
 --Variables against units;
 reftLastKnownPositionByTeam = 'M28UnitLastPos' --[x] is the M28 team ref, returns the last known position of the unit
 reftAssignedPlateauAndLandZoneByTeam = 'M28UnitPlateauAndZone' --[x] is the M28 team ref, returns a table {iPlateauGroup, iLandZoneRef}
@@ -46,8 +48,8 @@ refCategoryUnitsWithOmni = categories.OMNI + categories.COMMAND + categories.OVE
 refCategoryLandFactory = categories.LAND * categories.FACTORY * categories.STRUCTURE
 refCategoryAirFactory = categories.AIR * categories.FACTORY * categories.STRUCTURE - categories.ORBITALSYSTEM --Novax is an air factory, so excluded from being treated as an air factory by my logic
 refCategoryNavalFactory = categories.NAVAL * categories.FACTORY * categories.STRUCTURE
-refCategoryAllFactories = refCategoryLandFactory + refCategoryAirFactory + refCategoryNavalFactory
-refCategoryAllHQFactories = refCategoryAllFactories - categories.SUPPORTFACTORY
+refCategoryFactory = refCategoryLandFactory + refCategoryAirFactory + refCategoryNavalFactory
+refCategoryAllHQFactories = refCategoryFactory - categories.SUPPORTFACTORY
 refCategoryQuantumGateway = categories.STRUCTURE * categories.GATE * categories.TECH3 * categories.FACTORY
 
 --Building - defensive
@@ -68,7 +70,7 @@ refCategorySatellite = categories.EXPERIMENTAL * categories.SATELLITE
 --refCategorySAM = categories.ANTIAIR * categories.STRUCTURE * categories.TECH3
 refCategoryQuantumOptics = categories.INTELLIGENCE * categories.OPTICS * categories.AEON * categories.STRUCTURE * categories.TECH3 - refCategoryRadar
 
-refCategoryUpgraded = refCategoryT2Radar + refCategoryT3Radar + refCategoryT2Sonar + refCategoryT3Sonar + refCategoryAllFactories * categories.TECH2 + refCategoryAllFactories * categories.TECH3 + refCategoryFixedShield * categories.TECH3 + refCategoryT2Mex + refCategoryT3Mex
+refCategoryUpgraded = refCategoryT2Radar + refCategoryT3Radar + refCategoryT2Sonar + refCategoryT3Sonar + refCategoryFactory * categories.TECH2 + refCategoryFactory * categories.TECH3 + refCategoryFixedShield * categories.TECH3 + refCategoryT2Mex + refCategoryT3Mex
 
 --Land units
 refCategoryScathis = categories.CYBRAN * categories.ARTILLERY * categories.EXPERIMENTAL
@@ -202,14 +204,14 @@ function GetUnitPathingType(oUnit)
     --if oUnit and not(oUnit.Dead) and oUnit.GetBlueprint then
     local mType = __blueprints[oUnit.UnitId].Physics.MotionType
     if (mType == 'RULEUMT_AmphibiousFloating' or mType == 'RULEUMT_Hover' or mType == 'RULEUMT_Amphibious') then
-        return refPathingTypeAmphibious
+        return M28Map.refPathingTypeAmphibious
     elseif (mType == 'RULEUMT_Water' or mType == 'RULEUMT_SurfacingSub') then
-        return refPathingTypeNavy
+        return M28Map.refPathingTypeNavy
     elseif mType == 'RULEUMT_Air' then
-        return refPathingTypeAir
+        return M28Map.refPathingTypeAir
     elseif (mType == 'RULEUMT_Biped' or mType == 'RULEUMT_Land') then
-        return refPathingTypeLand
-    else return refPathingTypeNone
+        return M28Map.refPathingTypeLand
+    else return M28Map.refPathingTypeNone
     end
 end
 

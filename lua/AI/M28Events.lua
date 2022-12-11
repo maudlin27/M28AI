@@ -14,6 +14,7 @@ local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
 local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
 local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
+local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
 
 function OnPlayerDefeated(aiBrain)
     M28Utilities.ErrorHandler('To add code')
@@ -219,9 +220,10 @@ function OnConstructed(oEngineer, oJustBuilt)
         --M28 specific
         if oJustBuilt:GetAIBrain().M28AI and not(oJustBuilt.M28OnConstructedCalled) then
             local sFunctionRef = 'OnConstructed'
-            local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+            local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
             oJustBuilt.M28OnConstructedCalled = true
+            if bDebugMessages == true then LOG(sFunctionRef..': oEngineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' has just built '..oJustBuilt.UnitId) end
 
             --Logic based on the unit that was just built:
 
@@ -239,6 +241,15 @@ function OnConstructed(oEngineer, oJustBuilt)
             --Logic based on the engineer
             if EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
                 M28ACU.GetACUOrder(oEngineer:GetAIBrain(), oEngineer)
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory, oEngineer.UnitId) then
+                if bDebugMessages == true then LOG(sFunctionRef..': A factory has just built a unit so will get the next order for the factory') end
+                ForkThread(M28Factory.DecideAndBuildUnitForFactory, oEngineer:GetAIBrain(), oEngineer)
+            end
+
+            --Logic based on the type of unit built
+            if EntityCategoryContains(M28UnitInfo.refCategoryFactory, oJustBuilt.UnitId) then
+                if bDebugMessages == true then LOG(sFunctionRef..': A factory has just been built so will get the next order for the factory') end
+                ForkThread(M28Factory.DecideAndBuildUnitForFactory, oJustBuilt:GetAIBrain(), oJustBuilt)
             end
 
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
