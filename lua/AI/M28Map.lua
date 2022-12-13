@@ -80,6 +80,7 @@ subrefLZBuildLocationsBySize = 'BuildLoc' --contains a table, with the index bei
 subrefLZBuildLocationSegmentCountBySize = 'BuildSegment' --[x] is the building size considered, returns Number of segments that we have considered when identifying segment build locations for the land zone for that particular size
 subrefLZSegments = 'Segments' --Contains a table which returns the X and Z segment values for every segment assigned to this land zone
 subrefLZTotalSegmentCount = 'SegCount' --Number of segments in a land zone
+subrefLZAdjacentLandZones = 'AdjLZ' --table containing all adjacent land zone references for the plateau in question
 --Land zone subteam data (update M28Teams.TeamInitialisation function to include varaibles here so dont have to check if they exist each time)
 subrefLZTeamData = 'Subteam' --tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZTeamData] - Table for all the data by team for a plateau's land zone
 subrefLZTAlliedUnits = 'Allies' --table of all allied units in the land zone
@@ -1010,7 +1011,10 @@ local function AssignMexesALandZone()
     for iPlateauGroup, tPlateauSubtable in tAllPlateaus do
         tiLandZoneByMexRef = {} --[x] is the mex ref from tPlateauSubtable[subrefPlateauMexes]
         tAllPlateaus[iPlateauGroup][subrefPlateauLandZones] = {}
+        bDebugMessages = true
+        if bDebugMessages == true then LOG(sFunctionRef..': tPlateauSubtable[subrefPlateauMexes]='..repru(tPlateauSubtable[subrefPlateauMexes])) end
         for iMex, tMex in tPlateauSubtable[subrefPlateauMexes] do
+            if bDebugMessages == true then LOG(sFunctionRef..': iMex='..iMex..'; tMex='..repru(tMex)) end
             if not(IsUnderwater(tMex, false, 0.1)) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Plateau='..iPlateauGroup..': Considering mex with plateau mex ref='..iMex..'; position='..repru(tMex)..'; tiLandZoneByMexRef for this ref='..(tiLandZoneByMexRef[iMex] or 'nil')) end
                 if not(tiLandZoneByMexRef[iMex]) then
@@ -1157,6 +1161,40 @@ local function RecordHydroInLandZones()
     end
 end
 
+function RecordAdjacentLandZones()
+    --Cycles through each land zone and identifies adjacent land zones
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordAdjacentLandZones'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local tiSegmentAdjust = {{-1,0}, {-1, -1}, {-1, 1}, {0, -1}, {0, 1}, {1, -1}, {1, 0}, {1,1}}
+    local iAltLandZone
+    local iAltSegX, iAltSegZ
+    local tRecordedAdjacentZones
+    for iPlateauGroup, tPlateauSubtable in tAllPlateaus do
+        for iLandZone, tLandZoneInfo in tPlateauSubtable[subrefPlateauLandZones] do
+            tLandZoneInfo[subrefLZAdjacentLandZones] = {}
+            tRecordedAdjacentZones = {}
+            for iSegmentRef, tSegmentXZ in tLandZoneInfo[subrefLZSegments] do
+                for iSegAdjust, tSegAdjXZ in tiSegmentAdjust do
+                    iAltSegX = tSegmentXZ[1] + tSegAdjXZ[1]
+                    iAltSegZ = tSegmentXZ[2] + tSegAdjXZ[2]
+                    iAltLandZone = tLandZoneBySegment[iAltSegX][iAltSegZ]
+                    if not(iAltLandZone == iLandZone) and not(tRecordedAdjacentZones[iAltLandZone]) then
+                        if NavUtils.GetLabel(refPathingTypeAmphibious, GetPositionFromPathingSegments(iAltSegX, iAltSegZ)) == iPlateauGroup then
+                            tRecordedAdjacentZones[iAltLandZone] = true
+                            table.insert(tLandZoneInfo[subrefLZAdjacentLandZones], iAltLandZone)
+                        end
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished considering Plateau '..iPlateauGroup..' LZ '..iLandZone..': subrefLZAdjacentLandZones='..repru(tLandZoneInfo[subrefLZAdjacentLandZones])) end
+
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 local function SetupLandZones()
     --Divides the map into 'land zones' based on mex placement and plateau groups, which is to form the basis for managing land units.  Land zones are areas that can be pathed by land units and are intended to group the map based on how long it takes to travel
     --Intended to be called at start of game when AI is created (so after siminit and recordresourcepoints has run), and after plateaus have been generated
@@ -1198,6 +1236,7 @@ local function SetupLandZones()
     RecordLandZoneMidpoint()
     RecordHydroInLandZones()
     ReorderLandZoneSegmentsForEachPlateau()
+    RecordAdjacentLandZones()
 
 
     --If debug is enabled, draw land zones (different colour for each land zone on a plateau)
@@ -1218,7 +1257,8 @@ function IsUnderwater(tPosition, bReturnSurfaceHeightInstead, iOptionalAmountToB
     --bReturnSurfaceHeightInstead:: Return the actual height at which underwater, instead of true/false
     if bReturnSurfaceHeightInstead then return iMapWaterHeight
     else
-        if M28Utilities.IsTableEmpty(tPosition) == true then
+        LOG('IsUnderwater: tPosition='..repru(tPosition))
+        if M28Utilities.IsTableEmpty(tPosition) then
             M28Utilities.ErrorHandler('tPosition is empty')
         else
             if iMapWaterHeight > tPosition[2] + (iOptionalAmountToBeUnderwater or 0) then
@@ -1469,7 +1509,7 @@ function UpdateNewPrimaryBaseLocation(aiBrain)
                             end
                             aiBrain[reftPrimaryEnemyBaseLocation] = tNearestEnemyBase
                             if not(aiBrain[reftPrimaryEnemyBaseLocation]) then
-                                local tiCategoriesToConsider = {M27UnitInfo.refCategoryExperimentalStructure + M27UnitInfo.refCategorySML + M27UnitInfo.refCategoryFixedT3Arti, M27UnitInfo.refCategoryT3Mex, M27UnitInfo.refCategoryT2Mex, M27UnitInfo.refCategoryAirFactory + M27UnitInfo.refCategoryLandFactory}
+                                local tiCategoriesToConsider = {M28UnitInfo.refCategoryExperimentalStructure + M28UnitInfo.refCategorySML + M28UnitInfo.refCategoryFixedT3Arti, M28UnitInfo.refCategoryT3Mex, M28UnitInfo.refCategoryT2Mex, M28UnitInfo.refCategoryAirFactory + M28UnitInfo.refCategoryLandFactory}
                                 local tEnemyUnits
                                 tNearestEnemyBase = nil
                                 for iRef, iCategory in tiCategoriesToConsider do

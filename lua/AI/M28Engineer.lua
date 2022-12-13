@@ -1284,7 +1284,7 @@ function SlowlyRefreshBuildableLandZoneLocations(oOrigBrain)
 
         --Cycle through every plateau
         for iPlateauGroup, tPlateauSubtable in M28Map.tAllPlateaus do
-            for iLandZone, tLandZoneInfo in tPlateauSubtable do
+            for iLandZone, tLandZoneInfo in tPlateauSubtable[M28Map.subrefPlateauLandZones] do
                 if tLandZoneInfo[M28Map.subrefLZBuildLocationsBySize] then
                     for iSize, tBuildLocations in tLandZoneInfo[M28Map.subrefLZBuildLocationsBySize] do
                         if tBuildLocations == -1 then
@@ -1331,6 +1331,11 @@ function SlowlyRefreshBuildableLandZoneLocations(oOrigBrain)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ConsiderLandZoneEngineerAssignment(iTeam, iPlateau, iLandZone, tEngineers)
+    --tEngineers might be empty if e.g. we just want to record how much build power the land zone wants
+    M28Utilities.ErrorHandler('To add code')
 end
 
 function EngineerInitialisation(aiBrain)

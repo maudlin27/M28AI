@@ -91,11 +91,10 @@ function IsTableEmpty(tTable, bEmptyIfNonTableWithValue)
     else
         if tTable == nil then return true
         else
-            if bEmptyIfNonTableWithValue == nil then return true
+            if bEmptyIfNonTableWithValue == nil then return true --tried to simplify this with return (bEmptyIfNonTableWithValue or true) but it caused errors
             else return bEmptyIfNonTableWithValue
             end
         end
-
     end
 end
 

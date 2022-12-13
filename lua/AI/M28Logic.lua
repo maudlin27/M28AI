@@ -15,7 +15,6 @@ local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 refiNearestEnemyIndex = 'M28NearestEnemyIndex'
 
 
-
 function GetNearestEnemyIndex(aiBrain)
     --Returns the army index of the nearest enemy brain, or nil if there is none
     local oNearestBrain = M28Overseer.GetNearestEnemyBrain(aiBrain)

@@ -22,7 +22,8 @@ tAllAIBrainsByArmyIndex = {} --[x] is the brain army index, returns the aibrain
 
 --aiBrain variables
 refiDistanceToNearestEnemyBase = 'M28OverseerDistToNearestEnemyBase'
-refoNearestEnemyBrain = 'M28Overseernearestenemybrain'
+refoNearestEnemyBrain = 'M28OverseerNearestEnemyBrain'
+refiHighestEnemyGroundUnitHealth = 'M28OverseerHighestEnemyGroundUnitHealth' --e.g. for deciding how much overcharge to get
 
 function GetNearestEnemyBrain(aiBrain)
     local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -170,12 +171,16 @@ end
 
 function Initialisation(aiBrain)
     --Called after 1 tick has passed so all aibrains should hopefully exist now
+    ForkThread(M28UnitInfo.CalculateBlueprintThreatsByType) --Records air and ground threat values for every blueprint
     ForkThread(M28Team.RecordAllPlayers, aiBrain)
     ForkThread(M28Economy.EconomyInitialisation, aiBrain)
     ForkThread(M28Engineer.EngineerInitialisation, aiBrain)
     ForkThread(M28ACU.ManageACU, aiBrain)
     ForkThread(M28Factory.SetPreferredUnitsByCategory, aiBrain)
     ForkThread(M28Factory.IdleFactoryMonitor, aiBrain)
+
+    --Overseer variables
+    aiBrain[refiHighestEnemyGroundUnitHealth] = 200
 end
 
 function OverseerManager(aiBrain)

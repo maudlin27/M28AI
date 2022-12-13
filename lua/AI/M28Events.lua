@@ -161,7 +161,14 @@ function OnUnitDeath(oUnit)
 end
 
 function OnWorkEnd(self, work)
-    
+    --Not sure when/if this even triggers - would need to review if plan to use
+    --LOG('WOrk end has finished for self='..self.UnitId..M28UnitInfo.GetUnitLifetimeCount(self)..'; work reprs='..reprs(work))
+end
+
+function OnEnhancementComplete(oUnit, sEnhancement)
+    --LOG('Enhancement completed for self='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; sEnhancement='..reprs(sEnhancement))
+    M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit)
+    M28UnitInfo.RecordUnitRange(oUnit) --Refresh the range incase enhancement has increased anything
 end
 
 function OnShieldBubbleDamaged(self, instigator)
@@ -181,6 +188,22 @@ end
 
 function OnWeaponFired(oWeapon)
     if M28Utilities.bM28AIInGame then
+        local oUnit = oWeapon.unit
+        if oUnit and oUnit.GetUnitId and oUnit.GetAIBrain then
+            --Update unit last known position/record it
+            local oParentBrain = oUnit:GetAIBrain()
+            for iTeam, tTeam in M28Team.tTeamData do
+                if not(iTeam == oParentBrain.M28Team) then
+                    if M28Utilities.IsTableEmpty(tTeam[M28Team.subreftoFriendlyActiveM28Brains]) == false then
+                        for iBrain, oBrain in tTeam[M28Team.subreftoFriendlyActiveM28Brains] do
+                            M28Team.ConsiderAssigningUnitToZoneForBrain(oBrain, oUnit) --This function includes check of whether this is an M28 brain, and updates last known position
+                            break
+                        end
+                    end
+                end
+            end
+        end
+
     end
 end
 
@@ -208,7 +231,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
         --Make sure we have assigned the unit to a land zone - superceded by OnCreate
         --[[if M28Utilities.bM28AIInGame then
             local aiBrain = oConstruction:GetAIBrain()
-            M28Team.ConsiderAssigningUnitToZoneForBrain(aiBrain, oConstruction) --This function includes check of whether this is an M28 brain
+            M28Team.ConsiderAssigningUnitToZoneForBrain(aiBrain, oConstruction) --This function includes check of whether this is an M28 brain, and updates last known position
         end--]]
     end
 end
@@ -310,12 +333,27 @@ function OnDetectedBy(oUnitDetected, iBrainIndex)
     if M28Utilities.bM28AIInGame then
         local aiBrain = ArmyBrains[iBrainIndex]
         LOG('OnDetectedBy: UnitID='..oUnitDetected.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitDetected)..'; tAllAIBrainsByArmyIndex[iBrainIndex] name='..M28Overseer.tAllAIBrainsByArmyIndex[iBrainIndex].Nickname..'; ArmyBrains nickname='..ArmyBrains[iBrainIndex].Nickname..'; Does entity contain navy='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnitDetected.UnitId))..'; aiBrain.M28AI='..tostring((aiBrain.M28AI or false)))
-        M28Team.ConsiderAssigningUnitToZoneForBrain(aiBrain, oUnitDetected) --This function includes check of whether this is an M28 brain
+        M28Team.ConsiderAssigningUnitToZoneForBrain(aiBrain, oUnitDetected) --This function includes check of whether this is an M28 brain, and updates last known position
+        if aiBrain.M28AI then
+            --Update highest enemy ground unti health
+            if EntityCategoryContains(refCategoryLandCombat - categories.COMMAND - categories.SUBCOMMANDER, oUnitDetected.UnitId) then
+                local iCurShield, iMaxShield = GetCurrentAndMaximumShield(oUnitDetected)
+                local iMaxHealth = oUnitDetected:GetMaxHealth() + iMaxShield
+                if iMaxHealth > aiBrain[M28Overseer.refiHighestEnemyGroundUnitHealth] then
+                    aiBrain[M28Overseer.refiHighestEnemyGroundUnitHealth] = iMaxHealth
+                end
+            end
+        end
     end
 end
 
 function OnCreate(oUnit)
     if M28Utilities.bM28AIInGame then
         M28Team.ConsiderAssigningUnitToZoneForBrain(oUnit:GetAIBrain(), oUnit) --This function includes check of whether this is an M28 brain
+
+        --All units (not just M28 specific):
+        M28UnitInfo.RecordUnitRange(oUnit)
+        --Units with upgrade - update the base threat value
+        if EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit) end --Will check if unit has enhancements as part of this
     end
 end

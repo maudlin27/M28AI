@@ -60,10 +60,63 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
     end
 end
 
+function RecordGroundThreatForLandZone(aiBrain, iTeam, iPlateau, iLandZone, tUnits, bAreEnemyUnits)
+    M28Utilities.ErrorHandler('To add code')
+end
+
 function ManageLandZone(aiBrain, iTeam, iPlateau, iLandZone)
     --Record enemy threat
+    local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][M28Map.subrefLZTeamData][iTeam]
+    RecordGroundThreatForLandZone(aiBrain, iTeam, iPlateau, iLandZone, tLZData[M28Map.subrefLZTEnemyUnits], true)
+    RecordGroundThreatForLandZone(aiBrain, iTeam, iPlateau, iLandZone, tLZData[M28Map.subrefLZTAlliedUnits], true)
+    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZTAlliedUnits]) == false then
+        --Decide on what to do with units in this LZ
+        local tEngineers = {}
+        local tTempOtherUnits = {}
+        for iUnit, oUnit in tLZData[M28Map.subrefLZTAlliedUnits] do
+            if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
+                table.insert(tEngineers, oUnit)
+            elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+                --Do nothing
+            else
+                table.insert(tTempOtherUnits, oUnit)
+            end
+        end
+        if M28Utilities.IsTableEmpty(tTempOtherUnits) == false then
+            M28Utilities.ErrorHandler('To add logic to handle non engineers')
+        end
+
+        M28Engineer.ConsiderLandZoneEngineerAssignment(iTeam, iPlateau, iLandZone, tEngineers) --Should update the land zone engineer requirements, even if tEngineers itself is empty
+
+    end
+end
+
+function AssignValuesToLandZones(iTeam)
+    --Periodically cycles through every land zone and refreshes the unit details
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AssignValuesToLandZones'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
+    local aiBrain = GetFirstActiveBrain(iTeam)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': About to start the main loop for assigning values to land zones provided we have friendly M28 brains in the team '..iTeam..'; is table empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))) end
+
+    while M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false do
+        for iPlateau, tPlateauData in M28Map.tAllPlateaus do
+            if M28Utilities.IsTableEmpty(tPlateauData[M28Map.subrefPlateauLandZones]) == false then
+                for iLandZone, tLandZoneDataByTeam in tPlateauData[M28Map.subrefPlateauLandZones] do
+                    --Decide on value of the land zone
+                    M28Utilities.ErrorHandler('To add logic for deciding the value of a land zone')
+
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    WaitTicks(1)
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function RefreshAllLandZoneUnits(aiBrain, iTeam)
@@ -143,7 +196,36 @@ end
 
 function ManageLandZones(aiBrain, iTeam)
     --Cycles through every land zone for iTeam and manages orders for it
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ManageLandZones'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    local aiBrain = GetFirstActiveBrain(iTeam)
 
+    if bDebugMessages == true then LOG(sFunctionRef..': About to start the main loop for land zones provided we have friendly M28 brains in the team '..iTeam..'; is table empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))) end
+
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+        ForkThread(AssignValuesToLandZones, iTeam)
+    end
+
+    while M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false do
+        if bDebugMessages == true then LOG(sFunctionRef..': Will call logic to refresh every unit in a land zone') end
+        ForkThread(RefreshAllLandZoneUnits, aiBrain, iTeam)
+
+        WaitSeconds(1)
+        if aiBrain.M28IsDefeated and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+            aiBrain = GetFirstActiveBrain(iTeam)
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': About to restart the loop for team '..iTeam..'; aiBrain referred to='..(aiBrain.Nickname or 'nil')..'; Is table of active m28 brains='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))) end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function GetFirstActiveBrain(iTeam)
+    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+        if not(oBrain.M28IsDefeated) then
+            return oBrain
+        end
+    end
 end
 
 function LandZoneOverseer(iTeam)
@@ -153,17 +235,13 @@ function LandZoneOverseer(iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
-    local aiBrain
-    function GetFirstActiveBrain(iTeam)
-        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-            if not(oBrain.M28IsDefeated) then
-                return oBrain
-            end
-        end
-    end
-    aiBrain = GetFirstActiveBrain(iTeam)
+    local aiBrain = GetFirstActiveBrain(iTeam)
 
     if bDebugMessages == true then LOG(sFunctionRef..': About to start the main loop for land zones provided we have friendly M28 brains in the team '..iTeam..'; is table empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))) end
+
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+        ForkThread(AssignValuesToLandZones, iTeam)
+    end
 
     while M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false do
         if bDebugMessages == true then LOG(sFunctionRef..': Will call logic to refresh every unit in a land zone') end

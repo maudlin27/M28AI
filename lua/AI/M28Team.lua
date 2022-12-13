@@ -213,6 +213,7 @@ function UpdateUnitLastKnownPosition(aiBrain, oUnit, bDontCheckIfCanSeeUnit)
 end
 
 function ConsiderAssigningUnitToZoneForBrain(aiBrain, oUnit)
+    --Assumes called from an event that menas we will have visibility of the unit (e.g. directly via intel, or indirectly via weapon firing)
     if aiBrain.M28AI and aiBrain.M28Team then
         local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         local sFunctionRef = 'ConsiderAssigningUnitToZoneForBrain'
@@ -220,6 +221,8 @@ function ConsiderAssigningUnitToZoneForBrain(aiBrain, oUnit)
         if bDebugMessages == true then LOG(sFunctionRef..': Checking if should assign unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to a plateau/other table. Considered for assignment repru='..repru(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam])..'; Unit brain team='..(oUnit:GetAIBrain().M28Team or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
         if (not(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam]) or not(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][aiBrain.M28Team])) and M28UnitInfo.IsUnitValid(oUnit) and not(aiBrain.M28IsDefeated) then
             AssignUnitToZoneOrPond(aiBrain, oUnit)
+        else
+            UpdateUnitLastKnownPosition(aiBrain, oUnit, true)
         end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
@@ -249,7 +252,7 @@ function AssignUnitToZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition)
             AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateauGroup, iLandZone)
         else
             --If unit is on water then assign it to a pond
-            local iCurPond = NavUtils.GetLabel(M28Map.refPathingTypeNavy, oUnit:getPosition())
+            local iCurPond = NavUtils.GetLabel(M28Map.refPathingTypeNavy, oUnit:GetPosition())
             if iCurPond > 0 then
                 M28Utilities.ErrorHandler('#To add code for naval units')
             else
