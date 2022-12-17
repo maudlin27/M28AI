@@ -12,6 +12,7 @@ local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
+local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
 
 
 --Team data variables
@@ -19,21 +20,31 @@ bRecordedAllPlayers = false
 iPlayersAtGameStart = 0
 iTotalTeamCount = 0 --Increased by 1 each time we create a new team
 tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide information
-subrefbAllEnemiesDefeated = 'M28TeamAllEnemiesDefeated' --true if all enemies of the team have been defeated
-subrefbTeamHasOmni = 'M28TeamHaveOmni' --True if our team has omni vision (i.e. one of our team is an AiX with omni vision)
-subrefbEnemyHasOmni = 'M28EnemyHasOmni' --true if any enemy non-civilian brains have omni vision
-subreftoFriendlyActiveM28Brains = 'M28TeamFriendlyM28Brains' --Stored against tTeamData[brain.M28Team], returns table of all M28 brains on the same team (including this one)
-subreftoFriendlyActiveBrains = 'M28TeamFriendlyBrains' --as above, but all friendly brains on this team
+    subrefbAllEnemiesDefeated = 'M28TeamAllEnemiesDefeated' --true if all enemies of the team have been defeated
+    subrefbTeamHasOmni = 'M28TeamHaveOmni' --True if our team has omni vision (i.e. one of our team is an AiX with omni vision)
+    subrefbEnemyHasOmni = 'M28EnemyHasOmni' --true if any enemy non-civilian brains have omni vision
+    subreftoFriendlyActiveM28Brains = 'M28TeamFriendlyM28Brains' --Stored against tTeamData[brain.M28Team], returns table of all M28 brains on the same team (including this one)
+    subreftoFriendlyActiveBrains = 'M28TeamFriendlyBrains' --as above, but all friendly brains on this team
+
+    --Team economy subrefs
+    subrefiTeamGrossEnergy = 'M28TeamGrossEnergy'
+    subrefiTeamNetEnergy = 'M28TeamNetEnergy'
+    subrefiTeamGrossMass = 'M28TeamGrossMass'
+    subrefiTeamNetMass = 'M28TeamNetMass'
+    subrefiTeamEnergyStored = 'M28TeamEnergyStored'
+    subrefiTeamMassStored = 'M28TeamMassStored'
+    subrefiTeamLowestEnergyPercentStored = 'M28TeamLowestEnergyPercent'
+    subrefiTeamLowestMassPercentStored = 'M28TeamLowestMassPercent'
 
 
 --Subteam data variables
 iTotalSubteamCount = 0
 tSubteamData = {}
-subreftoFriendlyM28Brains = 'M28TeamSubteamBrains' --table of friendly M28 brains
-subrefiMaxScoutRadius = 'M28MaxScoutRadius' --Search range for scouts for this subteam
+    subreftoFriendlyM28Brains = 'M28TeamSubteamBrains' --table of friendly M28 brains
+    subrefiMaxScoutRadius = 'M28MaxScoutRadius' --Search range for scouts for this subteam
 
 function CreateNewSubteam(aiBrain)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'CreateNewSubteam'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -94,7 +105,7 @@ function CreateNewSubteam(aiBrain)
 end
 
 function CreateNewTeam(aiBrain)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'CreateNewTeam'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -167,7 +178,7 @@ end
 
 function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateauGroup, iLandZone)
     --If unit already has a land zone assigned then remove this
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AddUnitToLandZoneForBrain'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -215,7 +226,7 @@ end
 function ConsiderAssigningUnitToZoneForBrain(aiBrain, oUnit)
     --Assumes called from an event that menas we will have visibility of the unit (e.g. directly via intel, or indirectly via weapon firing)
     if aiBrain.M28AI and aiBrain.M28Team then
-        local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         local sFunctionRef = 'ConsiderAssigningUnitToZoneForBrain'
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         if bDebugMessages == true then LOG(sFunctionRef..': Checking if should assign unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to a plateau/other table. Considered for assignment repru='..repru(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam])..'; Unit brain team='..(oUnit:GetAIBrain().M28Team or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
@@ -232,7 +243,7 @@ end
 ---@param oUnit userdata
 function AssignUnitToZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition)
     --Assigns oUnit to relevant table for aiBrain; Should be called if we have a unit that hasn't been considered before (check by referencing oUnit[reftbConsideredForAssignmentByTeam][iTeam]) - will decide whether the unit should be assigned to a pond, a land zone, or air units, based partially on the unit category and partially on its current position
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AssignUnitToZoneOrPond'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -315,9 +326,44 @@ end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end--]]
 
+function TeamEconomyRefresh(iM28Team)
+    tTeamData[iM28Team][subrefiTeamGrossEnergy] = 0
+    tTeamData[iM28Team][subrefiTeamNetEnergy] = 0
+    tTeamData[iM28Team][subrefiTeamGrossMass] = 0
+    tTeamData[iM28Team][subrefiTeamNetMass] = 0
+    tTeamData[iM28Team][subrefiTeamEnergyStored] = 0
+    tTeamData[iM28Team][subrefiTeamMassStored] = 0
+    tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] = 1
+    tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] = 1
+
+    subrefiTeamEnergyStored = 'M28TeamEnergyStored'
+    subrefiTeamMassStored = 'M28TeamMassStored'
+    subrefiTeamLowestEnergyPercentStored = 'M28TeamLowestEnergyPercent'
+    subrefiTeamLowestMassPercentStored = 'M28TeamLowestMassPercent'
+    
+    for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
+        tTeamData[iM28Team][subrefiTeamGrossEnergy] = tTeamData[iM28Team][subrefiTeamGrossEnergy] + oBrain[M28Economy.refiGrossEnergyBaseIncome]
+        tTeamData[iM28Team][subrefiTeamNetEnergy] = tTeamData[iM28Team][subrefiTeamNetEnergy] + oBrain[M28Economy.refiNetEnergyBaseIncome]
+        tTeamData[iM28Team][subrefiTeamGrossMass] = tTeamData[iM28Team][subrefiTeamGrossMass] + oBrain[M28Economy.refiGrossMassBaseIncome]
+        tTeamData[iM28Team][subrefiTeamNetMass] = tTeamData[iM28Team][subrefiTeamNetMass] + oBrain[M28Economy.refiNetMassBaseIncome]
+
+        tTeamData[iM28Team][subrefiTeamEnergyStored] = tTeamData[iM28Team][subrefiTeamEnergyStored] + oBrain:GetEconomyStored('ENERGY')
+        tTeamData[iM28Team][subrefiTeamMassStored] = tTeamData[iM28Team][subrefiTeamMassStored] + oBrain:GetEconomyStored('MASS')
+        tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] = math.min(tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored], oBrain:GetEconomyStoredRatio('ENERGY'))
+        tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] = math.min(tTeamData[iM28Team][subrefiTeamLowestMassPercentStored], oBrain:GetEconomyStoredRatio('MASS'))
+    end    
+end
+
+function TeamOverseer(iM28Team)
+    while M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftoFriendlyActiveM28Brains]) == false do
+        ForkThread(TeamEconomyRefresh, iM28Team)
+        WaitTicks(10)
+    end
+end
+
 function TeamInitialisation(iM28Team)
     --First check if we have any M28 brains in this team (otherwise dont do anything further)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'TeamInitialisation'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Will initialise team based logic for the team '..iM28Team..'; Is the table of friendly active M28 brains empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftoFriendlyActiveM28Brains]))..'; Do we already have an active team cycler='..tostring(tTeamData[iM28Team]['M28TeamActiveTeamCycler'] or false)) end
@@ -327,12 +373,14 @@ function TeamInitialisation(iM28Team)
             tTeamData[iM28Team]['M28TeamActiveTeamCycler'] = true
             if bDebugMessages == true then LOG(sFunctionRef..': About to start land zone overseer which carries out main over time loop') end
             ForkThread(M28Land.LandZoneOverseer, iM28Team)
+            ForkThread(TeamOverseer, iM28Team)
         end
     end
 
     --Include variables for land zones
     for iPlateau, tPlateauData in M28Map.tAllPlateaus do
         for iLZ, tLZData in tPlateauData[M28Map.subrefPlateauLandZones] do
+            if bDebugMessages == true then LOG(sFunctionRef..': Recording team data for iPlateau='..iPlateau..'; iLZ='..iLZ..'; iTeam='..iM28Team) end
             tLZData[M28Map.subrefLZTeamData] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZTAlliedUnits] = {}

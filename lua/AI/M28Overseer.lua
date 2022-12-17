@@ -26,7 +26,7 @@ refoNearestEnemyBrain = 'M28OverseerNearestEnemyBrain'
 refiHighestEnemyGroundUnitHealth = 'M28OverseerHighestEnemyGroundUnitHealth' --e.g. for deciding how much overcharge to get
 
 function GetNearestEnemyBrain(aiBrain)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetNearestEnemyBrain'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -188,6 +188,9 @@ function OverseerManager(aiBrain)
 
     --Make sure map setup will be done
     WaitTicks(1)
+    while not(M28Map.bMapSetupComplete) do
+        WaitTicks(1)
+    end
     --Initialise main systems
     ForkThread(Initialisation, aiBrain)
 

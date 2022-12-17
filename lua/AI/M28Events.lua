@@ -15,6 +15,10 @@ local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
 local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
+local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
+local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
+local M28Config = import('/mods/M28AI/lua/M28Config.lua')
+
 
 function OnPlayerDefeated(aiBrain)
     M28Utilities.ErrorHandler('To add code')
@@ -124,6 +128,20 @@ function OnUnitDeath(oUnit)
             else
                 if oUnit.GetAIBrain then
                     --------Non-M28 Specific logic------
+                    M28Orders.ClearAnyRepairingUnits(oUnit)
+
+                    --Hydro resource location made available again
+                    if EntityCategoryContains(M28UnitInfo.refCategoryHydro, oUnit.UnitId) then
+                        local iPlateauGroup, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+                        if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroLocations]) == false then
+                            for iHydroLocation, tHydroLocation in M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroLocations]) do
+                                if M28Utilities.GetDistanceBetweenPositions(tHydroLocation, oUnit:GetPosition()) <= 2 then
+                                    table.insert(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations], tHydroLocation)
+                                    break
+                                end
+                            end
+                        end
+                    end
                     --Ythotha deathball avoidance
                     --Note -seraphimunits.lua contains SEnergyBallUnit which looks like it is for when the death ball is spawned; ID is XSL0402; SpawnElectroStorm is in the ythotha script
                     --Sandbox test - have c.36s from ythotha dying to energy ball dying, so want to run away for half of this (18s) plus extra time based on how far away we already were
@@ -142,7 +160,9 @@ function OnUnitDeath(oUnit)
                     if oUnit:GetAIBrain().M28AI then
                         --Run unit type specific on death logic
                         M28Economy.UpdateGrossIncomeForUnit(oUnit, true)
-                        if EntityCategoryContains(M28UnitInfo.refCategoryScathis, oUnit.UnitId) then
+                        if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
+                            M28Engineer.ClearEngineerTracking(oUnit)
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryScathis, oUnit.UnitId) then
                             if M28Utilities.IsTableEmpty(M28Engineer.tAllScathis) == false then
                                 for iScathis, oScathis in M28Engineer.tAllScathis do
                                     if oScathis == oUnit then
@@ -240,10 +260,14 @@ function OnConstructed(oEngineer, oJustBuilt)
 
     --NOTE: This is called every time an engineer stops building a unit whose fractioncomplete is 100%, so can be called multiple times
     if M28Utilities.bM28AIInGame then
+        --NonM28 specific - dont set the M28OnConstructionCalled for this, so need to  be careful that any code here will not be run repeatedly
+        LOG('OnConstructed for unit '..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt))
+        M28Orders.ClearAnyRepairingUnits(oJustBuilt)
+
         --M28 specific
         if oJustBuilt:GetAIBrain().M28AI and not(oJustBuilt.M28OnConstructedCalled) then
             local sFunctionRef = 'OnConstructed'
-            local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+            local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
             oJustBuilt.M28OnConstructedCalled = true
             if bDebugMessages == true then LOG(sFunctionRef..': oEngineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' has just built '..oJustBuilt.UnitId) end
@@ -273,6 +297,9 @@ function OnConstructed(oEngineer, oJustBuilt)
             if EntityCategoryContains(M28UnitInfo.refCategoryFactory, oJustBuilt.UnitId) then
                 if bDebugMessages == true then LOG(sFunctionRef..': A factory has just been built so will get the next order for the factory') end
                 ForkThread(M28Factory.DecideAndBuildUnitForFactory, oJustBuilt:GetAIBrain(), oJustBuilt)
+                if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oJustBuilt.UnitId) then
+                    oJustBuilt:GetAIBrain()[M28Economy.refiOurHighestFactoryTechLevel] = math.max(M28UnitInfo.GetUnitTechLevel(oJustBuilt), oJustBuilt:GetAIBrain()[M28Economy.refiOurHighestFactoryTechLevel])
+                end
             end
 
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -353,7 +380,23 @@ function OnCreate(oUnit)
 
         --All units (not just M28 specific):
         M28UnitInfo.RecordUnitRange(oUnit)
+        if M28Config.M28ShowEnemyUnitNames then oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
         --Units with upgrade - update the base threat value
         if EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit) end --Will check if unit has enhancements as part of this
+
+        --Hydro resource locations
+        if EntityCategoryContains(M28UnitInfo.refCategoryHydro, oUnit.UnitId) then
+            --Treat location as no longer having no buildings on it
+            local iPlateauGroup, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+            if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations]) == false then
+                --LOG('About to loop through hydro locations; iPlateauGroup='..iPlateauGroup..'; iLandZone='..iLandZone..'; reprs='..reprs(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations]))
+                for iHydroLocation, tHydroLocation in M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations] do
+                    if M28Utilities.GetDistanceBetweenPositions(tHydroLocation, oUnit:GetPosition()) <= 2 then
+                        table.remove(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations], iHydroLocation)
+                        break
+                    end
+                end
+            end
+        end
     end
 end

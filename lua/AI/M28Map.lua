@@ -12,6 +12,7 @@ local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
 local M28Logic = import('/mods/M28AI/lua/AI/M28Logic.lua')
 local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 
+bMapSetupComplete = false --set to true once have finished setting up map (used to decide how long to wait before starting main aibrain logic)
 
 --Pathing types
 --NavLayers 'Land' | 'Water' | 'Amphibious' | 'Hover' | 'Air'
@@ -40,51 +41,65 @@ PlayerStartPoints = {} --[x] is aiBrain army index, returns the start position {
 
 --Plateaus - core
 tAllPlateaus = {} --[x] = AmphibiousPathingGroup, [y]: subrefs, e.g. subrefPlateauMexes;
---aibrain variables for plateaus:
-reftPlateausOfInterest = 'M28PlateausOfInterest' --[x] = Amphibious pathing group; will record a table of the pathing groups we're interested in expanding to, returns the location of then earest mex
-refiLastPlateausUpdate = 'M28LastTimeUpdatedPlateau' --gametime that we last updated the plateaus
-reftOurPlateauInformation = 'M28OurPlateauInformation' --[x] = AmphibiousPathingGroup; [y] = subref, e.g. subrefPlateauLandFactories; Used to store details such as factories on the plateau
-refiOurBasePlateauGroup = 'M28PlateausOurBaseGroup' --Segment group of our base (so can easily check somewhere is in a dif plateau)
+--aibrain variables for plateaus (not currently incorporated):
+--reftPlateausOfInterest = 'M28PlateausOfInterest' --[x] = Amphibious pathing group; will record a table of the pathing groups we're interested in expanding to, returns the location of then earest mex
+--refiLastPlateausUpdate = 'M28LastTimeUpdatedPlateau' --gametime that we last updated the plateaus
+--reftOurPlateauInformation = 'M28OurPlateauInformation' --[x] = AmphibiousPathingGroup; [y] = subref, e.g. subrefPlateauLandFactories; Used to store details such as factories on the plateau
+--refiOurBasePlateauGroup = 'M28PlateausOurBaseGroup' --Segment group of our base (so can easily check somewhere is in a dif plateau)
 
 --subrefs for tables
---tAllPlateaus subrefs
-subrefPlateauMexes = 'M28PlateauMex' --[x] = mex count, returns mex position
-subrefPlateauMinXZ = 'M28PlateauMinXZ' --{x,z} min values
-subrefPlateauMaxXZ = 'M28PlateauMaxXZ' --{x,z} max values - i.e. can create a rectangle covering entire plateau using min and max xz values
-subrefPlateauTotalMexCount = 'M28PlateauMexCount' --Number of mexes on the plateau
-subrefPlateauReclaimSegments = 'M28PlateauReclaimSegments' --[x] = reclaim segment x, [z] = reclaim segment z, returns true if part of plateau
-subrefPlateauMidpoint = 'M28PlateauMidpoint' --Location of the midpoint of the plateau
-subrefPlateauMaxRadius = 'M28PlateauMaxRadius' --Radius to use to ensure the circle coveres the square of the plateau
-subrefPlateauContainsActiveStart = 'M28PlateauContainsActiveStart' --True if the plateau is pathable amphibiously to a start position that was active at the start of the game
+--tAllPlateaus[iPlateau] subrefs
+    subrefPlateauMexes = 'M28PlateauMex' --[x] = mex count, returns mex position
+    subrefPlateauMinXZ = 'M28PlateauMinXZ' --{x,z} min values
+    subrefPlateauMaxXZ = 'M28PlateauMaxXZ' --{x,z} max values - i.e. can create a rectangle covering entire plateau using min and max xz values
+    subrefPlateauTotalMexCount = 'M28PlateauMexCount' --Number of mexes on the plateau
+    subrefPlateauReclaimSegments = 'M28PlateauReclaimSegments' --[x] = reclaim segment x, [z] = reclaim segment z, returns true if part of plateau
+    subrefPlateauMidpoint = 'M28PlateauMidpoint' --Location of the midpoint of the plateau
+    subrefPlateauMaxRadius = 'M28PlateauMaxRadius' --Radius to use to ensure the circle coveres the square of the plateau
 
---reftOurPlateauInformation subrefs (NOTE: If adding more info here need to update in several places, including ReRecordUnitsAndPlatoonsInPlateaus)
-subrefPlateauLandFactories = 'M28PlateauLandFactories'
+    subrefPlateauEngineers = 'M28PlateauEngineers' --[x] is engineer unique ref (per m28engineer), returns engineer object
 
-subrefPlateauLandCombatPlatoons = 'M28PlateauLandCombatPlatoons'
-subrefPlateauIndirectPlatoons = 'M28PlateauIndirectPlatoons'
-subrefPlateauMAAPlatoons = 'M28PlateauMAAPlatoons'
-subrefPlateauScoutPlatoons = 'M28PlateauScoutPlatoons'
+--Plateaus - Land zone variables (still against tAllPlateaus[iPlateau]
+    subrefLandZoneCount = 'M28PlateauZoneCount' --against the main plateau table, records how many land zones there are (alternative to table.getn on the land zones)
+    subrefPlateauLandZones = 'M28PlateauLandZones' --against the main plateau table, stores info on land zones for that plateau
+    --Land zone subrefs (against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone]):
+        iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one side of the square that is the lowest resolution land zones go to; each segment that is land pathable gets assigned to a land zone
+        subrefLZMexCount = 'MexCount' --against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone], returns number of mexes in the LZ
+        subrefLZMexLocations = 'MexLoc' --against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone], returns table of mex locations in the LZ, e.g. get with tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iZone][subrefLZMexLocations]
+        subrefLZMexUnbuiltLocations = 'MexAvailLoc' --against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone], returns table of mex locations in the LZ, e.g. get with tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iZone][subrefLZMexLocations]
+        subrefLZReclaimMass = 'ReclaimMass' --against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone], returns total mass reclaim in the LZ
+        subrefLZMidpoint = 'Midpoint' --against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone], returns the midpoint of the land zone, e.g. get with tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iZone][subrefLZMidpoint]
+        subrefLZHydroLocations = 'HydroLoc' --against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone], returns table of hydro locations in the LZ
+        subrefLZHydroUnbuiltLocations = 'HydroAvailLoc' --against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone], returns table of hydro locations in the LZ that dont have buildings on them
+        subrefLZBuildLocationsBySize = 'BuildLoc' --contains a table, with the index being the unit's highest footprint size, which returns a location that should be buildable in this zone;  only populated on demand (i.e. if we want to try and build something there by references to the predefined location), e.g. tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZBuildLocationsBySize][iSize]
+        subrefLZBuildLocationSegmentCountBySize = 'BuildSegment' --[x] is the building size considered, returns Number of segments that we have considered when identifying segment build locations for the land zone for that particular size
+        subrefLZSegments = 'Segments' --Contains a table which returns the X and Z segment values for every segment assigned to this land zone
+        subrefLZTotalSegmentCount = 'SegCount' --Number of segments in a land zone
+        subrefLZAdjacentLandZones = 'AdjLZ' --table containing all adjacent land zone references for the plateau in question
 
-subrefPlateauEngineers = 'M28PlateauEngineers' --[x] is engineer unique ref (per m28engineer), returns engineer object
+        --Land zone subteam data (update M28Teams.TeamInitialisation function to include varaibles here so dont have to check if they exist each time)
+        subrefLZTeamData = 'Subteam' --tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZTeamData] - Table for all the data by team for a plateau's land zone
+            --Variables that are against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZTeamData]:
+            subrefLZTValue = 'ZVal' --Value of the zone factoring in mass, reclaim, and allied units
+            subrefLZTCoreBase = 'ZCore' --true if this is considered a 'core base' land zone
+            subrefLZTAlliedUnits = 'Allies' --table of all allied units in the land zone, tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam][subrefLZTAlliedUnits]
+            subrefLZTEnemyUnits = 'Enemies' --table of all enemy units in the land zone
+            --Ground threat values for land zones (also against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZTeamData])
+            subrefLZTThreatEnemyCombatTotal = 'ECTotal'
+            subrefLZTThreatAllyCombatTotal = 'ACTotal'
+            subrefLZThreatEnemyMobileDFByRange = 'EMDFByRange'
+            subrefLZThreatAllyMobileDFByRange = 'AMDFByRange'
+            subrefLZThreatEnemyStructureDFByRange = 'ESDFByRange'
+            subrefLZThreatAllyStructureDFByRange = 'ASDFByRange'
+            subrefLZThreatEnemyStructureIndirect = 'ESITotal'
+            subrefLZThreatAllyStructureIndirect = 'ASITotal'
+            subrefLZThreatEnemyGroundAA = 'EAATotal'
+            subrefLZThreatAllyGroundAA = 'AAATotal'
+            --Engineer related values
+            subrefLZTBuildPowerByTechWanted = 'BPByTechW'
 
---Plateaus - Land zone variables
-subrefPlateauLandZones = 'M28PlateauLandZones' --against the main plateau table, stores info on land zones for that plateau
-subrefLandZoneCount = 'M28PlateauZoneCount' --against the main plateau table, records how many land zones there are (alternative to table.getn on the land zones)
-iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one side of the square that is the lowest resolution land zones go to; each segment that is land pathable gets assigned to a land zone
-subrefLZMexCount = 'MexCount' --against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone], returns number of mexes in the LZ
-subrefLZMexLocations = 'MexLoc' --against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone], returns table of mex locations in the LZ, e.g. get with tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iZone][subrefLZMexLocations]
-subrefLZReclaimMass = 'ReclaimMass' --against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone], returns total mass reclaim in the LZ
-subrefLZMidpoint = 'Midpoint' --against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone], returns the midpoint of the land zone, e.g. get with tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iZone][subrefLZMidpoint]
-subrefLZHydroLocations = 'HydroLoc' --against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone], returns table of hydro locations in the LZ
-subrefLZBuildLocationsBySize = 'BuildLoc' --contains a table, with the index being the unit's highest footprint size, which returns a location that should be buildable in this zone;  only populated on demand (i.e. if we want to try and build something there by references to the predefined location), e.g. tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZBuildLocationsBySize][iSize]
-subrefLZBuildLocationSegmentCountBySize = 'BuildSegment' --[x] is the building size considered, returns Number of segments that we have considered when identifying segment build locations for the land zone for that particular size
-subrefLZSegments = 'Segments' --Contains a table which returns the X and Z segment values for every segment assigned to this land zone
-subrefLZTotalSegmentCount = 'SegCount' --Number of segments in a land zone
-subrefLZAdjacentLandZones = 'AdjLZ' --table containing all adjacent land zone references for the plateau in question
---Land zone subteam data (update M28Teams.TeamInitialisation function to include varaibles here so dont have to check if they exist each time)
-subrefLZTeamData = 'Subteam' --tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZTeamData] - Table for all the data by team for a plateau's land zone
-subrefLZTAlliedUnits = 'Allies' --table of all allied units in the land zone
-subrefLZTEnemyUnits = 'Enemies' --table of all enemy units in the land zone
+
+
 
 --Land pathing segment data
 tLandZoneBySegment = {} --[x][z] should be the x and z segments baed on iLandZoneSegmentSize, and should return the land zone number, or nil if there is none
@@ -532,7 +547,9 @@ local function AddNewLandZoneReferenceToPlateau(iPlateauGroup)
     tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone] = {}
     tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZMexCount] = 0
     tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZMexLocations] = {}
+    tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZMexUnbuiltLocations] = {}
     tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZHydroLocations] = {}
+    tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZHydroUnbuiltLocations] = {}
     tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZReclaimMass] = 0
     tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZBuildLocationsBySize] = {}
     tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZBuildLocationSegmentCountBySize] = {}
@@ -1011,7 +1028,6 @@ local function AssignMexesALandZone()
     for iPlateauGroup, tPlateauSubtable in tAllPlateaus do
         tiLandZoneByMexRef = {} --[x] is the mex ref from tPlateauSubtable[subrefPlateauMexes]
         tAllPlateaus[iPlateauGroup][subrefPlateauLandZones] = {}
-        bDebugMessages = true
         if bDebugMessages == true then LOG(sFunctionRef..': tPlateauSubtable[subrefPlateauMexes]='..repru(tPlateauSubtable[subrefPlateauMexes])) end
         for iMex, tMex in tPlateauSubtable[subrefPlateauMexes] do
             if bDebugMessages == true then LOG(sFunctionRef..': iMex='..iMex..'; tMex='..repru(tMex)) end
@@ -1096,10 +1112,11 @@ local function DrawLandZones()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-local function RecordLandZoneMidpoint()
+local function RecordLandZoneMidpointAndUnbuiltMexes()
     --Cycles through each land zone, and calculates the average positio nof the mexes.  If this is in the asme land zone then records this as the midpoint, toehrwise records the first mex as the midpoint
+    --Also records which mexes can be built on initially
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'RecordLandZoneMidpoint'
+    local sFunctionRef = 'RecordLandZoneMidpointAndUnbuiltMexes'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local tAverage, iAveragePlateau, iAverageLandZone
@@ -1107,6 +1124,7 @@ local function RecordLandZoneMidpoint()
 
     for iPlateauGroup, tPlateauSubtable in tAllPlateaus do
         for iZone, tZone in tAllPlateaus[iPlateauGroup][subrefPlateauLandZones] do
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering iPlateauGroup='..iPlateauGroup..'; iZone='..iZone..'; Is table of mex locations empty='..tostring(M28Utilities.IsTableEmpty(tZone[subrefLZMexLocations]))) end
             local iMinX = 100000
             local iMaxX = 0
             local iMinZ = 100000
@@ -1114,10 +1132,16 @@ local function RecordLandZoneMidpoint()
 
             if M28Utilities.IsTableEmpty(tZone[subrefLZMexLocations]) == false then
                 for iMex, tMex in tZone[subrefLZMexLocations] do
+                    --Get min and max values for midpoint:
                     iMinX = math.min(tMex[1], iMinX)
                     iMaxX = math.max(tMex[1], iMaxX)
                     iMinZ = math.min(tMex[3], iMinZ)
                     iMaxZ = math.max(tMex[3], iMaxZ)
+                    --Record if can build on it:
+                    if bDebugMessages == true then LOG(sFunctionRef..': About to check if can build on iMex='..iMex..'; tMex='..repru(tMex)) end
+                    if M28Conditions.CanBuildOnMexLocation(tMex) then
+                        table.insert(tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iZone][subrefLZMexUnbuiltLocations], tMex)
+                    end
                 end
             else
                 --No mexes for the plateau, so cycle through every zone and record the lowest and largest X and Z values
@@ -1148,14 +1172,20 @@ local function RecordLandZoneMidpoint()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+
+
 local function RecordHydroInLandZones()
     --Updates land zone data to include details of any hydro locations in the land zone
     if M28Utilities.IsTableEmpty(tHydroPoints) == false then
         local iPlateauGroup, iLandZone
+
         for iHydro, tHydro in tHydroPoints do
             iPlateauGroup, iLandZone = GetPlateauAndLandZoneReferenceFromPosition(tHydro)
             if iLandZone > 0 then
                 table.insert(tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZHydroLocations], tHydro)
+                if M28Conditions.CanBuildOnHydroLocation(tHydro) then
+                    table.insert(tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZHydroUnbuiltLocations], tHydro)
+                end
             end
         end
     end
@@ -1163,7 +1193,7 @@ end
 
 function RecordAdjacentLandZones()
     --Cycles through each land zone and identifies adjacent land zones
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordAdjacentLandZones'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -1223,7 +1253,7 @@ local function SetupLandZones()
     WaitTicks(1)
     if bDebugMessages == true then
         DrawLandZones()
-        WaitSeconds(5)
+        WaitTicks(5)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -1233,7 +1263,7 @@ local function SetupLandZones()
     --Clear variables that we no longer need:
     tTempZoneTravelDistanceBySegment =  nil
 
-    RecordLandZoneMidpoint()
+    RecordLandZoneMidpointAndUnbuiltMexes()
     RecordHydroInLandZones()
     ReorderLandZoneSegmentsForEachPlateau()
     RecordAdjacentLandZones()
@@ -1438,7 +1468,7 @@ end
 
 function UpdateNewPrimaryBaseLocation(aiBrain)
     --Updates reftPrimaryEnemyBaseLocation to the nearest enemy start position (unless there are no structures there in which case it searches for a better start position)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateNewPrimaryBaseLocation'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -1587,6 +1617,8 @@ function SetupMap()
 
     --Setup land zones
     SetupLandZones()
+
+    bMapSetupComplete = true
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

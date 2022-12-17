@@ -18,7 +18,7 @@ refbDoingInitialBuildOrder = 'M28ACUInitialBO'
 
 function ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearch, iOptionalAdjacencyCategory, iOptionalCategoryBuiltUnitCanBuild)
     local sFunctionRef = 'ACUBuildUnit'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     
     --Do we have a nearby unit of the type we want to build under construction?
@@ -42,8 +42,8 @@ function ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearch, iOption
         M28Orders.IssueTrackedGuard(oACU, oNearestPartComplete, false)
     else
         --No nearby under construction factory, so build one
-        --GetLocationAndBlueprintToBuild(aiBrain, oEngineer, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy,         tAlternativePositionToLookFrom, bLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure)
-        local sBlueprint, tBuildLocation = M28Engineer.GetLocationAndBlueprintToBuild(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearch, iOptionalAdjacencyCategory, nil,                           false,                      nil,         iOptionalCategoryBuiltUnitCanBuild, nil)
+        --GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy,         tAlternativePositionToLookFrom, bLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure)
+        local sBlueprint, tBuildLocation = M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearch, iOptionalAdjacencyCategory, nil,                           false,                      nil,         iOptionalCategoryBuiltUnitCanBuild, nil)
         if bDebugMessages == true then
             local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oACU:GetPosition())
             LOG(sFunctionRef..': Blueprint to build='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation)..'; ACU plateau and land zone based on cur position='..iPlateau..'; iLandZone='..(iLandZone or 'nil'))
@@ -67,7 +67,7 @@ end
 
 function ACUActionBuildFactory(aiBrain, oACU)
     local sFunctionRef = 'ACUActionBuildFactory'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iMaxAreaToSearch = 35
@@ -82,9 +82,13 @@ end
 
 function ACUActionAssistHydro(aiBrain, oACU)
     --If have hydro under construction then assist the hydro if it's within build range; if not under construciton or out of build range then move towards it
+    local sFunctionRef = 'ACUActionAssistHydro'
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --Redundancy - make sure we have hydros in this LZ:
     local iPlateauGroup, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oACU:GetPosition())
+    if bDebugMessages == true then LOG(sFunctionRef..': Do we have hydro loations in iPlateauGroup '..iPlateauGroup..'; iLZ='..iLandZone..': Table empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroLocations]))) end
     if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroLocations]) == false then
         local tNearestHydro
         local iNearestHydro = 10000
@@ -130,11 +134,12 @@ function ACUActionAssistHydro(aiBrain, oACU)
     else
         M28Utilities.ErrorHandler('Trying to buidl hydro when none nearby')
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function ACUActionBuildPower(aiBrain, oACU)
     local sFunctionRef = 'ACUActionBuildPower'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iCategoryToBuild = M28UnitInfo.refCategoryPower
@@ -175,6 +180,9 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
     --Are we already building something?
     if bDebugMessages == true then LOG(sFunctionRef..': ACU unit state='..M28UnitInfo.GetUnitState(oACU)) end
     if not(oACU:IsUnitState('Building')) then
+        local iPlateauGroup, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oACU:GetPosition())
+
+
         --Do we want to build a mex, hydro or factory?
         if bDebugMessages == true then LOG(sFunctionRef..': Current land factories='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory)..'; Gross energy income='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; Gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]) end
         local iMinEnergyPerTickWanted = 14 --i.e. 6 T1 PGens given ACU gives 2 E
@@ -185,7 +193,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
         elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] <= iMinEnergyPerTickWanted then
 
             --Do we want to build a hydro (so get mexes first then hydro) or build pgen?
-            local iPlateauGroup, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oACU:GetPosition())
+
             if bDebugMessages == true then LOG(sFunctionRef..': Will adjust build order depending on if have hydro nearby. Is table of land zone hydros empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroLocations]))) end
             if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroLocations]) then
                 --Per discord gameplay and training pinned build order for going land facs with no hydro:
@@ -199,6 +207,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                     if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]) == false then iMexInLandZone = table.getn(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]) end
                     if aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(2, iMexInLandZone) * 0.2 then
                         ACUActionBuildMex(aiBrain, oACU)
+
                     elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 8 then
                         ACUActionBuildPower(aiBrain, oACU)
                     elseif aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(4, iMexInLandZone) * 0.2 then
@@ -230,10 +239,12 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                 --Max mex to build
                 local iMexInLandZone = 0
                 if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]) == false then iMexInLandZone = table.getn(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Hydro is nearby, Gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; iMexInLandZone='..iMexInLandZone..'; Gross base energy income='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]) end
                 if aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(4, iMexInLandZone) * 0.2 then
                     if bDebugMessages == true then LOG(sFunctionRef..': We ahve mexes in land zone and we havent built on all of them so will build a mex') end
                     ACUActionBuildMex(aiBrain, oACU)
                 elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 10 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will try to assist a hydro nearby') end
                     ACUActionAssistHydro(aiBrain, oACU)
                 else
                     --Have base level of power suggesting already have hydro
@@ -242,14 +253,20 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
 
                 --Redundancy if fail to get order from above
                 if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) and oACU[refbDoingInitialBuildOrder] then
-                    --No hydro nearby - try building power; then try building mex; then cancel initial build order
-                    ACUActionBuildMex(aiBrain, oACU)
-                    if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then
+                    --Is it just that we want to assist a hydro and engineers havent started one yet? If so then check if we have an engineer assigned to build one, and check the game time
+                    if GetGameTimeSeconds() <= 180 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 10 and M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroLocations]) == false then
                         ACUActionAssistHydro(aiBrain, oACU)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Assuming we are waiting for an engi to start on building a hydro, or we have no nearby mexes to our ACU') end
+                    else
+                        --No hydro nearby - try building power; then try building mex; then cancel initial build order
+                        ACUActionBuildMex(aiBrain, oACU)
                         if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then
-                            ACUActionBuildPower(aiBrain, oACU)
+                            ACUActionAssistHydro(aiBrain, oACU)
                             if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then
-                                oACU[refbDoingInitialBuildOrder] = false
+                                ACUActionBuildPower(aiBrain, oACU)
+                                if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then
+                                    oACU[refbDoingInitialBuildOrder] = false
+                                end
                             end
                         end
                     end
@@ -279,7 +296,7 @@ end
 function GetACUOrder(aiBrain, oACU)
     --Early game - do we want to build factory/power?
     local sFunctionRef = 'GetACUOrder'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if bDebugMessages == true then LOG(sFunctionRef..': oACU[refbDoingInitialBuildOrder]='..tostring(oACU[refbDoingInitialBuildOrder])) end
@@ -307,7 +324,7 @@ end
 
 function ManageACU(aiBrain)
     local sFunctionRef = 'ManageACU'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --First get our ACU
     local oACU

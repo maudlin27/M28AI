@@ -5,6 +5,8 @@
 ---
 local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
+local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
+local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 
 function AreMobileLandUnitsInRect(rRectangleToSearch)
     --returns true if have mobile land units in rRectangleToSearch
@@ -117,4 +119,38 @@ function GetLifetimeBuildCount(aiBrain, category)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return iTotalBuilt
+end
+
+function IsEngineerAvailable(oEngineer)
+    if oEngineer:GetFractionComplete() == 1 and not(oEngineer:IsUnitState('Attached')) then
+        M28Orders.UpdateRecordedOrders(oEngineer)
+        if not(oEngineer[M28Orders.reftiLastOrders]) or oEngineer[M28Orders.reftiLastOrders] == M28Orders.refiOrderIssueMove then
+            --If last order is to move, then treat engineer as available
+            return true
+        else
+            return false
+        end
+    else
+        return false
+    end
+end
+
+function CanBuildOnMexLocation(tMexLocation)
+    --True if can build on mex location; will return true if aiBrain result is true
+    --Want to use a function in case t urns out reclaim on a mex means aibrain canbuild returns false
+    if M28Overseer.tAllActiveM28Brains[1]:CanBuildStructureAt('urb1103', tMexLocation) == true then
+        return true
+    else
+        return false
+    end
+end
+
+function CanBuildOnHydroLocation(tHydroLocation)
+    --True if can build on hydro; will return true if aiBrain result is true
+    --Want to use a function in case t urns out reclaim on a hydro means aibrain canbuild returns false
+    if M28Overseer.tAllActiveM28Brains[1]:CanBuildStructureAt('ueb1102', tHydroLocation) == true then
+        return true
+    else
+        return false
+    end
 end

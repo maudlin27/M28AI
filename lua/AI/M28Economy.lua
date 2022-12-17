@@ -27,11 +27,12 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed)
         --Does the unit have an M28 aiBrain?
         local aiBrain = oUnit:GetAIBrain()
         if aiBrain.M28AI then
-            local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+            local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
             local sFunctionRef = 'UpdateGrossIncomeForUnit'
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-            if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bDestroyed='..tostring(bDestroyed or false)..': Unit aiBrain='..oUnit:GetAIBrain().Nickname..'; Brain recorded for economy='..((oUnit[refoBrainRecordedForEconomy] or {'nil'}).Nickname or 'nil')) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..' oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bDestroyed='..tostring(bDestroyed or false)..': Unit aiBrain='..oUnit:GetAIBrain().Nickname..'; Brain recorded for economy='..((oUnit[refoBrainRecordedForEconomy] or {'nil'}).Nickname or 'nil')..'; Fraction complete='..oUnit:GetFractionComplete()) end
+            if oUnit:GetFractionComplete() < 1 then M28Utilities.ErrorHandler('Trying to update income for unit whose fraction isnt complete') end
 
             if (bDestroyed and oUnit[refoBrainRecordedForEconomy] == aiBrain) or (not(bDestroyed) and not(oUnit[refoBrainRecordedForEconomy] == aiBrain)) then
                 local iMassGen
@@ -73,7 +74,9 @@ function RefreshEconomyGrossValues(aiBrain)
     local tEconomyUnits = aiBrain:GetListOfUnits(categories.MASSPRODUCTION + categories.MASSFABRICATION + categories.ENERGYPRODUCTION, false, true)
     if bDebugMessages == true then LOG(sFunctionRef..': refreshing gross income for every unit we own, size of tEconomyUnits='..table.getn(tEconomyUnits)) end
     for iUnit, oUnit in tEconomyUnits do
-        UpdateGrossIncomeForUnit(oUnit)
+        if oUnit:GetFractionComplete() == 1 then
+            UpdateGrossIncomeForUnit(oUnit)
+        end
     end
 
 end
@@ -111,6 +114,8 @@ function EconomyInitialisation(aiBrain)
     aiBrain[refiNetEnergyBaseIncome] = 0
     aiBrain[refiGrossMassBaseIncome] = 0
     aiBrain[refiNetMassBaseIncome] = 0
+
+    aiBrain[refiOurHighestFactoryTechLevel] = 1
 
     ForkThread(EconomyMainLoop, aiBrain)
 end
