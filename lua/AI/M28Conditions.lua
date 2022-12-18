@@ -7,6 +7,10 @@ local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
+local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
+local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
+local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
+local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 
 function AreMobileLandUnitsInRect(rRectangleToSearch)
     --returns true if have mobile land units in rRectangleToSearch
@@ -122,17 +126,70 @@ function GetLifetimeBuildCount(aiBrain, category)
 end
 
 function IsEngineerAvailable(oEngineer)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'IsEngineerAvailable'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer) == 'xsl010510' and GetGameTimeSeconds() >= 197 then bDebugMessages = true end
+
+    if bDebugMessages == true then
+        local iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition())
+        LOG(sFunctionRef..': GameTIme '..GetGameTimeSeconds()..': Engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' owned by '..oEngineer:GetAIBrain().Nickname..': oEngineer:GetFractionComplete()='..oEngineer:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; Are last orders empty='..tostring(oEngineer[M28Orders.reftiLastOrders] == nil)..'; Engineer Plateau='..(iCurPlateau or 'nil')..'; LZ='..(iCurLZ or 'nil'))
+    end
     if oEngineer:GetFractionComplete() == 1 and not(oEngineer:IsUnitState('Attached')) then
         M28Orders.UpdateRecordedOrders(oEngineer)
-        if not(oEngineer[M28Orders.reftiLastOrders]) or oEngineer[M28Orders.reftiLastOrders] == M28Orders.refiOrderIssueMove then
+        if not(oEngineer[M28Orders.reftiLastOrders]) then
             --If last order is to move, then treat engineer as available
+            if bDebugMessages == true then LOG(sFunctionRef..': Engineer has no last orders active so is available') end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return true
         else
-            return false
+            --If engineer is moving but it doesnt have an assignment, or its assignment isnt to move, then make it available
+            local iLastOrderType = oEngineer[M28Orders.reftiLastOrders][table.getn(oEngineer[M28Orders.reftiLastOrders])][M28Orders.subrefiOrderType]
+            if bDebugMessages == true then LOG(sFunctionRef..': Engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' owned by '..oEngineer:GetAIBrain().Nickname..' has a last order type of '..(iLastOrderType or 'nil')..'; and an action assigned of '..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')..'; Order for this action='..(M28Engineer.tiActionOrder[oEngineer[M28Engineer.refiAssignedAction]] or 'nil')) end
+            if iLastOrderType == M28Orders.refiOrderIssueMove then
+                if oEngineer[M28Engineer.refiAssignedAction] and M28Engineer.tiActionOrder[oEngineer[M28Engineer.refiAssignedAction]] == iLastOrderType then
+                    --Engineer not available, unless its order was to move to a land zone, in which case check if it is now in that land zone
+                    if (oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionMoveToLandZone or oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionRunToLandZone) then
+                        local iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Engineer has action to move to LZ, reftiPlateauAndLZToMoveTo='..reprs(oEngineer[M28Land.reftiPlateauAndLZToMoveTo])..'; Eng position iCurPlateau='..(iCurPlateau or 'nil')..'; iCurLZ='..(iCurLZ or 'nil')) end
+                        if iCurPlateau == oEngineer[M28Land.reftiPlateauAndLZToMoveTo][1] and iCurLZ == oEngineer[M28Land.reftiPlateauAndLZToMoveTo][2] then
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            return true
+                        else
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            return false
+                        end
+                    else
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        return false
+                    end
+                else
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    return true
+                end
+            else
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return false
+            end
         end
     else
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return false
     end
+end
+
+function IsResourceBlockedByResourceBuilding(iResourceCategory, sResourceBlueprint, tResourceLocation)
+    --True if there is a mex or hydro at the location - used since CanBuildStructureAt can return false if reclaim is on the resource location (but we can sitll build there)
+    local rRectangleToSearch = M28Utilities.GetRectAroundLocation(tResourceLocation, M28UnitInfo.GetBuildingSize(sResourceBlueprint) * 0.5)
+    local tUnitsInRect = GetUnitsInRect(rRectangleToSearch)
+    if M28Utilities.IsTableEmpty(tUnitsInRect) == false then
+        if M28Utilities.IsTableEmpty(EntityCategoryFilterDown(iResourceCategory, tUnitsInRect)) == false then
+            --if sResourceBlueprint == 'ueb1102' then LOG('Have units in rectangle around tResourceLocation='..repru(tResourceLocation)) end
+            return true
+        end
+    end
+    return false
 end
 
 function CanBuildOnMexLocation(tMexLocation)
@@ -141,7 +198,7 @@ function CanBuildOnMexLocation(tMexLocation)
     if M28Overseer.tAllActiveM28Brains[1]:CanBuildStructureAt('urb1103', tMexLocation) == true then
         return true
     else
-        return false
+        return not(IsResourceBlockedByResourceBuilding(M28UnitInfo.refCategoryMex, 'urb1103', tMexLocation))
     end
 end
 
@@ -151,6 +208,33 @@ function CanBuildOnHydroLocation(tHydroLocation)
     if M28Overseer.tAllActiveM28Brains[1]:CanBuildStructureAt('ueb1102', tHydroLocation) == true then
         return true
     else
-        return false
+        --local iPlateau, iLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tHydroLocation)
+        --LOG('CanBuildOnHydroLocation: Considering for tHydroLocation='..repru(tHydroLocation)..' at iPlateau='..iPlateau..'; iLZ='..iLZ..'; IsResourceBlockedByResourceBuilding='..tostring(IsResourceBlockedByResourceBuilding(M28UnitInfo.refCategoryHydro, 'ueb1102', tHydroLocation)))
+        return not(IsResourceBlockedByResourceBuilding(M28UnitInfo.refCategoryHydro, 'ueb1102', tHydroLocation))
     end
+end
+
+function IsUnitVisibleSEEBELOW()  end --To help with finding canseeunit
+function CanSeeUnit(aiBrain, oUnit, bFalseIfOnlySeeBlip)
+    --returns true if aiBrain can see oUnit
+    --bFalseIfOnlySeeBlip - if true, then returns false if can see the blip but have never seen what the unit was for the blip; defaults to false
+    local iUnitBrain = oUnit:GetAIBrain()
+    if iUnitBrain == aiBrain then return true
+    else
+        local iArmyIndex = aiBrain:GetArmyIndex()
+        if not(oUnit.Dead) then
+            if not(oUnit.GetBlip) then
+                --ErrorHandler('oUnit with UnitID='..(oUnit.UnitId or 'nil')..' has no blip, will assume can see it')
+                return true
+            else
+                local oBlip = oUnit:GetBlip(iArmyIndex)
+                if oBlip then
+                    if bFalseIfOnlySeeBlip and not(oBlip:IsSeenEver(iArmyIndex)) then return false
+                    else return true
+                    end
+                end
+            end
+        end
+    end
+    return false
 end

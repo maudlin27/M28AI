@@ -379,6 +379,11 @@ function GetAngleFromAToB(tLocA, tLocB)
     return iTheta
 end
 
+function GetRectAroundLocation(tLocation, iRadius)
+    --Looks iRadius left/right and up/down (e.g. if want 1x1 square centred on tLocation, iRadius should be 0.5)
+    return Rect(tLocation[1] - iRadius, tLocation[3] - iRadius, tLocation[1] + iRadius, tLocation[3] + iRadius)
+end
+
 function MoveInDirection(tStart, iAngle, iDistance, bKeepInMapBounds, bTravelUnderwater)
     --iAngle: 0 = north, 90 = east, etc.; use GetAngleFromAToB if need angle from 2 positions
     --tStart = {x,y,z} (y isnt used)
@@ -532,6 +537,13 @@ function SortTableBySubtable(tTableToSort, sSortByRef, bLowToHigh)
     if bLowToHigh == true then
         return spairs(tTableToSort, function(t,a,b) return t[b][sSortByRef] > t[a][sSortByRef] end)
     else return spairs(tTableToSort, function(t,a,b) return t[b][sSortByRef] < t[a][sSortByRef] end)
+    end
+end
+
+function SortTableByValue(tTableToSort, bHighToLow)
+    --e.g. for iCategory, iCount in M27Utilities.SortTableByValue(tCategoryUsage, true) do
+    if bHighToLow then return spairs(tTableToSort, function(t,a,b) return t[b] < t[a] end)
+    else return spairs(tTableToSort, function(t,a,b) return t[b] > t[a] end)
     end
 end
 

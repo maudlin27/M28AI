@@ -9,6 +9,6 @@ local M28OnFirstUpdate = OnFirstUpdate
 function OnFirstUpdate()
     M28OnFirstUpdate()
     if M28Config.M28RunVeryFast == true then
-        ConExecute("WLD_GameSpeed 20")
+        ConExecute("WLD_GameSpeed 10")
     end
 end

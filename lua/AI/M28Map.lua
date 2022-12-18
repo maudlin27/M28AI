@@ -11,6 +11,7 @@ local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
 local M28Logic = import('/mods/M28AI/lua/AI/M28Logic.lua')
 local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
+local M28Chat = import('/mods/M28AI/lua/AI/M28Chat.lua')
 
 bMapSetupComplete = false --set to true once have finished setting up map (used to decide how long to wait before starting main aibrain logic)
 
@@ -40,6 +41,7 @@ tHydroByPathingAndGrouping = {} --as above but for hydros
 PlayerStartPoints = {} --[x] is aiBrain army index, returns the start position {x,y,z}; Will be updated whenever a brain is created, index is the army index, i.e. do PlayerStartPoints[aiBrain:GetArmyIndex()] to get a table {x,y,z} that is the army's start position; more convenient than aiBrain:GetArmyStartPos() which returns x and z values but not as a table
 
 --Plateaus - core
+tPathingPlateauAndLZOverride = {} --Global, Pathing override where no plateau recognised; key is [math.floor(x)][math.floor(z)] and returns {iPlateauGroup, iLandZone}
 tAllPlateaus = {} --[x] = AmphibiousPathingGroup, [y]: subrefs, e.g. subrefPlateauMexes;
 --aibrain variables for plateaus (not currently incorporated):
 --reftPlateausOfInterest = 'M28PlateausOfInterest' --[x] = Amphibious pathing group; will record a table of the pathing groups we're interested in expanding to, returns the location of then earest mex
@@ -62,8 +64,9 @@ tAllPlateaus = {} --[x] = AmphibiousPathingGroup, [y]: subrefs, e.g. subrefPlate
 --Plateaus - Land zone variables (still against tAllPlateaus[iPlateau]
     subrefLandZoneCount = 'M28PlateauZoneCount' --against the main plateau table, records how many land zones there are (alternative to table.getn on the land zones)
     subrefPlateauLandZones = 'M28PlateauLandZones' --against the main plateau table, stores info on land zones for that plateau
+
+iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one side of the square that is the lowest resolution land zones go to; each segment that is land pathable gets assigned to a land zone
     --Land zone subrefs (against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone]):
-        iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one side of the square that is the lowest resolution land zones go to; each segment that is land pathable gets assigned to a land zone
         subrefLZMexCount = 'MexCount' --against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone], returns number of mexes in the LZ
         subrefLZMexLocations = 'MexLoc' --against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone], returns table of mex locations in the LZ, e.g. get with tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iZone][subrefLZMexLocations]
         subrefLZMexUnbuiltLocations = 'MexAvailLoc' --against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone], returns table of mex locations in the LZ, e.g. get with tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iZone][subrefLZMexLocations]
@@ -74,8 +77,8 @@ tAllPlateaus = {} --[x] = AmphibiousPathingGroup, [y]: subrefs, e.g. subrefPlate
         subrefLZBuildLocationsBySize = 'BuildLoc' --contains a table, with the index being the unit's highest footprint size, which returns a location that should be buildable in this zone;  only populated on demand (i.e. if we want to try and build something there by references to the predefined location), e.g. tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZBuildLocationsBySize][iSize]
         subrefLZBuildLocationSegmentCountBySize = 'BuildSegment' --[x] is the building size considered, returns Number of segments that we have considered when identifying segment build locations for the land zone for that particular size
         subrefLZSegments = 'Segments' --Contains a table which returns the X and Z segment values for every segment assigned to this land zone
-        subrefLZTotalSegmentCount = 'SegCount' --Number of segments in a land zone
-        subrefLZAdjacentLandZones = 'AdjLZ' --table containing all adjacent land zone references for the plateau in question
+        subrefLZTotalSegmentCount = 'SegCount' --Number of segments in a land zone, against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone]
+        subrefLZAdjacentLandZones = 'AdjLZ' --table containing all adjacent land zone references for the plateau in question, against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone]
 
         --Land zone subteam data (update M28Teams.TeamInitialisation function to include varaibles here so dont have to check if they exist each time)
         subrefLZTeamData = 'Subteam' --tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZTeamData] - Table for all the data by team for a plateau's land zone
@@ -96,7 +99,10 @@ tAllPlateaus = {} --[x] = AmphibiousPathingGroup, [y]: subrefs, e.g. subrefPlate
             subrefLZThreatEnemyGroundAA = 'EAATotal'
             subrefLZThreatAllyGroundAA = 'AAATotal'
             --Engineer related values
-            subrefLZTBuildPowerByTechWanted = 'BPByTechW'
+            subrefLZTbWantBP = 'WantBP' --true if we want BP at any tech level
+            subrefLZTBuildPowerByTechWanted = 'BPByTechW' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power wanted wanted
+            subrefLZTUnitsTravelingHere = 'UnitsTrav' --Table of any units in another LZ that have been told to move to this LZ
+            --subrefLZTAdjacentBPByTechWanted = 'AdjBPByTechW' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power wanted wanted
 
 
 
@@ -141,6 +147,18 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
 
     --Get the plateau reference and the land segment X and Z references:
     local iPlateauGroup = NavUtils.GetLabel(refPathingTypeAmphibious, tPosition)
+    local iLandZone
+    if not(iPlateauGroup > 0) then
+        --Check if we have previously recorded this location with a pathing override
+        local iX = math.floor(tPosition[1])
+
+        if tPathingPlateauAndLZOverride[iX] then
+            local iZ = math.floor(tPosition[3])
+            if tPathingPlateauAndLZOverride[iX][iZ] then
+                return tPathingPlateauAndLZOverride[iX][iZ][1], tPathingPlateauAndLZOverride[iX][iZ][2]
+            end
+        end
+    end
     local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tPosition)
     --Check if the plateau reference is valid:
     local bUsingSegmentPlateauRef = false
@@ -158,7 +176,7 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
         end
     end
     --Get the land zone reference:
-    local iLandZone = tLandZoneBySegment[iSegmentX][iSegmentZ]
+    iLandZone = tLandZoneBySegment[iSegmentX][iSegmentZ]
     --Check if the land zone reference is valid for this plateau group:
     if not(tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone]) then
         if bOptionalShouldBePathable then
@@ -1176,12 +1194,18 @@ end
 
 local function RecordHydroInLandZones()
     --Updates land zone data to include details of any hydro locations in the land zone
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordHydroInLandZones'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     if M28Utilities.IsTableEmpty(tHydroPoints) == false then
         local iPlateauGroup, iLandZone
 
         for iHydro, tHydro in tHydroPoints do
             iPlateauGroup, iLandZone = GetPlateauAndLandZoneReferenceFromPosition(tHydro)
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering iHydro='..iHydro..'; tHydro='..repru(tHydro)..'; iPlateauGroup='..(iPlateauGroup or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
             if iLandZone > 0 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Have a hydro location, CanBuildOnHydro='..tostring(M28Conditions.CanBuildOnHydroLocation(tHydro))) end
                 table.insert(tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZHydroLocations], tHydro)
                 if M28Conditions.CanBuildOnHydroLocation(tHydro) then
                     table.insert(tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZHydroUnbuiltLocations], tHydro)
@@ -1189,6 +1213,7 @@ local function RecordHydroInLandZones()
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function RecordAdjacentLandZones()
@@ -1592,11 +1617,25 @@ function GetPrimaryEnemyBaseLocation(aiBrain)
     return aiBrain[reftPrimaryEnemyBaseLocation]
 end
 
+function AddLocationToPlateauExceptions(tLocation, iPlateau, iLandZone)
+    local iX = math.floor(tLocation[1])
+    local iZ = math.floor(tLocation[3])
+    if not(tPathingPlateauAndLZOverride[iX]) then tPathingPlateauAndLZOverride[iX] = {} end
+    tPathingPlateauAndLZOverride[iX][iZ] = {iPlateau, iLandZone}
+end
+
 function SetupMap()
     --Sets up non-brain specific info on the map
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SetupMap'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --Send a message warning players this could take a while
+    for iBrain, oBrain in ArmyBrains do
+        if oBrain.M28AI then
+            M28Chat.SendForkedMessage(oBrain, 'LoadingMap', 'Analysing map, this may take a minute...', 0, 10000, false)
+        end
+    end
 
     --Decide how accurate map related functions are to be based on the map size:
     SetupPlayableAreaAndSegmentSizes()

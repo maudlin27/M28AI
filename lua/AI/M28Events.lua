@@ -263,6 +263,16 @@ function OnConstructed(oEngineer, oJustBuilt)
         --NonM28 specific - dont set the M28OnConstructionCalled for this, so need to  be careful that any code here will not be run repeatedly
         LOG('OnConstructed for unit '..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt))
         M28Orders.ClearAnyRepairingUnits(oJustBuilt)
+        --If a building has just build a building, then make sure all M28 are aware of it (since a player would be)
+        if EntityCategoryContains(categories.STRUCTURE, oEngineer.UnitId) and EntityCategoryContains(categories.STRUCTURE, oJustBuilt.UnitId) then
+            local tTeamsUpdated = {}
+            for iBrain, oBrain in M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subreftoEnemyBrains] do
+                if not(tTeamsUpdated[oBrain.M28Team]) then
+                    tTeamsUpdated[oBrain.M28Team] = true
+                    M28Team.AssignUnitToZoneOrPond(oBrain, oJustBuilt)
+                end
+            end
+        end
 
         --M28 specific
         if oJustBuilt:GetAIBrain().M28AI and not(oJustBuilt.M28OnConstructedCalled) then
@@ -359,11 +369,11 @@ function OnDetectedBy(oUnitDetected, iBrainIndex)
     --For now used to make sure we have up to date unit info
     if M28Utilities.bM28AIInGame then
         local aiBrain = ArmyBrains[iBrainIndex]
-        LOG('OnDetectedBy: UnitID='..oUnitDetected.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitDetected)..'; tAllAIBrainsByArmyIndex[iBrainIndex] name='..M28Overseer.tAllAIBrainsByArmyIndex[iBrainIndex].Nickname..'; ArmyBrains nickname='..ArmyBrains[iBrainIndex].Nickname..'; Does entity contain navy='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnitDetected.UnitId))..'; aiBrain.M28AI='..tostring((aiBrain.M28AI or false)))
+        --LOG('OnDetectedBy: UnitID='..oUnitDetected.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitDetected)..'; tAllAIBrainsByArmyIndex[iBrainIndex] name='..M28Overseer.tAllAIBrainsByArmyIndex[iBrainIndex].Nickname..'; ArmyBrains nickname='..ArmyBrains[iBrainIndex].Nickname..'; Does entity contain navy='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnitDetected.UnitId))..'; aiBrain.M28AI='..tostring((aiBrain.M28AI or false)))
         M28Team.ConsiderAssigningUnitToZoneForBrain(aiBrain, oUnitDetected) --This function includes check of whether this is an M28 brain, and updates last known position
         if aiBrain.M28AI then
             --Update highest enemy ground unti health
-            if EntityCategoryContains(refCategoryLandCombat - categories.COMMAND - categories.SUBCOMMANDER, oUnitDetected.UnitId) then
+            if EntityCategoryContains(M28UnitInfo.refCategoryLandCombat - categories.COMMAND - categories.SUBCOMMANDER, oUnitDetected.UnitId) then
                 local iCurShield, iMaxShield = GetCurrentAndMaximumShield(oUnitDetected)
                 local iMaxHealth = oUnitDetected:GetMaxHealth() + iMaxShield
                 if iMaxHealth > aiBrain[M28Overseer.refiHighestEnemyGroundUnitHealth] then
@@ -393,6 +403,18 @@ function OnCreate(oUnit)
                 for iHydroLocation, tHydroLocation in M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations] do
                     if M28Utilities.GetDistanceBetweenPositions(tHydroLocation, oUnit:GetPosition()) <= 2 then
                         table.remove(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations], iHydroLocation)
+                        break
+                    end
+                end
+            end
+        elseif EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
+            --Treat location as no longer having no buildings on it (if we were previously)
+            local iPlateauGroup, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+            if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexUnbuiltLocations]) == false then
+                --LOG('About to loop through Mex locations; iPlateauGroup='..iPlateauGroup..'; iLandZone='..iLandZone..'; reprs='..reprs(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexUnbuiltLocations]))
+                for iMexLocation, tMexLocation in M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexUnbuiltLocations] do
+                    if M28Utilities.GetDistanceBetweenPositions(tMexLocation, oUnit:GetPosition()) <= 2 then
+                        table.remove(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexUnbuiltLocations], iMexLocation)
                         break
                     end
                 end

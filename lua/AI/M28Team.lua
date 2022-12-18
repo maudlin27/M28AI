@@ -13,6 +13,7 @@ local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
+local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 
 
 --Team data variables
@@ -24,7 +25,8 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefbTeamHasOmni = 'M28TeamHaveOmni' --True if our team has omni vision (i.e. one of our team is an AiX with omni vision)
     subrefbEnemyHasOmni = 'M28EnemyHasOmni' --true if any enemy non-civilian brains have omni vision
     subreftoFriendlyActiveM28Brains = 'M28TeamFriendlyM28Brains' --Stored against tTeamData[brain.M28Team], returns table of all M28 brains on the same team (including this one)
-    subreftoFriendlyActiveBrains = 'M28TeamFriendlyBrains' --as above, but all friendly brains on this team
+    subreftoFriendlyActiveBrains = 'M28TeamFriendlyBrains' --as above, but all friendly brains on this team, tTeamData[brain.M28Team][subreftoFriendlyActiveBrains]
+    subreftoEnemyBrains = 'M28TeamEnemyBrains'
 
     --Team economy subrefs
     subrefiTeamGrossEnergy = 'M28TeamGrossEnergy'
@@ -36,6 +38,8 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefiTeamLowestEnergyPercentStored = 'M28TeamLowestEnergyPercent'
     subrefiTeamLowestMassPercentStored = 'M28TeamLowestMassPercent'
 
+
+    reftiTeamMessages = 'M28TeamMessages' --against tTeamData[aiBrain.M28Team], [x] is the message type string, returns the gametime that last sent a message of this type to the team
 
 --Subteam data variables
 iTotalSubteamCount = 0
@@ -115,6 +119,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][subreftoFriendlyActiveBrains] = {}
     tTeamData[iTotalTeamCount][subrefbTeamHasOmni] = false
     tTeamData[iTotalTeamCount][subrefbEnemyHasOmni] = false
+    tTeamData[subreftoEnemyBrains] = {}
 
 
     local bHaveM28BrainInTeam = false
@@ -130,6 +135,7 @@ function CreateNewTeam(aiBrain)
                 tTeamData[iTotalTeamCount][subrefbTeamHasOmni] = true
             end
         elseif IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) and not(M28Conditions.IsCivilianBrain(oBrain)) then
+            table.insert(tTeamData[subreftoEnemyBrains], oBrain)
             --Check if anyone on enemy team has omni
             if oBrain.CheatEnabled and ScenarioInfo.Options.OmniCheat == 'on' then
                 tTeamData[iTotalTeamCount][subrefbEnemyHasOmni] = true
@@ -199,7 +205,7 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateauGroup, iLandZone)
         if not(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) then oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam] = {} end
         oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][aiBrain.M28Team] = {iPlateauGroup, iLandZone}
         if IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
-            table.insert(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTEnemyUnits])
+            table.insert(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTEnemyUnits], oUnit)
         elseif IsAlly(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
             table.insert(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTAlliedUnits], oUnit)
             if bDebugMessages == true then LOG(sFunctionRef..': Add unit as a friendly unit to Plateau-LZ='..iPlateauGroup..'-'..iLandZone..' and team='..aiBrain.M28Team..'; Is table of friendly units empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTAlliedUnits]))) end
@@ -247,6 +253,7 @@ function AssignUnitToZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition)
     local sFunctionRef = 'AssignUnitToZoneOrPond'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
     if not(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam]) then oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam] = {} end
     if not(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][aiBrain.M28Team]) then oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][aiBrain.M28Team] = true end
 
@@ -261,7 +268,7 @@ function AssignUnitToZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition)
         if iLandZone > 0 then
             --Unit is in a land zone so assign it to a land zone instead of a pond
             AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateauGroup, iLandZone)
-        else
+        elseif iPlateauGroup > 0 then
             --If unit is on water then assign it to a pond
             local iCurPond = NavUtils.GetLabel(M28Map.refPathingTypeNavy, oUnit:GetPosition())
             if iCurPond > 0 then
@@ -270,12 +277,67 @@ function AssignUnitToZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition)
                 --Not an air unit; no land zone or pond; assign to backup list of units - e.g. it could be the unit is attached to a transport
                 M28Utilities.ErrorHandler('To add code for nonair units not on land or water')
             end
+        else
+            --No valid plateau or land zone for unit so likely a pathing error; have unit move randomly if we are updating for the owner
+            ForkThread(HaveGroundUnitWithNoPlateau, aiBrain, oUnit)
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Is plateau 12 LZ 2 empty of allies for team 2='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[12][M28Map.subrefPlateauLandZones][2][M28Map.subrefLZTeamData][2][M28Map.subrefLZTAlliedUnits]))) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function HaveGroundUnitWithNoPlateau(oTrackingBrain, oUnit)
+    --Give new orders to the unit if it is an M28 unit; aiBrain should be on the same team and is the brain that we will be updating the plateau and LZ tracking for
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'HaveGroundUnitWithNoPlateau'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    local refsTrackingVariable = 'M28ActiveNoPlateau'..oTrackingBrain:GetArmyIndex()
+
+    if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit[refsTrackingVariable]) then --Brain check is a redundancy
+        if bDebugMessages == true then
+            LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' doesnt appear to have a valid location, will monitor until it has a valid location; will draw unit cur position')
+            M28Utilities.DrawLocation(oUnit:GetPosition())
+        end
+        oUnit[refsTrackingVariable] = true
+        local iPlateauGroup, iLandZone
+        local iBaseAngle, iBaseDistance
+        local tPotentialTempMoveLocation
+        local iPlateauToTryAndFind
+        local sPathing = M28UnitInfo.GetUnitPathingType
+        local bConsiderMoving = false
+        if oUnit:GetAIBrain().M28AI then bConsiderMoving = true end
+        while M28UnitInfo.IsUnitValid(oUnit) do
+            iPlateauGroup, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+            if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' postiion='..repru(oUnit:GetPosition())..'; Unit plateau group='..(iPlateauGroup or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; Actual plateau group ignoring segment='..(NavUtils.GetLabel(sPathing, tPotentialTempMoveLocation) or 'nil')) end
+            if iPlateauGroup > 0 then break end
+            if bConsiderMoving then
+                M28Orders.UpdateRecordedOrders(oUnit)
+                if not(oUnit[M28Orders.reftiLastOrders]) then
+                    --Give a move order to a random place
+                    iBaseAngle = math.random(1, 360)
+                    iBaseDistance = math.random(5, 10)
+                    iPlateauToTryAndFind = NavUtils.GetLabel(sPathing, oUnit:GetPosition())
+                    if not(iPlateauToTryAndFind > 0) then iPlateauToTryAndFind = nil end
+                    for iAngleAdjust = 0, 45, 360 do
+                        tPotentialTempMoveLocation = M28Utilities.MoveInDirection(oUnit:GetPosition(), iBaseAngle + iAngleAdjust, iBaseDistance, true, false)
+                        if not(iPlateauToTryAndFind) or NavUtils.GetLabel(sPathing, tPotentialTempMoveLocation) == iPlateauToTryAndFind then
+                            break --Use this as the move location
+                        end
+                    end
+                    M28Orders.IssueTrackedMove(oUnit, tPotentialTempMoveLocation, 3, false, 'RandPath')
+
+                end
+            end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitSeconds(1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        end
+        --Have a valid plateau so stop tracking and send for reassignment
+        oUnit[refsTrackingVariable] = false
+        AssignUnitToZoneOrPond(oTrackingBrain, oUnit)
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
 
 
 --[[function UpdateUnitPond(oUnit, iM28TeamUpdatingFor, bIsEnemy, iPondRefOverride)

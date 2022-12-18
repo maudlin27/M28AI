@@ -40,6 +40,7 @@ local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 local M28Config = import('/mods/M28AI/lua/M28Config.lua')
 local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
 
+
 function UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc)
     local sBaseOrder = 'Clear'
     if oUnit[reftiLastOrders] then
@@ -82,6 +83,7 @@ function IssueTrackedClearCommands(oUnit)
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit) end
 end
 
+function RefreshUnitOrderTracking()  end --Just used to easily find UpdateRecordedOrders
 function UpdateRecordedOrders(oUnit)
     --Checks a unit's command queue and removes items if we have fewer items than we recorded
     local iRecordedOrders
@@ -215,7 +217,7 @@ function IssueTrackedReclaim(oUnit, oOrderTarget, bAddToExistingQueue, sOptional
     --Issue order if we arent already trying to attack them
     local tLastOrder
     if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][table.getn(oUnit[reftiLastOrders])] end
-    if not(tLastOrder[subrefiOrderType] == refiOrderIssueReclaim and oOrderTarget == tLastOrder[subrefoOrderTarget]) then
+    if not(tLastOrder[subrefiOrderType] == refiOrderIssueReclaim and oOrderTarget == tLastOrder[subrefoOrderTarget]) or (not(oUnit:IsUnitState('Reclaiming'))) then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} end
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueReclaim, [subrefoOrderTarget] = oOrderTarget})
@@ -310,7 +312,7 @@ end
 end--]]
 
 function ClearAnyRepairingUnits(oUnitBeingRepaired)
-    LOG('Is table of units ordered to repair oUnitBeingRepaired='..oUnitBeingRepaired.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitBeingRepaired)..' empty='..tostring(M28Utilities.IsTableEmpty(oUnitBeingRepaired[toUnitsOrderedToRepairThis])))
+    --LOG('Is table of units ordered to repair oUnitBeingRepaired='..oUnitBeingRepaired.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitBeingRepaired)..' empty='..tostring(M28Utilities.IsTableEmpty(oUnitBeingRepaired[toUnitsOrderedToRepairThis])))
     if oUnitBeingRepaired[toUnitsOrderedToRepairThis] then
         if M28Utilities.IsTableEmpty(oUnitBeingRepaired[toUnitsOrderedToRepairThis]) == false then
             for iUnit, oUnit in oUnitBeingRepaired[toUnitsOrderedToRepairThis] do
