@@ -7,8 +7,13 @@
 local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
+local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
+local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
+local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
+local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
+local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 
-
+--Variables against aiBrain:
 --ECONOMY VARIABLES - below 4 are to track values based on base production, ignoring reclaim. Provide per tick values so 10% of per second)
 refiGrossEnergyBaseIncome = 'M28EnergyGrossIncome' --against aiBrain
 refiNetEnergyBaseIncome = 'M28EnergyNetIncome' --against aiBrain
@@ -16,10 +21,191 @@ refiGrossMassBaseIncome = 'M28MassGrossIncome' --against aiBrain
 refiNetMassBaseIncome = 'M28MassNetIncome' --against aiBrain
 
 --Factory tech variables
-refiOurHighestFactoryTechLevel = 'M28HighestFactoryTech' --against aiBrain
+refiOurHighestFactoryTechLevel = 'M28EOurHighestFactoryTech' --against aiBrain
+refiOurHighestAirFactoryTech = 'M28EOurHighestAirFactoryTech' --against aiBrain
+refiOurHighestLandFactoryTech = 'M28EOurHighestLandFactoryTech' --against aiBrain
+refiOurHighestNavalFactoryTech = 'M28EOurHighestNavalFactoryTech' --against aiBrain
 
 --Against unit variables:
 refoBrainRecordedForEconomy = 'M28EconomyBrainRecordedUnit' --Stores the M28 brain that has factored in this unit's mass and energy income
+
+
+function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
+    --Work out the upgrade ID wanted; if bUpdateUpgradeTracker is true then records upgrade against unit's aiBrain
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'UpgradeUnit'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --Do we have any HQs of the same factory type of a higher tech level?
+    local sUpgradeID = M28UnitInfo.GetUnitUpgradeBlueprint(oUnitToUpgrade, true) --If not a factory or dont recognise the faction then just returns the normal unit ID
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, sUpgradeID='..(sUpgradeID or 'nil')..'; bUpdateUpgradeTracker='..tostring((bUpdateUpgradeTracker or false))..'; bDontUpdateHQTracker='..tostring(bDontUpdateHQTracker or false)) end
+
+    if sUpgradeID and M28UnitInfo.IsUnitValid(oUnitToUpgrade) then
+        local aiBrain = oUnitToUpgrade:GetAIBrain()
+        if bDebugMessages == true then LOG(sFunctionRef..': About to issue ugprade to unit '..oUnitToUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToUpgrade)..'; Current state='..M28UnitInfo.GetUnitState(oUnitToUpgrade)..'; Work progress='..(oUnitToUpgrade:GetWorkProgress() or 'nil')..'; Is unit upgrading='..tostring(oUnitToUpgrade:IsUnitState('Upgrading'))) end
+
+        if not(oUnitToUpgrade:IsUnitState('Upgrading')) then
+            local bAddToExistingQueue = true
+
+
+
+            --Factory specific - if work progress is <=5% then cancel so can do the upgrade
+            if EntityCategoryContains(M28UnitInfo.refCategoryAllFactories, oUnitToUpgrade.UnitId) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Are upgrading a factory '..oUnitToUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToUpgrade)..'; work progress='..oUnitToUpgrade:GetWorkProgress()) end
+                if oUnitToUpgrade.GetWorkProgress and oUnitToUpgrade:GetWorkProgress() <= 0.05 then
+                    --Are we building an engineer or transport?
+                    local oUnitThatAreBuilding = oUnitToUpgrade:GetFocusUnit()
+                    if not(M28UnitInfo.IsUnitValid(oUnitThatAreBuilding) and EntityCategoryContains(M28UnitInfo.refCategoryTransport + M28UnitInfo.refCategoryEngineer, oUnitThatAreBuilding.UnitId)) then
+                        bAddToExistingQueue = false
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have barely started with current construction so will cancel so can get upgrade sooner') end
+                    end
+                end
+            end
+
+            --Air factory upgrades - if we are upgrading from T1 to T2 and havent build a transport, and have plateaus, then want to get a transport first
+            if EntityCategoryContains(M28UnitInfo.refCategoryAirFactory * categories.TECH1, oUnitToUpgrade.UnitId) and aiBrain[refiOurHighestAirFactoryTech] == 1 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory * categories.TECH1) == 1 then
+                M28Map.UpdatePlateausToExpandTo(aiBrain)
+                if M28Utilities.IsTableEmpty(aiBrain[M28Map.reftPlateausOfInterest]) == false and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryTransport) == 0 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have already queued up transport for this unit='..tostring(oUnitToUpgrade[refsQueuedTransport] or false)) end
+                    if not(oUnitToUpgrade[refsQueuedTransport]) then
+                        --Havent built any transports yet so build a T1 transport before we upgrade to T2 air
+
+                        local sTransportID = M28Factory.GetBlueprintsThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryTransport, oUnitToUpgrade)
+                        if sTransportID then
+                            oUnitToUpgrade[refsQueuedTransport] = true
+                            M28Orders.IssueTrackedFactoryBuild(oUnitToUpgrade, sTransportID, false, 'PreUp')
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will queue up a transport for factory '..oUnitToUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToUpgrade)) end
+                        end
+                    end
+                end
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryLandFactory * categories.TECH2 + M28UnitInfo.refCategoryAirFactory * categories.TECH2, oUnitToUpgrade.UnitId) and aiBrain[refiOurHighestFactoryTechLevel] <= 2 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer - categories.TECH1) <= 5 then
+                --About to go for T3 factory but have hardl yany engineers so queue up an extra one
+                local sEngiID = M28Factory.GetBlueprintsThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryEngineer, oUnitToUpgrade)
+                if sEngiID then
+                    M28Orders.IssueTrackedFactoryBuild(oUnitToUpgrade, sEngiID, false, 'PreUp')
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': About to go to T3 on factory '..oUnitToUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToUpgrade)..' but only have '..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer - categories.TECH1)..' T2 plus engis so will queue up another engi before the upgrade. sEngiID='..(sEngiID or 'nil')) end
+            end
+
+            --Issue upgrade
+            M28Orders.IssueTrackedUpgrade(oUnitToUpgrade, sUpgradeID, bAddToExistingQueue)
+        end
+
+        --Clear any pausing of the unit
+        oUnitToUpgrade:SetPaused(false)
+        oUnitToUpgrade[M28UnitInfo.refbPaused] = false
+
+        if bUpdateUpgradeTracker then
+            M28Team.UpdateUpgradeTrackingOfUnit(oUnitToUpgrade, false, sUpgradeID)
+        end
+
+        --T1 mexes - if start upgrading, then flag for TML protection --TODO in a future version (is on todo list)
+    else
+        M28Utilities.ErrorHandler('Dont have a valid upgrade ID; UnitID=' .. oUnitToUpgrade.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnitToUpgrade))
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function FindAndUpgradeUnitOfCategory(aiBrain, iCategoryWanted)
+    --e.g. intended for upgrading factory HQs
+    local tUnitsOfCategory = aiBrain:GetListOfUnits(iCategoryWanted, false, true)
+    if M28Utilities.IsTableEmpty(tUnitsOfCategory) == false then
+        local tUnitsToSearch = {}
+        local tUnsafeUnitsOfCategory = {}
+        local iCurPlateau, iCurLZ
+        for iUnit, oUnit in tUnitsOfCategory do
+            if oUnit:GetFractionComplete() == 1 and not(oUnit:IsUnitState('Upgrading')) then
+                --Are we in a safe land zone?
+                iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+                if M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLZ][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
+                    table.insert(tUnsafeUnitsOfCategory, oUnit)
+                else
+                    table.insert(tUnitsToSearch, oUnit)
+                end
+            end
+        end
+        if M28Utilities.IsTableEmpty(tUnitsToSearch) then tUnitsToSearch = tUnsafeUnitsOfCategory end
+        if M28Utilities.IsTableEmpty(tUnitsToSearch) == false then
+            local iCurDist
+            local iClosestDist = 100000
+            local oClosestUnit
+            for iUnit, oUnit in tUnitsToSearch do
+                iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()])
+                if iCurDist < iClosestDist then
+                    iClosestDist = iCurDist
+                    oClosestUnit = oUnit
+                end
+            end
+            if oClosestUnit then
+                UpgradeUnit(aiBrain, oClosestUnit, true) --Will queue up transport or engineer for factories as well as figuring out whether to upgrade a support factory or an HQ
+            end
+        end
+    end
+end
+
+function UpdateHighestFactoryTechLevelForBuiltUnit(oUnitJustBuilt)
+    if oUnitJustBuilt:GetFractionComplete() == 1 and EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories) then
+        local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnitJustBuilt)
+        local sFactoryRef
+        if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory) then sFactoryRef = refiOurHighestLandFactoryTech
+        elseif EntityCategoryContains(M28UnitInfo.refCategoryAirFactory) then sFactoryRef = refiOurHighestAirFactory
+        elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory) then sFactoryRef = refiOurHighestNavalFactoryTech
+        else M28Utilities.ErrorHandler('Unrecognised factory type')
+        end
+        local aiBrain = oUnitJustBuilt:GetAIBrain()
+        if iUnitTechLevel > aiBrain[sFactoryRef] then
+            aiBrain[sFactoryRef] = math.max(aiBrain[sFactoryRef], iUnitTechLevel)
+            aiBrain[refiOurHighestFactoryTechLevel] = math.max(iUnitTechLevel, aiBrain[refiOurHighestFactoryTechLevel])
+            --Update team details
+            M28Team.UpdateTeamHighestAndLowestFactories(aiBrain.M28Team)
+        end
+    end
+end
+
+function UpdateHighestFactoryTechLevelForDestroyedUnit(oUnitJustDestroyed)
+    if oUnitJustDestroyed:GetFractionComplete() == 1 and EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories) then
+        local aiBrain = oUnitJustDestroyed:GetAIBrain()
+        local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnitJustDestroyed)
+        if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory) then
+            if iUnitTechLevel >= aiBrain[refiOurHighestLandFactoryTech] then
+                aiBrain[refiOurHighestLandFactoryTech] = 0
+                for iTechLevel = 3, 1, -1 do
+                    if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory * M28UnitInfo.ConvertTechLevelToCategory(iTechLevel) - categories.SUPPORTFACTORY) > 0 then
+                        aiBrain[refiOurHighestLandFactoryTech] = iTechLevel
+                        break
+                    end
+                end
+            end
+        elseif EntityCategoryContains(M28UnitInfo.refCategoryAirFactory) then sFactoryRef = refiOurHighestAirFactory
+            if iUnitTechLevel >= aiBrain[refiOurHighestAirFactoryTech] then
+                aiBrain[refiOurHighestAirFactoryTech] = 0
+                for iTechLevel = 3, 1, -1 do
+                    if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory * M28UnitInfo.ConvertTechLevelToCategory(iTechLevel) - categories.SUPPORTFACTORY) > 0 then
+                        aiBrain[refiOurHighestAirFactoryTech] = iTechLevel
+                        break
+                    end
+                end
+            end
+        elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory) then sFactoryRef = refiOurHighestNavalFactoryTech
+            if iUnitTechLevel >= aiBrain[refiOurHighestNavalFactoryTech] then
+                aiBrain[refiOurHighestNavalFactoryTech] = 0
+                for iTechLevel = 3, 1, -1 do
+                    if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalFactory * M28UnitInfo.ConvertTechLevelToCategory(iTechLevel) - categories.SUPPORTFACTORY) > 0 then
+                        aiBrain[refiOurHighestNavalFactoryTech] = iTechLevel
+                        break
+                    end
+                end
+            end
+        else M28Utilities.ErrorHandler('Unrecognised factory type')
+        end
+
+        --Updated highest factory type across all types
+        aiBrain[refiOurHighestFactoryTechLevel] = math.max(aiBrain[refiOurHighestLandFactoryTech], aiBrain[refiOurHighestAirFactoryTech], aiBrain[refiOurHighestNavalFactoryTech])
+
+        --Update team details
+        M28Team.UpdateTeamHighestAndLowestFactories(aiBrain.M28Team)
+    end
+end
 
 function UpdateGrossIncomeForUnit(oUnit, bDestroyed)
     if oUnit.UnitId == 'xsl0001' then LOG('Are updating for ACU') end

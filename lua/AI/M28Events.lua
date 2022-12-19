@@ -171,6 +171,10 @@ function OnUnitDeath(oUnit)
                                     end
                                 end
                             end
+                        elseif EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) then
+                            --Check for upgrades
+                            --Upgrade tracking (even if have run this already)
+                            M28Team.UpdateUpgradeTrackingOfUnit(oUnit, true)
                         end
                     end
                 end
@@ -287,6 +291,7 @@ function OnConstructed(oEngineer, oJustBuilt)
             --Check build locations for units not built at a factory
             if EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId) then
                 M28Engineer.CheckIfBuildableLocationsNearPositionStillValid(oJustBuilt:GetAIBrain(), oJustBuilt:GetPosition())
+                M28Economy.UpdateHighestFactoryTechLevelForBuiltUnit(oJustBuilt) --includes a check to see if are dealing with a factory HQ
             end
 
             --Update economy tracking (this function will check if it is an economic unit as part of it)
@@ -313,11 +318,11 @@ function OnConstructed(oEngineer, oJustBuilt)
             end
 
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-
-
-
         end
-
+        --Upgrade tracking (even if have run this already)
+        if oEngineer:GetAIBrain().M28AI and EntityCategoryContains(categories.STRUCTURE, oEngineer.UnitId) and EntityCategoryContains(categories.STRUCTURE, oJustBuilt.UnitId) then
+            M28Team.UpdateUpgradeTrackingOfUnit(oJustBuilt, true)
+        end
     end
 end
 
@@ -419,6 +424,12 @@ function OnCreate(oUnit)
                     end
                 end
             end
+        end
+
+        --M28 specific: Cover units transferred to us or cheated in or presumably that we have captured
+        if oUnit:GetAIBrain().M28AI and oUnit:GetFractionComplete() == 1 then
+            M28Economy.UpdateHighestFactoryTechLevelForBuiltUnit(oUnit) --this includes a check to see if are dealing with a factory HQ
+            M28Economy.UpdateGrossIncomeForUnit(oUnit, false) --This both includes a check of the unit type, and cehcks we havent already recorded
         end
     end
 end

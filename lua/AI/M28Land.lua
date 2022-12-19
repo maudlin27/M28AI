@@ -83,7 +83,7 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
     end
 end
 
-function RecordGroundThreatForLandZone(tLZData)
+function RecordGroundThreatForLandZone(tLZData, iTeam, iPlateau, iLandZone)
     --Records the different types of threat for the land zone
     --local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZTEnemyUnits]) then
@@ -163,6 +163,21 @@ function RecordGroundThreatForLandZone(tLZData)
             end
         end
     end
+    local bNearbyEnemies = false
+    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZTEnemyUnits]) == false then
+        bNearbyEnemies = true
+    else
+        --, iPlateau, iLandZone
+        if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones]) == false then
+            for _, iAdjLZ in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones] do
+                if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTThreatEnemyCombatTotal] > 0 then
+                    bNearbyEnemies = true
+                    break
+                end
+            end
+        end
+    end
+    tLZData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] = bNearbyEnemies
 end
 
 function ManageLandZone(aiBrain, iTeam, iPlateau, iLandZone)
@@ -173,7 +188,7 @@ function ManageLandZone(aiBrain, iTeam, iPlateau, iLandZone)
     --Record enemy threat
     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
     if bDebugMessages == true then LOG(sFunctionRef..': About to update threat for iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTeam='..iTeam..'; Is LZData empty='..tostring(M28Utilities.IsTableEmpty(tLZData))) end
-    RecordGroundThreatForLandZone(tLZData)
+    RecordGroundThreatForLandZone(tLZData, iTeam, iPlateau, iLandZone)
 
     local tEngineers
     if bDebugMessages == true then LOG(sFunctionRef..': Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZTAlliedUnits]))) end

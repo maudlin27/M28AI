@@ -275,6 +275,20 @@ function IssueTrackedRepair(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalO
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 end
 
+function IssueTrackedUpgrade(oUnit, sUpgradeRef, bAddToExistingQueue, sOptionalOrderDesc)
+    UpdateRecordedOrders(oUnit)
+    --Issue order if we arent already trying to attack them
+    local tLastOrder
+    if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][table.getn(oUnit[reftiLastOrders])] end
+    if not(tLastOrder[subrefiOrderType] == refiOrderUpgrade and sUpgradeRef == tLastOrder[subrefsOrderBlueprint]) then
+        if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
+        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} end
+        table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderUpgrade, [subrefsOrderBlueprint] = sUpgradeRef})
+        IssueUpgrade({oUnit}, sUpgradeRef)
+    end
+    if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
+end
+
 --[[function IssueTrackedOrder(oUnit, iOrderType, tOrderPosition, oOrderTarget, sOrderBlueprint)
 --Decided not to implement below as hopefully using separate functions should be better performance wise, and also issueformmove and aggressive move will require a table of units instead of individual units if they ever get implemented
     --tOrderPosition - this should only be completed if it is requried for the order

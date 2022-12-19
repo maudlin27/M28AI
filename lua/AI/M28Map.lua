@@ -44,7 +44,7 @@ PlayerStartPoints = {} --[x] is aiBrain army index, returns the start position {
 tPathingPlateauAndLZOverride = {} --Global, Pathing override where no plateau recognised; key is [math.floor(x)][math.floor(z)] and returns {iPlateauGroup, iLandZone}
 tAllPlateaus = {} --[x] = AmphibiousPathingGroup, [y]: subrefs, e.g. subrefPlateauMexes;
 --aibrain variables for plateaus (not currently incorporated):
---reftPlateausOfInterest = 'M28PlateausOfInterest' --[x] = Amphibious pathing group; will record a table of the pathing groups we're interested in expanding to, returns the location of then earest mex
+reftPlateausOfInterest = 'M28PlateausOfInterest' --[x] = Amphibious pathing group; will record a table of the pathing groups we're interested in expanding to, returns the location of then earest mex
 --refiLastPlateausUpdate = 'M28LastTimeUpdatedPlateau' --gametime that we last updated the plateaus
 --reftOurPlateauInformation = 'M28OurPlateauInformation' --[x] = AmphibiousPathingGroup; [y] = subref, e.g. subrefPlateauLandFactories; Used to store details such as factories on the plateau
 --refiOurBasePlateauGroup = 'M28PlateausOurBaseGroup' --Segment group of our base (so can easily check somewhere is in a dif plateau)
@@ -87,7 +87,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZTCoreBase = 'ZCore' --true if this is considered a 'core base' land zone
             subrefLZTAlliedUnits = 'Allies' --table of all allied units in the land zone, tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam][subrefLZTAlliedUnits]
             subrefLZTEnemyUnits = 'Enemies' --table of all enemy units in the land zone
-            --Ground threat values for land zones (also against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZTeamData])
+            --Ground threat values for land zones (also against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam])
             subrefLZTThreatEnemyCombatTotal = 'ECTotal'
             subrefLZTThreatAllyCombatTotal = 'ACTotal'
             subrefLZThreatEnemyMobileDFByRange = 'EMDFByRange'
@@ -98,11 +98,13 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZThreatAllyStructureIndirect = 'ASITotal'
             subrefLZThreatEnemyGroundAA = 'EAATotal'
             subrefLZThreatAllyGroundAA = 'AAATotal'
+            subrefbEnemiesInThisOrAdjacentLZ = 'NearbyEnemies' --true if this LZ or adjacent LZ have nearby enemies
             --Engineer related values
             subrefLZTbWantBP = 'WantBP' --true if we want BP at any tech level
             subrefLZTBuildPowerByTechWanted = 'BPByTechW' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power wanted wanted
             subrefLZTUnitsTravelingHere = 'UnitsTrav' --Table of any units in another LZ that have been told to move to this LZ
             --subrefLZTAdjacentBPByTechWanted = 'AdjBPByTechW' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power wanted wanted
+            subrefActiveUpgrades = 'ActiveUpgrades' --against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam]
 
 
 
@@ -1660,4 +1662,8 @@ function SetupMap()
     bMapSetupComplete = true
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function UpdatePlateausToExpandTo(aiBrain)
+    M28Utilities.ErrorHandler('To add code')
 end

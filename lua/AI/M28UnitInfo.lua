@@ -27,6 +27,7 @@ refiMissileDefenceRange = 'M28UMDefR' --For SMD and TMD
 refiAARange = 'M28UAAR'
 refiBomberRange = 'M28UBR'
 
+refbPaused = 'M28UnitPaused' --true if unit is paused
 
 --Categories:
 --Buildings - eco
@@ -63,7 +64,9 @@ refCategoryUnitsWithOmni = categories.OMNI + categories.COMMAND + categories.OVE
 
 --Building - factory
 refCategoryLandFactory = categories.LAND * categories.FACTORY * categories.STRUCTURE
+refCategoryLandHQ =refCategoryLandFactory - categories.SUPPORTFACTORY
 refCategoryAirFactory = categories.AIR * categories.FACTORY * categories.STRUCTURE - categories.ORBITALSYSTEM --Novax is an air factory, so excluded from being treated as an air factory by my logic
+refCategoryAirHQ = refCategoryAirFactory - categories.SUPPORTFACTORY
 refCategoryNavalFactory = categories.NAVAL * categories.FACTORY * categories.STRUCTURE
 refCategoryFactory = refCategoryLandFactory + refCategoryAirFactory + refCategoryNavalFactory
 refCategoryAllHQFactories = refCategoryFactory - categories.SUPPORTFACTORY
@@ -982,4 +985,87 @@ function RecordUnitRange(oUnit)
         end
     end
 
+end
+
+function ConvertTechLevelToCategory(iTechLevel)
+    if iTechLevel == 2 then return categories.TECH2
+    elseif iTechLevel == 3 then return categories.TECH3
+    elseif iTechLevel == 4 then return categories.EXPERIMENTAL
+    else return categories.TECH1
+    end
+end
+
+function GetUnitUpgradeBlueprint(oUnitToUpgrade, bGetSupportFactory)
+    --Returns support factory ID if it can be built, otherwise returns normal upgrade unit (works for any unit, not just factory)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetUnitUpgradeBlueprint'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bGetSupportFactory == nil then bGetSupportFactory = true end
+    --Gets the support factory blueprint, and checks if it can be built; if not then returns the normal UpgradesTo blueprint
+    local sUpgradeBP
+    if not(oUnitToUpgrade.Dead) and oUnitToUpgrade.CanBuild then
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code, UnitToUpgrade='..oUnitToUpgrade.UnitId..GetUnitLifetimeCount(oUnitToUpgrade)) end
+        if bGetSupportFactory == true and oUnitToUpgrade.CanBuild then
+            local tsSupportFactoryBP = {
+
+                -- Aeon
+                ['uab0101']  = 'zab9501',
+                ['uab0102']  = 'zab9502',
+                ['uab0103']  = 'zab9503',
+                ['uab0201'] = 'zab9601',
+                ['uab0202'] = 'zab9602',
+                ['uab0203'] = 'zab9603',
+
+                -- UEF
+                ['ueb0101']  = 'zeb9501',
+                ['ueb0102']  = 'zeb9502',
+                ['ueb0103']  = 'zeb9503',
+                ['ueb0201'] = 'zeb9601',
+                ['ueb0202'] = 'zeb9602',
+                ['ueb0203'] = 'zeb9603',
+
+                -- Cybran
+                ['urb0101']  = 'zrb9501',
+                ['urb0102']  = 'zrb9502',
+                ['urb0103']  = 'zrb9503',
+                ['urb0201'] = 'zrb9601',
+                ['urb0202'] = 'zrb9602',
+                ['urb0203'] = 'zrb9603',
+
+                -- Seraphim
+                ['xsb0101']  = 'zsb9501',
+                ['xsb0102']  = 'zsb9502',
+                ['xsb0103']  = 'zsb9503',
+                ['xsb0201'] = 'zsb9601',
+                ['xsb0202'] = 'zsb9602',
+                ['xsb0203'] = 'zsb9603',
+            }
+
+            local sFactoryBP = oUnitToUpgrade.UnitId
+            if tsSupportFactoryBP[sFactoryBP] then
+                if bDebugMessages == true then LOG(sFunctionRef..': Support factoryBP='..tsSupportFactoryBP[sFactoryBP]) end
+                sUpgradeBP = tsSupportFactoryBP[sFactoryBP]
+                if bDebugMessages == true then LOG(sFunctionRef..': oUnitToUpgrade='..sFactoryBP..GetUnitLifetimeCount(oUnitToUpgrade)..'; Checking if can upgrade to sUpgradeBP='..sUpgradeBP..'; oUnitToUpgrade:CanBuild(sUpgradeBP)='..tostring(oUnitToUpgrade:CanBuild(sUpgradeBP))) end
+                if not(oUnitToUpgrade:CanBuild(sUpgradeBP)) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Cant build '..sUpgradeBP) end
+                    sUpgradeBP = nil
+                end
+            end
+        end
+        if not(sUpgradeBP) then
+            local oFactoryBP = oUnitToUpgrade:GetBlueprint()
+            sUpgradeBP = oFactoryBP.General.UpgradesTo
+            if bDebugMessages == true then LOG(sFunctionRef..': sUpgradeBP='..(sUpgradeBP or 'nil')) end
+            if not(sUpgradeBP) or sUpgradeBP == '' or not(oUnitToUpgrade:CanBuild(sUpgradeBP)) then sUpgradeBP = nil end
+            if bDebugMessages == true then LOG(sFunctionRef..': Didnt have valid support factory to upgrade to; blueprint UpgradesTo='..(sUpgradeBP or 'nil')) end
+        end
+        if sUpgradeBP == '' then
+            sUpgradeBP = nil
+            if bDebugMessages == true then LOG(sFunctionRef..': Have no blueprint to upgrade to') end
+        elseif bDebugMessages == true then LOG(sFunctionRef..': Returning sUpgradeBP'..(sUpgradeBP or 'nil'))
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return sUpgradeBP
 end

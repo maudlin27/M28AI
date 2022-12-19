@@ -2107,15 +2107,8 @@ function ConsiderLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, iLandZ
                     end
                 end
             end
-        else
-            if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones]) == false then
-                for _, iAdjLZ in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones] do
-                    if (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][M28Map.subrefLZTThreatEnemyCombatTotal] or 0) > 10 then
-                        iBPCap = 5
-                        break
-                    end
-                end
-            end
+        elseif tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
+            iBPCap = 5
         end
         if iBPCap then
             for iTech = 1, 3 do
