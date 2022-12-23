@@ -76,6 +76,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         subrefLZHydroUnbuiltLocations = 'HydroAvailLoc' --against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone], returns table of hydro locations in the LZ that dont have buildings on them
         subrefLZBuildLocationsBySize = 'BuildLoc' --contains a table, with the index being the unit's highest footprint size, which returns a location that should be buildable in this zone;  only populated on demand (i.e. if we want to try and build something there by references to the predefined location), e.g. tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZBuildLocationsBySize][iSize]
         subrefLZBuildLocationSegmentCountBySize = 'BuildSegment' --[x] is the building size considered, returns Number of segments that we have considered when identifying segment build locations for the land zone for that particular size
+        subrefLZMassStorageLocationsAvailable = 'MassStorageLocations' --Against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone], Returns table of locations which should be valid to build on for mass storage
         subrefLZSegments = 'Segments' --Contains a table which returns the X and Z segment values for every segment assigned to this land zone
         subrefLZTotalSegmentCount = 'SegCount' --Number of segments in a land zone, against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone]
         subrefLZAdjacentLandZones = 'AdjLZ' --table containing all adjacent land zone references for the plateau in question, against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone]
@@ -103,8 +104,11 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZTbWantBP = 'WantBP' --true if we want BP at any tech level
             subrefLZTBuildPowerByTechWanted = 'BPByTechW' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power wanted wanted
             subrefLZTUnitsTravelingHere = 'UnitsTrav' --Table of any units in another LZ that have been told to move to this LZ
+            subrefLZSpareBPByTech = 'SpareBPByTech' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power of that tech level that we have spare
             --subrefLZTAdjacentBPByTechWanted = 'AdjBPByTechW' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power wanted wanted
+            --Economy related values
             subrefActiveUpgrades = 'ActiveUpgrades' --against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam]
+            subrefMexCountByTech = 'MexByTech' --against tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam]
 
 
 
@@ -1294,6 +1298,7 @@ local function SetupLandZones()
     RecordHydroInLandZones()
     ReorderLandZoneSegmentsForEachPlateau()
     RecordAdjacentLandZones()
+    RecordMassStorageLocationsForEachLandZone()
 
 
     --If debug is enabled, draw land zones (different colour for each land zone on a plateau)
@@ -1667,3 +1672,129 @@ end
 function UpdatePlateausToExpandTo(aiBrain)
     M28Utilities.ErrorHandler('To add code')
 end
+
+function GetModDistanceFromStart(aiBrain, tTarget, bUseEnemyStartInstead)
+    local sFunctionRef = 'GetModDistanceFromStart'
+    local bDebugMessages = false
+    if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then
+        LOG(sFunctionRef .. ': Start of code, GameTime=' .. GetGameTimeSeconds() .. '; aiBrain army index=' .. aiBrain:GetArmyIndex() .. '; tTarget=' .. repru(tTarget) .. '; bUseEnemyStartInstead=' .. tostring((bUseEnemyStartInstead or false)) .. '; will draw the location in white')
+        M28Utilities.DrawLocation(tTarget, false, 7, 20, nil)
+    end
+
+    local iEmergencyRangeToUse = 50
+
+    local tStartPos
+    local tEnemyBase
+    if bUseEnemyStartInstead then
+        tStartPos = GetPrimaryEnemyBaseLocation(aiBrain)
+        tEnemyBase = PlayerStartPoints[aiBrain:GetArmyIndex()]
+    else
+        tStartPos = PlayerStartPoints[aiBrain:GetArmyIndex()]
+        tEnemyBase = GetPrimaryEnemyBaseLocation(aiBrain)
+    end
+
+    local iDistStartToTarget = M28Utilities.GetDistanceBetweenPositions(tStartPos, tTarget)
+    if bDebugMessages == true then
+        LOG(sFunctionRef .. ': tStartPos=' .. repru(tStartPos) .. '; iDistStartToTarget=' .. iDistStartToTarget .. '; iEmergencyRangeToUse=' .. iEmergencyRangeToUse)
+    end
+    if iDistStartToTarget <= iEmergencyRangeToUse then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        if bDebugMessages == true then
+            LOG(sFunctionRef .. ': Are within emergency range so will just return actual dist, iDistStartToTarget=' .. iDistStartToTarget .. '; if instead we only had 1 enemy and got mod dist for this the result would be ' .. math.cos(math.abs(M28Utilities.ConvertAngleToRadians(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, GetPrimaryEnemyBaseLocation(aiBrain))))) * iDistStartToTarget)
+        end
+        return iDistStartToTarget
+    else
+        --If only 1 enemy group then treat anywhere behind us as the emergency range
+        if bUseEnemyStartInstead then
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            if bDebugMessages == true then
+                LOG(sFunctionRef .. ': will ignore multiple enemies since have flagged to use enemy start instead, will return ' .. math.cos(M28Utilities.ConvertAngleToRadians(math.abs(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, PlayerStartPoints[aiBrain:GetArmyIndex()])))) * iDistStartToTarget)
+            end
+            return iEmergencyRangeToUse, math.cos(math.abs(M28Utilities.ConvertAngleToRadians(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, tEnemyBase)))) * iDistStartToTarget
+        else
+            local bIsBehindUs = true
+            if bDebugMessages == true then
+                LOG(sFunctionRef .. ': Is table of enemy brains empty=' .. tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains])))
+            end
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains]) then
+                if M28Utilities.GetDistanceBetweenPositions(tTarget, tEnemyBase) < M28Utilities.GetDistanceBetweenPositions(tStartPos, tEnemyBase) or M28Utilities.GetDistanceBetweenPositions(tTarget, tStartPos) > M28Utilities.GetDistanceBetweenPositions(tStartPos, tEnemyBase) then
+                    bIsBehindUs = false
+                end
+            else
+                for iEnemyGroup, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains] do
+                    if bDebugMessages == true then
+                        LOG(sFunctionRef .. ': Distance from target to start=' .. M28Utilities.GetDistanceBetweenPositions(tTarget, tStartPos) .. '; Distance from start to enemy base=' .. M28Utilities.GetDistanceBetweenPositions(tStartPos, PlayerStartPoints[oBrain:GetArmyIndex()]))
+                    end
+                    if M28Utilities.GetDistanceBetweenPositions(tTarget, PlayerStartPoints[oBrain:GetArmyIndex()]) < M28Utilities.GetDistanceBetweenPositions(tStartPos, PlayerStartPoints[oBrain:GetArmyIndex()]) or M28Utilities.GetDistanceBetweenPositions(tTarget, tStartPos) > M28Utilities.GetDistanceBetweenPositions(tStartPos, PlayerStartPoints[oBrain:GetArmyIndex()]) then
+                        bIsBehindUs = false
+                        break
+                    end
+                end
+            end
+
+            if bIsBehindUs then
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                if bDebugMessages == true then
+                    LOG(sFunctionRef .. ': Will return emergency range as enemy is behind us, so returning ' .. iEmergencyRangeToUse)
+                end
+                return iEmergencyRangeToUse
+            else
+                --Cycle through each enemy group and get lowest value, but stop if <= emergency range
+                local iCurDist
+                local iLowestDist = 10000
+                if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains]) then
+                    iLowestDist = math.cos(M28Utilities.ConvertAngleToRadians(math.abs(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, tEnemyBase)))) * iDistStartToTarget
+                else
+                    for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains] do
+                        iCurDist = math.cos(M28Utilities.ConvertAngleToRadians(math.abs(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, PlayerStartPoints[oBrain:GetArmyIndex()])))) * iDistStartToTarget
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef .. ': iCurDist for enemy oBrain index ' .. oBrain:GetArmyIndex() .. ' = ' .. iCurDist .. '; Enemy base=' .. repru(PlayerStartPoints[oBrain:GetArmyIndex()]) .. '; tEnemyBase=' .. repru(tEnemyBase) .. '; Angle from start to target=' .. M28Utilities.GetAngleFromAToB(tStartPos, tTarget) .. '; Angle from Start to enemy base=' .. M28Utilities.GetAngleFromAToB(tStartPos, PlayerStartPoints[oBrain:GetArmyIndex()]) .. '; iDistStartToTarget=' .. iDistStartToTarget)
+                        end
+                        if iCurDist < iLowestDist then
+                            iLowestDist = iCurDist
+                            if iLowestDist < iEmergencyRangeToUse then
+                                iLowestDist = iEmergencyRangeToUse
+                                break
+                            end
+                        end
+                    end
+                end
+
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                if bDebugMessages == true then
+                    LOG(sFunctionRef .. ': iLowestDist=' .. iLowestDist)
+                end
+                return iLowestDist
+            end
+        end
+    end
+end
+
+function RecordAvailableMassStorageLocationsForLandZone(iPlateau, iLandZone)
+    local tLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
+    tLZData[subrefLZMassStorageLocationsAvailable] = {}
+    if M28Utilities.IsTableEmpty(tLZData[subrefLZMexLocations]) == false then
+        local tiXZOffset = {{-2,0}, {0, -2}, {0, 2}, {2, 0}}
+        local tCurPos
+        for iMex, tMex in tLZData[subrefLZMexLocations] do
+            for iOffset, tXZOffset in tiXZOffset do
+                tCurPos = {tMex[1] + tXZOffset[1], 0, tMex[3] + tXZOffset[2]}
+                tCurPos[2] = GetSurfaceHeight(tCurPos[1], tCurPos[3])
+                if M28Conditions.CanBuildStorageAtLocation(tCurPos) then
+                    table.insert(tLZData[subrefLZMassStorageLocationsAvailable], tCurPos)
+                end
+            end
+        end
+    end
+end
+
+function RecordMassStorageLocationsForEachLandZone()
+    for iPlateau, tPlateauSubtable in tAllPlateaus do
+        for iLandZone, tLZSubtable in tPlateauSubtable[subrefPlateauLandZones] do
+            RecordAvailableMassStorageLocationsForLandZone(iPlateau, iLandZone)
+        end
+    end
+end
+

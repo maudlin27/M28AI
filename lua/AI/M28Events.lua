@@ -175,6 +175,7 @@ function OnUnitDeath(oUnit)
                             --Check for upgrades
                             --Upgrade tracking (even if have run this already)
                             M28Team.UpdateUpgradeTrackingOfUnit(oUnit, true)
+                            if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then M28Economy.UpdateLandZoneM28MexByTechCount(oUnit, true) end
                         end
                     end
                 end
@@ -271,7 +272,7 @@ function OnConstructed(oEngineer, oJustBuilt)
         if EntityCategoryContains(categories.STRUCTURE, oEngineer.UnitId) and EntityCategoryContains(categories.STRUCTURE, oJustBuilt.UnitId) then
             local tTeamsUpdated = {}
             for iBrain, oBrain in M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subreftoEnemyBrains] do
-                if not(tTeamsUpdated[oBrain.M28Team]) then
+                if oBrain.M28AI and not(tTeamsUpdated[oBrain.M28Team]) then
                     tTeamsUpdated[oBrain.M28Team] = true
                     M28Team.AssignUnitToZoneOrPond(oBrain, oJustBuilt)
                 end
@@ -292,6 +293,7 @@ function OnConstructed(oEngineer, oJustBuilt)
             if EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId) then
                 M28Engineer.CheckIfBuildableLocationsNearPositionStillValid(oJustBuilt:GetAIBrain(), oJustBuilt:GetPosition())
                 M28Economy.UpdateHighestFactoryTechLevelForBuiltUnit(oJustBuilt) --includes a check to see if are dealing with a factory HQ
+                if EntityCategoryContains(M28UnitInfo.refCategoryMex, oJustBuilt.UnitId) then M28Economy.UpdateLandZoneM28MexByTechCount(oJustBuilt, false, 10) end
             end
 
             --Update economy tracking (this function will check if it is an economic unit as part of it)
@@ -390,7 +392,14 @@ function OnDetectedBy(oUnitDetected, iBrainIndex)
 end
 
 function OnCreate(oUnit)
-    if M28Utilities.bM28AIInGame then
+    if M28Utilities.bM28AIInGame and M28UnitInfo.IsUnitValid(oUnit) then
+        if not(M28Map.bMapSetupComplete) then --Start of game ACU creation happens before we have setup the map
+            while not(M28Map.bMapSetupComplete) do
+                WaitTicks(1)
+            end
+            WaitTicks(1)
+            if not(M28UnitInfo.IsUnitValid(oUnit)) then return nil end
+        end
         M28Team.ConsiderAssigningUnitToZoneForBrain(oUnit:GetAIBrain(), oUnit) --This function includes check of whether this is an M28 brain
 
         --All units (not just M28 specific):
@@ -430,6 +439,7 @@ function OnCreate(oUnit)
         if oUnit:GetAIBrain().M28AI and oUnit:GetFractionComplete() == 1 then
             M28Economy.UpdateHighestFactoryTechLevelForBuiltUnit(oUnit) --this includes a check to see if are dealing with a factory HQ
             M28Economy.UpdateGrossIncomeForUnit(oUnit, false) --This both includes a check of the unit type, and cehcks we havent already recorded
+            if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) and not(oUnit.M28OnConstructedCalled) then M28Economy.UpdateLandZoneM28MexByTechCount(oUnit) end
         end
     end
 end

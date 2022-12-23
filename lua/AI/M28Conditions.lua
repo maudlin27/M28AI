@@ -11,6 +11,8 @@ local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
 local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
 local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
+local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
+local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
 
 function AreMobileLandUnitsInRect(rRectangleToSearch)
     --returns true if have mobile land units in rRectangleToSearch
@@ -192,6 +194,14 @@ function IsResourceBlockedByResourceBuilding(iResourceCategory, sResourceBluepri
     return false
 end
 
+function CanBuildStorageAtLocation(tLocation)
+    if M28Overseer.tAllActiveM28Brains[1]:CanBuildStructureAt('ueb1106', tLocation) == true then
+        return true
+    else
+        return not(IsResourceBlockedByResourceBuilding(M28UnitInfo.refCategoryStructure, 'ueb1106', tLocation))
+    end
+end
+
 function CanBuildOnMexLocation(tMexLocation)
     --True if can build on mex location; will return true if aiBrain result is true
     --Want to use a function in case t urns out reclaim on a mex means aibrain canbuild returns false
@@ -237,4 +247,66 @@ function CanSeeUnit(aiBrain, oUnit, bFalseIfOnlySeeBlip)
         end
     end
     return false
+end
+
+function SafeToUpgradeUnit(oUnit)
+    --Returns true if safe to upgrade oUnit:
+    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+    if (iLandZone or 'nil') > 0 then
+        if not(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.subrefbEnemiesInThisOrAdjacentLZ]) then
+            return true
+        end
+    end
+    return false
+
+end
+
+function HaveLowMass(aiBrain)
+    --Not actually used as yet
+    local bHaveLowMass = false
+    if aiBrain[M28Economy.refiGrossMassBaseIncome] <= 200 then --i.e. we dont ahve a paragon or crazy amount of SACUs
+        local iMassStoredRatio = aiBrain:GetEconomyStoredRatio('MASS')
+        if (iMassStoredRatio <= 0.15 or aiBrain:GetEconomyStored('MASS') <= 300) then
+            if aiBrain[M28Economy.refiNetMassBaseIncome] < 0.2 then bHaveLowMass = true
+            elseif iMassStoredRatio <= 0.05 and aiBrain[M28Economy.refiNetMassBaseIncome] < aiBrain[M28Economy.refiGrossMassBaseIncome] * 0.05 then bHaveLowMass = true
+            end
+        end
+    end
+    return bHaveLowMass
+end
+
+function TeamHasLowMass(iTeam)
+    local bHaveLowMass = false
+    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 200 then --i.e. we dont ahve a paragon or crazy amount of SACUs
+        local iMassStoredRatio = M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]
+
+        if (iMassStoredRatio <= 0.15 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] <= 300 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
+            if M28Team.tTeamData[M28Team.subrefiTeamNetMass] < 0.2 then bHaveLowMass = true
+            elseif iMassStoredRatio <= 0.05 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 0.05 then bHaveLowMass = true
+            end
+        end
+    end
+    return bHaveLowMass
+end
+
+function WantMorePower(iTeam)
+    local bWantMorePower = false
+    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 0 or M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] < 0.5 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.15 and M28Team.tTeamData[iTeam][M28Team.subrefbTooLittleEnergyForUpgrade]) then bWantMorePower = true
+    else
+        local iNetPowerWanted
+        local iHighestTeamTech = M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]
+        if iHighestTeamTech >= 3 then
+            iNetPowerWanted = math.max(50, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.2)
+        elseif iHighestTeamTech == 2 then
+            iNetPowerWanted = math.max(15, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.15)
+        elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 20 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+            iNetPowerWanted = math.max(3, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.1)
+        else
+            iNetPowerWanted = 2
+        end
+        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < iNetPowerWanted then
+            bWantMorePower = true
+        end
+    end
+    return bWantMorePower
 end

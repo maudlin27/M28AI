@@ -198,6 +198,20 @@ end
 
 function GetCategoryToBuildForLandFactory(aiBrain, oFactory)
     local iCategoryToBuild = M28UnitInfo.refCategoryEngineer --Placeholder
+    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oFactory:GetPosition())
+    local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team]
+    local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)
+
+
+    --General category overrides
+    if iCategoryToBuild then
+        if iCategoryToBuild == M28UnitInfo.refCategoryEngineer then
+            --Engineers - dont build if we have spare engineers at our current LZ
+            if tLZTeamData[M28Map.subrefLZSpareBPByTech][iFactoryTechLevel] > 0 then
+                iCategoryToBuild = nil
+            end
+        end
+    end
     return iCategoryToBuild
 end
 
@@ -209,17 +223,19 @@ function DetermineWhatToBuild(aiBrain, oFactory)
         M28Utilities.ErrorHandler('Need to add code')
     end
 
-    local sBPIDToBuild = GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oFactory, nil, nil, nil, nil, false)
-    --Special case - Cybran and UEF - if building loyalists or titans, then check if want to switch to bricks/percies
-    if sBPIDToBuild == 'url0303' then --Loyalist
-        if M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.TECH3) >= 5 then
-            aiBrain[reftBlueprintPriorityOverride]['url0303'] = nil --loyalist
-            aiBrain[reftBlueprintPriorityOverride]['xrl0305'] = 1 --brick
-        end
-    elseif sBPIDToBuild == 'uel0303' then --Titan
-        if M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.TECH3) >= 15 then
-            aiBrain[reftBlueprintPriorityOverride]['url0303'] = nil --Titan
-            aiBrain[reftBlueprintPriorityOverride]['xel0305'] = 1 --Percival
+    local sBPIDToBuild
+    if iCategoryToBuild then sBPIDToBuild = GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oFactory, nil, nil, nil, nil, false)
+        --Special case - Cybran and UEF - if building loyalists or titans, then check if want to switch to bricks/percies
+        if sBPIDToBuild == 'url0303' then --Loyalist
+            if M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.TECH3) >= 5 then
+                aiBrain[reftBlueprintPriorityOverride]['url0303'] = nil --loyalist
+                aiBrain[reftBlueprintPriorityOverride]['xrl0305'] = 1 --brick
+            end
+        elseif sBPIDToBuild == 'uel0303' then --Titan
+            if M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.TECH3) >= 15 then
+                aiBrain[reftBlueprintPriorityOverride]['url0303'] = nil --Titan
+                aiBrain[reftBlueprintPriorityOverride]['xel0305'] = 1 --Percival
+            end
         end
     end
     return sBPIDToBuild

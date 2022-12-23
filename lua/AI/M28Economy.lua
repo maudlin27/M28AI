@@ -9,6 +9,7 @@ local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
 local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
+local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
 local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
@@ -32,13 +33,13 @@ refoBrainRecordedForEconomy = 'M28EconomyBrainRecordedUnit' --Stores the M28 bra
 
 function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
     --Work out the upgrade ID wanted; if bUpdateUpgradeTracker is true then records upgrade against unit's aiBrain
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpgradeUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --Do we have any HQs of the same factory type of a higher tech level?
     local sUpgradeID = M28UnitInfo.GetUnitUpgradeBlueprint(oUnitToUpgrade, true) --If not a factory or dont recognise the faction then just returns the normal unit ID
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, sUpgradeID='..(sUpgradeID or 'nil')..'; bUpdateUpgradeTracker='..tostring((bUpdateUpgradeTracker or false))..'; bDontUpdateHQTracker='..tostring(bDontUpdateHQTracker or false)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, sUpgradeID='..(sUpgradeID or 'nil')..'; bUpdateUpgradeTracker='..tostring((bUpdateUpgradeTracker or false))) end
 
     if sUpgradeID and M28UnitInfo.IsUnitValid(oUnitToUpgrade) then
         local aiBrain = oUnitToUpgrade:GetAIBrain()
@@ -50,7 +51,7 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
 
 
             --Factory specific - if work progress is <=5% then cancel so can do the upgrade
-            if EntityCategoryContains(M28UnitInfo.refCategoryAllFactories, oUnitToUpgrade.UnitId) then
+            if EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUnitToUpgrade.UnitId) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Are upgrading a factory '..oUnitToUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToUpgrade)..'; work progress='..oUnitToUpgrade:GetWorkProgress()) end
                 if oUnitToUpgrade.GetWorkProgress and oUnitToUpgrade:GetWorkProgress() <= 0.05 then
                     --Are we building an engineer or transport?
@@ -106,6 +107,90 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function GetBestUnitToUpgrade(toPotentialUnits, bPrioritiseFactoryHQ)
+    --Assumes have already checked units are valid/not upgrading and factored in whether safe or not already, so just need to do distance type check
+    local iClosestUnitToBase = 100000
+    local oClosestUnitToBase
+    local iCurModDist
+    for iUnit, oUnit in toPotentialUnits do
+        iCurModDist = M28Map.GetModDistanceFromStart(oUnit:GetAIBrain(), oUnit:GetPosition(), false)
+        if bPrioritiseFactoryHQ and not(EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnit.UnitId)) then iCurModDist = iCurModDist + 1000 end
+        if iCurModDist < iClosestUnitToBase then
+            iClosestUnitToBase = iCurModDist
+            oClosestUnitToBase = oUnit
+        end
+    end
+    return oClosestUnitToBase
+end
+
+function UpdateLandZoneM28AllMexByTech(aiBrain, iPlateau, iLandZone, oOptionalUnitThatDied, iOptionalWait)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'UpdateLandZoneM28AllMexByTech'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team]
+    if iOptionalWait then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitTicks(iOptionalWait)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    end
+
+    tLZTeamData[M28Map.subrefMexCountByTech] = {[1]=0,[2]=0,[3]=0} --starting point
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
+        local tAllMexes = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+        --Update list of units in this LZ in case some of the mexes are dead now
+        M28Land.UpdateUnitPositionsAndLandZone(aiBrain, tAllMexes, aiBrain.M28Team, iPlateau, iLandZone, false)
+
+        local tMexesByTech = {}
+        local iMexCount = 0
+        tMexesByTech[1] = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex * categories.TECH1, tAllMexes)
+        tMexesByTech[2] = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex * categories.TECH2, tAllMexes)
+        tMexesByTech[3] = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex * categories.TECH3, tAllMexes)
+        if bDebugMessages == true and oOptionalUnitThatDied then LOG(sFunctionRef..': oOptionalUnitThatDied='..oOptionalUnitThatDied.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOptionalUnitThatDied)) end
+
+        for iTech = 1, 3 do
+            if M28Utilities.IsTableEmpty(tMexesByTech[iTech]) == false then
+                for iMex, oCurMex in tMexesByTech[iTech] do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Plateau='..iPlateau..'; iLandZone='..iLandZone..'; oCurMex='..oCurMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oCurMex)..'; Unit state='..M28UnitInfo.GetUnitState(oCurMex)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oCurMex))..'; Position='..repru(oCurMex:GetPosition())..'; iTech='..iTech..'; iMexCount pre increase='..iMexCount..'; tLZTeamData[M28Map.subrefMexCountByTech] pre increase='..repru(tLZTeamData[M28Map.subrefMexCountByTech])) end
+                    if oCurMex:GetAIBrain().M28AI and M28UnitInfo.IsUnitValid(oCurMex) and oCurMex:GetFractionComplete() == 1 and not(oOptionalUnitThatDied == oCurMex) then
+                        tLZTeamData[M28Map.subrefMexCountByTech][iTech] = tLZTeamData[M28Map.subrefMexCountByTech][iTech] + 1
+                        iMexCount = iMexCount + 1
+                    end
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished updating mex count, tLZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZTeamData[M28Map.subrefMexCountByTech])) end
+        --If have somehow ended up with more mexes than there are locations, then redo the check this time seeing if the units are all valid
+        if iMexCount > table.getn( M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]) then
+            M28Utilities.ErrorHandler('Somehow we have more mexes than we should, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iMexCount='..iMexCount..'; tLZTeamData[M28Map.subrefMexCountByTech]='..reprs(tLZTeamData[M28Map.subrefMexCountByTech]))
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function UpdateLandZoneM28MexByTechCount(oMexJustBuiltOrDied, bJustDied, iOptionalWait)
+    local aiBrain = oMexJustBuiltOrDied:GetAIBrain()
+    if aiBrain.M28AI then
+        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oMexJustBuiltOrDied:GetPosition())
+        --should be called whenever a mex is created or destroyed in a land zone; ideally call via fork thread so reduced risk of it being called inbetween a mex say upgrading from one to another and being claled before both the creation and destroy events have happened
+        if (iLandZone or 0) > 0 then
+            if not(iOptionalWait) then
+                if bJustDied then
+                    UpdateLandZoneM28AllMexByTech(aiBrain, iPlateau, iLandZone, oMexJustBuiltOrDied)
+                else
+                    UpdateLandZoneM28AllMexByTech(aiBrain, iPlateau, iLandZone, nil)
+                end
+            else
+                if bJustDied then
+                    ForkThread(UpdateLandZoneM28AllMexByTech, aiBrain, iPlateau, iLandZone, oMexJustBuiltOrDied, iOptionalWait)
+                else
+                    ForkThread(UpdateLandZoneM28AllMexByTech, aiBrain, iPlateau, iLandZone, nil, iOptionalWait)
+                end
+            end
+        end
+    end
+end
+
 function FindAndUpgradeUnitOfCategory(aiBrain, iCategoryWanted)
     --e.g. intended for upgrading factory HQs
     local tUnitsOfCategory = aiBrain:GetListOfUnits(iCategoryWanted, false, true)
@@ -144,15 +229,22 @@ function FindAndUpgradeUnitOfCategory(aiBrain, iCategoryWanted)
 end
 
 function UpdateHighestFactoryTechLevelForBuiltUnit(oUnitJustBuilt)
-    if oUnitJustBuilt:GetFractionComplete() == 1 and EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories) then
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'UpdateHighestFactoryTechLevelForBuiltUnit'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Checking if just built a factory HQ, Have just built unit '..oUnitJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitJustBuilt)..'; Fraction complete='..oUnitJustBuilt:GetFractionComplete()..'; Is it a factory HQ='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnitJustBuilt.UnitId))) end
+
+    if oUnitJustBuilt:GetFractionComplete() == 1 and EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnitJustBuilt.UnitId) then
         local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnitJustBuilt)
         local sFactoryRef
-        if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory) then sFactoryRef = refiOurHighestLandFactoryTech
-        elseif EntityCategoryContains(M28UnitInfo.refCategoryAirFactory) then sFactoryRef = refiOurHighestAirFactory
-        elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory) then sFactoryRef = refiOurHighestNavalFactoryTech
+        if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnitJustBuilt.UnitId) then sFactoryRef = refiOurHighestLandFactoryTech
+        elseif EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oUnitJustBuilt.UnitId) then sFactoryRef = refiOurHighestAirFactory
+        elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oUnitJustBuilt.UnitId) then sFactoryRef = refiOurHighestNavalFactoryTech
         else M28Utilities.ErrorHandler('Unrecognised factory type')
         end
         local aiBrain = oUnitJustBuilt:GetAIBrain()
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering if factory HQ is a higher tech than we already have, sFactoryRef='..sFactoryRef..'; iUnitTechLevel='..iUnitTechLevel..'; aiBrain[sFactoryRef]='..aiBrain[sFactoryRef]) end
         if iUnitTechLevel > aiBrain[sFactoryRef] then
             aiBrain[sFactoryRef] = math.max(aiBrain[sFactoryRef], iUnitTechLevel)
             aiBrain[refiOurHighestFactoryTechLevel] = math.max(iUnitTechLevel, aiBrain[refiOurHighestFactoryTechLevel])
@@ -160,6 +252,7 @@ function UpdateHighestFactoryTechLevelForBuiltUnit(oUnitJustBuilt)
             M28Team.UpdateTeamHighestAndLowestFactories(aiBrain.M28Team)
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function UpdateHighestFactoryTechLevelForDestroyedUnit(oUnitJustDestroyed)
@@ -167,7 +260,7 @@ function UpdateHighestFactoryTechLevelForDestroyedUnit(oUnitJustDestroyed)
         local aiBrain = oUnitJustDestroyed:GetAIBrain()
         local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnitJustDestroyed)
         if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory) then
-            if iUnitTechLevel >= aiBrain[refiOurHighestLandFactoryTech] then
+            if iUnitTechLevel >= (aiBrain[refiOurHighestLandFactoryTech] or 0) then
                 aiBrain[refiOurHighestLandFactoryTech] = 0
                 for iTechLevel = 3, 1, -1 do
                     if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory * M28UnitInfo.ConvertTechLevelToCategory(iTechLevel) - categories.SUPPORTFACTORY) > 0 then
@@ -208,12 +301,13 @@ function UpdateHighestFactoryTechLevelForDestroyedUnit(oUnitJustDestroyed)
 end
 
 function UpdateGrossIncomeForUnit(oUnit, bDestroyed)
-    if oUnit.UnitId == 'xsl0001' then LOG('Are updating for ACU') end
+    --Logs are enabled below
+
     if oUnit.GetAIBrain and EntityCategoryContains(categories.MASSPRODUCTION + categories.MASSFABRICATION + categories.ENERGYPRODUCTION, oUnit.UnitId) then
         --Does the unit have an M28 aiBrain?
         local aiBrain = oUnit:GetAIBrain()
         if aiBrain.M28AI then
-            local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+            local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
             local sFunctionRef = 'UpdateGrossIncomeForUnit'
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -242,7 +336,7 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed)
                 aiBrain[refiNetEnergyBaseIncome] = aiBrain[refiNetEnergyBaseIncome] + iEnergyGen
                 aiBrain[refiGrossMassBaseIncome] = aiBrain[refiGrossMassBaseIncome] + iMassGen
                 aiBrain[refiNetMassBaseIncome] = aiBrain[refiNetMassBaseIncome] + iMassGen
-                if bDebugMessages == true then LOG(sFunctionRef..': Updated gross and net resources for iMassGen='..iMassGen..'; iEnergyGen='..iEnergyGen) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Updated gross and net resources for iMassGen='..iMassGen..'; iEnergyGen='..iEnergyGen..'; aiBrain[refiNetMassBaseIncome]='..aiBrain[refiNetMassBaseIncome]..'; aiBrain[refiGrossMassBaseIncome]='..aiBrain[refiGrossMassBaseIncome]) end
             end
 
 
@@ -253,12 +347,12 @@ end
 
 function RefreshEconomyGrossValues(aiBrain)
     --Updates recorded gross mass and energy for each unit
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RefreshEconomyGrossValues'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local tEconomyUnits = aiBrain:GetListOfUnits(categories.MASSPRODUCTION + categories.MASSFABRICATION + categories.ENERGYPRODUCTION, false, true)
-    if bDebugMessages == true then LOG(sFunctionRef..': refreshing gross income for every unit we own, size of tEconomyUnits='..table.getn(tEconomyUnits)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': refreshing gross income for every unit we own time='..GetGameTimeSeconds()..'; size of tEconomyUnits='..table.getn(tEconomyUnits)) end
     for iUnit, oUnit in tEconomyUnits do
         if oUnit:GetFractionComplete() == 1 then
             UpdateGrossIncomeForUnit(oUnit)
@@ -268,13 +362,13 @@ function RefreshEconomyGrossValues(aiBrain)
 end
 
 function RefreshEconomyData(aiBrain)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+   local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RefreshEconomyData'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     aiBrain[refiNetEnergyBaseIncome] = math.min(aiBrain[refiGrossEnergyBaseIncome] - aiBrain:GetEconomyRequested('ENERGY'), aiBrain:GetEconomyTrend('ENERGY'))
-    aiBrain[refiNetMassBaseIncome] = aiBrain[refiGrossMassBaseIncome] - math.max(aiBrain:GetEconomyRequested('MASS'), -(aiBrain:GetEconomyTrend('MASS') - aiBrain:GetEconomyIncome('MASS')))
+    aiBrain[refiNetMassBaseIncome] = math.min(aiBrain[refiGrossMassBaseIncome] - aiBrain:GetEconomyRequested('MASS'), aiBrain:GetEconomyTrend('MASS'))
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Finished refreshing economy data, time='..GetGameTimeSeconds()..'; Energy gross='..aiBrain[refiGrossEnergyBaseIncome]..'; Energy net='..aiBrain[refiNetEnergyBaseIncome]..'; Mass gross='..aiBrain[refiGrossMassBaseIncome]..'; Mass net='..aiBrain[refiNetMassBaseIncome]) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished refreshing economy data, time='..GetGameTimeSeconds()..'; Energy gross='..aiBrain[refiGrossEnergyBaseIncome]..'; Energy net='..aiBrain[refiNetEnergyBaseIncome]..'; Mass gross='..aiBrain[refiGrossMassBaseIncome]..'; Mass net='..aiBrain[refiNetMassBaseIncome]..'; aiBrain:GetEconomyRequested(\'MASS\')='..aiBrain:GetEconomyRequested('MASS')..'; aiBrain:GetEconomyTrend(\'MASS\')='..aiBrain:GetEconomyTrend('MASS')) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -301,7 +395,7 @@ function EconomyInitialisation(aiBrain)
     aiBrain[refiGrossMassBaseIncome] = 0
     aiBrain[refiNetMassBaseIncome] = 0
 
-    aiBrain[refiOurHighestFactoryTechLevel] = 1
+    --Some values are set when creating a team to avoid errors
 
     ForkThread(EconomyMainLoop, aiBrain)
 end

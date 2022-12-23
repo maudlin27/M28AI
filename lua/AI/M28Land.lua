@@ -29,11 +29,13 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
     local iTableSize = table.getn(tUnits)
     local iActualPlateau, iActualLandZone
     local UpdateUnitLastKnownPosition = M28Team.UpdateUnitLastKnownPosition
-
+    --if iRecordedPlateau == 12 and iRecordedLandZone == 9 then LOG('Start of code, reprs of tUnits='..reprs(tUnits)) end
     for iOrigIndex=1, iTableSize do
+        --if iRecordedPlateau == 12 and iRecordedLandZone == 9 then LOG('Updating for iOrigIndex='..iOrigIndex..'; is unit valid='..tostring(M28UnitInfo.IsUnitValid(tUnits[iOrigIndex]))) end
         if not(tUnits[iOrigIndex]) or tUnits[iOrigIndex].Dead then
             --Remove the entry
             tUnits[iOrigIndex] = nil
+            --if iRecordedPlateau == 12 and iRecordedLandZone == 9 then LOG('Removing entry for iOrigIndex='..iOrigIndex) end
         else
             --Unit still valid, does it have the right plateau and land zone?
             if bUseLastKnownPosition then
@@ -44,7 +46,6 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
                 --LOG('Updating unit position, iOrigIndex='..iOrigIndex..'; reprs='..reprs(tUnits[iOrigIndex]))
                 iActualPlateau, iActualLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tUnits[iOrigIndex]:GetPosition(), true)
             end
-
             if not(iActualPlateau > 0) then
                 if not(tUnits[iOrigIndex]:IsUnitState('Attached')) then
                     iActualPlateau = iRecordedPlateau
@@ -57,6 +58,8 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
                     end
                 end
             end
+
+            --if iRecordedPlateau == 12 and iRecordedLandZone == 9 then LOG('Unit is still valid, checking if it has the same LZ, iActualPlateau='..iActualPlateau..'; iActualLandZone='..iActualLandZone) end
 
             --Is the plateau and zone correct?
             if iRecordedPlateau == iActualPlateau and iRecordedLandZone == iActualLandZone then
@@ -77,14 +80,24 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
                     M28Team.AssignUnitToZoneOrPond(aiBrain, oUnitToAdd, true)
                 end
                 tUnits[iOrigIndex] = nil
+                --if iRecordedPlateau == 12 and iRecordedLandZone == 9 then LOG('Unit with iOrigIndex '..iOrigIndex..' is in a dif plateau so removing it from here') end
             end
         end
 
     end
+    --if iRecordedPlateau == 12 and iRecordedLandZone == 9 then LOG('End of code, iRevisedIndex='..iRevisedIndex..'; reprs of tUnits='..reprs(tUnits)) end
 end
 
 function RecordGroundThreatForLandZone(tLZData, iTeam, iPlateau, iLandZone)
     --Records the different types of threat for the land zone
+
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordGroundThreatForLandZone'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if iPlateau == 12 and iLandZone == 9 then bDebugMessages = true end
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for iTeam='..iTeam..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZTEnemyUnits]))) end
     --local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZTEnemyUnits]) then
         tLZData[M28Map.subrefLZTThreatEnemyCombatTotal] = 0
@@ -103,6 +116,7 @@ function RecordGroundThreatForLandZone(tLZData, iTeam, iPlateau, iLandZone)
         local iCurThreat
         if M28Utilities.IsTableEmpty(tMobileUnits) == false then
             for iUnit, oUnit in tMobileUnits do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; Combat threat rating='..M28UnitInfo.GetCombatThreatRating({ oUnit }, true)) end
                 if oUnit[M28UnitInfo.refiDFRange] > 0 then
                     iCurThreat = M28UnitInfo.GetCombatThreatRating({ oUnit }, true)
                     if iCurThreat > 0 then
@@ -178,6 +192,7 @@ function RecordGroundThreatForLandZone(tLZData, iTeam, iPlateau, iLandZone)
         end
     end
     tLZData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] = bNearbyEnemies
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function ManageLandZone(aiBrain, iTeam, iPlateau, iLandZone)
@@ -215,7 +230,7 @@ function ManageLandZone(aiBrain, iTeam, iPlateau, iLandZone)
     --Handle engineers and even if no engineers still decide what engineers we would want for hte LZ
     M28Engineer.ConsiderLandZoneEngineerAssignment(tLZData, iTeam, iPlateau, iLandZone, tEngineers) --Should update the land zone engineer requirements, even if tEngineers itself is empty
 
-    --Update BP wanted for adjacent zones
+    --Update BP wanted for adjacent zones - will just have a flag in the engineer assignment that sets subrefLZTbWantBP to true/false so commented out the below
     --[[tLZData[M28Map.subrefLZTAdjacentBPByTechWanted] = {[1]=0, [2]=0,[3]=0}
     tLZData[M28Map.subrefLZTbWantBP] = false
     if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[M28Map.iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones]) == false then
