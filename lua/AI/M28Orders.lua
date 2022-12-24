@@ -50,8 +50,8 @@ function UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc)
     if sOptionalOrderDesc then sExtraOrder = ' '..sOptionalOrderDesc end
     local sPlateauAndZoneDesc = ''
     if EntityCategoryContains(categories.LAND + categories.NAVAL, oUnit.UnitId) then
-        local iPlateauGroup, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
-        sPlateauAndZoneDesc = ':P='..iPlateauGroup..'LZ='..(iLandZone or 0)
+        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+        sPlateauAndZoneDesc = ':P='..iPlateau..'LZ='..(iLandZone or 0)
     end
     oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..sPlateauAndZoneDesc..':'..sBaseOrder..sExtraOrder)
 end
@@ -60,15 +60,28 @@ function IssueTrackedClearCommands(oUnit)
     --Update tracking for repairing units:
     if oUnit[reftiLastOrders] then
         local tLastOrder = oUnit[reftiLastOrders][table.getn(oUnit[reftiLastOrders])]
-        if tLastOrder[subrefiOrderType] == refiOrderIssueRepair and M28UnitInfo.IsUnitValid(tLastOrder[subrefoOrderTarget]) and M28Utilities.IsTableEmpty(tLastOrder[subrefoOrderTarget][toUnitsOrderedToRepairThis]) == false then
-            local iRefToRemove
-            for iRepairer, oRepairer in tLastOrder[subrefoOrderTarget][toUnitsOrderedToRepairThis] do
-                if oRepairer == oUnit then
-                    iRefToRemove = iRepairer
-                    break
+        if tLastOrder[subrefiOrderType] == refiOrderIssueRepair then
+            if M28UnitInfo.IsUnitValid(tLastOrder[subrefoOrderTarget]) and M28Utilities.IsTableEmpty(tLastOrder[subrefoOrderTarget][toUnitsOrderedToRepairThis]) == false then
+                local iRefToRemove
+                for iRepairer, oRepairer in tLastOrder[subrefoOrderTarget][toUnitsOrderedToRepairThis] do
+                    if oRepairer == oUnit then
+                        iRefToRemove = iRepairer
+                        break
+                    end
                 end
+                if iRefToRemove then table.remove(tLastOrder[subrefoOrderTarget][toUnitsOrderedToRepairThis], iRefToRemove) end
             end
-            if iRefToRemove then table.remove(tLastOrder[subrefoOrderTarget][toUnitsOrderedToRepairThis], iRefToRemove) end
+        elseif tLastOrder[subrefiOrderType] == refiOrderIssueGuard then
+            if M28UnitInfo.IsUnitValid(tLastOrder[subrefoOrderTarget]) and M28Utilities.IsTableEmpty(tLastOrder[subrefoOrderTarget][M28UnitInfo.reftoUnitsAssistingThis]) == false then
+                local iRefToRemove
+                for iAssister, oAssister in tLastOrder[subrefoOrderTarget][M28UnitInfo.reftoUnitsAssistingThis] do
+                    if oAssister == oUnit then
+                        iRefToRemove = iAssister
+                        break
+                    end
+                end
+                if iRefToRemove then table.remove(tLastOrder[subrefoOrderTarget][M28UnitInfo.reftoUnitsAssistingThis], iRefToRemove) end
+            end
         end
     end
     oUnit[reftiLastOrders] = nil
@@ -249,6 +262,8 @@ function IssueTrackedGuard(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalOr
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} end
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueGuard, [subrefoOrderTarget] = oOrderTarget})
+        if not(oOrderTarget[M28UnitInfo.reftoUnitsAssistingThis]) then oOrderTarget[M28UnitInfo.reftoUnitsAssistingThis] = {} end
+        table.insert(oOrderTarget[M28UnitInfo.reftoUnitsAssistingThis], oUnit)
         IssueGuard({oUnit}, oOrderTarget)
     end
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end

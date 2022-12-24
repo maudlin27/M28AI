@@ -18,6 +18,7 @@ local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
 local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
 local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Config = import('/mods/M28AI/lua/M28Config.lua')
+local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 
 
 function OnPlayerDefeated(aiBrain)
@@ -124,7 +125,7 @@ function OnUnitDeath(oUnit)
                     LOG(sFunctionRef..': Unit killed has a cache position, will draw in blue around it')
                     M28Utilities.DrawLocation(oUnit.CachePosition, nil, 1, 100, nil)
                 end
-                --ForkThread(M28Map.RecordThatWeWantToUpdateReclaimAtLocation, oUnit.CachePosition, 0)
+                ForkThread(M28Map.RecordThatWeWantToUpdateReclaimAtLocation, oUnit.CachePosition, 0)
             else
                 if oUnit.GetAIBrain then
                     --------Non-M28 Specific logic------
@@ -132,11 +133,11 @@ function OnUnitDeath(oUnit)
 
                     --Hydro resource location made available again
                     if EntityCategoryContains(M28UnitInfo.refCategoryHydro, oUnit.UnitId) then
-                        local iPlateauGroup, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
-                        if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroLocations]) == false then
-                            for iHydroLocation, tHydroLocation in M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroLocations]) do
+                        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+                        if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroLocations]) == false then
+                            for iHydroLocation, tHydroLocation in M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroLocations]) do
                                 if M28Utilities.GetDistanceBetweenPositions(tHydroLocation, oUnit:GetPosition()) <= 2 then
-                                    table.insert(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations], tHydroLocation)
+                                    table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations], tHydroLocation)
                                     break
                                 end
                             end
@@ -347,27 +348,53 @@ function OnReclaimFinished(oEngineer, oReclaim)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
         if bDebugMessages == true then LOG(sFunctionRef..': oEngineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' has just finished reclaiming, gametime='..GetGameTimeSeconds()) end
+        if oReclaim and oReclaim.CachePosition then
+            --LOG('OnReclaimFinished temp log - remove once confirmed this works - about to update reclaim data near location='..repru(oReclaim.CachePosition))
+            ForkThread(M28Map.RecordThatWeWantToUpdateReclaimAtLocation, oReclaim.CachePosition, 0)
+        else
+            --LOG('OnReclaimFinished alt temp log - couldnt find reclaim position so will use engineer position')
+            ForkThread(M28Map.RecordThatWeWantToUpdateReclaimAtLocation, oEngineer:GetPosition(), 1)
+        end
+
+        --Was the engineer reclaiming an area? if so check if still nearby reclaim
+        if oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionReclaimArea then
+            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition())
+            if (iLandZone or 0) > 0 then
+                local iTeam =  oEngineer:GetAIBrain().M28Team
+                local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
+                M28Engineer.GetEngineerToReclaimNearbyArea(oEngineer, tLZTeamData, iPlateau, iLandZone, M28Conditions.WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone), true)
+            end
+        end
 
 
-        
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
 end
 
 function OnCreateWreck(tPosition, iMass, iEnergy)
     --Dont check if M28brains are in game yet as can be called at start of game before we have recorded any aiBrain; instead will have check in the delayedreclaim
-    if M28Utilities.bM28AIInGame  or GetGameTimeSeconds() <= 5 then
+    if M28Utilities.bM28AIInGame then
+        if not(M28Map.bReclaimManagerActive) then
+            local iWaitCount = 0
+            while not(M28Map.bReclaimManagerActive) do
+                WaitTicks(1)
+                iWaitCount = iWaitCount + 1
+                if iWaitCount >= 20 then M28Utilities.ErrorHandler('Map setup not complete') break end
+            end
+        end
+
+        ForkThread(M28Map.RecordThatWeWantToUpdateReclaimAtLocation, tPosition, 0)
 
     end
 end
 
 function OnTransportLoad(oUnit, oTransport, bone)
-    
+
 end
 
 function OnTransportUnload(oUnit, oTransport, bone)
 
-    
+
 end
 
 function OnDetectedBy(oUnitDetected, iBrainIndex)
@@ -411,24 +438,24 @@ function OnCreate(oUnit)
         --Hydro resource locations
         if EntityCategoryContains(M28UnitInfo.refCategoryHydro, oUnit.UnitId) then
             --Treat location as no longer having no buildings on it
-            local iPlateauGroup, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
-            if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations]) == false then
-                --LOG('About to loop through hydro locations; iPlateauGroup='..iPlateauGroup..'; iLandZone='..iLandZone..'; reprs='..reprs(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations]))
-                for iHydroLocation, tHydroLocation in M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations] do
+            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+            if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations]) == false then
+                --LOG('About to loop through hydro locations; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; reprs='..reprs(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations]))
+                for iHydroLocation, tHydroLocation in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations] do
                     if M28Utilities.GetDistanceBetweenPositions(tHydroLocation, oUnit:GetPosition()) <= 2 then
-                        table.remove(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations], iHydroLocation)
+                        table.remove(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations], iHydroLocation)
                         break
                     end
                 end
             end
         elseif EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
             --Treat location as no longer having no buildings on it (if we were previously)
-            local iPlateauGroup, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
-            if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexUnbuiltLocations]) == false then
-                --LOG('About to loop through Mex locations; iPlateauGroup='..iPlateauGroup..'; iLandZone='..iLandZone..'; reprs='..reprs(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexUnbuiltLocations]))
-                for iMexLocation, tMexLocation in M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexUnbuiltLocations] do
+            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+            if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexUnbuiltLocations]) == false then
+                --LOG('About to loop through Mex locations; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; reprs='..reprs(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexUnbuiltLocations]))
+                for iMexLocation, tMexLocation in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexUnbuiltLocations] do
                     if M28Utilities.GetDistanceBetweenPositions(tMexLocation, oUnit:GetPosition()) <= 2 then
-                        table.remove(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexUnbuiltLocations], iMexLocation)
+                        table.remove(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexUnbuiltLocations], iMexLocation)
                         break
                     end
                 end

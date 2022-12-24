@@ -30,12 +30,13 @@ tiBPByTech = {5,12.5,30, 30}
 --Against unit varaibles
 refiEngineerCurUniqueReference = 'M28EngCurUniqueReference' --Against both aiBrain and engineer; aiBrain stores the xth engineer object its given an action to, so this can be used as a unique reference
 refiAssignedAction = 'M28EngAssignedAction' --against Engineer, records the refAction value the engineer was given if it has an active order
+reftAssignedReclaimSegments = 'M28EngReclaimSegments' --against engineer, returns {iReclaimSegmentX, iReclaimSegmentZ]}, used when engineer givne a reclaim area order
 
 
 --Actions for engineers (dont have as local variables due to cap on how many local variables we can have)
 refActionBuildMex = 1
 refActionBuildHydro = 2
---refActionReclaimArea = 3
+refActionReclaimArea = 3
 refActionBuildPower = 4
 --refActionBuildLandFactory = 5
 --refActionBuildEnergyStorage = 6
@@ -112,6 +113,7 @@ tiActionOrder = {
     [refActionReclaimUnit] = M28Orders.refiOrderIssueReclaim,
     [refActionAssistUpgrade] = M28Orders.refiOrderIssueGuard,
     [refActionBuildMassStorage] = M28Orders.refiOrderIssueBuild,
+    [refActionReclaimArea] = M28Orders.refiOrderIssueReclaim,--will actually have a move order followed by reclaim order
 }
 
 --Adjacent categories to search for for a particular action
@@ -126,6 +128,7 @@ tbActionsThatDontHaveCategory = {
     [refActionRunToLandZone] = true,
     [refActionReclaimUnit] = true,
     [refActionAssistUpgrade] = true, --need special logic to only identify upgrading units for this
+    [refActionReclaimArea] = true,
 }
 
 
@@ -146,8 +149,6 @@ function CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOption
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'CanBuildAtLocation'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-    if sBlueprintToBuild == 'xsb1103' and M28Utilities.GetDistanceBetweenPositions(tTargetLocation, {200.5, 11.5390625, 210.5}) <= 5 then bDebugMessages = true end
 
 
     if bDebugMessages == true then LOG(sFunctionRef..': About to see if we can build '..(sBlueprintToBuild or 'nil')..' at '..repru(tTargetLocation)..'; iEngiActionToIgnore='..(iEngiActionToIgnore or 'nil')..'; bClearActionsIfNotStartedBuilding='..tostring((bClearActionsIfNotStartedBuilding or false))..'; surface height at target='..GetSurfaceHeight(tTargetLocation[1], tTargetLocation[3])..'; aiBrain:CanBuildStructureAt(sBlueprintToBuild, tTargetLocation)='..tostring(aiBrain:CanBuildStructureAt(sBlueprintToBuild, tTargetLocation))) end
@@ -274,13 +275,13 @@ function CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOption
 end
 
 function CheckIfBuildableLocationsNearPositionStillValid(aiBrain, tLocation)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'CheckIfBuildableLocationsNearPositionStillValid'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    local iPlateauGroup, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tLocation)
+    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tLocation)
     if iLandZone > 0 then
-        local tLZData = M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone]
+        local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
         local sGenericBlueprint
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZBuildLocationsBySize]) == false then
             for iSize, tOldBuildableLocations in tLZData[M28Map.subrefLZBuildLocationsBySize] do
@@ -295,14 +296,14 @@ function CheckIfBuildableLocationsNearPositionStillValid(aiBrain, tLocation)
         end
         --Search for more building locations for every building where we havent considered the full amount
         for iSize, tOldBuildableLocations in tLZData[M28Map.subrefLZBuildLocationsBySize] do
-            if tLZData[M28Map.subrefLZTotalSegmentCount] > (M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationSegmentCountBySize][iSize] or 0) then
-                SearchForBuildableLocationsForLandZone(aiBrain, iPlateauGroup, iLandZone, iSize, tsBlueprintsBySize[iSize])
+            if tLZData[M28Map.subrefLZTotalSegmentCount] > (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationSegmentCountBySize][iSize] or 0) then
+                SearchForBuildableLocationsForLandZone(aiBrain, iPlateau, iLandZone, iSize, tsBlueprintsBySize[iSize])
             end
         end
 
         --Update mass storage locations
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZMassStorageLocationsAvailable]) == false then
-            if bDebugMessages == true then LOG(sFunctionRef..': About to update mass storage locations for iPlateau='..iPlateauGroup..'; iLandZone='..iLandZone..', tLZData[M28Map.subrefLZMassStorageLocationsAvailable]='..repru(tLZData[M28Map.subrefLZMassStorageLocationsAvailable])..'; Nickname of first aiBrain='..M28Overseer.tAllActiveM28Brains[1].Nickname) end
+            if bDebugMessages == true then LOG(sFunctionRef..': About to update mass storage locations for iPlateau='..iPlateau..'; iLandZone='..iLandZone..', tLZData[M28Map.subrefLZMassStorageLocationsAvailable]='..repru(tLZData[M28Map.subrefLZMassStorageLocationsAvailable])..'; Nickname of first aiBrain='..M28Overseer.tAllActiveM28Brains[1].Nickname) end
             local aiBrain = M28Overseer.tAllActiveM28Brains[1]
             local function WantToKeep(tArray, iEntry, aiBrain)
                 LOG('Temp: tArray='..reprs(tArray)..'; iEntry='..iEntry)
@@ -339,10 +340,15 @@ function CheckIfBuildableLocationsNearPositionStillValid(aiBrain, tLocation)
 end
 
 
-function SearchForBuildableLocationsForLandZone(aiBrain, iPlateauGroup, iLandZone, iSize, sBlueprint, iOptionalMaxSegmentsToConsider)
+function SearchForBuildableLocationsForLandZone(aiBrain, iPlateau, iLandZone, iSize, sBlueprint, iOptionalMaxSegmentsToConsider)
     --Updates the plateau with a general buildable locations (if there are any) for iLandZone, based on sBlueprint; replaces the value for iSize with -1 if no such locations can be found
     --Will treat locations immediately adjacent to mexes as being unbuildable, to avoid taking up mass storage positions
     --iOptionalMaxSegmentsToConsider - will stop searching if reach this number of segments
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'SearchForBuildableLocationsForLandZone'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --if iSize == 6 and iLandZone == 2 then bDebugMessages = true end
     local sGenericBlueprint =  tsBlueprintsBySize[iSize]
     if not(sGenericBlueprint) then
         if sBlueprint then
@@ -356,9 +362,9 @@ function SearchForBuildableLocationsForLandZone(aiBrain, iPlateauGroup, iLandZon
 
     local tCurPosition
     local iLocationsFound = 0
-    M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize] = {}
-    local iSegmentStart = (M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationSegmentCountBySize][iSize] or 0) + 1
-    local iTotalSegments = table.getn(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZSegments])
+    if not(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize]) then M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize] = {} end
+    local iSegmentStart = (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationSegmentCountBySize][iSize] or 0) + 1
+    local iTotalSegments = table.getn(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZSegments])
     if iSegmentStart > iTotalSegments then iSegmentStart = 1 end
     local iSegmentsConsidered = 0
     local tSegmentXZ
@@ -367,22 +373,28 @@ function SearchForBuildableLocationsForLandZone(aiBrain, iPlateauGroup, iLandZon
 
 
     --Cycle through every segment in the land zone and see if we can build the desired unit at the segment midpoint
+    if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through each segment to check for buildable locations. iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iSize='..iSize..'; iOptionalMaxSegmentsToConsider='..(iOptionalMaxSegmentsToConsider or 'nil')) end
     for iSegmentCount = iSegmentStart, iTotalSegments do
         iSegmentsConsidered = iSegmentsConsidered + 1
-        tSegmentXZ = M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZSegments][iSegmentCount]
+        tSegmentXZ = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZSegments][iSegmentCount]
         tCurPosition = M28Map.GetPositionFromPathingSegments(tSegmentXZ[1], tSegmentXZ[2])
-        if CanBuildAtLocation(aiBrain, sGenericBlueprint, tCurPosition, iPlateauGroup, iLandZone, nil, false, false) then
-            table.insert(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize], tCurPosition)
+        if CanBuildAtLocation(aiBrain, sGenericBlueprint, tCurPosition, iPlateau, iLandZone, nil, false, false) then
+            table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize], tCurPosition)
             iLocationsFound = iLocationsFound + 1
+            if bDebugMessages == true then
+                LOG(sFunctionRef..': Can build at tCurPosition='..repru(tCurPosition)..'; iSegmentCount='..iSegmentCount..'; will draw location')
+                M28Utilities.DrawLocation(tCurPosition, 3, nil, iSize * 0.5)
+            end
         end
         if (iOptionalMaxSegmentsToConsider and iSegmentsConsidered >= iOptionalMaxSegmentsToConsider) or (iLocationsFound >= 16 and iSegmentsConsidered >= iMaxSegmentsToConsiderWithMatches) or (iSegmentsConsidered >= iMaxSegmentsToConsiderWithoutMatches and iLocationsFound >= 1) then
             break
         end
     end
-    M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationSegmentCountBySize][iSize] = math.min(iTotalSegments, iSegmentStart + iSegmentsConsidered - 1)
-    if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize]) then
-        M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize] = -1
+    M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationSegmentCountBySize][iSize] = math.min(iTotalSegments, iSegmentStart + iSegmentsConsidered - 1)
+    if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize]) then
+        M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize] = -1
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 
@@ -392,39 +404,42 @@ function GetAvailableLandZoneBuildLocations(aiBrain, tLocation, sBlueprint)
     local sFunctionRef = 'GetAvailableLandZoneBuildLocations'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    local iPlateauGroup, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tLocation)
+    --if sBlueprint == 'xsb1201' then bDebugMessages = true end
+
+    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tLocation)
     if iLandZone > 0 then
         local iSize = M28UnitInfo.GetBuildingSize(sBlueprint)
+        --if iSize == 6 and iLandZone == 2 then bDebugMessages = true end
         --Have we tried to get a location for this size before?
-        if bDebugMessages == true then LOG(sFunctionRef..': tLocation='..repru(tLocation)..'; sBlueprint='..sBlueprint..'; iSize='..iSize..'; iPlateauGroup='..iPlateauGroup..'; iLandZone='..iLandZone..'; M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize]='..repru(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize])..'; Segments considered for build locations='..repru(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationSegmentCountBySize])..'; Total segments in LZ='..M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTotalSegmentCount]) end
-        if not(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize]) or M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationSegmentCountBySize] < M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTotalSegmentCount] then
-            SearchForBuildableLocationsForLandZone(aiBrain, iPlateauGroup, iLandZone, iSize, sBlueprint)
-            if bDebugMessages == true then LOG(sFunctionRef..': Finished searching for more buildable locations, result of locations for this size='..repru(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize])..'; Segments considered='..(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationSegmentCountBySize][iSize] or 'nil')) end
+        if bDebugMessages == true then LOG(sFunctionRef..': tLocation='..repru(tLocation)..'; sBlueprint='..sBlueprint..'; iSize='..iSize..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize]='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize])..'; Segments considered for build locations='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationSegmentCountBySize])..'; Total segments in LZ='..M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTotalSegmentCount]) end
+        if not(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize]) or M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationSegmentCountBySize] < M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTotalSegmentCount] then
+            SearchForBuildableLocationsForLandZone(aiBrain, iPlateau, iLandZone, iSize, sBlueprint)
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished searching for more buildable locations, result of locations for this size='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize])..'; Segments considered='..(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationSegmentCountBySize][iSize] or 'nil')) end
         end
-        if M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize] == -1 then
+        if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize] == -1 then
             if bDebugMessages == true then LOG(sFunctionRef..': No valid buildable locations for this land zone') end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return nil
         else
             if bDebugMessages == true then LOG(sFunctionRef..': Have valid buidlable locations so will return these') end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-            return M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize]
+            return M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize]
         end
     end
 end
 
 function SearchForBuildableLocationsNearDestroyedBuilding(oDestroyedBuilding)
     --Searhces all segments around oDestroyedBuilding in the same land zone, and if we can build in them for a particular size, then records that location as a buildable location for that size for the land zone
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SearchForBuildableLocationsNearDestroyedBuilding'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
-    local iPlateauGroup, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oDestroyedBuilding:GetPosition())
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oDestroyedBuilding='..oDestroyedBuilding.UnitId..M28UnitInfo.GetUnitLifetimeCount(oDestroyedBuilding)..'; iPlateauGroup='..(iPlateauGroup or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; Destroyed unit position='..reprs(oDestroyedBuilding:GetPosition())) end
+    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oDestroyedBuilding:GetPosition())
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oDestroyedBuilding='..oDestroyedBuilding.UnitId..M28UnitInfo.GetUnitLifetimeCount(oDestroyedBuilding)..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; Destroyed unit position='..reprs(oDestroyedBuilding:GetPosition())) end
     if iLandZone > 0 then
         --Cycle through each size that we ahve considered for this land zone
-        if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize]) == false then
+        if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize]) == false then
             if M28Utilities.IsTableEmpty(M28Overseer.tAllActiveM28Brains) == false then
                 local aiBrain
                 for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
@@ -444,7 +459,7 @@ function SearchForBuildableLocationsNearDestroyedBuilding(oDestroyedBuilding)
                 local iTotalWaitCount = 0
 
                 function LoopThroughBuildableLocationsAndUpdate()
-                    for iSize, tBuildableLocations in M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize] do
+                    for iSize, tBuildableLocations in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize] do
                         --Work out the segments of relevance for the building just destroyed that has now freed up some space
                         tRelevantSegments = {}
                         tPotentialValidLocationsToBuild = {}
@@ -454,7 +469,7 @@ function SearchForBuildableLocationsNearDestroyedBuilding(oDestroyedBuilding)
                                 --Are we in the same land zone?
                                 if M28Map.tLandZoneBySegment[iCurSegmentX][iCurSegmentZ] == iLandZone then
                                     tCurPosition = M28Map.GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)
-                                    if CanBuildAtLocation(aiBrain, tsBlueprintsBySize[iSize], tCurPosition, iPlateauGroup, iLandZone, nil, false, false) then
+                                    if CanBuildAtLocation(aiBrain, tsBlueprintsBySize[iSize], tCurPosition, iPlateau, iLandZone, nil, false, false) then
                                         table.insert(tPotentialValidLocationsToBuild, tCurPosition)
                                     end
 
@@ -478,7 +493,7 @@ function SearchForBuildableLocationsNearDestroyedBuilding(oDestroyedBuilding)
                             if M28Utilities.IsTableEmpty(tPotentialValidLocationsToBuild) == false then --Incase no longer have any entries as a result of the above
                                 local tValidLocations = {}
                                 local bInTable
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering what potential locations are valid; iPlateauGroup='..iPlateauGroup..'; iLandZone='..iLandZone..'; tBuildableLocations='..repru(tBuildableLocations)..'; tPotentialValidLocationsToBuild='..repru(tPotentialValidLocationsToBuild)) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering what potential locations are valid; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; tBuildableLocations='..repru(tBuildableLocations)..'; tPotentialValidLocationsToBuild='..repru(tPotentialValidLocationsToBuild)) end
                                 if M28Utilities.IsTableEmpty(tBuildableLocations) then
                                     tValidLocations = tPotentialValidLocationsToBuild
                                     if bDebugMessages == true then LOG(sFunctionRef..': Dont have any buildable locations so valid locations will be all of the potential valid locations to build') end
@@ -517,7 +532,7 @@ function SearchForBuildableLocationsNearDestroyedBuilding(oDestroyedBuilding)
         end
 
         --Record any mass storage locations
-        M28Map.RecordAvailableMassStorageLocationsForLandZone(iPlateauGroup, iLandZone)
+        M28Map.RecordAvailableMassStorageLocationsForLandZone(iPlateau, iLandZone)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -532,14 +547,14 @@ function GetPotentialAdjacencyLocations(aiBrain, sBlueprintToBuild, tTargetLocat
 
     local tPotentialLocations = {}
     local toPossibleBuildingsToBuildBy = {}
-    local iPlateauGroup, iLandZone --Values are set if we have a cat to build by (but need here as refer to again later on)
+    local iPlateau, iLandZone --Values are set if we have a cat to build by (but need here as refer to again later on)
 
     if iCatToBuildBy then
         --sBlueprintBuildBy = M28FactoryOverseer.GetBlueprintsThatCanBuildOfCategory(aiBrain, iCatToBuildBy, oEngineer)--, false, false)
-        iPlateauGroup, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
-        if bDebugMessages == true then LOG(sFunctionRef..': Have a cat to build by, tTargetLocation='..repru(tTargetLocation)..'; iPlateauGroup='..iPlateauGroup..'; iLandZone='..iLandZone..'; Is table of allied units in this LZ empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTAlliedUnits]))) end
-        if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTAlliedUnits]) == false then
-            local tRelevantBuildingsInSameLandZone = EntityCategoryFilterDown(iCatToBuildBy, M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTAlliedUnits])
+        iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
+        if bDebugMessages == true then LOG(sFunctionRef..': Have a cat to build by, tTargetLocation='..repru(tTargetLocation)..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is table of allied units in this LZ empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTAlliedUnits]))) end
+        if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTAlliedUnits]) == false then
+            local tRelevantBuildingsInSameLandZone = EntityCategoryFilterDown(iCatToBuildBy, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTAlliedUnits])
             if bDebugMessages == true then LOG(sFunctionRef..': Is table of releevant buildings empty='..tostring(M28Utilities.IsTableEmpty(tRelevantBuildingsInSameLandZone))) end
             if M28Utilities.IsTableEmpty(tRelevantBuildingsInSameLandZone) == false then
                 for iUnit, oUnit in tRelevantBuildingsInSameLandZone do
@@ -606,11 +621,11 @@ function GetPotentialAdjacencyLocations(aiBrain, sBlueprintToBuild, tTargetLocat
         local tResourceLocations
         local iAdjacencyBuildingRadius
         if M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryMex, iCatToBuildBy, false) then
-            tResourceLocations = M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]
+            tResourceLocations = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]
             iAdjacencyBuildingRadius = 1
-            if bDebugMessages == true then LOG(sFunctionRef..': Want to build by a mex so recording tResourceLocations based on iPlateauGroup='..(iPlateauGroup or 'nil')..' and iLandZone='..(iLandZone or 'nil')) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Want to build by a mex so recording tResourceLocations based on iPlateau='..(iPlateau or 'nil')..' and iLandZone='..(iLandZone or 'nil')) end
         elseif M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryHydro, iCatToBuildBy, false) then
-            tResourceLocations = M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroLocations]
+            tResourceLocations = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroLocations]
             iAdjacencyBuildingRadius = 3
         end
         if tResourceLocations then
@@ -644,6 +659,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iCategoryToBuild, iM
             LOG(sFunctionRef..': Had category to build. oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; UC='..GetEngineerUniqueCount(oEngineer)..'; All blueprints that satisfy the category='..repru(EntityCategoryGetUnitList(iCategoryToBuild)))
         end
     else
+        --if sBlueprintToBuild == 'xsb1201' then bDebugMessages = true end
         --Adjust the search range and record key info needed for the search
         local tEngineerPosition = oEngineer:GetPosition()
         local tTargetLocation = (tAlternativePositionToLookFrom or tEngineerPosition)
@@ -665,30 +681,30 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iCategoryToBuild, iM
         if bDebugMessages == true then LOG(sFunctionRef..': sBlueprintToBuild='..(sBlueprintToBuild or 'nil')..'; Location to look from='..repru(tTargetLocation)) end
         --Mex or hydro or mass storage - consider the resource/storage locations
         if EntityCategoryContains(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryHydro + M28UnitInfo.refCategoryMassStorage, sBlueprintToBuild) then
-            local iPlateauGroup, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
+            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
             local tResourceLocations
             if EntityCategoryContains(M28UnitInfo.refCategoryMex, sBlueprintToBuild) then
-                tResourceLocations = M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexUnbuiltLocations]
-                if bDebugMessages == true then LOG(sFunctionRef..': Want to build mex so tResourceLocations for Plateau'..iPlateauGroup..' LZ '..iLandZone..'='..repru(tResourceLocations)) end
+                tResourceLocations = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexUnbuiltLocations]
+                if bDebugMessages == true then LOG(sFunctionRef..': Want to build mex so tResourceLocations for Plateau'..iPlateau..' LZ '..iLandZone..'='..repru(tResourceLocations)) end
             elseif EntityCategoryContains(M28UnitInfo.refCategoryHydro, sBlueprintToBuild) then
-                tResourceLocations = M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations]
+                tResourceLocations = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations]
             elseif EntityCategoryContains(M28UnitInfo.refCategoryMassStorage, sBlueprintToBuild) then
-                tResourceLocations = M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMassStorageLocationsAvailable]
+                tResourceLocations = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMassStorageLocationsAvailable]
             else M28Utilities.ErrorHandler('Unrecognised resource category')
             end
             if tResourceLocations then
                 --Cycle through and include any that are buildable
                 for iCurResource, tCurResource in tResourceLocations do
                     if bDebugMessages == true then
-                                                                                                                                                            --CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOptionalPlateauGroup, iOptionalLandZone, iEngiActionToIgnore, bClearActionsIfNotStartedBuilding, bCheckForQueuedBuildings, bCheckForOverlappingBuildings)
-                        LOG(sFunctionRef..': Checking if can build '..sBlueprintToBuild..' on resource location '..repru(tCurResource)..'; result='..tostring(CanBuildAtLocation(aiBrain, sBlueprintToBuild, tCurResource, iPlateauGroup, iLandZone, nil, false, true, false))..'; will draw locations we can build on in blue, and those we cant in red')
-                        if CanBuildAtLocation(aiBrain, sBlueprintToBuild, tCurResource, iPlateauGroup, iLandZone, nil, false, true, false) then
+                        --CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOptionalPlateauGroup, iOptionalLandZone, iEngiActionToIgnore, bClearActionsIfNotStartedBuilding, bCheckForQueuedBuildings, bCheckForOverlappingBuildings)
+                        LOG(sFunctionRef..': Checking if can build '..sBlueprintToBuild..' on resource location '..repru(tCurResource)..'; result='..tostring(CanBuildAtLocation(aiBrain, sBlueprintToBuild, tCurResource, iPlateau, iLandZone, nil, false, true, false))..'; will draw locations we can build on in blue, and those we cant in red')
+                        if CanBuildAtLocation(aiBrain, sBlueprintToBuild, tCurResource, iPlateau, iLandZone, nil, false, true, false) then
                             M28Utilities.DrawLocation(tCurResource, 1)
                         else
                             M28Utilities.DrawLocation(tCurResource, 2)
                         end
                     end
-                    if CanBuildAtLocation(aiBrain, sBlueprintToBuild, tCurResource, iPlateauGroup, iLandZone, nil, false, true, false) then
+                    if CanBuildAtLocation(aiBrain, sBlueprintToBuild, tCurResource, iPlateau, iLandZone, nil, false, true, false) then
                         table.insert(tPotentialBuildLocations, tCurResource)
                     end
                 end
@@ -697,18 +713,18 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iCategoryToBuild, iM
             --Get adjacency location if we want adjacency
             if iCatToBuildBy or oUnitToBuildBy then
                 tPotentialBuildLocations = GetPotentialAdjacencyLocations(aiBrain, sBlueprintToBuild, tTargetLocation, iMaxAreaToSearch, iCatToBuildBy, oUnitToBuildBy)
-                if bDebugMessages == true then LOG(sFunctionRef..': Finished getting potential adjacency locations, tPotentialBuildLocations='..repru(tPotentialBuildLocations)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished getting potential adjacency locations, sBlueprintToBuild='..sBlueprintToBuild..'; tPotentialBuildLocations='..repru(tPotentialBuildLocations)) end
             end
             if M28Utilities.IsTableEmpty(tPotentialBuildLocations) then
-                --use the predefined build locations for the land zoneM28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone]M28Map.subrefLZBuildLocationSegmentCountBySize][iSize]
-                local iPlateauGroup, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
+                --use the predefined build locations for the land zoneM28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]M28Map.subrefLZBuildLocationSegmentCountBySize][iSize]
+                local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
                 local iSize = M28UnitInfo.GetBuildingSize(sBlueprintToBuild)
-                if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have searched all segments in the land zone before, tLocation='..repru(tTargetLocation)..'; sBlueprintToBuild='..sBlueprintToBuild..'; iSize='..iSize..'; iPlateauGroup='..iPlateauGroup..'; iLandZone='..iLandZone..'; M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize]='..repru(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize])..'; Segments considered for build locations='..repru(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationSegmentCountBySize])..'; Total segments in LZ='..M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTotalSegmentCount]) end
-                if (M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationSegmentCountBySize][iSize] or 0) < M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTotalSegmentCount] then
+                if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have searched all segments in the land zone before, tLocation='..repru(tTargetLocation)..'; sBlueprintToBuild='..sBlueprintToBuild..'; iSize='..iSize..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize]='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize])..'; Segments considered for build locations='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationSegmentCountBySize])..'; Total segments in LZ='..M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTotalSegmentCount]) end
+                if (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationSegmentCountBySize][iSize] or 0) < M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTotalSegmentCount] then
                     GetAvailableLandZoneBuildLocations(aiBrain, tTargetLocation, sBlueprintToBuild)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Finished searching for available build locations for the land zone, build locations for size '..iSize..'='..repru(M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize])) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Finished searching for available build locations for the land zone, build locations for size '..iSize..'='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize])) end
                 end
-                tPotentialBuildLocations = M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][M28UnitInfo.GetBuildingSize(sBlueprintToBuild)]
+                tPotentialBuildLocations = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][M28UnitInfo.GetBuildingSize(sBlueprintToBuild)]
                 if bDebugMessages == true then LOG(sFunctionRef..': No adjacency locations or not looking for adjacency; tPotentialBuildLocations based on land zone build locations for iSize='..M28UnitInfo.GetBuildingSize(sBlueprintToBuild)..'='..repru(tPotentialBuildLocations)..'; will draw each location in light blue')
                     for iEntry, tEntry in tPotentialBuildLocations do
                         M28Utilities.DrawLocation(tEntry, 5)
@@ -1059,12 +1075,12 @@ function BuildStructureNearLocation(aiBrain, oEngineer, iCategoryToBuild, iMaxAr
                         end
                         if sBlueprintBuildBy then
                             if EntityCategoryContains(M28UnitInfo.refCategoryMex, sBlueprintBuildBy) then
-                                local iPlateauGroup, iZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
-                                tResourceLocations = M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iZone][M28Map.subrefLZMexLocations]
+                                local iPlateau, iZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
+                                tResourceLocations = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iZone][M28Map.subrefLZMexLocations]
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will add any mexes within 20 of target location to be considered') end
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryHydro, sBlueprintBuildBy) or EntityCategoryContains(M28UnitInfo.refCategoryT2Power, sBlueprintBuildBy) then --Dont want to make this all power, because the adjacency code requires a building size, and only works for a single building size; i.e. if try and get adjacency for t1 power and include hydro locations, then it will think it needs to build within the hydro for adjacency
-                                local iPlateauGroup, iZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
-                                tResourceLocations = M28Map.tAllPlateaus[iPlateauGroup][M28Map.subrefPlateauLandZones][iZone][M28Map.subrefLZHydroLocations]
+                                local iPlateau, iZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
+                                tResourceLocations = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iZone][M28Map.subrefLZHydroLocations]
                             end
                         end
                     end
@@ -1386,10 +1402,10 @@ function SlowlyRefreshBuildableLandZoneLocations(oOrigBrain)
     --First update every start position that has an M28 brain to make sure we have a decent number of options recorded for a land factory and smaller
     for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
         if bDebugMessages == true then LOG(sFunctionRef..': About to start recording buildable locations for the starting land zone for oBrain='..oBrain.Nickname..'; Index='..oBrain:GetArmyIndex()..'; Start pos='..repru(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])) end
-        local iPlateauGroup, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
         local tiRelevantSizes = {1,2,6,8}
         for iRef, iSize in tiRelevantSizes do
-            SearchForBuildableLocationsForLandZone(aiBrain, iPlateauGroup, iLandZone, iSize, tsBlueprintsBySize[iSize], iSegmentsBeforeWaiting * 10)
+            SearchForBuildableLocationsForLandZone(aiBrain, iPlateau, iLandZone, iSize, tsBlueprintsBySize[iSize], iSegmentsBeforeWaiting * 10)
         end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
@@ -1415,20 +1431,20 @@ function SlowlyRefreshBuildableLandZoneLocations(oOrigBrain)
         iSearchesConsideredThisTick = 0
 
         --Cycle through every plateau
-        for iPlateauGroup, tPlateauSubtable in M28Map.tAllPlateaus do
+        for iPlateau, tPlateauSubtable in M28Map.tAllPlateaus do
             for iLandZone, tLandZoneInfo in tPlateauSubtable[M28Map.subrefPlateauLandZones] do
-                if bDebugMessages == true then LOG(sFunctionRef..': Updating for iPlateauGroup='..iPlateauGroup..'; iLandZone='..iLandZone) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Updating for iPlateau='..iPlateau..'; iLandZone='..iLandZone) end
                 if tLandZoneInfo[M28Map.subrefLZBuildLocationsBySize] then
                     for iSize, tBuildLocations in tLandZoneInfo[M28Map.subrefLZBuildLocationsBySize] do
                         if tBuildLocations == -1 then
-                            SearchForBuildableLocationsForLandZone(aiBrain, iPlateauGroup, iLandZone, iSize, tsBlueprintsBySize[iSize], iSegmentsBeforeWaiting)
+                            SearchForBuildableLocationsForLandZone(aiBrain, iPlateau, iLandZone, iSize, tsBlueprintsBySize[iSize], iSegmentsBeforeWaiting)
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             WaitTicks(1)
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                             iSearchesConsideredThisTick = 0
                             iTicksWaitedThisCycle = iTicksWaitedThisCycle + 1
                             while (tBuildLocations == -1 and tPlateauSubtable[M28Map.subrefLZBuildLocationSegmentCountBySize][iSize] < tLandZoneInfo[M28Map.subrefLZTotalSegmentCount]) do
-                                SearchForBuildableLocationsForLandZone(aiBrain, iPlateauGroup, iLandZone, iSize, tsBlueprintsBySize[iSize], iSegmentsBeforeWaiting)
+                                SearchForBuildableLocationsForLandZone(aiBrain, iPlateau, iLandZone, iSize, tsBlueprintsBySize[iSize], iSegmentsBeforeWaiting)
                                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                 WaitTicks(1)
                                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -1470,6 +1486,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZTeamData, 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'FilterToAvailableEngineersByTech'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    --if iLandZone == 2 then bDebugMessages = true end
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code for iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; reprs of tEngineers='..reprs(tEngineers)) end
 
     --Returns a table of available engineers by tech
@@ -1509,7 +1526,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZTeamData, 
 
     if tEngineers then
         for iEngineer, oEngineer in tEngineers do
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering engineer '..(oEngineer.UnitId or 'nil')..'; iEngineer='..iEngineer) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering engineer '..(oEngineer.UnitId or 'nil')..'; iEngineer='..iEngineer..' with unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; refiAssignedAction='..(oEngineer[refiAssignedAction] or 'nil')) end
             bWantEngiToRun = false
             bEngiIsUnavailable = false
             --First check for enemies that we want to run from/take action from
@@ -1567,12 +1584,15 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZTeamData, 
 
             --Finished checking for enemies; now check more generally if engineer is busy
             if not(bEngiIsUnavailable) then
-                if bDebugMessages == true then LOG(sFunctionRef..': Entry in table='..iEngineer..'; Considering if engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' is available, result='..tostring(M28Conditions.IsEngineerAvailable(oEngineer))) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Entry in table='..iEngineer..'; Considering if engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' is available, result='..tostring(M28Conditions.IsEngineerAvailable(oEngineer))..'; Eng unit state='..M28UnitInfo.GetUnitState(oEngineer)) end
                 bEngiIsUnavailable = not(M28Conditions.IsEngineerAvailable(oEngineer))
             end
             if bEngiIsUnavailable then
                 table.insert(toAssignedEngineers, oEngineer)
             else
+                --Clear engineer trackers as redundancy in case failed to clear previously
+                if oEngineer[refiAssignedAction] then ClearEngineerTracking(oEngineer) end
+
                 table.insert(toAvailableEngineersByTech[M28UnitInfo.GetUnitTechLevel(oEngineer)], oEngineer)
                 if bDebugMessages == true then LOG(sFunctionRef..': Just added engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to toAvailableEngineersByTech, Eng tech level='..M28UnitInfo.GetUnitTechLevel(oEngineer)..'; Size of table='..table.getn(toAvailableEngineersByTech[M28UnitInfo.GetUnitTechLevel(oEngineer)])) end
                 bHaveAvailableEngi = true
@@ -1694,12 +1714,15 @@ function GetPartCompleteBuildingInZone(iTeam, iPlateau, iLandZone, iCategoryWant
 end
 
 function ClearEngineerTracking(oEngineer)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ClearEngineerTracking'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if oEngineer[M28Land.reftiPlateauAndLZToMoveTo] then
-        local tTargetLZData = M28Map.tAllPlateaus[oEngineer[M28Land.reftiPlateauAndLZToMoveTo][1]][M28Map.subrefPlateauLandZones][oEngineer[M28Land.reftiPlateauAndLZToMoveTo][2]][M28Map.subrefLZTeamData][oEngineer:GetAIBrain().M28Team]
-        if tTargetLZData and M28Utilities.IsTableEmpty(tTargetLZData[M28Map.subrefLZTUnitsTravelingHere]) == false then
-            for iUnit, oUnit in tTargetLZData[M28Map.subrefLZTUnitsTravelingHere] do
+        local tTargetLZTeamData = M28Map.tAllPlateaus[oEngineer[M28Land.reftiPlateauAndLZToMoveTo][1]][M28Map.subrefPlateauLandZones][oEngineer[M28Land.reftiPlateauAndLZToMoveTo][2]][M28Map.subrefLZTeamData][oEngineer:GetAIBrain().M28Team]
+        if tTargetLZTeamData and M28Utilities.IsTableEmpty(tTargetLZTeamData[M28Map.subrefLZTUnitsTravelingHere]) == false then
+            for iUnit, oUnit in tTargetLZTeamData[M28Map.subrefLZTUnitsTravelingHere] do
                 if oUnit == oEngineer then
-                    table.remove(tTargetLZData[M28Map.subrefLZTUnitsTravelingHere][iUnit])
+                    table.remove(tTargetLZTeamData[M28Map.subrefLZTUnitsTravelingHere][iUnit])
                     break
                 end
             end
@@ -1707,38 +1730,186 @@ function ClearEngineerTracking(oEngineer)
     end
     oEngineer[refiAssignedAction] = nil
     oEngineer[M28Land.reftiPlateauAndLZToMoveTo] = nil
+
+    --Clear reclaim assignment tracking
+    if oEngineer[reftAssignedReclaimSegments] then
+        if bDebugMessages == true then LOG(sFunctionRef..': Engineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; reftAssignedReclaimSegments='..repru(oEngineer[reftAssignedReclaimSegments])) end
+        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.tReclaimAreas[oEngineer[reftAssignedReclaimSegments][1]][oEngineer[reftAssignedReclaimSegments][2]][M28Map.refReclaimSegmentMidpoint])
+        if (iLandZone or 0) > 0 then
+            local tEngiAssignedByReclaim = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oEngineer:GetAIBrain().M28Team][M28Map.subrefReclaimAreaAssignmentsBySegment]
+            if tEngiAssignedByReclaim and tEngiAssignedByReclaim[oEngineer[reftAssignedReclaimSegments][1]][oEngineer[reftAssignedReclaimSegments][2]] then tEngiAssignedByReclaim[oEngineer[reftAssignedReclaimSegments][1]][oEngineer[reftAssignedReclaimSegments][2]] = math.max(0, (tEngiAssignedByReclaim[oEngineer[reftAssignedReclaimSegments][1]][oEngineer[reftAssignedReclaimSegments][2]] or 0) - 1) end
+        end
+        oEngineer[reftAssignedReclaimSegments] = nil
+    end
+
+    --Clear assisting engineers
+    if M28Utilities.IsTableEmpty(oEngineer[M28UnitInfo.reftoUnitsAssistingThis]) == false then
+        local tEngineersToRemove = {}
+        for iAssistingEngineer, oAssistingEngineer in oEngineer[M28UnitInfo.reftoUnitsAssistingThis] do
+            if M28UnitInfo.IsUnitValid(oAssistingEngineer) then
+                table.insert(tEngineersToRemove, oAssistingEngineer)
+            end
+        end
+        for iAssistingEngineer, oAssistingEngineer in tEngineersToRemove do
+            M28Orders.IssueTrackedClearCommands(oAssistingEngineer)
+        end
+        oEngineer[M28UnitInfo.reftoUnitsAssistingThis] = nil
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function TrackEngineerAction(oEngineer, iActionToAssign, tOptionalPlatAndLandToMoveTo)
+function TrackEngineerAction(oEngineer, iActionToAssign, tOptionalPlatAndLandToMoveTo, vOptionalOtherVariable)
     oEngineer[refiAssignedAction] = iActionToAssign
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition())
     if tOptionalPlatAndLandToMoveTo then
         oEngineer[M28Land.reftiPlateauAndLZToMoveTo] = {tOptionalPlatAndLandToMoveTo[1], tOptionalPlatAndLandToMoveTo[2]}
-        local tTargetLZData = M28Map.tAllPlateaus[tOptionalPlatAndLandToMoveTo[1]][M28Map.subrefPlateauLandZones][tOptionalPlatAndLandToMoveTo[2]][M28Map.subrefLZTeamData][oEngineer:GetAIBrain().M28Team]
-        if tTargetLZData then
-            if not(tTargetLZData[M28Map.subrefLZTUnitsTravelingHere]) then tTargetLZData[M28Map.subrefLZTUnitsTravelingHere] = {} end
-            table.insert(tTargetLZData[M28Map.subrefLZTUnitsTravelingHere], oEngineer)
+        local tTargetLZTeamData = M28Map.tAllPlateaus[tOptionalPlatAndLandToMoveTo[1]][M28Map.subrefPlateauLandZones][tOptionalPlatAndLandToMoveTo[2]][M28Map.subrefLZTeamData][oEngineer:GetAIBrain().M28Team]
+        if tTargetLZTeamData then
+            if not(tTargetLZTeamData[M28Map.subrefLZTUnitsTravelingHere]) then tTargetLZTeamData[M28Map.subrefLZTUnitsTravelingHere] = {} end
+            table.insert(tTargetLZTeamData[M28Map.subrefLZTUnitsTravelingHere], oEngineer)
             --Reduce BP wanted by the LZ, and no longer flag it as wanting BP if this satisfies all its needs
             local iEngiTechLevel = M28UnitInfo.GetUnitTechLevel(oEngineer)
             for iTech = iEngiTechLevel, 1, -1 do
-                if tTargetLZData[M28Map.subrefLZTBuildPowerByTechWanted][iTech] > 0 then
-                    tTargetLZData[M28Map.subrefLZTBuildPowerByTechWanted][iTech] = tTargetLZData[M28Map.subrefLZTBuildPowerByTechWanted][iTech] - oEngineer:GetBlueprint().Economy.BuildRate
+                if tTargetLZTeamData[M28Map.subrefLZTBuildPowerByTechWanted][iTech] > 0 then
+                    tTargetLZTeamData[M28Map.subrefLZTBuildPowerByTechWanted][iTech] = tTargetLZTeamData[M28Map.subrefLZTBuildPowerByTechWanted][iTech] - oEngineer:GetBlueprint().Economy.BuildRate
                     local bNoLongerWantBP = false
-                    if tTargetLZData[M28Map.subrefLZTBuildPowerByTechWanted][iTech] <= 0 then
+                    if tTargetLZTeamData[M28Map.subrefLZTBuildPowerByTechWanted][iTech] <= 0 then
                         bNoLongerWantBP = true
                         for iAltTech = iTech, 1, -1 do
-                            if tTargetLZData[M28Map.subrefLZTBuildPowerByTechWanted][iAltTech] > 0 then
+                            if tTargetLZTeamData[M28Map.subrefLZTBuildPowerByTechWanted][iAltTech] > 0 then
                                 bNoLongerWantBP = false
                                 break
                             end
                         end
                     end
-                    if bNoLongerWantBP then tTargetLZData[M28Map.subrefLZTbWantBP] = false end
+                    if bNoLongerWantBP then tTargetLZTeamData[M28Map.subrefLZTbWantBP] = false end
                     break
                 end
             end
         end
     end
+    if vOptionalOtherVariable then
+        if iActionToAssign == refActionReclaimArea then
+            oEngineer[reftAssignedReclaimSegments] = vOptionalOtherVariable
+        else M28Utilities.ErrorHandler('vOptionalOtherVariable is specified but dont know what for, iActionToAssign='..iActionToAssign)
+        end
+    end
+end
+
+function GetEngineerToReclaimNearbyArea(oEngineer, tLZTeamData, iPlateau, iLandZone, bWantEnergyNotMass, bUseCurrentPosition)
+    --Gets engineer to find the nearest unassigned reclaim segment in the land zone that has mass/energy, to move to the middle of it, and reclaim it
+    --Factors in how much mass is in the segment and how many engineers have been assigned already and adjusts the chosen segment accordingly
+    --bUseCurrentPosition - if true then will use oEngineer position instead of the midpoint of the reclaim segment that want to target
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetEngineerToReclaimNearbyArea'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+
+    local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZReclaimSegments]) == false then
+        local iClosestSegmentDist = 100000
+        local tiClosestSegmentXZ
+        local iCurModDist
+        local sTotalReclaimValueRef
+        local iReclaimValuePerEngi
+        local bGivenOrder = false
+
+        local iMinReclaimIndividualValue = 1
+
+
+        if bWantEnergyNotMass then
+            sTotalReclaimValueRef = M28Map.subrefLZTotalEnergyReclaim
+            iReclaimValuePerEngi = 300
+        else
+            sTotalReclaimValueRef = M28Map.subrefLZTotalMassReclaim
+            iReclaimValuePerEngi = 200
+        end
+
+        local oEngBP = oEngineer:GetBlueprint()
+        if oEngBP.Economy.MaxBuildDistance >= 10 then iSegmentSearchSize = math.max(1, math.ceil((oEngBP.Economy.MaxBuildDistance + 2) / math.min(M28Map.iReclaimSegmentSizeX, M28Map.iReclaimSegmentSizeZ))) end
+        --local iMoveSpeed = oEngBP.Physics.MaxSpeed
+        local iMaxDistanceToEngineer = oEngBP.Economy.MaxBuildDistance + math.min(oEngBP.SizeX, oEngBP.SizeZ) * 0.5 - 0.1
+
+        for iSegmentCount, tSegmentXZ in tLZData[M28Map.subrefLZReclaimSegments] do
+            iCurModDist = M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), M28Map.GetReclaimLocationFromSegment(tSegmentXZ[1], tSegmentXZ[2]))
+            if iCurModDist > iMaxDistanceToEngineer and tLZTeamData[M28Map.subrefReclaimAreaAssignmentsBySegment][tSegmentXZ[1]] and tLZTeamData[M28Map.subrefReclaimAreaAssignmentsBySegment][tSegmentXZ[1]][tSegmentXZ[2]] and tLZData[sTotalReclaimValueRef] < (iReclaimValuePerEngi * tLZTeamData[M28Map.subrefReclaimAreaAssignmentsBySegment][tSegmentXZ[1]][tSegmentXZ[2]]) then
+                iCurModDist = iCurModDist + 50 * tLZTeamData[M28Map.subrefReclaimAreaAssignmentsBySegment][tSegmentXZ[1]][tSegmentXZ[2]] * iReclaimValuePerEngi / math.max(5, tLZData[sTotalReclaimValueRef]) --Low priority area                 
+            end
+
+            if iCurModDist < iClosestSegmentDist then
+                iClosestSegmentDist = iCurModDist
+                tiClosestSegmentXZ = {tSegmentXZ[1], tSegmentXZ[2]}
+            end
+        end
+
+        if tiClosestSegmentXZ then
+            --Get reclaim in the segment
+            local tTargetPos
+            if bUseCurrentPosition then
+                tTargetPos = oEngineer:GetPosition()
+            else tTargetPos = M28Map.GetReclaimLocationFromSegment(tiClosestSegmentXZ[1], tiClosestSegmentXZ[2])
+            end
+
+            local iCurDistToTargetPos            
+            if bDebugMessages == true then LOG(sFunctionRef..': Eng build distance='..oEngBP.Economy.MaxBuildDistance..'; SizeX='..oEngBP.SizeX..'; Eng SizeZ='..oEngBP.SizeZ) end            
+
+            --GetReclaimInRectangle(iReturnType, rRectangleToSearch)
+            --    --iReturnType: 1 = true/false; 2 = number of wrecks; 3 = total mass, 4 = valid wrecks
+            local rReclaimRectangle = M28Utilities.GetRectAroundLocation(tTargetPos, math.max(M28Map.iReclaimSegmentSizeX * 0.5, iMaxDistanceToEngineer, M28Map.iReclaimSegmentSizeZ * 0.5))            
+            local tNearbyReclaim = M28Map.GetReclaimInRectangle(4, rReclaimRectangle)
+            if bDebugMessages == true then
+                local iTargetPosPlateau, iTargetPosLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetPos)
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering for iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Engineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; iMaxDistanceToEngineer='..iMaxDistanceToEngineer..'; oEngBP.Economy.MaxBuildDistance='..oEngBP.Economy.MaxBuildDistance..'; Rect='..repru(Rect(tTargetPos[1] - iMaxDistanceToEngineer, tTargetPos[3] - iMaxDistanceToEngineer, tTargetPos[1] + iMaxDistanceToEngineer, tTargetPos[3] + iMaxDistanceToEngineer))..'; tiClosestSegmentXZ='..repru(tiClosestSegmentXZ)..'; Is tNearbyReclaim empty='..tostring(M28Utilities.IsTableEmpty(tNearbyReclaim))..'; Total mass recorded against this reclaim segment='..M28Map.tReclaimAreas[tiClosestSegmentXZ[1]][tiClosestSegmentXZ[2]][M28Map.refReclaimTotalMass]..'; tTargetPos='..repru(tTargetPos)..'; Eng pos='..repru(oEngineer:GetPosition())..'; Target Plateau and LZ='..(iTargetPosPlateau or 'nil')..'-'..(iTargetPosLZ or 0)..'; Reclaim segment='..repru(tiClosestSegmentXZ)..'; rReclaimRectangle='..repru(rReclaimRectangle)..'; M28Map.iReclaimSegmentSizeX='..M28Map.iReclaimSegmentSizeX..'; iMaxDistanceToEngineer='..iMaxDistanceToEngineer) end
+                M28Utilities.DrawRectangle(rReclaimRectangle, 2, 20)                
+            end
+
+            if M28Utilities.IsTableEmpty(tNearbyReclaim) == false then
+                local oNearestReclaim
+                local iNearestReclaim = 10000
+                local iNearestReclaimWithAnyValue = 10000
+                local oNearestAnyValueReclaim
+
+                for iReclaim, oReclaim in tNearbyReclaim do
+                    --is this valid reclaim within our build area?
+                    if bDebugMessages == true then
+                        LOG(sFunctionRef..': iReclaim='..iReclaim..'; oReclaim.MaxMassReclaim='..(oReclaim.MaxMassReclaim or 0))
+                        if oReclaim.MaxMassReclaim >= 100 or (bWantEnergyNotMass and oReclaim.MaxEnergyReclaim >= 100) then
+                            LOG('Large reclaim, repr of all values='..repru(oReclaim))
+                            if oReclaim.GetBlueprint then
+                                LOG('oReclaim has a blueprint='..repru(oReclaim:GetBlueprint()))
+                            else LOG('oReclaim doesnt have .GetBlueprint')
+                            end
+                        end--M27Utilities.DebugArray(oReclaim)) end
+                    end
+                    if oReclaim.CachePosition and ((not(bWantEnergyNotMass) and oReclaim.MaxMassReclaim >= iMinReclaimIndividualValue) or (bWantEnergyNotMass and oReclaim.MaxEnergyReclaim >= iMinReclaimIndividualValue)) and not(oReclaim:BeenDestroyed()) then
+                        iCurDistToTargetPos = math.max(0, M28Utilities.GetDistanceBetweenPositions(tTargetPos, oReclaim.CachePosition) - math.min(oReclaim:GetBlueprint().SizeX, oReclaim:GetBlueprint().SizeZ)*0.5)
+                        if iCurDistToTargetPos < iNearestReclaim then iNearestReclaim = iCurDistToTargetPos oNearestReclaim = oReclaim end
+                        --Backup e.g. if looking for energy reclaim but only have mass available
+                        if not(oNearestReclaim) then
+                            if iCurDistToTargetPos < iNearestReclaimWithAnyValue and (oReclaim.MaxMassReclaim or 0) + (oReclaim.MaxEnergyReclaim or 0) > 0 then
+                                oNearestAnyValueReclaim = oReclaim
+                                iNearestReclaimWithAnyValue = iCurDistToTargetPos
+                            end
+                        end
+                    end
+                end
+                if not(oNearestReclaim) then oNearestReclaim = oNearestAnyValueReclaim end
+                if oNearestReclaim then
+                    bGivenOrder = true
+                    M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaim, false, 'ReclLZSeg')
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will send order to get reclaim at position '..repru(oNearestReclaim.CachePosition)..'; will draw a box around here') M28Utilities.DrawLocation(oNearestReclaim.CachePosition) end
+                end
+
+            else
+                if bDebugMessages == true then LOG(sFunctionRef..' No reclaim in nearby segments') end
+            end
+        end
+        if bGivenOrder then
+            TrackEngineerAction(oEngineer, refActionReclaimArea, nil, tiClosestSegmentXZ)
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowerWanted, vOptionalVariable, iCurPriority, tLZTeamData, iTeam, iPlateau, iLandZone, toAvailableEngineersByTech, toAssignedEngineers)
@@ -1746,12 +1917,12 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     local sFunctionRef = 'ConsiderActionToAssign'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --vOptionalVariable can be a table, nil or a value; used to pass info specific to the action if it needs it
-    if iActionToAssign == refActionBuildMassStorage then bDebugMessages = true end
+    --if iActionToAssign == refActionBuildPower and iLandZone == 2 then bDebugMessages = true end
 
     --Reduce the build power wanted by the existing build power assigned to that action for the LZ
     if M28Utilities.IsTableEmpty(toAssignedEngineers) == false then
         for iEngi, oEngi in toAssignedEngineers do
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering if oEngi '..oEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngi)..' already has iActionToAssign '..iActionToAssign..'; oEngi[refiAssignedAction]='..(oEngi[refiAssignedAction] or 'nil')..'; Engi tech level='..M28UnitInfo.GetUnitTechLevel(oEngi)..'; iMinTechWanted='..iMinTechWanted) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..': Considering if oEngi '..oEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngi)..' already has iActionToAssign '..iActionToAssign..'; oEngi[refiAssignedAction]='..(oEngi[refiAssignedAction] or 'nil')..'; Engi tech level='..M28UnitInfo.GetUnitTechLevel(oEngi)..'; iMinTechWanted='..iMinTechWanted) end
             if oEngi[refiAssignedAction] == iActionToAssign and M28UnitInfo.GetUnitTechLevel(oEngi) >= iMinTechWanted then
                 if bDebugMessages == true then LOG(sFunctionRef..': Reducing total Build power wanted by '..oEngi:GetBlueprint().Economy.BuildRate) end
                 iTotalBuildPowerWanted = iTotalBuildPowerWanted - oEngi:GetBlueprint().Economy.BuildRate
@@ -1912,6 +2083,13 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                             end
                         end
                     end
+                elseif iActionToAssign == refActionReclaimArea then
+                    local bWantEnergyNotMass = vOptionalVariable
+                    while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
+                        if bDebugMessages == true then LOG(sFunctionRef..': About to tell engineer '..tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount])..' to reclaim nearby, iTotalBuildPowerWanted='..iTotalBuildPowerWanted..'; iEngiCount='..iEngiCount) end
+                        GetEngineerToReclaimNearbyArea(tEngineersOfTechWanted[iEngiCount], tLZTeamData, iPlateau, iLandZone, bWantEnergyNotMass)
+                        UpdateBPTracking()
+                    end
                 else
                     M28Utilities.ErrorHandler('Unrecognised order, need to add logic')
                 end
@@ -1951,7 +2129,7 @@ function UpdateSpareEngineerNumber(tLZTeamData, toAvailableEngineersByTech)
 end
 
 function GetBPToAssignToMassStorage(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, bHaveLowMass, bWantMorePower)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetBPToAssignToMassStorage'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     local iBPWanted = 0
@@ -1960,15 +2138,19 @@ function GetBPToAssignToMassStorage(iPlateau, iLandZone, iTeam, tLZTeamData, bCo
     if tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and (tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][1] == 0) then
         --Do we have empty locations for mass storage?
         if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMassStorageLocationsAvailable]) == false then
-            iBPWanted = 10
-            if not (bHaveLowMass) then
-                iBPWanted = iBPWanted + tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]]
-                if not (bWantMorePower) then
-                    iBPWanted = iBPWanted + tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 2
-                end
-            else
-                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 50 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0 then
-                    iBPWanted = iBPWanted + tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 0.5
+            --Do we have really low power?
+            if not(bWantMorePower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] < 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 5) then
+
+                iBPWanted = 10
+                if not (bHaveLowMass) then
+                    iBPWanted = iBPWanted + tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]]
+                    if not (bWantMorePower) then
+                        iBPWanted = iBPWanted + tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 2
+                    end
+                else
+                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 50 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0 then
+                        iBPWanted = iBPWanted + tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 0.5
+                    end
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': iBPWanted='..iBPWanted) end
@@ -1979,7 +2161,7 @@ function GetBPToAssignToMassStorage(iPlateau, iLandZone, iTeam, tLZTeamData, bCo
 end
 
 function GetBPToAssignToAssistUpgrade(tLZTeamData, iTeam, bCoreZone, bHaveLowMass, bWantMorePower)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetBPToAssignToAssistUpgrade'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -1987,19 +2169,21 @@ function GetBPToAssignToAssistUpgrade(tLZTeamData, iTeam, bCoreZone, bHaveLowMas
 
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if any active upgrades we want to assist; Is table of upgrades empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]))) end
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]) == false then
-        if bCoreZone then iBPWanted = 5 end
+        if not(bWantMorePower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] < 0.8 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 7) then
+            if bCoreZone then iBPWanted = 5 end
 
-        if not (bHaveLowMass) then
-            iBPWanted = iBPWanted + tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 2
-            if not (bWantMorePower) then
+            if not (bHaveLowMass) then
                 iBPWanted = iBPWanted + tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 2
+                if not (bWantMorePower) then
+                    iBPWanted = iBPWanted + tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 2
+                end
+            else
+                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 50 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0 then
+                    iBPWanted = iBPWanted + tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]]
+                end
             end
-        else
-            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 50 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0 then
-                iBPWanted = iBPWanted + tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]]
-            end
+            if not(bCoreZone) and iBPWanted > 5 then iBPWanted = math.min(25, iBPWanted * 0.5) end
         end
-        if not(bCoreZone) and iBPWanted > 5 then iBPWanted = math.min(25, iBPWanted * 0.5) end
         if bDebugMessages == true then LOG(sFunctionRef .. ': iBPWanted=' .. iBPWanted) end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -2013,6 +2197,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --For land zones in the core base
+    local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
     local toAvailableEngineersByTech, toAssignedEngineers = FilterToAvailableEngineersByTech(tEngineers, true, tLZTeamData, iTeam, iPlateau, iLandZone)
     tLZTeamData[M28Map.subrefLZTBuildPowerByTechWanted] = {[1]=0,[2]=0,[3]=0}
     if bDebugMessages == true then LOG(sFunctionRef..': Have just reset BPByTech to 0 for Plateau'..iPlateau..'; LZ='..iLandZone..'; repru='..repru(tLZTeamData[M28Map.subrefLZTBuildPowerByTechWanted])) end
@@ -2100,6 +2285,15 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         HaveActionToAssign(refActionBuildPower, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech], iBPWanted)
     end
 
+    --High priority reclaim if are low on mass or energy
+    iCurPriority = iCurPriority + 1
+    if bHaveLowMass and tLZData[M28Map.subrefLZTotalMassReclaim] >= 50 then
+        if bDebugMessages == true then LOG(sFunctionRef..': High priority reclaim, Total mass in Plateau '..iPlateau..' LZ '..iLandZone..'='..tLZData[M28Map.subrefLZTotalMassReclaim]) end
+        HaveActionToAssign(refActionReclaimArea, 1, math.min(40, math.max(5, tLZData[M28Map.subrefLZTotalMassReclaim] / 50)), false)
+    elseif M28Conditions.WantToReclaimEnergyNotMass(iTeam) then
+        HaveActionToAssign(refActionReclaimArea, 1, 5, true)
+    end
+
     --Higher priority mass storage if we have T3 in the LZ and available storage locations
     iCurPriority = iCurPriority + 1
     if tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 then
@@ -2121,6 +2315,13 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     iBPWanted = GetBPToAssignToMassStorage(iPlateau, iLandZone, iTeam, tLZTeamData, true, bHaveLowMass, bWantMorePower)
     if iBPWanted > 0 then
         HaveActionToAssign(refActionBuildMassStorage, 1, iBPWanted)
+    end
+
+    --Lower priority mass reclaim
+    iCurPriority = iCurPriority + 1
+    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.35 and tLZData[M28Map.subrefLZTotalMassReclaim] >= 5 then
+        if bDebugMessages == true then LOG(sFunctionRef..': Lower priority reclaim, Total mass in Plateau '..iPlateau..' LZ '..iLandZone..'='..tLZData[M28Map.subrefLZTotalMassReclaim]) end
+        HaveActionToAssign(refActionReclaimArea, 1, math.min(100, math.max(5, tLZData[M28Map.subrefLZTotalMassReclaim] / 50)), false)
     end
 
 
@@ -2173,11 +2374,12 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     local sFunctionRef = 'ConsiderMinorLandZoneEngineerAssignment'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iPlateau == 12 and iLandZone == 9 then bDebugMessages = true end
+    --if iPlateau == 12 and iLandZone == 15 then bDebugMessages = true end
 
     local iBPWanted
     local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
     local bWantMorePower = M28Conditions.WantMorePower(iTeam)
+    local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
 
 
 
@@ -2201,6 +2403,17 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexUnbuiltLocations]) == false then
         if bDebugMessages == true then LOG(sFunctionRef..': We have unbuilt mex locations for this land zone, locations='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexUnbuiltLocations])) end
         HaveActionToAssign(refActionBuildMex, 1, math.max(5, table.getn(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexUnbuiltLocations]) * 2.5))
+    end
+
+    --High priority reclaim if are low on mass or energy
+    iCurPriority = iCurPriority + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want high priority reclaim, bHaveLowMass='..tostring(bHaveLowMass)..'; tLZData[M28Map.subrefLZTotalMassReclaim]='..(tLZData[M28Map.subrefLZTotalMassReclaim] or 'nil')) end
+    if bHaveLowMass and tLZData[M28Map.subrefLZTotalMassReclaim] >= 50 then
+        if bDebugMessages == true then LOG(sFunctionRef..': Higher priority reclaim, Total mass in Plateau '..iPlateau..' LZ '..iLandZone..'='..tLZData[M28Map.subrefLZTotalMassReclaim]) end
+        HaveActionToAssign(refActionReclaimArea, 1, math.min(40, math.max(5, tLZData[M28Map.subrefLZTotalMassReclaim] / 50)), false)
+        if bDebugMessages == true then LOG(sFunctionRef..': Have just tried assigning action to reclaim area') end
+    elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] <= 0.7 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 80 and tLZData[M28Map.refReclaimTotalEnergy] >= 100 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 2 then
+        HaveActionToAssign(refActionReclaimArea, 1, 5, true)
     end
 
     --Unclaimed hydro in the zone (and we have less than 4k power in our team)
@@ -2256,6 +2469,13 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         HaveActionToAssign(refActionBuildMassStorage, 1, iBPWanted)
     end
 
+    --Lower priority mass reclaim
+    iCurPriority = iCurPriority + 1
+    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.35 and tLZData[M28Map.subrefLZTotalMassReclaim] >= 5 then
+        if bDebugMessages == true then LOG(sFunctionRef..': Lower priority reclaim, Total mass in Plateau '..iPlateau..' LZ '..iLandZone..'='..tLZData[M28Map.subrefLZTotalMassReclaim]) end
+        HaveActionToAssign(refActionReclaimArea, 1, math.min(100, math.max(5, tLZData[M28Map.subrefLZTotalMassReclaim] / 50)), false)
+    end
+
 
     --Lower priority LZs wanting engineers:
     --(ANY CHANGES TO BELOW - REPLICATE FOR BOTH CORE AND NONCORE BUILDERS) Other non adjacent LZ on this plateau that wants engineers (low priority) - prioritise those nearest this zone
@@ -2307,8 +2527,7 @@ function ConsiderLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, iLandZ
     local sFunctionRef = 'ConsiderLandZoneEngineerAssignment'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iPlateau == 12 and iLandZone == 9 then bDebugMessages = true end
-    if iPlateau == 12 and iLandZone == 6 then bDebugMessages = true end
+    --if iPlateau == 12 and iLandZone == 15 then bDebugMessages = true end
 
 
     tLZTeamData[M28Map.subrefLZTbWantBP] = false --set to true later if any BP wanted

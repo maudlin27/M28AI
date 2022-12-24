@@ -15,7 +15,7 @@ tiThreatRefsCalculated = {} --table of the threat ID references that have done b
 
 --Variables against units;
 reftLastKnownPositionByTeam = 'M28UnitLastPos' --[x] is the M28 team ref, returns the last known position of the unit
-reftAssignedPlateauAndLandZoneByTeam = 'M28UnitPlateauAndZone' --[x] is the M28 team ref, returns a table {iPlateauGroup, iLandZoneRef}
+reftAssignedPlateauAndLandZoneByTeam = 'M28UnitPlateauAndZone' --[x] is the M28 team ref, returns a table {iPlateau, iLandZoneRef}
 reftbConsideredForAssignmentByTeam = 'M28UnitConsideredForAssignment' --[x] is the M28 team ref, returns true if have sent at least once to be assigned to a plateau/land zone/air logic/navy logic
 refiDFMassThreatOverride = 'M28BaseMassOverride' --e.g. for ACUs, will override the mass value suggested by the blueprint
     --Ranges:
@@ -28,6 +28,7 @@ refiAARange = 'M28UAAR'
 refiBomberRange = 'M28UBR'
 
 refbPaused = 'M28UnitPaused' --true if unit is paused
+reftoUnitsAssistingThis = 'M28UnitsAssisting' --table of units given an order to guard this unit
 
 --Categories:
 --Buildings - eco

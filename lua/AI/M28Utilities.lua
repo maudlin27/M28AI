@@ -460,15 +460,17 @@ function RemoveEntriesFromArrayBasedOnCondition(tArray, fnKeepCurEntry)
     local iTableSize = table.getn(tArray)
 
     for iOrigIndex=1, iTableSize do
-        if fnKeepCurEntry(tArray, iOrigIndex) then --I.e. this should run the logic to decide whether we want to keep this entry of the table or remove it
-            --We want to keep the entry; Move the original index to be the revised index number (so if e.g. a table of 1,2,3 removed 2, then this would've resulted in the revised index being 2 (i.e. it starts at 1, then icnreases by 1 for the first valid entry); this then means we change the table index for orig index 3 to be 2
-            if (iOrigIndex ~= iRevisedIndex) then
-                tArray[iRevisedIndex] = tArray[iOrigIndex];
+        if tArray[iOrigIndex] then
+            if fnKeepCurEntry(tArray, iOrigIndex) then --I.e. this should run the logic to decide whether we want to keep this entry of the table or remove it
+                --We want to keep the entry; Move the original index to be the revised index number (so if e.g. a table of 1,2,3 removed 2, then this would've resulted in the revised index being 2 (i.e. it starts at 1, then icnreases by 1 for the first valid entry); this then means we change the table index for orig index 3 to be 2
+                if (iOrigIndex ~= iRevisedIndex) then
+                    tArray[iRevisedIndex] = tArray[iOrigIndex];
+                    tArray[iOrigIndex] = nil;
+                end
+                iRevisedIndex = iRevisedIndex + 1; --i.e. this will be the position of where the next value that we keep will be located
+            else
                 tArray[iOrigIndex] = nil;
             end
-            iRevisedIndex = iRevisedIndex + 1; --i.e. this will be the position of where the next value that we keep will be located
-        else
-            tArray[iOrigIndex] = nil;
         end
     end
     return tArray;

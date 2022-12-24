@@ -88,31 +88,29 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
     --if iRecordedPlateau == 12 and iRecordedLandZone == 9 then LOG('End of code, iRevisedIndex='..iRevisedIndex..'; reprs of tUnits='..reprs(tUnits)) end
 end
 
-function RecordGroundThreatForLandZone(tLZData, iTeam, iPlateau, iLandZone)
+function RecordGroundThreatForLandZone(tLZTeamData, iTeam, iPlateau, iLandZone)
     --Records the different types of threat for the land zone
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordGroundThreatForLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iPlateau == 12 and iLandZone == 9 then bDebugMessages = true end
-
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for iTeam='..iTeam..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZTEnemyUnits]))) end
-    --local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
-    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZTEnemyUnits]) then
-        tLZData[M28Map.subrefLZTThreatEnemyCombatTotal] = 0
-        tLZData[M28Map.subrefLZThreatEnemyMobileDFByRange] = nil
-        tLZData[M28Map.subrefLZThreatEnemyStructureDFByRange] = nil
-        tLZData[M28Map.subrefLZThreatEnemyStructureIndirect] = 0
-        tLZData[M28Map.subrefLZThreatEnemyGroundAA] = 0
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for iTeam='..iTeam..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTEnemyUnits]))) end
+    --local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTEnemyUnits]) then
+        tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] = 0
+        tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange] = nil
+        tLZTeamData[M28Map.subrefLZThreatEnemyStructureDFByRange] = nil
+        tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] = 0
+        tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] = 0
     else
-        local tMobileUnits = EntityCategoryFilterDown(categories.MOBILE, tLZData[M28Map.subrefLZTEnemyUnits])
-        local tStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tLZData[M28Map.subrefLZTEnemyUnits])
-        tLZData[M28Map.subrefLZTThreatEnemyCombatTotal] = M28UnitInfo.GetCombatThreatRating(tLZData[M28Map.subrefLZTEnemyUnits], true)
-        tLZData[M28Map.subrefLZThreatEnemyStructureIndirect] = M28UnitInfo.GetCombatThreatRating(tStructures, true, false, true)
-        tLZData[M28Map.subrefLZThreatEnemyGroundAA] = M28UnitInfo.GetAirThreatLevel(tLZData[M28Map.subrefLZTEnemyUnits], true, false, true, false, false, false)
-        tLZData[M28Map.subrefLZThreatEnemyMobileDFByRange] = nil
-        tLZData[M28Map.subrefLZThreatEnemyStructureDFByRange] = nil
+        local tMobileUnits = EntityCategoryFilterDown(categories.MOBILE, tLZTeamData[M28Map.subrefLZTEnemyUnits])
+        local tStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tLZTeamData[M28Map.subrefLZTEnemyUnits])
+        tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] = M28UnitInfo.GetCombatThreatRating(tLZTeamData[M28Map.subrefLZTEnemyUnits], true)
+        tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] = M28UnitInfo.GetCombatThreatRating(tStructures, true, false, true)
+        tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] = M28UnitInfo.GetAirThreatLevel(tLZTeamData[M28Map.subrefLZTEnemyUnits], true, false, true, false, false, false)
+        tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange] = nil
+        tLZTeamData[M28Map.subrefLZThreatEnemyStructureDFByRange] = nil
         local iCurThreat
         if M28Utilities.IsTableEmpty(tMobileUnits) == false then
             for iUnit, oUnit in tMobileUnits do
@@ -120,8 +118,8 @@ function RecordGroundThreatForLandZone(tLZData, iTeam, iPlateau, iLandZone)
                 if oUnit[M28UnitInfo.refiDFRange] > 0 then
                     iCurThreat = M28UnitInfo.GetCombatThreatRating({ oUnit }, true)
                     if iCurThreat > 0 then
-                        if not(tLZData[M28Map.subrefLZThreatEnemyMobileDFByRange]) then tLZData[M28Map.subrefLZThreatEnemyMobileDFByRange] = {} end
-                        tLZData[M28Map.subrefLZThreatEnemyMobileDFByRange][oUnit[M28UnitInfo.refiDFRange]] = (tLZData[M28Map.subrefLZThreatEnemyMobileDFByRange][oUnit[M28UnitInfo.refiDFRange]] or 0) + iCurThreat
+                        if not(tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]) then tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange] = {} end
+                        tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange][oUnit[M28UnitInfo.refiDFRange]] = (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange][oUnit[M28UnitInfo.refiDFRange]] or 0) + iCurThreat
                     end
                 end
             end
@@ -131,36 +129,36 @@ function RecordGroundThreatForLandZone(tLZData, iTeam, iPlateau, iLandZone)
                 if oUnit[M28UnitInfo.refiDFRange] > 0 then
                     iCurThreat = M28UnitInfo.GetCombatThreatRating({ oUnit }, true)
                     if iCurThreat > 0 then
-                        if not(tLZData[M28Map.subrefLZThreatEnemyStructureDFByRange]) then tLZData[M28Map.subrefLZThreatEnemyStructureDFByRange] = {} end
-                        tLZData[M28Map.subrefLZThreatEnemyStructureDFByRange][oUnit[M28UnitInfo.refiDFRange]] = (tLZData[M28Map.subrefLZThreatEnemyStructureDFByRange][oUnit[M28UnitInfo.refiDFRange]] or 0) + iCurThreat
+                        if not(tLZTeamData[M28Map.subrefLZThreatEnemyStructureDFByRange]) then tLZTeamData[M28Map.subrefLZThreatEnemyStructureDFByRange] = {} end
+                        tLZTeamData[M28Map.subrefLZThreatEnemyStructureDFByRange][oUnit[M28UnitInfo.refiDFRange]] = (tLZTeamData[M28Map.subrefLZThreatEnemyStructureDFByRange][oUnit[M28UnitInfo.refiDFRange]] or 0) + iCurThreat
                     end
                 end
             end
         end
     end
 
-    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZTAlliedUnits]) then
-        tLZData[M28Map.subrefLZTThreatAllyCombatTotal] = 0
-        tLZData[M28Map.subrefLZThreatAllyMobileDFByRange] = nil
-        tLZData[M28Map.subrefLZThreatAllyStructureDFByRange] = nil
-        tLZData[M28Map.subrefLZThreatAllyStructureIndirect] = 0
-        tLZData[M28Map.subrefLZThreatAllyGroundAA] = 0
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) then
+        tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] = 0
+        tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange] = nil
+        tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange] = nil
+        tLZTeamData[M28Map.subrefLZThreatAllyStructureIndirect] = 0
+        tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] = 0
     else
-        local tMobileUnits = EntityCategoryFilterDown(categories.MOBILE, tLZData[M28Map.subrefLZTAlliedUnits])
-        local tStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tLZData[M28Map.subrefLZTAlliedUnits])
-        tLZData[M28Map.subrefLZTThreatAllyCombatTotal] = M28UnitInfo.GetCombatThreatRating(tLZData[M28Map.subrefLZTAlliedUnits], false)
-        tLZData[M28Map.subrefLZThreatAllyStructureIndirect] = M28UnitInfo.GetCombatThreatRating(tStructures, false, false, true)
-        tLZData[M28Map.subrefLZThreatAllyGroundAA] = M28UnitInfo.GetAirThreatLevel(tLZData[M28Map.subrefLZTAlliedUnits], false, false, true, false, false, false)
-        tLZData[M28Map.subrefLZThreatAllyMobileDFByRange] = nil
-        tLZData[M28Map.subrefLZThreatAllyStructureDFByRange] = nil
+        local tMobileUnits = EntityCategoryFilterDown(categories.MOBILE, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+        local tStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+        tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] = M28UnitInfo.GetCombatThreatRating(tLZTeamData[M28Map.subrefLZTAlliedUnits], false)
+        tLZTeamData[M28Map.subrefLZThreatAllyStructureIndirect] = M28UnitInfo.GetCombatThreatRating(tStructures, false, false, true)
+        tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] = M28UnitInfo.GetAirThreatLevel(tLZTeamData[M28Map.subrefLZTAlliedUnits], false, false, true, false, false, false)
+        tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange] = nil
+        tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange] = nil
         local iCurThreat
         if M28Utilities.IsTableEmpty(tMobileUnits) == false then
             for iUnit, oUnit in tMobileUnits do
                 if oUnit[M28UnitInfo.refiDFRange] > 0 then
                     iCurThreat = M28UnitInfo.GetCombatThreatRating({ oUnit }, false)
                     if iCurThreat > 0 then
-                        if not(tLZData[M28Map.subrefLZThreatAllyMobileDFByRange]) then tLZData[M28Map.subrefLZThreatAllyMobileDFByRange] = {} end
-                        tLZData[M28Map.subrefLZThreatAllyMobileDFByRange][oUnit[M28UnitInfo.refiDFRange]] = (tLZData[M28Map.subrefLZThreatAllyMobileDFByRange][oUnit[M28UnitInfo.refiDFRange]] or 0) + iCurThreat
+                        if not(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange]) then tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange] = {} end
+                        tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange][oUnit[M28UnitInfo.refiDFRange]] = (tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange][oUnit[M28UnitInfo.refiDFRange]] or 0) + iCurThreat
                     end
                 end
             end
@@ -170,15 +168,15 @@ function RecordGroundThreatForLandZone(tLZData, iTeam, iPlateau, iLandZone)
                 if oUnit[M28UnitInfo.refiDFRange] > 0 then
                     iCurThreat = M28UnitInfo.GetCombatThreatRating({ oUnit }, true)
                     if iCurThreat > 0 then
-                        if not(tLZData[M28Map.subrefLZThreatAllyStructureDFByRange]) then tLZData[M28Map.subrefLZThreatAllyStructureDFByRange] = {} end
-                        tLZData[M28Map.subrefLZThreatAllyStructureDFByRange][oUnit[M28UnitInfo.refiDFRange]] = (tLZData[M28Map.subrefLZThreatAllyStructureDFByRange][oUnit[M28UnitInfo.refiDFRange]] or 0) + iCurThreat
+                        if not(tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange]) then tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange] = {} end
+                        tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange][oUnit[M28UnitInfo.refiDFRange]] = (tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange][oUnit[M28UnitInfo.refiDFRange]] or 0) + iCurThreat
                     end
                 end
             end
         end
     end
     local bNearbyEnemies = false
-    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZTEnemyUnits]) == false then
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTEnemyUnits]) == false then
         bNearbyEnemies = true
     else
         --, iPlateau, iLandZone
@@ -191,7 +189,7 @@ function RecordGroundThreatForLandZone(tLZData, iTeam, iPlateau, iLandZone)
             end
         end
     end
-    tLZData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] = bNearbyEnemies
+    tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] = bNearbyEnemies
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -201,17 +199,17 @@ function ManageLandZone(aiBrain, iTeam, iPlateau, iLandZone)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --Record enemy threat
-    local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
-    if bDebugMessages == true then LOG(sFunctionRef..': About to update threat for iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTeam='..iTeam..'; Is LZData empty='..tostring(M28Utilities.IsTableEmpty(tLZData))) end
-    RecordGroundThreatForLandZone(tLZData, iTeam, iPlateau, iLandZone)
+    local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
+    if bDebugMessages == true then LOG(sFunctionRef..': About to update threat for iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTeam='..iTeam..'; Is LZData empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData))) end
+    RecordGroundThreatForLandZone(tLZTeamData, iTeam, iPlateau, iLandZone)
 
     local tEngineers
-    if bDebugMessages == true then LOG(sFunctionRef..': Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZTAlliedUnits]))) end
-    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZTAlliedUnits]) == false then
+    if bDebugMessages == true then LOG(sFunctionRef..': Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]))) end
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
         --Decide on what to do with units in this LZ
         tEngineers = {}
         local tTempOtherUnits = {}
-        for iUnit, oUnit in tLZData[M28Map.subrefLZTAlliedUnits] do
+        for iUnit, oUnit in tLZTeamData[M28Map.subrefLZTAlliedUnits] do
             if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
                 table.insert(tEngineers, oUnit)
             elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
@@ -228,21 +226,21 @@ function ManageLandZone(aiBrain, iTeam, iPlateau, iLandZone)
 
     end
     --Handle engineers and even if no engineers still decide what engineers we would want for hte LZ
-    M28Engineer.ConsiderLandZoneEngineerAssignment(tLZData, iTeam, iPlateau, iLandZone, tEngineers) --Should update the land zone engineer requirements, even if tEngineers itself is empty
+    M28Engineer.ConsiderLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, iLandZone, tEngineers) --Should update the land zone engineer requirements, even if tEngineers itself is empty
 
     --Update BP wanted for adjacent zones - will just have a flag in the engineer assignment that sets subrefLZTbWantBP to true/false so commented out the below
-    --[[tLZData[M28Map.subrefLZTAdjacentBPByTechWanted] = {[1]=0, [2]=0,[3]=0}
-    tLZData[M28Map.subrefLZTbWantBP] = false
+    --[[tLZTeamData[M28Map.subrefLZTAdjacentBPByTechWanted] = {[1]=0, [2]=0,[3]=0}
+    tLZTeamData[M28Map.subrefLZTbWantBP] = false
     if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[M28Map.iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones]) == false then
         for _, iAdjLZ in M28Map.tAllPlateaus[M28Map.iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones] do
             for iTech = 1, 3, 1 do
-                tLZData[M28Map.subrefLZTAdjacentBPByTechWanted] = math.max(tLZData[M28Map.subrefLZTAdjacentBPByTechWanted][iTech], (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTBuildPowerByTechWanted][iTech] or 0))
+                tLZTeamData[M28Map.subrefLZTAdjacentBPByTechWanted] = math.max(tLZTeamData[M28Map.subrefLZTAdjacentBPByTechWanted][iTech], (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTBuildPowerByTechWanted][iTech] or 0))
             end
         end
     end
     for iTech = 1, 3, 1 do
-        if tLZData[M28Map.subrefLZTAdjacentBPByTechWanted][iTech] > 0 or tLZData[M28Map.subrefLZTAdjacentBPByTechWanted][iTech] > 0 then
-            tLZData[M28Map.subrefLZTbWantBP] = true
+        if tLZTeamData[M28Map.subrefLZTAdjacentBPByTechWanted][iTech] > 0 or tLZTeamData[M28Map.subrefLZTAdjacentBPByTechWanted][iTech] > 0 then
+            tLZTeamData[M28Map.subrefLZTbWantBP] = true
         end
     end--]]
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -278,7 +276,7 @@ function AssignValuesToLandZones(iTeam)
 
         for iPlateau, tPlateauData in M28Map.tAllPlateaus do
             if M28Utilities.IsTableEmpty(tPlateauData[M28Map.subrefPlateauLandZones]) == false then
-                --tAllPlateaus[iPlateauGroup][subrefPlateauLandZones][iLandZone]
+                --tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
                 for iLandZone, tLandZoneData in tPlateauData[M28Map.subrefPlateauLandZones] do
                     if bDebugMessages == true then LOG(sFunctionRef..': About to refresh value of iPlateau='..iPlateau..'; iLandZone='..iLandZone) end
                     --Decide on value of the land zone ignoring distance:
@@ -361,19 +359,19 @@ function RefreshAllLandZoneUnits(aiBrain, iTeam)
                 LOG(sFunctionRef..': Is plateau 12 LZ 2 empty of allies for team 2='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[12][M28Map.subrefPlateauLandZones][2][M28Map.subrefLZTeamData][2][M28Map.subrefLZTAlliedUnits])))
             end
             for iLandZone, tLandZoneDataByTeam in tPlateauData[M28Map.subrefPlateauLandZones] do
-                local tLZData = tLandZoneDataByTeam[M28Map.subrefLZTeamData][iTeam]
+                local tLZTeamData = tLandZoneDataByTeam[M28Map.subrefLZTeamData][iTeam]
                 if bDebugMessages == true then
-                    LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is table of enemey units empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZTEnemyUnits]))..'; Is table of friendly units empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZTAlliedUnits])))
-                    if iPlateau == 12 and iLandZone == 2 then LOG(sFunctionRef..': Will do reprs of tLZData='..reprs(tLZData)..'; reprs of same table via full ref='..reprs(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam])..'; Is table empty for team '..aiBrain.M28Team..' doing full ref='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTAlliedUnits]))) end
+                    LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is table of enemey units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTEnemyUnits]))..'; Is table of friendly units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits])))
+                    if iPlateau == 12 and iLandZone == 2 then LOG(sFunctionRef..': Will do reprs of tLZTeamData='..reprs(tLZTeamData)..'; reprs of same table via full ref='..reprs(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam])..'; Is table empty for team '..aiBrain.M28Team..' doing full ref='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTAlliedUnits]))) end
                 end
                 --First check all units in here are alive
-                if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZTEnemyUnits]) == false then
+                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTEnemyUnits]) == false then
                     iCurCycleRefreshCount = iCurCycleRefreshCount + 1
-                    UpdateUnitPositionsAndLandZone(aiBrain, tLZData[M28Map.subrefLZTEnemyUnits], iTeam, iPlateau, iLandZone, true)
+                    UpdateUnitPositionsAndLandZone(aiBrain, tLZTeamData[M28Map.subrefLZTEnemyUnits], iTeam, iPlateau, iLandZone, true)
                 end
-                if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZTAlliedUnits]) == false then
+                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
                     iCurCycleRefreshCount = iCurCycleRefreshCount + 1
-                    UpdateUnitPositionsAndLandZone(aiBrain, tLZData[M28Map.subrefLZTAlliedUnits], iTeam, iPlateau, iLandZone, false)
+                    UpdateUnitPositionsAndLandZone(aiBrain, tLZTeamData[M28Map.subrefLZTAlliedUnits], iTeam, iPlateau, iLandZone, false)
                 end
 
                 ManageLandZone(aiBrain, iTeam, iPlateau, iLandZone)
