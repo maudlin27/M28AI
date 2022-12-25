@@ -45,6 +45,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefbActiveT1PowerReclaimer = 'M28TeamActiveT1PowerReclaimer'
     subrefbActiveT2PowerReclaimer = 'M28TeamActiveT2PowerReclaimer'
     refbJustBuiltLotsOfPower = 'M28TeamJustBuiltPower' --temporarily set to true after building an early T2/T3 PGen so we dont think for hte few seconds after building it that we are power stalling if we have low % of power
+    subrefiLowestEnergyStorageCount = 'M28TeamLowestEStorage' --Lowest number of EStorage owned by an M28 brain on the team
 
     subreftTeamUpgradingHQs = 'M28TeamUpgradingHQs'
     subreftTeamUpgradingMexes = 'M28TeamUpgradingMexes'
@@ -173,11 +174,11 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
             table.remove(tTeamData[iTeam][sUpgradeTableRef], iTableRefOfUnit)
             local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnitDoingUpgrade:GetPosition())
             local tTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
-            if M28Utilities.IsTableEmpty(tTeamData[M28Map.subrefActiveUpgrades]) == false then
-                for iUnit, oUnit in tTeamData[M28Map.subrefActiveUpgrades] do
+            if M28Utilities.IsTableEmpty(tTeamData[iTeam][M28Map.subrefActiveUpgrades]) == false then
+                for iUnit, oUnit in tTeamData[iTeam][M28Map.subrefActiveUpgrades] do
                     if oUnit == oUnitDoingUpgrade then
                         if bDebugMessages == true then LOG(sFunctionRef..': About to remove unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' from the table of upgrades for iPlateau '..iPlateau..'; iLZ='..iLandZone) end
-                        table.remove(tTeamData[M28Map.subrefActiveUpgrades], iUnit)
+                        table.remove(tTeamData[iTeam][M28Map.subrefActiveUpgrades], iUnit)
                         break
                     end
                 end
@@ -205,7 +206,7 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
 
             local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnitDoingUpgrade:GetPosition())
             local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
-            if bDebugMessages == true then LOG(sFunctionRef..': tTeamData[M28Map.subrefActiveUpgrades] before adding unit='..reprs(tTeamData[M28Map.subrefActiveUpgrades])) end
+            if bDebugMessages == true then LOG(sFunctionRef..': tTeamData[iTeam][M28Map.subrefActiveUpgrades] before adding unit='..reprs(tTeamData[iTeam][M28Map.subrefActiveUpgrades])) end
             if not(tLZTeamData[M28Map.subrefActiveUpgrades]) then
                 tLZTeamData[M28Map.subrefActiveUpgrades] = {}
                 if bDebugMessages == true then LOG(sFunctionRef..': LZ Upgrade was nil so making it a table, reprs='..reprs(tLZTeamData[M28Map.subrefActiveUpgrades])) end
@@ -1056,10 +1057,11 @@ function TeamEconomyRefresh(iM28Team)
     tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] = 1
     tTeamData[iM28Team][subrefbTeamIsStallingEnergy] = false
     tTeamData[iM28Team][subrefbTeamIsStallingMass] = false
-        for iLastEntry = 5, 2, -1 do
-            tTeamData[iM28Team][subreftiPrevTeamNetMass][iLastEntry] = (tTeamData[iM28Team][subreftiPrevTeamNetMass][iLastEntry-1] or 0)
-        end
-        tTeamData[iM28Team][subreftiPrevTeamNetMass][1] = tTeamData[iM28Team][subrefiTeamNetMass]
+    for iLastEntry = 5, 2, -1 do
+        tTeamData[iM28Team][subreftiPrevTeamNetMass][iLastEntry] = (tTeamData[iM28Team][subreftiPrevTeamNetMass][iLastEntry-1] or 0)
+    end
+    tTeamData[iM28Team][subreftiPrevTeamNetMass][1] = tTeamData[iM28Team][subrefiTeamNetMass]
+    tTeamData[iM28Team][subrefiLowestEnergyStorageCount] = 100
 
 
 
@@ -1074,6 +1076,7 @@ function TeamEconomyRefresh(iM28Team)
         tTeamData[iM28Team][subrefiTeamMassStored] = tTeamData[iM28Team][subrefiTeamMassStored] + oBrain:GetEconomyStored('MASS')
         tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] = math.min(tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored], oBrain:GetEconomyStoredRatio('ENERGY'))
         tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] = math.min(tTeamData[iM28Team][subrefiTeamLowestMassPercentStored], oBrain:GetEconomyStoredRatio('MASS'))
+        tTeamData[iM28Team][subrefiLowestEnergyStorageCount] = math.min(tTeamData[iM28Team][subrefiLowestEnergyStorageCount], oBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage))
     end
 
     if tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] <= 0.05 then tTeamData[iM28Team][subrefbTeamIsStallingEnergy] = true end

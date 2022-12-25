@@ -280,7 +280,7 @@ function TeamHasLowMass(iTeam)
         local iMassStoredRatio = M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]
 
         if (iMassStoredRatio <= 0.15 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] <= 300 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
-            if M28Team.tTeamData[M28Team.subrefiTeamNetMass] < 0.2 then bHaveLowMass = true
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < 0.2 then bHaveLowMass = true
             elseif iMassStoredRatio <= 0.05 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 0.05 then bHaveLowMass = true
             end
         end

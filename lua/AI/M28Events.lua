@@ -296,7 +296,9 @@ function OnConstructed(oEngineer, oJustBuilt)
             if EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId) then
                 M28Engineer.CheckIfBuildableLocationsNearPositionStillValid(oJustBuilt:GetAIBrain(), oJustBuilt:GetPosition())
                 M28Economy.UpdateHighestFactoryTechLevelForBuiltUnit(oJustBuilt) --includes a check to see if are dealing with a factory HQ
-                if EntityCategoryContains(M28UnitInfo.refCategoryMex, oJustBuilt.UnitId) then M28Economy.UpdateLandZoneM28MexByTechCount(oJustBuilt, false, 10) end
+                if EntityCategoryContains(M28UnitInfo.refCategoryMex, oJustBuilt.UnitId) then M28Economy.UpdateLandZoneM28MexByTechCount(oJustBuilt, false, 10)
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryEnergyStorage, oJustBuilt.UnitId) then M28Team.TeamEconomyRefresh(oJustBuilt:GetAIBrain().M28Team)
+                end
             end
 
             --Update economy tracking (this function will check if it is an economic unit as part of it)

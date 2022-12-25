@@ -39,7 +39,7 @@ refActionBuildHydro = 2
 refActionReclaimArea = 3
 refActionBuildPower = 4
 --refActionBuildLandFactory = 5
---refActionBuildEnergyStorage = 6
+refActionBuildEnergyStorage = 6
 --refActionSpare = 7
 --refActionHasNearbyEnemies = 8
 --refActionUpgradeBuilding = 9
@@ -102,12 +102,14 @@ tiActionCategory = {
 [refActionBuildHydro] = M28UnitInfo.refCategoryHydro,
 [refActionBuildPower] = M28UnitInfo.refCategoryPower,
 [refActionBuildMassStorage] = M28UnitInfo.refCategoryMassStorage,
+[refActionBuildEnergyStorage] = M28UnitInfo.refCategoryEnergyStorage
 }
 
 tiActionOrder = {
     [refActionBuildMex] = M28Orders.refiOrderIssueBuild,
     [refActionBuildHydro] = M28Orders.refiOrderIssueBuild,
     [refActionBuildPower] = M28Orders.refiOrderIssueBuild,
+    [refActionBuildEnergyStorage] = M28Orders.refiOrderIssueBuild,
     [refActionMoveToLandZone] = M28Orders.refiOrderIssueMove,
     [refActionRunToLandZone] = M28Orders.refiOrderIssueMove,
     [refActionReclaimUnit] = M28Orders.refiOrderIssueReclaim,
@@ -2102,34 +2104,35 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoUnitsToReclaim]) then
                         M28Utilities.ErrorHandler('Want to reclaim a unit but no units in LZ to reclaim')
                     else
-                        while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
-                            if bDebugMessages == true then
-                                LOG(sFunctionRef..': About to tell engineer '..tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount])..' to move to iPlateau '..iPlateau..'; iTargetLZ='..iTargetLZ)
-                                if tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount]) == 'xsl01051' and iTargetLZ == 9 then M28Utilities.ErrorHandler('Audit trail') end
-                            end
+                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoUnitsToReclaim]) == false then
+                            while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
+                                if bDebugMessages == true then LOG(sFunctionRef..': About to tell engineer '..tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount])..' to move to iPlateau '..iPlateau) end
 
 
-                            local bAreDeadUnits = false
-                            for iUnit, oUnit in tLZTeamData[M28Map.subreftoUnitsToReclaim] do
-                                if M28UnitInfo.IsUnitValid(oUnit) then
-                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(tEngineersOfTechWanted[iEngiCount]:GetPosition(), oUnit:GetPosition())
-                                    if iCurDist < iNearestUnitDist then
-                                        iNearestUnitDist = iCurDist
-                                        oNearestUnit = oUnit
-                                    end
-                                else
-                                    --Have dead units in the list of units to reclaim, so need to update the table
-                                    if not(bAreDeadUnits) then
-                                        bAreDeadUnits = true
-                                        ForkThread(M28Economy.RefreshUnitsToReclaim, iTeam, iPlateau, iLandZone)
+                                local bAreDeadUnits = false
+                                for iUnit, oUnit in tLZTeamData[M28Map.subreftoUnitsToReclaim] do
+                                    if M28UnitInfo.IsUnitValid(oUnit) then
+                                        iCurDist = M28Utilities.GetDistanceBetweenPositions(tEngineersOfTechWanted[iEngiCount]:GetPosition(), oUnit:GetPosition())
+                                        if iCurDist < iNearestUnitDist then
+                                            iNearestUnitDist = iCurDist
+                                            oNearestUnit = oUnit
+                                        end
+                                    else
+                                        --Have dead units in the list of units to reclaim, so need to update the table
+                                        if not(bAreDeadUnits) then
+                                            bAreDeadUnits = true
+                                            ForkThread(M28Economy.RefreshUnitsToReclaim, iTeam, iPlateau, iLandZone)
+                                        end
                                     end
                                 end
-                            end
 
-                            if oNearestUnit then
-                                M28Orders.IssueTrackedReclaim(tEngineersOfTechWanted[iEngiCount], oNearestUnit, false, 'RecObs')
-                                TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign)
-                                UpdateBPTracking()
+                                if oNearestUnit then
+                                    M28Orders.IssueTrackedReclaim(tEngineersOfTechWanted[iEngiCount], oNearestUnit, false, 'RecObs')
+                                    TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign)
+                                    UpdateBPTracking()
+                                else
+                                    break
+                                end
                             end
                         end
                     end
@@ -2257,6 +2260,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
 
 
+
     function HaveActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted)
         --Done as subfunction for convenience so can just note the key values for the action in question and add on the others that wont change
         --vOptionalVariable can be used for action specific information to save having to recalculate the same thing - could be a table, nil, or a value
@@ -2331,6 +2335,18 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     elseif M28Conditions.WantToReclaimEnergyNotMass(iTeam) then
         HaveActionToAssign(refActionReclaimArea, 1, 5, true)
     end
+
+    --Energy storage once have eco to support it
+    bDebugMessages = true
+    iCurPriority = iCurPriority + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': iCurPriority='..iCurPriority..'; Considering building energy storage, Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Have low power='..tostring(bHaveLowPower)..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount]='..M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount]) end
+    if not(bHaveLowPower) and M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount] == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 30 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 2.5 then
+        if bDebugMessages == true then LOG(sFunctionRef..': Is tEngineers[1] valid='..tostring(M28UnitInfo.IsUnitValid(tEngineers[1]))) end
+        iBPWanted = 5
+        if not(bHaveLowMass) then iBPWanted = 20 end
+        HaveActionToAssign(refActionBuildEnergyStorage, 1, iBPWanted)
+    end
+    bDebugMessages = false
 
     --More power
     iCurPriority = iCurPriority + 1
@@ -2593,7 +2609,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     --Do we have stuff to reclaim in this LZ and arent about to overflow mass? Decided to leave this out as looks like it can do more harm than good
     --[[iCurPriority = iCurPriority + 1
     iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
-    if iHighestTechEngiAvailable > 0 and tLZData[M28Map.subrefLZTotalMassReclaim] >= 5 and M28Team.tTeamData[M28Team.subrefiTeamLowestMassPercentStored] <= 0.6 then
+    if iHighestTechEngiAvailable > 0 and tLZData[M28Map.subrefLZTotalMassReclaim] >= 5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.6 then
         HaveActionToAssign(refActionReclaimArea, 1, math.min(100, math.max(10, tLZData[M28Map.subrefLZTotalMassReclaim] / 10)), false, true)
     end--]]
 
