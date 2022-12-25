@@ -562,3 +562,28 @@ function GetAverageOfLocations(tAllLocations)
     tAveragePos[2] = GetSurfaceHeight(tAveragePos[1], tAveragePos[3])
     return tAveragePos
 end
+
+function ForkedDelayedChangedVariable(oVariableOwner, sVariableName, vVariableValue, iDelayInSeconds, sOptionalOwnerConditionRef, iMustBeLessThanThisTimeValue, iMustBeMoreThanThisTimeValue, vMustNotEqualThisValue)
+    --After waiting iDelayInSeconds, changes the variable to vVariableValue.
+    local sFunctionRef = 'ForkedDelayedChangedVariable'
+
+    WaitSeconds(iDelayInSeconds)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if oVariableOwner then
+        local bReset = true
+        if sOptionalOwnerConditionRef then
+            if iMustBeLessThanThisTimeValue and oVariableOwner[sOptionalOwnerConditionRef] >= iMustBeLessThanThisTimeValue then bReset = false
+            elseif iMustBeMoreThanThisTimeValue and oVariableOwner[sOptionalOwnerConditionRef] <= iMustBeMoreThanThisTimeValue then bReset = false
+            elseif vMustNotEqualThisValue and oVariableOwner[sOptionalOwnerConditionRef] == vMustNotEqualThisValue then bReset = false
+            end
+        end
+        if bReset then oVariableOwner[sVariableName] = vVariableValue end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function DelayChangeVariable(oVariableOwner, sVariableName, vVariableValue, iDelayInSeconds, sOptionalOwnerConditionRef, iMustBeLessThanThisTimeValue, iMustBeMoreThanThisTimeValue, vMustNotEqualThisValue)
+    --sOptionalOwnerConditionRef - can specify a variable for oVariableOwner; if so then the value of this variable must be <= iMustBeLessThanThisTimeValue
+    --e.g. if delay reset a variable, but are claling multiple times so want to only reset on the latest value, then this allows for that
+    ForkThread(ForkedDelayedChangedVariable, oVariableOwner, sVariableName, vVariableValue, iDelayInSeconds, sOptionalOwnerConditionRef, iMustBeLessThanThisTimeValue, iMustBeMoreThanThisTimeValue, vMustNotEqualThisValue)
+end

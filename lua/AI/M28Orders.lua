@@ -51,7 +51,7 @@ function UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc)
     local sPlateauAndZoneDesc = ''
     if EntityCategoryContains(categories.LAND + categories.NAVAL, oUnit.UnitId) then
         local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
-        sPlateauAndZoneDesc = ':P='..iPlateau..'LZ='..(iLandZone or 0)
+        sPlateauAndZoneDesc = ':P='..(iPlateau or 0)..'LZ='..(iLandZone or 0)
     end
     oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..sPlateauAndZoneDesc..':'..sBaseOrder..sExtraOrder)
 end

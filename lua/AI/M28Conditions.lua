@@ -288,23 +288,36 @@ function TeamHasLowMass(iTeam)
     return bHaveLowMass
 end
 
+function HaveLowPower(iTeam)
+    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 0 or M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] < 0.5 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.15 and M28Team.tTeamData[iTeam][M28Team.subrefbTooLittleEnergyForUpgrade]) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < M28Economy.tiMinEnergyPerTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] then
+        if not(M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower]) then
+            return true
+        else return false
+        end
+    end
+    return false
+end
+
 function WantMorePower(iTeam)
     local bWantMorePower = false
-    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 0 or M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] < 0.5 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.15 and M28Team.tTeamData[iTeam][M28Team.subrefbTooLittleEnergyForUpgrade]) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < M28Economy.tiMinEnergyPerTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] then bWantMorePower = true
+    if M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower] then return false
     else
-        local iNetPowerWanted
-        local iHighestTeamTech = M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]
-        if iHighestTeamTech >= 3 then
-            iNetPowerWanted = math.max(50, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.2)
-        elseif iHighestTeamTech == 2 then
-            iNetPowerWanted = math.max(15, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.15)
-        elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 20 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
-            iNetPowerWanted = math.max(3, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.1)
+        if HaveLowPower(iTeam) then bWantMorePower = true
         else
-            iNetPowerWanted = 2
-        end
-        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < iNetPowerWanted then
-            bWantMorePower = true
+            local iNetPowerWanted
+            local iHighestTeamTech = M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]
+            if iHighestTeamTech >= 3 then
+                iNetPowerWanted = math.max(50, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.2)
+            elseif iHighestTeamTech == 2 then
+                iNetPowerWanted = math.max(15, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.15)
+            elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 20 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+                iNetPowerWanted = math.max(3, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.1)
+            else
+                iNetPowerWanted = 2
+            end
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < iNetPowerWanted then
+                bWantMorePower = true
+            end
         end
     end
     return bWantMorePower

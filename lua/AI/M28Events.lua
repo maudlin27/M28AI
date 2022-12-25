@@ -113,11 +113,12 @@ function OnUnitDeath(oUnit)
         local sFunctionRef = 'OnUnitDeath'
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        if oUnit.UnitId == 'xsb0101' then bDebugMessages = true end
 
 
-        if bDebugMessages == true then LOG(sFunctionRef..'Hook successful. oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; IsACU='..tostring(M28Utilities.IsACU(oUnit))..'; GameTime='..GetGameTimeSeconds()) end
+        if bDebugMessages == true then LOG(sFunctionRef..'Hook successful. oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; GameTime='..GetGameTimeSeconds()) end
         --Is it an ACU?
-       if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+        if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
             OnACUKilled(oUnit)
         else
             if oUnit.CachePosition then --Redundancy to check not dealing with a unit, not sure this will actually trigger as looks like wreck deaths are picked up by the prop logic above
@@ -175,6 +176,7 @@ function OnUnitDeath(oUnit)
                         elseif EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) then
                             --Check for upgrades
                             --Upgrade tracking (even if have run this already)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will check if upgrade tracking needs updating, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                             M28Team.UpdateUpgradeTrackingOfUnit(oUnit, true)
                             if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then M28Economy.UpdateLandZoneM28MexByTechCount(oUnit, true) end
                         end

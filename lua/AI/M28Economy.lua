@@ -332,11 +332,28 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed)
                     oUnit[refoBrainRecordedForEconomy] = nil
                 else
                     oUnit[refoBrainRecordedForEconomy] = aiBrain
+                    --Set temporary flag that we have just built a lot of power (if we have)
+                    bDebugMessages = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if should temporarily say we have enough power; iEnergyGen='..iEnergyGen..'; Gross energy='..(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossEnergy] or 'nil')..'; Net energy='..(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamNetEnergy] or 'nil')..'; Flag for lots of power='..tostring(M28Team.tTeamData[aiBrain.M28Team][M28Team.refbJustBuiltLotsOfPower] or false)) end
+                    if iEnergyGen >= math.max(20, (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossEnergy] or 0) * 0.15, -(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamNetEnergy] or 0)) and not(M28Team.tTeamData[aiBrain.M28Team][M28Team.refbJustBuiltLotsOfPower]) then
+                        M28Team.tTeamData[aiBrain.M28Team][M28Team.refbJustBuiltLotsOfPower] = true
+                        M28Utilities.DelayChangeVariable(M28Team.tTeamData[aiBrain.M28Team], M28Team.refbJustBuiltLotsOfPower, false, 5)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Just built a lot of power so will temporarily say we dont need more power') end
+                    end
+                    --Update team eco values to factor in impact of this on any decisions made before the next team eco refresh
+                    M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] = (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] or 0) + iMassGen
+                    M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamNetMass] = (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamNetMass] or 0) + iMassGen
+                    M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossEnergy] = (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossEnergy] or 0) + iEnergyGen
+                    M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamNetEnergy] = (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamNetEnergy] or 0) + iEnergyGen
                 end
                 aiBrain[refiGrossEnergyBaseIncome] = aiBrain[refiGrossEnergyBaseIncome] + iEnergyGen
                 aiBrain[refiNetEnergyBaseIncome] = aiBrain[refiNetEnergyBaseIncome] + iEnergyGen
                 aiBrain[refiGrossMassBaseIncome] = aiBrain[refiGrossMassBaseIncome] + iMassGen
                 aiBrain[refiNetMassBaseIncome] = aiBrain[refiNetMassBaseIncome] + iMassGen
+
+                if iEnergyGen >= 25 then
+                    ConsiderReclaimingPower(aiBrain.M28Team, oUnit)
+                end
                 if bDebugMessages == true then LOG(sFunctionRef..': Updated gross and net resources for iMassGen='..iMassGen..'; iEnergyGen='..iEnergyGen..'; aiBrain[refiNetMassBaseIncome]='..aiBrain[refiNetMassBaseIncome]..'; aiBrain[refiGrossMassBaseIncome]='..aiBrain[refiGrossMassBaseIncome]) end
             end
 
@@ -399,4 +416,124 @@ function EconomyInitialisation(aiBrain)
     --Some values are set when creating a team to avoid errors
 
     ForkThread(EconomyMainLoop, aiBrain)
+end
+
+function RecordUnitsOfCategoryToBeReclaimed(iTeam, iCategory)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordUnitsOfCategoryToBeReclaimed'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local bAddCurUnit
+    local bCheckForExistingUnits
+    for iPlateau, tPlateauData in M28Map.tAllPlateaus do
+        if M28Utilities.IsTableEmpty(tPlateauData[M28Map.subrefPlateauLandZones]) == false then
+            for iLandZone, tLZData in tPlateauData[M28Map.subrefPlateauLandZones] do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering if iPlateau-LZ '..iPlateau..'-'..iLandZone..' has units of the category wanted') end
+                if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedUnits]) == false then
+                    if not(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subreftoUnitsToReclaim]) then
+                        bCheckForExistingUnits = false
+                        tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subreftoUnitsToReclaim] = {}
+                    else
+                        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subreftoUnitsToReclaim]) == false then
+                            bCheckForExistingUnits = true
+                        end
+                    end
+                    local tUnitsToReclaim = EntityCategoryFilterDown(iCategory, tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedUnits])
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of untis of category wanted empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToReclaim))) end
+                    if M28Utilities.IsTableEmpty(tUnitsToReclaim) == false then
+                        for iUnit, oUnit in tUnitsToReclaim do
+                            bAddCurUnit = true
+                            if bCheckForExistingUnits then
+                                for iExistingUnit, oExistingUnit in tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subreftoUnitsToReclaim] do
+                                    if oUnit == oExistingUnit then
+                                        bAddCurUnit = false
+                                        break
+                                    end
+                                end
+                            end
+                            if bAddCurUnit then table.insert(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subreftoUnitsToReclaim], oUnit) end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function RefreshUnitsToReclaim(iTeam, iPlateau, iLandZone)
+    --Removes any dead units
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RefreshUnitsToReclaim'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local tUnitsToReclaim = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subreftoUnitsToReclaim]
+    if bDebugMessages == true then
+        LOG(sFunctionRef..': About to remove any dead units from tUnitsToReclaim for iPlateau-iLandZone='..iPlateau..'-'..iLandZone..', is table empty at start='..tostring(M28Utilities.IsTableEmpty(tUnitsToReclaim)))
+        if M28Utilities.IsTableEmpty(tUnitsToReclaim) == false then
+            LOG(sFunctionRef..': Size of tUnitsToReclaim='..table.getn(tUnitsToReclaim))
+        end
+    end
+
+    function KeepCurEntry(tArray, iEntry)
+        return M28UnitInfo.IsUnitValid(tArray[iEntry])
+    end
+    M28Utilities.RemoveEntriesFromArrayBasedOnCondition(tUnitsToReclaim, KeepCurEntry)
+    if bDebugMessages == true then LOG(sFunctionRef..': Is table empty after removing dead units='..tostring(M28Utilities.IsTableEmpty(tUnitsToReclaim))) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function CheckForUnitsToReclaimOfCategory(iTeam, iCategory, sTeamSubrefFlag)
+    --Checks if we have any units of iCategory, and if so then checks if we have low enough mass to reclaim them; if we have enough mass then starts a while loop and only aborts once we no longer have any units of the category
+    --CheckForUnitsToReclaimOfCategory - e.g. subrefbActiveT2PowerReclaimer
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'CheckForUnitsToReclaimOfCategory'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    M28Team.tTeamData[iTeam][sTeamSubrefFlag] = true
+    local bDontCheckForPower = true
+    if M28UnitInfo.DoesCategoryContainCategory(M28UnitInfo.refCategoryPower, iCategory, false) then bDontCheckForPower = false end
+    if bDebugMessages == true then LOG(sFunctionRef..': Checking to see if we have any units to reclaim for the specified category.  bDontCheckForPower='..tostring(bDontCheckForPower)) end
+    while M28Team.GetCurrentUnitsOfCategory(iTeam, iCategory) > 0 do
+        --Are we low on mass and not low on power?
+        if bDebugMessages == true then LOG(sFunctionRef..': Will only add units to be reclaimed if we have low mass, and have power (if checking for power). Has low mass='..tostring(M28Conditions.TeamHasLowMass(iTeam))..'; Have low power='..tostring(M28Conditions.HaveLowPower(iTeam))) end
+        if M28Conditions.TeamHasLowMass(iTeam) and (bDontCheckForPower or not(M28Conditions.HaveLowPower(iTeam))) then
+            RecordUnitsOfCategoryToBeReclaimed(iTeam, iCategory)
+            if bDebugMessages == true then LOG(sFunctionRef..': Have added any units to be reclaimed, will stop looping now') end
+            break
+        end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        WaitSeconds(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    end
+
+    M28Team.tTeamData[iTeam][sTeamSubrefFlag] = false
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ConsiderReclaimingPower(iTeam, oPowerJustBuilt)
+    --Intended to be called whenever we build a PGen
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderReclaimingPower'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iPowerTechLevel = M28UnitInfo.GetUnitTechLevel(oPowerJustBuilt)
+    if bDebugMessages == true then LOG(sFunctionRef..': Just built power='..oPowerJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oPowerJustBuilt)..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Do we have active reclaimer logic for T1='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbActiveT1PowerReclaimer] or false)..'; Do we ahve active t2 reclaimer='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbActiveT2PowerReclaimer])) end
+    if iPowerTechLevel == 2 then
+        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 100 and not(M28Team.tTeamData[iTeam][M28Team.subrefbActiveT1PowerReclaimer]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbActiveT2PowerReclaimer]) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will check for t1 power that we can reclaim') end
+            CheckForUnitsToReclaimOfCategory(iTeam, M28UnitInfo.refCategoryT1Power, M28Team.subrefbActiveT1PowerReclaimer)
+        end
+    elseif iPowerTechLevel == 3 then
+        if not(M28Team.tTeamData[iTeam][M28Team.subrefbActiveT2PowerReclaimer]) then
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 500 then
+                CheckForUnitsToReclaimOfCategory(iTeam, M28UnitInfo.refCategoryT1Power + M28UnitInfo.refCategoryT2Power, M28Team.subrefbActiveT2PowerReclaimer)
+            elseif not(M28Team.tTeamData[iTeam][M28Team.subrefbActiveT1PowerReclaimer]) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Built T3 PGen, but sitll low gross energy, Will check for t1 power that we can reclaim') end
+                CheckForUnitsToReclaimOfCategory(iTeam, M28UnitInfo.refCategoryT1Power, M28Team.subrefbActiveT1PowerReclaimer)
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+
 end

@@ -1070,3 +1070,18 @@ function GetUnitUpgradeBlueprint(oUnitToUpgrade, bGetSupportFactory)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return sUpgradeBP
 end
+
+function DoesCategoryContainCategory(iCategoryWanted, iCategoryToSearch, bOnlyContainsThisCategory)
+    --Not very efficient so consider alternative such as recording variables if going to be running lots of times
+    local tsUnitIDs = EntityCategoryGetUnitList(iCategoryToSearch)
+    if bOnlyContainsThisCategory then
+        for iRef, sRef in tsUnitIDs do
+            if not(EntityCategoryContains(iCategoryWanted, sRef)) then return false end
+        end
+        return true
+    else
+        for iRef, sRef in tsUnitIDs do
+            if EntityCategoryContains(iCategoryWanted, sRef) then return true end
+        end
+    end
+end

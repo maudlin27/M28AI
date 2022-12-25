@@ -228,6 +228,10 @@ function ManageLandZone(aiBrain, iTeam, iPlateau, iLandZone)
     --Handle engineers and even if no engineers still decide what engineers we would want for hte LZ
     M28Engineer.ConsiderLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, iLandZone, tEngineers) --Should update the land zone engineer requirements, even if tEngineers itself is empty
 
+    if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexUnbuiltLocations]) == false and GetGameTimeSeconds() >= 840 then bDebugMessages = true end
+
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is unbuild locations empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexUnbuiltLocations]))) end
+
     --Update BP wanted for adjacent zones - will just have a flag in the engineer assignment that sets subrefLZTbWantBP to true/false so commented out the below
     --[[tLZTeamData[M28Map.subrefLZTAdjacentBPByTechWanted] = {[1]=0, [2]=0,[3]=0}
     tLZTeamData[M28Map.subrefLZTbWantBP] = false

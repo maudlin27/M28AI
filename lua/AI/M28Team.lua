@@ -14,6 +14,7 @@ local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
 local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
+local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 
 
 --Team data variables
@@ -41,6 +42,9 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefbTeamIsStallingEnergy = 'M28TeamStallingEnergy'
     subrefbTeamIsStallingMass = 'M28TeamStallingMass'
     subrefbTooLittleEnergyForUpgrade = 'M28TeamTooLittleEnergyForUpgrade' --true if we havent got an upgrade due to lack of power
+    subrefbActiveT1PowerReclaimer = 'M28TeamActiveT1PowerReclaimer'
+    subrefbActiveT2PowerReclaimer = 'M28TeamActiveT2PowerReclaimer'
+    refbJustBuiltLotsOfPower = 'M28TeamJustBuiltPower' --temporarily set to true after building an early T2/T3 PGen so we dont think for hte few seconds after building it that we are power stalling if we have low % of power
 
     subreftTeamUpgradingHQs = 'M28TeamUpgradingHQs'
     subreftTeamUpgradingMexes = 'M28TeamUpgradingMexes'
@@ -209,6 +213,28 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
             table.insert(tLZTeamData[M28Map.subrefActiveUpgrades], oUnitDoingUpgrade)
             if bDebugMessages == true then LOG(sFunctionRef..': Just added unit to the upgrade table for the team '..iTeam..'; Plateau '..iPlateau..'; LZ='..iLandZone..'; Is table of active upgrades empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefActiveUpgrades]))..'; Reprs of tLZTeamData[activeupgrades]='..reprs(tLZTeamData[M28Map.subrefActiveUpgrades])) end
         elseif bDebugMessages == true then LOG(sFunctionRef..': Unit dead or compelted, but not in the table so no need to remove it')
+        end
+    end
+
+    --Clear trackers from the unit that was doing the upgrade
+
+    if bUnitDeadOrCompletedUpgrade and oUnitDoingUpgrade.UnitId then
+        bDebugMessages = true
+        if bDebugMessages == true then LOG(sFunctionRef..': Just finished upgrading '..(oUnitDoingUpgrade.UnitId or 'nil')..M28UnitInfo.GetUnitLifetimeCount(oUnitDoingUpgrade)..'; is table of units assisting this empty='..tostring(M28Utilities.IsTableEmpty(oUnitDoingUpgrade[M28UnitInfo.reftoUnitsAssistingThis]))) end
+        if M28Utilities.IsTableEmpty(oUnitDoingUpgrade[M28UnitInfo.reftoUnitsAssistingThis]) == false then
+            local tUnitsToClear = {}
+            for iUnit, oUnit in oUnitDoingUpgrade[M28UnitInfo.reftoUnitsAssistingThis] do
+                if M28UnitInfo.IsUnitValid(oUnit) and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) and oUnit[M28Engineer.refiAssignedAction] == M28Engineer.refActionAssistUpgrade then
+                    table.insert(tUnitsToClear, oUnit)
+                end
+            end
+            if M28Utilities.IsTableEmpty(tUnitsToClear) == false then
+                bDebugMessages = true
+                if bDebugMessages == true then LOG(sFunctionRef..': Just finished upgrading '..oUnitDoingUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitDoingUpgrade)..'; will clear assisting engineers, table size='..table.getn(tUnitsToClear)) end
+                for iUnit, oUnit in tUnitsToClear do
+                    M28Orders.IssueTrackedClearCommands(oUnit)
+                end
+            end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -1104,4 +1130,12 @@ function UpdateEnemyTechTracking(iM28Team, oUnit)
     elseif EntityCategoryContains(categories.AIR, oUnit.UnitId) then tTeamData[iM28Team][subrefiHighestEnemyAirTech] = math.max(tTeamData[iM28Team][subrefiHighestEnemyAirTech], iUnitTechLevel)
     elseif EntityCategoryContains(categories.NAVAL, oUnit.UnitId) then tTeamData[iM28Team][subrefiHighestEnemyNavyTech] = math.max(tTeamData[iM28Team][subrefiHighestEnemyNavyTech], iUnitTechLevel)
     end
+end
+
+function GetCurrentUnitsOfCategory(iM28Team, iCategory)
+    local iCurUnits = 0
+    for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
+        iCurUnits = iCurUnits + oBrain:GetCurrentUnits(iCategory)
+    end
+    return iCurUnits
 end
