@@ -8,6 +8,7 @@ local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
 local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 
+
 --global (non-category) varaibles:
 --Threat values
 tUnitThreatByIDAndType = {} --Calculated at the start of the game
@@ -705,7 +706,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                         --Filter to just LABs (note unfortunately it doesnt distinguish between mantis and LABs so matnis get treated as LABs to be prudent)
                         if tCargo then
                             tCargo = EntityCategoryFilterDown(refCategoryAttackBot, tCargo)
-                            if M28Profiler.IsTableEmpty(tCargo) == false then
+                            if M28Utilities.IsTableEmpty(tCargo) == false then
                                 --Get mass value ignoring health:
                                 --GetCombatThreatRating(aiBrain, tUnits, bMustBeVisibleToIntelOrSight, iMassValueOfBlipsOverride, iSoloBlipMassOverride, bIndirectFireThreatOnly, bJustGetMassValue)
                                 iGhettoGunshipAdjust = GetCombatThreatRating(tCargo, bEnemyUnits)
@@ -935,6 +936,42 @@ function GetCurrentAndMaximumShield(oUnit, bIgnoreIfShieldFailedFromLowPower)
     end
 end
 
+function IsUnitShieldEnabled(oUnit)
+    return not(oUnit[refbShieldIsDisabled])
+end
+function DisableUnitShield(oUnit)
+    oUnit[refbShieldIsDisabled] = true
+    oUnit:DisableShield()
+end
+function EnableUnitShield(oUnit)
+    oUnit:EnableShield()
+    oUnit[refbShieldIsDisabled] = false
+end
+
+function DisableUnitIntel(oUnit)
+    oUnit:OnScriptBitSet(3)
+end
+function EnableUnitIntel(oUnit)
+    oUnit:OnScriptBitClear(3)
+end
+
+function DisableUnitJamming(oUnit)
+    oUnit:OnScriptBitSet(2)
+end
+function EnableUnitJamming(oUnit)
+    oUnit:OnScriptBitClear(2)
+end
+
+function DisableUnitStealth(oUnit)
+    oUnit:SetScriptBit('RULEUTC_StealthToggle', true)
+    oUnit:SetScriptBit('RULEUTC_CloakToggle', true)
+end
+
+function EnableUnitStealth(oUnit)
+    oUnit:SetScriptBit('RULEUTC_StealthToggle', false)
+    oUnit:SetScriptBit('RULEUTC_CloakToggle', false)
+end
+
 function GetBlueprintMaxGroundRange(oBP)
 --Simpler version of recordunitrange, intended at start of game to estimate whether a unit is a long range unit for threat calculations
     local iMaxRange = 0
@@ -1084,4 +1121,155 @@ function DoesCategoryContainCategory(iCategoryWanted, iCategoryToSearch, bOnlyCo
             if EntityCategoryContains(iCategoryWanted, sRef) then return true end
         end
     end
+end
+
+function GetUpgradeBuildTime(oUnit, sUpgradeRef)
+    --Returns nil if unit cant get enhancements
+    local oBP = oUnit:GetBlueprint()
+    local iUpgradeTime
+    if oBP.Enhancements then
+        for sUpgradeID, tUpgrade in oBP.Enhancements do
+            if sUpgradeID == sUpgradeRef then
+                iUpgradeTime = tUpgrade.BuildTime
+            end
+
+        end
+    end
+    return iUpgradeTime
+end
+
+function GetUpgradeMassCost(oUnit, sUpgradeRef)
+    local oBP = oUnit:GetBlueprint()
+    local iUpgradeMass
+    if oBP.Enhancements then
+        for sUpgradeID, tUpgrade in oBP.Enhancements do
+            if sUpgradeID == sUpgradeRef then
+                iUpgradeMass = tUpgrade.BuildCostMass
+            end
+
+        end
+    end
+    if not(iUpgradeMass) then M28Utilities.ErrorHandler('oUnit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' has no upgrade with reference '..sUpgradeRef) end
+    return iUpgradeMass
+end
+
+function GetUpgradeEnergyCost(oUnit, sUpgradeRef)
+    local oBP = oUnit:GetBlueprint()
+    local iUpgradeEnergy
+    if oBP.Enhancements then
+        for sUpgradeID, tUpgrade in oBP.Enhancements do
+            if sUpgradeID == sUpgradeRef then
+                iUpgradeEnergy = tUpgrade.BuildCostEnergy
+            end
+
+        end
+    end
+    if not(iUpgradeEnergy) then M28Utilities.ErrorHandler('oUnit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' has no upgrade with reference '..sUpgradeRef) end
+    return iUpgradeEnergy
+end
+
+function PauseOrUnpauseMassUsage(aiBrain, oUnit, bPauseNotUnpause)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'PauseOrUnpauseMassUsage'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    --if EntityCategoryContains(categories.COMMAND + refCategoryAirFactory, oUnit.UnitId) then bDebugMessages = true end
+
+    if bDebugMessages == true then
+        local M27Logic = import('/mods/M27AI/lua/AI/M27GeneralLogic.lua')
+        LOG(sFunctionRef..': Start of code, oUnit='..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; Unit state='..M27Logic.GetUnitState(oUnit))
+        if oUnit.GetWorkProgress then LOG(sFunctionRef..': Unit work progress='..oUnit:GetWorkProgress()) end
+    end
+    if IsUnitValid(oUnit, true) and oUnit.SetPaused then
+
+        --Want to pause unit, check for any special logic for pausing
+        local bWasUnitPaused = (oUnit[refbPaused] or false)
+        --Normal logic - just pause unit - exception if are dealing with a factory whose workcomplete is 100% and want to pause it
+        if not(EntityCategoryContains(refCategoryFactory, oUnit.UnitId)) or not(bPauseNotUnpause) or (oUnit.GetWorkProgress and oUnit:GetWorkProgress() > 0 and oUnit:GetWorkProgress() < 1) then
+            if oUnit.UnitId == 'xsb2401' then M28Utilities.ErrorHandler('Pausing Yolona') end
+            oUnit:SetPaused(bPauseNotUnpause)
+            if bDebugMessages == true then LOG(sFunctionRef..': Just set paused to '..tostring(bPauseNotUnpause)..' for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)) end
+        elseif bDebugMessages == true then
+            LOG(sFunctionRef..': Factory with either no workprogress or workprogress that isnt <1')
+            if oUnit.GetWorkProgress then LOG(sFunctionRef..': Workprogress='..oUnit:GetWorkProgress()) end
+        end
+    end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function PauseOrUnpauseEnergyUsage(oUnit, bPauseNotUnpause)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'PauseOrUnpauseEnergyUsage'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    --if EntityCategoryContains(categories.COMMAND + refCategoryAirFactory, oUnit.UnitId) then bDebugMessages = true end
+
+    if bDebugMessages == true then
+        local M27Logic = import('/mods/M27AI/lua/AI/M27GeneralLogic.lua')
+        LOG(sFunctionRef..': Start of code, oUnit='..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; Unit state='..M27Logic.GetUnitState(oUnit))
+        if oUnit.GetFocusUnit and oUnit:GetFocusUnit() then LOG(sFunctionRef..': Focus unit='..oUnit:GetFocusUnit().UnitId..GetUnitLifetimeCount(oUnit:GetFocusUnit())) end
+        if oUnit.GetWorkProgress then LOG(sFunctionRef..': Unit work progress='..oUnit:GetWorkProgress()..'; Unit fraction complete='..oUnit:GetFractionComplete()) end
+    end
+    if IsUnitValid(oUnit, true) and oUnit.SetPaused then
+        local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
+        --Remove from list of paused units
+        if not(bPauseNotUnpause) then
+            if oUnit[refbPaused] then
+                local aiBrain = oUnit:GetAIBrain()
+                if M28Utilities.IsTableEmpty(aiBrain[M28Economy.reftPausedUnits]) == false then
+                    for iPausedUnit, oPausedUnit in aiBrain[M28Economy.reftPausedUnits] do
+                        if oPausedUnit == oUnit then
+                            table.remove(aiBrain[M28Economy.reftPausedUnits], iPausedUnit)
+                            break
+                        end
+                    end
+                end
+            end
+        else
+            --Are pausing unit, make sure it is in the table of paused units
+            if not(oUnit[refbPaused]) then
+                table.insert(oUnit:GetAIBrain()[M28Economy.reftPausedUnits], oUnit)
+            end
+        end
+
+
+        --Jamming - check via blueprint since no reliable category
+        local oBP = oUnit:GetBlueprint()
+        if oBP.Intel.JamRadius then
+            if bPauseNotUnpause then DisableUnitJamming(oUnit)
+            else EnableUnitJamming(oUnit)
+            end
+        end
+
+        --Want to pause/unpause unit, check for any special logic for pausing
+        --local bWasUnitPaused = (oUnit[refbPaused] or false)
+        oUnit[refbPaused] = bPauseNotUnpause
+        if oUnit.MyShield and oUnit.MyShield:GetMaxHealth() > 0 then
+            if IsUnitShieldEnabled(oUnit) == bPauseNotUnpause then
+                if bPauseNotUnpause then DisableUnitShield(oUnit)
+                else EnableUnitShield(oUnit) end
+            end
+        elseif oBP.Intel.ReactivateTime and (oBP.Intel.SonarRadius or oBP.Intel.RadarRadius) then
+            if bPauseNotUnpause then DisableUnitIntel(oUnit)
+            else EnableUnitIntel(oUnit)
+            end
+        elseif oBP.Intel.Cloak or oBP.Intel.RadarStealth or oBP.Intel.RadarStealthFieldRadius then
+            if bPauseNotUnpause then DisableUnitStealth(oUnit)
+            else EnableUnitStealth(oUnit)
+            end
+        end
+        --Normal logic - just pause unit - exception if are dealing with a factory whose workcomplete is 100%
+        if oUnit.SetPaused and (not(EntityCategoryContains(refCategoryFactory, oUnit.UnitId)) or not(bPauseNotUnpause) or (oUnit.GetWorkProgress and oUnit:GetWorkProgress() > 0 and oUnit:GetWorkProgress() < 1)) then
+            if oUnit.UnitId == 'xsb2401' then M28Utilities.ErrorHandler('Pausing Yolona') end
+            if bDebugMessages == true then LOG(sFunctionRef..': About to set paused to '..tostring(bPauseNotUnpause)..' for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)) end
+            oUnit:SetPaused(bPauseNotUnpause)
+
+        elseif bDebugMessages == true then
+            LOG(sFunctionRef..': Factory with either no workprogress or workprogress that isnt <1')
+            if oUnit.GetWorkProgress then LOG(sFunctionRef..': Workprogress='..oUnit:GetWorkProgress()) end
+        end
+
+    end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+
 end

@@ -46,6 +46,8 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefbActiveT2PowerReclaimer = 'M28TeamActiveT2PowerReclaimer'
     refbJustBuiltLotsOfPower = 'M28TeamJustBuiltPower' --temporarily set to true after building an early T2/T3 PGen so we dont think for hte few seconds after building it that we are power stalling if we have low % of power
     subrefiLowestEnergyStorageCount = 'M28TeamLowestEStorage' --Lowest number of EStorage owned by an M28 brain on the team
+    subrefiGrossEnergyWhenStalled = 'M28TeamGrossEWhenStalled' --Amount of energy team had (gross) when we had a power stall
+    refiTimeOfLastEnergyStall = 'M28TeamTimeOfLastEnergyStall'
 
     subreftTeamUpgradingHQs = 'M28TeamUpgradingHQs'
     subreftTeamUpgradingMexes = 'M28TeamUpgradingMexes'
@@ -70,6 +72,9 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     --Intel details
     subrefbTeamHasOmni = 'M28TeamHaveOmni' --True if our team has omni vision (i.e. one of our team is an AiX with omni vision)
     subrefbEnemyHasOmni = 'M28EnemyHasOmni' --true if any enemy non-civilian brains have omni vision
+
+    --Notable unit count details
+    subreftoT3Arti = 'M28TeamT3Arti' --table of T3 and experimental arti that M28 players on the team have
 
     --Misc details
     reftiTeamMessages = 'M28TeamMessages' --against tTeamData[aiBrain.M28Team], [x] is the message type string, returns the gametime that last sent a message of this type to the team
@@ -1055,8 +1060,7 @@ function TeamEconomyRefresh(iM28Team)
     tTeamData[iM28Team][subrefiTeamMassStored] = 0
     tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] = 1
     tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] = 1
-    tTeamData[iM28Team][subrefbTeamIsStallingEnergy] = false
-    tTeamData[iM28Team][subrefbTeamIsStallingMass] = false
+
     for iLastEntry = 5, 2, -1 do
         tTeamData[iM28Team][subreftiPrevTeamNetMass][iLastEntry] = (tTeamData[iM28Team][subreftiPrevTeamNetMass][iLastEntry-1] or 0)
     end
@@ -1083,6 +1087,8 @@ function TeamEconomyRefresh(iM28Team)
     if tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] == 0 and tTeamData[iM28Team][subrefiTeamMassStored] < tTeamData[iM28Team][subrefiActiveM28BrainCount] * 25 then tTeamData[iM28Team][subrefbTeamIsStallingMass] = true end
 
     ForkThread(ConsiderGettingUpgrades, iM28Team)
+
+    ForkThread(M28Economy.ManageEnergyStalls, iM28Team)
 end
 
 function TeamOverseer(iM28Team)
@@ -1101,6 +1107,12 @@ function TeamInitialisation(iM28Team)
 
     if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftoFriendlyActiveM28Brains]) == false then
         if not(tTeamData[iM28Team]['M28TeamActiveTeamCycler']) then
+            tTeamData[iM28Team][subrefiGrossEnergyWhenStalled] = 0
+            tTeamData[iM28Team][refiTimeOfLastEnergyStall] = 0
+
+
+
+
             tTeamData[iM28Team]['M28TeamActiveTeamCycler'] = true
             if bDebugMessages == true then LOG(sFunctionRef..': About to start land zone overseer which carries out main over time loop') end
             ForkThread(M28Land.LandZoneOverseer, iM28Team)

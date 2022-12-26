@@ -87,7 +87,13 @@ function IssueTrackedClearCommands(oUnit)
     oUnit[reftiLastOrders] = nil
 
     --Update tracking for engineers:
-    if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then M28Engineer.ClearEngineerTracking(oUnit) end
+    if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
+        M28Engineer.ClearEngineerTracking(oUnit)
+        --Unpause engineers who are about to be cleared
+        if oUnit[M28UnitInfo.refbPaused] then
+            M28UnitInfo.PauseOrUnpauseEnergyUsage(oUnit, false)
+        end
+    end
 
     --Clear orders:
     IssueClearCommands({oUnit})
