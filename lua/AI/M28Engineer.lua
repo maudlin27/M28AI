@@ -31,6 +31,7 @@ tiBPByTech = {5,12.5,30, 30}
 refiEngineerCurUniqueReference = 'M28EngCurUniqueReference' --Against both aiBrain and engineer; aiBrain stores the xth engineer object its given an action to, so this can be used as a unique reference
 refiAssignedAction = 'M28EngAssignedAction' --against Engineer, records the refAction value the engineer was given if it has an active order
 reftAssignedReclaimSegments = 'M28EngReclaimSegments' --against engineer, returns {iReclaimSegmentX, iReclaimSegmentZ]}, used when engineer givne a reclaim area order
+refbPrimaryBuilder = 'M28EngPrimaryBuilder' --If was the first engineer assigned to build something (and isnt assisting) then this should be true
 
 
 --Actions for engineers (dont have as local variables due to cap on how many local variables we can have)
@@ -1567,7 +1568,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZTeamData, 
                         if iNearestReclaimableEnemy < 20 and ((iClosestDistUntilInRangeOfStaticEnemy >= 10 and iNearestReclaimableEnemy <= oEngineer:GetBlueprint().Economy.MaxBuildDistance) or iNearestReclaimableEnemy <= (oEngineer:GetBlueprint().Economy.MaxBuildDistance + 7)) then
                             --Reclaim enemy
                             bEngiIsUnavailable = true
-                            TrackEngineerAction(oEngineer, refActionReclaimUnit)
+                            TrackEngineerAction(oEngineer, refActionReclaimUnit, false)
                             M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaimableEnemy, false, 'RecE')
                         else
                             --Enemy not close enough to reclaim, do we want to run?
@@ -1577,7 +1578,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZTeamData, 
                                     --Run to the LZ
                                     M28Orders.IssueTrackedMove(oEngineer, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLZToRunTo][M28Map.subrefLZMidpoint], 8, false, 'RunTo'..iLZToRunTo)
                                     bEngiIsUnavailable = true
-                                    TrackEngineerAction(oEngineer, refActionRunToLandZone, {iPlateau, iLZToRunTo})
+                                    TrackEngineerAction(oEngineer, refActionRunToLandZone, false, {iPlateau, iLZToRunTo})
                                 end
                             end
                         end
@@ -1721,6 +1722,7 @@ function ClearEngineerTracking(oEngineer)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ClearEngineerTracking'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    oEngineer[refbPrimaryBuilder] = false
     if oEngineer[M28Land.reftiPlateauAndLZToMoveTo] then
         local tTargetLZTeamData = M28Map.tAllPlateaus[oEngineer[M28Land.reftiPlateauAndLZToMoveTo][1]][M28Map.subrefPlateauLandZones][oEngineer[M28Land.reftiPlateauAndLZToMoveTo][2]][M28Map.subrefLZTeamData][oEngineer:GetAIBrain().M28Team]
         if tTargetLZTeamData and M28Utilities.IsTableEmpty(tTargetLZTeamData[M28Map.subrefLZTUnitsTravelingHere]) == false then
@@ -1762,8 +1764,10 @@ function ClearEngineerTracking(oEngineer)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function TrackEngineerAction(oEngineer, iActionToAssign, tOptionalPlatAndLandToMoveTo, vOptionalOtherVariable)
+function TrackEngineerAction(oEngineer, iActionToAssign, bIsPrimaryBuilder, tOptionalPlatAndLandToMoveTo, vOptionalOtherVariable)
+    --bIsPrimaryBuilder - true if engineer will be building the item in question (so false if assisting an engineer or repairing a building or assisting an upgrade or moving somewhere etc.
     oEngineer[refiAssignedAction] = iActionToAssign
+    oEngineer[refbPrimaryBuilder] = (bIsPrimaryBuilder or false)
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition())
     if tOptionalPlatAndLandToMoveTo then
         oEngineer[M28Land.reftiPlateauAndLZToMoveTo] = {tOptionalPlatAndLandToMoveTo[1], tOptionalPlatAndLandToMoveTo[2]}
@@ -1910,7 +1914,7 @@ function GetEngineerToReclaimNearbyArea(oEngineer, tLZTeamData, iPlateau, iLandZ
             end
         end
         if bGivenOrder then
-            TrackEngineerAction(oEngineer, refActionReclaimArea, nil, tiClosestSegmentXZ)
+            TrackEngineerAction(oEngineer, refActionReclaimArea, false, nil, tiClosestSegmentXZ)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -1983,7 +1987,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                     while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
                         if bDebugMessages == true then LOG(sFunctionRef..': Assigning engineer for repair action '..iActionToAssign..'; iEngiCount='..iEngiCount..'; iTotalBuildPowerWanted='..iTotalBuildPowerWanted) end
                         M28Orders.IssueTrackedRepair(tEngineersOfTechWanted[iEngiCount], oBuildingToAssist, false, sOrderRef)
-                        TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign)
+                        TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign, false)
                         UpdateBPTracking()
                     end
                 else
@@ -2006,7 +2010,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                         while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
                             if bDebugMessages == true then LOG(sFunctionRef..': Assigning engineer for assist engineer action '..iActionToAssign..'; iEngiCount='..iEngiCount..'; iTotalBuildPowerWanted='..iTotalBuildPowerWanted) end
                             M28Orders.IssueTrackedGuard(tEngineersOfTechWanted[iEngiCount], oEngineerToAssist, false, sOrderRef)
-                            TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign)
+                            TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign, false)
                             UpdateBPTracking()
                         end
                     else
@@ -2029,7 +2033,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                             if bDebugMessages == true then LOG(sFunctionRef..': Telling engineer '..tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount])..' to build '..sBlueprint..' at '..repru(tBuildLocation)) end
                                             M28Orders.IssueTrackedBuild(tEngineersOfTechWanted[iEngiCount], tBuildLocation, sBlueprint, false, sOrderRef)
                                         end
-                                        TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign)
+                                        TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign, true)
                                         UpdateBPTracking()
                                     else
                                         M28Utilities.ErrorHandler('Need to add code for actions that dont involve building, ActionToAssign='..iActionToAssign..'; order ref='..(tiActionOrder[iActionToAssign] or 'nil'))
@@ -2061,7 +2065,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                 if tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount]) == 'xsl01051' and iTargetLZ == 9 then M28Utilities.ErrorHandler('Audit trail') end
                             end
                             M28Orders.IssueTrackedMove(tEngineersOfTechWanted[iEngiCount], tMoveLocation, 5, false, sOrderRef)
-                            TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign, {iPlateau, iTargetLZ})
+                            TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign, false, {iPlateau, iTargetLZ})
                             UpdateBPTracking()
                         end
                     end
@@ -2086,7 +2090,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                             while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
                                 if bDebugMessages == true then LOG(sFunctionRef..': About to tell engineer '..tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount])..' to assist unit '..oBestProgress.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBestProgress)) end
                                 M28Orders.IssueTrackedGuard(tEngineersOfTechWanted[iEngiCount], oBestProgress, false, sOrderRef)
-                                TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign)
+                                TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign, false)
                                 UpdateBPTracking()
                             end
                         end
@@ -2130,7 +2134,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
 
                                 if oNearestUnit then
                                     M28Orders.IssueTrackedReclaim(tEngineersOfTechWanted[iEngiCount], oNearestUnit, false, 'RecObs')
-                                    TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign)
+                                    TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign, false)
                                     UpdateBPTracking()
                                 else
                                     break

@@ -48,6 +48,8 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefiLowestEnergyStorageCount = 'M28TeamLowestEStorage' --Lowest number of EStorage owned by an M28 brain on the team
     subrefiGrossEnergyWhenStalled = 'M28TeamGrossEWhenStalled' --Amount of energy team had (gross) when we had a power stall
     refiTimeOfLastEnergyStall = 'M28TeamTimeOfLastEnergyStall'
+    refiTimeOfLastEngiSelfDestruct = 'M28TeamTimeOfLastEnegiSelfDestruct'
+    refbNeedResourcesForMissile = 'M28TeamNeedResourcesForMissile' --true if are building nuke or smd that needs a missile
 
     subreftTeamUpgradingHQs = 'M28TeamUpgradingHQs'
     subreftTeamUpgradingMexes = 'M28TeamUpgradingMexes'
@@ -73,7 +75,9 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefbTeamHasOmni = 'M28TeamHaveOmni' --True if our team has omni vision (i.e. one of our team is an AiX with omni vision)
     subrefbEnemyHasOmni = 'M28EnemyHasOmni' --true if any enemy non-civilian brains have omni vision
 
+
     --Notable unit count details
+    refbDefendAgainstArti = 'M28TeamDefendAgainstArti' --true if enemy has t3 arti or equivelnt
     subreftoT3Arti = 'M28TeamT3Arti' --table of T3 and experimental arti that M28 players on the team have
 
     --Misc details
@@ -268,6 +272,10 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][subrefbTeamIsStallingEnergy] = false
     tTeamData[iTotalTeamCount][subrefbTeamIsStallingMass] = false
     tTeamData[iTotalTeamCount][subreftiPrevTeamNetMass] = {}
+    tTeamData[iTotalTeamCount][subrefiGrossEnergyWhenStalled] = 0
+    tTeamData[iTotalTeamCount][refiTimeOfLastEnergyStall] = 0
+    tTeamData[iTotalTeamCount][refiTimeOfLastEngiSelfDestruct] = 0
+    tTeamData[iTotalTeamCount][refbNeedResourcesForMissile] = false
 
 
     local bHaveM28BrainInTeam = false
@@ -1107,12 +1115,6 @@ function TeamInitialisation(iM28Team)
 
     if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftoFriendlyActiveM28Brains]) == false then
         if not(tTeamData[iM28Team]['M28TeamActiveTeamCycler']) then
-            tTeamData[iM28Team][subrefiGrossEnergyWhenStalled] = 0
-            tTeamData[iM28Team][refiTimeOfLastEnergyStall] = 0
-
-
-
-
             tTeamData[iM28Team]['M28TeamActiveTeamCycler'] = true
             if bDebugMessages == true then LOG(sFunctionRef..': About to start land zone overseer which carries out main over time loop') end
             ForkThread(M28Land.LandZoneOverseer, iM28Team)

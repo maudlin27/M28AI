@@ -1168,7 +1168,30 @@ function GetUpgradeEnergyCost(oUnit, sUpgradeRef)
     return iUpgradeEnergy
 end
 
-function PauseOrUnpauseMassUsage(aiBrain, oUnit, bPauseNotUnpause)
+function AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause)
+    local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
+    --Remove from list of paused units
+    if not(bPauseNotUnpause) then
+        if oUnit[refbPaused] then
+            local aiBrain = oUnit:GetAIBrain()
+            if M28Utilities.IsTableEmpty(aiBrain[M28Economy.reftPausedUnits]) == false then
+                for iPausedUnit, oPausedUnit in aiBrain[M28Economy.reftPausedUnits] do
+                    if oPausedUnit == oUnit then
+                        table.remove(aiBrain[M28Economy.reftPausedUnits], iPausedUnit)
+                        break
+                    end
+                end
+            end
+        end
+    else
+        --Are pausing unit, make sure it is in the table of paused units
+        if not(oUnit[refbPaused]) then
+            table.insert(oUnit:GetAIBrain()[M28Economy.reftPausedUnits], oUnit)
+        end
+    end
+end
+
+function PauseOrUnpauseMassUsage(oUnit, bPauseNotUnpause)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'PauseOrUnpauseMassUsage'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -1176,13 +1199,14 @@ function PauseOrUnpauseMassUsage(aiBrain, oUnit, bPauseNotUnpause)
 
     if bDebugMessages == true then
         local M27Logic = import('/mods/M27AI/lua/AI/M27GeneralLogic.lua')
-        LOG(sFunctionRef..': Start of code, oUnit='..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; Unit state='..M27Logic.GetUnitState(oUnit))
+        LOG(sFunctionRef..': Start of code, oUnit='..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit))
         if oUnit.GetWorkProgress then LOG(sFunctionRef..': Unit work progress='..oUnit:GetWorkProgress()) end
     end
     if IsUnitValid(oUnit, true) and oUnit.SetPaused then
+        AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause)
+
 
         --Want to pause unit, check for any special logic for pausing
-        local bWasUnitPaused = (oUnit[refbPaused] or false)
         --Normal logic - just pause unit - exception if are dealing with a factory whose workcomplete is 100% and want to pause it
         if not(EntityCategoryContains(refCategoryFactory, oUnit.UnitId)) or not(bPauseNotUnpause) or (oUnit.GetWorkProgress and oUnit:GetWorkProgress() > 0 and oUnit:GetWorkProgress() < 1) then
             if oUnit.UnitId == 'xsb2401' then M28Utilities.ErrorHandler('Pausing Yolona') end
@@ -1205,32 +1229,12 @@ function PauseOrUnpauseEnergyUsage(oUnit, bPauseNotUnpause)
 
     if bDebugMessages == true then
         local M27Logic = import('/mods/M27AI/lua/AI/M27GeneralLogic.lua')
-        LOG(sFunctionRef..': Start of code, oUnit='..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; Unit state='..M27Logic.GetUnitState(oUnit))
+        LOG(sFunctionRef..': Start of code, oUnit='..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit))
         if oUnit.GetFocusUnit and oUnit:GetFocusUnit() then LOG(sFunctionRef..': Focus unit='..oUnit:GetFocusUnit().UnitId..GetUnitLifetimeCount(oUnit:GetFocusUnit())) end
         if oUnit.GetWorkProgress then LOG(sFunctionRef..': Unit work progress='..oUnit:GetWorkProgress()..'; Unit fraction complete='..oUnit:GetFractionComplete()) end
     end
     if IsUnitValid(oUnit, true) and oUnit.SetPaused then
-        local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
-        --Remove from list of paused units
-        if not(bPauseNotUnpause) then
-            if oUnit[refbPaused] then
-                local aiBrain = oUnit:GetAIBrain()
-                if M28Utilities.IsTableEmpty(aiBrain[M28Economy.reftPausedUnits]) == false then
-                    for iPausedUnit, oPausedUnit in aiBrain[M28Economy.reftPausedUnits] do
-                        if oPausedUnit == oUnit then
-                            table.remove(aiBrain[M28Economy.reftPausedUnits], iPausedUnit)
-                            break
-                        end
-                    end
-                end
-            end
-        else
-            --Are pausing unit, make sure it is in the table of paused units
-            if not(oUnit[refbPaused]) then
-                table.insert(oUnit:GetAIBrain()[M28Economy.reftPausedUnits], oUnit)
-            end
-        end
-
+        AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause)
 
         --Jamming - check via blueprint since no reliable category
         local oBP = oUnit:GetBlueprint()

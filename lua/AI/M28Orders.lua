@@ -30,6 +30,7 @@ refiOrderUpgrade = 11
 refiOrderTransportLoad = 12
 refiOrderIssueGroundAttack = 13
 refiOrderIssueFactoryBuild = 14
+refiOrderKill = 15 --If we want to self destruct a unit
 
 --Other tracking: Against units
 toUnitsOrderedToRepairThis = 'M28OrderRepairing' --Table of units given an order to repair the unit
@@ -308,6 +309,13 @@ function IssueTrackedUpgrade(oUnit, sUpgradeRef, bAddToExistingQueue, sOptionalO
         IssueUpgrade({oUnit}, sUpgradeRef)
     end
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
+end
+
+function IssueTrackedKillUnit(oUnit)
+    IssueTrackedClearCommands(oUnit)
+    if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} end
+    table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderKill})
+    oUnit:Kill()
 end
 
 --[[function IssueTrackedOrder(oUnit, iOrderType, tOrderPosition, oOrderTarget, sOrderBlueprint)
