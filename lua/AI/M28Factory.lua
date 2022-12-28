@@ -198,7 +198,7 @@ end
 
 function GetCategoryToBuildForLandFactory(aiBrain, oFactory)
     local iCategoryToBuild = M28UnitInfo.refCategoryEngineer --Placeholder
-    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oFactory:GetPosition())
+    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oFactory:GetPosition(), true, oFactory)
     local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team]
     local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)
 

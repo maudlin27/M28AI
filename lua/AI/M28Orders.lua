@@ -51,7 +51,7 @@ function UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc)
     if sOptionalOrderDesc then sExtraOrder = ' '..sOptionalOrderDesc end
     local sPlateauAndZoneDesc = ''
     if EntityCategoryContains(categories.LAND + categories.NAVAL, oUnit.UnitId) then
-        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), false)
         sPlateauAndZoneDesc = ':P='..(iPlateau or 0)..'LZ='..(iLandZone or 0)
     end
     oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..sPlateauAndZoneDesc..':'..sBaseOrder..sExtraOrder)
@@ -188,10 +188,10 @@ function IssueTrackedMoveAndBuild(oUnit, tBuildLocation, sOrderBlueprint, tMoveT
             end
         end
     end
-    LOG('IssueTrackedMoveAndBuild: oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bDontAlreadyHaveOrder='..tostring(bDontAlreadyHaveOrder or false))
+    --LOG('IssueTrackedMoveAndBuild: oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bDontAlreadyHaveOrder='..tostring(bDontAlreadyHaveOrder or false))
     if bDontAlreadyHaveOrder then
         if not(bAddToExistingQueue) then
-            LOG('IssueTrackedMoveAndBuild: Will clear commands of the unit')
+            --LOG('IssueTrackedMoveAndBuild: Will clear commands of the unit')
             IssueTrackedClearCommands(oUnit)
         end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} end
@@ -200,7 +200,7 @@ function IssueTrackedMoveAndBuild(oUnit, tBuildLocation, sOrderBlueprint, tMoveT
 
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueBuild, [subrefsOrderBlueprint] = sOrderBlueprint, [subreftOrderPosition] = tBuildLocation})
         IssueBuildMobile({ oUnit }, tBuildLocation, sOrderBlueprint, {})
-        LOG('Sent an issuebuildmobile order to the unit')
+        --LOG('Sent an issuebuildmobile order to the unit')
     end
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 end
@@ -362,7 +362,7 @@ function ClearAnyRepairingUnits(oUnitBeingRepaired)
                 if M28UnitInfo.IsUnitValid(oUnit) then
                     --Is this unit still trying to repair this?
                     UpdateRecordedOrders(oUnit)
-                    LOG('Considering if oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is still repairing; Last orders='..reprs(oUnit[reftiLastOrders]))
+                    --LOG('Considering if oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is still repairing; Last orders='..reprs(oUnit[reftiLastOrders]))
                     if oUnit[reftiLastOrders] then
                         local tLastOrder = oUnit[reftiLastOrders][table.getn(oUnit[reftiLastOrders])]
                         if tLastOrder[subrefiOrderType] == refiOrderIssueRepair and oUnitBeingRepaired == tLastOrder[subrefoOrderTarget] then

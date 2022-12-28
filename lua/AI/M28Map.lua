@@ -12,6 +12,8 @@ local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
 local M28Logic = import('/mods/M28AI/lua/AI/M28Logic.lua')
 local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 local M28Chat = import('/mods/M28AI/lua/AI/M28Chat.lua')
+local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
+local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
 
 bMapSetupComplete = false --set to true once have finished setting up map (used to decide how long to wait before starting main aibrain logic)
 
@@ -176,10 +178,36 @@ function GetPositionFromPathingSegments(iSegmentX, iSegmentZ)
     return {x, GetTerrainHeight(x, z), z}
 end
 
+function GetPathingOverridePlateauAndLandZone(tPosition, bOptionalShouldBePathable, oOptionalPathingUnit)
+    local iX = math.floor(tPosition[1])
+    --LOG('GetPlateauAndLandZoneReferenceFromPosition: iPlateau is nil or 0, tPosition='..repru(tPosition)..'; tPathingPlateauAndLZOverride='..repru(tPathingPlateauAndLZOverride)..'; bOptionalShouldBePathable='..tostring(bOptionalShouldBePathable or false)..'; Is oOptionalPathingUnit valid='..tostring(M28UnitInfo.IsUnitValid(oOptionalPathingUnit)))
+    if tPathingPlateauAndLZOverride[iX] then
+        local iZ = math.floor(tPosition[3])
+        if tPathingPlateauAndLZOverride[iX][iZ] then
+            --LOG('GetPlateauAndLandZoneReferenceFromPosition: Have a valid override so will return this, override='..repru(tPathingPlateauAndLZOverride[iX][iZ]))
+            return tPathingPlateauAndLZOverride[iX][iZ][1], tPathingPlateauAndLZOverride[iX][iZ][2]
+        end
+    end
+    --Dont have an override for here - if we think it shoudl be pathable then create an override
+    if bOptionalShouldBePathable and oOptionalPathingUnit then
+        --LOG('GetPlateauAndLandZoneReferenceFromPosition: No plateau for a unit that should be pathable, tPosition='..repru(tPosition)..'; bOptionalShouldBePathable='..tostring(bOptionalShouldBePathable)..'; oOptionalPathingUnit='..oOptionalPathingUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOptionalPathingUnit)..'; oOptionalPathingUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]='..repru(oOptionalPathingUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam])..'; Unit state='..M28UnitInfo.GetUnitState(oOptionalPathingUnit)..'; iMapWaterHeight='..iMapWaterHeight)
+        if M28Land.ConsiderAddingPlateauOverrideForUnit(oOptionalPathingUnit) then
+            if tPathingPlateauAndLZOverride[iX] then
+                local iZ = math.floor(tPosition[3])
+                if tPathingPlateauAndLZOverride[iX][iZ] then
+                    --LOG('GetPlateauAndLandZoneReferenceFromPosition: Have a valid override after considering plateau override for unit, override='..repru(tPathingPlateauAndLZOverride[iX][iZ]))
+                    return tPathingPlateauAndLZOverride[iX][iZ][1], tPathingPlateauAndLZOverride[iX][iZ][2]
+                end
+            end
+        end
+    end
+    return nil, nil
+end
+
 ---@param tPosition table
 ---@param bOptionalShouldBePathable boolean
 ---@return number, number
-function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBePathable)
+function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBePathable, oOptionalPathingUnit)
     --Returns the plateau reference of tPosition (where tPosition is {x,y,z}), and the Land zone reference for that position
     --returns nil if cant find valid plateau or land zone
     --bOptionalShouldBePathable - if e.g. have a unit at tPosition, then set this to true as it means somehow a unit could path in this area, and the code will then try backup options and give error messages
@@ -187,51 +215,44 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
     --Get the plateau reference and the land segment X and Z references:
     local iPlateau = NavUtils.GetLabel(refPathingTypeAmphibious, tPosition)
     local iLandZone
-    if not(iPlateau > 0) then
+
+    if (iPlateau or 0) <= 0 or not(tAllPlateaus[iPlateau]) then
         --Check if we have previously recorded this location with a pathing override
-        local iX = math.floor(tPosition[1])
-
-        if tPathingPlateauAndLZOverride[iX] then
-            local iZ = math.floor(tPosition[3])
-            if tPathingPlateauAndLZOverride[iX][iZ] then
-                return tPathingPlateauAndLZOverride[iX][iZ][1], tPathingPlateauAndLZOverride[iX][iZ][2]
-            end
-        end
-    end
-    local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tPosition)
-    --Check if the plateau reference is valid:
-    local bUsingSegmentPlateauRef = false
-    if not(tAllPlateaus[iPlateau]) then
-        --Potential error - get the plateau if the midpoint instead if should be pathable
-        if bOptionalShouldBePathable then
-            iPlateau = NavUtils.GetLabel(refPathingTypeAmphibious, GetPositionFromPathingSegments(iSegmentX, iSegmentZ))
-            bUsingSegmentPlateauRef = true
-            if not(tAllPlateaus[iPlateau]) then
-                M28Utilities.ErrorHandler('No plateau group for tPosition '..repru(tPosition)..' or segment midpoint '..repru(GetPositionFromPathingSegments(iSegmentX, iSegmentZ))..'; Plateau group of segment midpoint='..(NavUtils.GetLabel(refPathingTypeAmphibious, GetPositionFromPathingSegments(iSegmentX, iSegmentZ)) or 'nil')..'; Plateau Group of tPosition='..(NavUtils.GetLabel(refPathingTypeAmphibious, tPosition) or 'nil'))
-                return nil
-            end
-        else
-            return nil
-        end
-    end
-    --Get the land zone reference:
-    iLandZone = tLandZoneBySegment[iSegmentX][iSegmentZ]
-    --Check if the land zone reference is valid for this plateau group:
-    if not(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]) then
-        if bOptionalShouldBePathable then
-            if not(bUsingSegmentPlateauRef) then
+        iPlateau, iLandZone = GetPathingOverridePlateauAndLandZone(tPosition, bOptionalShouldBePathable, oOptionalPathingUnit)
+        if not(tAllPlateaus[iPlateau]) then
+            --Potential error - get the plateau if the midpoint instead if should be pathable
+            --LOG('GetPlateauAndLandZoneReferenceFromPosition: tAllPlateaus is nil for iPlateau='..(iPlateau or 'nil')..'; if should be pathable will check the segment we are in/ bOptionalShouldBePathable='..tostring(bOptionalShouldBePathable or false))
+            if bOptionalShouldBePathable then
+                local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tPosition)
                 iPlateau = NavUtils.GetLabel(refPathingTypeAmphibious, GetPositionFromPathingSegments(iSegmentX, iSegmentZ))
-            end
-            if not(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]) then
-                M28Utilities.ErrorHandler('The plateau group '..(iPlateau or 'nil')..' for the segment '..iSegmentX..'-'..iSegmentZ..' midpoint of '..repru(GetPositionFromPathingSegments(iSegmentX, iSegmentZ))..' doesnt have a plateau setup with the land zone reference '..(iLandZone or 'nil')..'; tPosition='..repru(tPosition)..'; NavUtils.GetLabel(refPathingTypeAmphibious, tPosition)='..(NavUtils.GetLabel(refPathingTypeAmphibious, tPosition) or 'nil'))
+                --bUsingSegmentPlateauRef = true
+                if not(tAllPlateaus[iPlateau]) then
+                    M28Utilities.ErrorHandler('No plateau group for tPosition '..repru(tPosition)..' or segment midpoint '..repru(GetPositionFromPathingSegments(iSegmentX, iSegmentZ))..'; Plateau group of segment midpoint='..(NavUtils.GetLabel(refPathingTypeAmphibious, GetPositionFromPathingSegments(iSegmentX, iSegmentZ)) or 'nil')..'; Plateau Group of tPosition='..(NavUtils.GetLabel(refPathingTypeAmphibious, tPosition) or 'nil'))
+                    return nil
+                else
+                    iLandZone = tLandZoneBySegment[iSegmentX][iSegmentZ]
+                end
+            else
                 return nil
             end
-        else
-            return nil
+        end
+        if iPlateau and iLandZone then return iPlateau, iLandZone end
+    end
+
+
+    --Get the land zone reference:
+    local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tPosition)
+    local iLandZone = tLandZoneBySegment[iSegmentX][iSegmentZ]
+    if not(iLandZone) then
+        --Are we above water in height? If so check for override
+        if tPosition[2] > iMapWaterHeight then
+            iPlateau, iLandZone = GetPathingOverridePlateauAndLandZone(tPosition, bOptionalShouldBePathable, oOptionalPathingUnit)
+            if not(iLandZone) and bOptionalShouldBePathable then
+                M28Utilities.ErrorHandler('Unable to find valid land zone, tPosition[1-3]='..tPosition[1]..'-'..tPosition[2]..'-'..tPosition[3])
+            end
         end
     end
 
-    --Have a valid plateau and land zone reference so return these:
     return iPlateau, iLandZone
 end
 
@@ -349,9 +370,7 @@ local function RecordMexForPathingGroup()
         tMexByPathingAndGrouping[sPathing] = {}
         iValidCount = 0
 
-        if bDebugMessages == true then
-            LOG(sFunctionRef..': About to record all mexes for pathing type sPathing='..sPathing)
-        end
+        if bDebugMessages == true then LOG(sFunctionRef..': About to record all mexes for pathing type sPathing='..sPathing) end
 
         for iCurMex, tMexLocation in tMassPoints do
             iValidCount = iValidCount + 1
@@ -586,7 +605,7 @@ end
 local function AddNewLandZoneReferenceToPlateau(iPlateau)
     --Adds a new land zone reference number to iPlateau, assumes that information about the zone will be added later
     --Intended to be called as part of wider code for recording a land zone, e.g. from CreateNewLandZoneAtSegment and similar functions
-        --iPlateau is the result of NavUtils.GetLabel(refPathingTypeAmphibious, tLocation)
+    --iPlateau is the result of NavUtils.GetLabel(refPathingTypeAmphibious, tLocation)
     --To get the land zone created by this immediately after it is created, use iLandZone = tAllPlateaus[iPlateau][subrefLandZoneCount]
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AddNewLandZoneReferenceToPlateau'
@@ -618,7 +637,7 @@ local function AddNewLandZoneReferenceToPlateau(iPlateau)
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTotalMassReclaim] = 0
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTotalEnergyReclaim] = 0
 
-    LOG('Finished setting up variables for iPlateau='..iPlateau..'; iLandZone='..iLandZone)
+    if bDebugMessages == true then LOG('Finished setting up variables for iPlateau='..iPlateau..'; iLandZone='..iLandZone) end
 
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -682,7 +701,7 @@ local function CreateNewLandZoneAtSegment(iBaseSegmentX, iBaseSegmentZ)
         local tMidpoint = GetPositionFromPathingSegments(iBaseSegmentX, iBaseSegmentZ)
         local iPlateau = NavUtils.GetLabel(refPathingTypeAmphibious, tMidpoint)
         AddNewLandZoneReferenceToPlateau(iPlateau)
-        LOG('Have just created a new land zone reference for base segment XZ='..iBaseSegmentX..'-'..iBaseSegmentZ..' in the iPlateau='..iPlateau)
+        --LOG('Have just created a new land zone reference for base segment XZ='..iBaseSegmentX..'-'..iBaseSegmentZ..' in the iPlateau='..iPlateau)
         RecordSegmentLandZone(iBaseSegmentX, iBaseSegmentZ, iPlateau, tAllPlateaus[iPlateau][subrefLandZoneCount])
 
     else
@@ -1280,7 +1299,7 @@ function RecordAdjacentLandZones()
                     iAltSegX = tSegmentXZ[1] + tSegAdjXZ[1]
                     iAltSegZ = tSegmentXZ[2] + tSegAdjXZ[2]
                     iAltLandZone = tLandZoneBySegment[iAltSegX][iAltSegZ]
-                    if not(iAltLandZone == iLandZone) and not(tRecordedAdjacentZones[iAltLandZone]) then
+                    if iAltLandZone and not(iAltLandZone == iLandZone) and not(tRecordedAdjacentZones[iAltLandZone]) then
                         if NavUtils.GetLabel(refPathingTypeAmphibious, GetPositionFromPathingSegments(iAltSegX, iAltSegZ)) == iPlateau then
                             tRecordedAdjacentZones[iAltLandZone] = true
                             table.insert(tLandZoneInfo[subrefLZAdjacentLandZones], iAltLandZone)
@@ -1358,7 +1377,7 @@ function IsUnderwater(tPosition, bReturnSurfaceHeightInstead, iOptionalAmountToB
     --bReturnSurfaceHeightInstead:: Return the actual height at which underwater, instead of true/false
     if bReturnSurfaceHeightInstead then return iMapWaterHeight
     else
-        LOG('IsUnderwater: tPosition='..repru(tPosition))
+        --LOG('IsUnderwater: tPosition='..repru(tPosition))
         if M28Utilities.IsTableEmpty(tPosition) then
             M28Utilities.ErrorHandler('tPosition is empty')
         else
@@ -1737,37 +1756,32 @@ function GetModDistanceFromStart(aiBrain, tTarget, bUseEnemyStartInstead)
     end
 
     local iDistStartToTarget = M28Utilities.GetDistanceBetweenPositions(tStartPos, tTarget)
-    if bDebugMessages == true then
-        LOG(sFunctionRef .. ': tStartPos=' .. repru(tStartPos) .. '; iDistStartToTarget=' .. iDistStartToTarget .. '; iEmergencyRangeToUse=' .. iEmergencyRangeToUse)
-    end
+    if bDebugMessages == true then LOG(sFunctionRef .. ': tStartPos=' .. repru(tStartPos) .. '; iDistStartToTarget=' .. iDistStartToTarget .. '; iEmergencyRangeToUse=' .. iEmergencyRangeToUse) end
+
     if iDistStartToTarget <= iEmergencyRangeToUse then
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        if bDebugMessages == true then
-            LOG(sFunctionRef .. ': Are within emergency range so will just return actual dist, iDistStartToTarget=' .. iDistStartToTarget .. '; if instead we only had 1 enemy and got mod dist for this the result would be ' .. math.cos(math.abs(M28Utilities.ConvertAngleToRadians(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, GetPrimaryEnemyBaseLocation(aiBrain))))) * iDistStartToTarget)
-        end
+        if bDebugMessages == true then LOG(sFunctionRef .. ': Are within emergency range so will just return actual dist, iDistStartToTarget=' .. iDistStartToTarget .. '; if instead we only had 1 enemy and got mod dist for this the result would be ' .. math.cos(math.abs(M28Utilities.ConvertAngleToRadians(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, GetPrimaryEnemyBaseLocation(aiBrain))))) * iDistStartToTarget) end
+
         return iDistStartToTarget
     else
         --If only 1 enemy group then treat anywhere behind us as the emergency range
         if bUseEnemyStartInstead then
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-            if bDebugMessages == true then
-                LOG(sFunctionRef .. ': will ignore multiple enemies since have flagged to use enemy start instead, will return ' .. math.cos(M28Utilities.ConvertAngleToRadians(math.abs(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, PlayerStartPoints[aiBrain:GetArmyIndex()])))) * iDistStartToTarget)
-            end
+            if bDebugMessages == true then LOG(sFunctionRef .. ': will ignore multiple enemies since have flagged to use enemy start instead, will return ' .. math.cos(M28Utilities.ConvertAngleToRadians(math.abs(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, PlayerStartPoints[aiBrain:GetArmyIndex()])))) * iDistStartToTarget) end
+
             return iEmergencyRangeToUse, math.cos(math.abs(M28Utilities.ConvertAngleToRadians(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, tEnemyBase)))) * iDistStartToTarget
         else
             local bIsBehindUs = true
-            if bDebugMessages == true then
-                LOG(sFunctionRef .. ': Is table of enemy brains empty=' .. tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains])))
-            end
+            if bDebugMessages == true then LOG(sFunctionRef .. ': Is table of enemy brains empty=' .. tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains]))) end
+
             if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains]) then
                 if M28Utilities.GetDistanceBetweenPositions(tTarget, tEnemyBase) < M28Utilities.GetDistanceBetweenPositions(tStartPos, tEnemyBase) or M28Utilities.GetDistanceBetweenPositions(tTarget, tStartPos) > M28Utilities.GetDistanceBetweenPositions(tStartPos, tEnemyBase) then
                     bIsBehindUs = false
                 end
             else
                 for iEnemyGroup, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains] do
-                    if bDebugMessages == true then
-                        LOG(sFunctionRef .. ': Distance from target to start=' .. M28Utilities.GetDistanceBetweenPositions(tTarget, tStartPos) .. '; Distance from start to enemy base=' .. M28Utilities.GetDistanceBetweenPositions(tStartPos, PlayerStartPoints[oBrain:GetArmyIndex()]))
-                    end
+                    if bDebugMessages == true then LOG(sFunctionRef .. ': Distance from target to start=' .. M28Utilities.GetDistanceBetweenPositions(tTarget, tStartPos) .. '; Distance from start to enemy base=' .. M28Utilities.GetDistanceBetweenPositions(tStartPos, PlayerStartPoints[oBrain:GetArmyIndex()])) end
+
                     if M28Utilities.GetDistanceBetweenPositions(tTarget, PlayerStartPoints[oBrain:GetArmyIndex()]) < M28Utilities.GetDistanceBetweenPositions(tStartPos, PlayerStartPoints[oBrain:GetArmyIndex()]) or M28Utilities.GetDistanceBetweenPositions(tTarget, tStartPos) > M28Utilities.GetDistanceBetweenPositions(tStartPos, PlayerStartPoints[oBrain:GetArmyIndex()]) then
                         bIsBehindUs = false
                         break
@@ -1777,9 +1791,8 @@ function GetModDistanceFromStart(aiBrain, tTarget, bUseEnemyStartInstead)
 
             if bIsBehindUs then
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                if bDebugMessages == true then
-                    LOG(sFunctionRef .. ': Will return emergency range as enemy is behind us, so returning ' .. iEmergencyRangeToUse)
-                end
+                if bDebugMessages == true then LOG(sFunctionRef .. ': Will return emergency range as enemy is behind us, so returning ' .. iEmergencyRangeToUse) end
+
                 return iEmergencyRangeToUse
             else
                 --Cycle through each enemy group and get lowest value, but stop if <= emergency range
@@ -1790,9 +1803,8 @@ function GetModDistanceFromStart(aiBrain, tTarget, bUseEnemyStartInstead)
                 else
                     for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains] do
                         iCurDist = math.cos(M28Utilities.ConvertAngleToRadians(math.abs(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, PlayerStartPoints[oBrain:GetArmyIndex()])))) * iDistStartToTarget
-                        if bDebugMessages == true then
-                            LOG(sFunctionRef .. ': iCurDist for enemy oBrain index ' .. oBrain:GetArmyIndex() .. ' = ' .. iCurDist .. '; Enemy base=' .. repru(PlayerStartPoints[oBrain:GetArmyIndex()]) .. '; tEnemyBase=' .. repru(tEnemyBase) .. '; Angle from start to target=' .. M28Utilities.GetAngleFromAToB(tStartPos, tTarget) .. '; Angle from Start to enemy base=' .. M28Utilities.GetAngleFromAToB(tStartPos, PlayerStartPoints[oBrain:GetArmyIndex()]) .. '; iDistStartToTarget=' .. iDistStartToTarget)
-                        end
+                        if bDebugMessages == true then LOG(sFunctionRef .. ': iCurDist for enemy oBrain index ' .. oBrain:GetArmyIndex() .. ' = ' .. iCurDist .. '; Enemy base=' .. repru(PlayerStartPoints[oBrain:GetArmyIndex()]) .. '; tEnemyBase=' .. repru(tEnemyBase) .. '; Angle from start to target=' .. M28Utilities.GetAngleFromAToB(tStartPos, tTarget) .. '; Angle from Start to enemy base=' .. M28Utilities.GetAngleFromAToB(tStartPos, PlayerStartPoints[oBrain:GetArmyIndex()]) .. '; iDistStartToTarget=' .. iDistStartToTarget) end
+
                         if iCurDist < iLowestDist then
                             iLowestDist = iCurDist
                             if iLowestDist < iEmergencyRangeToUse then
@@ -1804,9 +1816,8 @@ function GetModDistanceFromStart(aiBrain, tTarget, bUseEnemyStartInstead)
                 end
 
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                if bDebugMessages == true then
-                    LOG(sFunctionRef .. ': iLowestDist=' .. iLowestDist)
-                end
+                if bDebugMessages == true then LOG(sFunctionRef .. ': iLowestDist=' .. iLowestDist) end
+
                 return iLowestDist
             end
         end
@@ -1935,12 +1946,46 @@ function CreateReclaimSegment(iReclaimSegmentX, iReclaimSegmentZ)
     tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint] = GetReclaimLocationFromSegment(iReclaimSegmentX, iReclaimSegmentZ)
     --tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refsSegmentMidpointLocationRef] = M28Utilities.ConvertLocationToReference(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint])
     local iPlateau, iLandZone = GetPlateauAndLandZoneReferenceFromPosition(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint])
+    if (iPlateau or 0) == 0 then
+        --If we get the reclaim location, is it in a pathable area, or within 2 of a pathable area?
+        local rRect = M28Utilities.GetRectAroundLocation(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint], iReclaimSegmentSizeX * 0.5)
+        local tReclaimables = GetReclaimInRectangle(4, rRect)
+        if M28Utilities.IsTableEmpty(tReclaimables) == false then
+            local iCurPlateau, iCurLandZone
+            local tiXZOffset = {{-2,-2}, {-2, 2}, {2, -2}, {2, 2}}
+            for iReclaim, oReclaim in tReclaimables do
+                iCurPlateau, iCurLandZone = GetPlateauAndLandZoneReferenceFromPosition(oReclaim.CachePosition)
+                if (iCurPlateau or 0) == 0 then
+                    --Search nearby
+                    for _, tiXZAdjust in tiXZOffset do
+                        iCurPlateau, iCurLandZone = GetPlateauAndLandZoneReferenceFromPosition({oReclaim.CachePosition[1] + tiXZAdjust[1], oReclaim.CachePosition[2], oReclaim.CachePosition[3] + tiXZAdjust[2]})
+                        if (iCurPlateau or 0) > 0 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Reclaim location '..repru(oReclaim.CachePosition)..' isnt pathable but if we adjust by '..repru(tiXZAdjust)..' then it becomes pathable, adjusted position='..repru({oReclaim.CachePosition[1] + tiXZAdjust[1], oReclaim.CachePosition[2], oReclaim.CachePosition[3] + tiXZAdjust[2]})..'; iCurPlateau='..iCurPlateau..'; iCurLandZone='..(iCurLandZone or 'nil')) end
+                            break
+                        end
+                    end
+                else
+                    if bDebugMessages == true then LOG(sFunctionRef..': Reclaim midpoint '..repru(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint])..' isnt pathable but the reclaim position itself, '..repru(oReclaim.CachePosition)..' is pathable, iCurPlateau='..iCurPlateau..'; iCurLandZone='..(iCurLandZone or 'nil')) end
+                end
+                if (iCurPlateau or 0) > 0 then
+                    iPlateau = iCurPlateau
+                    iLandZone = iCurLandZone
+                    break
+                end
+            end
+        end
+
+    end
     if bDebugMessages == true then LOG(sFunctionRef..': Adding iReclaimSegmentX-Z'..iReclaimSegmentX..'-'..iReclaimSegmentZ..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
     if (iLandZone or 0) > 0 then
         --Record in the land zone
         if not(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZReclaimSegments]) then tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZReclaimSegments] = {} end
         table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZReclaimSegments], {iReclaimSegmentX, iReclaimSegmentZ})
-        if bDebugMessages == true then LOG(sFunctionRef..': Finished adding reclaim segment to LZ, all reclaim segments for this LZ='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZReclaimSegments])) end
+        if bDebugMessages == true then
+            LOG(sFunctionRef..': Finished adding reclaim segment to LZ, all reclaim segments for this LZ='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZReclaimSegments]))
+            local rCurRect = M28Utilities.GetRectAroundLocation(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint], iReclaimSegmentSizeX * 0.5)
+            M28Utilities.DrawRectangle(rCurRect, 4)
+        end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

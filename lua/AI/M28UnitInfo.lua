@@ -455,51 +455,46 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
             iBaseThreat = 0
             --Get the base threat for the unit
             if IsUnitValid(oUnit) then
-                if tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef] > 0 then
-                    --If unit has a threat for this reference, and we have an override value for the unit (e.g. ACU with upgrade), the nuse the override as the base value:
-                    if oUnit[refiDFMassThreatOverride] then
-                        iBaseThreat = oUnit[refiDFMassThreatOverride]
-                    else
-                        iBaseThreat = tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef]
-                    end
+                iBaseThreat = (oUnit[refiDFMassThreatOverride] or tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef])
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; iBaseThreat='..(iBaseThreat or 0)..'; DF threat override='..(oUnit[refiDFMassThreatOverride] or 'nil')..'; tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef]='..(tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef] or 'nil')) end
 
+                if iBaseThreat > 0 then
                     --Have got the base threat for this type of unit, now adjust threat for unit health if want to calculate actual threat
-                    if iBaseThreat > 0 then
-                        iCurShield, iMaxShield = GetCurrentAndMaximumShield(oUnit)
-                        iMaxHealth = oUnit:GetMaxHealth() + iMaxShield
-                        if iMaxHealth and iMaxHealth > 0 then
-                            --Increase threat for veterancy level
-                            if oUnit.Sync.VeteranLevel > 0 then iBaseThreat = iBaseThreat * (1 + oUnit.Sync.VeteranLevel * 0.1) end
+                    iCurShield, iMaxShield = GetCurrentAndMaximumShield(oUnit)
+                    iMaxHealth = oUnit:GetMaxHealth() + iMaxShield
+                    if iMaxHealth and iMaxHealth > 0 then
+                        --Increase threat for veterancy level
+                        if oUnit.Sync.VeteranLevel > 0 then iBaseThreat = iBaseThreat * (1 + oUnit.Sync.VeteranLevel * 0.1) end
 
-                            --Adjust threat for cur health %
-                            iOtherAdjustFactor = 1
-                            iHealthPercentage = (oUnit:GetHealth() + iCurShield) / (iMaxHealth + iMaxShield)
+                        --Adjust threat for cur health %
+                        iOtherAdjustFactor = 1
+                        iHealthPercentage = (oUnit:GetHealth() + iCurShield) / (iMaxHealth + iMaxShield)
 
-                            --Reduce threat by health, with the amount depending on if its an ACU and if its an enemy
-                            if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
-                                iHealthFactor = iHealthPercentage --threat will be mass * iHealthFactor
-                                --iMassCost = GetACUCombatMassRating(oUnit) --have already calculated this earlier
-                                if bEnemyUnits then
-                                    iOtherAdjustFactor = 1.15 --Want to send 15% more than what expect to need against enemy ACU given it can gain veterancy
+                        --Reduce threat by health, with the amount depending on if its an ACU and if its an enemy
+                        if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+                            iHealthFactor = iHealthPercentage --threat will be mass * iHealthFactor
+                            --iMassCost = GetACUCombatMassRating(oUnit) --have already calculated this earlier
+                            if bEnemyUnits then
+                                iOtherAdjustFactor = 1.15 --Want to send 15% more than what expect to need against enemy ACU given it can gain veterancy
+                            else
+                                if iHealthPercentage < 0.5 then iHealthFactor = iHealthPercentage * iHealthPercentage
+                                elseif iHealthPercentage < 0.9 then iHealthFactor = iHealthPercentage * (iHealthPercentage + 0.1) end
+                            end
+                        else
+                            if bEnemyUnits then
+                                --For enemy damaged units treat them as still ahving high threat, since enemy likely could use them effectively still
+                                if iHealthPercentage >= 1 then iHealthFactor = iHealthPercentage
                                 else
-                                    if iHealthPercentage < 0.5 then iHealthFactor = iHealthPercentage * iHealthPercentage
-                                    elseif iHealthPercentage < 0.9 then iHealthFactor = iHealthPercentage * (iHealthPercentage + 0.1) end
+                                    iHealthFactor = math.max(0.25, iHealthPercentage * (1 + (1 - iHealthPercentage)))
                                 end
                             else
-                                if bEnemyUnits then
-                                    --For enemy damaged units treat them as still ahving high threat, since enemy likely could use them effectively still
-                                    if iHealthPercentage >= 1 then iHealthFactor = iHealthPercentage
-                                    else
-                                        iHealthFactor = math.max(0.25, iHealthPercentage * (1 + (1 - iHealthPercentage)))
-                                    end
-                                else
-                                    iHealthFactor = iHealthPercentage
-                                end
+                                iHealthFactor = iHealthPercentage
                             end
-                            if oUnit:GetFractionComplete() <= 0.75 then iOtherAdjustFactor = iOtherAdjustFactor * 0.1 end
                         end
-                        iCurThreat = iBaseThreat * iOtherAdjustFactor * iHealthFactor
+                        if oUnit:GetFractionComplete() <= 0.75 then iOtherAdjustFactor = iOtherAdjustFactor * 0.1 end
                     end
+                    iCurThreat = iBaseThreat * iOtherAdjustFactor * iHealthFactor
+                    if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' iCurThreat='..iCurThreat..'; iBaseThreat='..iBaseThreat..'; iOtherAdjustFactor='..iOtherAdjustFactor..'; iHealthFactor='..iHealthFactor) end
                 end
             else
                 --Are we calculating blueprint threat (per code at start of game)?
@@ -620,6 +615,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                         if bDebugMessages == true then LOG(sFunctionRef..': iMassCost='..(iMassCost or 'nil')..'; iMassMod='..(iMassMod or 'nil')) end
                         iBaseThreat = iMassCost * iMassMod
                     end
+                elseif bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' is not valid')
                 end
 
                 iCurThreat = iBaseThreat
@@ -865,19 +861,19 @@ function CalculateBlueprintThreatsByType()
         function RecordBlueprintThreatValues(oBP, sUnitId)
 
             tUnitThreatByIDAndType[sUnitId] = {}
-            if bDebugMessages == true then LOG(sFunctionRef..': About to consider different land threat values for unit '..sUnitId..' Name='..LOCF((oBP.General.UnitName) or 'nil')) end
+            if bDebugMessages == true then LOG(sFunctionRef..': About to consider different land threat values for unit '..sUnitId..' Name='..(oBP.General.UnitName or 'nil')) end
             for iRef, tConditions in tiLandAndNavyThreatTypes do
                 --GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly, bBlueprintThreat)
                 --{bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly}
                 tUnitThreatByIDAndType[sUnitId][iRef] = GetCombatThreatRating( { {['UnitId']=sUnitId }}, false, tConditions[1], tConditions[2], tConditions[3], tConditions[4], tConditions[5], tConditions[6], true)
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Finished calculating land threat values for '..LOCF((oBP.General.UnitName or 'nil'))..', result='..reprs(tUnitThreatByIDAndType[sUnitId])) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished calculating land threat values for '..(oBP.General.UnitName or 'nil')..', result='..reprs(tUnitThreatByIDAndType[sUnitId])) end
 
             for iRef, tConditions in tiAirThreatTypes do
                 --GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo, bBlueprintThreat)
                 tUnitThreatByIDAndType[sUnitId][iRef] = GetAirThreatLevel({ {['UnitId']=sUnitId }}, false, tConditions[1], tConditions[2], tConditions[3], tConditions[4], tConditions[5], true)
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Finished calculating air threat values, result of land and air for '..LOCF(oBP.General.UnitName)..'='..reprs(tUnitThreatByIDAndType[sUnitId])) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished calculating air threat values, result of land and air for '..(oBP.General.UnitName or 'nil')..'='..reprs(tUnitThreatByIDAndType[sUnitId])) end
         end
 
         local iCount = 0
@@ -885,7 +881,9 @@ function CalculateBlueprintThreatsByType()
         for iBP, oBP in __blueprints do
             --Updates tUnitThreatByIDAndType
             sUnitId = oBP.BlueprintId
-            if not(tUnitThreatByIDAndType[sUnitId]) and oBP.Economy.BuildCostMass and oBP.General.UnitName then
+            if bDebugMessages == true then LOG('Will shortly (via a forked threat) get the blueprint threat for enemy unit sUnitId '..sUnitId..'; tUnitThreatByIDAndType[sUnitId]='..(tUnitThreatByIDAndType[sUnitId] or 'nil')..'; oBP.Economy.BuildCostMass='..(oBP.Economy.BuildCostMass or 'nil')..'; oBP.General.UnitName='..(oBP.General.UnitName or 'nil')..' if it has a build cost mass of at least 1 and we havent already called it') end
+
+            if not(tUnitThreatByIDAndType[sUnitId]) and (oBP.Economy.BuildCostMass or 0) > 0 then
                 --iCount = iCount + 1
                 --if iCount >= 10 then break end
                 ForkThread(RecordBlueprintThreatValues, oBP, sUnitId)

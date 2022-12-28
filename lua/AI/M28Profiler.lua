@@ -4,10 +4,12 @@
 --- DateTime: 16/11/2022 07:28
 ---
 local M28Config = import('/mods/M28AI/lua/M28Config.lua')
+local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 
 
 --Profiling variables
 bGlobalDebugOverride = false --will turn debugmessages to true for all functions (where has been enabled)
+bActiveProfiler = false --true if profiler is running
 refiLastSystemTimeRecorded = 'M28ProfilerLastSystemTime' --Used for simple profiler to just measure how long something is taking without all the logs
 
 refProfilerStart = 0
@@ -137,6 +139,99 @@ function FunctionProfiler(sFunctionRef, sStartOrEndRef)
             end
 
         else ErrorHandler('FunctionProfiler: Unknown reference, wont record')
+        end
+    end
+end
+
+function ProfilerActualTimePerTick()
+    if M28Config.M28RunProfiling and not(bActiveProfiler) then
+        bActiveProfiler = true
+        local iGameTimeInTicks
+        local iPrevGameTime = 0
+        local iSystemTime = 0
+        while true do
+            iPrevGameTime = GetSystemTimeSecondsOnlyForProfileUse()
+            WaitTicks(1)
+            iSystemTime = GetSystemTimeSecondsOnlyForProfileUse()
+            iGameTimeInTicks = math.floor(GetGameTimeSeconds()*10)
+            if M28Config.M28ProfilerIgnoreFirst2Seconds and iGameTimeInTicks <= 20 then
+                --Dont record
+            else
+                tProfilerActualTimeTakenInTick[iGameTimeInTicks] = iSystemTime - iPrevGameTime
+            end
+            ProfilerOutput()
+        end
+
+    end
+end
+
+function ProfilerOutput()
+    local sFunctionRef = 'ProfilerOutput'
+    local bDebugMessages = false if bGlobalDebugOverride == true then   bDebugMessages = true end
+
+    if M28Config.M28RunProfiling then
+        local iCurTick = math.floor(GetGameTimeSeconds()*10) - 1
+        if not(tbProfilerOutputGivenForTick[iCurTick]) then
+            tbProfilerOutputGivenForTick[iCurTick] = true
+            LOG(sFunctionRef..': Tick='..iCurTick..'; Time taken='..(tProfilerCumulativeTimeTakenInTick[iCurTick] or 'nil')..'; Entire time for tick='..(tProfilerActualTimeTakenInTick[iCurTick] or 'nil')..'; About to list out top 10 functions in this tick')
+            local iCount = 0
+            if M28Utilities.IsTableEmpty(tProfilerTimeTakenInTickByFunction[iCurTick]) == false then
+                for sFunctionName, iValue in M28Utilities.SortTableByValue(tProfilerTimeTakenInTickByFunction[iCurTick], true) do
+                    iCount = iCount + 1
+                    LOG(sFunctionRef..': iTick='..iCurTick..': No.'..iCount..'='..sFunctionName..'; TimesRun='..(tProfilerCountByTickByFunction[iCurTick][sFunctionName] or 'nil')..'; Total Time='..iValue)
+                    if iCount >= 10 then break end
+                end
+
+                LOG(sFunctionRef..': About to list top 10 called functions in this tick')
+                iCount = 0
+                for sFunctionName, iValue in M28Utilities.SortTableByValue(tProfilerCountByTickByFunction[iCurTick], true) do
+                    iCount = iCount + 1
+                    LOG(sFunctionRef..': iTick='..iCurTick..': No.'..iCount..'='..sFunctionName..'; TimesRun='..(tProfilerCountByTickByFunction[iCurTick][sFunctionName] or 'nil')..'; Total Time='..iValue)
+                    if iCount >= 10 then break end
+                end
+                LOG(sFunctionRef..': IssueMove cumulative count='..IssueCount)
+            end
+            --else
+            --LOG(sFunctionRef..': Tick='..iCurTick..'; Below threshold at '..(tProfilerCumulativeTimeTakenInTick[iCurTick] or 'missing'))
+            --end
+            --end
+
+            --Include full output of function cumulative time taken every interval
+            local bFullOutputNow = false
+
+            if iCurTick > (iFullOutputCount + 1) * iFullOutputIntervalInTicks then bFullOutputNow = true end
+            if bFullOutputNow then
+                if bFullOutputAlreadyDone[iFullOutputCount + 1] then
+                    --Already done
+                else
+                    iFullOutputCount = iFullOutputCount + 1
+                    bFullOutputAlreadyDone[iFullOutputCount] = true
+                    LOG(sFunctionRef..': About to print detailed output of all functions cumulative values')
+                    iCount = 0
+                    for sFunctionName, iValue in M28Utilities.SortTableByValue(tProfilerTimeTakenCumulative, true) do
+                        iCount = iCount + 1
+                        if tProfilerStartCount[sFunctionName] == nil then LOG('ERROR somehow '..sFunctionName..' hasnt been recorded in the cumulative count despite having its time recorded.  iValue='..iValue)
+                        else
+                            LOG(sFunctionRef..': No.'..iCount..'='..sFunctionName..'; TimesRun='..tProfilerStartCount[sFunctionName]..'; Time='..iValue)
+                        end
+                    end
+                    --Give the total time taken to get to this point based on time per tick
+                    local iTotalTimeTakenToGetHere = 0
+                    local iTotalDelayedTime = 0
+                    local iLongestTickTime = 0
+                    local iLongestTickRef
+                    for iTick, iTime in tProfilerActualTimeTakenInTick do
+                        iTotalTimeTakenToGetHere = iTotalTimeTakenToGetHere + iTime
+                        iTotalDelayedTime = iTotalDelayedTime + math.max(0, iTime - 0.1)
+                        if iTime > iLongestTickTime then
+                            iLongestTickTime = iTime
+                            iLongestTickRef = iTick
+                        end
+                    end
+                    LOG(sFunctionRef..': Total time taken to get to '..iCurTick..'= '..iTotalTimeTakenToGetHere..'; Total time of any freezes = '..iTotalDelayedTime..'; Longest tick time='..iLongestTickTime..'; tick ref = '..((iLongestTickRef or 0) - 1)..' to '..(iLongestTickRef or 'nil'))
+
+                end
+            end
         end
     end
 end

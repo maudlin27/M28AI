@@ -12,4 +12,10 @@ Prop = Class(M28OldProp) {
         M28Events.OnPropDestroyed(self)
         M28OldProp.Destroy(self)
     end,
+    OnCreate = function(self)
+        M28OldProp.OnCreate(self)
+        if self.CachePosition then
+            ForkThread(M28Events.OnCreateWreck, self.CachePosition, self.MaxMassReclaim, self.MaxEnergyReclaim)
+        end
+    end,
 }

@@ -21,7 +21,58 @@ tLZRefreshCountByTeam = {}
 --Varaibles against specific units
 reftiPlateauAndLZToMoveTo = 'M28LandPlatAndLZToMoveTo' --If tell a unit to mvoe to a LZ then will update this with the plateau and land zone wanted
 
+function GetUnitPlateauAndLandZoneOverride(oUnit)
+    --Return true if have changed something
+    local iPossiblePlateau
+    local iPossibleLZ
+    local iBestPlateau
+    local iBestLZ
+    if M28Utilities.IsTableEmpty(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) == false then
+        for iTeam, tTeamPlateauAndLZ in oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam] do
+            if iTeam == oUnit:GetAIBrain().M28Team then
+                iBestPlateau = tTeamPlateauAndLZ[1]
+                iBestLZ = tTeamPlateauAndLZ[2]
+                break
+            else
+                iPossiblePlateau = tTeamPlateauAndLZ[1]
+                iPossibleLZ = tTeamPlateauAndLZ[2]
+            end
+        end
+        if iBestPlateau or iPossiblePlateau then
+            M28Map.AddLocationToPlateauExceptions(oUnit:GetPosition(), (iBestPlateau or iPossiblePlateau), (iBestLZ or iPossibleLZ))
+            return true
+        end
+    end
+end
 
+function ConsiderAddingPlateauOverrideForUnit(oUnit)
+    --If unit doesnt show as having a plateau, it isnt attached, and it is on land then have its current position assigned  to the most recent plateau
+    --Note - other places will also call override, this isnt the only function
+    --returns true if has added an override
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderAddingPlateauOverrideForUnit'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local bMadeChange = false
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; Unit position='..repru(oUnit:GetPosition())..'; Map height='..M28Map.iMapWaterHeight) end
+    if oUnit.IsUnitState and not(oUnit:IsUnitState('Attached')) and oUnit:GetPosition()[2] > M28Map.iMapWaterHeight then
+        local iCurPlateau = NavUtils.GetLabel(M28Map.refPathingTypeAmphibious, oUnit:GetPosition())
+        if bDebugMessages == true then LOG(sFunctionRef..': Unit plateau from NavUtils='..(iCurPlateau or 'nil')) end
+        if (iCurPlateau or 0) <= 0 then
+            bMadeChange = GetUnitPlateauAndLandZoneOverride(oUnit)
+        else
+            --Have a valid plateau but for some reason dont have a land zone?
+            local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(oUnit:GetPosition())
+            if bDebugMessages == true then LOG(sFunctionRef..': iSegmentX-Z='..iSegmentX..'-'..iSegmentZ..'; tLandZoneBySegment[iSegmentX][iSegmentZ]='..(M28Map.tLandZoneBySegment[iSegmentX][iSegmentZ] or 'nil')) end
+            if not(M28Map.tLandZoneBySegment[iSegmentX][iSegmentZ]) then
+                bMadeChange = GetUnitPlateauAndLandZoneOverride(oUnit)
+                if bDebugMessages == true then LOG(sFunctionRef..': bMadeChange after checking unit plateau and LZ override='..tostring(bMadeChange)) end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return bMadeChange
+end
 
 function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau, iRecordedLandZone, bUseLastKnownPosition)
     --Based on RemoveEntriesFromArrayAndAddToNewTableBasedOnCondition, but more complex as dont always want to add unit to a table
@@ -40,11 +91,11 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
             --Unit still valid, does it have the right plateau and land zone?
             if bUseLastKnownPosition then
                 UpdateUnitLastKnownPosition(aiBrain, tUnits[iOrigIndex], false)
-                iActualPlateau, iActualLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tUnits[iOrigIndex][M28UnitInfo.reftLastKnownPositionByTeam][iTeam], true)
+                iActualPlateau, iActualLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tUnits[iOrigIndex][M28UnitInfo.reftLastKnownPositionByTeam][iTeam], true, tUnits[iOrigIndex])
             else
                 --Allied unit so can use actual position
                 --LOG('Updating unit position, iOrigIndex='..iOrigIndex..'; reprs='..reprs(tUnits[iOrigIndex]))
-                iActualPlateau, iActualLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tUnits[iOrigIndex]:GetPosition(), true)
+                iActualPlateau, iActualLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tUnits[iOrigIndex]:GetPosition(), true, tUnits[iOrigIndex])
             end
             if not(iActualPlateau > 0) then
                 if not(tUnits[iOrigIndex]:IsUnitState('Attached')) then
@@ -111,6 +162,7 @@ function RecordGroundThreatForLandZone(tLZTeamData, iTeam, iPlateau, iLandZone)
         tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] = M28UnitInfo.GetAirThreatLevel(tLZTeamData[M28Map.subrefLZTEnemyUnits], true, false, true, false, false, false)
         tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange] = nil
         tLZTeamData[M28Map.subrefLZThreatEnemyStructureDFByRange] = nil
+        if bDebugMessages == true then LOG(sFunctionRef..': Plateau '..iPlateau..' LZ '..iLandZone..' has enemy units, Enemy combat total='..tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal]) end
         local iCurThreat
         if M28Utilities.IsTableEmpty(tMobileUnits) == false then
             for iUnit, oUnit in tMobileUnits do
@@ -228,7 +280,6 @@ function ManageLandZone(aiBrain, iTeam, iPlateau, iLandZone)
     --Handle engineers and even if no engineers still decide what engineers we would want for hte LZ
     M28Engineer.ConsiderLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, iLandZone, tEngineers) --Should update the land zone engineer requirements, even if tEngineers itself is empty
 
-    if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexUnbuiltLocations]) == false and GetGameTimeSeconds() >= 840 then bDebugMessages = true end
 
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is unbuild locations empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexUnbuiltLocations]))) end
 
@@ -259,22 +310,30 @@ function AssignValuesToLandZones(iTeam)
 
     local aiBrain = GetFirstActiveBrain(iTeam)
 
-    if bDebugMessages == true then LOG(sFunctionRef..': About to start the main loop for assigning values to land zones provided we have friendly M28 brains in the team '..iTeam..'; is table empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))) end
+    if bDebugMessages == true then
+        LOG(sFunctionRef..': About to start the main loop for assigning values to land zones provided we have friendly M28 brains in the team '..iTeam..'; is table empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))..'; will list out the plateau and LZ for each member of the team')
+        local iStartPlateau, iStartLZ
+        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+            iStartPlateau, iStartLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+            LOG(sFunctionRef..': Brain '..oBrain.Nickname..' has start position '..repru(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])..' with iStartPlateau='..(iStartPlateau or 'nil')..' and iStartLZ='..(iStartLZ or 'nil'))
+        end
+    end
     local iCurValue
     local tFriendlyNonPDBuildings
     local bAdjacentToCoreFactory
     while M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false do
 
         local tiPlateauAndLZWithFriendlyStartPosition = {}
-        local iHighestTechLevel = 1
         local iBaseCategory
         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
             local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
-            tiPlateauAndLZWithFriendlyStartPosition[iPlateau] = {[iLandZone] = true}
-            iHighestTechLevel = math.max(iHighestTechLevel, oBrain[M28Economy.refiOurHighestFactoryTechLevel])
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering iBrain='..iBrain..'; oBrain='..oBrain.Nickname..'; Army index='..oBrain:GetArmyIndex()..'; Player start point='..repru(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])..'; Plateau and LZ='..iPlateau..'-'..iLandZone) end
+            if not(tiPlateauAndLZWithFriendlyStartPosition[iPlateau]) then tiPlateauAndLZWithFriendlyStartPosition[iPlateau] = {} end
+            tiPlateauAndLZWithFriendlyStartPosition[iPlateau][iLandZone] = true
         end
-        if iHighestTechLevel >= 3 then iBaseCategory = categories.TECH3 * M28UnitInfo.refCategoryFactory
-        elseif iHighestTechLevel >= 2 then iBaseCategory = M28UnitInfo.refCategoryFactory - categories.TECH1
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished recording the friendly start positions for each brain, tiPlateauAndLZWithFriendlyStartPosition='..repru(tiPlateauAndLZWithFriendlyStartPosition)) end
+        if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 then iBaseCategory = categories.TECH3 * M28UnitInfo.refCategoryFactory
+        elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 then iBaseCategory = M28UnitInfo.refCategoryFactory - categories.TECH1
         else iBaseCategory = M28UnitInfo.refCategoryFactory
         end
 
@@ -282,7 +341,7 @@ function AssignValuesToLandZones(iTeam)
             if M28Utilities.IsTableEmpty(tPlateauData[M28Map.subrefPlateauLandZones]) == false then
                 --tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
                 for iLandZone, tLandZoneData in tPlateauData[M28Map.subrefPlateauLandZones] do
-                    if bDebugMessages == true then LOG(sFunctionRef..': About to refresh value of iPlateau='..iPlateau..'; iLandZone='..iLandZone) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': About to refresh value of iPlateau='..iPlateau..'; iLandZone='..iLandZone..' for team '..iTeam) end
                     --Decide on value of the land zone ignoring distance:
                     --Treat each mex position as being worth 250 mass, value reclaim at 25% of the total value, and reflect the value of all non-PD in the area
                     iCurValue = tLandZoneData[M28Map.subrefLZMexCount] * 250 + (tLandZoneData[M28Map.subrefLZReclaimMass] or 0) * 0.25
@@ -298,6 +357,7 @@ function AssignValuesToLandZones(iTeam)
                     --Is this a core base land zone?
                     if tiPlateauAndLZWithFriendlyStartPosition[iPlateau][iLandZone] then
                         tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTCoreBase] = true
+                        if bDebugMessages == true then LOG(sFunctionRef..': Core LZ='..iLandZone..'; All adjacent zones='..repru(tLandZoneData[M28Map.subrefLZAdjacentLandZones])) end
                     elseif M28Utilities.IsTableEmpty(tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedUnits]) == false then
                         --Are we adjacent to a core factoroy?  If so then check if we also have a factory of our highest tech level in this zone, and if so treat it as a core base zone
                         bAdjacentToCoreFactory = false
@@ -348,7 +408,7 @@ function RefreshAllLandZoneUnits(aiBrain, iTeam)
         LOG(sFunctionRef..': Start of code, Time='..GetGameTimeSeconds()..'; If have an ACU will list its plateau and land zone')
         local tOurACU = aiBrain:GetListOfUnits(categories.COMMAND, false, true)
         if M28Utilities.IsTableEmpty(tOurACU) == false then
-            local iACUPlateau, iACULZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tOurACU[1]:GetPosition())
+            local iACUPlateau, iACULZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tOurACU[1]:GetPosition(), true, tOurACU[1])
             LOG(sFunctionRef..': ACU is at plateau '..iACUPlateau..'; LZ='..iACULZ)
         end
         LOG(sFunctionRef..': Is plateau 12 LZ 2 empty of allies for team 2='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[12][M28Map.subrefPlateauLandZones][2][M28Map.subrefLZTeamData][2][M28Map.subrefLZTAlliedUnits])))
@@ -462,11 +522,15 @@ function LandZoneOverseer(iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function GetLandZoneToRunTo(iTeam, iPlateau, iCurLandZone, sPathing)
+function GetLandZoneToRunTo(iTeam, iPlateau, iCurLandZone, sPathing, tOptionalStartPosition, tOptionalEnemyPositionToRunFrom)
     --Returns cur LZ if no LZ to run to, otherwise returns the land zone we think is best to run to from iCurLandZone
+    --tOptionalStartPosition - if nil then will use midpoint of iCurLandZone
+    --tOptionalEnemyPositionToRunFrom - if this is specified, then will pick al ocation based on angle from the start position to the location vs the start position angle to the enemy position to run to (so we run in the opposite direction to the enemy position if the opposite direction LZ is safe)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetLandZoneToRunTo'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': iTeam='..iTeam..'; iPlateau='..iPlateau..'; iCurLandZone='..iCurLandZone..'; sPathing='..sPathing..'; tOptionalStartPosition='..repru(tOptionalStartPosition)..'; tOptionalEnemyPositionToRunFrom='..repru(tOptionalEnemyPositionToRunFrom)) end
 
     local tLZShortlist = {}
     --See if we have any adjacent LZs with no enemy combat units in them - if so, then run here
@@ -494,20 +558,40 @@ function GetLandZoneToRunTo(iTeam, iPlateau, iCurLandZone, sPathing)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return iCurLandZone
     else
-        --Pick the closest land zone
-        local tStartPoint = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iCurLandZone][M28Map.subrefLZMidpoint]
-        local iClosestLZDistance = 100000
-        local iClosestLZRef
-        local iCurDist
-        for _, iPossibleLZ in tLZShortlist do
-            iCurDist = M28Utilities.GetTravelDistanceBetweenPositions(tStartPoint, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iPossibleLZ][M28Map.subrefLZMidpoint], sPathing)
-            if iCurDist < iClosestLZDistance then
-                iClosestLZDistance = iCurDist
-                iClosestLZRef = iPossibleLZ
+        local tStartPoint = (tOptionalStartPosition or M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iCurLandZone][M28Map.subrefLZMidpoint])
+        local iPreferredLZRef
+        if tOptionalEnemyPositionToRunFrom then
+            --Go to the angle furthest in angle away from the nearest enemy
+            local iAngleToEnemy = M28Utilities.GetAngleFromAToB(tStartPoint, tOptionalEnemyPositionToRunFrom)
+            local iCurAngleDif
+            local iHighestAngleDif = 0
+            for _, iPossibleLZ in tLZShortlist do
+                iCurAngleDif = M28Utilities.GetAngleDifference(iAngleToEnemy, M28Utilities.GetAngleFromAToB(tStartPoint, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iPossibleLZ][M28Map.subrefLZMidpoint]))
+                if iCurAngleDif > iHighestAngleDif then
+                    iHighestAngleDif = iCurAngleDif
+                    iPreferredLZRef = iPossibleLZ
+                end
+            end
+        else
+            --dont have angle to nearest enemy so just pick the closest land zone
+
+            local iClosestLZDistance = 100000
+            local iClosestLZRef
+            local iCurDist
+            for _, iPossibleLZ in tLZShortlist do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering distance from tStartPoint to iPossibleLZ '..(iPossibleLZ or 'nil')..'; Midpoint of that LZ='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iPossibleLZ][M28Map.subrefLZMidpoint])..'; iCurDist='..(M28Utilities.GetTravelDistanceBetweenPositions(tStartPoint, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iPossibleLZ][M28Map.subrefLZMidpoint], sPathing) or 'nil')) end
+                iCurDist = M28Utilities.GetTravelDistanceBetweenPositions(tStartPoint, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iPossibleLZ][M28Map.subrefLZMidpoint], sPathing)
+                --Backup - if the built in pathfinding doesnt htink we can path there (e.g. we are by a cliff) then use straight line distance
+                if not(iCurDist) then iCurDist = M28Utilities.GetDistanceBetweenPositions(tStartPoint, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iPossibleLZ][M28Map.subrefLZMidpoint]) + 30 end
+
+                if iCurDist < iClosestLZDistance then
+                    iClosestLZDistance = iCurDist
+                    iPreferredLZRef = iPossibleLZ
+                end
             end
         end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        return iClosestLZRef
+        return iPreferredLZRef
     end
 end
 
@@ -520,13 +604,15 @@ function IsItSafeToPathBetweenLandZones(iTeam, iPlateau, iStartLandZone, iEndLan
         local iCurPlateau, iCurLZ
         for iPath, tPath in tFullPath do
             iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tPath)
-            if not(tLZConsidered[iCurLZ]) then
-                tLZConsidered[iCurLZ] = true
-                --Are there any units in this LZ that are dangerous?
-                if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iCurLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTEnemyUnits]) == false then
-                    for iUnit, oUnit in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iCurLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTEnemyUnits] do
-                        if ((oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or (oUnit[M28UnitInfo.refiIndirectRange] or 0) > 0) and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout - categories.SERAPHIM, oUnit.UnitId)) then
-                            return false
+            if iCurPlateau and iCurLZ then
+                if not(tLZConsidered[iCurLZ]) then
+                    tLZConsidered[iCurLZ] = true
+                    --Are there any units in this LZ that are dangerous?
+                    if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iCurLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTEnemyUnits]) == false then
+                        for iUnit, oUnit in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iCurLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTEnemyUnits] do
+                            if ((oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or (oUnit[M28UnitInfo.refiIndirectRange] or 0) > 0) and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout - categories.SERAPHIM, oUnit.UnitId)) then
+                                return false
+                            end
                         end
                     end
                 end
@@ -534,4 +620,24 @@ function IsItSafeToPathBetweenLandZones(iTeam, iPlateau, iStartLandZone, iEndLan
         end
     end
     return true
+end
+
+function DrawReclaimSegmentsInLandZone(iPlateau, iLandZone)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'DrawReclaimSegmentsInLandZone'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+    local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+    local rCurRect
+    if bDebugMessages == true then LOG(sFunctionRef..': About to draw reclaim segnemtns for iPlateau '..iPlateau..' iLandZone '..iLandZone..'; Table of reclaim segments='..repru(tLZData[M28Map.subrefLZReclaimSegments])) end
+
+    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZReclaimSegments]) == false then
+        for iCount, tSegmentXZ in tLZData[M28Map.subrefLZReclaimSegments] do
+            rCurRect = M28Utilities.GetRectAroundLocation(M28Map.tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][M28Map.refReclaimSegmentMidpoint], M28Map.iReclaimSegmentSizeX * 0.5)
+            M28Utilities.DrawRectangle(rCurRect)
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+
 end

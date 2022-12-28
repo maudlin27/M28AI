@@ -1,6 +1,8 @@
 local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
+local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
+local M28Config = import('/mods/M28AI/lua/M28Config.lua')
 
 M28AIBrainClass = AIBrain
 AIBrain = Class(M28AIBrainClass) {
@@ -16,6 +18,8 @@ AIBrain = Class(M28AIBrainClass) {
         local iStartPositionX, iStartPositionZ = self:GetArmyStartPos()
         M28Map.PlayerStartPoints[self:GetArmyIndex()] = {iStartPositionX, GetSurfaceHeight(iStartPositionX, iStartPositionZ), iStartPositionZ}
         M28Overseer.tAllAIBrainsByArmyIndex[self:GetArmyIndex()] = self
+
+        if M28Config.M28RunProfiling then ForkThread(M28Profiler.ProfilerActualTimePerTick) end
 
         if ScenarioInfo.ArmySetup[self.Name].AIPersonality == 'm28ai' or ScenarioInfo.ArmySetup[self.Name].AIPersonality == 'm28aicheat' then
             LOG('M28 brain created')

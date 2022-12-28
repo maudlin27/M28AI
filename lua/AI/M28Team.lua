@@ -181,7 +181,7 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
         if bUnitDeadOrCompletedUpgrade then
             local iTeam = oUnitDoingUpgrade:GetAIBrain().M28Team
             table.remove(tTeamData[iTeam][sUpgradeTableRef], iTableRefOfUnit)
-            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnitDoingUpgrade:GetPosition())
+            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnitDoingUpgrade:GetPosition(), true, oUnitDoingUpgrade)
             local tTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
             if M28Utilities.IsTableEmpty(tTeamData[iTeam][M28Map.subrefActiveUpgrades]) == false then
                 for iUnit, oUnit in tTeamData[iTeam][M28Map.subrefActiveUpgrades] do
@@ -213,7 +213,7 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
                 if bDebugMessages == true then LOG(sFunctionRef..': Updated this cycle check, tTeamData[iTeam][subrefiMassUpgradesStartedThisCycle]='..tTeamData[iTeam][subrefiMassUpgradesStartedThisCycle]) end
             end
 
-            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnitDoingUpgrade:GetPosition())
+            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnitDoingUpgrade:GetPosition(), true, oUnitDoingUpgrade)
             local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
             if bDebugMessages == true then LOG(sFunctionRef..': tTeamData[iTeam][M28Map.subrefActiveUpgrades] before adding unit='..reprs(tTeamData[iTeam][M28Map.subrefActiveUpgrades])) end
             if not(tLZTeamData[M28Map.subrefActiveUpgrades]) then
@@ -229,7 +229,6 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
     --Clear trackers from the unit that was doing the upgrade
 
     if bUnitDeadOrCompletedUpgrade and oUnitDoingUpgrade.UnitId then
-        bDebugMessages = true
         if bDebugMessages == true then LOG(sFunctionRef..': Just finished upgrading '..(oUnitDoingUpgrade.UnitId or 'nil')..M28UnitInfo.GetUnitLifetimeCount(oUnitDoingUpgrade)..'; is table of units assisting this empty='..tostring(M28Utilities.IsTableEmpty(oUnitDoingUpgrade[M28UnitInfo.reftoUnitsAssistingThis]))) end
         if M28Utilities.IsTableEmpty(oUnitDoingUpgrade[M28UnitInfo.reftoUnitsAssistingThis]) == false then
             local tUnitsToClear = {}
@@ -239,7 +238,6 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
                 end
             end
             if M28Utilities.IsTableEmpty(tUnitsToClear) == false then
-                bDebugMessages = true
                 if bDebugMessages == true then LOG(sFunctionRef..': Just finished upgrading '..oUnitDoingUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitDoingUpgrade)..'; will clear assisting engineers, table size='..table.getn(tUnitsToClear)) end
                 for iUnit, oUnit in tUnitsToClear do
                     M28Orders.IssueTrackedClearCommands(oUnit)
@@ -431,7 +429,7 @@ function AssignUnitToZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition)
     if EntityCategoryContains(M28UnitInfo.refCategoryAllAir - M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
         M28Utilities.ErrorHandler('To add code for air units')
     else
-        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
         if bDebugMessages == true then LOG(sFunctionRef..': Unit iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
         if iLandZone > 0 then
             --Unit is in a land zone so assign it to a land zone instead of a pond
@@ -475,7 +473,7 @@ function HaveGroundUnitWithNoPlateau(oTrackingBrain, oUnit)
         local bConsiderMoving = false
         if oUnit:GetAIBrain().M28AI then bConsiderMoving = true end
         while M28UnitInfo.IsUnitValid(oUnit) do
-            iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+            iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
             if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' postiion='..repru(oUnit:GetPosition())..'; Unit plateau group='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; Actual plateau group ignoring segment='..(NavUtils.GetLabel(sPathing, tPotentialTempMoveLocation) or 'nil')) end
             if iPlateau > 0 then break end
             if bConsiderMoving then
@@ -1119,6 +1117,7 @@ function TeamInitialisation(iM28Team)
             if bDebugMessages == true then LOG(sFunctionRef..': About to start land zone overseer which carries out main over time loop') end
             ForkThread(M28Land.LandZoneOverseer, iM28Team)
             ForkThread(TeamOverseer, iM28Team)
+            ForkThread(M28Economy.TeamResourceSharingMonitor, iM28Team)
         end
     end
 
@@ -1126,7 +1125,7 @@ function TeamInitialisation(iM28Team)
     for iPlateau, tPlateauData in M28Map.tAllPlateaus do
         for iLZ, tLZData in tPlateauData[M28Map.subrefPlateauLandZones] do
             if bDebugMessages == true then LOG(sFunctionRef..': Recording team data for iPlateau='..iPlateau..'; iLZ='..iLZ..'; iTeam='..iM28Team) end
-            tLZData[M28Map.subrefLZTeamData] = {}
+            if not(tLZData[M28Map.subrefLZTeamData]) then tLZData[M28Map.subrefLZTeamData] = {} end
             tLZData[M28Map.subrefLZTeamData][iM28Team] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZTAlliedUnits] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZTEnemyUnits] = {}
@@ -1155,4 +1154,8 @@ function GetCurrentUnitsOfCategory(iM28Team, iCategory)
         iCurUnits = iCurUnits + oBrain:GetCurrentUnits(iCategory)
     end
     return iCurUnits
+end
+
+function TransferUnitsToPlayer(tUnits, iArmyIndex, bCaptured)
+    import('/lua/SimUtils.lua').TransferUnitsOwnership(tUnits, iArmyIndex, bCaptured)
 end
