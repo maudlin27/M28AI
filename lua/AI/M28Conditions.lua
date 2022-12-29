@@ -302,9 +302,10 @@ function WantMorePower(iTeam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'WantMorePower'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if GetGameTimeSeconds() >= 800 then bDebugMessages = true end
     local bWantMorePower = false
-    if M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower] then return false
+    if M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower] then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return false
     else
         if HaveLowPower(iTeam) then bWantMorePower = true
         else

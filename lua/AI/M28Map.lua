@@ -107,7 +107,13 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         subrefLZMassStorageLocationsAvailable = 'MassStorageLocations' --Against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], Returns table of locations which should be valid to build on for mass storage
         subrefLZSegments = 'Segments' --Contains a table which returns the X and Z segment values for every segment assigned to this land zone
         subrefLZTotalSegmentCount = 'SegCount' --Number of segments in a land zone, against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
-        subrefLZAdjacentLandZones = 'AdjLZ' --table containing all adjacent land zone references for the plateau in question, against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
+        subrefLZAdjacentLandZones = 'AdjLZ' --table containing all adjacent land zone references for the plateau in question, against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], i.e. ordered 1,2,3,...; and returns the LZ ref (based on the order it was added)
+        subrefLZPathingToOtherLandZones = 'PathLZ' --table containing the land zone ref of other LZs where have recorded the paths and time taken, sorted by closest LZ first
+            subrefLZNumber = 1 --Land zone reference number
+            subrefLZPath = 2 --against subrefLZPathingToOtherLandZones subtable
+            subrefLZTravelDist = 3 --against subrefLZPathingToOtherLandZones subtable
+
+        subrefLZFurthestAdjacentLandZoneTravelDist = 'FurthestAdjLZ' --Returns the travel distance (rounded up) of the furthest immediately adjacent land zone - can combine with subrefLZPathingToOtherLandZones so can stop cycling through the prerecorded LZs once get further away than the immediately adjacent ones
         --Reclaim related:
         subrefLZReclaimSegments = 'ReclSeg' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], table, orderd 1,2,3...; returns {iReclaimSegmentX, iReclaimSegmentZ}
         subrefLZTotalMassReclaim = 'RecMass' --total mass reclaim in the land zone
@@ -133,6 +139,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZThreatEnemyGroundAA = 'EAATotal'
             subrefLZThreatAllyGroundAA = 'AAATotal'
             subrefbEnemiesInThisOrAdjacentLZ = 'NearbyEnemies' --true if this LZ or adjacent LZ have nearby enemies
+            subrefbDangerousEnemiesInThisLZ = 'HasDangEnemy' --true if combat units in this LZ
             --Engineer related values
             subrefLZTbWantBP = 'WantBP' --true if we want BP at any tech level
             subrefLZTBuildPowerByTechWanted = 'BPByTechW' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power wanted wanted
@@ -1314,6 +1321,128 @@ function RecordAdjacentLandZones()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+local function ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iPlateau, iStartLandZone, iTargetLandZone, tStart)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderAddingTargetLandZoneToDistanceFromBaseTable'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local tEnd = tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZMidpoint]
+    if bDebugMessages == true then LOG(sFunctionRef..': WIll try and get amphibious path from tStart='..repru(tStart)..' to tEnd='..repru(tEnd)..'; iStartLandZone='..iStartLandZone..'; iTargetLandZone='..iTargetLandZone) end
+    local tFullPath, iPathSize, iDistance = NavUtils.PathTo(refPathingTypeAmphibious, tStart, tEnd, nil)
+
+    if tFullPath then
+        local iPathingPlateau, iPathingLandZone
+        local tPathingLZConsidered = {}
+
+        local iTravelDistance = 0
+        tFullPath[0] = tStart
+        tFullPath[iPathSize + 1] = tEnd
+        for iPath = 1, iPathSize + 1 do
+            iTravelDistance = iTravelDistance + VDist2(tFullPath[iPath - 1][1], tFullPath[iPath - 1][3], tFullPath[iPath][1], tFullPath[iPath][3])
+            iPathingPlateau, iPathingLandZone = GetPlateauAndLandZoneReferenceFromPosition(tFullPath[iPath])
+            if iPathingLandZone > 0 then
+                if not(tPathingLZConsidered[iPathingLandZone]) and not(iStartLandZone == iPathingLandZone) then
+                    tPathingLZConsidered[iPathingLandZone] = true
+                end
+            end
+        end
+        if not(tPathingLZConsidered[iTargetLandZone]) then tPathingLZConsidered[iTargetLandZone] = true end
+
+        if bDebugMessages == true then LOG(sFunctionRef..': Travel distance to iTargetLandZone '..iTargetLandZone..' from '..iStartLandZone..' = '..iTravelDistance) end
+
+        --Get position in new table
+        local iPosition = 1
+        if not(tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLandZones]) then
+            tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLandZones] = {}
+            iPosition = 1
+        else
+            for iExistingLandZone, tExistingSubtable in tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLandZones] do
+                if tExistingSubtable[subrefLZTravelDist] <  iTravelDistance then
+                    iPosition = iPosition + 1
+                else
+                    break
+                end
+            end
+        end
+        table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLandZones], iPosition, {[subrefLZNumber] = iTargetLandZone, [subrefLZPath] = {}, [subrefLZTravelDist] = iTravelDistance})
+        for iLZ, bConsidered in tPathingLZConsidered do
+            table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLandZones][iPosition][subrefLZPath], iLZ)
+        end
+        --Were these LZs adjacent to each other?
+        if M28Utilities.IsTableEmpty(tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZAdjacentLandZones]) == false then
+            local bIsAdjacent = false
+            for _, iAdjLZ in tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZAdjacentLandZones] do
+                if iAdjLZ == iTargetLandZone then
+                    bIsAdjacent = true
+                    break
+                end
+            end
+            if bIsAdjacent then
+                tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZFurthestAdjacentLandZoneTravelDist] = math.max((tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZFurthestAdjacentLandZoneTravelDist] or 0) + math.ceil(iTravelDistance))
+            end
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finsihed recording for iPlateau='..iPlateau..'; iStartLandZone='..iStartLandZone..'; subrefLZPathingToOtherLandZones='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLandZones])) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+local function RecordPathingBetweenZones()
+    --For each zone that is where a player starts, record pathing to every other zone; for other zones, record pathing to up to 3 layers of adjacency
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordPathingBetweenZones'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    WaitTicks(1) --To ensure all brains will be setup
+    local tiPlateauLandZoneStartPoints = {}
+    local iCurPlateau, iCurLandZone
+    for iStart, tPlayerStart in PlayerStartPoints do
+        iCurPlateau, iCurLandZone = GetPlateauAndLandZoneReferenceFromPosition(tPlayerStart)
+        if (iCurLandZone or 0) > 0 then
+            if not(tiPlateauLandZoneStartPoints[iCurPlateau]) then tiPlateauLandZoneStartPoints[iCurPlateau] = {} end
+            tiPlateauLandZoneStartPoints[iCurPlateau][iCurLandZone] = true
+            local tStartPoint = tAllPlateaus[iCurPlateau][subrefPlateauLandZones][iCurLandZone][subrefLZMidpoint]
+
+            --Consider all land zones in this plateau for start positions
+            for iTargetLandZone, tTargetLandZoneInfo in tAllPlateaus[iCurPlateau][subrefPlateauLandZones] do
+                if not(iTargetLandZone == iCurLandZone) then
+                    ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iCurPlateau, iCurLandZone, iTargetLandZone, tStartPoint)
+                end
+            end
+        end
+    end
+
+    --Consider adjacent locations for non-core
+    for iCurPlateau, tPlateauSubtable in tAllPlateaus do
+        for iCurLandZone, tLandZoneInfo in tPlateauSubtable[subrefPlateauLandZones] do
+            if not(tiPlateauLandZoneStartPoints[iCurPlateau][iCurLandZone]) then
+                local tiAdjacentLandZonesToConsider = {}
+                if M28Utilities.IsTableEmpty(tLandZoneInfo[subrefLZAdjacentLandZones]) == false then
+                    for _, iAdjLZ1 in tLandZoneInfo[subrefLZAdjacentLandZones] do
+                        if M28Utilities.IsTableEmpty(tAllPlateaus[iCurPlateau][subrefPlateauLandZones][iAdjLZ1][subrefLZAdjacentLandZones]) == false then
+                            for _, iAdjLZ2 in tAllPlateaus[iCurPlateau][subrefPlateauLandZones][iAdjLZ1][subrefLZAdjacentLandZones] do
+                                if M28Utilities.IsTableEmpty(tAllPlateaus[iCurPlateau][subrefPlateauLandZones][iAdjLZ2][subrefLZAdjacentLandZones]) == false then
+                                    for _, iAdjLZ3 in tAllPlateaus[iCurPlateau][subrefPlateauLandZones][iAdjLZ2][subrefLZAdjacentLandZones] do
+                                        if not(tiAdjacentLandZonesToConsider[iAdjLZ3]) then tiAdjacentLandZonesToConsider[iAdjLZ3] = true end
+                                    end
+                                end
+                                if not(tiAdjacentLandZonesToConsider[iAdjLZ2]) then tiAdjacentLandZonesToConsider[iAdjLZ2] = true end
+                            end
+                        end
+                        if not(tiAdjacentLandZonesToConsider[iAdjLZ1]) then tiAdjacentLandZonesToConsider[iAdjLZ1] = true end
+                    end
+                    local tStartPoint = tAllPlateaus[iCurPlateau][subrefPlateauLandZones][iCurLandZone][subrefLZMidpoint]
+                    for iAdjLandZone, _ in tiAdjacentLandZonesToConsider do
+                        if not(iAdjLandZone == iCurLandZone) then
+                            ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iCurPlateau, iCurLandZone, iAdjLandZone, tStartPoint)
+                        end
+                    end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 local function SetupLandZones()
     --Divides the map into 'land zones' based on mex placement and plateau groups, which is to form the basis for managing land units.  Land zones are areas that can be pathed by land units and are intended to group the map based on how long it takes to travel
     --Intended to be called at start of game when AI is created (so after siminit and recordresourcepoints has run), and after plateaus have been generated
@@ -1357,6 +1486,8 @@ local function SetupLandZones()
     ReorderLandZoneSegmentsForEachPlateau()
     RecordAdjacentLandZones()
     RecordMassStorageLocationsForEachLandZone()
+
+    RecordPathingBetweenZones()
 
 
     --If debug is enabled, draw land zones (different colour for each land zone on a plateau)

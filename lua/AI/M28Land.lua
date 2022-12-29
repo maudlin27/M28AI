@@ -154,9 +154,11 @@ function RecordGroundThreatForLandZone(tLZTeamData, iTeam, iPlateau, iLandZone)
         tLZTeamData[M28Map.subrefLZThreatEnemyStructureDFByRange] = nil
         tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] = 0
         tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] = 0
+        tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] = false
     else
         local tMobileUnits = EntityCategoryFilterDown(categories.MOBILE, tLZTeamData[M28Map.subrefLZTEnemyUnits])
         local tStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tLZTeamData[M28Map.subrefLZTEnemyUnits])
+        local bHaveDangerousEnemies = false
         tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] = M28UnitInfo.GetCombatThreatRating(tLZTeamData[M28Map.subrefLZTEnemyUnits], true)
         tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] = M28UnitInfo.GetCombatThreatRating(tStructures, true, false, true)
         tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] = M28UnitInfo.GetAirThreatLevel(tLZTeamData[M28Map.subrefLZTEnemyUnits], true, false, true, false, false, false)
@@ -172,6 +174,7 @@ function RecordGroundThreatForLandZone(tLZTeamData, iTeam, iPlateau, iLandZone)
                     if iCurThreat > 0 then
                         if not(tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]) then tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange] = {} end
                         tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange][oUnit[M28UnitInfo.refiDFRange]] = (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange][oUnit[M28UnitInfo.refiDFRange]] or 0) + iCurThreat
+                        if not(bHaveDangerousEnemies) and iCurThreat > 10 then bHaveDangerousEnemies = true end
                     end
                 end
             end
@@ -183,11 +186,14 @@ function RecordGroundThreatForLandZone(tLZTeamData, iTeam, iPlateau, iLandZone)
                     if iCurThreat > 0 then
                         if not(tLZTeamData[M28Map.subrefLZThreatEnemyStructureDFByRange]) then tLZTeamData[M28Map.subrefLZThreatEnemyStructureDFByRange] = {} end
                         tLZTeamData[M28Map.subrefLZThreatEnemyStructureDFByRange][oUnit[M28UnitInfo.refiDFRange]] = (tLZTeamData[M28Map.subrefLZThreatEnemyStructureDFByRange][oUnit[M28UnitInfo.refiDFRange]] or 0) + iCurThreat
+                        if not(bHaveDangerousEnemies) and iCurThreat > 10 then bHaveDangerousEnemies = true end
                     end
                 end
             end
         end
+        tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] = bHaveDangerousEnemies
     end
+
 
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) then
         tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] = 0
@@ -228,6 +234,7 @@ function RecordGroundThreatForLandZone(tLZTeamData, iTeam, iPlateau, iLandZone)
         end
     end
     local bNearbyEnemies = false
+    local bNearbyDangerousEnemies = false
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTEnemyUnits]) == false then
         bNearbyEnemies = true
     else
@@ -236,6 +243,9 @@ function RecordGroundThreatForLandZone(tLZTeamData, iTeam, iPlateau, iLandZone)
             for _, iAdjLZ in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones] do
                 if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTThreatEnemyCombatTotal] > 0 then
                     bNearbyEnemies = true
+                    if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
+                        --if M28Utilities.IsTableEmpty(EntityCategoryFilterDown(
+                    end
                     break
                 end
             end
@@ -385,9 +395,9 @@ function AssignValuesToLandZones(iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function RefreshAllLandZoneUnits(aiBrain, iTeam)
+function ManageAllLandZones(aiBrain, iTeam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'RefreshAllLandZoneUnits'
+    local sFunctionRef = 'ManageAllLandZones'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iLastRefreshCount = (tLZRefreshCountByTeam[iTeam] or 1)
@@ -445,7 +455,9 @@ function RefreshAllLandZoneUnits(aiBrain, iTeam)
                     iCurRefreshCount = iCurRefreshCount + iCurCycleRefreshCount
                     iCurCycleRefreshCount = 0
                     if iCurTicksWaited < iTicksToSpreadOver then
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         WaitTicks(1)
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                         iCurTicksWaited = iCurTicksWaited + 1
                     end
                 end
@@ -457,32 +469,6 @@ function RefreshAllLandZoneUnits(aiBrain, iTeam)
     iCurRefreshCount = iCurRefreshCount + iCurCycleRefreshCount
     tLZRefreshCountByTeam[iTeam] = iCurRefreshCount
 
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-end
-
-function ManageAllLandZones(aiBrain, iTeam)
-    --Cycles through every land zone for iTeam and manages orders for it
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'ManageAllLandZones'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    local aiBrain = GetFirstActiveBrain(iTeam)
-
-    if bDebugMessages == true then LOG(sFunctionRef..': About to start the main loop for land zones provided we have friendly M28 brains in the team '..iTeam..'; is table empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))) end
-
-    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
-        ForkThread(AssignValuesToLandZones, iTeam)
-    end
-
-    while M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false do
-        if bDebugMessages == true then LOG(sFunctionRef..': Will call logic to refresh every unit in a land zone') end
-        ForkThread(RefreshAllLandZoneUnits, aiBrain, iTeam)
-
-        WaitSeconds(1)
-        if aiBrain.M28IsDefeated and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
-            aiBrain = GetFirstActiveBrain(iTeam)
-        end
-        if bDebugMessages == true then LOG(sFunctionRef..': About to restart the loop for team '..iTeam..'; aiBrain referred to='..(aiBrain.Nickname or 'nil')..'; Is table of active m28 brains='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))) end
-    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -511,9 +497,10 @@ function LandZoneOverseer(iTeam)
 
     while M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false do
         if bDebugMessages == true then LOG(sFunctionRef..': Will call logic to refresh every unit in a land zone') end
-        ForkThread(RefreshAllLandZoneUnits, aiBrain, iTeam)
-
+        ForkThread(ManageAllLandZones, aiBrain, iTeam)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitSeconds(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         if aiBrain.M28IsDefeated and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
             aiBrain = GetFirstActiveBrain(iTeam)
         end
@@ -595,9 +582,26 @@ function GetLandZoneToRunTo(iTeam, iPlateau, iCurLandZone, sPathing, tOptionalSt
     end
 end
 
-function IsItSafeToPathBetweenLandZones(iTeam, iPlateau, iStartLandZone, iEndLandZone, sPathing)
+function IsLandZonePathSafe(iPlateau, tLZData, iTeam, iPathingRef)
+    --More performant version of IsItSafeToPathBetweenLandZones, to check if safe to path from the tLZData land zone to the tAltLZ land zone, based on iPathingRef for tLZData
+    for _, iLandZoneRef in tLZData[M28Map.subrefLZPathingToOtherLandZones][iPathingRef][M28Map.subrefLZPath] do
+        --Are there any units in this LZ that are dangerous?
+        if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZoneRef][iTeam][M28Map.subrefbDangerousEnemiesInThisLZ] then
+            return false
+        end
+    end
+    return true
+end
+
+--Below code should function but when used for engineers took way too long so redid using IsLandZonePathSafe - look to make use of the varaibles recorded for this to come up with a more performant approach to the below if want the below functionality
+--[[function IsItSafeToPathBetweenLandZones(iTeam, iPlateau, iStartLandZone, iEndLandZone, sPathing)
     --Returns true if no enemy threats in any of the land zones that will path through (doesnt consider adjacent zones for performance reasons)
         --Only combat threats should be considered
+        --WARNING - Very intensive function, use sparingly - in most cases referring to subrefLZPathingToOtherLandZones is better which will record 3 layers of adjacency to the current zone (more for core LZs)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'IsItSafeToPathBetweenLandZones'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local tFullPath, iPathSize, iDistance = NavUtils.PathTo((sPathing or 'Land'), M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iStartLandZone][M28Map.subrefLZMidpoint], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iEndLandZone][M28Map.subrefLZMidpoint], nil)
     if M28Utilities.IsTableEmpty(tFullPath) == false then
         local tLZConsidered = {}
@@ -611,6 +615,7 @@ function IsItSafeToPathBetweenLandZones(iTeam, iPlateau, iStartLandZone, iEndLan
                     if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iCurLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTEnemyUnits]) == false then
                         for iUnit, oUnit in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iCurLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTEnemyUnits] do
                             if ((oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or (oUnit[M28UnitInfo.refiIndirectRange] or 0) > 0) and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout - categories.SERAPHIM, oUnit.UnitId)) then
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                 return false
                             end
                         end
@@ -619,8 +624,9 @@ function IsItSafeToPathBetweenLandZones(iTeam, iPlateau, iStartLandZone, iEndLan
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return true
-end
+end--]]
 
 function DrawReclaimSegmentsInLandZone(iPlateau, iLandZone)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end

@@ -255,7 +255,7 @@ function GetTravelDistanceBetweenPositions(tStart, tEnd, sPathing)
         if iTravelDistance > iDistanceAddingStartAndEnd then
             LOG('Just got pathing distance, iDistanceAddingStartAndEnd='..iDistanceAddingStartAndEnd..'; iTravelDistance='..iTravelDistance..'; base distance value before adjust='..iDistance..' from '..repru(tStart)..' to '..repru(tEnd)..'; iPathSize='..(iPathSize or 'nil')..'; Reprs of path='..reprs(tFullPath)..'; Distance in straight line from start to first point in path='..GetDistanceBetweenPositions(tStart, tFullPath[1])..'; Dist from last path point to end='..GetDistanceBetweenPositions(tFullPath[iPathSize], tEnd)..'; Distance if take iDistance+this='..(iDistance + GetDistanceBetweenPositions(tStart, tFullPath[1]) + GetDistanceBetweenPositions(tFullPath[iPathSize], tEnd)))
         end
-        --Option 2 - just add in the first and last distance to the distance determined by the pathing algorithm:
+        --Option 2 - just add in the first and last distance to the distance determined by the pathing algorithm (not as accurate):
         return iDistance + VDist2(tStart[1], tStart[3], tFullPath[1][1], tFullPath[1][3]) + VDist2(tEnd[1], tEnd[3], tFullPath[iPathSize][1], tFullPath[iPathSize][3])--]]
     else
         return nil
