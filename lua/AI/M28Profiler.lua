@@ -88,7 +88,7 @@ function FunctionProfiler(sFunctionRef, sStartOrEndRef)
                 local iCount = tProfilerEndCount[sFunctionRef]
                 local iGameTimeInTicks = math.floor(GetGameTimeSeconds()*10)
                 if tProfilerFunctionStart[sFunctionRef][iCount] == nil then
-                    ErrorHandler('Didnt record a start for this count.  Will assume the start time was equal to the previous count, and will increase the start count by 1 to try and align.  sFunctionRef='..sFunctionRef..'; iGameTimeInTicks='..iGameTimeInTicks..'; iCount='..(iCount or 'nil'))
+                    M28Utilities.ErrorHandler('Didnt record a start for this count.  Will assume the start time was equal to the previous count, and will increase the start count by 1 to try and align.  sFunctionRef='..sFunctionRef..'; iGameTimeInTicks='..iGameTimeInTicks..'; iCount='..(iCount or 'nil'))
                     if not(tProfilerFunctionStart[sFunctionRef]) then tProfilerFunctionStart[sFunctionRef] = {} end
                     if iCount > 1 then
                         for iAdjust = 1, (iCount - 1), 1 do

@@ -19,6 +19,7 @@ local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
 local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Config = import('/mods/M28AI/lua/M28Config.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
+local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 
 
 function OnPlayerDefeated(aiBrain)
@@ -188,6 +189,9 @@ function OnUnitDeath(oUnit)
                             if bDebugMessages == true then LOG(sFunctionRef..': Will check if upgrade tracking needs updating, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                             M28Team.UpdateUpgradeTrackingOfUnit(oUnit, true)
                             if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then M28Economy.UpdateLandZoneM28MexByTechCount(oUnit, true) end
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileLand, oUnit.UnitId) then
+                            --If unit was traveling to another land zone, then update that land zone so it no longer things the unit is traveling here
+                            M28Land.RemoveUnitFromListOfUnitsTravelingToLandZone(oUnit) --(this will check if it was or not)
                         end
                     end
                 end

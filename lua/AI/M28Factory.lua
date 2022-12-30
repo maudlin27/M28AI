@@ -10,9 +10,18 @@ local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
 local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
+local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
+local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 
 local reftBlueprintPriorityOverride = 'M28FactoryPreferredBlueprintByCategory' --[x] is the blueprint ref, if there's a priority override it returns a numerical value (higher number = higher priority)
 local refiTimeSinceLastOrderCheck = 'M28FactoryTimeSinceLastCheck' --against factory, gametime in seconds when the factory was last identified as idle with no order
+--NOTE: Also have a blueprint blacklist in the landsubteam data - see M28Team
+
+--Factory types (used by subteams)
+refiFactoryTypeLand = 1
+refiFactoryTypeAir = 2
+refiFactoryTypeNaval = 3
+refiFactoryTypeOther = 4
 
 function GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
     --returns nil if cant find any blueprints that can build
@@ -196,35 +205,11 @@ function GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFacto
 
 end
 
-function GetCategoryToBuildForLandFactory(aiBrain, oFactory)
-    local iCategoryToBuild = M28UnitInfo.refCategoryEngineer --Placeholder
-    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oFactory:GetPosition(), true, oFactory)
-    local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team]
-    local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)
-
-
-    --General category overrides
-    if iCategoryToBuild then
-        if iCategoryToBuild == M28UnitInfo.refCategoryEngineer then
-            --Engineers - dont build if we have spare engineers at our current LZ
-            if tLZTeamData[M28Map.subrefLZSpareBPByTech][iFactoryTechLevel] > 0 then
-                iCategoryToBuild = nil
-            end
-        end
-    end
-    return iCategoryToBuild
-end
-
-function DetermineWhatToBuild(aiBrain, oFactory)
-    local iCategoryToBuild
-    if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oFactory.UnitId) then
-        iCategoryToBuild = GetCategoryToBuildForLandFactory(aiBrain, oFactory)
+function AdjustBlueprintForOverrides(aiBrain, sBPIDToBuild, tLZTeamData, iFactoryTechLevel)
+    --Blacklisted units
+    if M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subrefBlueprintBlacklist][sBPIDToBuild] then
+        sBPIDToBuild = nil
     else
-        M28Utilities.ErrorHandler('Need to add code')
-    end
-
-    local sBPIDToBuild
-    if iCategoryToBuild then sBPIDToBuild = GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oFactory, nil, nil, nil, nil, false)
         --Special case - Cybran and UEF - if building loyalists or titans, then check if want to switch to bricks/percies
         if sBPIDToBuild == 'url0303' then --Loyalist
             if M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.TECH3) >= 5 then
@@ -237,7 +222,89 @@ function DetermineWhatToBuild(aiBrain, oFactory)
                 aiBrain[reftBlueprintPriorityOverride]['xel0305'] = 1 --Percival
             end
         end
+
+        if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, sBPIDToBuild) then
+            --Engineers - dont build if we have spare engineers at our current LZ
+            local iMaxSpareWanted = 0
+            if not(M28Conditions.TeamHasLowMass(aiBrain.M28Team)) then
+                iMaxSpareWanted = math.max(1, math.floor(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamLowestMassPercentStored] * 10)) * M28Engineer.tiBPByTech[iFactoryTechLevel]
+            end
+            if tLZTeamData[M28Map.subrefLZSpareBPByTech][iFactoryTechLevel] > iMaxSpareWanted then
+                sBPIDToBuild = nil
+            end
+        end
     end
+    return sBPIDToBuild
+end
+
+function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
+    local sFunctionRef = 'GetBlueprintToBuildForLandFactory'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iCategoryToBuild
+    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oFactory:GetPosition(), true, oFactory)
+    local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team]
+    local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)
+
+    local iTeam = aiBrain.M28Team
+    local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
+
+
+    iCategoryToBuild = M28UnitInfo.refCategoryEngineer --Placeholder
+    local sBPIDToBuild
+
+    --subfunctions to mean we can do away with the 'current condition == 1, == 2.....==999 type approach making it much easier to add to
+    function ConsiderBuildingCategory(iCategoryToBuild)
+        sBPIDToBuild = GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oFactory, nil, nil, nil, nil, false)
+        if sBPIDToBuild then
+            sBPIDToBuild = AdjustBlueprintForOverrides(aiBrain, sBPIDToBuild, tLZTeamData, iFactoryTechLevel)
+        end
+        if sBPIDToBuild then
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) --Assumes we will end code if we get to this point
+            return sBPIDToBuild
+        end
+
+    end
+
+    local iCurrentConditionToTry = 0
+
+    --MAIN BUILDER LOGIC:
+
+    --Initial engineers
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering high priority engineers, iFactoryTechLevel='..iFactoryTechLevel..'; Team highest factory tech level='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Lifetime build count='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))..'; Current units='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))) end
+    if iFactoryTechLevel >= M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] then
+        if M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) <= 4 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) <= 2 then
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+        end
+    end
+
+    --Scouts if we want any
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if tLZTeamData[M28Map.refbWantLandScout] then
+        if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandScout) then return sBPIDToBuild end
+    end
+
+    --Engineers if we have mass
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] > 0.01 then
+        if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+    end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return sBPIDToBuild
+end
+
+function DetermineWhatToBuild(aiBrain, oFactory)
+    local sBPIDToBuild
+
+    if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oFactory.UnitId) then
+        sBPIDToBuild = GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
+    else
+        M28Utilities.ErrorHandler('Need to add code')
+    end
+
     return sBPIDToBuild
 end
 
@@ -264,7 +331,9 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait)
     local iWorkProgressStart = (oFactory:GetWorkProgress() or 0)
 
     while not(bProceed) do
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         iTicksWaited = iTicksWaited + 1
         bProceed = IsFactoryReadyToBuild(oFactory)
         if M28UnitInfo.IsUnitValid(oFactory) == false then return nil end

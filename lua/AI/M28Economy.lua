@@ -270,6 +270,7 @@ function UpdateHighestFactoryTechLevelForBuiltUnit(oUnitJustBuilt)
             aiBrain[refiOurHighestFactoryTechLevel] = math.max(iUnitTechLevel, aiBrain[refiOurHighestFactoryTechLevel])
             --Update team details
             M28Team.UpdateTeamHighestAndLowestFactories(aiBrain.M28Team)
+            M28Team.CheckForSubteamFactoryChange(oUnitJustBuilt, true)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -317,6 +318,7 @@ function UpdateHighestFactoryTechLevelForDestroyedUnit(oUnitJustDestroyed)
 
         --Update team details
         M28Team.UpdateTeamHighestAndLowestFactories(aiBrain.M28Team)
+        M28Team.CheckForSubteamFactoryChange(oUnitJustDestroyed, false)
     end
 end
 

@@ -27,7 +27,7 @@ refPathingTypeNone = 'None'
 refPathingTypeAll = {refPathingTypeAmphibious, refPathingTypeNavy, refPathingTypeAir, refPathingTypeLand}
 
 --Map size
-rMapPlayableArea = {0,0, 256, 256} --{x1,z1, x2,z2} - Set at start of the game, use instead of the scenarioinfo method
+rMapPlayableArea = {0,0, 256, 256} --{x1,z1, x2,z2} - Set at start of the game, use instead of the scenarioinfo method; note that x0 z0 is the top-left corner of the map
 iMaxLandSegmentX = 1
 iMaxLandSegmentZ = 1
 
@@ -118,7 +118,10 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         subrefLZReclaimSegments = 'ReclSeg' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], table, orderd 1,2,3...; returns {iReclaimSegmentX, iReclaimSegmentZ}
         subrefLZTotalMassReclaim = 'RecMass' --total mass reclaim in the land zone
         subrefLZTotalEnergyReclaim = 'RecEn' --Total energy reclaim in the land zone
-        subrefLZLastReclaimRefresh = 'RecTime' --Time that we last refreshed the reclaim in the land zone
+        subrefLZLastReclaimRefresh = 'RecTime' --Time that we last refreshed the reclaim in the land zone, against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
+
+        --Land scout/intel related
+        subreftPatrolPath = 'PatrPth' --table of locations intended for a land scout to patrol the perimeter of the land zone
 
         --Land zone subteam data (update M28Teams.TeamInitialisation function to include varaibles here so dont have to check if they exist each time)
         subrefLZTeamData = 'Subteam' --tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData] - Table for all the data by team for a plateau's land zone
@@ -143,7 +146,8 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             --Engineer related values
             subrefLZTbWantBP = 'WantBP' --true if we want BP at any tech level
             subrefLZTBuildPowerByTechWanted = 'BPByTechW' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power wanted wanted
-            subrefLZTUnitsTravelingHere = 'UnitsTrav' --Table of any units in another LZ that have been told to move to this LZ
+            subrefLZTEngineersTravelingHere = 'EUnitsTrav' --Table of any engineer units in another LZ that have been told to move to this LZ
+            subrefLZTScoutsTravelingHere = 'SUnitsTrav' --Table of any land scout units in another LZ that have been told to move to this LZ
             subrefLZSpareBPByTech = 'SpareBPByTech' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power of that tech level that we have spare
             subrefReclaimAreaAssignmentsBySegment = 'RecSegAss' --[ReclaimSegX][ReclaimZegY], returns count of how many engineers have been assigned
             --subrefLZTAdjacentBPByTechWanted = 'AdjBPByTechW' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power wanted wanted
@@ -151,6 +155,8 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefActiveUpgrades = 'ActiveUpgrades' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam]
             subrefMexCountByTech = 'MexByTech' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam]
             subreftoUnitsToReclaim = 'UnitToRec' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam], table of units that we should reclaim
+            --Intel related values
+            refbWantLandScout = 'LandScout'
 
 
 
@@ -1163,6 +1169,14 @@ local function AssignMexesALandZone()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function DrawSpecificLandZone(iPlateau, iLandZone, iColour)
+    local tLocation
+    for iSegmentRef, tSegmentXZ in tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZSegments] do
+        tLocation = GetPositionFromPathingSegments(tSegmentXZ[1], tSegmentXZ[2])
+        M28Utilities.DrawLocation(tLocation, iColour, nil, iLandZoneSegmentSize - 0.1)
+    end
+end
+
 local function DrawLandZones()
     --For debug use - will draw each land zone in a plateau in a different colour to allow a visual check of how land zones have been created.  Can be called part-way through the process (e.g. to show land zones after the initial mex creation and nearby areas)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -1209,10 +1223,12 @@ local function RecordLandZoneMidpointAndUnbuiltMexes()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local tAverage, iAveragePlateau, iAverageLandZone
+    local tCurPosition
 
 
     for iPlateau, tPlateauSubtable in tAllPlateaus do
         for iZone, tZone in tAllPlateaus[iPlateau][subrefPlateauLandZones] do
+
             if bDebugMessages == true then LOG(sFunctionRef..': Considering iPlateau='..iPlateau..'; iZone='..iZone..'; Is table of mex locations empty='..tostring(M28Utilities.IsTableEmpty(tZone[subrefLZMexLocations]))) end
             local iMinX = 100000
             local iMaxX = 0
@@ -1235,11 +1251,13 @@ local function RecordLandZoneMidpointAndUnbuiltMexes()
             else
                 --No mexes for the plateau, so cycle through every zone and record the lowest and largest X and Z values
                 for iSegment, tSegmentXZ in tZone[subrefLZSegments] do
-                    iMinX = math.min(iMinX, tSegmentXZ[1])
-                    iMinZ = math.min(iMinZ, tSegmentXZ[2])
-                    iMaxX = math.max(iMaxX, tSegmentXZ[1])
-                    iMaxZ = math.max(iMaxZ, tSegmentXZ[2])
+                    tCurPosition = GetPositionFromPathingSegments(tSegmentXZ[1], tSegmentXZ[2])
+                    iMinX = math.min(iMinX, tCurPosition[1])
+                    iMinZ = math.min(iMinZ, tCurPosition[3])
+                    iMaxX = math.max(iMaxX, tCurPosition[1])
+                    iMaxZ = math.max(iMaxZ, tCurPosition[3])
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': Min and max position after cycling through each segment: iMinX='..iMinX..'; iMaxX='..iMaxX..'; iMinZ='..iMinZ..'; iMaxZ='..iMaxZ) end
             end
             tAverage = {(iMinX + iMaxX)*0.5, 0, (iMinZ + iMaxZ) * 0.5}
             iAveragePlateau, iAverageLandZone = GetPlateauAndLandZoneReferenceFromPosition(tAverage, false)
@@ -1314,7 +1332,20 @@ function RecordAdjacentLandZones()
                     end
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Finished considering Plateau '..iPlateau..' LZ '..iLandZone..': subrefLZAdjacentLandZones='..repru(tLandZoneInfo[subrefLZAdjacentLandZones])) end
+
+            if bDebugMessages == true then
+                LOG(sFunctionRef..': Finished considering Plateau '..iPlateau..' LZ '..iLandZone..': subrefLZAdjacentLandZones='..repru(tLandZoneInfo[subrefLZAdjacentLandZones]))
+                local iColour = 1
+                DrawSpecificLandZone(iPlateau, iLandZone, iColour)
+                if M28Utilities.IsTableEmpty(tLandZoneInfo[subrefLZAdjacentLandZones]) == false then
+                    for _, iAdjLZ in tLandZoneInfo[subrefLZAdjacentLandZones] do
+                        iColour = iColour + 1
+                        if iColour > 8 then iColour = 2 end
+                        DrawSpecificLandZone(iPlateau, iAdjLZ, iColour)
+                    end
+                end
+
+            end
 
         end
     end
@@ -1443,6 +1474,228 @@ local function RecordPathingBetweenZones()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function ReturnNthValidLocationInSameLandZoneClosestToTarget(iPlateau, iLandZoneWanted, tStartLZData, tTargetDestination, iDistanceInterval, iNthEntryWanted, iMaxDistance)
+    local iSearchDistance = 0
+    local tValidLocations = {}
+    local iValidLocationCount = 0
+    local iAngleToTarget = M28Utilities.GetAngleFromAToB(tStartLZData[subrefLZMidpoint], tTargetDestination)
+    local iFailureCount = 0 --After 5 failures in a row will abort
+    local iCurPlateau, iCurLandZone
+    if iDistanceInterval < 0 then M28Utilities.ErrorHandler('Likely infinite loop as have negative distance interval') end
+
+    while iSearchDistance <= (iMaxDistance or 150) do
+        iSearchDistance = iSearchDistance + iDistanceInterval
+        local tPotentialLocation = M28Utilities.MoveInDirection(tStartLZData[subrefLZMidpoint], iAngleToTarget, iSearchDistance, true, false)
+        iCurPlateau, iCurLandZone = GetPlateauAndLandZoneReferenceFromPosition(tPotentialLocation)
+        if iCurPlateau == iPlateau and iCurLandZone == iLandZoneWanted then
+            iValidLocationCount = iValidLocationCount + 1
+            tValidLocations[iValidLocationCount] = {tPotentialLocation[1], tPotentialLocation[2], tPotentialLocation[3]}
+            iFailureCount = 0
+        else
+            iFailureCount = iFailureCount + 1
+            if iFailureCount >= 5 then break end
+        end
+    end
+    if iValidLocationCount > 0 then
+        if iValidLocationCount <= iNthEntryWanted then return tValidLocations[iValidLocationCount]
+        else return tValidLocations[iValidLocationCount - iNthEntryWanted]
+        end
+    else
+        return nil
+    end
+end
+
+function ReorderPathBasedOnAngleToFirstEntry(tUnorderedPatrolPaths, tFirstPointInPath, bAddFirstPoint)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ReorderPathBasedOnDistanceToFirstEntry'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+
+    local tReorderedPositions = {}
+    if bAddFirstPoint then
+        table.insert(tReorderedPositions, {tFirstPointInPath[1], tFirstPointInPath[2], tFirstPointInPath[3]})
+    end
+    if M28Utilities.IsTableEmpty(tUnorderedPatrolPaths) == false then
+
+        local iCurAngleFromFirstPosition
+        local iClosestAngleDifFromLast
+        local iClosestDistRef
+        local tCurStartPoint = {tFirstPointInPath[1], tFirstPointInPath[2], tFirstPointInPath[3]}
+        local iLoopCount = 0
+
+        local iMaxLoop = table.getn(tUnorderedPatrolPaths) + 2
+        if bDebugMessages == true then LOG(sFunctionRef..': About to order paths, tUnorderedPatrolPaths='..repru(tUnorderedPatrolPaths)..'; tFirstPointInPath='..repru(tFirstPointInPath)..'; bAddFirstPoint='..tostring(bAddFirstPoint or false)) end
+
+        --First get closest point to the start
+        local iClosestDistToStart = 10000
+        local iCurDistToStart
+        local iCurAngleDif
+        for iEntry, tPosition in tUnorderedPatrolPaths do
+            iCurDistToStart = M28Utilities.GetDistanceBetweenPositions(tCurStartPoint, tPosition)
+            if iCurDistToStart < iClosestDistToStart then
+                iClosestDistToStart = iCurDistToStart
+                iClosestDistRef = iEntry
+            end
+        end
+        local iLastAngleUsed = M28Utilities.GetAngleFromAToB(tCurStartPoint, tUnorderedPatrolPaths[iClosestDistRef])
+        table.insert(tReorderedPositions, {tUnorderedPatrolPaths[iClosestDistRef][1], tUnorderedPatrolPaths[iClosestDistRef][2], tUnorderedPatrolPaths[iClosestDistRef][3]})
+        if bDebugMessages == true then LOG(sFunctionRef..': Angle from tCurStartPoint '..repru(tCurStartPoint)..' to first point after this, '..repru(tUnorderedPatrolPaths[iClosestDistRef])..' is '..iLastAngleUsed) end
+        table.remove(tUnorderedPatrolPaths, iClosestDistRef)
+
+
+        while M28Utilities.IsTableEmpty(tUnorderedPatrolPaths) == false do
+            iLoopCount = 1
+            iClosestAngleDifFromLast = 10000
+            for iEntry, tPosition in tUnorderedPatrolPaths do
+                iCurAngleFromFirstPosition = M28Utilities.GetAngleFromAToB(tCurStartPoint, tPosition)
+                iCurAngleDif = M28Utilities.GetAngleDifference(iCurAngleFromFirstPosition, iLastAngleUsed)
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering tPosition='..repru(tPosition)..'; Angle from start to here='..iCurAngleFromFirstPosition..'; Angle dif to last angle='..M28Utilities.GetAngleDifference(iCurAngleFromFirstPosition, iLastAngleUsed)) end
+                if iCurAngleDif < iClosestAngleDifFromLast then
+                    iClosestAngleDifFromLast = iCurAngleDif
+                    iClosestDistRef = iEntry
+                end
+            end
+            iLastAngleUsed = M28Utilities.GetAngleFromAToB(tCurStartPoint, tUnorderedPatrolPaths[iClosestDistRef])
+            table.insert(tReorderedPositions, {tUnorderedPatrolPaths[iClosestDistRef][1], tUnorderedPatrolPaths[iClosestDistRef][2], tUnorderedPatrolPaths[iClosestDistRef][3]})
+            if bDebugMessages == true then LOG(sFunctionRef..': Best location='..repru(tUnorderedPatrolPaths[iClosestDistRef])..'; iLastAngleUsed='..iLastAngleUsed) end
+            table.remove(tUnorderedPatrolPaths, iClosestDistRef)
+            if iLoopCount > iMaxLoop then M28Utilities.ErrorHandler('Infinite loop') break end
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished reordering path, tReorderedPositions='..repru(tReorderedPositions)) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return tReorderedPositions
+end
+
+function ReorderPathBasedOnDistanceToFirstEntry(tUnorderedPatrolPaths, tFirstPointInPath, bAddFirstPoint)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ReorderPathBasedOnDistanceToFirstEntry'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+
+    local tReorderedPositions = {}
+    if bAddFirstPoint then
+        table.insert(tReorderedPositions, {tFirstPointInPath[1], tFirstPointInPath[2], tFirstPointInPath[3]})
+    end
+
+    local iCurDistToStart
+    local iClosestDistToStart
+    local iClosestDistRef
+    local tCurStartPoint = {tFirstPointInPath[1], tFirstPointInPath[2], tFirstPointInPath[3]}
+    local iLoopCount = 0
+    local iMaxLoop = table.getn(tUnorderedPatrolPaths) + 2
+    if bDebugMessages == true then LOG(sFunctionRef..': About to order paths, tUnorderedPatrolPaths='..repru(tUnorderedPatrolPaths)..'; tFirstPointInPath='..repru(tFirstPointInPath)..'; bAddFirstPoint='..tostring(bAddFirstPoint or false)) end
+
+    while M28Utilities.IsTableEmpty(tUnorderedPatrolPaths) == false do
+        iLoopCount = 1
+        iClosestDistToStart = 10000
+        for iEntry, tPosition in tUnorderedPatrolPaths do
+            iCurDistToStart = M28Utilities.GetDistanceBetweenPositions(tCurStartPoint, tPosition)
+            if iCurDistToStart < iClosestDistToStart then
+                iClosestDistToStart = iCurDistToStart
+                iClosestDistRef = iEntry
+            end
+        end
+        table.insert(tReorderedPositions, {tUnorderedPatrolPaths[iClosestDistRef][1], tUnorderedPatrolPaths[iClosestDistRef][2], tUnorderedPatrolPaths[iClosestDistRef][3]})
+        tCurStartPoint = {tUnorderedPatrolPaths[iClosestDistRef][1], tUnorderedPatrolPaths[iClosestDistRef][2], tUnorderedPatrolPaths[iClosestDistRef][3]}
+        table.remove(tUnorderedPatrolPaths, iClosestDistRef)
+        if iLoopCount > iMaxLoop then M28Utilities.ErrorHandler('Infinite loop') break end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished reordering path, tReorderedPositions='..repru(tReorderedPositions)) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return tReorderedPositions
+end
+
+function RecordLandZonePatrolPaths()
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordLandZonePatrolPaths'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    for iPlateau, tPlateauSubtable in tAllPlateaus do
+        for iLandZone, tLZSubtable in tPlateauSubtable[subrefPlateauLandZones] do
+            --Are we interested in patrolling this land zone? Want to ignore very small land zones
+            if tLZSubtable[subrefLZMexCount] > 0 or tLZSubtable[subrefLZTotalSegmentCount] >= 40 then
+
+                --First travel towards adjacent locations an add these
+                local tUnorderedPatrolPaths = {}
+                local tAnglesCovered = {}
+
+                if M28Utilities.IsTableEmpty(tLZSubtable[subrefLZAdjacentLandZones]) == false then
+                    for _, iAdjLZ in tLZSubtable[subrefLZAdjacentLandZones] do
+                        local tPotentialLocation = ReturnNthValidLocationInSameLandZoneClosestToTarget(iPlateau, iLandZone, tLZSubtable, tAllPlateaus[iPlateau][subrefPlateauLandZones][iAdjLZ][subrefLZMidpoint], 4, 3, 100)
+                        if tPotentialLocation then
+                            table.insert(tUnorderedPatrolPaths, tPotentialLocation)
+                            table.insert(tAnglesCovered, M28Utilities.GetAngleFromAToB(tLZSubtable[subrefLZMidpoint], tPotentialLocation))
+                        end
+                    end
+                end
+                --Identify any gaps in the path if we arent near the edge of the map
+                local tNewAnglesToUse = {}
+                local tbBaseAngleCovered = {}
+                local iDistThreshold = 90
+                if tLZSubtable[subrefLZMidpoint][3] >= rMapPlayableArea[2] + iDistThreshold then
+                    --Arent close to the top of the map so can look north
+                    tbBaseAngleCovered[0] = false
+                end
+                if tLZSubtable[subrefLZMidpoint][1] <= rMapPlayableArea[3] - iDistThreshold then
+                    --Arent close to the rh of the map so can look east
+                    tbBaseAngleCovered[90] = false
+                end
+                if tLZSubtable[subrefLZMidpoint][3] <= rMapPlayableArea[4] - iDistThreshold then
+                    --Arent close to the bottom of the map so can look south
+                    tbBaseAngleCovered[180] = false
+                end
+                if tLZSubtable[subrefLZMidpoint][1] >= rMapPlayableArea[1] + iDistThreshold then
+                    --Aren't close to left hand part of map so can look west
+                    tbBaseAngleCovered[270] = false
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLZ='..iLandZone..'; tAnglesCovered='..repru(tAnglesCovered)..'; Midpoint='..repru(tLZSubtable[subrefLZMidpoint])..'; playable area='..repru(rMapPlayableArea)..'; iDistThreshold='..iDistThreshold..'; tbBaseAngleCovered before factoring in angles covered='..repru(tbBaseAngleCovered)) end
+
+                if M28Utilities.IsTableEmpty(tAnglesCovered) == false then
+
+                    for _, iAngle in tAnglesCovered do
+                        for iBaseAngle, bCovered in tbBaseAngleCovered do
+                            if not(bCovered) then
+                                if M28Utilities.GetAngleDifference(iBaseAngle, iAngle) <= 45 then
+                                    tbBaseAngleCovered[iBaseAngle] = true
+                                end
+                            end
+                        end
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': tbBaseAngleCovered='..repru(tbBaseAngleCovered)) end
+                for iBaseAngle, bCovered in tbBaseAngleCovered do
+                    if not(bCovered) then
+                        local tPotentialLocation = ReturnNthValidLocationInSameLandZoneClosestToTarget(iPlateau, iLandZone, tLZSubtable, M28Utilities.MoveInDirection(tLZSubtable[subrefLZMidpoint], iBaseAngle, iDistThreshold, false, false), 4, 3, 70)
+                        if tPotentialLocation then
+                            table.insert(tUnorderedPatrolPaths, tPotentialLocation)
+                        end
+                    end
+                end
+
+
+                --Order the path based on distance, and add the midpoint of the land zone
+                --Originally did based on distance, but based on angle looks slightly better
+                --tLZSubtable[subreftPatrolPath] = ReorderPathBasedOnDistanceToFirstEntry(tUnorderedPatrolPaths, {tLZSubtable[subrefLZMidpoint][1] + 3, tLZSubtable[subrefLZMidpoint][2], tLZSubtable[subrefLZMidpoint][3] + 3}, true)
+                tLZSubtable[subreftPatrolPath] = ReorderPathBasedOnAngleToFirstEntry(tUnorderedPatrolPaths, {tLZSubtable[subrefLZMidpoint][1] + 3, tLZSubtable[subrefLZMidpoint][2], tLZSubtable[subrefLZMidpoint][3] + 3}, true)
+
+                if bDebugMessages == true then
+                    LOG(sFunctionRef..': Finished recording patrol path for plateau '..iPlateau..'; Land zone ='..iLandZone..'; Patrol path='..repru(tLZSubtable[subreftPatrolPath]))
+                    M28Utilities.DrawLocation(tLZSubtable[subrefLZMidpoint])
+                    if M28Utilities.IsTableEmpty(tLZSubtable[subreftPatrolPath]) == false then
+                        M28Utilities.DrawPath(tLZSubtable[subreftPatrolPath], 5, nil)
+                    end
+
+                end
+            end
+
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 local function SetupLandZones()
     --Divides the map into 'land zones' based on mex placement and plateau groups, which is to form the basis for managing land units.  Land zones are areas that can be pathed by land units and are intended to group the map based on how long it takes to travel
     --Intended to be called at start of game when AI is created (so after siminit and recordresourcepoints has run), and after plateaus have been generated
@@ -1486,8 +1739,9 @@ local function SetupLandZones()
     ReorderLandZoneSegmentsForEachPlateau()
     RecordAdjacentLandZones()
     RecordMassStorageLocationsForEachLandZone()
+    RecordLandZonePatrolPaths()
 
-    RecordPathingBetweenZones()
+    RecordPathingBetweenZones() --Includes a waitticks(1)
 
 
     --If debug is enabled, draw land zones (different colour for each land zone on a plateau)
@@ -1678,7 +1932,7 @@ function SetWhetherCanPathToEnemy(aiBrain)
         else aiBrain[refbCanPathToEnemyBaseWithAmphibious] = false end
 
         aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] = M28Utilities.GetDistanceBetweenPositions(PlayerStartPoints[aiBrain:GetArmyIndex()], tEnemyStartPosition)
-        M28Team.tSubteamData[aiBrain.M28Subteam][M28Team.subrefiMaxScoutRadius] = math.max(1500, (M28Team.tSubteamData[aiBrain.M28Subteam][M28Team.subrefiMaxScoutRadius] or 1500), aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] * 1.5)
+        M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.subrefiMaxScoutRadius] = math.max(1500, (M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.subrefiMaxScoutRadius] or 1500), aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] * 1.5)
 
         --Record mitpoint between base (makes it easier to calc mod distance
         aiBrain[reftMidpointToPrimaryEnemyBase] = M28Utilities.MoveInDirection(PlayerStartPoints[aiBrain:GetArmyIndex()], M28Utilities.GetAngleFromAToB(PlayerStartPoints[aiBrain:GetArmyIndex()], tEnemyStartPosition), aiBrain[M28Overseer.refiDistanceToNearestEnemyBase], false)

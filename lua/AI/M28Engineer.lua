@@ -1735,10 +1735,10 @@ function ClearEngineerTracking(oEngineer)
     oEngineer[refbPrimaryBuilder] = false
     if oEngineer[M28Land.reftiPlateauAndLZToMoveTo] then
         local tTargetLZTeamData = M28Map.tAllPlateaus[oEngineer[M28Land.reftiPlateauAndLZToMoveTo][1]][M28Map.subrefPlateauLandZones][oEngineer[M28Land.reftiPlateauAndLZToMoveTo][2]][M28Map.subrefLZTeamData][oEngineer:GetAIBrain().M28Team]
-        if tTargetLZTeamData and M28Utilities.IsTableEmpty(tTargetLZTeamData[M28Map.subrefLZTUnitsTravelingHere]) == false then
-            for iUnit, oUnit in tTargetLZTeamData[M28Map.subrefLZTUnitsTravelingHere] do
+        if tTargetLZTeamData and M28Utilities.IsTableEmpty(tTargetLZTeamData[M28Map.subrefLZTEngineersTravelingHere]) == false then
+            for iUnit, oUnit in tTargetLZTeamData[M28Map.subrefLZTEngineersTravelingHere] do
                 if oUnit == oEngineer then
-                    table.remove(tTargetLZTeamData[M28Map.subrefLZTUnitsTravelingHere][iUnit])
+                    table.remove(tTargetLZTeamData[M28Map.subrefLZTEngineersTravelingHere][iUnit])
                     break
                 end
             end
@@ -1783,8 +1783,8 @@ function TrackEngineerAction(oEngineer, iActionToAssign, bIsPrimaryBuilder, tOpt
         oEngineer[M28Land.reftiPlateauAndLZToMoveTo] = {tOptionalPlatAndLandToMoveTo[1], tOptionalPlatAndLandToMoveTo[2]}
         local tTargetLZTeamData = M28Map.tAllPlateaus[tOptionalPlatAndLandToMoveTo[1]][M28Map.subrefPlateauLandZones][tOptionalPlatAndLandToMoveTo[2]][M28Map.subrefLZTeamData][oEngineer:GetAIBrain().M28Team]
         if tTargetLZTeamData then
-            if not(tTargetLZTeamData[M28Map.subrefLZTUnitsTravelingHere]) then tTargetLZTeamData[M28Map.subrefLZTUnitsTravelingHere] = {} end
-            table.insert(tTargetLZTeamData[M28Map.subrefLZTUnitsTravelingHere], oEngineer)
+            if not(tTargetLZTeamData[M28Map.subrefLZTEngineersTravelingHere]) then tTargetLZTeamData[M28Map.subrefLZTEngineersTravelingHere] = {} end
+            table.insert(tTargetLZTeamData[M28Map.subrefLZTEngineersTravelingHere], oEngineer)
             --Reduce BP wanted by the LZ, and no longer flag it as wanting BP if this satisfies all its needs
             local iEngiTechLevel = M28UnitInfo.GetUnitTechLevel(oEngineer)
             for iTech = iEngiTechLevel, 1, -1 do
@@ -2709,8 +2709,8 @@ function ConsiderLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, iLandZ
     end
 
     --Reduce BP wanted by any engineers assigned to this LZ from another LZ
-    if bDebugMessages == true then LOG(sFunctionRef..': Checking if engineers already assigned here, Is table of traveling engis empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTUnitsTravelingHere]))..'; BP wanted pre update for traveling engis='..repru(tLZTeamData[M28Map.subrefLZTBuildPowerByTechWanted])) end
-    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTUnitsTravelingHere]) == false then
+    if bDebugMessages == true then LOG(sFunctionRef..': Checking if engineers already assigned here, Is table of traveling engis empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTEngineersTravelingHere]))..'; BP wanted pre update for traveling engis='..repru(tLZTeamData[M28Map.subrefLZTBuildPowerByTechWanted])) end
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTEngineersTravelingHere]) == false then
         --Make sure the list of units traveling here is still accurate
         function KeepCurEntry(tArray, iEntry)
             if M28UnitInfo.IsUnitValid(tArray[iEntry]) then
@@ -2727,12 +2727,12 @@ function ConsiderLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, iLandZ
             end
         end
 
-        M28Utilities.RemoveEntriesFromArrayBasedOnCondition(tLZTeamData[M28Map.subrefLZTUnitsTravelingHere], KeepCurEntry)
-        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTUnitsTravelingHere]) == false then
-            local tTravelingEngineers = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subrefLZTUnitsTravelingHere])
+        M28Utilities.RemoveEntriesFromArrayBasedOnCondition(tLZTeamData[M28Map.subrefLZTEngineersTravelingHere], KeepCurEntry)
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTEngineersTravelingHere]) == false then
+            local tTravelingEngineers = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subrefLZTEngineersTravelingHere])
             local iCurEngiTechLevel
             if M28Utilities.IsTableEmpty(tTravelingEngineers) == false then
-                for iUnit, oUnit in tLZTeamData[M28Map.subrefLZTUnitsTravelingHere] do
+                for iUnit, oUnit in tLZTeamData[M28Map.subrefLZTEngineersTravelingHere] do
                     --Refresh list of traveling engineers in case it is invalid
 
                     if M28UnitInfo.IsUnitValid(oUnit) then
@@ -2759,8 +2759,8 @@ function ConsiderLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, iLandZ
             iBPCap = 0
             --Clear any engineers already traveling here
             if bDebugMessages == true then LOG(sFunctionRef..': Setting BP cap to 0 and clearing engineers traveling here') end
-            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTUnitsTravelingHere]) == false then
-                local tTravelingEngineers = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subrefLZTUnitsTravelingHere])
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTEngineersTravelingHere]) == false then
+                local tTravelingEngineers = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subrefLZTEngineersTravelingHere])
                 if M28Utilities.IsTableEmpty(tTravelingEngineers) == false then
                     for iEngi, oEngi in tTravelingEngineers do
                         M28Orders.IssueTrackedClearCommands(oEngi)

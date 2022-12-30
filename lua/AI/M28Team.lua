@@ -15,7 +15,7 @@ local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
 local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
-
+local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
 
 --Team data variables
 bRecordedAllPlayers = false
@@ -83,70 +83,120 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     --Misc details
     reftiTeamMessages = 'M28TeamMessages' --against tTeamData[aiBrain.M28Team], [x] is the message type string, returns the gametime that last sent a message of this type to the team
 
---Subteam data variables
-iTotalSubteamCount = 0
-tSubteamData = {}
-    subreftoFriendlyM28Brains = 'M28TeamSubteamBrains' --table of friendly M28 brains
-    subrefiMaxScoutRadius = 'M28MaxScoutRadius' --Search range for scouts for this subteam
+--AirSubteam data variables
+iTotalAirSubteamCount = 0
+tAirSubteamData = {}
+    subreftoFriendlyM28Brains = 'M28TeamAirSubteamBrains' --table of friendly M28 brains
+    subrefiMaxScoutRadius = 'M28MaxScoutRadius' --Search range for scouts for this AirSubteam
 
-function CreateNewSubteam(aiBrain)
+
+--Land subteam data varaibles (used for factory production logic)
+iTotalLandSubteamCount = 0
+tLandSubteamData = {} --tLandSubteamData[oBrain.M28LandSubteam] results in the below subrefs
+    subrefiLandCorePlateau = 'M28LSTPlateau' --Plateau number that the land subteam is based on
+    subrefiLandCoreIsland = 'M28LSTIsland' --Island number that the land subteam is based on
+    subreftoFriendlyM28Brains = 'M28LSTBrains'
+    subrefFactoriesByTypeFactionAndTech = 'M28LSTFactoriesByPlateau' --First value is factory type; secont value is faction (M28UnitInfo.refFactionxxxx), third is tech level
+    subrefBlueprintBlacklist = 'M28LSTBlueprintBlacklist' --Check with M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subrefBlueprintBlacklist][sUnitId] - returns true if we have blacklisted the unit
+
+function CreateNewLandSubteam(iPlateau, iIsland, tM28BrainsInSubteam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'CreateNewSubteam'
+    local sFunctionRef = 'CreateNewLandSubteam'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    iTotalSubteamCount = iTotalSubteamCount + 1
-    aiBrain.M28Subteam = iTotalSubteamCount
-    tSubteamData[aiBrain.M28Subteam] = {}
-    tSubteamData[aiBrain.M28Subteam][subreftoFriendlyM28Brains] = {}
+    iTotalLandSubteamCount = iTotalLandSubteamCount + 1
+    tLandSubteamData[iTotalLandSubteamCount] = {}
+    tLandSubteamData[iTotalLandSubteamCount][subrefiLandCorePlateau] = iPlateau
+    tLandSubteamData[iTotalLandSubteamCount][subrefiLandCoreIsland] = iIsland
+    tLandSubteamData[iTotalLandSubteamCount][subrefBlueprintBlacklist] = {}
+
+    tLandSubteamData[iTotalLandSubteamCount][subreftoFriendlyM28Brains] = {}
+    for iBrain, oBrain in tM28BrainsInSubteam do
+        table.insert(tLandSubteamData[iTotalLandSubteamCount][subreftoFriendlyM28Brains], oBrain)
+        oBrain.M28LandSubteam = iTotalLandSubteamCount
+    end
+    tLandSubteamData[iTotalLandSubteamCount][subrefFactoriesByTypeFactionAndTech] = {[M28Factory.refiFactoryTypeLand] = {},
+                                                                                     [M28Factory.refiFactoryTypeAir] = {},
+                                                                                     [M28Factory.refiFactoryTypeNaval] = {},
+                                                                                     [M28Factory.refiFactoryTypeOther] = {}}
+    for iFactoryType, tSubtable in tLandSubteamData[iTotalLandSubteamCount][subrefFactoriesByTypeFactionAndTech] do
+        tLandSubteamData[iTotalLandSubteamCount][subrefFactoriesByTypeFactionAndTech][iFactoryType] = {[M28UnitInfo.refFactionUEF] = {},
+                     [M28UnitInfo.refFactionAeon] = {},
+                     [M28UnitInfo.refFactionCybran] = {},
+                     [M28UnitInfo.refFactionSeraphim] = {},
+                     [M28UnitInfo.refFactionNomads] = {},
+                     [M28UnitInfo.refFactionUnrecognised] = {}}
+        for iFaction, tSubtable in tLandSubteamData[iTotalLandSubteamCount][subrefFactoriesByTypeFactionAndTech][iFactoryType] do
+            tLandSubteamData[iTotalLandSubteamCount][subrefFactoriesByTypeFactionAndTech][iFactoryType][iFaction] = {[1]=0,[2]=0,[3]=0}
+        end
+    end
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished creating subteam for '..iTotalLandSubteamCount..'; tLandSubteamData[iTotalLandSubteamCount][subrefFactoriesByTypeFactionAndTech]='..repru(tLandSubteamData[iTotalLandSubteamCount][subrefFactoriesByTypeFactionAndTech])) end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+
+end
 
 
-    table.insert(tSubteamData[aiBrain.M28Subteam][subreftoFriendlyM28Brains], aiBrain)
+
+function CreateNewAirSubteam(aiBrain)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'CreateNewAirSubteam'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    iTotalAirSubteamCount = iTotalAirSubteamCount + 1
+    aiBrain.M28AirSubteam = iTotalAirSubteamCount
+    tAirSubteamData[aiBrain.M28AirSubteam] = {}
+    tAirSubteamData[aiBrain.M28AirSubteam][subreftoFriendlyM28Brains] = {}
+
+
+    table.insert(tAirSubteamData[aiBrain.M28AirSubteam][subreftoFriendlyM28Brains], aiBrain)
     local tNearestEnemyBase = M28Map.GetPrimaryEnemyBaseLocation(aiBrain)
     if bDebugMessages == true then LOG(sFunctionRef..': aiBrain='..aiBrain.Nickname..'; Index='..aiBrain:GetArmyIndex()..'; tNearestEnemyBase='..repru(tNearestEnemyBase)..'; Our start point='..repru(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()])) end
     local iOurAngleToNearestEnemy = M28Utilities.GetAngleFromAToB(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()], tNearestEnemyBase)
-    local bSameSubteam
+    local bSameAirSubteam
     --Low threshold - if within this dist will be grouped regardless of angle difference
     --High threshold - if within certain angle differential then will group if satisfy this distance
     local iDistThresholdLow = math.max(math.min(aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] * 0.8, 100), aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] * 0.3)
     local iDistThresholdHigh = math.max(math.min(aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] * 0.9, 130), aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] * 0.5)
     if bDebugMessages == true then LOG(sFunctionRef..': Our dist to enemy='..aiBrain[M28Overseer.refiDistanceToNearestEnemyBase]..'; Low threshold='..iDistThresholdLow..'; High threshold='..iDistThresholdHigh..'; Angle to nearest enemy='..iOurAngleToNearestEnemy) end
 
-    --Cycle through each brain in our team without a subteam and consider if they should be in the same subteam as this brain
+    --Cycle through each brain in our team without a AirSubteam and consider if they should be in the same AirSubteam as this brain
     for iBrain, oBrain in tTeamData[aiBrain.M28Team][subreftoFriendlyActiveM28Brains] do
         --Make sure we have a primary base and distance to nearest enemy recorded
         M28Map.GetPrimaryEnemyBaseLocation(oBrain)
-        if not(oBrain.M28Subteam) and not(oBrain == aiBrain) then
-            bSameSubteam = false
+        if not(oBrain.M28AirSubteam) and not(oBrain == aiBrain) then
+            bSameAirSubteam = false
             local iBaseDistDif = M28Utilities.GetDistanceBetweenPositions(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()], M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()])
             if bDebugMessages == true then LOG(sFunctionRef..': Considering ally brain '..oBrain.Nickname..'; iBaseDistDif='..iBaseDistDif..'; iAngleDif='..M28Utilities.GetAngleDifference(iOurAngleToNearestEnemy, M28Utilities.GetAngleFromAToB(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()], tNearestEnemyBase))) end
             if iBaseDistDif <= iDistThresholdLow then
-                bSameSubteam = true
+                bSameAirSubteam = true
             else
                 local iAngleDif = M28Utilities.GetAngleDifference(iOurAngleToNearestEnemy, M28Utilities.GetAngleFromAToB(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()], tNearestEnemyBase))
                 if iAngleDif <= 40 or (iAngleDif <= 60 and iBaseDistDif <= iDistThresholdHigh) then
-                    bSameSubteam = true
+                    bSameAirSubteam = true
                 else
-                    --Are we close to the start position of any of the other brains already recorded in this subteam?
-                    for iSubteamBrain, oSubteamBrain in tSubteamData[aiBrain.M28Subteam][subreftoFriendlyM28Brains] do
-                        if not(oSubteamBrain == aiBrain) and not(oSubteamBrain == oBrain) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Dist to alternative subteam member '..oSubteamBrain.Nickname..' = '..M28Utilities.GetDistanceBetweenPositions(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()], M28Map.PlayerStartPoints[oSubteamBrain:GetArmyIndex()])) end
-                            if M28Utilities.GetDistanceBetweenPositions(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()], M28Map.PlayerStartPoints[oSubteamBrain:GetArmyIndex()]) <= iDistThresholdLow then
-                                bSameSubteam = true
+                    --Are we close to the start position of any of the other brains already recorded in this AirSubteam?
+                    for iAirSubteamBrain, oAirSubteamBrain in tAirSubteamData[aiBrain.M28AirSubteam][subreftoFriendlyM28Brains] do
+                        if not(oAirSubteamBrain == aiBrain) and not(oAirSubteamBrain == oBrain) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Dist to alternative AirSubteam member '..oAirSubteamBrain.Nickname..' = '..M28Utilities.GetDistanceBetweenPositions(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()], M28Map.PlayerStartPoints[oAirSubteamBrain:GetArmyIndex()])) end
+                            if M28Utilities.GetDistanceBetweenPositions(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()], M28Map.PlayerStartPoints[oAirSubteamBrain:GetArmyIndex()]) <= iDistThresholdLow then
+                                bSameAirSubteam = true
                             end
                         end
                     end
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': On same subteam='..tostring(bSameSubteam)) end
-            if bSameSubteam then
-                oBrain.M28Subteam = aiBrain.M28Subteam
-                table.insert(tSubteamData[aiBrain.M28Subteam][subreftoFriendlyM28Brains], oBrain)
+            if bDebugMessages == true then LOG(sFunctionRef..': On same AirSubteam='..tostring(bSameAirSubteam)) end
+            if bSameAirSubteam then
+                oBrain.M28AirSubteam = aiBrain.M28AirSubteam
+                table.insert(tAirSubteamData[aiBrain.M28AirSubteam][subreftoFriendlyM28Brains], oBrain)
             end
         end
     end
 
 
-    SubteamInitialisation(aiBrain.M28Subteam) --Dont fork thread
+    AirSubteamInitialisation(aiBrain.M28AirSubteam) --Dont fork thread
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -303,10 +353,24 @@ function CreateNewTeam(aiBrain)
     if bHaveM28BrainInTeam then
         UpdateTeamHighestAndLowestFactories(iTotalTeamCount)
 
-        --Group allies into subteams based on nearest enemy
+        --Group allies into AirSubteams based on nearest enemy; then split the air subteam between land subteams if they are in different plateaus
         for iBrain, oBrain in tTeamData[iTotalTeamCount][subreftoFriendlyActiveM28Brains] do
-            if not(oBrain.M28Subteam) then
-                CreateNewSubteam(oBrain)
+            if not(oBrain.M28AirSubteam) then
+                CreateNewAirSubteam(oBrain)
+                local tiIslandBrainsInSubteam = {}
+                local tiPlateauByIslandRefs = {}
+                local iStartPlateau, iStartIsland
+                for iBrain, oBrain in tAirSubteamData[oBrain.M28AirSubteam][subreftoFriendlyM28Brains] do
+                    iStartPlateau = NavUtils.GetLabel(M28Map.refPathingTypeAmphibious, M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+                    iStartIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+
+                    if not(tiIslandBrainsInSubteam[iStartIsland]) then tiIslandBrainsInSubteam[iStartIsland] = {} end
+                    table.insert(tiIslandBrainsInSubteam[iStartIsland], oBrain)
+                    tiPlateauByIslandRefs[iStartIsland] = iStartPlateau
+                end
+                for iStartIsland, tBrains in tiIslandBrainsInSubteam do
+                    CreateNewLandSubteam(tiPlateauByIslandRefs[iStartIsland], iStartIsland, tBrains)
+                end
             end
         end
 
@@ -553,6 +617,86 @@ end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end--]]
+
+function UpdateFactionBlueprintBlacklist(iSubteam)
+    --Considers any blueprint specific overrides (only supports the 4 core factions and not modded units since blueprint values are hardcoded)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'UpdateFactionBlueprintBlacklist'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    tLandSubteamData[iSubteam][subrefBlueprintBlacklist] = {}
+
+
+    --Land scouts
+    if M28Conditions.HaveFactionTech(iSubteam, M28Factory.refiFactoryTypeLand, M28UnitInfo.refFactionAeon, 1) then
+        --Only want Aeon land scouts
+        tLandSubteamData[iSubteam][subrefBlueprintBlacklist]['uel0101'] = true --UEF land scout
+        tLandSubteamData[iSubteam][subrefBlueprintBlacklist]['url0101'] = true --Cybran land scout
+        tLandSubteamData[iSubteam][subrefBlueprintBlacklist]['xsl0101'] = true --Seraphim land scout
+    elseif M28Conditions.HaveFactionTech(iSubteam, M28Factory.refiFactoryTypeLand, M28UnitInfo.refFactionCybran, 1) then
+        --If have cybran tech then prioritise this
+        tLandSubteamData[iSubteam][subrefBlueprintBlacklist]['uel0101'] = true --UEF land scout
+        tLandSubteamData[iSubteam][subrefBlueprintBlacklist]['xsl0101'] = true --Seraphim land scout
+    elseif M28Conditions.HaveFactionTech(iSubteam, M28Factory.refiFactoryTypeLand, M28UnitInfo.refFactionUEF, 1) then
+        tLandSubteamData[iSubteam][subrefBlueprintBlacklist]['xsl0101'] = true --Seraphim land scout
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, blacklist for subteam '..iSubteam..' = '..repru(tLandSubteamData[iSubteam][subrefBlueprintBlacklist])) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+
+
+
+end
+
+function CheckForSubteamFactoryChange(oUnit, bJustBuiltNotDied)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'CheckForSubteamFactoryChange'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnit.UnitId) then
+        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+        local iSubteam = oUnit:GetAIBrain().M28LandSubteam
+        if iPlateau == tLandSubteamData[iSubteam][subrefiLandCorePlateau] and NavUtils.GetLabel(M28Map.refPathingTypeLand, oUnit:GetPosition()) == tLandSubteamData[iSubteam][subrefiLandCoreIsland] then
+            local iFactoryType = M28UnitInfo.GetFactoryType(oUnit)
+            local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oUnit)
+            local iFactoryFaction = M28UnitInfo.GetUnitFaction(oUnit)
+
+
+            local bChangedFactoryTech = false
+            --Do we have any higher tech than this?
+            local bHaveHigherTech = false
+            if iFactoryTechLevel < 3 then
+                for iHigherTech = iFactoryTechLevel + 1, 2 do
+                    if (tLandSubteamData[iSubteam][subrefFactoriesByTypeFactionAndTech][iFactoryType][iFactoryFaction][iHigherTech] or 0) > 0 then
+                        bHaveHigherTech = true
+                        break
+                    end
+                end
+            end
+
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering if we have had a factory tech change, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bJustBuiltNotDied='..tostring(bJustBuiltNotDied or false)..'; iFactoryType='..iFactoryType..'; iPlateau='..iPlateau..'; IslandRef='..NavUtils.GetLabel(M28Map.refPathingTypeLand, oUnit:GetPosition())..'; iFactoryTechLevel='..iFactoryTechLevel..'; iFactoryFaction='..iFactoryFaction..'; iSubteam='..iSubteam..'; tLandSubteamData[iSubteam][subrefFactoriesByTypeFactionAndTech]='..repru(tLandSubteamData[iSubteam][subrefFactoriesByTypeFactionAndTech])) end
+
+            if bJustBuiltNotDied then
+                --Check if need to add the unit to the subteam table
+                if (tLandSubteamData[iSubteam][subrefFactoriesByTypeFactionAndTech][iFactoryType][iFactoryFaction][iFactoryTechLevel] or 0) <= 0 then
+                    if not(bHaveHigherTech) then bChangedFactoryTech = true end
+                    tLandSubteamData[iSubteam][subrefFactoriesByTypeFactionAndTech][iFactoryType][iFactoryFaction][iFactoryTechLevel] = 1
+                else
+                    tLandSubteamData[iSubteam][subrefFactoriesByTypeFactionAndTech][iFactoryType][iFactoryFaction][iFactoryTechLevel] = tLandSubteamData[iSubteam][subrefFactoriesByTypeFactionAndTech][iFactoryType][iFactoryFaction][iFactoryTechLevel] + 1
+                end
+            else
+                if tLandSubteamData[iSubteam][subrefFactoriesByTypeFactionAndTech][iFactoryType][iFactoryFaction][iFactoryTechLevel] == 1 then
+                    if not(bHaveHigherTech) then bChangedFactoryTech = true end
+                end
+                tLandSubteamData[iSubteam][subrefFactoriesByTypeFactionAndTech][iFactoryType][iFactoryFaction][iFactoryTechLevel] = math.max(0, tLandSubteamData[iSubteam][subrefFactoriesByTypeFactionAndTech][iFactoryType][iFactoryFaction][iFactoryTechLevel] - 1)
+            end
+
+            if bChangedFactoryTech then
+                UpdateFactionBlueprintBlacklist(iSubteam)
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
 
 function UpdateTeamHighestAndLowestFactories(iM28Team)
     --Called whenever an M28 brain gains or loses an HQ factory; for convenience will update all factory types (even thoguh marginally more efficient to only update the type in question)
@@ -1135,8 +1279,8 @@ function TeamInitialisation(iM28Team)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function SubteamInitialisation(iM28Subteam)
-    M28Utilities.ErrorHandler('To add subteam code')
+function AirSubteamInitialisation(iM28AirSubteam)
+    M28Utilities.ErrorHandler('To add AirSubteam code')
 end
 
 function UpdateEnemyTechTracking(iM28Team, oUnit)

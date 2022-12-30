@@ -8,6 +8,7 @@
 
 --Order info
 reftiLastOrders = 'M28OrdersLastOrders' --Against unit, table first of the order number (1 = first order given, 2 = 2nd etc., qhere they were queued), which returns a table containing all the details of the order (including the order type per the below reference integers)
+refiOrderCount = 'M28OrdersCount' --Size of the table of last orders
 
 --Subtables for each order:
 subrefiOrderType = 1
@@ -34,18 +35,20 @@ refiOrderKill = 15 --If we want to self destruct a unit
 
 --Other tracking: Against units
 toUnitsOrderedToRepairThis = 'M28OrderRepairing' --Table of units given an order to repair the unit
+refiEstimatedLastPathPoint = 'M28OrderLastPathRef' --If a unit is being given an order to follow a path, then when its orders are refreshed this shoudl be updated based on what path we think is currently the target
 
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
 local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 local M28Config = import('/mods/M28AI/lua/M28Config.lua')
 local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
+local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 
 
 function UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc)
     local sBaseOrder = 'Clear'
     if oUnit[reftiLastOrders] then
-        sBaseOrder = oUnit[reftiLastOrders][table.getn(oUnit[reftiLastOrders])][subrefiOrderType]
+        sBaseOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]][subrefiOrderType]
     end
     local sExtraOrder = ''
     if sOptionalOrderDesc then sExtraOrder = ' '..sOptionalOrderDesc end
@@ -60,7 +63,7 @@ end
 function IssueTrackedClearCommands(oUnit)
     --Update tracking for repairing units:
     if oUnit[reftiLastOrders] then
-        local tLastOrder = oUnit[reftiLastOrders][table.getn(oUnit[reftiLastOrders])]
+        local tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]]
         if tLastOrder[subrefiOrderType] == refiOrderIssueRepair then
             if M28UnitInfo.IsUnitValid(tLastOrder[subrefoOrderTarget]) and M28Utilities.IsTableEmpty(tLastOrder[subrefoOrderTarget][toUnitsOrderedToRepairThis]) == false then
                 local iRefToRemove
@@ -86,6 +89,7 @@ function IssueTrackedClearCommands(oUnit)
         end
     end
     oUnit[reftiLastOrders] = nil
+    oUnit[refiOrderCount] = 0
 
     --Update tracking for engineers:
     if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
@@ -106,23 +110,39 @@ end
 function RefreshUnitOrderTracking()  end --Just used to easily find UpdateRecordedOrders
 function UpdateRecordedOrders(oUnit)
     --Checks a unit's command queue and removes items if we have fewer items than we recorded
-    local iRecordedOrders
     if not(oUnit[reftiLastOrders]) then
         oUnit[reftiLastOrders] = nil
-        --iRecordedOrders = 0
+        oUnit[refiOrderCount] = 0
     else
-        iRecordedOrders = table.getn(oUnit[reftiLastOrders])
+        if (oUnit[refiOrderCount] or 0) == 0 then
+            oUnit[refiOrderCount] = table.getn(oUnit[reftiLastOrders])
+        end
         local tCommandQueue = oUnit:GetCommandQueue()
         local iCommandQueue = 0
         if tCommandQueue then iCommandQueue = table.getn(tCommandQueue) end
-        if iCommandQueue < iRecordedOrders then
+        if iCommandQueue < oUnit[refiOrderCount] then
             if iCommandQueue == 0 then
                 oUnit[reftiLastOrders] = nil
+                oUnit[refiOrderCount] = 0
             else
-                local iOrdersToRemove = iRecordedOrders - iCommandQueue
-                for iEntry = 1, iOrdersToRemove do
-                    oUnit[reftiLastOrders][iRecordedOrders] = nil
-                    iRecordedOrders = iRecordedOrders - 1
+                local iRevisedIndex = 1
+                local iTableSize = oUnit[refiOrderCount]
+                local iOrdersToRemove = oUnit[refiOrderCount] - iCommandQueue
+
+                for iOrigIndex=1, iTableSize do
+                    if oUnit[reftiLastOrders][iOrigIndex] then
+                        if iOrigIndex > iOrdersToRemove then
+                            --We want to keep the entry; Move the original index to be the revised index number (so if e.g. a table of 1,2,3 removed 2, then this would've resulted in the revised index being 2 (i.e. it starts at 1, then icnreases by 1 for the first valid entry); this then means we change the table index for orig index 3 to be 2
+                            if (iOrigIndex ~= iRevisedIndex) then
+                                oUnit[reftiLastOrders][iRevisedIndex] = oUnit[reftiLastOrders][iOrigIndex]
+                                oUnit[reftiLastOrders][iOrigIndex] = nil
+                            end
+                            iRevisedIndex = iRevisedIndex + 1 --i.e. this will be the position of where the next value that we keep will be located
+                        else
+                            oUnit[reftiLastOrders][iOrigIndex] = nil
+                            oUnit[refiOrderCount] = oUnit[refiOrderCount] - 1
+                        end
+                    end
                 end
             end
         end
@@ -133,10 +153,11 @@ function IssueTrackedMove(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddTo
     UpdateRecordedOrders(oUnit)
     --If we are close enough then issue the order again
     local tLastOrder
-    if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][table.getn(oUnit[reftiLastOrders])] end
+    if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]] end
     if not(tLastOrder and tLastOrder[subrefiOrderType] == refiOrderIssueMove and iDistanceToReissueOrder and M28Utilities.GetDistanceBetweenPositions(tOrderPosition, tLastOrder[subreftOrderPosition]) < iDistanceToReissueOrder) then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
-        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} end
+        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
+        oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueMove, [subreftOrderPosition] = tOrderPosition})
         IssueMove({oUnit}, tOrderPosition)
     end
@@ -144,14 +165,62 @@ function IssueTrackedMove(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddTo
 
 end
 
+function PatrolPath(oUnit, tPath, bAddToExistingQueue, sOptionalOrderDesc)
+    --If the unit's last movement point isnt the first point in the path, then will reissue orders, with the path start point based on the estimated last path that it got to
+    local sFunctionRef = 'PatrolPath'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Last orders='..repru(oUnit[reftiLastOrders])..'; First point on path='..repru(tPath[1])..'; Will now refresh last orders') end
+    UpdateRecordedOrders(oUnit)
+
+    local tLastOrder
+    if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]] end
+    if bDebugMessages == true then LOG(sFunctionRef..': Unit orders after update='..repru(oUnit[reftiLastOrders])..'; Last order='..repru(tLastOrder)..'; Is the last order a move order='..tostring(tLastOrder[subrefiOrderType] == refiOrderIssueMove)..'; Last order position='..repru(tLastOrder[subreftOrderPosition])..'; tLastOrder pos 2 of table='..repru(tLastOrder[2])..'; Dist between path1 nd last order position='..M28Utilities.GetDistanceBetweenPositions(tPath[1], (tLastOrder[subreftOrderPosition] or {0,0,0}))) end
+
+    if not(tLastOrder) or not(tLastOrder[subrefiOrderType] == refiOrderIssueMove) or M28Utilities.GetDistanceBetweenPositions(tPath[1], tLastOrder[subreftOrderPosition]) > 1 then
+        --Our last active order isn't to move to the first point in the path, so will be reissuing the path
+        if bDebugMessages == true then LOG(sFunctionRef..'; Will reissue orders to move along the path based on the closest point') end
+
+        --first decide on start point for the path - pick the point closest to the unit
+        local iClosestDist = 10000
+        local iClosestPathRef
+        local iCurDist
+        for iPathRef, tPosition in tPath do
+            iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tPosition)
+            if iCurDist < iClosestDist then
+                iClosestDist = iCurDist
+                iClosestPathRef = iPathRef
+            end
+        end
+
+        if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
+        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
+
+        for iPath = iClosestPathRef, table.getn(tPath) do
+            local tOrderPosition = {tPath[iPath][1], tPath[iPath][2], tPath[iPath][3]}
+            table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueMove, [subreftOrderPosition] = tOrderPosition})
+            oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
+            IssueMove({oUnit}, tOrderPosition)
+        end
+        --Make the unit go to the first point on the path as its last order
+        local tOrderPosition = {tPath[1][1], tPath[1][2], tPath[1][3]}
+        table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueMove, [subreftOrderPosition] = tOrderPosition})
+        oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
+        IssueMove({oUnit}, tOrderPosition)
+    end
+    if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function IssueTrackedAttackMove(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc)
     UpdateRecordedOrders(oUnit)
     --If we are close enough then issue the order again
     local tLastOrder
-    if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][table.getn(oUnit[reftiLastOrders])] end
+    if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]] end
     if not(tLastOrder[subrefiOrderType] == refiOrderIssueAggressiveMove and iDistanceToReissueOrder and M28Utilities.GetDistanceBetweenPositions(tOrderPosition, tLastOrder[subreftOrderPosition]) < iDistanceToReissueOrder) then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
-        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} end
+        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
+        oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueAggressiveMove, [subreftOrderPosition] = tOrderPosition})
         IssueAggressiveMove({oUnit}, tOrderPosition)
     end
@@ -162,10 +231,11 @@ function IssueTrackedAttack(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalO
     UpdateRecordedOrders(oUnit)
     --Issue order if we arent already trying to attack them
     local tLastOrder
-    if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][table.getn(oUnit[reftiLastOrders])] end
+    if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]] end
     if not(tLastOrder[subrefiOrderType] == refiOrderIssueAttack and oOrderTarget == tLastOrder[subrefoOrderTarget]) then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
-        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} end
+        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
+        oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueAttack, [subrefoOrderTarget] = oOrderTarget})
         IssueAttack({oUnit}, oOrderTarget)
     end
@@ -177,7 +247,7 @@ function IssueTrackedMoveAndBuild(oUnit, tBuildLocation, sOrderBlueprint, tMoveT
     local bDontAlreadyHaveOrder = true
     local iLastOrderCount = 0
     if oUnit[reftiLastOrders] then
-        iLastOrderCount = table.getn(oUnit[reftiLastOrders])
+        iLastOrderCount = oUnit[refiOrderCount]
         if iLastOrderCount >= 2 then
             local tLastOrder = oUnit[reftiLastOrders][iLastOrderCount]
             if tLastOrder[subrefiOrderType] == refiOrderIssueBuild and sOrderBlueprint == tLastOrder[subrefsOrderBlueprint] and M28Utilities.GetDistanceBetweenPositions(tBuildLocation, tLastOrder[subreftOrderPosition]) <= 0.5 then
@@ -194,10 +264,12 @@ function IssueTrackedMoveAndBuild(oUnit, tBuildLocation, sOrderBlueprint, tMoveT
             --LOG('IssueTrackedMoveAndBuild: Will clear commands of the unit')
             IssueTrackedClearCommands(oUnit)
         end
-        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} end
+        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
+        oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueMove, [subreftOrderPosition] = tMoveTarget})
         IssueMove({oUnit}, tMoveTarget)
 
+        oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueBuild, [subrefsOrderBlueprint] = sOrderBlueprint, [subreftOrderPosition] = tBuildLocation})
         IssueBuildMobile({ oUnit }, tBuildLocation, sOrderBlueprint, {})
         --LOG('Sent an issuebuildmobile order to the unit')
@@ -208,10 +280,11 @@ end
 function IssueTrackedBuild(oUnit, tOrderPosition, sOrderBlueprint, bAddToExistingQueue, sOptionalOrderDesc)
     UpdateRecordedOrders(oUnit)
     local tLastOrder
-    if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][table.getn(oUnit[reftiLastOrders])] end
+    if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]] end
     if not(tLastOrder[subrefiOrderType] == refiOrderIssueBuild and sOrderBlueprint == tLastOrder[subrefsOrderBlueprint] and M28Utilities.GetDistanceBetweenPositions(tOrderPosition, tLastOrder[subreftOrderPosition]) <= 0.5) then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
-        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} end
+        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
+        oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueBuild, [subrefsOrderBlueprint] = sOrderBlueprint, [subreftOrderPosition] = tOrderPosition})
         IssueBuildMobile({ oUnit }, tOrderPosition, sOrderBlueprint, {})
     end
@@ -221,10 +294,11 @@ end
 function IssueTrackedFactoryBuild(oUnit, sOrderBlueprint, bAddToExistingQueue, sOptionalOrderDesc)
     UpdateRecordedOrders(oUnit)
     local tLastOrder
-    if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][table.getn(oUnit[reftiLastOrders])] end
+    if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]] end
     if not(tLastOrder[subrefiOrderType] == refiOrderIssueFactoryBuild and sOrderBlueprint == tLastOrder[subrefsOrderBlueprint]) then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
-        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} end
+        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
+        oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueFactoryBuild, [subrefsOrderBlueprint] = sOrderBlueprint})
         IssueBuildFactory({ oUnit }, sOrderBlueprint, 1)
     end
@@ -236,10 +310,11 @@ function IssueTrackedReclaim(oUnit, oOrderTarget, bAddToExistingQueue, sOptional
     UpdateRecordedOrders(oUnit)
     --Issue order if we arent already trying to attack them
     local tLastOrder
-    if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][table.getn(oUnit[reftiLastOrders])] end
+    if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]] end
     if not(tLastOrder[subrefiOrderType] == refiOrderIssueReclaim and oOrderTarget == tLastOrder[subrefoOrderTarget]) or (not(oUnit:IsUnitState('Reclaiming'))) then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
-        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} end
+        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
+        oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueReclaim, [subrefoOrderTarget] = oOrderTarget})
         IssueReclaim({oUnit}, oOrderTarget)
     end
@@ -250,10 +325,11 @@ function IssueTrackedGroundAttack(oUnit, tOrderPosition, iDistanceToReissueOrder
     UpdateRecordedOrders(oUnit)
     --If we are close enough then issue the order again
     local tLastOrder
-    if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][table.getn(oUnit[reftiLastOrders])] end
+    if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]] end
     if not(tLastOrder[subrefiOrderType] == refiOrderIssueGroundAttack and iDistanceToReissueOrder and M28Utilities.GetDistanceBetweenPositions(tOrderPosition, tLastOrder[subreftOrderPosition]) < iDistanceToReissueOrder) then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
-        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} end
+        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
+        oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueGroundAttack, [subreftOrderPosition] = tOrderPosition})
         IssueAttack({oUnit}, tOrderPosition)
     end
@@ -264,10 +340,11 @@ function IssueTrackedGuard(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalOr
     UpdateRecordedOrders(oUnit)
     --Issue order if we arent already trying to attack them
     local tLastOrder
-    if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][table.getn(oUnit[reftiLastOrders])] end
+    if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]] end
     if not(tLastOrder[subrefiOrderType] == refiOrderIssueGuard and oOrderTarget == tLastOrder[subrefoOrderTarget]) then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
-        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} end
+        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
+        oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueGuard, [subrefoOrderTarget] = oOrderTarget})
         if not(oOrderTarget[M28UnitInfo.reftoUnitsAssistingThis]) then oOrderTarget[M28UnitInfo.reftoUnitsAssistingThis] = {} end
         table.insert(oOrderTarget[M28UnitInfo.reftoUnitsAssistingThis], oUnit)
@@ -280,10 +357,11 @@ function IssueTrackedRepair(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalO
     UpdateRecordedOrders(oUnit)
     --Issue order if we arent already trying to attack them
     local tLastOrder
-    if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][table.getn(oUnit[reftiLastOrders])] end
+    if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]] end
     if not(tLastOrder[subrefiOrderType] == refiOrderIssueRepair and oOrderTarget == tLastOrder[subrefoOrderTarget]) then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
-        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} end
+        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
+        oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueRepair, [subrefoOrderTarget] = oOrderTarget})
         IssueRepair({oUnit}, oOrderTarget)
         --Track against the unit we are repairing if it is under construction
@@ -301,10 +379,11 @@ function IssueTrackedUpgrade(oUnit, sUpgradeRef, bAddToExistingQueue, sOptionalO
     UpdateRecordedOrders(oUnit)
     --Issue order if we arent already trying to attack them
     local tLastOrder
-    if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][table.getn(oUnit[reftiLastOrders])] end
+    if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]] end
     if not(tLastOrder[subrefiOrderType] == refiOrderUpgrade and sUpgradeRef == tLastOrder[subrefsOrderBlueprint]) then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
-        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} end
+        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
+        oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderUpgrade, [subrefsOrderBlueprint] = sUpgradeRef})
         IssueUpgrade({oUnit}, sUpgradeRef)
     end
@@ -313,7 +392,8 @@ end
 
 function IssueTrackedKillUnit(oUnit)
     IssueTrackedClearCommands(oUnit)
-    if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} end
+    if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
+    oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
     table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderKill})
     oUnit:Kill()
 end
@@ -321,7 +401,8 @@ end
 --[[function IssueTrackedOrder(oUnit, iOrderType, tOrderPosition, oOrderTarget, sOrderBlueprint)
 --Decided not to implement below as hopefully using separate functions should be better performance wise, and also issueformmove and aggressive move will require a table of units instead of individual units if they ever get implemented
     --tOrderPosition - this should only be completed if it is requried for the order
-    if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} end
+    if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
+    oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
     table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = iOrderType, [subreftOrderPosition] = tOrderPosition, [subrefoOrderTarget] = oOrderTarget, [subrefsOrderBlueprint] = sOrderBlueprint})
     if iOrderType == refiOrderIssueMove then
         IssueMove({oUnit}, tOrderPosition)
@@ -364,7 +445,7 @@ function ClearAnyRepairingUnits(oUnitBeingRepaired)
                     UpdateRecordedOrders(oUnit)
                     --LOG('Considering if oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is still repairing; Last orders='..reprs(oUnit[reftiLastOrders]))
                     if oUnit[reftiLastOrders] then
-                        local tLastOrder = oUnit[reftiLastOrders][table.getn(oUnit[reftiLastOrders])]
+                        local tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]]
                         if tLastOrder[subrefiOrderType] == refiOrderIssueRepair and oUnitBeingRepaired == tLastOrder[subrefoOrderTarget] then
                             oUnit[reftiLastOrders] = nil --Clear here so we avoid the logic for lcearing in trackedclearcommands
                             IssueTrackedClearCommands(oUnit)

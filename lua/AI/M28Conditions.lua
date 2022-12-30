@@ -339,3 +339,13 @@ function WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone)
     end
     return false
 end
+
+
+function HaveFactionTech(iSubteam, iFactoryType, iFactionWanted, iMinTechLevelNeeded)
+    for iCurTech = iMinTechLevelNeeded, 3 do
+        if M28Team.tLandSubteamData[iSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][iFactoryType][iFactionWanted][iCurTech] > 0 then
+            return true
+        end
+    end
+    return false
+end

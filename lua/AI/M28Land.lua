@@ -13,6 +13,7 @@ local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
 local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
+local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 
 --Global
 tLZRefreshCountByTeam = {}
@@ -74,8 +75,57 @@ function ConsiderAddingPlateauOverrideForUnit(oUnit)
     return bMadeChange
 end
 
+function RemoveUnitFromListOfUnitsTravelingToLandZone(oUnit)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RemoveUnitFromListOfUnitsTravelingToLandZone'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oUnit[reftiPlateauAndLZToMoveTo]='..repru(oUnit[reftiPlateauAndLZToMoveTo])) end
+    if oUnit[reftiPlateauAndLZToMoveTo] then
+        local sUnitTableRef
+        if EntityCategoryContains(M28UnitInfo.refCategoryLandScout, oUnit.UnitId) then
+            sUnitTableRef = M28Map.subrefLZTScoutsTravelingHere
+        else
+            M28Utilities.ErrorHandler('Need to add code for this unit category')
+        end
+        if sUnitTableRef then
+            local iTargetPlateau = oUnit[reftiPlateauAndLZToMoveTo][1]
+            local iTargetLandZone = oUnit[reftiPlateauAndLZToMoveTo][2]
+            local tTravelingUnits = M28Map.tAllPlateaus[iTargetPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][sUnitTableRef]
+            if M28Utilities.IsTableEmpty(tTravelingUnits) == false then
+                for iTravelUnit, oTravelUnit in tTravelingUnits do
+                    if oTravelUnit == oUnit then
+                        table.remove(tTravelingUnits, iTravelUnit)
+                        break
+                    end
+                end
+            end
+        end
+        oUnit[reftiPlateauAndLZToMoveTo] = nil
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function GetUnitToTravelToLandZone(oUnit, iTargetPlateau, iTargetLandZone, subrefLZTScoutsTravelingHere)
+    --Intended for non-engineer units (engineers are handled separately)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordGroundThreatForLandZone'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+    oUnit[reftiPlateauAndLZToMoveTo] = {iTargetPlateau, iTargetLandZone}
+    local tLZData = M28Map.tAllPlateaus[iTargetPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone]
+    local tTeamData = tLZData[M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team]
+    if not(tTeamData[subrefLZTScoutsTravelingHere]) then tTeamData[subrefLZTScoutsTravelingHere] = {} end
+    table.insert(tTeamData[subrefLZTScoutsTravelingHere], oUnit)
+    if bDebugMessages == true then LOG(sFunctionRef..': About to tell unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to iTargetPlateau='..iTargetPlateau..'; iTargetLandZone='..iTargetLandZone..'; midpoint of LZ='..repru(tLZData[M28Map.subrefLZMidpoint])) end
+    M28Orders.IssueTrackedMove(oUnit, tLZData[M28Map.subrefLZMidpoint], 6, false, 'TLZ'..iTargetLandZone)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau, iRecordedLandZone, bUseLastKnownPosition)
     --Based on RemoveEntriesFromArrayAndAddToNewTableBasedOnCondition, but more complex as dont always want to add unit to a table
+
+
     local iRevisedIndex = 1
     local iTableSize = table.getn(tUnits)
     local iActualPlateau, iActualLandZone
@@ -255,29 +305,195 @@ function RecordGroundThreatForLandZone(tLZTeamData, iTeam, iPlateau, iLandZone)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function ManageLandZone(aiBrain, iTeam, iPlateau, iLandZone)
+function RunFromEnemy(oUnitToRun, oEnemy, iTeam, iPlateau, iDistanceToRun)
+    local iAngleFromEnemy = M28Utilities.GetAngleFromAToB(oUnitToRun:GetPosition(), oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) - 180
+    if iAngleFromEnemy < 0 then iAngleFromEnemy = iAngleFromEnemy + 360 end
+    local tPotentialRunPosition = M28Utilities.MoveInDirection(oUnitToRun:GetPosition(), iAngleFromEnemy, iDistanceToRun, true, false)
+    --If target not in same plateau then try moving further away by 5 and 10; if still not in same plateau then move back to start position
+    local iCurPlateau, iCurLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tPotentialRunPosition)
+    local iAlternativeCount = 0
+    while not(iCurPlateau == iPlateau) do
+        iAlternativeCount = iAlternativeCount + 1
+        if iAlternativeCount >= 3 then
+            --Go to start instead
+            tPotentialRunPosition = M28Map.PlayerStartPoints[oUnitToRun:GetAIBrain():GetArmyIndex()]
+            break
+        else
+            iDistanceToRun = iDistanceToRun + 4
+            tPotentialRunPosition = M28Utilities.MoveInDirection(oUnitToRun:GetPosition(), iAngleFromEnemy, iDistanceToRun, true, false)
+            iCurPlateau, iCurLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tPotentialRunPosition)
+        end
+    end
+
+    M28Orders.IssueTrackedMove(oUnitToRun, tPotentialRunPosition, math.min(8, iDistanceToRun * 0.25), false, 'RunE'..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy))
+end
+
+function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tScouts, bLandZoneContainsNonScouts)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'ManageLandZone'
+    local sFunctionRef = 'ManageLandZoneScouts'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+    tLZTeamData[M28Map.refbWantLandScout] = false
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want a land scout for iPlateau '..iPlateau..'; iLandZone='..iLandZone..'; bLandZoneContainsNonScouts='..tostring(bLandZoneContainsNonScouts or false)..'; Enemy combat threat='..tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal]..'; Is table of land scouts traveling here empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTScoutsTravelingHere]))..'; Is table of scouts currently in this LZ empty='..tostring(M28Utilities.IsTableEmpty(tScouts))) end
+    if (bLandZoneContainsNonScouts or tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] <= 2) and (tLZData[M28Map.subrefLZMexCount] > 0 or tLZData[M28Map.subrefLZTotalSegmentCount] > 30) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTScoutsTravelingHere]) then
+        --Want a land scout for htis land zone, unless we already have one traveling here; if we have available land scouts then will change this flag back to false
+        tLZTeamData[M28Map.refbWantLandScout] = true
+        if bDebugMessages == true then LOG(sFunctionRef..': We want to get a scout for this LZ') end
+    end
+
+    --Do we have any land scouts that are available? if so then assign to an adjacent land zone if the adjacent zone wants scouts
+    if M28Utilities.IsTableEmpty(tScouts) == false then
+        local tAvailableScouts = {}
+        local bCheckForEnemies = false
+        local tEnemyUnitTablesToConsider = {}
+        --Check for neemies if there are any in this or adjacent land zone
+        if tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] > 0 then
+            table.insert(tEnemyUnitTablesToConsider, tLZTeamData[M28Map.subrefLZTEnemyUnits])
+        end
+        if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones]) == false then
+            for _, iAdjLZ in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones] do
+                if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTThreatEnemyCombatTotal] > 0 then
+                    table.insert(tEnemyUnitTablesToConsider, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTEnemyUnits])
+                end
+            end
+        end
+        if M28Utilities.IsTableEmpty(tEnemyUnitTablesToConsider) == false then bCheckForEnemies = true end
+
+        local oEnemyToRunFrom
+        local oPrevEnemyToRunFrom
+        local iRunThreshold = 10 --If get this close to being in range of an enemy should try to run
+        if bDebugMessages == true then LOG(sFunctionRef..': About to consider orders for scouts in this LZ, size of tScouts='..table.getn(tScouts)..'; bCheckForEnemies='..tostring(bCheckForEnemies)) end
+        for iScout, oScout in tScouts do
+            if bCheckForEnemies then
+                oEnemyToRunFrom = nil
+                if oPrevEnemyToRunFrom and M28Utilities.GetDistanceBetweenPositions(oPrevEnemyToRunFrom[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oScout:GetPosition()) - oPrevEnemyToRunFrom[M28UnitInfo.refiDFRange] <= iRunThreshold then
+                    --Run from same enemy
+                    oEnemyToRunFrom = oPrevEnemyToRunFrom
+                else
+                    for iUnit, oUnit in tEnemyUnitTablesToConsider do
+                        if (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and not(oEnemyToRunFrom == oPrevEnemyToRunFrom) then
+                            if M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oScout:GetPosition()) - oUnit[M28UnitInfo.refiDFRange] <= iRunThreshold then
+                                oEnemyToRunFrom = oUnit
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+            if oEnemyToRunFrom then
+                if bDebugMessages == true then LOG(sFunctionRef..': Want scout '..oScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout)..' to run from oEnemyToRunFrom '..oEnemyToRunFrom.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToRunFrom)) end
+                oPrevEnemyToRunFrom = oEnemyToRunFrom
+                RunFromEnemy(oScout, oEnemyToRunFrom, iTeam, iPlateau, 16)
+
+                tLZTeamData[M28Map.refbWantLandScout] = false
+            else
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering if scout '..oScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout)..' is available; reftiPlateauAndLZToMoveTo='..repru(oScout[reftiPlateauAndLZToMoveTo])) end
+                if oScout[reftiPlateauAndLZToMoveTo] then
+                    --Make scout available if its target LZ is this LZ
+                    if oScout[reftiPlateauAndLZToMoveTo][2] == iLandZone and oScout[reftiPlateauAndLZToMoveTo][1] == iPlateau then
+                        --Clear this unit from list of traveling units, but dont make it available as want a slight delay, so want it to be available on the next cycle
+                        if bDebugMessages == true then LOG(sFunctionRef..': Scout is traveling to this land zone and is here so will clear the trackers so next cycle it is shown as available') end
+                        RemoveUnitFromListOfUnitsTravelingToLandZone(oScout)
+                        tLZTeamData[M28Map.refbWantLandScout] = false
+                    else
+                        --Scout should be traveling to another land zone - if it has no orders then refresh them
+                        if bDebugMessages == true then LOG(sFunctionRef..': Scout should travel to another land zone so order it to travel there') end
+                        M28Orders.IssueTrackedMove(oScout, M28Map.tAllPlateaus[oScout[reftiPlateauAndLZToMoveTo][1]][M28Map.subrefPlateauLandZones][oScout[reftiPlateauAndLZToMoveTo][2]][M28Map.subrefLZMidpoint], 6, false, 'TLZ'..oScout[reftiPlateauAndLZToMoveTo][2])
+                    end
+                else
+                    --Scout has no nearby enemies to run from, and isnt traveling to a plateau, so it should be available for use
+                    table.insert(tAvailableScouts, oScout)
+                end
+            end
+        end
+
+        if bDebugMessages == true then LOG(sFunctionRef..': Is available scout table empty='..tostring(M28Utilities.IsTableEmpty(tAvailableScouts))) end
+
+        if M28Utilities.IsTableEmpty(tAvailableScouts) == false then
+            --First assign any available scouts to adjacent land zones wanting scouts
+            if bDebugMessages == true then LOG(sFunctionRef..': Will first allocate scouts to any adjacent land zones that want a scout. Is table of adj zones empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones]))) end
+            if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones]) == false then
+                for _, iAdjLZ in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones] do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Consideri niAdjLZ='..iAdjLZ..'; Does this LZ want land scout='..tostring(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.refbWantLandScout] or false)..'; Is table of traveling scouts here empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTScoutsTravelingHere]))) end
+                    if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.refbWantLandScout] then
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef..': Will send land scout '..tAvailableScouts[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(tAvailableScouts[1])..' to go to adjacent land zone '..iAdjLZ..' in plateau '..iPlateau)
+                            M28Map.DrawSpecificLandZone(iPlateau, iAdjLZ, 7)
+                        end
+                        GetUnitToTravelToLandZone(tAvailableScouts[1], iPlateau, iAdjLZ, M28Map.subrefLZTScoutsTravelingHere)
+                        M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.refbWantLandScout] = false
+                        table.remove(tAvailableScouts, 1)
+                        if M28Utilities.IsTableEmpty(tAvailableScouts) then break end
+                    end
+                end
+
+            end
+            if M28Utilities.IsTableEmpty(tAvailableScouts) == false then
+                tLZTeamData[M28Map.refbWantLandScout] = false
+                --If we are here then we still have available land scouts; if we have ap atrol path then patrol; if we have a mex then go here, if we have an adjcent zone go here, otherwise move randomly if we have no orders
+                for iScout, oScout in tAvailableScouts do
+                    if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath]) == false then
+                        --Patrol the land zone
+                        M28Orders.PatrolPath(oScout, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath], false, 'SP')
+                    else
+                        --Do nothing if scout is moving as maybe it landed on a segment just out of the zone it shoudl have been in
+                        if not(oScout:IsUnitState('Moving')) then
+                            M28Orders.UpdateRecordedOrders(oScout)
+                            if (oScout[M28Orders.refiOrderCount] or 0) == 0 then
+                                --Want ot get somewhere to move to as a backup
+                                if tLZData[M28Map.subrefLZMexCount] > 0 then
+                                    IssueTrackedMove(oScout, tLZData[M28Map.subrefLZMidpoint], 5, false, 'BackupMid')
+                                else
+                                    --Do we have an adjacent LZ? If so move here
+                                    if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones]) == false then
+                                        GetUnitToTravelToLandZone(tAvailableScouts[1], iPlateau, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones][1], M28Map.subrefLZTScoutsTravelingHere)
+                                    else
+                                        --No adjacent LZs, and no mexes in this LZ, so just move randomly
+                                        IssueTrackedMove(oScout, M28Utilities.MoveInDirection(oScout:GetPosition(), math.random(1, 360), math.random(10, 30), true, false), 5, false, 'BackupRnd')
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ManageSpecificLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --Record enemy threat
-    local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
+    local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+    local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
     if bDebugMessages == true then LOG(sFunctionRef..': About to update threat for iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTeam='..iTeam..'; Is LZData empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData))) end
     RecordGroundThreatForLandZone(tLZTeamData, iTeam, iPlateau, iLandZone)
 
-    local tEngineers
+    local tEngineers, tScouts
+    local bLandZoneContainsFriendlyNonScouts = false
     if bDebugMessages == true then LOG(sFunctionRef..': Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]))) end
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
         --Decide on what to do with units in this LZ
         tEngineers = {}
+        tScouts = {}
         local tTempOtherUnits = {}
         for iUnit, oUnit in tLZTeamData[M28Map.subrefLZTAlliedUnits] do
             if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
                 table.insert(tEngineers, oUnit)
+                bLandZoneContainsFriendlyNonScouts = true
             elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
                 --Do nothing
+                bLandZoneContainsFriendlyNonScouts = true
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryLandScout, oUnit.UnitId) then
+                table.insert(tScouts, oUnit)
             else
                 table.insert(tTempOtherUnits, oUnit)
+                bLandZoneContainsFriendlyNonScouts = true
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of engineers empty='..tostring(M28Utilities.IsTableEmpty(tEngineers))) end
@@ -289,6 +505,8 @@ function ManageLandZone(aiBrain, iTeam, iPlateau, iLandZone)
     end
     --Handle engineers and even if no engineers still decide what engineers we would want for hte LZ
     M28Engineer.ConsiderLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, iLandZone, tEngineers) --Should update the land zone engineer requirements, even if tEngineers itself is empty
+
+    ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tScouts, bLandZoneContainsFriendlyNonScouts)
 
 
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is unbuild locations empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexUnbuiltLocations]))) end
@@ -448,7 +666,7 @@ function ManageAllLandZones(aiBrain, iTeam)
                     UpdateUnitPositionsAndLandZone(aiBrain, tLZTeamData[M28Map.subrefLZTAlliedUnits], iTeam, iPlateau, iLandZone, false)
                 end
 
-                ManageLandZone(aiBrain, iTeam, iPlateau, iLandZone)
+                ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                 iCurCycleRefreshCount = iCurCycleRefreshCount + 1
 
                 if iCurCycleRefreshCount >= iRefreshThreshold then

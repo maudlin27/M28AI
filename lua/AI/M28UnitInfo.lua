@@ -7,12 +7,20 @@
 local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
 local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
-
+--Dont include m28factory here or will get a crash at start of the game
 
 --global (non-category) varaibles:
 --Threat values
 tUnitThreatByIDAndType = {} --Calculated at the start of the game
 tiThreatRefsCalculated = {} --table of the threat ID references that have done blueprint checks on
+
+--Factions
+refFactionUEF = 1
+refFactionAeon = 2
+refFactionCybran = 3
+refFactionSeraphim = 4
+refFactionNomads = 5
+refFactionUnrecognised = 6
 
 --Variables against units;
 reftLastKnownPositionByTeam = 'M28UnitLastPos' --[x] is the M28 team ref, returns the last known position of the unit
@@ -1274,4 +1282,36 @@ function PauseOrUnpauseEnergyUsage(oUnit, bPauseNotUnpause)
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 
+end
+
+function GetFactionFromBP(oBlueprint)
+    --Returns faction number for oBlueprint
+    --1: UEF, 2: Aeon, 3: Cybran, 4: Seraphim, 5: Nomads, 6 = not recognised
+    --Note: General.FactionName property uses lowercase for some factions; the categories.x uses upper case
+    --Assumed nomads is Nomads
+
+    local tFactionsByName = {[refFactionUEF] = 'UEF', [refFactionAeon] = 'Aeon', [refFactionCybran] = 'Cybran', [refFactionSeraphim] = 'Seraphim', [refFactionNomads] = 'Nomads'}
+    local sUnitFactionName = oBlueprint.General.FactionName
+    for iName, sName in tFactionsByName do
+        if sName == sUnitFactionName then return iName end
+    end
+    return refFactionUnrecognised
+end
+
+function GetUnitFaction(oUnit)
+    ----1: UEF, 2: Aeon, 3: Cybran, 4: Seraphim, 5: Nomads, 6 = not recognised
+    return GetFactionFromBP(oUnit:GetBlueprint())
+end
+
+function GetFactoryType(oUnit)
+    local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua') --Putting this at the top crashes the game
+
+    if EntityCategoryContains(refCategoryLandFactory, oUnit.UnitId) then
+        return M28Factory.refiFactoryTypeLand
+    elseif EntityCategoryContains(refCategoryAirFactory, oUnit.UnitId) then
+        return M28Factory.refiFactoryTypeAir
+    elseif EntityCategoryContains(refCategoryNavalFactory, oUnit.UnitId) then
+        return M28Factory.refiFactoryTypeNaval
+    else return M28Factory.refiFactoryTypeOther
+    end
 end
