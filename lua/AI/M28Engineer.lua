@@ -2274,13 +2274,14 @@ function GetBPToAssignToAssistUpgrade(tLZTeamData, iTeam, bCoreZone, bHaveLowMas
     return iBPWanted
 end
 
-function GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ, iPathingRef, iHighestTechEngiAvailable)
+function GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ, iPathingRef, iHighestTechEngiAvailable, bNearbyZone)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetBPByTechWantedForAlternativeLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local tAltLZ = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
     local tiBPWantedByTech
+    local iTotalBPWanted = 0
 
     --Does the LZ want BP?
     if tAltLZ[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTbWantBP] then
@@ -2300,11 +2301,39 @@ function GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjL
                 for iTech = 1, iHighestTechEngiAvailable, 1 do
                     if (tAltLZ[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTBuildPowerByTechWanted][iTech] or 0) > 0 then
                         tiBPWantedByTech[iTech] = tAltLZ[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTBuildPowerByTechWanted][iTech]
+                        iTotalBPWanted = iTotalBPWanted + tiBPWantedByTech[iTech]
                     end
                 end
             end
         end
     end
+
+    --Override - for core land zones dont want any BP from a non-adjacent zone in certain cases
+    if not(bNearbyZone) and tiBPWantedByTech and tAltLZ[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTCoreBase] then
+        local iBPToAssign
+        if M28Utilities.IsTableEmpty(tAltLZ[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTEngineersTravelingHere]) then
+            iBPToAssign = math.max(5, iTotalBPWanted - 3 * tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]])
+        else
+            iBPToAssign = math.max(0, iTotalBPWanted - 3 * tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]])
+        end
+        if iBPToAssign < iTotalBPWanted then
+            local iBPToIgnore = iTotalBPWanted - iBPToAssign
+            local iCurBPToIgnore
+            local iRevisedBPWanted = 0
+            for iTech, iBuildPowerWanted in tiBPWantedByTech do
+                iCurBPToIgnore = math.min(iBuildPowerWanted, iBPToIgnore)
+                tiBPWantedByTech[iTech] = tiBPWantedByTech[iTech] - iCurBPToIgnore
+                iBPToIgnore = iBPToIgnore - iCurBPToIgnore
+                iRevisedBPWanted = iRevisedBPWanted + tiBPWantedByTech[iTech]
+            end
+            if iRevisedBPWanted == 0 then
+                bDebugMessages = true
+                tiBPWantedByTech = nil
+                if bDebugMessages == true then LOG(sFunctionRef..': Have reduced BP wanted by tech for iAdjZone='..iAdjLZ..'; iTotalBPWanted='..iTotalBPWanted..'; iRevisedBPWanted='..iRevisedBPWanted) end
+            end
+        end
+    end
+
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return tiBPWantedByTech
 end
@@ -2381,7 +2410,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     iAdjLZ = tPathingDetails[M28Map.subrefLZNumber]
                     tLZWantingBPConsidered[iAdjLZ] = true
 
-                    local tiBPByTechWanted = GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ, iPathingRef, iHighestTechEngiAvailable)
+                    local tiBPByTechWanted = GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ, iPathingRef, iHighestTechEngiAvailable, true)
                     if tiBPByTechWanted then
                         for iTech = 1, iHighestTechEngiAvailable, 1 do
                             if tiBPByTechWanted[iTech] > 0 then
@@ -2480,8 +2509,9 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 iAdjLZ = tPathingDetails[M28Map.subrefLZNumber]
                 if not(tLZWantingBPConsidered[iAdjLZ]) then
                     tLZWantingBPConsidered[iAdjLZ] = true
-                    local tiBPByTechWanted = GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ, iPathingRef, iHighestTechEngiAvailable)
+                    local tiBPByTechWanted = GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ, iPathingRef, iHighestTechEngiAvailable, false)
                     if tiBPByTechWanted then
+                        --Is it either a minor zone, or a core zone that either wants lots of BP or doesnt have any engineers traveling to it?
                         for iTech = 1, iHighestTechEngiAvailable, 1 do
                             if tiBPByTechWanted[iTech] > 0 then
                                 iPrevEngisAvailable = table.getn(toAvailableEngineersByTech[iTech])
@@ -2584,7 +2614,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                     iAdjLZ = tPathingDetails[M28Map.subrefLZNumber]
                     tLZWantingBPConsidered[iAdjLZ] = true
 
-                    local tiBPByTechWanted = GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ, iPathingRef, iHighestTechEngiAvailable)
+                    local tiBPByTechWanted = GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ, iPathingRef, iHighestTechEngiAvailable, true)
                     if tiBPByTechWanted then
                         for iTech = 1, iHighestTechEngiAvailable, 1 do
                             if tiBPByTechWanted[iTech] > 0 then
@@ -2635,7 +2665,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 iAdjLZ = tPathingDetails[M28Map.subrefLZNumber]
                 if not(tLZWantingBPConsidered[iAdjLZ]) then
                     tLZWantingBPConsidered[iAdjLZ] = true
-                    local tiBPByTechWanted = GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ, iPathingRef, iHighestTechEngiAvailable)
+                    local tiBPByTechWanted = GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ, iPathingRef, iHighestTechEngiAvailable, false)
                     if tiBPByTechWanted then
                         for iTech = 1, iHighestTechEngiAvailable, 1 do
                             if tiBPByTechWanted[iTech] > 0 then
