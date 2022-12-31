@@ -129,12 +129,16 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZTValue = 'ZVal' --Value of the zone factoring in mass, reclaim, and allied units
             subrefLZTCoreBase = 'ZCore' --true if this is considered a 'core base' land zone
             subrefLZTAlliedUnits = 'Allies' --table of all allied units in the land zone, tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam][subrefLZTAlliedUnits]
+            subrefLZTAlliedCombatUnits = 'AllComb' --table of allied units that are to be considered for combat orders
             subrefLZTEnemyUnits = 'Enemies' --table of all enemy units in the land zone
             --Ground threat values for land zones (also against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam])
             subrefLZTThreatEnemyCombatTotal = 'ECTotal'
             subrefLZTThreatAllyCombatTotal = 'ACTotal'
             subrefLZThreatEnemyMobileDFByRange = 'EMDFByRange'
             subrefLZThreatAllyMobileDFByRange = 'AMDFByRange'
+            subrefLZThreatEnemyMobileIndirectByRange = 'EMIFByRange'
+            subrefLZThreatAllyMobileIndirectByRange = 'AMIFByRange'
+
             subrefLZThreatEnemyStructureDFByRange = 'ESDFByRange'
             subrefLZThreatAllyStructureDFByRange = 'ASDFByRange'
             subrefLZThreatEnemyStructureIndirect = 'ESITotal'
