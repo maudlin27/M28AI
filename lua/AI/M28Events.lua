@@ -486,7 +486,7 @@ function OnDetectedBy(oUnitDetected, iBrainIndex)
         if aiBrain.M28AI then
             --Update highest enemy ground unti health
             if EntityCategoryContains(M28UnitInfo.refCategoryLandCombat - categories.COMMAND - categories.SUBCOMMANDER, oUnitDetected.UnitId) then
-                local iCurShield, iMaxShield = GetCurrentAndMaximumShield(oUnitDetected)
+                local iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnitDetected)
                 local iMaxHealth = oUnitDetected:GetMaxHealth() + iMaxShield
                 if iMaxHealth > aiBrain[M28Overseer.refiHighestEnemyGroundUnitHealth] then
                     aiBrain[M28Overseer.refiHighestEnemyGroundUnitHealth] = iMaxHealth

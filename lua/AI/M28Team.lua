@@ -80,14 +80,19 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refbDefendAgainstArti = 'M28TeamDefendAgainstArti' --true if enemy has t3 arti or equivelnt
     subreftoT3Arti = 'M28TeamT3Arti' --table of T3 and experimental arti that M28 players on the team have
 
+    --Land combat related
+    subrefiLandZonesWantingSupportByPlateau = 'M28TeamLZWantingSupport' --[x] is the plateau ref, [y] is the land zone ref, returns true if we want support for the plateau
+    subrefiRallyPointLandZonesByPlateau = 'M28TeamLZRallyPoint' --[x] is the plateau ref, y is the land zone ref
+    refiTimeOfLastRallyPointRefresh = 'M28TeamRallyPointRefreshTime' --Game time in seconds that last refreshed rally points
+
     --Misc details
     reftiTeamMessages = 'M28TeamMessages' --against tTeamData[aiBrain.M28Team], [x] is the message type string, returns the gametime that last sent a message of this type to the team
 
 --AirSubteam data variables
 iTotalAirSubteamCount = 0
 tAirSubteamData = {}
-    subreftoFriendlyM28Brains = 'M28TeamAirSubteamBrains' --table of friendly M28 brains
-    subrefiMaxScoutRadius = 'M28MaxScoutRadius' --Search range for scouts for this AirSubteam
+    subreftoFriendlyM28Brains = 'M28ASTBrains' --table of friendly M28 brains
+    subrefiMaxScoutRadius = 'M28ASTMaxScoutRadius' --Search range for scouts for this AirSubteam
 
 
 --Land subteam data varaibles (used for factory production logic)
@@ -324,6 +329,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][refiTimeOfLastEnergyStall] = 0
     tTeamData[iTotalTeamCount][refiTimeOfLastEngiSelfDestruct] = 0
     tTeamData[iTotalTeamCount][refbNeedResourcesForMissile] = false
+    tTeamData[iTotalTeamCount][subrefiLandZonesWantingSupportByPlateau] = {}
 
 
     local bHaveM28BrainInTeam = false
@@ -1274,6 +1280,11 @@ function TeamInitialisation(iM28Team)
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZTAlliedUnits] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZTEnemyUnits] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefMexCountByTech] = {[1]=0,[2]=0,[3]=0}
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZTValue] = 0
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZTThreatEnemyCombatTotal] = 0
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatEnemyBestMobileDFRange] = 0
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatEnemyBestStructureDFRange] = 0
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatEnemyBestMobileIndirectRange] = 0
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

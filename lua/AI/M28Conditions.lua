@@ -349,3 +349,28 @@ function HaveFactionTech(iSubteam, iFactoryType, iFactionWanted, iMinTechLevelNe
     end
     return false
 end
+
+function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, bIncludeEnemyDFRange)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'CloseToEnemyUnit'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iCurDist
+    if bDebugMessages == true then
+        LOG(sFunctionRef..': tStartPosition='..repru(tStartPosition)..'; Size of tUnitsToCheck='..table.getn(tUnitsToCheck)..'; iDistThreshold='..iDistThreshold..'; bIncludeEnemyDFRange='..tostring(bIncludeEnemyDFRange or false))
+        for iUnit, oUnit in tUnitsToCheck do
+            LOG(sFunctionRef..': Dist to oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' = '..M28Utilities.GetDistanceBetweenPositions(tStartPosition, oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..' based on last known position of '..repru(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; actual unit position='..repru(oUnit:GetPosition())..'; Unit range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; Is distance less tahn threshold='..tostring(M28Utilities.GetDistanceBetweenPositions(tStartPosition, oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) < iDistThreshold))
+        end
+    end
+    for iUnit, oUnit in tUnitsToCheck do
+        iCurDist = M28Utilities.GetDistanceBetweenPositions(tStartPosition, oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])
+        if bIncludeEnemyDFRange then iCurDist = iCurDist - (oUnit[M28UnitInfo.refiDFRange] or 0) end
+        if iCurDist <= iDistThreshold then
+            if bDebugMessages == true then LOG(sFunctionRef..': Are close to unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return true
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return false
+end

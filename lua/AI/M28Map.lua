@@ -108,10 +108,11 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         subrefLZSegments = 'Segments' --Contains a table which returns the X and Z segment values for every segment assigned to this land zone
         subrefLZTotalSegmentCount = 'SegCount' --Number of segments in a land zone, against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
         subrefLZAdjacentLandZones = 'AdjLZ' --table containing all adjacent land zone references for the plateau in question, against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], i.e. ordered 1,2,3,...; and returns the LZ ref (based on the order it was added)
-        subrefLZPathingToOtherLandZones = 'PathLZ' --table containing the land zone ref of other LZs where have recorded the paths and time taken, sorted by closest LZ first
+        subrefLZPathingToOtherLandZones = 'PathLZ' --table containing the land zone ref of some (but not all) other LZs where have recorded the paths and time taken, sorted by closest LZ first
             subrefLZNumber = 1 --Land zone reference number
             subrefLZPath = 2 --against subrefLZPathingToOtherLandZones subtable
             subrefLZTravelDist = 3 --against subrefLZPathingToOtherLandZones subtable
+        subrefLZTravelDistToOtherLandZones = 'TravelLZ' --table used to store all land travel distance calculations to get from one LZ to another LZ; similar to subrefLZPathingToOtherLandZones, but intended to allow for all land zones to be recorded
 
         subrefLZFurthestAdjacentLandZoneTravelDist = 'FurthestAdjLZ' --Returns the travel distance (rounded up) of the furthest immediately adjacent land zone - can combine with subrefLZPathingToOtherLandZones so can stop cycling through the prerecorded LZs once get further away than the immediately adjacent ones
         --Reclaim related:
@@ -131,6 +132,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZTAlliedUnits = 'Allies' --table of all allied units in the land zone, tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam][subrefLZTAlliedUnits]
             subrefLZTAlliedCombatUnits = 'AllComb' --table of allied units that are to be considered for combat orders
             subrefLZTEnemyUnits = 'Enemies' --table of all enemy units in the land zone
+            reftoNearestDFEnemies = 'NearestDF' --Table of enemy DF units in this LZ, plus the nearest DF unit in each adjacnet LZ, with proximity based on unit distance and unit range (i.e. the dist until the unit is in range)
             --Ground threat values for land zones (also against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam])
             subrefLZTThreatEnemyCombatTotal = 'ECTotal'
             subrefLZTThreatAllyCombatTotal = 'ACTotal'
@@ -138,6 +140,10 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZThreatAllyMobileDFByRange = 'AMDFByRange'
             subrefLZThreatEnemyMobileIndirectByRange = 'EMIFByRange'
             subrefLZThreatAllyMobileIndirectByRange = 'AMIFByRange'
+            subrefLZThreatEnemyBestMobileDFRange = 'EBDFR'
+            subrefLZThreatEnemyBestStructureDFRange = 'EBSDFR'
+            subrefLZThreatEnemyBestMobileIndirectRange = 'EBIR'
+
 
             subrefLZThreatEnemyStructureDFByRange = 'ESDFByRange'
             subrefLZThreatAllyStructureDFByRange = 'ASDFByRange'
@@ -147,6 +153,10 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZThreatAllyGroundAA = 'AAATotal'
             subrefbEnemiesInThisOrAdjacentLZ = 'NearbyEnemies' --true if this LZ or adjacent LZ have nearby enemies
             subrefbDangerousEnemiesInThisLZ = 'HasDangEnemy' --true if combat units in this LZ
+            subrefbLZWantsSupport = 'LZWantsSupport' --true if want DF or indirect units for the LZ
+            subrefbLZWantsDFSupport = 'LZWantsDFSupport' --true if want DF units for the LZ
+            subrefbLZWantsIndirectSupport = 'LZWantsIndirectSupport' --true if want indirect units for the LZ
+
             --Engineer related values
             subrefLZTbWantBP = 'WantBP' --true if we want BP at any tech level
             subrefLZTBuildPowerByTechWanted = 'BPByTechW' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power wanted wanted
@@ -653,6 +663,7 @@ local function AddNewLandZoneReferenceToPlateau(iPlateau)
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTotalSegmentCount] = 0
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTotalMassReclaim] = 0
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTotalEnergyReclaim] = 0
+    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTravelDistToOtherLandZones] = {}
 
     if bDebugMessages == true then LOG('Finished setting up variables for iPlateau='..iPlateau..'; iLandZone='..iLandZone) end
 
@@ -1478,6 +1489,27 @@ local function RecordPathingBetweenZones()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+local function RecordTravelDistBetweenZonesOverTime()
+    --Record how  long it would take to travel between each other land zone upfront so dont have to calculate on the fly
+    WaitTicks(1)
+    local iCurCount = 0
+    for iPlateau, tPlateauSubtable in tAllPlateaus do
+        for iStartLZ, tLandZoneInfo in tPlateauSubtable[subrefPlateauLandZones] do
+            for iEndLZ,  tLandZoneInfo in tPlateauSubtable[subrefPlateauLandZones] do
+                if not(iStartLZ == iEndLZ) then
+                    iCurCount = iCurCount + 1
+                    if iCurCount >= 10 then
+                        iCurCount = 0
+                        WaitTicks(1)
+                    end
+
+                    GetTravelDistanceBetweenLandZones(iPlateau, iStartLZ, iEndLZ)
+                end
+            end
+        end
+    end
+end
+
 function ReturnNthValidLocationInSameLandZoneClosestToTarget(iPlateau, iLandZoneWanted, tStartLZData, tTargetDestination, iDistanceInterval, iNthEntryWanted, iMaxDistance)
     local iSearchDistance = 0
     local tValidLocations = {}
@@ -1747,6 +1779,8 @@ local function SetupLandZones()
 
     RecordPathingBetweenZones() --Includes a waitticks(1)
 
+    --Over time map out how long it will take each LZ to path to each other LZ
+    ForkThread(RecordTravelDistBetweenZonesOverTime)
 
     --If debug is enabled, draw land zones (different colour for each land zone on a plateau)
     if bDebugMessages == true then
@@ -2556,4 +2590,14 @@ end
 
 function RecordThatWeWantToUpdateReclaimSegment(iReclaimSegmentX, iReclaimSegmentZ)
     if iReclaimSegmentX >= 0 and iReclaimSegmentZ >= 0 then table.insert(tReclaimSegmentsToUpdate, {iReclaimSegmentX, iReclaimSegmentZ}) end
+end
+
+
+function GetTravelDistanceBetweenLandZones(iPlateau, iStartLZ, iEndLZ)
+    local tStartLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLZ]
+    if not(tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ]) then
+        if not(tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau]) then tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau] = {} end
+        tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ] = M28Utilities.GetTravelDistanceBetweenPositions(tStartLZData[subrefLZMidpoint], tAllPlateaus[iPlateau][subrefPlateauLandZones][iEndLZ][subrefLZMidpoint], refPathingTypeLand)
+    end
+    return tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ]
 end

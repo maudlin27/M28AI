@@ -7,6 +7,7 @@ local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
 local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
 local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
+local NavUtils = import("/lua/sim/navutils.lua")
 local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
@@ -237,6 +238,22 @@ function AdjustBlueprintForOverrides(aiBrain, sBPIDToBuild, tLZTeamData, iFactor
     return sBPIDToBuild
 end
 
+function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iTargetLandZone)
+    local iBaseCategoryWanted
+    local bInSameIsland = false
+    if NavUtils.GetLabel(M28Map.refPathingTypeLand, oFactory:GetPosition()) == NavUtils.GetLabel(M28Map.refPathingTypeLand, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone][M28Map.subrefLZMidpoint]) then
+        bInSameIsland = true
+    end
+    if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsIndirectSupport] then
+        if bInSameIsland then
+            iBaseCategoryWanted = M28UnitInfo.refCategoryIndirect
+        end
+    else --i.e. If on a dif island and has PD then we wouldnt want to try an amphibious assault on it
+        iBaseCategoryWanted = M28UnitInfo.refCategoryDFTank
+    end
+    return iBaseCategoryWanted
+end
+
 function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     local sFunctionRef = 'GetBlueprintToBuildForLandFactory'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -244,7 +261,8 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
     local iCategoryToBuild
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oFactory:GetPosition(), true, oFactory)
-    local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team]
+    local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+    local tLZTeamData = tLZData[M28Map.subrefLZTeamData][aiBrain.M28Team]
     local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)
 
     local iTeam = aiBrain.M28Team
@@ -286,7 +304,46 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandScout) then return sBPIDToBuild end
     end
 
-    --Engineers if we have mass
+    --Engineers if we dont have low mass, and want more
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if not(bHaveLowMass) and tLZTeamData[M28Map.subrefLZSpareBPByTech][1] + tLZTeamData[M28Map.subrefLZSpareBPByTech][2] + tLZTeamData[M28Map.subrefLZSpareBPByTech][3] == 0 and iFactoryTechLevel >= M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] then
+        if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+    end
+
+    --Combat if this LZ needs more units
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if tLZTeamData[M28Map.subrefbLZWantsSupport] then
+        local iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone)
+        if iCategoryToGet then
+            if ConsiderBuildingCategory(iCategoryToGet) then return sBPIDToBuild end
+        end
+    end
+
+    --Combat if we have a LZ within half of dist between us and nearest enemy that wants more units
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    local iEnemyPlateau, iEnemyLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.GetPrimaryEnemyBaseLocation(aiBrain))
+    if iEnemyPlateau == iPlateau then
+        local iDistToEnemyBaseToConsider
+        if not(bHaveLowMass) then iDistToEnemyBaseToConsider = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iEnemyLandZone) * 0.75
+        else iDistToEnemyBaseToConsider = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iEnemyLandZone) * 0.5
+        end
+
+        for iEntry, tLZPathing in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
+            if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tLZPathing[M28Map.subrefLZNumber]][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefbLZWantsSupport] then
+                --How far away is it?
+                if tLZPathing[M28Map.subrefLZTravelDist] <= iDistToEnemyBaseToConsider then
+                    local iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, tLZPathing[M28Map.subrefLZNumber])
+                    if iCategoryToGet then
+                        if ConsiderBuildingCategory(iCategoryToGet) then return sBPIDToBuild end
+                    end
+                else
+                    break
+                end
+            end
+        end
+    end
+
+    --Engineers if we have mass and dont have spare engineers
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] > 0.01 then
         if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end

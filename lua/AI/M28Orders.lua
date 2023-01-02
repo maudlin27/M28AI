@@ -165,6 +165,21 @@ function IssueTrackedMove(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddTo
 
 end
 
+function IssueTrackedAggressiveMove(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc)
+    UpdateRecordedOrders(oUnit)
+    --If we are close enough then issue the order again
+    local tLastOrder
+    if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]] end
+    if not(tLastOrder and tLastOrder[subrefiOrderType] == refiOrderIssueAggressiveMove and iDistanceToReissueOrder and M28Utilities.GetDistanceBetweenPositions(tOrderPosition, tLastOrder[subreftOrderPosition]) < iDistanceToReissueOrder) then
+        if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
+        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
+        oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
+        table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueAggressiveMove, [subreftOrderPosition] = tOrderPosition})
+        IssueAggressiveMove({oUnit}, tOrderPosition)
+    end
+    if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
+end
+
 function PatrolPath(oUnit, tPath, bAddToExistingQueue, sOptionalOrderDesc)
     --If the unit's last movement point isnt the first point in the path, then will reissue orders, with the path start point based on the estimated last path that it got to
     local sFunctionRef = 'PatrolPath'

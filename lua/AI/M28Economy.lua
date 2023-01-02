@@ -724,7 +724,7 @@ function ManageMassStalls(iTeam)
                         tRelevantUnits = EntityCategoryFilterDown(iCategoryRef, oBrain[reftPausedUnits])
                     end
 
-                    --for iBrain, oBrain in M28Team.tTeamDetails[iTeam][
+                    --for iBrain, oBrain in M28Team.tTeamData[iTeam][
                     if M28Utilities.IsTableEmpty(tRelevantUnits) == false then
                         bNoRelevantUnits = false
                         iTotalUnits = table.getn(tRelevantUnits)

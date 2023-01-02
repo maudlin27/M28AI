@@ -2327,7 +2327,6 @@ function GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjL
                 iRevisedBPWanted = iRevisedBPWanted + tiBPWantedByTech[iTech]
             end
             if iRevisedBPWanted == 0 then
-                bDebugMessages = true
                 tiBPWantedByTech = nil
                 if bDebugMessages == true then LOG(sFunctionRef..': Have reduced BP wanted by tech for iAdjZone='..iAdjLZ..'; iTotalBPWanted='..iTotalBPWanted..'; iRevisedBPWanted='..iRevisedBPWanted) end
             end
@@ -2485,6 +2484,8 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     if iBPWanted > 0 then
         HaveActionToAssign(refActionBuildMassStorage, 1, iBPWanted)
     end
+
+
 
     --Lower priority mass reclaim
     M28Profiler.FunctionProfiler(sFunctionRef..'PreTravel', M28Profiler.refProfilerEnd)

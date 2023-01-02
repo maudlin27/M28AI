@@ -266,6 +266,11 @@ function GetDistanceBetweenPositions(tPosition1, tPosition2)
     return VDist2(tPosition1[1], tPosition1[3], tPosition2[1], tPosition2[3])
 end
 
+function GetRoughDistanceBetweenPositions(tPosition1, tPosition2)
+    --If want a rough indication of proximity but it isnt as important as speed
+    return math.max(math.abs(tPosition1[1] - tPosition2[1]), math.abs(tPosition1[3] - tPosition2[3]))
+end
+
 function GenerateUniqueColourTable(iTableSize)
     local FAFColour = import("/lua/shared/color.lua")
     local tColourTable = {}

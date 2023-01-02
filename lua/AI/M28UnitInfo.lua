@@ -27,6 +27,8 @@ reftLastKnownPositionByTeam = 'M28UnitLastPos' --[x] is the M28 team ref, return
 reftAssignedPlateauAndLandZoneByTeam = 'M28UnitPlateauAndZone' --[x] is the M28 team ref, returns a table {iPlateau, iLandZoneRef}
 reftbConsideredForAssignmentByTeam = 'M28UnitConsideredForAssignment' --[x] is the M28 team ref, returns true if have sent at least once to be assigned to a plateau/land zone/air logic/navy logic
 refiDFMassThreatOverride = 'M28BaseMassOverride' --e.g. for ACUs, will override the mass value suggested by the blueprint
+refbShieldIsDisabled = 'M28UnitShieldDisabled'
+
     --Ranges:
 refiDFRange = 'M28UDFR'
 refiIndirectRange = 'M28UIR' --for non-manual fire weapons
