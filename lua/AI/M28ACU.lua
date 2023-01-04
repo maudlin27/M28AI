@@ -94,15 +94,17 @@ function ACUActionAssistHydro(aiBrain, oACU)
         local iNearestHydro = 10000
         local iCurDist
         local iBuildRange = oACU:GetBlueprint().Economy.MaxBuildDistance
-        local iMinRangeToAssist = iBuildRange + 3
+        local iMinRangeToAssist = iBuildRange + 10
         for iHydro, tHydro in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroLocations] do
             iCurDist = M28Utilities.GetDistanceBetweenPositions(tHydro, oACU:GetPosition())
             if iCurDist < iNearestHydro then iNearestHydro = iCurDist tNearestHydro = tHydro end
         end
         --If we are in range of a hydro then assist it (or wait until construction is started)
+        if bDebugMessages == true then LOG(sFunctionRef..': Checking if have hydro near enough to consider mvoing to and assisting, iNearestHydro='..iNearestHydro..'; iMinRangeToAssist='..iMinRangeToAssist) end
         if iNearestHydro < iMinRangeToAssist then
             local tUnderConstructionHydro = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryHydro, tNearestHydro, 5, 'Ally')
             local oUnderConstructionHydro
+            if bDebugMessages == true then LOG(sFunctionRef..': Is table of hydros around nearest hydro point empty='..tostring(M28Utilities.IsTableEmpty(tUnderConstructionHydro))) end
             if M28Utilities.IsTableEmpty(tUnderConstructionHydro) == false then
                 for iHydro, oHydro in tUnderConstructionHydro do
                     if oHydro:GetFractionComplete() < 1 then
@@ -112,23 +114,23 @@ function ACUActionAssistHydro(aiBrain, oACU)
                 end
             end
             if oUnderConstructionHydro then
-                M28Orders.IssueTrackedRepair(oACU, oUnderConstructionHydro, false)
+                M28Orders.IssueTrackedRepair(oACU, oUnderConstructionHydro, false, 'RH')
             else
                 oACU['M28BOHydroWait'] = ( oACU['M28BOHydroWait'] or 0) + 1
                 if  oACU['M28BOHydroWait'] >= 20 then
                     ACUActionBuildPower(aiBrain, oACU)
                 else
                     --Stay where we are as maybe we are waiting for an engi to start construction
-                    M28Orders.IssueTrackedMove(oACU, oACU:GetPosition(), 3, false)
+                    M28Orders.IssueTrackedMove(oACU, oACU:GetPosition(), 3, false, 'W4C')
                 end
             end
         else
             --Move to be near hydro
             local tLocationNearHydro = M28Engineer.GetLocationToMoveForConstruction(oACU, tNearestHydro, 'ueb1102', -0.5, false)
             if tLocationNearHydro then
-                M28Orders.IssueTrackedMove(oACU, tLocationNearHydro, 3, false)
+                M28Orders.IssueTrackedMove(oACU, tLocationNearHydro, 0.5, false, 'M2NH')
             else
-                M28Orders.IssueTrackedMove(oACU, tNearestHydro, 3, false)
+                M28Orders.IssueTrackedMove(oACU, tNearestHydro, 0.5, false, 'M2H')
             end
         end
     else

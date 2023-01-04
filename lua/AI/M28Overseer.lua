@@ -64,7 +64,17 @@ function GetNearestEnemyBrain(aiBrain)
                     if bDebugMessages == true then LOG(sFunctionRef .. ': Brain is dif to aiBrain and a non civilian enemy so will record its start position number if it doesnt have one already') end
 
                     if not (oBrain:IsDefeated()) and not (oBrain.M28IsDefeated) then
-                        if bDebugMessages == true then LOG(sFunctionRef .. ': brain with index' .. oBrain:GetArmyIndex() .. ' is not defeated and is an enemy') end
+                        --Redundancy for AI like DD that may not trigger the aibrain hook
+                        if not(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()]) then
+                            local iStartPositionX, iStartPositionZ = oBrain:GetArmyStartPos()
+                            M28Map.PlayerStartPoints[oBrain:GetArmyIndex()] = {iStartPositionX, GetSurfaceHeight(iStartPositionX, iStartPositionZ), iStartPositionZ}
+                            tAllAIBrainsByArmyIndex[oBrain:GetArmyIndex()] = oBrain
+                        end
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef .. ': Considering nearest enemy for our brain index '..aiBrain:GetArmyIndex()..'; enemy brain with index' .. oBrain:GetArmyIndex() .. ' and nickname '..(oBrain.Nickname or 'nil')..' is not defeated and is an enemy; M28Map.PlayerStartPoints='..repru( M28Map.PlayerStartPoints))
+                            local iX, iZ = oBrain:GetArmyStartPos()
+                            LOG(sFunctionRef..': Enemy Start iX='..(iX or 'nil')..'; Start iZ+'..(iZ or 'nil'))
+                        end
                         iCurDist = M28Utilities.GetDistanceBetweenPositions(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()], M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
                         if iCurDist < iMinDistToEnemy then
                             iMinDistToEnemy = iCurDist
@@ -110,9 +120,9 @@ function GetNearestEnemyBrain(aiBrain)
     return aiBrain[refoNearestEnemyBrain]
 end
 
-function BrainCreated(aiBrain)
+function M28BrainCreated(aiBrain)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'BrainCreated'
+    local sFunctionRef = 'M28BrainCreated'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if bDebugMessages == true then LOG(sFunctionRef..': M28 Brain has just been created for aiBrain '..aiBrain.Nickname..'; Index='..aiBrain:GetArmyIndex()) end

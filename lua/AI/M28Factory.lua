@@ -239,6 +239,10 @@ function AdjustBlueprintForOverrides(aiBrain, sBPIDToBuild, tLZTeamData, iFactor
 end
 
 function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iTargetLandZone)
+    local sFunctionRef = 'GetLandZoneSupportCategoryWanted'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local iBaseCategoryWanted
     local bInSameIsland = false
     if NavUtils.GetLabel(M28Map.refPathingTypeLand, oFactory:GetPosition()) == NavUtils.GetLabel(M28Map.refPathingTypeLand, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone][M28Map.subrefLZMidpoint]) then
@@ -247,10 +251,12 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iTargetLand
     if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsIndirectSupport] then
         if bInSameIsland then
             iBaseCategoryWanted = M28UnitInfo.refCategoryIndirect
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; iTeam='..iTeam..'; iPlateau='..iPlateau..'; iTargetLandZone='..iTargetLandZone..'; We want indirect support for this LZ; Enemy structure threat by DF range='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZThreatEnemyStructureDFByRange])..'; Total indirect threat wanted for LZ='..M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZIndirectThreatWanted]) end
         end
     else --i.e. If on a dif island and has PD then we wouldnt want to try an amphibious assault on it
-        iBaseCategoryWanted = M28UnitInfo.refCategoryDFTank
+        iBaseCategoryWanted = M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategorySkirmisher
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return iBaseCategoryWanted
 end
 
@@ -268,6 +274,19 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     local iTeam = aiBrain.M28Team
     local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
 
+    local bHaveHighestLZTech = true
+    if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel='..iFactoryTechLevel..'; Highest friendly factory tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
+    if iFactoryTechLevel < 3 and iFactoryTechLevel < M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] then
+        local tLandFactoriesInLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+        for iLZFactory, oLZFactory in  tLandFactoriesInLZ do
+            if not(oLZFactory == oFactory) and M28UnitInfo.GetUnitTechLevel(oLZFactory) > iFactoryTechLevel then
+                bHaveHighestLZTech = false
+                break
+            end
+        end
+    end
+
+
 
     iCategoryToBuild = M28UnitInfo.refCategoryEngineer --Placeholder
     local sBPIDToBuild
@@ -282,7 +301,11 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) --Assumes we will end code if we get to this point
             return sBPIDToBuild
         end
+    end
 
+    function ConsiderUpgrading()
+        sBPIDToBuild = M28UnitInfo.GetUnitUpgradeBlueprint(oFactory, true)
+        return sBPIDToBuild
     end
 
     local iCurrentConditionToTry = 0
@@ -298,6 +321,12 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         end
     end
 
+    --Initiail combat
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if iFactoryTechLevel == 1 and bHaveHighestLZTech and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat) < 2 then
+        if ConsiderBuildingCategory(M28UnitInfo.refCategoryDFTank) then return sBPIDToBuild end
+    end
+
     --Scouts if we want any
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if tLZTeamData[M28Map.refbWantLandScout] then
@@ -310,42 +339,53 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
     end
 
-    --Combat if this LZ needs more units
-    iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if tLZTeamData[M28Map.subrefbLZWantsSupport] then
-        local iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone)
-        if iCategoryToGet then
-            if ConsiderBuildingCategory(iCategoryToGet) then return sBPIDToBuild end
-        end
-    end
+    --Other actions - dont do unless we have lots of mass if this is lower than our highest tech level
 
-    --Combat if we have a LZ within half of dist between us and nearest enemy that wants more units
-    iCurrentConditionToTry = iCurrentConditionToTry + 1
-    local iEnemyPlateau, iEnemyLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.GetPrimaryEnemyBaseLocation(aiBrain))
-    if iEnemyPlateau == iPlateau then
-        local iDistToEnemyBaseToConsider
-        if not(bHaveLowMass) then iDistToEnemyBaseToConsider = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iEnemyLandZone) * 0.75
-        else iDistToEnemyBaseToConsider = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iEnemyLandZone) * 0.5
+    if bHaveHighestLZTech then
+
+        --Combat if this LZ needs more units
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if tLZTeamData[M28Map.subrefbLZWantsSupport] then
+            local iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone)
+            if iCategoryToGet then
+                if ConsiderBuildingCategory(iCategoryToGet) then return sBPIDToBuild end
+            end
         end
 
-        for iEntry, tLZPathing in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
-            if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tLZPathing[M28Map.subrefLZNumber]][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefbLZWantsSupport] then
-                --How far away is it?
-                if tLZPathing[M28Map.subrefLZTravelDist] <= iDistToEnemyBaseToConsider then
-                    local iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, tLZPathing[M28Map.subrefLZNumber])
-                    if iCategoryToGet then
-                        if ConsiderBuildingCategory(iCategoryToGet) then return sBPIDToBuild end
+        --Combat if we have a LZ within half of dist between us and nearest enemy that wants more units
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        local iEnemyPlateau, iEnemyLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.GetPrimaryEnemyBaseLocation(aiBrain))
+        if iEnemyPlateau == iPlateau then
+            local iDistToEnemyBaseToConsider
+            if not(bHaveLowMass) then iDistToEnemyBaseToConsider = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iEnemyLandZone) * 0.75
+            else iDistToEnemyBaseToConsider = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iEnemyLandZone) * 0.5
+            end
+
+            for iEntry, tLZPathing in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
+                if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tLZPathing[M28Map.subrefLZNumber]][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefbLZWantsSupport] then
+                    --How far away is it?
+                    if tLZPathing[M28Map.subrefLZTravelDist] <= iDistToEnemyBaseToConsider then
+                        local iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, tLZPathing[M28Map.subrefLZNumber])
+                        if iCategoryToGet then
+                            if ConsiderBuildingCategory(iCategoryToGet) then return sBPIDToBuild end
+                        end
+                    else
+                        break
                     end
-                else
-                    break
                 end
             end
+        end
+    else
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        --Do we want ot upgrade a support factory
+        if not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] > 0.3 and iFactoryTechLevel < aiBrain[M28Economy.refiOurHighestLandFactoryTech] then
+            if ConsiderUpgrading() then return sBPIDToBuild end
         end
     end
 
     --Engineers if we have mass and dont have spare engineers
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] > 0.01 then
+    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] > 0.01 and (bHaveHighestLZTech or M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] > 0.4) then
         if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
     end
 
@@ -408,7 +448,12 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait)
         local sBPToBuild = DetermineWhatToBuild(aiBrain, oFactory)
         if bDebugMessages == true then LOG(sFunctionRef..': oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; sBPToBuild='..(sBPToBuild or 'nil')..'; Does factory have an empty command queue='..tostring(M28Utilities.IsTableEmpty(oFactory:GetCommandQueue()))..'; Factory work progress='..oFactory:GetWorkProgress()..'; Factory unit state='..M28UnitInfo.GetUnitState(oFactory)) end
         if sBPToBuild then
-            M28Orders.IssueTrackedFactoryBuild(oFactory, sBPToBuild, bDontWait)
+            --Is this an upgrade or a unit to build?
+            if EntityCategoryContains(M28UnitInfo.refCategoryFactory, sBPToBuild) then
+                M28Economy.UpgradeUnit(oFactory, true)
+            else
+                M28Orders.IssueTrackedFactoryBuild(oFactory, sBPToBuild, bDontWait)
+            end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

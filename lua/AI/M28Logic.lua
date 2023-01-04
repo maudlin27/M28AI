@@ -20,3 +20,207 @@ function GetNearestEnemyIndex(aiBrain)
     local oNearestBrain = M28Overseer.GetNearestEnemyBrain(aiBrain)
     if oNearestBrain then return oNearestBrain:GetArmyIndex() else return nil end
 end
+
+function GetDirectFireWeaponPosition(oFiringUnit)
+    --Returns position of oFiringUnit's first DF weapon; nil if oFiringUnit doesnt have a DF weapon; Unit position if no weapon bone
+    --for ACU, returns this for the overcharge weapon
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetDirectFireWeaponPosition'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    local oBPFiringUnit = oFiringUnit:GetBlueprint()
+    local tShotStartPosition
+    if EntityCategoryContains(categories.DIRECTFIRE + M28UnitInfo.refCategoryFatboy, oBPFiringUnit.BlueprintId) == true then
+        local bIsACU = EntityCategoryContains(categories.COMMAND, oBPFiringUnit.BlueprintId)
+
+        local sFiringBone
+        if bDebugMessages == true then LOG(sFunctionRef..': Have a DF unit, working out where shot coming from') end
+        --Work out where the shot is coming from:
+        local bIsFatboy = EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oFiringUnit)
+        for iCurWeapon, oWeapon in oBPFiringUnit.Weapon do
+            if oWeapon.RangeCategory and (oWeapon.RangeCategory == 'UWRC_DirectFire' or (bIsFatboy and oWeapon.RangeCategory == 'UWRC_IndirectFire')) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Have a weapon with range category') end
+                if oWeapon.RackBones then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have a weapon with RackBones') end
+                    for _, oRackBone in oWeapon.RackBones do
+                        if bDebugMessages == true then LOG(sFunctionRef..' Cur oRackBone='..repru(oRackBone)) end
+                        if oRackBone.MuzzleBones then
+                            sFiringBone = oRackBone.MuzzleBones[1]
+                            if bDebugMessages == true then LOG(sFunctionRef..': Found muzzlebone='..sFiringBone) end
+                            break
+                        else
+                            if bDebugMessages == true then LOG(sFunctionRef..': Cant locate muzzle bone') end
+                        end
+                    end
+                    if sFiringBone then
+                        if bIsACU == false then break
+                        else
+                            --ACU - make sure we have an overcharge weapon (to avoid e.g. cybran laser weapon)
+                            if oWeapon.OverChargeWeapon then
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        if sFiringBone then
+            tShotStartPosition = oFiringUnit:GetPosition(sFiringBone)
+        else
+            tShotStartPosition = oFiringUnit:GetPosition()
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return tShotStartPosition
+end
+
+function IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, iAOE, bReturnDistanceThatBlocked)
+    --If iAOE is specified then will end once reach the iAOE range
+    --(aiBrain included as argument as want to retry CheckBlockingTerrain in the future)
+    --bReturnDistanceThatBlocked - if true then returns either distance at which shot is blocked, or the distance+1 between the start and end position
+
+    --Angle (looking only at vertical dif) from shot start to shot end, theta: Tan Theta = Opp/Adj, so Theta = tan-1 Opp/Adj
+    --Once have this angle, then the height if move vertically to the target is: Sin theta = opp / hyp
+    --Opp is the height dif; adj is the distance between start and end (referred to below as iFlatDistance)
+
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'IsLineBlocked'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+    local bShotIsBlocked = false
+    local iFlatDistance = M28Utilities.GetDistanceBetweenPositions(tShotStartPosition, tShotEndPosition)
+    local tTerrainPositionAtPoint = {}
+    local bStartHigherThanEnd = false
+    if tShotStartPosition[2] > tShotEndPosition[2] then bStartHigherThanEnd = true end
+    if iFlatDistance > 1 then
+        local iAngleInRadians = math.atan(math.abs((tShotEndPosition[2] - tShotStartPosition[2])) / iFlatDistance)
+        local iShotHeightAtPoint
+        if bDebugMessages == true then LOG(sFunctionRef..': About to check if at any point on path shot will be lower than terrain; iAngle='..M28Utilities.ConvertAngleToRadians(iAngleInRadians)..'; startshot height='..tShotStartPosition[2]..'; target height='..tShotEndPosition[2]..'; iFlatDistance='..iFlatDistance) end
+        local iEndPoint = math.max(1, math.floor(iFlatDistance - (iAOE or 0)))
+        for iPointToTarget = 1, iEndPoint do
+            --math.min(math.floor(iFlatDistance), math.max(math.floor(iStartDistance or 1),1)), math.floor(iFlatDistance) do
+            --MoveTowardsTarget(tStartPos, tTargetPos, iDistanceToTravel, iAngle)
+            tTerrainPositionAtPoint = M28Utilities.MoveInDirection(tShotStartPosition, M28Utilities.GetAngleFromAToB(tShotStartPosition, tShotEndPosition), iPointToTarget, false, false)
+            if bDebugMessages == true then LOG(sFunctionRef..': iPointToTarget='..iPointToTarget..'; tTerrainPositionAtPoint='..repru(tTerrainPositionAtPoint)) end
+            if bStartHigherThanEnd then iShotHeightAtPoint = tShotStartPosition[2] - math.sin(iAngleInRadians) * iPointToTarget
+            else iShotHeightAtPoint = tShotStartPosition[2] + math.sin(iAngleInRadians) * iPointToTarget
+            end
+            if iShotHeightAtPoint <= tTerrainPositionAtPoint[2] then
+                if not(iPointToTarget == iEndPoint and iShotHeightAtPoint == tTerrainPositionAtPoint[2]) then
+                    if bDebugMessages == true then
+                        LOG(sFunctionRef..': Shot blocked at this position; iPointToTarget='..iPointToTarget..'; iShotHeightAtPoint='..iShotHeightAtPoint..'; tTerrainPositionAtPoint='..tTerrainPositionAtPoint[2])
+                        M28Utilities.DrawLocation(tTerrainPositionAtPoint, 5, 10)
+                    end
+                    bShotIsBlocked = true
+                    if bReturnDistanceThatBlocked then
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        return iPointToTarget
+                    end
+
+                    break
+                elseif bDebugMessages == true then LOG(sFunctionRef..': Are at end point and terrain height is identical, so will assume we will actually reach the target')
+                end
+            else
+                if bDebugMessages == true then
+                    LOG(sFunctionRef..': Shot not blocked at this position, will draw in blue; iPointToTarget='..(iPointToTarget or 'nil')..'; iShotHeightAtPoint='..(iShotHeightAtPoint or 'nil')..'; tTerrainPositionAtPoint='..(tTerrainPositionAtPoint[2] or 'nil')..'; iAngle='..M28Utilities.ConvertAngleToRadians(iAngleInRadians)..'; iPointToTarget='..(iPointToTarget or 'nil')..'; tShotStartPosition[2]='..(tShotStartPosition[2] or 'nil'))
+                    M28Utilities.DrawLocation(tTerrainPositionAtPoint, 1, 20)
+                end
+            end
+        end
+    else bShotIsBlocked = false
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    if bReturnDistanceThatBlocked and not(bShotIsBlocked) then return M28Utilities.GetDistanceBetweenPositions(tShotStartPosition, tShotEndPosition) + 1
+    else
+        return bShotIsBlocked
+    end
+end
+
+function IsShotBlocked(oFiringUnit, oTargetUnit)
+    --Returns true or false depending on if oFiringUnit can hit oTargetUnit in a straight line
+    --intended for direct fire units only
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'IsShotBlocked'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+    local bShotIsBlocked = false
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code') end
+    local tShotStartPosition = GetDirectFireWeaponPosition(oFiringUnit)
+    if tShotStartPosition then
+        if bDebugMessages == true then LOG(sFunctionRef..': tShotStartPosition='..repru(tShotStartPosition)) end
+        if tShotStartPosition[2] <= 0 then bShotIsBlocked = true
+        else
+            local tShotEndPosition = {}
+            local oBPTargetUnit = oTargetUnit:GetBlueprint()
+            local iLowestHeight = 1000
+            local iHighestHeight = -1000
+            local sLowestBone, sHighestBone
+            local tTargetUnitDefaultPosition = oTargetUnit:GetPosition()
+            --Work out where the shot is targetting - not all units will have a bone specified in the AI section, in which case just get the unit position
+            if oBPTargetUnit.AI and oBPTargetUnit.AI.TargetBones then
+                if bDebugMessages == true then LOG(sFunctionRef..': Have targetbones in the targetunit blueprint; repr='..repru(oBPTargetUnit.AI.TargetBones)) end
+                --Is the target higher or lower than the shooter? If higher, want the lowest target bone; if lower, want the highest target bone
+                for iBone, sBone in oBPTargetUnit.AI.TargetBones do
+                    if oTargetUnit:IsValidBone(sBone) == true then
+                        tShotEndPosition = oTargetUnit:GetPosition(sBone)
+                        if bDebugMessages == true then LOG(sFunctionRef..' Getting position for sBone='..sBone..'; position='..repru(tShotEndPosition)) end
+                        if tShotEndPosition[2] < iLowestHeight then
+                            iLowestHeight = tShotEndPosition[2]
+                            sLowestBone = sBone
+                        end
+                        if tShotEndPosition[2] > iHighestHeight then
+                            iHighestHeight = tShotEndPosition[2]
+                            sHighestBone = sBone
+                        end
+                    end
+                end
+                --Try alternative approach:
+                if sHighestBone == nil and oTargetUnit.GetBoneCount then
+                    local iBoneCount = oTargetUnit:GetBoneCount()
+                    local sBone
+                    if iBoneCount > 0 then
+                        for iCurBone = 0, iBoneCount - 1 do
+                            sBone = oTargetUnit:GetBoneName(iCurBone)
+                            if sBone then
+                                if oTargetUnit:IsValidBone(sBone) == true then
+                                    tShotEndPosition = oTargetUnit:GetPosition(sBone)
+                                    if bDebugMessages == true then LOG(sFunctionRef..' Getting position for sBone='..sBone..'; position='..repru(tShotEndPosition)) end
+                                    if tShotEndPosition[2] < iLowestHeight then
+                                        iLowestHeight = tShotEndPosition[2]
+                                        sLowestBone = sBone
+                                    end
+                                    if tShotEndPosition[2] > iHighestHeight then
+                                        iHighestHeight = tShotEndPosition[2]
+                                        sHighestBone = sBone
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            if sHighestBone == nil then
+                tShotEndPosition = tTargetUnitDefaultPosition
+                if bDebugMessages == true then LOG(sFunctionRef..': Couldnt find a bone to target for target unit, so using its position instaed='..repru(tShotEndPosition)) end
+            else
+                if tTargetUnitDefaultPosition[2] > tShotStartPosition[2] then
+                    tShotEndPosition = oTargetUnit:GetPosition(sLowestBone)
+                else
+                    tShotEndPosition = oTargetUnit:GetPosition(sHighestBone)
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': HighestBone='..sHighestBone..'; lowest bone='..sLowestBone..'; tShotEndPosition='..repru(tShotEndPosition)) end
+            end
+            --Have the shot end and start positions; Now check that not firing at underwater target
+            if tShotEndPosition[2] < GetSurfaceHeight(tShotEndPosition[1], tShotEndPosition[3]) then
+                bShotIsBlocked = true
+            else
+                --Have the shot end and start positions; now want to move along a line between the two and work out if terrain will block the shot
+                if bDebugMessages == true then LOG(sFunctionRef..': About to see if line is blocked. tShotStartPosition='..repru(tShotStartPosition)..'; tShotEndPosition='..repru(tShotEndPosition)..'; Terrain height at start='..GetTerrainHeight(tShotStartPosition[1], tShotStartPosition[3])..'; Terrain height at end='..GetTerrainHeight(tShotEndPosition[1], tShotEndPosition[3])) end
+                bShotIsBlocked = IsLineBlocked(oFiringUnit:GetAIBrain(), tShotStartPosition, tShotEndPosition)
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return bShotIsBlocked
+end

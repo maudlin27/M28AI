@@ -20,6 +20,7 @@ local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Config = import('/mods/M28AI/lua/M28Config.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
+local M28Logic = import('/mods/M28AI/lua/AI/M28Logic.lua')
 
 
 function OnPlayerDefeated(aiBrain)
@@ -229,6 +230,11 @@ end
 
 function OnWeaponFired(oWeapon)
     if M28Utilities.bM28AIInGame then
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'OnWeaponFired'
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code; does the weapon have a valid unit='..tostring(M28UnitInfo.IsUnitValid(oWeapon.unit))..'; Weapon unitID='..(oWeapon.unit.UnitId or 'nil')) end
+
         local oUnit = oWeapon.unit
         if oUnit and oUnit.GetUnitId and oUnit.GetAIBrain then
             --Update unit last known position/record it
@@ -243,7 +249,31 @@ function OnWeaponFired(oWeapon)
                     end
                 end
             end
+
+            --M28 owned unit specific logic
+            if oUnit:GetAIBrain().M28AI then
+                --Shot is blocked logic
+                if bDebugMessages == true then LOG(sFunctionRef..': COnsidering if unit shot is blocked Time='..GetGameTimeSeconds()..', range category='..(oWeapon.Blueprint.RangeCategory or 'nil')..'; Is unit a relevant DF category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId))) end
+                if oWeapon.Blueprint.RangeCategory == 'UWRC_DirectFire' and EntityCategoryContains(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId) then
+                    --Get weapon target if it is a DF weapon
+                    local oTarget = oWeapon:GetCurrentTarget()
+                    if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has just fired a shot. Do we have a valid target for our weapon='..tostring(M28UnitInfo.IsUnitValid(oTarget))..'; time last shot was blocked='..(oUnit[M28UnitInfo.refiTimeOfLastCheck] or 'nil')) end
+                    if M28UnitInfo.IsUnitValid(oTarget) then
+
+                        oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds()
+                        oUnit[M28UnitInfo.refbLastShotBlocked] = M28Logic.IsShotBlocked(oUnit, oTarget)
+                        if bDebugMessages == true then LOG(sFunctionRef..': oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; Is shot blocked='..tostring(oUnit[M28UnitInfo.refbLastShotBlocked])..'; built in blocking terrain result for low profile='..tostring(oUnit:GetAIBrain():CheckBlockingTerrain(oUnit:GetPosition(), oTarget:GetPosition(), 'Low'))..'; High profile='..tostring(oUnit:GetAIBrain():CheckBlockingTerrain(oUnit:GetPosition(), oTarget:GetPosition(), 'High'))) end
+
+                        if oUnit[M28UnitInfo.refbLastShotBlocked] then
+                            --Reset after 20s if we havent fired any more shots at the target
+                            --function DelayChangeVariable(oVariableOwner, sVariableName, vVariableValue, iDelayInSeconds, sOptionalOwnerConditionRef, iMustBeLessThanThisTimeValue, iMustBeMoreThanThisTimeValue, vMustNotEqualThisValue)
+                            M28Utilities.DelayChangeVariable(oUnit, M28UnitInfo.refbLastShotBlocked, false, 20, M28UnitInfo.refiTimeOfLastCheck, GetGameTimeSeconds() + 0.01)
+                        end
+                    end
+                end
+            end
         end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 
     end
 end
@@ -545,6 +575,50 @@ function OnCreate(oUnit)
             M28Economy.UpdateHighestFactoryTechLevelForBuiltUnit(oUnit) --this includes a check to see if are dealing with a factory HQ
             M28Economy.UpdateGrossIncomeForUnit(oUnit, false) --This both includes a check of the unit type, and cehcks we havent already recorded
             if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) and not(oUnit.M28OnConstructedCalled) then M28Economy.UpdateLandZoneM28MexByTechCount(oUnit) end
+        end
+    end
+end
+
+function OnCreateBrain(aiBrain, planName, bIsHuman)
+    if not(aiBrain['M28BrainSetupRun']) then
+        if M28Config.M28RunProfiling then ForkThread(M28Profiler.ProfilerActualTimePerTick) end
+        aiBrain['M28BrainSetupRun'] = true
+
+        if bIsHuman == nil then
+            if aiBrain.BrainType == "AI" or not(aiBrain.BrainType) or string.find(aiBrain.BrainType, "AI") then bIsHuman = false else bIsHuman = true end
+        end
+
+        --Logic to run for all brains
+        local iStartPositionX, iStartPositionZ = aiBrain:GetArmyStartPos()
+        M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()] = {iStartPositionX, GetSurfaceHeight(iStartPositionX, iStartPositionZ), iStartPositionZ}
+        M28Overseer.tAllAIBrainsByArmyIndex[aiBrain:GetArmyIndex()] = aiBrain
+
+        if bIsHuman then
+            LOG('Human player brain '..aiBrain.Nickname..' created; Index='..aiBrain:GetArmyIndex()..'; start position='..repru(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()]))
+        else
+            --Logic to run just for M28AI
+            LOG('OnCreateBrain hook for ai with personality '..ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality)
+
+            if ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == 'm28ai' or ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == 'm28aicheat' then
+                aiBrain.M28AI = true
+                LOG('M28 brain created')
+
+                --Copy of parts of aiBrain OnCreateAI that still want to retain
+                aiBrain:CreateBrainShared(planName)
+                --aiBrain:InitializeEconomyState()
+                aiBrain.BrainType = 'AI'
+                local per = ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality
+                local cheatPos = string.find(per, 'cheat')
+                if cheatPos then
+
+                    local AIUtils = import('/lua/ai/aiutilities.lua')
+                    AIUtils.SetupCheat(aiBrain, true)
+                    ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality = string.sub(per, 1, cheatPos - 1)
+                end
+
+                --M28AIBrainClass.OnCreateAI(aiBrain, planName)
+                ForkThread(M28Overseer.M28BrainCreated, aiBrain)
+            end
         end
     end
 end

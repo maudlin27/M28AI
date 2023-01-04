@@ -7,7 +7,7 @@
 local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
 local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
---Dont include m28factory here or will get a crash at start of the game
+--Dont include m28factory or m28engineer here or will get a crash at start of the game
 
 --global (non-category) varaibles:
 --Threat values
@@ -28,6 +28,8 @@ reftAssignedPlateauAndLandZoneByTeam = 'M28UnitPlateauAndZone' --[x] is the M28 
 reftbConsideredForAssignmentByTeam = 'M28UnitConsideredForAssignment' --[x] is the M28 team ref, returns true if have sent at least once to be assigned to a plateau/land zone/air logic/navy logic
 refiDFMassThreatOverride = 'M28BaseMassOverride' --e.g. for ACUs, will override the mass value suggested by the blueprint
 refbShieldIsDisabled = 'M28UnitShieldDisabled'
+refiTimeOfLastCheck = 'M28UnitTimeOfLastCheck' --Currently used for shot is blocked (M27 also used for T3 arti adjacency, when first detected enemy SMD)
+refbLastShotBlocked = 'M28UnitLastShotBlocked' --Used for DF units to indicate if last shot was blocked
 
     --Ranges:
 refiDFRange = 'M28UDFR'
@@ -1203,11 +1205,11 @@ function PauseOrUnpauseMassUsage(oUnit, bPauseNotUnpause)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'PauseOrUnpauseMassUsage'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    --if EntityCategoryContains(categories.COMMAND + refCategoryAirFactory, oUnit.UnitId) then bDebugMessages = true end
+
 
     if bDebugMessages == true then
-        local M27Logic = import('/mods/M27AI/lua/AI/M27GeneralLogic.lua')
-        LOG(sFunctionRef..': Start of code, oUnit='..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit))
+        local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
+        LOG(sFunctionRef..': Start of code, oUnit='..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; Unit state='..GetUnitState(oUnit)..'; Engineer action (if have one)='..(oUnit[M28Engineer.refiAssignedAction] or 'nil'))
         if oUnit.GetWorkProgress then LOG(sFunctionRef..': Unit work progress='..oUnit:GetWorkProgress()) end
     end
     if IsUnitValid(oUnit, true) and oUnit.SetPaused then
@@ -1219,12 +1221,17 @@ function PauseOrUnpauseMassUsage(oUnit, bPauseNotUnpause)
         if not(EntityCategoryContains(refCategoryFactory, oUnit.UnitId)) or not(bPauseNotUnpause) or (oUnit.GetWorkProgress and oUnit:GetWorkProgress() > 0 and oUnit:GetWorkProgress() < 1) then
             if oUnit.UnitId == 'xsb2401' then M28Utilities.ErrorHandler('Pausing Yolona') end
             oUnit:SetPaused(bPauseNotUnpause)
+            oUnit[refbPaused] = bPauseNotUnpause
             if bDebugMessages == true then LOG(sFunctionRef..': Just set paused to '..tostring(bPauseNotUnpause)..' for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)) end
         elseif bDebugMessages == true then
             LOG(sFunctionRef..': Factory with either no workprogress or workprogress that isnt <1')
             if oUnit.GetWorkProgress then LOG(sFunctionRef..': Workprogress='..oUnit:GetWorkProgress()) end
         end
+    else
+        if bDebugMessages == true then LOG(sFunctionRef..': Unit isnt valid') end
     end
+
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, unit paused flag='..tostring(oUnit[refbPaused] or false)) end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -1236,8 +1243,7 @@ function PauseOrUnpauseEnergyUsage(oUnit, bPauseNotUnpause)
     --if EntityCategoryContains(categories.COMMAND + refCategoryAirFactory, oUnit.UnitId) then bDebugMessages = true end
 
     if bDebugMessages == true then
-        local M27Logic = import('/mods/M27AI/lua/AI/M27GeneralLogic.lua')
-        LOG(sFunctionRef..': Start of code, oUnit='..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit))
+        LOG(sFunctionRef..': Start of code, oUnit='..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; Unit state='..GetUnitState(oUnit))
         if oUnit.GetFocusUnit and oUnit:GetFocusUnit() then LOG(sFunctionRef..': Focus unit='..oUnit:GetFocusUnit().UnitId..GetUnitLifetimeCount(oUnit:GetFocusUnit())) end
         if oUnit.GetWorkProgress then LOG(sFunctionRef..': Unit work progress='..oUnit:GetWorkProgress()..'; Unit fraction complete='..oUnit:GetFractionComplete()) end
     end
@@ -1274,6 +1280,7 @@ function PauseOrUnpauseEnergyUsage(oUnit, bPauseNotUnpause)
             if oUnit.UnitId == 'xsb2401' then M28Utilities.ErrorHandler('Pausing Yolona') end
             if bDebugMessages == true then LOG(sFunctionRef..': About to set paused to '..tostring(bPauseNotUnpause)..' for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)) end
             oUnit:SetPaused(bPauseNotUnpause)
+            oUnit[refbPaused] = bPauseNotUnpause
 
         elseif bDebugMessages == true then
             LOG(sFunctionRef..': Factory with either no workprogress or workprogress that isnt <1')

@@ -248,6 +248,20 @@ function FindAndUpgradeUnitOfCategory(aiBrain, iCategoryWanted)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function UpdateFactoryCountForFactoryKilledOrBuilt(oFactory, bIsDead)
+    local iAdjust = 0
+    local sTrackerRef = 'M28RecordedCount'
+    if bIsDead then
+        if oFactory[sTrackerRef] then iAdjust = -1 end
+    else
+        if not(oFactory[sTrackerRef]) then iAdjust = 1 end
+    end
+    if not(iAdjust == 0) then
+        local iFactoryType = M28UnitInfo.GetFactoryType(oFactory)
+        M28Team.tTeamData[oFactory:GetAIBrain().M28Team][M28Team.subrefiTotalFactoryCountByType][iFactoryType] = math.max(0, M28Team.tTeamData[oFactory:GetAIBrain().M28Team][M28Team.subrefiTotalFactoryCountByType][iFactoryType] + iAdjust)
+    end
+end
+
 function UpdateHighestFactoryTechLevelForBuiltUnit(oUnitJustBuilt)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateHighestFactoryTechLevelForBuiltUnit'
@@ -255,70 +269,80 @@ function UpdateHighestFactoryTechLevelForBuiltUnit(oUnitJustBuilt)
 
     if bDebugMessages == true then LOG(sFunctionRef..': Checking if just built a factory HQ, Have just built unit '..oUnitJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitJustBuilt)..'; Fraction complete='..oUnitJustBuilt:GetFractionComplete()..'; Is it a factory HQ='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnitJustBuilt.UnitId))) end
 
-    if oUnitJustBuilt:GetFractionComplete() == 1 and EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnitJustBuilt.UnitId) then
-        local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnitJustBuilt)
-        local sFactoryRef
-        if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnitJustBuilt.UnitId) then sFactoryRef = refiOurHighestLandFactoryTech
-        elseif EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oUnitJustBuilt.UnitId) then sFactoryRef = refiOurHighestAirFactory
-        elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oUnitJustBuilt.UnitId) then sFactoryRef = refiOurHighestNavalFactoryTech
-        else M28Utilities.ErrorHandler('Unrecognised factory type')
-        end
-        local aiBrain = oUnitJustBuilt:GetAIBrain()
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering if factory HQ is a higher tech than we already have, sFactoryRef='..sFactoryRef..'; iUnitTechLevel='..iUnitTechLevel..'; aiBrain[sFactoryRef]='..aiBrain[sFactoryRef]) end
-        if iUnitTechLevel > aiBrain[sFactoryRef] then
-            aiBrain[sFactoryRef] = math.max(aiBrain[sFactoryRef], iUnitTechLevel)
-            aiBrain[refiOurHighestFactoryTechLevel] = math.max(iUnitTechLevel, aiBrain[refiOurHighestFactoryTechLevel])
-            --Update team details
-            M28Team.UpdateTeamHighestAndLowestFactories(aiBrain.M28Team)
-            M28Team.CheckForSubteamFactoryChange(oUnitJustBuilt, true)
+    --Update total factory count
+
+
+    if oUnitJustBuilt:GetFractionComplete() == 1 and EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUnitJustBuilt.UnitId) then
+        --Update factory count
+        UpdateFactoryCountForFactoryKilledOrBuilt(oUnitJustBuilt, false)
+        if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnitJustBuilt.UnitId) then
+            local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnitJustBuilt)
+            local sFactoryRef
+            if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnitJustBuilt.UnitId) then sFactoryRef = refiOurHighestLandFactoryTech
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oUnitJustBuilt.UnitId) then sFactoryRef = refiOurHighestAirFactory
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oUnitJustBuilt.UnitId) then sFactoryRef = refiOurHighestNavalFactoryTech
+            else M28Utilities.ErrorHandler('Unrecognised factory type')
+            end
+            local aiBrain = oUnitJustBuilt:GetAIBrain()
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering if factory HQ is a higher tech than we already have, sFactoryRef='..sFactoryRef..'; iUnitTechLevel='..iUnitTechLevel..'; aiBrain[sFactoryRef]='..aiBrain[sFactoryRef]) end
+            if iUnitTechLevel > aiBrain[sFactoryRef] then
+                aiBrain[sFactoryRef] = math.max(aiBrain[sFactoryRef], iUnitTechLevel)
+                aiBrain[refiOurHighestFactoryTechLevel] = math.max(iUnitTechLevel, aiBrain[refiOurHighestFactoryTechLevel])
+                --Update team details
+                M28Team.UpdateTeamHighestAndLowestFactories(aiBrain.M28Team)
+                M28Team.CheckForSubteamFactoryChange(oUnitJustBuilt, true)
+            end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function UpdateHighestFactoryTechLevelForDestroyedUnit(oUnitJustDestroyed)
-    if oUnitJustDestroyed:GetFractionComplete() == 1 and EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories) then
-        local aiBrain = oUnitJustDestroyed:GetAIBrain()
-        local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnitJustDestroyed)
-        if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory) then
-            if iUnitTechLevel >= (aiBrain[refiOurHighestLandFactoryTech] or 0) then
-                aiBrain[refiOurHighestLandFactoryTech] = 0
-                for iTechLevel = 3, 1, -1 do
-                    if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory * M28UnitInfo.ConvertTechLevelToCategory(iTechLevel) - categories.SUPPORTFACTORY) > 0 then
-                        aiBrain[refiOurHighestLandFactoryTech] = iTechLevel
-                        break
+    if oUnitJustDestroyed:GetFractionComplete() == 1 and EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUnitJustDestroyed.UnitId) then
+        UpdateFactoryCountForFactoryKilledOrBuilt(oUnitJustDestroyed, true)
+        if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories) then
+            local aiBrain = oUnitJustDestroyed:GetAIBrain()
+            local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnitJustDestroyed)
+            if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory) then
+                if iUnitTechLevel >= (aiBrain[refiOurHighestLandFactoryTech] or 0) then
+                    aiBrain[refiOurHighestLandFactoryTech] = 0
+                    for iTechLevel = 3, 1, -1 do
+                        if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory * M28UnitInfo.ConvertTechLevelToCategory(iTechLevel) - categories.SUPPORTFACTORY) > 0 then
+                            aiBrain[refiOurHighestLandFactoryTech] = iTechLevel
+                            break
+                        end
                     end
                 end
-            end
-        elseif EntityCategoryContains(M28UnitInfo.refCategoryAirFactory) then sFactoryRef = refiOurHighestAirFactory
-            if iUnitTechLevel >= aiBrain[refiOurHighestAirFactoryTech] then
-                aiBrain[refiOurHighestAirFactoryTech] = 0
-                for iTechLevel = 3, 1, -1 do
-                    if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory * M28UnitInfo.ConvertTechLevelToCategory(iTechLevel) - categories.SUPPORTFACTORY) > 0 then
-                        aiBrain[refiOurHighestAirFactoryTech] = iTechLevel
-                        break
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryAirFactory) then sFactoryRef = refiOurHighestAirFactory
+                if iUnitTechLevel >= aiBrain[refiOurHighestAirFactoryTech] then
+                    aiBrain[refiOurHighestAirFactoryTech] = 0
+                    for iTechLevel = 3, 1, -1 do
+                        if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory * M28UnitInfo.ConvertTechLevelToCategory(iTechLevel) - categories.SUPPORTFACTORY) > 0 then
+                            aiBrain[refiOurHighestAirFactoryTech] = iTechLevel
+                            break
+                        end
                     end
                 end
-            end
-        elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory) then sFactoryRef = refiOurHighestNavalFactoryTech
-            if iUnitTechLevel >= aiBrain[refiOurHighestNavalFactoryTech] then
-                aiBrain[refiOurHighestNavalFactoryTech] = 0
-                for iTechLevel = 3, 1, -1 do
-                    if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalFactory * M28UnitInfo.ConvertTechLevelToCategory(iTechLevel) - categories.SUPPORTFACTORY) > 0 then
-                        aiBrain[refiOurHighestNavalFactoryTech] = iTechLevel
-                        break
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory) then sFactoryRef = refiOurHighestNavalFactoryTech
+                if iUnitTechLevel >= aiBrain[refiOurHighestNavalFactoryTech] then
+                    aiBrain[refiOurHighestNavalFactoryTech] = 0
+                    for iTechLevel = 3, 1, -1 do
+                        if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalFactory * M28UnitInfo.ConvertTechLevelToCategory(iTechLevel) - categories.SUPPORTFACTORY) > 0 then
+                            aiBrain[refiOurHighestNavalFactoryTech] = iTechLevel
+                            break
+                        end
                     end
                 end
+            else M28Utilities.ErrorHandler('Unrecognised factory type')
             end
-        else M28Utilities.ErrorHandler('Unrecognised factory type')
+
+            --Updated highest factory type across all types
+            aiBrain[refiOurHighestFactoryTechLevel] = math.max(aiBrain[refiOurHighestLandFactoryTech], aiBrain[refiOurHighestAirFactoryTech], aiBrain[refiOurHighestNavalFactoryTech])
+
+            --Update team details
+            M28Team.UpdateTeamHighestAndLowestFactories(aiBrain.M28Team)
+            M28Team.CheckForSubteamFactoryChange(oUnitJustDestroyed, false)
         end
-
-        --Updated highest factory type across all types
-        aiBrain[refiOurHighestFactoryTechLevel] = math.max(aiBrain[refiOurHighestLandFactoryTech], aiBrain[refiOurHighestAirFactoryTech], aiBrain[refiOurHighestNavalFactoryTech])
-
-        --Update team details
-        M28Team.UpdateTeamHighestAndLowestFactories(aiBrain.M28Team)
-        M28Team.CheckForSubteamFactoryChange(oUnitJustDestroyed, false)
     end
 end
 

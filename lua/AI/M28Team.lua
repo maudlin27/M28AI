@@ -16,6 +16,7 @@ local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
 local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
+local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 
 --Team data variables
 bRecordedAllPlayers = false
@@ -57,7 +58,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefiMassUpgradesStartedThisCycle = 'M28TeamMassUpgradesThisCycle' --Amount of mass per tick that we have committed in upgrades this cycle
     subrefiEnergyUpgradesStartedThisCycle = 'M28TeamEnergyUpgradesThisCycle' --Amount of energy per tick that we have committed in upgrades this cycle
 
-    --Tech level details
+    --Tech level and factory details (subteam will track factories in more detail by tech and faction and type)
     subrefiHighestEnemyGroundTech = 'M28TeamHighestEnemyGround'
     subrefiHighestEnemyAirTech = 'M28TeamHighestEnemyAir'
     subrefiHighestEnemyNavyTech = 'M28TeamHighestEnemyNavy'
@@ -69,6 +70,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefiHighestFriendlyAirFactoryTech = 'M28TeamHighestFriendlyAir' --Returns the Highest M28Brain's highest tech of this type, i.e. if an M28 brain has a T1 and T2 air factory, and another has a T3 air factory, then this would return 3.
     subrefiHighestFriendlyNavalFactoryTech = 'M28TeamHighestFriendlyNaval'
     subrefiHighestEnemyMexTech = 'M28TeamHighestEnemyMex' --I.e. 1, 2 or 3
+    subrefiTotalFactoryCountByType = 'M28TeamFactoryByType' --[x] is the factory type, returns the number that our team has
 
 
     --Intel details
@@ -330,11 +332,21 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][refiTimeOfLastEngiSelfDestruct] = 0
     tTeamData[iTotalTeamCount][refbNeedResourcesForMissile] = false
     tTeamData[iTotalTeamCount][subrefiLandZonesWantingSupportByPlateau] = {}
+    tTeamData[iTotalTeamCount][subrefiTotalFactoryCountByType] = {[M28Factory.refiFactoryTypeLand] = 0, [M28Factory.refiFactoryTypeAir] = 0, [M28Factory.refiFactoryTypeNaval] = 0, [M28Factory.refiFactoryTypeOther] = 0}
 
 
     local bHaveM28BrainInTeam = false
     local bHaveOmniVision = false
     for iCurBrain, oBrain in ArmyBrains do
+        --First make sure we have recorded all brains (redundancy for AI like dillidalli) - the function below will check if we have already recorded the brain
+        M28Events.OnCreateBrain(oBrain, nil, nil)
+        --[[if not(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()]) then --redundancy
+            local iStartPositionX, iStartPositionZ = oBrain:GetArmyStartPos()
+            M28Map.PlayerStartPoints[oBrain:GetArmyIndex()] = {iStartPositionX, GetSurfaceHeight(iStartPositionX, iStartPositionZ), iStartPositionZ}
+            M28Overseer.tAllAIBrainsByArmyIndex[oBrain:GetArmyIndex()] = oBrain
+        end--]]
+
+
         if IsAlly(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) then
             oBrain.M28Team = iTotalTeamCount
             table.insert(tTeamData[iTotalTeamCount][subreftoFriendlyActiveBrains], oBrain)
@@ -454,6 +466,13 @@ function UpdateUnitLastKnownPosition(aiBrain, oUnit, bDontCheckIfCanSeeUnit)
             if not(oUnit[M28UnitInfo.reftLastKnownPositionByTeam]) then oUnit[M28UnitInfo.reftLastKnownPositionByTeam] = {} end
             local tCurPosition = oUnit:GetPosition()
             oUnit[M28UnitInfo.reftLastKnownPositionByTeam][aiBrain.M28Team] = {tCurPosition[1], tCurPosition[2], tCurPosition[3]} --Do a copy of table as :GetPosition() means it will always update for the unit's latest position even when we lack intel of it
+        else
+            --Below to try and approximate scenarios where enemy retreats temporarily with the unit and we end up with units thinking the enemy is right infront of them (even though they can see the location it used to be to confirm it isnt there); will approximate by saying if we have friendly units in the same land zone as the last known position, then we can refresh its position
+            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][aiBrain.M28Team])
+            if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTAlliedUnits]) == false then
+                local tCurPosition = oUnit:GetPosition()
+                oUnit[M28UnitInfo.reftLastKnownPositionByTeam][aiBrain.M28Team] = {tCurPosition[1], tCurPosition[2], tCurPosition[3]}
+            end
         end
     end
 end
@@ -764,7 +783,7 @@ end
 
 function ConsiderPriorityLandFactoryUpgrades(iM28Team)
     --Starts a land factory upgrade if we need one urgently
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderPriorityLandFactoryUpgrades'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --Enemy has better land tech than us, and we have no active land upgrades
@@ -1092,7 +1111,7 @@ end
 
 function ConsiderNormalUpgrades(iM28Team)
     --We should have already considered high priority upgrades before, now we want to consider upgrades if we have the eco to support upgrades generally
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderNormalUpgrades'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -1285,6 +1304,8 @@ function TeamInitialisation(iM28Team)
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatEnemyBestMobileDFRange] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatEnemyBestStructureDFRange] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatEnemyBestMobileIndirectRange] = 0
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZIndirectThreatWanted] = 0
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZDFThreatWanted] = 0
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

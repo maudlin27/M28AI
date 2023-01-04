@@ -136,6 +136,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             --Ground threat values for land zones (also against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam])
             subrefLZTThreatEnemyCombatTotal = 'ECTotal'
             subrefLZTThreatAllyCombatTotal = 'ACTotal'
+            subrefLZDFThreatWanted = 'DFWanted'
             subrefLZThreatEnemyMobileDFByRange = 'EMDFByRange'
             subrefLZThreatAllyMobileDFByRange = 'AMDFByRange'
             subrefLZThreatEnemyMobileIndirectByRange = 'EMIFByRange'
@@ -146,6 +147,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
 
 
             subrefLZThreatEnemyStructureDFByRange = 'ESDFByRange'
+            subrefLZIndirectThreatWanted = 'IFWanted'
             subrefLZThreatAllyStructureDFByRange = 'ASDFByRange'
             subrefLZThreatEnemyStructureIndirect = 'ESITotal'
             subrefLZThreatAllyStructureIndirect = 'ASITotal'

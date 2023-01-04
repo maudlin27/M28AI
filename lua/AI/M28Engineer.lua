@@ -40,7 +40,7 @@ refActionBuildMex = 1
 refActionBuildHydro = 2
 refActionReclaimArea = 3
 refActionBuildPower = 4
-    refActionBuildLandFactory = 5
+refActionBuildLandFactory = 5
 refActionBuildEnergyStorage = 6
     refActionSpare = 7
     refActionHasNearbyEnemies = 8
@@ -104,6 +104,7 @@ tiActionCategory = {
 [refActionBuildMex] = M28UnitInfo.refCategoryT1Mex,
 [refActionBuildHydro] = M28UnitInfo.refCategoryHydro,
 [refActionBuildPower] = M28UnitInfo.refCategoryPower,
+[refActionBuildLandFactory] = M28UnitInfo.refCategoryLandFactory,
 [refActionBuildMassStorage] = M28UnitInfo.refCategoryMassStorage,
 [refActionBuildEnergyStorage] = M28UnitInfo.refCategoryEnergyStorage
 }
@@ -112,6 +113,7 @@ tiActionOrder = {
     [refActionBuildMex] = M28Orders.refiOrderIssueBuild,
     [refActionBuildHydro] = M28Orders.refiOrderIssueBuild,
     [refActionBuildPower] = M28Orders.refiOrderIssueBuild,
+    [refActionBuildLandFactory] = M28Orders.refiOrderIssueBuild,
     [refActionBuildEnergyStorage] = M28Orders.refiOrderIssueBuild,
     [refActionMoveToLandZone] = M28Orders.refiOrderIssueMove,
     [refActionRunToLandZone] = M28Orders.refiOrderIssueMove,
@@ -124,6 +126,7 @@ tiActionOrder = {
 --Adjacent categories to search for for a particular action
 tiActionAdjacentCategory = {
     [refActionBuildPower] = M28UnitInfo.refCategoryAirFactory + M28UnitInfo.refCategoryRadar + M28UnitInfo.refCategorySMD + M28UnitInfo.refCategorySML,
+    [refActionBuildLandFactory] = M28UnitInfo.refCategoryMex
 }
 
 --Include any actions where we wont be building a category or searching for a category to assist
@@ -1732,6 +1735,9 @@ function ClearEngineerTracking(oEngineer)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ClearEngineerTracking'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    --Unpause unit if it was paused (redundancy)
+    if oEngineer[M28UnitInfo.refbPaused] then M28UnitInfo.PauseOrUnpauseMassUsage(oEngineer, false) end
+
     oEngineer[refbPrimaryBuilder] = false
     if oEngineer[M28Land.reftiPlateauAndLZToMoveTo] then
         local tTargetLZTeamData = M28Map.tAllPlateaus[oEngineer[M28Land.reftiPlateauAndLZToMoveTo][1]][M28Map.subrefPlateauLandZones][oEngineer[M28Land.reftiPlateauAndLZToMoveTo][2]][M28Map.subrefLZTeamData][oEngineer:GetAIBrain().M28Team]
@@ -2353,6 +2359,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
     local bHaveLowPower = M28Conditions.HaveLowPower(iTeam)
     local bWantMorePower = M28Conditions.WantMorePower(iTeam)
+    local bWantMoreFactories = M28Conditions.WantMoreFactories(iTeam, iPlateau, iLandZone)
     local iBPWanted
 
 
@@ -2364,7 +2371,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         --Done as subfunction for convenience so can just note the key values for the action in question and add on the others that wont change
         --vOptionalVariable can be used for action specific information to save having to recalculate the same thing - could be a table, nil, or a value
         --ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowerWanted, iTeam, iPlateau, iLandZone, toAvailableEngineersByTech, toAssignedEngineers)
-        ConsiderActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, iCurPriority, tLZTeamData, iTeam, iPlateau, iLandZone, toAvailableEngineersByTech, toAssignedEngineers)
+        ConsiderActionToAssign(iActionToAssign, math.max(1, iMinTechLevelWanted), iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, iCurPriority, tLZTeamData, iTeam, iPlateau, iLandZone, toAvailableEngineersByTech, toAssignedEngineers)
     end
 
     if bDebugMessages == true then LOG(sFunctionRef..': About to consider what actions we want to give engineers for iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTeam='..iTeam) end
@@ -2439,6 +2446,20 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         HaveActionToAssign(refActionReclaimArea, 1, 5, true)
     end
 
+    --High priority factories
+    iCurPriority = iCurPriority + 1
+    if bWantMoreFactories and not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.4 or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 and GetGameTimeSeconds() <= 600 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.05) then
+        if (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 0) > 0 then
+            if bHaveLowMass then iBPWanted =  tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 2
+            else iBPWanted = tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 4
+            end
+        else
+            iBPWanted = 5
+        end
+        HaveActionToAssign(refActionBuildLandFactory, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech], iBPWanted, nil)
+    end
+
+
     --Energy storage once have eco to support it
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': iCurPriority='..iCurPriority..'; Considering building energy storage, Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Have low power='..tostring(bHaveLowPower)..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount]='..M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount]) end
@@ -2484,7 +2505,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     if iBPWanted > 0 then
         HaveActionToAssign(refActionBuildMassStorage, 1, iBPWanted)
     end
-
 
 
     --Lower priority mass reclaim
