@@ -111,10 +111,11 @@ end
 function OnUnitDeath(oUnit)
     --NOTE: This is called by the death of any unit of any player, so careful with what commands are given
         --Some callbacks line onkilled will call this as well to make sure it is run (since for some things like when an ACU is killed it doesnt trigger directly)
-    if M28Utilities.bM28AIInGame then
+    if M28Utilities.bM28AIInGame and M28Map.bMapSetupComplete then --No point running on death logic for units at start of the game
         local sFunctionRef = 'OnUnitDeath'
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
 
 
         if bDebugMessages == true then LOG(sFunctionRef..'Hook successful. oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; GameTime='..GetGameTimeSeconds()) end
@@ -154,6 +155,9 @@ function OnUnitDeath(oUnit)
                                 end
                             end
                         end
+                    --Radar intel coverage update
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryRadar, oUnit.UnitId) then
+                        ForkThread(M28Land.UpdateRadarCoverageForDestroyedRadar, oUnit)
                     end
                     --Ythotha deathball avoidance
                     --Note -seraphimunits.lua contains SEnergyBallUnit which looks like it is for when the death ball is spawned; ID is XSL0402; SpawnElectroStorm is in the ythotha script
@@ -171,28 +175,31 @@ function OnUnitDeath(oUnit)
                     -------M28 specific logic---------
                     --Is the unit owned by M28AI?
                     if oUnit:GetAIBrain().M28AI then
-                        --Run unit type specific on death logic
-                        M28Economy.UpdateGrossIncomeForUnit(oUnit, true)
-                        if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
-                            M28Engineer.ClearEngineerTracking(oUnit)
-                        elseif EntityCategoryContains(M28UnitInfo.refCategoryScathis, oUnit.UnitId) then
-                            if M28Utilities.IsTableEmpty(M28Engineer.tAllScathis) == false then
-                                for iScathis, oScathis in M28Engineer.tAllScathis do
-                                    if oScathis == oUnit then
-                                        table.remove(M28Engineer.tAllScathis, iScathis) --Only doing this once so can get away with using table.remove, otherwise would want to use M28Utilities.ArrayRemove
-                                        break
+                        --Run unit type specific on death logic where the unit is completed
+                        if oUnit:GetFractionComplete() == 1 then
+                            M28Economy.UpdateGrossIncomeForUnit(oUnit, true)
+                            if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
+                                M28Engineer.ClearEngineerTracking(oUnit)
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryScathis, oUnit.UnitId) then
+                                if M28Utilities.IsTableEmpty(M28Engineer.tAllScathis) == false then
+                                    for iScathis, oScathis in M28Engineer.tAllScathis do
+                                        if oScathis == oUnit then
+                                            table.remove(M28Engineer.tAllScathis, iScathis) --Only doing this once so can get away with using table.remove, otherwise would want to use M28Utilities.ArrayRemove
+                                            break
+                                        end
                                     end
                                 end
+                            elseif EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) then
+                                --Check for upgrades
+                                --Upgrade tracking (even if have run this already)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will check if upgrade tracking needs updating, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                                M28Team.UpdateUpgradeTrackingOfUnit(oUnit, true)
+                                if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then M28Economy.UpdateLandZoneM28MexByTechCount(oUnit, true) end
+                                M28Economy.UpdateHighestFactoryTechLevelForDestroyedUnit(oUnit) --checks if it was a factory as part of this function
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileLand, oUnit.UnitId) then
+                                --If unit was traveling to another land zone, then update that land zone so it no longer things the unit is traveling here
+                                M28Land.RemoveUnitFromListOfUnitsTravelingToLandZone(oUnit) --(this will check if it was or not)
                             end
-                        elseif EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) then
-                            --Check for upgrades
-                            --Upgrade tracking (even if have run this already)
-                            if bDebugMessages == true then LOG(sFunctionRef..': Will check if upgrade tracking needs updating, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
-                            M28Team.UpdateUpgradeTrackingOfUnit(oUnit, true)
-                            if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then M28Economy.UpdateLandZoneM28MexByTechCount(oUnit, true) end
-                        elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileLand, oUnit.UnitId) then
-                            --If unit was traveling to another land zone, then update that land zone so it no longer things the unit is traveling here
-                            M28Land.RemoveUnitFromListOfUnitsTravelingToLandZone(oUnit) --(this will check if it was or not)
                         end
                     end
                 end
@@ -299,13 +306,13 @@ end--]]
 
 function OnConstructionStarted(oEngineer, oConstruction, sOrder)
     if M28Utilities.bM28AIInGame then
-        --Make sure we have assigned the unit to a land zone - superceded by OnCreate
-        --[[if M28Utilities.bM28AIInGame then
-            local aiBrain = oConstruction:GetAIBrain()
-            M28Team.ConsiderAssigningUnitToZoneForBrain(aiBrain, oConstruction) --This function includes check of whether this is an M28 brain, and updates last known position
-        end--]]
+        --Update land zone queued orders
+        if M28Utilities.IsTableEmpty(oEngineer[M28Engineer.reftQueuedBuildings]) == false then
+            M28Engineer.RemoveBuildingFromQueuedBuildings(oEngineer, oConstruction)
+        end
     end
 end
+
 function OnConstructed(oEngineer, oJustBuilt)
     --WARNING: This doesnt seem to trigger for the ACU; it does trigger when untis are constructed by a factory
 
@@ -314,14 +321,22 @@ function OnConstructed(oEngineer, oJustBuilt)
         --NonM28 specific - dont set the M28OnConstructionCalled for this, so need to  be careful that any code here will not be run repeatedly
         --LOG('OnConstructed for unit '..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt))
         M28Orders.ClearAnyRepairingUnits(oJustBuilt)
-        --If a building has just build a building, then make sure all M28 are aware of it (since a player would be)
-        if EntityCategoryContains(categories.STRUCTURE, oEngineer.UnitId) and EntityCategoryContains(categories.STRUCTURE, oJustBuilt.UnitId) then
-            local tTeamsUpdated = {}
-            for iBrain, oBrain in M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subreftoEnemyBrains] do
-                if oBrain.M28AI and not(tTeamsUpdated[oBrain.M28Team]) then
-                    tTeamsUpdated[oBrain.M28Team] = true
-                    M28Team.AssignUnitToZoneOrPond(oBrain, oJustBuilt)
+
+        if EntityCategoryContains(categories.STRUCTURE, oJustBuilt.UnitId) then
+            --If a building has just build a building, then make sure all M28 are aware of it (since a player would be)
+            if EntityCategoryContains(categories.STRUCTURE, oEngineer.UnitId) then
+                local tTeamsUpdated = {}
+                for iBrain, oBrain in M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subreftoEnemyBrains] do
+                    if oBrain.M28AI and not(tTeamsUpdated[oBrain.M28Team]) then
+                        tTeamsUpdated[oBrain.M28Team] = true
+                        M28Team.AssignUnitToZoneOrPond(oBrain, oJustBuilt)
+                    end
                 end
+            end
+
+            --If we have just built a radar then update radar logic
+            if EntityCategoryContains(M28UnitInfo.refCategoryRadar, oJustBuilt.UnitId) then
+                ForkThread(M28Land.UpdateLandZoneIntelForRadar, oJustBuilt)
             end
         end
 
@@ -422,9 +437,9 @@ function OnConstructed(oEngineer, oJustBuilt)
             --If build an M28 unit then will record its plateau and LZ; so for non-M28 AI also want to do this so we have a backup for pathfinding if dont already have something
             if M28Utilities.IsTableEmpty(oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) and not(EntityCategoryContains(categories.AIR, oJustBuilt.UnitId)) then
                 local iPlateau, iLandZone = M28Map.GetPathingOverridePlateauAndLandZone(oJustBuilt:GetPosition(), true, oJustBuilt)
-                if iPlateau > 0 then
+                if (iPlateau or 0) > 0 then
                     if not(oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) then oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam] = {} end
-                    table.insert(oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][oJustBuilt:GetAIBrain().M28Team], {iPlateau, iLandZone})
+                    oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][oJustBuilt:GetAIBrain().M28Team] = {iPlateau, iLandZone}
                 end
             end
 

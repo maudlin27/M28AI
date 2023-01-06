@@ -92,7 +92,7 @@ function IssueTrackedClearCommands(oUnit)
     oUnit[refiOrderCount] = 0
 
     --Update tracking for engineers:
-    if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
+    if EntityCategoryContains(M28UnitInfo.refCategoryEngineer + categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then
         M28Engineer.ClearEngineerTracking(oUnit)
         --Unpause engineers who are about to be cleared
         if oUnit[M28UnitInfo.refbPaused] then
@@ -287,6 +287,7 @@ function IssueTrackedMoveAndBuild(oUnit, tBuildLocation, sOrderBlueprint, tMoveT
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueBuild, [subrefsOrderBlueprint] = sOrderBlueprint, [subreftOrderPosition] = tBuildLocation})
         IssueBuildMobile({ oUnit }, tBuildLocation, sOrderBlueprint, {})
+        ForkThread(M28Engineer.TrackQueuedBuilding, oUnit, sOrderBlueprint, tBuildLocation)
         --LOG('Sent an issuebuildmobile order to the unit')
     end
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
@@ -302,6 +303,7 @@ function IssueTrackedBuild(oUnit, tOrderPosition, sOrderBlueprint, bAddToExistin
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueBuild, [subrefsOrderBlueprint] = sOrderBlueprint, [subreftOrderPosition] = tOrderPosition})
         IssueBuildMobile({ oUnit }, tOrderPosition, sOrderBlueprint, {})
+        ForkThread(M28Engineer.TrackQueuedBuilding, oUnit, sOrderBlueprint, tOrderPosition)
     end
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 end

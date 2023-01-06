@@ -24,6 +24,7 @@ reftiPlateauAndLZToMoveTo = 'M28LandPlatAndLZToMoveTo' --If tell a unit to mvoe 
 refiCurrentAssignmentValue = 'M28LandAssignedValue' --when a combat unit is given an order for a land zone, the value of that land zone should be recorded
 refiCurrentAssignmentPlateauAndLZ = 'M28LandAssignedPlatLZ' --returns {iPlateau, iLandZone} that the units orders have been coordinated by
 refiTimeOfLastAssignment = 'M28LandLastAssignmenttime' --returns gametimeseconds that the unit was last assigned to the available units of a land zone
+reftiRadarPlateauAndLandZonesCovered = 'M28LandRadarLZs' --Returns talbes of {iPlateau, iLandZone} that the radar is providing the best radar coverage of
 
 function UpdateIfLandZoneWantsSupport(tLZTeamData, iPlateau, iLandZone, iTeam, bWantDFSupport, bWantIndirectSupport)
     tLZTeamData[M28Map.subrefbLZWantsSupport] = (bWantDFSupport or bWantIndirectSupport)
@@ -53,9 +54,27 @@ function GetUnitPlateauAndLandZoneOverride(oUnit)
                 iPossibleLZ = tTeamPlateauAndLZ[2]
             end
         end
-        if iBestPlateau or iPossiblePlateau then
-            M28Map.AddLocationToPlateauExceptions(oUnit:GetPosition(), (iBestPlateau or iPossiblePlateau), (iBestLZ or iPossibleLZ))
+        if iBestPlateau then
+            M28Map.AddLocationToPlateauExceptions(oUnit:GetPosition(), iBestPlateau, iBestLZ)
             return true
+        elseif iPossiblePlateau then
+
+            M28Map.AddLocationToPlateauExceptions(oUnit:GetPosition(), iPossiblePlateau, iPossibleLZ)
+            return true
+        end
+    else
+        --If we look in a 2x2 box around the unit can we find a valid plateau?
+        local iDistAdjust = math.max(2, M28Map.iLandZoneSegmentSize)
+        local tLocationAdjust = {{-iDistAdjust,0}, {-iDistAdjust, -iDistAdjust}, {-iDistAdjust, iDistAdjust}, {0, -iDistAdjust}, {0, iDistAdjust}, {iDistAdjust, -iDistAdjust}, {iDistAdjust, 0}, {iDistAdjust,iDistAdjust}}
+        local tBasePosition = oUnit:GetPosition()
+        for iEntry, tAdjustXZ in tLocationAdjust do
+            --LOG('Considering tBasePosition='..repru(tBasePosition)..'; tAdjustXZ='..repru(tAdjustXZ))
+            iPossiblePlateau, iPossibleLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition({ tBasePosition[1] + tAdjustXZ[1], tBasePosition[2], tBasePosition[3] + tAdjustXZ[2] })
+            if (iPossiblePlateau or 0) > 0 then
+                --LOG('Found a plateau override for oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at position '..repru(oUnit:GetPosition())..' and tAdjustXZ='..repru(tAdjustXZ))
+                M28Map.AddLocationToPlateauExceptions(oUnit:GetPosition(), iPossiblePlateau, iPossibleLZ)
+                break
+            end
         end
     end
 end
@@ -493,14 +512,14 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                             if (oScout[M28Orders.refiOrderCount] or 0) == 0 then
                                 --Want ot get somewhere to move to as a backup
                                 if tLZData[M28Map.subrefLZMexCount] > 0 then
-                                    IssueTrackedMove(oScout, tLZData[M28Map.subrefLZMidpoint], 5, false, 'BackupMid')
+                                    M28Orders.IssueTrackedMove(oScout, tLZData[M28Map.subrefLZMidpoint], 5, false, 'BackupMid')
                                 else
                                     --Do we have an adjacent LZ? If so move here
                                     if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones]) == false then
                                         GetUnitToTravelToLandZone(tAvailableScouts[1], iPlateau, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones][1], M28Map.subrefLZTScoutsTravelingHere)
                                     else
                                         --No adjacent LZs, and no mexes in this LZ, so just move randomly
-                                        IssueTrackedMove(oScout, M28Utilities.MoveInDirection(oScout:GetPosition(), math.random(1, 360), math.random(10, 30), true, false), 5, false, 'BackupRnd')
+                                        M28Orders.IssueTrackedMove(oScout, M28Utilities.MoveInDirection(oScout:GetPosition(), math.random(1, 360), math.random(10, 30), true, false), 5, false, 'BackupRnd')
                                     end
                                 end
                             end
@@ -797,10 +816,10 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         iEnemyCombatThreat = iEnemyCombatThreat + M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTThreatEnemyCombatTotal]
                     end
                 end
-                if iOurCombatThreat > iEnemyCombatThreat * 1.25 or (iOurCombatThreat > iEnemyCombatThreat and tLZTeamData[M28Map.subrefLZTValue] > iOurCombatThreat * 0.5) or (tLZTeamData[M28Map.subrefLZTCoreBase] and iOurCombatThreat > iEnemyCombatThreat * 0.7) then
+                if iOurCombatThreat > iEnemyCombatThreat * 1.4 or (iOurCombatThreat > iEnemyCombatThreat and tLZTeamData[M28Map.subrefLZTValue] > iOurCombatThreat * 0.5) or (tLZTeamData[M28Map.subrefLZTCoreBase] and iOurCombatThreat > iEnemyCombatThreat * 0.8) then
                     bAttackWithEverything = true
                 end
-                if iOurCombatThreat < iEnemyCombatThreat * 1.25 then
+                if iOurCombatThreat < iEnemyCombatThreat * 1.4 then
                     bWantDFReinforcements = true
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': We dont outrange enemy, considering if we have much more threat than them, iEnemyCombatThreat='..iEnemyCombatThreat..'; iOurCombatThreat='..iOurCombatThreat..'; bWantDFReinforcements='..tostring(bWantDFReinforcements)..'; bAttackWithEverything='..tostring(bAttackWithEverything)) end
@@ -811,7 +830,11 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
             if bAttackWithEverything then
                 for iUnit, oUnit in tAvailableCombatUnits do
-                    M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'AWE')
+                    if bMoveBlockedNotAttackMove and oUnit[M28UnitInfo.refbLastShotBlocked] and not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher, oUnit.UnitId)) then
+                        M28Orders.IssueTrackedMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'BAWE')
+                    else
+                        M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'AWE')
+                    end
                 end
             else
                 --Enemy outranges us and we dont ahve enough threat / high enough priority location to defend so want to retreat
@@ -839,6 +862,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
         if M28Utilities.IsTableEmpty(tDFUnits) then iDFLZToSupport = -1 end --set to -1 so not nil so we can ignore checking the threat for indirect/direct respectively
         if M28Utilities.IsTableEmpty(tIndirectUnits) then iIndirectLZToSupport = -1 end
 
+        if iLandZone == 14 or iLandZone == 24 then bDebugMessages = true end
+
         if bDebugMessages == true then LOG(sFunctionRef..': Dont have any enemy units in this LZ, so will consider supporting other land zones, is tDFUnits empty='..tostring(M28Utilities.IsTableEmpty(tDFUnits))..'; Is adjacent LZ empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]))) end
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
             for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
@@ -847,6 +872,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     if iDFLZToSupport then break end
                 end
                 if not(iDFLZToSupport) and (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsDFSupport]) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': iAdjLZ '..iAdjLZ..' wants DF support so will support here') end
                     iDFLZToSupport = iAdjLZ
                     if  iIndirectLZToSupport then break end
                 end
@@ -858,33 +884,41 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             local iClosestLZDFDist = 100000
             local iCurDist
             local iClosestLZIndirectDist = 100000
+            local iClosestDFLZRef
+            local iClosestIndirectLZRef
             if M28Team.tTeamData[iTeam][M28Team.subrefiLandZonesWantingSupportByPlateau][iPlateau] then
                 for iOtherLZ, bWantsSupport in M28Team.tTeamData[iTeam][M28Team.subrefiLandZonesWantingSupportByPlateau][iPlateau] do
                     if bWantsSupport then
                         if not(iDFLZToSupport) and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsDFSupport] then
-                            iCurDist = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iOtherLZ) --M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefLZMidpoint], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefLZMidpoint])
+                            iCurDist = (M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iOtherLZ) or 100000) --M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefLZMidpoint], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefLZMidpoint])
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to support iOtherLZ '..iOtherLZ..'; iCurDist='..iCurDist..'; iClosestLZDFDist='..iClosestLZDFDist..'; straight line dist from our start='..M28Utilities.GetDistanceBetweenPositions(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefLZTeamData][iTeam][M28Map.reftClosestFriendlyBase], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefLZMidpoint])) end
                             if iCurDist < iClosestLZDFDist then
                                 iClosestLZDFDist = iCurDist
-                                iDFLZToSupport = iOtherLZ
+                                iClosestDFLZRef = iOtherLZ
                             end
                             if not(iIndirectLZToSupport) and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsIndirectSupport] then
                                 if iCurDist < iClosestLZIndirectDist then
                                     iClosestLZIndirectDist = iCurDist
-                                    iIndirectLZToSupport = iOtherLZ
+                                    iClosestIndirectLZRef = iOtherLZ
                                 end
                             end
                         elseif not(iIndirectLZToSupport) and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsIndirectSupport] then
                             iCurDist = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iOtherLZ) --M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefLZMidpoint], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iOtherLZ][M28Map.subrefLZMidpoint])
                             if iCurDist < iClosestLZIndirectDist then
                                 iClosestLZIndirectDist = iCurDist
-                                iIndirectLZToSupport = iOtherLZ
+                                iClosestIndirectLZRef = iOtherLZ
                             end
                         end
                     end
                 end
             end
+            if not(iDFLZToSupport) then iDFLZToSupport = iClosestDFLZRef end
+            if not(iIndirectLZToSupport) then iIndirectLZToSupport = iClosestIndirectLZRef end
         end
+
+
         if iDFLZToSupport > 0 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Want to support LZ '..iDFLZToSupport) end
             for iUnit, oUnit in tDFUnits do
                 M28Orders.IssueTrackedMove(oUnit, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iDFLZToSupport][M28Map.subrefLZMidpoint], 6, false, 'DFMovLZ'..iDFLZToSupport)
             end
@@ -972,8 +1006,11 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                 end
             elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
                 --ACU logic - handled via M28ACU file, as amy not want to kite with it
+            elseif EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) then
+                --Structure logic - handled separately e.g. via M28Factory for factories
             else
                 table.insert(tTempOtherUnits, oUnit)
+                LOG('Adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to table of temp other units - need to add logic to handle such a unit')
                 bLandZoneOrAdjHasUnitsWantingScout = true
             end
         end
@@ -1438,4 +1475,86 @@ function DrawReclaimSegmentsInLandZone(iPlateau, iLandZone)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 
+end
+
+function UpdateRadarCoverageForDestroyedRadar(oRadar)
+    if M28Utilities.IsTableEmpty(oRadar[reftiRadarPlateauAndLandZonesCovered]) == false then
+        local aiBrain = oRadar:GetAIBrain()
+        local iTeam = aiBrain.M28Team
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+            for iEntry, tiPlateauAndLZ in oRadar[reftiRadarPlateauAndLandZonesCovered] do
+                local tLZData = M28Map.tAllPlateaus[tiPlateauAndLZ[1]][M28Map.subrefPlateauLandZones][tiPlateauAndLZ[2]]
+                if tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar] == oRadar then
+                    tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar] = nil
+                    tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refiRadarCoverage] = 0
+                    local tNearbyRadar = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryRadar, tLZData[M28Map.subrefLZMidpoint], 600, 'Ally')
+                    local iCurIntelRange
+                    local iBestIntelRange = 0
+                    local oBestRadar
+                    if M28Utilities.IsTableEmpty(tNearbyRadar) == false then
+                        for iUnit, oUnit in tNearbyRadar do
+                            iCurIntelRange = (oUnit:GetBlueprint().Intel.RadarRadius or 0) - M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefLZMidpoint])
+                            if iCurIntelRange > iBestIntelRange then
+                                iBestIntelRange = iCurIntelRange
+                                oBestRadar = oUnit
+                            end
+                        end
+                    end
+                    if oBestRadar then
+                        tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar] = oBestRadar
+                        tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refiRadarCoverage] = iBestIntelRange
+                        if not(oBestRadar[reftiRadarPlateauAndLandZonesCovered]) then oBestRadar[reftiRadarPlateauAndLandZonesCovered] = {} end
+                        table.insert(oBestRadar[reftiRadarPlateauAndLandZonesCovered], {tiPlateauAndLZ[1], tiPlateauAndLZ[2]})
+                    end
+                end
+            end
+        end
+    end
+end
+
+function UpdateLandZoneIntelForRadar(oRadar)
+    --If just built radar then want to update all land zones for the team to indicate the intel coverage
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'UpdateLandZoneIntelForRadar'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iTeam = oRadar:GetAIBrain().M28Team
+    if bDebugMessages == true then LOG(sFunctionRef..': Just built radar '..oRadar.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRadar)..' owned by '..oRadar:GetAIBrain().Nickname..' with M28Team '..iTeam..'; is the table of active m28 brains for this team empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))) end
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+        if not(oRadar['M28UpdatedIntel']) then
+            oRadar['M28UpdatedIntel'] = true
+            local iIntelRange = (oRadar:GetBlueprint().Intel.RadarRadius or 0)
+            local iCurIntelRange
+            if bDebugMessages == true then LOG(sFunctionRef..': Radar intel range='..iIntelRange) end
+            if iIntelRange > 0 then
+                for iPlateau, tPlateauSubtable in M28Map.tAllPlateaus do
+                    for iLandZone, tLZData in tPlateauSubtable[M28Map.subrefPlateauLandZones] do
+                        if tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refiRadarCoverage] < iIntelRange then
+                            iCurIntelRange = iIntelRange - M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefLZMidpoint], oRadar:GetPosition())
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering iPlateau '..iPlateau..' Land zone '..iLandZone..'; iCurIntelRange factoring in distance='..iCurIntelRange..'; Distance='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefLZMidpoint], oRadar:GetPosition())..'; LZ current radar coverage='..tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refiRadarCoverage]) end
+                            if iCurIntelRange > tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refiRadarCoverage] then
+                                --First remove this plateau and LZ from the existing radar if there was one
+                                if M28UnitInfo.IsUnitValid(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar]) then
+                                    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar][reftiRadarPlateauAndLandZonesCovered]) == false then
+                                        for iEntry, tiPlateauAndLZ in tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar][reftiRadarPlateauAndLandZonesCovered] do
+                                            if tiPlateauAndLZ[1] == iPlateau and tiPlateauAndLZ[2] == iLandZone then
+                                                table.remove(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar][reftiRadarPlateauAndLandZonesCovered], iEntry)
+                                                break
+                                            end
+                                        end
+                                    end
+                                end
+                                tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refiRadarCoverage] = iCurIntelRange
+                                tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar] = oRadar
+                                if not(oRadar[reftiRadarPlateauAndLandZonesCovered]) then oRadar[reftiRadarPlateauAndLandZonesCovered] = {} end
+                                table.insert(oRadar[reftiRadarPlateauAndLandZonesCovered], {iPlateau, iLandZone})
+                                if bDebugMessages == true then LOG(sFunctionRef..': Finished udpating for the new intel range, tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refiRadarCoverage]='..tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refiRadarCoverage]) end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

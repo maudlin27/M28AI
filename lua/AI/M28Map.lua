@@ -166,6 +166,12 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZTScoutsTravelingHere = 'SUnitsTrav' --Table of any land scout units in another LZ that have been told to move to this LZ
             subrefLZSpareBPByTech = 'SpareBPByTech' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power of that tech level that we have spare
             subrefReclaimAreaAssignmentsBySegment = 'RecSegAss' --[ReclaimSegX][ReclaimZegY], returns count of how many engineers have been assigned
+            subrefQueuedBuildings = 'QBByBP' --Queued buildings for a land zone
+                subrefQueueRef = 1 --Unique queue reference number
+                subrefBuildingID = 2 --Blueprint/UnitId of the building queued
+                subrefBuildingLocation = 3 --Location the building is to be built at
+                subrefBuildingRadius = 4 --Size (radius) of the building
+                subrefPrimaryBuilder = 5 --Engineer given the build order
             --subrefLZTAdjacentBPByTechWanted = 'AdjBPByTechW' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power wanted wanted
             --Economy related values
             subrefActiveUpgrades = 'ActiveUpgrades' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam]
@@ -173,6 +179,12 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subreftoUnitsToReclaim = 'UnitToRec' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam], table of units that we should reclaim
             --Intel related values
             refbWantLandScout = 'LandScout'
+            refiRadarCoverage = 'RadCov' --Radar coverage of the centre of the land zone midpoint
+            refoBestRadar = 'BestRad' --Radar providing the best Radar Coverage for the land zone midpoint
+            --Misc
+            reftClosestFriendlyBase = 'ClosestFB' --Position of the closest friendly start position
+            reftClosestEnemyBase = 'ClosestEB' --Closest enemy start position
+            refiModDistancePercent = 'ModDPC' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam], mod dist based on closest friendly start position to closest enemy start position
 
 
 
@@ -209,22 +221,22 @@ end
 
 function GetPathingOverridePlateauAndLandZone(tPosition, bOptionalShouldBePathable, oOptionalPathingUnit)
     local iX = math.floor(tPosition[1])
-    --LOG('GetPlateauAndLandZoneReferenceFromPosition: iPlateau is nil or 0, tPosition='..repru(tPosition)..'; tPathingPlateauAndLZOverride='..repru(tPathingPlateauAndLZOverride)..'; bOptionalShouldBePathable='..tostring(bOptionalShouldBePathable or false)..'; Is oOptionalPathingUnit valid='..tostring(M28UnitInfo.IsUnitValid(oOptionalPathingUnit)))
+    --LOG('GetPathingOverridePlateauAndLandZone: iPlateau is nil or 0, tPosition='..repru(tPosition)..'; tPathingPlateauAndLZOverride[ix]='..repru(tPathingPlateauAndLZOverride[iX])..'; bOptionalShouldBePathable='..tostring(bOptionalShouldBePathable or false)..'; Is oOptionalPathingUnit valid='..tostring(M28UnitInfo.IsUnitValid(oOptionalPathingUnit)))
     if tPathingPlateauAndLZOverride[iX] then
         local iZ = math.floor(tPosition[3])
         if tPathingPlateauAndLZOverride[iX][iZ] then
-            --LOG('GetPlateauAndLandZoneReferenceFromPosition: Have a valid override so will return this, override='..repru(tPathingPlateauAndLZOverride[iX][iZ]))
+            --LOG('GetPathingOverridePlateauAndLandZone: Have a valid override so will return this, override='..repru(tPathingPlateauAndLZOverride[iX][iZ]))
             return tPathingPlateauAndLZOverride[iX][iZ][1], tPathingPlateauAndLZOverride[iX][iZ][2]
         end
     end
     --Dont have an override for here - if we think it shoudl be pathable then create an override
     if bOptionalShouldBePathable and oOptionalPathingUnit then
-        --LOG('GetPlateauAndLandZoneReferenceFromPosition: No plateau for a unit that should be pathable, tPosition='..repru(tPosition)..'; bOptionalShouldBePathable='..tostring(bOptionalShouldBePathable)..'; oOptionalPathingUnit='..oOptionalPathingUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOptionalPathingUnit)..'; oOptionalPathingUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]='..repru(oOptionalPathingUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam])..'; Unit state='..M28UnitInfo.GetUnitState(oOptionalPathingUnit)..'; iMapWaterHeight='..iMapWaterHeight)
+        --LOG('GetPathingOverridePlateauAndLandZone: No plateau for a unit that should be pathable, tPosition='..repru(tPosition)..'; bOptionalShouldBePathable='..tostring(bOptionalShouldBePathable)..'; oOptionalPathingUnit='..oOptionalPathingUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOptionalPathingUnit)..'; oOptionalPathingUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]='..repru(oOptionalPathingUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam])..'; Unit state='..M28UnitInfo.GetUnitState(oOptionalPathingUnit)..'; iMapWaterHeight='..iMapWaterHeight)
         if M28Land.ConsiderAddingPlateauOverrideForUnit(oOptionalPathingUnit) then
             if tPathingPlateauAndLZOverride[iX] then
                 local iZ = math.floor(tPosition[3])
                 if tPathingPlateauAndLZOverride[iX][iZ] then
-                    --LOG('GetPlateauAndLandZoneReferenceFromPosition: Have a valid override after considering plateau override for unit, override='..repru(tPathingPlateauAndLZOverride[iX][iZ]))
+                    --LOG('GetPathingOverridePlateauAndLandZone: Have a valid override after considering plateau override for unit, override='..repru(tPathingPlateauAndLZOverride[iX][iZ]))
                     return tPathingPlateauAndLZOverride[iX][iZ][1], tPathingPlateauAndLZOverride[iX][iZ][2]
                 end
             end
@@ -256,7 +268,9 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
                 iPlateau = NavUtils.GetLabel(refPathingTypeAmphibious, GetPositionFromPathingSegments(iSegmentX, iSegmentZ))
                 --bUsingSegmentPlateauRef = true
                 if not(tAllPlateaus[iPlateau]) then
-                    M28Utilities.ErrorHandler('No plateau group for tPosition '..repru(tPosition)..' or segment midpoint '..repru(GetPositionFromPathingSegments(iSegmentX, iSegmentZ))..'; Plateau group of segment midpoint='..(NavUtils.GetLabel(refPathingTypeAmphibious, GetPositionFromPathingSegments(iSegmentX, iSegmentZ)) or 'nil')..'; Plateau Group of tPosition='..(NavUtils.GetLabel(refPathingTypeAmphibious, tPosition) or 'nil'))
+                    if bOptionalShouldBePathable then
+                        M28Utilities.ErrorHandler('No plateau group for tPosition '..repru(tPosition)..' or segment midpoint '..repru(GetPositionFromPathingSegments(iSegmentX, iSegmentZ))..'; Plateau group of segment midpoint='..(NavUtils.GetLabel(refPathingTypeAmphibious, GetPositionFromPathingSegments(iSegmentX, iSegmentZ)) or 'nil')..'; Plateau Group of tPosition='..(NavUtils.GetLabel(refPathingTypeAmphibious, tPosition) or 'nil'))
+                    end
                     return nil
                 else
                     iLandZone = tLandZoneBySegment[iSegmentX][iSegmentZ]
@@ -277,7 +291,12 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
         if tPosition[2] > iMapWaterHeight then
             iPlateau, iLandZone = GetPathingOverridePlateauAndLandZone(tPosition, bOptionalShouldBePathable, oOptionalPathingUnit)
             if not(iLandZone) and bOptionalShouldBePathable then
-                M28Utilities.ErrorHandler('Unable to find valid land zone, tPosition[1-3]='..tPosition[1]..'-'..tPosition[2]..'-'..tPosition[3])
+                --Possible explanation - engineer has traveled across water and reached a cliff
+                if EntityCategoryContains(categories.HOVER + categories.AMPHIBIOUS, oOptionalPathingUnit.UnitId) then
+                    --Do nothing - hopefully unit has orders that it will follow that will resolve this on its own
+                else
+                    M28Utilities.ErrorHandler('Unable to find valid land zone, tPosition[1-3]='..tPosition[1]..'-'..tPosition[2]..'-'..tPosition[3]..'; oOptionalPathingUnit='..(oOptionalPathingUnit.UnitId or 'nil')..' with LC='.. M28UnitInfo.GetUnitLifetimeCount(oOptionalPathingUnit))
+                end
             end
         end
     end
@@ -1512,6 +1531,52 @@ local function RecordTravelDistBetweenZonesOverTime()
     end
 end
 
+function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
+    local tEnemyBases = {}
+    local tAllyBases = {}
+    local tBrainsByIndex = {}
+
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains]) == false then
+        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
+            tEnemyBases[oBrain:GetArmyIndex()] = PlayerStartPoints[oBrain:GetArmyIndex()]
+            tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
+        end
+    end
+    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains] do
+        tAllyBases[oBrain:GetArmyIndex()] = PlayerStartPoints[oBrain:GetArmyIndex()]
+        tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
+    end
+
+    if M28Utilities.IsTableEmpty(tEnemyBases) then
+        local aiBrain
+        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+            aiBrain = oBrain
+            break
+        end
+        table.insert(tEnemyBases, GetPrimaryEnemyBaseLocation(aiBrain))
+    end
+
+    local iCurBrainDist
+    local iClosestBrainDist
+    local iClosestBrainRef
+    for iPlateau, tPlateauSubtable in tAllPlateaus do
+        for iLandZone, tLZData in tPlateauSubtable[subrefPlateauLandZones] do
+            iClosestBrainDist = 100000
+            for iBrain, tStartPoint in tAllyBases do
+                iCurBrainDist = M28Utilities.GetDistanceBetweenPositions(tLZData[subrefLZMidpoint], tStartPoint)
+                if iCurBrainDist < iClosestBrainDist then
+                    iClosestBrainRef = iBrain
+                    iClosestBrainDist = iCurBrainDist
+                end
+            end
+            local tLZTeamData = tLZData[subrefLZTeamData][iTeam]
+            tLZTeamData[reftClosestFriendlyBase] = {PlayerStartPoints[iClosestBrainRef][1], PlayerStartPoints[iClosestBrainRef][2], PlayerStartPoints[iClosestBrainRef][3]}
+            tLZTeamData[reftClosestEnemyBase] = GetPrimaryEnemyBaseLocation(tBrainsByIndex[iClosestBrainRef])
+            tLZTeamData[refiModDistancePercent] = GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tLZData[subrefLZMidpoint], false)
+        end
+    end
+end
+
 function ReturnNthValidLocationInSameLandZoneClosestToTarget(iPlateau, iLandZoneWanted, tStartLZData, tTargetDestination, iDistanceInterval, iNthEntryWanted, iMaxDistance)
     local iSearchDistance = 0
     local tValidLocations = {}
@@ -2084,7 +2149,7 @@ function UpdateNewPrimaryBaseLocation(aiBrain)
                 end
             end--]]
         end
-        --Have we changed position and are dealing with an M27 brain?
+        --Have we changed position and are dealing with an M28 brain?
         if aiBrain.M28AI and not(tPrevPosition[1] == aiBrain[reftPrimaryEnemyBaseLocation][1] and tPrevPosition[3] == aiBrain[reftPrimaryEnemyBaseLocation][3]) then
             --We have changed position so update any global variables that reference this
             if bDebugMessages == true then LOG(sFunctionRef..': Will update whether we can path to enemy') end
@@ -2092,6 +2157,7 @@ function UpdateNewPrimaryBaseLocation(aiBrain)
         end
 
         aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] = M28Utilities.GetDistanceBetweenPositions(PlayerStartPoints[aiBrain:GetArmyIndex()], aiBrain[reftPrimaryEnemyBaseLocation])
+
     elseif bDebugMessages == true then LOG(sFunctionRef..': Dealing with a civilian brain')
     end
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, primary enemy base location='..repru(aiBrain[reftPrimaryEnemyBaseLocation])) end

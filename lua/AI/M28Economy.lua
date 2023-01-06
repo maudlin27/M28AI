@@ -300,10 +300,10 @@ end
 function UpdateHighestFactoryTechLevelForDestroyedUnit(oUnitJustDestroyed)
     if oUnitJustDestroyed:GetFractionComplete() == 1 and EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUnitJustDestroyed.UnitId) then
         UpdateFactoryCountForFactoryKilledOrBuilt(oUnitJustDestroyed, true)
-        if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories) then
+        if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnitJustDestroyed.UnitId) then
             local aiBrain = oUnitJustDestroyed:GetAIBrain()
             local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnitJustDestroyed)
-            if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory) then
+            if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnitJustDestroyed.UnitId) then
                 if iUnitTechLevel >= (aiBrain[refiOurHighestLandFactoryTech] or 0) then
                     aiBrain[refiOurHighestLandFactoryTech] = 0
                     for iTechLevel = 3, 1, -1 do
@@ -313,7 +313,7 @@ function UpdateHighestFactoryTechLevelForDestroyedUnit(oUnitJustDestroyed)
                         end
                     end
                 end
-            elseif EntityCategoryContains(M28UnitInfo.refCategoryAirFactory) then sFactoryRef = refiOurHighestAirFactory
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oUnitJustDestroyed.UnitId) then sFactoryRef = refiOurHighestAirFactory
                 if iUnitTechLevel >= aiBrain[refiOurHighestAirFactoryTech] then
                     aiBrain[refiOurHighestAirFactoryTech] = 0
                     for iTechLevel = 3, 1, -1 do
@@ -323,7 +323,7 @@ function UpdateHighestFactoryTechLevelForDestroyedUnit(oUnitJustDestroyed)
                         end
                     end
                 end
-            elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory) then sFactoryRef = refiOurHighestNavalFactoryTech
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oUnitJustDestroyed.UnitId) then sFactoryRef = refiOurHighestNavalFactoryTech
                 if iUnitTechLevel >= aiBrain[refiOurHighestNavalFactoryTech] then
                     aiBrain[refiOurHighestNavalFactoryTech] = 0
                     for iTechLevel = 3, 1, -1 do
