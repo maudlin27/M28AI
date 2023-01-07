@@ -121,17 +121,24 @@ end
 
 function GetBestUnitToUpgrade(toPotentialUnits, bPrioritiseFactoryHQ)
     --Assumes have already checked units are valid/not upgrading and factored in whether safe or not already, so just need to do distance type check
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetBestUnitToUpgrade'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local iClosestUnitToBase = 100000
     local oClosestUnitToBase
     local iCurModDist
     for iUnit, oUnit in toPotentialUnits do
         iCurModDist = M28Map.GetModDistanceFromStart(oUnit:GetAIBrain(), oUnit:GetPosition(), false)
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurModDist before adjust='..iCurModDist..'; iClosestUnitToBase='..iClosestUnitToBase..'; bPrioritiseFactoryHQ='..tostring(bPrioritiseFactoryHQ or false)) end
         if bPrioritiseFactoryHQ and not(EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnit.UnitId)) then iCurModDist = iCurModDist + 1000 end
         if iCurModDist < iClosestUnitToBase then
             iClosestUnitToBase = iCurModDist
             oClosestUnitToBase = oUnit
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': Best unit to upgrade was '..(oClosestUnitToBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestUnitToBase) or 'nil')) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return oClosestUnitToBase
 end
 
@@ -492,6 +499,7 @@ function RecordUnitsOfCategoryToBeReclaimed(iTeam, iCategory)
                     if bDebugMessages == true then LOG(sFunctionRef..': Is table of untis of category wanted empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToReclaim))) end
                     if M28Utilities.IsTableEmpty(tUnitsToReclaim) == false then
                         for iUnit, oUnit in tUnitsToReclaim do
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will add unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to table of units to be reclaimed unless it is already in the table') end
                             bAddCurUnit = true
                             if bCheckForExistingUnits then
                                 for iExistingUnit, oExistingUnit in tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subreftoUnitsToReclaim] do
@@ -652,6 +660,7 @@ function ManageMassStalls(iTeam)
             bChangeRequired = true
             bPauseNotUnpause = true
             M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] = true
+            M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] = GetGameTimeSeconds()
         end
 
         if bDebugMessages == true then LOG(sFunctionRef..': bChangeRequired='..tostring(bChangeRequired)..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)) end

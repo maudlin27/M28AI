@@ -91,6 +91,20 @@ function IssueTrackedClearCommands(oUnit)
     oUnit[reftiLastOrders] = nil
     oUnit[refiOrderCount] = 0
 
+    if oUnit[M28Engineer.reftUnitsWeAreReclaiming] and M28Utilities.IsTableEmpty(oUnit[M28Engineer.reftUnitsWeAreReclaiming]) == false then
+        for iUnitBeingReclaimed, oUnitBeingReclaimed in oUnit[M28Engineer.reftUnitsWeAreReclaiming] do
+            if oUnitBeingReclaimed.UnitId and M28Utilities.IsTableEmpty(oUnitBeingReclaimed[M28Engineer.reftUnitsReclaimingUs]) == false then
+                for iReclaimer, oReclaimer in oUnitBeingReclaimed[M28Engineer.reftUnitsReclaimingUs] do
+                    if oReclaimer == oUnit then
+                        table.remove(oUnitBeingReclaimed[M28Engineer.reftUnitsReclaimingUs], iReclaimer)
+                        break
+                    end
+                end
+            end
+        end
+        oUnit[M28Engineer.reftUnitsWeAreReclaiming] = nil
+    end
+
     --Update tracking for engineers:
     if EntityCategoryContains(M28UnitInfo.refCategoryEngineer + categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then
         M28Engineer.ClearEngineerTracking(oUnit)
@@ -334,8 +348,13 @@ function IssueTrackedReclaim(oUnit, oOrderTarget, bAddToExistingQueue, sOptional
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueReclaim, [subrefoOrderTarget] = oOrderTarget})
         IssueReclaim({oUnit}, oOrderTarget)
+        if not(oOrderTarget[M28Engineer.reftUnitsReclaimingUs]) then oOrderTarget[M28Engineer.reftUnitsReclaimingUs] = {} end
+        table.insert(oOrderTarget[M28Engineer.reftUnitsReclaimingUs], oUnit)
+        if not(oUnit[M28Engineer.reftUnitsWeAreReclaiming]) then oUnit[M28Engineer.reftUnitsWeAreReclaiming] = {} end
+        table.insert(oUnit[M28Engineer.reftUnitsWeAreReclaiming], oOrderTarget)
+
     end
-    if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
+    if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc..(oOrderTarget.UnitId or '')) end
 end
 
 function IssueTrackedGroundAttack(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc)

@@ -486,8 +486,17 @@ function OnReclaimFinished(oEngineer, oReclaim)
                 local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
                 M28Engineer.GetEngineerToReclaimNearbyArea(oEngineer, tLZTeamData, iPlateau, iLandZone, M28Conditions.WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone), false)
             end
+        elseif M28Utilities.IsTableEmpty(oReclaim[M28Engineer.reftUnitsReclaimingUs]) == false then
+            local tEngineersToClear = {}
+            for iEngineer, oEngineer in oReclaim[M28Engineer.reftUnitsReclaimingUs] do
+                if M28UnitInfo.IsUnitValid(oEngineer) then
+                    table.insert(tEngineersToClear, oEngineer)
+                end
+            end
+            for iEngineer, oEngineer in tEngineersToClear do
+                M28Orders.IssueTrackedClearCommands(oEngineer)
+            end
         end
-
 
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end

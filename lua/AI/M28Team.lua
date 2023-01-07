@@ -42,6 +42,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefiTeamLowestMassPercentStored = 'M28TeamLowestMassPercent'
     subrefbTeamIsStallingEnergy = 'M28TeamStallingEnergy'
     subrefbTeamIsStallingMass = 'M28TeamStallingMass'
+    refiTimeOfLastMassStall = 'M28TeamTimeLastMassStall' --Gametimeseconds that we were last stalling mass
     subrefbTooLittleEnergyForUpgrade = 'M28TeamTooLittleEnergyForUpgrade' --true if we havent got an upgrade due to lack of power
     subrefbActiveT1PowerReclaimer = 'M28TeamActiveT1PowerReclaimer'
     subrefbActiveT2PowerReclaimer = 'M28TeamActiveT2PowerReclaimer'
@@ -823,6 +824,7 @@ function ConsiderPriorityLandFactoryUpgrades(iM28Team)
                 bWantUpgrade = not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryLandHQ))
 
                 if bWantUpgrade then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will try and upgrade a factory HQ') end
                     M28Economy.FindAndUpgradeUnitOfCategory(oBrain, M28UnitInfo.refCategoryLandHQ * M28UnitInfo.ConvertTechLevelToCategory(oBrain[M28Economy.refiOurHighestLandFactoryTech]))
                 end
             end
@@ -903,6 +905,7 @@ function ConsiderPriorityMexUpgrades(iM28Team)
                                     for iMex, oMex in tMexesToConsiderUpgrading do
                                         if not(oMex:IsUnitState('Upgrading')) and oMex:GetFractionComplete() == 1 then
                                             if oMex:GetAIBrain().M28AI and oMex:GetAIBrain().M28Team == iM28Team then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Will try to upgrade mex in starting zone, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Mex='..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)) end
                                                 M28Economy.UpgradeUnit(oMex, true)
                                                 iMassStoredToKeepUpgrading = iMassStoredToKeepUpgrading + tiExtraMassStoredPerUpgrade[iMexTech]
                                                 bAbort = true
@@ -959,8 +962,10 @@ function GetSafeMexToUpgrade(iM28Team)
         end
     end
     if M28Utilities.IsTableEmpty(toSafeUnitsToUpgrade) == false then
+        if bDebugMessages == true then LOG(sFunctionRef..': Have a total of '..table.getn(toSafeUnitsToUpgrade)..' units to upgrade, will pick the best one') end
         local oUnitToUpgrade = M28Economy.GetBestUnitToUpgrade(toSafeUnitsToUpgrade)
         if oUnitToUpgrade then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will try to upgrade unit '..oUnitToUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToUpgrade)) end
             M28Economy.UpgradeUnit(oUnitToUpgrade, true)
         end
     end
@@ -1283,7 +1288,10 @@ function TeamEconomyRefresh(iM28Team)
     end
 
     if tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] <= 0.05 then tTeamData[iM28Team][subrefbTeamIsStallingEnergy] = true end
-    if tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] == 0 and tTeamData[iM28Team][subrefiTeamMassStored] < tTeamData[iM28Team][subrefiActiveM28BrainCount] * 25 then tTeamData[iM28Team][subrefbTeamIsStallingMass] = true end
+    if tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] == 0 and tTeamData[iM28Team][subrefiTeamMassStored] < tTeamData[iM28Team][subrefiActiveM28BrainCount] * 25 then
+        tTeamData[iM28Team][subrefbTeamIsStallingMass] = true
+        tTeamData[iM28Team][refiTimeOfLastMassStall] = GetGameTimeSeconds()
+    end
 
     ForkThread(ConsiderGettingUpgrades, iM28Team)
 

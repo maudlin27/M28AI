@@ -112,6 +112,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZNumber = 1 --Land zone reference number
             subrefLZPath = 2 --against subrefLZPathingToOtherLandZones subtable
             subrefLZTravelDist = 3 --against subrefLZPathingToOtherLandZones subtable
+        subrefLZPathingToOtherLZEntryRef = 'PathRfLZ' --[x] is the target LZ reference; will return the entry in subrefLZPathingToOtherLandZones containing this path, if there is one
         subrefLZTravelDistToOtherLandZones = 'TravelLZ' --table used to store all land travel distance calculations to get from one LZ to another LZ; similar to subrefLZPathingToOtherLandZones, but intended to allow for all land zones to be recorded
 
         subrefLZFurthestAdjacentLandZoneTravelDist = 'FurthestAdjLZ' --Returns the travel distance (rounded up) of the furthest immediately adjacent land zone - can combine with subrefLZPathingToOtherLandZones so can stop cycling through the prerecorded LZs once get further away than the immediately adjacent ones
@@ -1388,7 +1389,7 @@ function RecordAdjacentLandZones()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-local function ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iPlateau, iStartLandZone, iTargetLandZone, tStart)
+function ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iPlateau, iStartLandZone, iTargetLandZone, tStart)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderAddingTargetLandZoneToDistanceFromBaseTable'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -1421,6 +1422,7 @@ local function ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iPlateau, iSt
         local iPosition = 1
         if not(tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLandZones]) then
             tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLandZones] = {}
+            tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLZEntryRef] = {}
             iPosition = 1
         else
             for iExistingLandZone, tExistingSubtable in tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLandZones] do
@@ -1432,6 +1434,7 @@ local function ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iPlateau, iSt
             end
         end
         table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLandZones], iPosition, {[subrefLZNumber] = iTargetLandZone, [subrefLZPath] = {}, [subrefLZTravelDist] = iTravelDistance})
+        tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLZEntryRef][iTargetLandZone] = iPosition
         for iLZ, bConsidered in tPathingLZConsidered do
             table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLandZones][iPosition][subrefLZPath], iLZ)
         end

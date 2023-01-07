@@ -33,6 +33,8 @@ refiEngineerCurUniqueReference = 'M28EngCurUniqueReference' --Against both aiBra
 refiAssignedAction = 'M28EngAssignedAction' --against Engineer, records the refAction value the engineer was given if it has an active order
 reftAssignedReclaimSegments = 'M28EngReclaimSegments' --against engineer, returns {iReclaimSegmentX, iReclaimSegmentZ]}, used when engineer givne a reclaim area order
 refbPrimaryBuilder = 'M28EngPrimaryBuilder' --If was the first engineer assigned to build something (and isnt assisting) then this should be true
+reftUnitsReclaimingUs = 'M28EngReclaimingUnits' --If have queued up reclaim order on a unit, this will store all units given such an order
+reftUnitsWeAreReclaiming = 'M28EngUnitsReclaiming' --If have queued up reclaim order on a unit, this stors against the reclaimer the unit being reclaimed
 reftQueuedBuildings = 'M28EngQueuedBuildings' --Whenever issuebuild order is given it should update this
     subrefQueueRef = 1 --Unique queue reference number (the same as the ref number given to the land zone)
     subrefBuildingID = 2 --Blueprint/UnitId of the building queued
@@ -65,7 +67,8 @@ refActionBuildT3Radar = 17
     refActionAssistAirFactory = 19
     refActionBuildThirdPower = 20
     refActionBuildExperimental = 21
-refActionReclaimUnit = 22
+refActionReclaimFriendlyUnit = 22
+--See below for reclaimenemyunit action
     refActionBuildT3MexOverT2 = 23
     refActionUpgradeHQ = 24 --Assists an HQ with its upgrade
     refActionReclaimTrees = 25
@@ -76,8 +79,8 @@ refActionReclaimUnit = 22
     refActionBuildT3ArtiPower = 30
     refActionBuildTMD = 31
     refActionBuildAA = 32
-refActionBuildEmergencyPD = 33 --Not yet got the main code in place
-    refActionBuildSecondLandFactory = 34
+    refActionBuildEmergencyPD = 33 --Not yet got the main code in place
+refActionBuildSecondLandFactory = 34
     refActionBuildSecondAirFactory = 35
     refActionBuildTML = 36
     refActionBuildSecondExperimental = 37
@@ -85,7 +88,7 @@ refActionBuildEmergencyPD = 33 --Not yet got the main code in place
     refActionFortifyFirebase = 39
     refActionAssistShield = 40
     refActionBuildSecondShield = 41
-refActionBuildEmergencyArti = 42 --Not yet got the main code in place
+    refActionBuildEmergencyArti = 42 --Not yet got the main code in place
     refActionAssistTML = 43
     refActionBuildQuantumGateway = 44
     refActionBuildQuantumOptics = 45
@@ -104,8 +107,9 @@ refActionBuildEmergencyArti = 42 --Not yet got the main code in place
 refActionMoveToLandZone = 57
 refActionRunToLandZone = 58
 refActionAssistUpgrade = 59
+refActionReclaimEnemyUnit = 60
 
---tiEngiActionsThatDontBuild = {refActionReclaimArea, refActionSpare, refActionNavalSpareAction, refActionHasNearbyEnemies, refActionReclaimUnit, refActionReclaimTrees, refActionUpgradeBuilding, refActionAssistSMD, refActionAssistTML, refActionAssistMexUpgrade, refActionAssistAirFactory, refActionAssistNavalFactory, refActionUpgradeHQ, refActionAssistNuke, refActionLoadOnTransport, refActionAssistShield}
+--tiEngiActionsThatDontBuild = {refActionReclaimArea, refActionSpare, refActionNavalSpareAction, refActionHasNearbyEnemies, refActionReclaimFriendlyUnit, refActionReclaimTrees, refActionUpgradeBuilding, refActionAssistSMD, refActionAssistTML, refActionAssistMexUpgrade, refActionAssistAirFactory, refActionAssistNavalFactory, refActionUpgradeHQ, refActionAssistNuke, refActionLoadOnTransport, refActionAssistShield}
 
 --Categories to use where no complex logic required (if it wont always be the same category then add logic to GetCategoryToBuildOrAssistFromAction
 tiActionCategory = {
@@ -118,6 +122,7 @@ tiActionCategory = {
     [refActionBuildT2Radar] = M28UnitInfo.refCategoryT2Radar,
     [refActionBuildT3Radar] = M28UnitInfo.refCategoryT3Radar,
     [refActionBuildEnergyStorage] = M28UnitInfo.refCategoryEnergyStorage,
+    [refActionBuildSecondLandFactory] = M28UnitInfo.refCategoryLandFactory,
 }
 
 tiActionOrder = {
@@ -128,13 +133,15 @@ tiActionOrder = {
     [refActionBuildEnergyStorage] = M28Orders.refiOrderIssueBuild,
     [refActionMoveToLandZone] = M28Orders.refiOrderIssueMove,
     [refActionRunToLandZone] = M28Orders.refiOrderIssueMove,
-    [refActionReclaimUnit] = M28Orders.refiOrderIssueReclaim,
+    [refActionReclaimFriendlyUnit] = M28Orders.refiOrderIssueReclaim,
     [refActionAssistUpgrade] = M28Orders.refiOrderIssueGuard,
     [refActionBuildMassStorage] = M28Orders.refiOrderIssueBuild,
     [refActionBuildT1Radar] = M28Orders.refiOrderIssueBuild,
     [refActionBuildT2Radar] = M28Orders.refiOrderIssueBuild,
     [refActionBuildT3Radar] = M28Orders.refiOrderIssueBuild,
     [refActionReclaimArea] = M28Orders.refiOrderIssueReclaim,--will actually have a move order followed by reclaim order
+    [refActionBuildSecondLandFactory] = M28Orders.refiOrderIssueBuild,
+    [refActionReclaimEnemyUnit] = M28Orders.refiOrderIssueReclaim,
 }
 
 --Adjacent categories to search for for a particular action
@@ -144,6 +151,7 @@ tiActionAdjacentCategory = {
     [refActionBuildT1Radar] = M28UnitInfo.refCategoryT1Power,
     [refActionBuildT2Radar] = M28UnitInfo.refCategoryT2Power,
     [refActionBuildT3Radar] = M28UnitInfo.refCategoryT3Power,
+    [refActionBuildSecondLandFactory] = M28UnitInfo.refCategoryMex,
 }
 
 --Include any actions where we wont be building a category or searching for a category to assist
@@ -151,9 +159,10 @@ tiActionAdjacentCategory = {
 tbActionsThatDontHaveCategory = {
     [refActionMoveToLandZone] = true,
     [refActionRunToLandZone] = true,
-    [refActionReclaimUnit] = true,
+    [refActionReclaimFriendlyUnit] = true,
     [refActionAssistUpgrade] = true, --need special logic to only identify upgrading units for this
     [refActionReclaimArea] = true,
+    [refActionReclaimEnemyUnit] = true,
 }
 
 
@@ -175,7 +184,6 @@ function CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOption
     local sFunctionRef = 'CanBuildAtLocation'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if sBlueprintToBuild == 'ueb1103' then bDebugMessages = true end
 
 
     if bDebugMessages == true then LOG(sFunctionRef..': About to see if we can build '..(sBlueprintToBuild or 'nil')..' at '..repru(tTargetLocation)..'; iEngiActionToIgnore='..(iEngiActionToIgnore or 'nil')..'; bClearActionsIfNotStartedBuilding='..tostring((bClearActionsIfNotStartedBuilding or false))..'; surface height at target='..GetSurfaceHeight(tTargetLocation[1], tTargetLocation[3])..'; aiBrain:CanBuildStructureAt(sBlueprintToBuild, tTargetLocation)='..tostring(aiBrain:CanBuildStructureAt(sBlueprintToBuild, tTargetLocation))) end
@@ -1468,7 +1476,6 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZTeamData, 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'FilterToAvailableEngineersByTech'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if GetGameTimeSeconds() >= 1946 and iPlateau == 144 and iLandZone == 14 then bDebugMessages = true end
     --if iLandZone == 2 then bDebugMessages = true end
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code for iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; reprs of tEngineers='..reprs(tEngineers)) end
 
@@ -1552,19 +1559,21 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZTeamData, 
                         if iNearestReclaimableEnemy < 20 and ((iClosestDistUntilInRangeOfStaticEnemy >= 10 and iNearestReclaimableEnemy <= oEngineer:GetBlueprint().Economy.MaxBuildDistance) or iNearestReclaimableEnemy <= (oEngineer:GetBlueprint().Economy.MaxBuildDistance + 7)) then
                             --Reclaim enemy
                             bEngiIsUnavailable = true
-                            TrackEngineerAction(oEngineer, refActionReclaimUnit, false)
+                            TrackEngineerAction(oEngineer, refActionReclaimEnemyUnit, false)
                             M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaimableEnemy, false, 'RecE')
                         else
                             --Enemy not close enough to reclaim, do we want to run?
-                            if iClosestDistUntilInRangeOfStaticEnemy < 8 or iClosestDistUntilInRangeOfMobileEnemy <= iThresholdToRunFromMobileEnemies then
-                                local tPositionToRunFrom
-                                if oNearestEnemy then tPositionToRunFrom = oNearestEnemy:GetPosition() end
-                                iLZToRunTo = M28Land.GetLandZoneToRunTo(iTeam, iPlateau, iLandZone, M28Map.refPathingTypeAmphibious, oEngineer:GetPosition(), tPositionToRunFrom)
-                                if not(iLZToRunTo == iLandZone) then --If LZ to run to is same as cur LZ might as well use engineer normally (e.g. might have defences to build)
-                                    --Run to the LZ
-                                    M28Orders.IssueTrackedMove(oEngineer, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLZToRunTo][M28Map.subrefLZMidpoint], 8, false, 'RunTo'..iLZToRunTo)
-                                    bEngiIsUnavailable = true
-                                    TrackEngineerAction(oEngineer, refActionRunToLandZone, false, {iPlateau, iLZToRunTo})
+                            if not(tLZTeamData[M28Map.subrefLZTCoreBase]) then
+                                if iClosestDistUntilInRangeOfStaticEnemy < 8 or iClosestDistUntilInRangeOfMobileEnemy <= iThresholdToRunFromMobileEnemies then
+                                    local tPositionToRunFrom
+                                    if oNearestEnemy then tPositionToRunFrom = oNearestEnemy:GetPosition() end
+                                    iLZToRunTo = M28Land.GetLandZoneToRunTo(iTeam, iPlateau, iLandZone, M28Map.refPathingTypeAmphibious, oEngineer:GetPosition(), tPositionToRunFrom)
+                                    if not(iLZToRunTo == iLandZone) then --If LZ to run to is same as cur LZ might as well use engineer normally (e.g. might have defences to build)
+                                        --Run to the LZ
+                                        M28Orders.IssueTrackedMove(oEngineer, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLZToRunTo][M28Map.subrefLZMidpoint], 8, false, 'RunTo'..iLZToRunTo)
+                                        bEngiIsUnavailable = true
+                                        TrackEngineerAction(oEngineer, refActionRunToLandZone, false, {iPlateau, iLZToRunTo})
+                                    end
                                 end
                             end
                         end
@@ -1980,11 +1989,12 @@ function GetEngineerToReclaimNearbyArea(oEngineer, tLZTeamData, iPlateau, iLandZ
     end
 
 function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, iCurPriority, tLZTeamData, iTeam, iPlateau, iLandZone, toAvailableEngineersByTech, toAssignedEngineers)
+    --vOptionalVariable can be a table, nil or a value; used to pass info specific to the action if it needs it
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderActionToAssign'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if iActionToAssign == refActionBuildT3Radar then bDebugMessages = true end
-    --vOptionalVariable can be a table, nil or a value; used to pass info specific to the action if it needs it
+
+
 
     --Reduce the build power wanted by the existing build power assigned to that action for the LZ
     local bAlreadyHaveTechLevelWanted = false
@@ -2174,7 +2184,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                         GetEngineerToReclaimNearbyArea(tEngineersOfTechWanted[iEngiCount], tLZTeamData, iPlateau, iLandZone, bWantEnergyNotMass)
                         UpdateBPTracking()
                     end
-                elseif iActionToAssign == refActionReclaimUnit then
+                elseif iActionToAssign == refActionReclaimFriendlyUnit or iActionToAssign == refActionReclaimEnemyUnit then
                     --Search for nearest unit in LZ units to be reclaimed
                     local iNearestUnitDist = 10000
                     local oNearestUnit
@@ -2205,6 +2215,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                 end
 
                                 if oNearestUnit then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will tell engineer '..tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount])..' to reclaim oNearestUnit='..oNearestUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestUnit)) end
                                     M28Orders.IssueTrackedReclaim(tEngineersOfTechWanted[iEngiCount], oNearestUnit, false, 'RecObs')
                                     TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign, false)
                                     UpdateBPTracking()
@@ -2385,7 +2396,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     local sFunctionRef = 'ConsiderCoreBaseLandZoneEngineerAssignment'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 then bDebugMessages = true end
+
 
     --For land zones in the core base
     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
@@ -2413,7 +2424,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         ConsiderActionToAssign(iActionToAssign, math.max(1, iMinTechLevelWanted), iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, iCurPriority, tLZTeamData, iTeam, iPlateau, iLandZone, toAvailableEngineersByTech, toAssignedEngineers)
     end
 
-    if bDebugMessages == true then LOG(sFunctionRef..': About to consider what actions we want to give engineers for iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTeam='..iTeam) end
+    if bDebugMessages == true then LOG(sFunctionRef..': About to consider what actions we want to give engineers for iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTeam='..iTeam..'; bHaveLowMass='..tostring(bHaveLowMass)..'; Team gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Lowest mass % stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]..'; Team mass stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; Team net mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]..'; Team gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) end
 
     --Start of game or low power - build hydro if one nearby, otherwise build pgen
     M28Profiler.FunctionProfiler(sFunctionRef..'PreTravel', M28Profiler.refProfilerStart)
@@ -2437,6 +2448,20 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     iCurPriority = iCurPriority + 1
     if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexUnbuiltLocations]) == false then
         HaveActionToAssign(refActionBuildMex, 1, math.max(5, table.getn(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexUnbuiltLocations]) * 2.5))
+    end
+
+    --Very High priority factory if we have fewer than 4 (or if lwoer thre number of mexes in the LZ) and is a smaller map - takes priority over mex expansion
+    iCurPriority = iCurPriority + 1
+    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 100 and bWantMoreFactories and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1 and GetGameTimeSeconds() >= 200 then
+        local iFactoriesInLZ = 0
+        local tFactoriesInLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+        if M28Utilities.IsTableEmpty(tFactoriesInLZ) == false then iFactoriesInLZ = table.getn(tFactoriesInLZ) end
+        if iFactoriesInLZ < math.max(2, math.min(4, tLZData[M28Map.subrefLZMexCount], M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])) then
+            iBPWanted = 5
+            if not(bHaveLowMass) then iBPWanted = iBPWanted * 2.5 end
+            if not(bHaveLowPower) then iBPWanted = iBPWanted * 2.5 end
+            HaveActionToAssign(refActionBuildLandFactory, 1, iBPWanted)
+        end
     end
 
     --Adjacent zones wanting mexes:
@@ -2478,6 +2503,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --High priority reclaim if are low on mass or energy
     iCurPriority = iCurPriority + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we will want to reclaim mass in LZ, bHaveLowMass='..tostring(bHaveLowMass)..'; tLZData[M28Map.subrefLZTotalMassReclaim]='..tLZData[M28Map.subrefLZTotalMassReclaim]) end
     if bHaveLowMass and tLZData[M28Map.subrefLZTotalMassReclaim] >= 50 then
         if bDebugMessages == true then LOG(sFunctionRef..': High priority reclaim, Total mass in Plateau '..iPlateau..' LZ '..iLandZone..'='..tLZData[M28Map.subrefLZTotalMassReclaim]) end
         HaveActionToAssign(refActionReclaimArea, 1, math.min(40, math.max(5, tLZData[M28Map.subrefLZTotalMassReclaim] / 50)), false)
@@ -2521,7 +2547,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     --Reclaim specific units if are low on mass
     iCurPriority = iCurPriority + 1
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoUnitsToReclaim]) == false then
-        HaveActionToAssign(refActionReclaimUnit, 1, math.max(10, 10 * table.getn(tLZTeamData[M28Map.subreftoUnitsToReclaim])), nil, true)
+        HaveActionToAssign(refActionReclaimFriendlyUnit, 1, math.max(10, 10 * table.getn(tLZTeamData[M28Map.subreftoUnitsToReclaim])), nil, true)
     end
 
     --Higher priority mass storage if we have T3 in the LZ and available storage locations
@@ -2583,7 +2609,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
         --T3 radar
         iCurPriority = iCurPriority + 1
-        bDebugMessages = true
         if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to build T3 radar, tLZTeamData[M28Map.refiRadarCoverage]='..tLZTeamData[M28Map.refiRadarCoverage]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Closest enemy base dist to midpoint='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefLZMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])) end
         if tLZTeamData[M28Map.refiRadarCoverage] <= 300 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 500 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 200 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10 and (M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefLZMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]) > tLZTeamData[M28Map.refiRadarCoverage] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 20) then
             iBPWanted = 30
@@ -2591,6 +2616,13 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             if bDebugMessages == true then LOG(sFunctionRef..': Will build T3 radar, iBPWanted='..iBPWanted) end
             HaveActionToAssign(refActionBuildT3Radar, 3, iBPWanted)
         end
+    end
+
+    --Build multiple land factories if have lots of mass stored
+    iCurPriority = iCurPriority + 1
+    if not(bHaveLowMass) and not(bHaveLowPower) and bWantMoreFactories and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 then
+        if bDebugMessages == true then LOG(sFunctionRef..': Have lots of mass so want to build more than one factory at once') end
+        HaveActionToAssign(refActionBuildSecondLandFactory, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech], tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 5)
     end
 
 
@@ -2687,7 +2719,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     --Reclaim specific units if are low on mass
     iCurPriority = iCurPriority + 1
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoUnitsToReclaim]) == false then
-        HaveActionToAssign(refActionReclaimUnit, 1, math.max(5, 5 * table.getn(tLZTeamData[M28Map.subreftoUnitsToReclaim])), nil, true)
+        HaveActionToAssign(refActionReclaimFriendlyUnit, 1, math.max(5, 5 * table.getn(tLZTeamData[M28Map.subreftoUnitsToReclaim])), nil, true)
     end
 
     --Unclaimed hydro in the zone (and we have less than 4k power in our team)
