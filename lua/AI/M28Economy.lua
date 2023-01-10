@@ -172,6 +172,7 @@ function UpdateLandZoneM28AllMexByTech(aiBrain, iPlateau, iLandZone, oOptionalUn
                 for iMex, oCurMex in tMexesByTech[iTech] do
                     if bDebugMessages == true then LOG(sFunctionRef..': Plateau='..iPlateau..'; iLandZone='..iLandZone..'; oCurMex='..oCurMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oCurMex)..'; Unit state='..M28UnitInfo.GetUnitState(oCurMex)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oCurMex))..'; Position='..repru(oCurMex:GetPosition())..'; iTech='..iTech..'; iMexCount pre increase='..iMexCount..'; tLZTeamData[M28Map.subrefMexCountByTech] pre increase='..repru(tLZTeamData[M28Map.subrefMexCountByTech])) end
                     if oCurMex:GetAIBrain().M28AI and M28UnitInfo.IsUnitValid(oCurMex) and oCurMex:GetFractionComplete() == 1 and not(oOptionalUnitThatDied == oCurMex) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Adding iMex '..iMex..'; oCurMex='..oCurMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oCurMex)..' to mex count. reprs of mex='..reprs(oCurMex)) end
                         tLZTeamData[M28Map.subrefMexCountByTech][iTech] = tLZTeamData[M28Map.subrefMexCountByTech][iTech] + 1
                         iMexCount = iMexCount + 1
                     end
@@ -179,31 +180,37 @@ function UpdateLandZoneM28AllMexByTech(aiBrain, iPlateau, iLandZone, oOptionalUn
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Finished updating mex count, tLZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZTeamData[M28Map.subrefMexCountByTech])) end
-        --If have somehow ended up with more mexes than there are locations, then redo the check this time seeing if the units are all valid
+        --If have somehow ended up with more mexes than there are locations, then redo the check in 1 second
         if iMexCount > table.getn( M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]) then
-            M28Utilities.ErrorHandler('Somehow we have more mexes than we should, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iMexCount='..iMexCount..'; tLZTeamData[M28Map.subrefMexCountByTech]='..reprs(tLZTeamData[M28Map.subrefMexCountByTech]))
+            if (iOptionalWait or 0) >= 10 then
+                M28Utilities.ErrorHandler('Somehow we have more mexes than we should even after waiting '..iOptionalWait..' first, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iMexCount='..iMexCount..'; tLZTeamData[M28Map.subrefMexCountByTech]='..reprs(tLZTeamData[M28Map.subrefMexCountByTech]))
+            end
+            ForkThread(UpdateLandZoneM28AllMexByTech, aiBrain, iPlateau, iLandZone, oOptionalUnitThatDied, 10)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function UpdateLandZoneM28MexByTechCount(oMexJustBuiltOrDied, bJustDied, iOptionalWait)
-    local aiBrain = oMexJustBuiltOrDied:GetAIBrain()
-    if aiBrain.M28AI then
-        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oMexJustBuiltOrDied:GetPosition(), true, oMexJustBuiltOrDied)
-        --should be called whenever a mex is created or destroyed in a land zone; ideally call via fork thread so reduced risk of it being called inbetween a mex say upgrading from one to another and being claled before both the creation and destroy events have happened
-        if (iLandZone or 0) > 0 then
-            if not(iOptionalWait) then
-                if bJustDied then
-                    UpdateLandZoneM28AllMexByTech(aiBrain, iPlateau, iLandZone, oMexJustBuiltOrDied)
+    --Call via fork thread on mex creation due to potential timing issue with an upgrading mex being destroyed and replaced with the new (upgraded) mex
+    if oMexJustBuiltOrDied.GetAIBrain then
+        local aiBrain = oMexJustBuiltOrDied:GetAIBrain()
+        if aiBrain.M28AI then
+            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oMexJustBuiltOrDied:GetPosition(), true, oMexJustBuiltOrDied)
+            --should be called whenever a mex is created or destroyed in a land zone; ideally call via fork thread so reduced risk of it being called inbetween a mex say upgrading from one to another and being claled before both the creation and destroy events have happened
+            if (iLandZone or 0) > 0 then
+                if not(iOptionalWait) then
+                    if bJustDied then
+                        UpdateLandZoneM28AllMexByTech(aiBrain, iPlateau, iLandZone, oMexJustBuiltOrDied)
+                    else
+                        UpdateLandZoneM28AllMexByTech(aiBrain, iPlateau, iLandZone, nil)
+                    end
                 else
-                    UpdateLandZoneM28AllMexByTech(aiBrain, iPlateau, iLandZone, nil)
-                end
-            else
-                if bJustDied then
-                    ForkThread(UpdateLandZoneM28AllMexByTech, aiBrain, iPlateau, iLandZone, oMexJustBuiltOrDied, iOptionalWait)
-                else
-                    ForkThread(UpdateLandZoneM28AllMexByTech, aiBrain, iPlateau, iLandZone, nil, iOptionalWait)
+                    if bJustDied then
+                        ForkThread(UpdateLandZoneM28AllMexByTech, aiBrain, iPlateau, iLandZone, oMexJustBuiltOrDied, iOptionalWait)
+                    else
+                        ForkThread(UpdateLandZoneM28AllMexByTech, aiBrain, iPlateau, iLandZone, nil, iOptionalWait)
+                    end
                 end
             end
         end

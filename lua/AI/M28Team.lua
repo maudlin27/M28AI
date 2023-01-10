@@ -17,6 +17,7 @@ local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
 local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
+local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 
 --Team data variables
 bRecordedAllPlayers = false
@@ -79,14 +80,29 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefbEnemyHasOmni = 'M28EnemyHasOmni' --true if any enemy non-civilian brains have omni vision
 
 
-    --Notable unit count details
+    --Notable unit count and threat details
     refbDefendAgainstArti = 'M28TeamDefendAgainstArti' --true if enemy has t3 arti or equivelnt
     subreftoT3Arti = 'M28TeamT3Arti' --table of T3 and experimental arti that M28 players on the team have
+    subrefiAlliedDFThreat = 'M28TeamDFThreat' --Total DF threat
+    subrefiAlliedIndirectThreat = 'M28TeamIndirectThreat' --Total indirect threat
+    subrefiAlliedGroundAAThreat = 'M28TeamGroundAAThreat' --Total MAA and structure threat
 
     --Land combat related
     subrefiLandZonesWantingSupportByPlateau = 'M28TeamLZWantingSupport' --[x] is the plateau ref, [y] is the land zone ref, returns true if we want support for the plateau
     subrefiRallyPointLandZonesByPlateau = 'M28TeamLZRallyPoint' --[x] is the plateau ref, y is the land zone ref
     refiTimeOfLastRallyPointRefresh = 'M28TeamRallyPointRefreshTime' --Game time in seconds that last refreshed rally points
+
+    --Air related
+    reftoAllEnemyAir = 'M28TeamEnemyAirAll'
+    reftoEnemyAirAA = 'M28TeamEnemyAirAAUnits' --Table of enemy AirAA units
+    reftoEnemyAirToGround = 'M28TeamEnemyAirToGroundUnits' --Table of enemy air to ground units
+    reftoEnemyTorpBombers = 'M28TeamEnemyTorpUnits' --table of enemy units that are torpedo bombers
+    reftoEnemyAirOther = 'M28TeamEnemyAirOtherUnits' --AIr scouts and transports
+    reftoEnemyUnitsWithNoLZ = 'M28TeamEnemyNoLZAir' --AIr units that arent currently over a land zone
+    refiEnemyAirAAThreat = 'M28TeamEnemyAirToGroundThreat'
+    refiEnemyAirToGroundThreat = 'M28TeamEnemyAirToGroundThreat'
+    refiEnemyTorpBombersThreat = 'M28TeamEnemyAirToGroundThreat'
+    refiEnemyAirOtherThreat = 'M28TeamEnemyAirOtherThreat'
 
     --Misc details
     reftiTeamMessages = 'M28TeamMessages' --against tTeamData[aiBrain.M28Team], [x] is the message type string, returns the gametime that last sent a message of this type to the team
@@ -96,6 +112,8 @@ iTotalAirSubteamCount = 0
 tAirSubteamData = {}
     subreftoFriendlyM28Brains = 'M28ASTBrains' --table of friendly M28 brains
     subrefiMaxScoutRadius = 'M28ASTMaxScoutRadius' --Search range for scouts for this AirSubteam
+    refbFarBehindOnAir = 'M28ASTFarBehindOnAir' --true if we are far behind on air
+    refbHaveAirControl = 'M28ASTHaveAirControl'
 
 
 --Land subteam data varaibles (used for factory production logic)
@@ -203,8 +221,7 @@ function CreateNewAirSubteam(aiBrain)
         end
     end
 
-
-    AirSubteamInitialisation(aiBrain.M28AirSubteam) --Dont fork thread
+    M28Air.AirSubteamInitialisation(aiBrain.M28AirSubteam) --Dont fork thread
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -343,6 +360,9 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][refbNeedResourcesForMissile] = false
     tTeamData[iTotalTeamCount][subrefiLandZonesWantingSupportByPlateau] = {}
     tTeamData[iTotalTeamCount][subrefiTotalFactoryCountByType] = {[M28Factory.refiFactoryTypeLand] = 0, [M28Factory.refiFactoryTypeAir] = 0, [M28Factory.refiFactoryTypeNaval] = 0, [M28Factory.refiFactoryTypeOther] = 0}
+    tTeamData[iTotalTeamCount][subrefiAlliedDFThreat] = 0
+    tTeamData[iTotalTeamCount][subrefiAlliedIndirectThreat] = 0
+    tTeamData[iTotalTeamCount][subrefiAlliedGroundAAThreat] = 0
 
 
     local bHaveM28BrainInTeam = false
@@ -433,11 +453,12 @@ end
     M28Utilities.ErrorHandler('To add code')
 end--]]
 
-function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone)
+function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemyAirUnit)
     --If unit already has a land zone assigned then remove this
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AddUnitToLandZoneForBrain'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if EntityCategoryContains(categories.MOBILE * categories.AIR, oUnit.UnitId) and not(bIsEnemyAirUnit) then M28Utilities.ErrorHandler('Havent flagged that an air unit is an air unit') end
 
 
     local bAddToZone = true
@@ -458,7 +479,11 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone)
         oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][aiBrain.M28Team] = {iPlateau, iLandZone}
         if IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
             if bDebugMessages == true then LOG(sFunctionRef..': Is an enemy, Is team data for this plateau and land zone empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team]))..'; aiBrain='..aiBrain.Nickname..'; team='..aiBrain.M28Team..'; Unit position='..repru(oUnit:GetPosition())) end
-            table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTEnemyUnits], oUnit)
+            if bIsEnemyAirUnit then
+                table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.reftLZEnemyAirUnits], oUnit)
+            else
+                table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTEnemyUnits], oUnit)
+            end
         elseif IsAlly(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
             table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTAlliedUnits], oUnit)
             if bDebugMessages == true then LOG(sFunctionRef..': Add unit as a friendly unit to Plateau-LZ='..iPlateau..'-'..iLandZone..' and team='..aiBrain.M28Team..'; Is table of friendly units empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTAlliedUnits]))) end
@@ -521,6 +546,7 @@ function AssignUnitToZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if M28UnitInfo.IsUnitValid(oUnit) then
+        local bPreviouslyConsidered = (oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][aiBrain.M28Team] or false)
 
 
         if not(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam]) then oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam] = {} end
@@ -533,9 +559,17 @@ function AssignUnitToZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition)
         if bDebugMessages == true then LOG(sFunctionRef..': aiBrain '..aiBrain.Nickname..' is Considering how to assign unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' that is owned by brain '..oUnit:GetAIBrain().Nickname) end
 
 
-        --Air units - always assign to air groups
+        --Air units - always assign to air groups, and also to land zones if in one
         if EntityCategoryContains(M28UnitInfo.refCategoryAllAir - M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
-            M28Utilities.ErrorHandler('To add code for air units')
+            if not(bPreviouslyConsidered) then
+                M28Air.RecordNewAirUnitForTeam(aiBrain.M28Team, oUnit)
+            end
+            if bAlreadyUpdatedPosition then
+                --Presumably air unit has fallen out of a land zone - add to table of enemy air without a LZ
+                if not(aiBrain.M28Team == oUnit:GetAIBrain().M28Team) then --redundancy, - hopefully shouldnt get to this point if this isnt the case
+                    M28Air.RecordEnemyAirUnitWithNoZone(aiBrain.M28Team, oUnit)
+                end
+            end
         else
             local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
             if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
@@ -814,7 +848,7 @@ function ConsiderPriorityLandFactoryUpgrades(iM28Team)
     --Enemy has better land tech than us, and we have no active land upgrades
 
     if bDebugMessages == true then LOG(sFunctionRef..': tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech]='..(tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] or 'nil')..'; tTeamData[iM28Team][subrefiHighestEnemyGroundTech]='..(tTeamData[iM28Team][subrefiHighestEnemyGroundTech] or 'nil')) end
-    if tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] > 0 and tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] < tTeamData[iM28Team][subrefiHighestEnemyGroundTech] then
+    if tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] > 0 and tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] < 3 and (tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] < tTeamData[iM28Team][subrefiHighestEnemyGroundTech] or (tTeamData[iM28Team][subrefiTeamGrossMass] >= 6.5 and tTeamData[iM28Team][subrefiTeamMassStored] >= 300 and M28Conditions.GetTeamLifetimeBuildCount(iM28Team, (M28UnitInfo.refCategoryLandCombat * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + M28UnitInfo.refCategoryIndirect * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech])) ) >= 20 * (2-tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + 12)) then
         local bWantUpgrade = false
         for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
             --Can we path to the nearest enemy with land, and we are behind enemy tech level with land?
@@ -873,7 +907,7 @@ function ConsiderPriorityMexUpgrades(iM28Team)
     local sFunctionRef = 'ConsiderPriorityMexUpgrades'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Is table of upgrading mexes empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]))..'; tTeamData[iM28Team][subrefiTeamMassStored]='..tTeamData[iM28Team][subrefiTeamMassStored]..'; tTeamData[iM28Team][subrefiTeamNetMass]='..tTeamData[iM28Team][subrefiTeamNetMass]..'; tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]='..tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]) end
-    if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) or (tTeamData[iM28Team][subrefiTeamMassStored] >= 200 or (tTeamData[iM28Team][subrefiTeamNetMass] - tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]) > 0) then
+    if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) or (tTeamData[iM28Team][subrefiTeamNetMass] - tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]) > 0 then
         --Do we have enough energy?
         if tTeamData[iM28Team][subrefiTeamNetEnergy] - tTeamData[iM28Team][subrefiEnergyUpgradesStartedThisCycle] > 0 and (tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] >= 0.75 or tTeamData[iM28Team][subrefiTeamNetEnergy] - tTeamData[iM28Team][subrefiEnergyUpgradesStartedThisCycle] >= 5) then
             --Do we have mexes in start positions that are lower than the enemy's highest tech?
@@ -1117,7 +1151,23 @@ function HaveEcoToSupportUpgrades(iM28Team)
             if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) then
                 iNetMassIncomeWanted = iNetMassIncomeWanted - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.05
                 if tTeamData[iM28Team][subrefiTeamMassStored] >= 600 then iNetMassIncomeWanted = iNetMassIncomeWanted - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.05 end
+            else
+                --Adjust net mass income wanted if we will use up our stored mass quickly and have active mex upgrades
+                if iNetMassIncomeWanted < 0 and tTeamData[iM28Team][subrefiTeamNetMass] < 0 then
+                    if tTeamData[iM28Team][subrefiTeamMassStored] <= 400 then iNetMassIncomeWanted = 0
+                    else
+                        local iTimeUntilUseUpStoredMass = tTeamData[iM28Team][subrefiTeamMassStored] / -10 * (tTeamData[iM28Team][subrefiTeamNetMass] - tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle])
+                        if iTimeUntilUseUpStoredMass <= 80 then
+                            iNetMassIncomeWanted = math.max(-0.2, iNetMassIncomeWanted)
+                        elseif iTimeUntilUseUpStoredMass <= 150 and (tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] >= 3 or (tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] >= 2 and GetGameTimeSeconds() - (tTeamData[iM28Team][refiTimeOfLastEnergyStall] or -20) < 20)) then
+                            iNetMassIncomeWanted = math.max(-0.2, iNetMassIncomeWanted)
+                        end
+                    end
+                end
             end
+
+
+
 
             if bDebugMessages == true then LOG(sFunctionRef..': Consideringi f have enough mass, tTeamData[iM28Team][subrefiTeamMassStored]='..tTeamData[iM28Team][subrefiTeamMassStored]..'; % mass stored='..tTeamData[iM28Team][subrefiTeamLowestMassPercentStored]..'; Gross mass income='..tTeamData[iM28Team][subrefiTeamGrossMass]..'; Net mass income='..tTeamData[iM28Team][subrefiTeamNetMass]..'; Net mass wanted='..iNetMassIncomeWanted..'; Is table of upgrading mexes empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]))..'; tTeamData[iM28Team][subreftiPrevTeamNetMass]='..repru(tTeamData[iM28Team][subreftiPrevTeamNetMass])) end
             --Average out our mass from the last 5 cycles as well
@@ -1340,14 +1390,17 @@ function TeamInitialisation(iM28Team)
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZDFThreatWanted] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiRadarCoverage] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefQueuedBuildings] = {}
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatAllyMobileDFTotal] = 0
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatAllyMobileIndirectTotal] = 0
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatAllyGroundAA] = 0
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftLZEnemyAirUnits] = {}
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiLZEnemyAirToGroundThreat] = 0
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiLZEnemyAirOtherThreat] = 0
         end
     end
     ForkThread(M28Map.RecordClosestAllyAndEnemyBaseForEachLandZone, iM28Team)
+    M28Air.AirTeamInitialisation(iM28Team)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-end
-
-function AirSubteamInitialisation(iM28AirSubteam)
-    M28Utilities.ErrorHandler('To add AirSubteam code')
 end
 
 function UpdateEnemyTechTracking(iM28Team, oUnit)

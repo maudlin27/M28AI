@@ -37,6 +37,17 @@ function AreMobileLandUnitsInRect(rRectangleToSearch)
     return false
 end
 
+function GetTeamLifetimeBuildCount(iTeam, category)
+    --Intended for use for M28 teams only
+    local iTotalBuild = 0
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+            iTotalBuild = iTotalBuild + GetLifetimeBuildCount(oBrain, category)
+        end
+    end
+    return iTotalBuild
+end
+
 function GetLifetimeBuildCount(aiBrain, category)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetLifetimeBuildCount'

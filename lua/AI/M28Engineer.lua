@@ -1994,6 +1994,8 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     local sFunctionRef = 'ConsiderActionToAssign'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    if iActionToAssign == refActionBuildT3Radar then bDebugMessages = true end
+
 
 
     --Reduce the build power wanted by the existing build power assigned to that action for the LZ

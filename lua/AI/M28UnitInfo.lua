@@ -31,7 +31,7 @@ refbShieldIsDisabled = 'M28UnitShieldDisabled'
 refiTimeOfLastCheck = 'M28UnitTimeOfLastCheck' --Currently used for shot is blocked (M27 also used for T3 arti adjacency, when first detected enemy SMD)
 refbLastShotBlocked = 'M28UnitLastShotBlocked' --Used for DF units to indicate if last shot was blocked
 
-    --Ranges:
+    --Ranges and weapon details
 refiDFRange = 'M28UDFR'
 refiIndirectRange = 'M28UIR' --for non-manual fire weapons
 refiAntiNavyRange = 'M28UANR'
@@ -39,6 +39,7 @@ refiManualRange = 'M28UManR' --for manual fire weapons (e.g. TML)
 refiMissileDefenceRange = 'M28UMDefR' --For SMD and TMD
 refiAARange = 'M28UAAR'
 refiBomberRange = 'M28UBR'
+refbWeaponUnpacks = 'M28WUP'
 
 refbPaused = 'M28UnitPaused' --true if unit is paused
 reftoUnitsAssistingThis = 'M28UnitsAssisting' --table of units given an order to guard this unit
@@ -161,6 +162,7 @@ refCategoryMercy = categories.HIGHPRIAIR * categories.AEON * categories.BOMBER *
 refCategoryTransport = categories.AIR * categories.TRANSPORTATION - categories.UEF * categories.GROUNDATTACK
 refCategoryRestorer = refCategoryGunship * categories.ANTIAIR
 refCategoryCzar = categories.AIR * categories.EXPERIMENTAL * categories.ANTIAIR * categories.AEON
+refCategoryAirToGround = refCategoryBomber + refCategoryGunship + refCategoryCzar + refCategoryMercy --i.e. excludes torp bombers
 
 --Naval units
 refCategoryFrigate = categories.NAVAL * categories.FRIGATE
@@ -428,8 +430,6 @@ function UpdateUnitCombatMassRatingForUpgrades(oUnit)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-
-
 function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly, bBlueprintThreat)
     --Determines threat rating for tUnits, which in most cases will be the mass cost of the unit and adjusted for unit health; by default assumes are referring to main combat threat (e.g. tank), but the flags for indirect and naval threat can be used to adjust this
 
@@ -650,30 +650,29 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetAirThreatLevel'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-            
-    if bIncludeAirTorpedo == nil then bIncludeAirTorpedo = bIncludeAirToGround end
+
     if bDebugMessages == true then LOG(sFunctionRef..': About to check if table is empty. bIncludeAirToAir='..tostring(bIncludeAirToAir)) end
-        
-    --Determine the amount that health impacts on threat
-    local iHealthFactor = 1 --if unit has 40% health, then threat reduced by (1-40%)*iHealthFactor
-    if bIncludeAirToAir == true then
-        if bEnemyUnits and not(bBlueprintThreat) then
-            iHealthFactor = 0.5
-        else
-            iHealthFactor = 0.15
-        end
-    elseif bIncludeAirToGround == true then iHealthFactor = 0.5
-    else iHealthFactor = 0 end
 
-
-    --Check if can see the unit or if are relying on the blip:
-    local bUnitFitsDesiredCategory
     if M28Utilities.IsTableEmpty(tUnits) then
         --if tUnits == nil then
         if bDebugMessages == true then LOG(sFunctionRef..': Warning: tUnits is empty, returning 0') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return 0
-    else                        
+    else
+        if bIncludeAirTorpedo == nil then bIncludeAirTorpedo = bIncludeAirToGround end
+        local bUnitFitsDesiredCategory
+
+        --Determine the amount that health impacts on threat
+        local iHealthFactor = 1 --if unit has 40% health, then threat reduced by (1-40%)*iHealthFactor
+        if bIncludeAirToAir == true then
+            if bEnemyUnits and not(bBlueprintThreat) then
+                iHealthFactor = 0.5
+            else
+                iHealthFactor = 0.15
+            end
+        elseif bIncludeAirToGround == true then iHealthFactor = 0.5
+        else iHealthFactor = 0 end
+
         local iCurThreat = 0
         local iTotalThreat = 0
         local iBaseThreat = 0
@@ -689,7 +688,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
         if bIncludeNonCombatAir then iThreatRef = iThreatRef..'1' else iThreatRef = iThreatRef..'0' end
         if bIncludeAirTorpedo then iThreatRef = iThreatRef..'1' else iThreatRef = iThreatRef..'0' end
         if not(tiThreatRefsCalculated[iThreatRef]) then
-            M28Profiler.ErrorHandler('Dont have a thraat ref '..iThreatRef..' So CalculateBlueprintThreatsByType threat calculation likely wrong')
+            M28Utilities.ErrorHandler('Dont have a thraat ref '..iThreatRef..' So CalculateBlueprintThreatsByType threat calculation likely wrong')
         end
 
 
@@ -858,6 +857,7 @@ function CalculateBlueprintThreatsByType()
             ['210110'] = { true, false, true, true, false }, --Air threat (general)
             ['210111'] = { true, false, true, true, true }, --Air threat (general)
             ['200101'] = { true, false, true, true, true }, --Bombers and torpedo bombers
+            ['210011'] = { true, false, false, true, true}, --Air excluding air to ground (but including torp bombers) - i.e. 'air excluding dangerous to land tanks on land'
             --['211000'] = { true, true, false, false, false} --GroundAA and AirAA combined - was thinking of using this for recording IMAP air version but decided to stick to just airaa
         }
 
@@ -998,7 +998,7 @@ function GetBlueprintMaxGroundRange(oBP)
 end
 
 function RecordUnitRange(oUnit)
-    --Updates unit range variables - sets to nil if it has nothing with that range, otherwise records it as the highest range it has.  Factors in enhancements
+    --Updates unit range variables - sets to nil if it has nothing with that range, otherwise records it as the highest range it has.  Factors in enhancements. Also records if unit unpacks for T3 mobile arti
     local oBP = oUnit:GetBlueprint()
 
     if oBP.Weapon then
@@ -1016,6 +1016,7 @@ function RecordUnitRange(oUnit)
                     oUnit[refiAARange] = math.max((oUnit[refiAARange] or 0), oCurWeapon.MaxRadius)
                 elseif oCurWeapon.RangeCategory == 'UWRC_IndirectFire' then
                     oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
+                    if oCurWeapon.WeaponUnpacks then oUnit[refbWeaponUnpacks] = true end
                 elseif not(oCurWeapon.RangeCategory) or oCurWeapon.RangeCategory == 'UWRC_Undefined' then
                     if oCurWeapon.Label == 'Bomb' then
                         oUnit[refiBomberRange] = math.max((oUnit[refiBomberRange] or 0), oCurWeapon.MaxRadius)

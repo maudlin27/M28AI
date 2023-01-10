@@ -332,6 +332,13 @@ function OnConstructed(oEngineer, oJustBuilt)
                         M28Team.AssignUnitToZoneOrPond(oBrain, oJustBuilt)
                     end
                 end
+                --Also update the name
+                if M28Config.M28ShowUnitNames then
+                    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oJustBuilt:GetPosition(), false)
+                    local sPlateauAndZoneDesc = ':P='..(iPlateau or 0)..'LZ='..(iLandZone or 0)
+
+                    oJustBuilt:SetCustomName(oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..sPlateauAndZoneDesc..': Built')
+                end
             end
 
             --If we have just built a radar then update radar logic
@@ -355,7 +362,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                 M28Engineer.CheckIfBuildableLocationsNearPositionStillValid(oJustBuilt:GetAIBrain(), oJustBuilt:GetPosition())
                 M28Economy.UpdateHighestFactoryTechLevelForBuiltUnit(oJustBuilt) --includes a check to see if are dealing with a factory HQ
                 if EntityCategoryContains(M28UnitInfo.refCategoryMex, oJustBuilt.UnitId) then
-                    M28Economy.UpdateLandZoneM28MexByTechCount(oJustBuilt, false, 10)
+                    ForkThread(M28Economy.UpdateLandZoneM28MexByTechCount, oJustBuilt, false, 10)
                     --If have storage owned by M28 on same team by this mex, gift it over
                     --All mexes - on construction check if we have allied M28 mass storage nearby (e.g. we have rebuilt on a mex that they used to have) and if so then have that M28 gift over their mass storage
                     local tMexLocation = oJustBuilt:GetPosition()
@@ -437,10 +444,12 @@ function OnConstructed(oEngineer, oJustBuilt)
             --If build an M28 unit then will record its plateau and LZ; so for non-M28 AI also want to do this so we have a backup for pathfinding if dont already have something
             if M28Utilities.IsTableEmpty(oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) and not(EntityCategoryContains(categories.AIR, oJustBuilt.UnitId)) then
                 local iPlateau, iLandZone = M28Map.GetPathingOverridePlateauAndLandZone(oJustBuilt:GetPosition(), true, oJustBuilt)
-                if (iPlateau or 0) > 0 then
+                if not(oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) then oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam] = {} end
+                oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][oJustBuilt:GetAIBrain().M28Team] = {iPlateau, iLandZone}
+                --[[if (iPlateau or 0) > 0 then
                     if not(oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) then oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam] = {} end
                     oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][oJustBuilt:GetAIBrain().M28Team] = {iPlateau, iLandZone}
-                end
+                end--]]
             end
 
         end
@@ -598,7 +607,7 @@ function OnCreate(oUnit)
         if oUnit:GetAIBrain().M28AI and oUnit:GetFractionComplete() == 1 then
             M28Economy.UpdateHighestFactoryTechLevelForBuiltUnit(oUnit) --this includes a check to see if are dealing with a factory HQ
             M28Economy.UpdateGrossIncomeForUnit(oUnit, false) --This both includes a check of the unit type, and cehcks we havent already recorded
-            if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) and not(oUnit.M28OnConstructedCalled) then M28Economy.UpdateLandZoneM28MexByTechCount(oUnit) end
+            if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) and not(oUnit.M28OnConstructedCalled) then ForkThread(M28Economy.UpdateLandZoneM28MexByTechCount, oUnit) end
         end
     end
 end

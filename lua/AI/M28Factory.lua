@@ -213,7 +213,7 @@ function AdjustBlueprintForOverrides(aiBrain, sBPIDToBuild, tLZTeamData, iFactor
     else
         --Special case - Cybran and UEF - if building loyalists or titans, then check if want to switch to bricks/percies
         if sBPIDToBuild == 'url0303' then --Loyalist
-            if M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.TECH3) >= 5 then
+            if M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.TECH3) >= 2 then
                 aiBrain[reftBlueprintPriorityOverride]['url0303'] = nil --loyalist
                 aiBrain[reftBlueprintPriorityOverride]['xrl0305'] = 1 --brick
             end
@@ -238,7 +238,7 @@ function AdjustBlueprintForOverrides(aiBrain, sBPIDToBuild, tLZTeamData, iFactor
     return sBPIDToBuild
 end
 
-function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iTargetLandZone)
+function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iTargetLandZone, bHaveLotsOfMAA)
     local sFunctionRef = 'GetLandZoneSupportCategoryWanted'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -248,7 +248,8 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iTargetLand
     if NavUtils.GetLabel(M28Map.refPathingTypeLand, oFactory:GetPosition()) == NavUtils.GetLabel(M28Map.refPathingTypeLand, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone][M28Map.subrefLZMidpoint]) then
         bInSameIsland = true
     end
-    if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsIndirectSupport] then
+    local tLZTargetTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone][M28Map.subrefLZTeamData][iTeam]
+    if tLZTargetTeamData[M28Map.subrefbLZWantsIndirectSupport] then
         if bInSameIsland then
             iBaseCategoryWanted = M28UnitInfo.refCategoryIndirect
             if bDebugMessages == true then LOG(sFunctionRef..': Considering oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; iTeam='..iTeam..'; iPlateau='..iPlateau..'; iTargetLandZone='..iTargetLandZone..'; We want indirect support for this LZ; Enemy structure threat by DF range='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZThreatEnemyStructureDFByRange])..'; Total indirect threat wanted for LZ='..M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZIndirectThreatWanted]) end
@@ -257,26 +258,33 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iTargetLand
             iBaseCategoryWanted = M28UnitInfo.refCategoryIndirect * categories.AMPHIBIOUS + M28UnitInfo.refCategoryIndirect * categories.HOVER
         end
     else
-        --We want DF units (but not indirect fire units)
-        if bInSameIsland then
-            local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)
-            local iTechCategory = M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)
+        --We dont want indirect fire units, do we want MAA units?
+        --if bDebugMessages == true then LOG(sFunctionRef..': reprs of tLZTargetTeamData='..reprs(tLZTargetTeamData)..'; M28Map.subrefLZThreatAllyGroundAA='..M28Map.subrefLZThreatAllyGroundAA..'; M28Map.subrefLZMAAThreatWanted='..M28Map.subrefLZMAAThreatWanted..'; tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA]='..reprs(tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA])..'; tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted]='..reprs(tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted])) end
+        if not(bHaveLotsOfMAA) and tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA] < tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted] then
+            iBaseCategoryWanted = M28UnitInfo.refCategoryMAA - categories.TECH3
+        else
 
-            iBaseCategoryWanted = M28UnitInfo.refCategorySkirmisher * iTechCategory
-            if not(GetBlueprintsThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory)) then
-                iBaseCategoryWanted = M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategorySkirmisher
-            else
-                --We can build skirmishers, but if we have built fewer than 15 T3 tanks, and enemy is using T2 and lower tech, consider building t3 tanks instead
-                if iFactoryTechLevel >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] <= 2 and M28Conditions.GetLifetimeBuildCount(oFactory:GetAIBrain(), M28UnitInfo.refCategoryDFTank * iTechCategory) <= 15 then                    bDebugMessages = true
-                    if bDebugMessages == true then LOG(sFunctionRef..': Enemy is still at T2 or lower and we havent built many T3 normal tanks so will build normal tanks first before trying to build skrimishers') end
-                    iBaseCategoryWanted = M28UnitInfo.refCategoryDFTank
+            --We want DF units (but not indirect fire units)
+            if bInSameIsland then
+                local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)
+                local iTechCategory = M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)
+
+                iBaseCategoryWanted = M28UnitInfo.refCategorySkirmisher * iTechCategory
+                if not(GetBlueprintsThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory)) then
+                    iBaseCategoryWanted = M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategorySkirmisher
+                else
+                    --We can build skirmishers, but if we have built fewer than 15 T3 tanks, and enemy is using T2 and lower tech, consider building t3 tanks instead
+                    if iFactoryTechLevel >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] <= 2 and M28Conditions.GetLifetimeBuildCount(oFactory:GetAIBrain(), M28UnitInfo.refCategoryDFTank * iTechCategory) <= 15 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy is still at T2 or lower and we havent built many T3 normal tanks so will build normal tanks first before trying to build skrimishers') end
+                        iBaseCategoryWanted = M28UnitInfo.refCategoryDFTank
+                    end
                 end
-            end
 
             else
                 iBaseCategoryWanted = M28UnitInfo.refCategoryAmphibiousCombat
             end
         end
+    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return iBaseCategoryWanted
 end
@@ -293,12 +301,18 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)
     local iTeam = aiBrain.M28Team
     local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
-
-
-
+    bDebugMessages = true
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel='..iFactoryTechLevel..'; Highest friendly factory tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Allied ground threat='..(M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] or 'nil')..'; M28Team.tTeamData[M28Team.refiEnemyAirToGroundThreat]='..(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 'nil')..'; M28Team.tTeamData[M28Team.refiEnemyAirAAThreat]='..(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 'nil')..'; M28Team.tTeamData[M28Team.refiEnemyTorpBombersThreat]='..(M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] or 'nil')..'; M28Team.tTeamData[M28Team.refiEnemyAirOtherThreat]='..(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat] or 'nil')) end
+    bDebugMessages = false
+    local bHaveLotsOfMAA = false
+    if M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] >= 600 and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] >= M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] + (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] + M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] + M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat]) * 0.25 then
+        --Do we have more than 1/8 of our DF and indirect force in AA?
+        if M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] < M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] * 8 then
+            bHaveLotsOfMAA = true
+        end
+    end
 
     local bHaveHighestLZTech = true
-    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel='..iFactoryTechLevel..'; Highest friendly factory tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
     if iFactoryTechLevel < 3 and iFactoryTechLevel < M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] then
         local tLandFactoriesInLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
         for iLZFactory, oLZFactory in  tLandFactoriesInLZ do
@@ -412,6 +426,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     end
 
 
+
     --Other actions - dont do unless we have lots of mass if this is lower than our highest tech level
     if bHaveHighestLZTech then
 
@@ -421,6 +436,34 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             local iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone)
             if iCategoryToGet then
                 if ConsiderBuildingCategory(iCategoryToGet) then return sBPIDToBuild end
+            end
+        end
+
+        --MAA if this LZ has enemy air threat
+        if tLZTeamData[M28Map.refiLZEnemyAirToGroundThreat] > 0 then
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryMAA - categories.TECH3) then return sBPIDToBuild end
+        end
+
+
+        --Maintain unit threat ratios
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if bDebugMessages == true then LOG(sFunctionRef..': Checking threat ratios, DF threat='..M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat]..'; Indirect='..M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat]) end
+        if not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] > M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] * 16 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will try to build more indirect fire units') end
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect) then return sBPIDToBuild end
+        end
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if not(bHaveLowMass) and not(bHaveLotsOfMAA) then
+            --Only get MAA if we either have T2 land, or 50 gross mass, or enemy has air
+            if iFactoryTechLevel >= 2 or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoAllEnemyAir]) == false or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 5 then
+                local iThreatFactor = 20
+                if M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbFarBehindOnAir] and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 4000 then iThreatFactor = 8
+                elseif not(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbHaveAirControl]) and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 4000 or M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbFarBehindOnAir]) then iThreatFactor = 13
+                end
+
+                if M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] > M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] * iThreatFactor then
+                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryMAA - categories.TECH3) then return sBPIDToBuild end
+                end
             end
         end
 
@@ -437,7 +480,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tLZPathing[M28Map.subrefLZNumber]][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefbLZWantsSupport] then
                     --How far away is it?
                     if tLZPathing[M28Map.subrefLZTravelDist] <= iDistToEnemyBaseToConsider then
-                        local iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, tLZPathing[M28Map.subrefLZNumber])
+                        local iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, tLZPathing[M28Map.subrefLZNumber], bHaveLotsOfMAA)
                         if iCategoryToGet then
                             if ConsiderBuildingCategory(iCategoryToGet) then return sBPIDToBuild end
                         end
@@ -515,26 +558,26 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function DetermineWhatToBuild(aiBrain, oFactory)
+    function DetermineWhatToBuild(aiBrain, oFactory)
     local sBPIDToBuild
 
     if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oFactory.UnitId) then
-        sBPIDToBuild = GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
+    sBPIDToBuild = GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     else
-        M28Utilities.ErrorHandler('Need to add code')
+    M28Utilities.ErrorHandler('Need to add code')
     end
 
     return sBPIDToBuild
-end
+    end
 
-function IsFactoryReadyToBuild(oFactory)
+    function IsFactoryReadyToBuild(oFactory)
     if oFactory:GetFractionComplete() == 1 and oFactory:GetWorkProgress() == 0 and oFactory:GetFractionComplete() == 1 and not(oFactory:IsUnitState('Building')) and not(oFactory:IsUnitState('Upgrading')) and not(oFactory:IsUnitState('Busy')) and M28Utilities.IsTableEmpty(oFactory:GetCommandQueue()) then
-        return true
+    return true
     end
     return false
-end
+    end
 
-function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait)
+    function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait)
     --If factory is idle then gets it to build something; if its not idle then keeps checking for up to 20 seconds, but will abort if the factory appears to be building something
     local sFunctionRef = 'DecideAndBuildUnitForFactory'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -542,56 +585,56 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait)
 
     if not(oFactory['M28ActiveBuilderCheck']) then
 
-        oFactory['M28ActiveBuilderCheck'] = true
+    oFactory['M28ActiveBuilderCheck'] = true
 
-        local iTicksWaited = 0
+    local iTicksWaited = 0
 
-        local bProceed = bDontWait
-        if not(bProceed) then
-            bProceed = IsFactoryReadyToBuild(oFactory)
-        end
+    local bProceed = bDontWait
+    if not(bProceed) then
+    bProceed = IsFactoryReadyToBuild(oFactory)
+    end
 
-        local iWorkProgressStart = (oFactory:GetWorkProgress() or 0)
+    local iWorkProgressStart = (oFactory:GetWorkProgress() or 0)
 
-        while not(bProceed) do
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-            WaitTicks(1)
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-            iTicksWaited = iTicksWaited + 1
-            if M28UnitInfo.IsUnitValid(oFactory) == false then return nil end
-            bProceed = IsFactoryReadyToBuild(oFactory)
-            if oFactory:GetWorkProgress() > iWorkProgressStart then
-                if bDebugMessages == true then LOG(sFunctionRef..': Factory work progress is going up so will abort as it presumably already has an order') end
-                break
-            end
-            if iTicksWaited >= 200 then
-                M28Utilities.ErrorHandler('oFactory has waited more than 200 ticks and still isnt showing as ready to build, oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; brain nickname='..oFactory:GetAIBrain().Nickname..'; Work progress='..oFactory:GetWorkProgress()..'; Factory fraction complete='..oFactory:GetFractionComplete()..'; Factory status='..M28UnitInfo.GetUnitState(oFactory)..'; Is command queue empty='..tostring(M28Utilities.IsTableEmpty(oFactory:GetCommandQueue()))..'; iWorkProgressStart='..(iWorkProgressStart or 'nil'))
-                break
-            end
-        end
-        if bProceed then
-            local sBPToBuild = DetermineWhatToBuild(aiBrain, oFactory)
-            if bDebugMessages == true then LOG(sFunctionRef..': oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; sBPToBuild='..(sBPToBuild or 'nil')..'; Does factory have an empty command queue='..tostring(M28Utilities.IsTableEmpty(oFactory:GetCommandQueue()))..'; Factory work progress='..oFactory:GetWorkProgress()..'; Factory unit state='..M28UnitInfo.GetUnitState(oFactory)) end
-            if sBPToBuild then
-                --Is this an upgrade or a unit to build?
-                if EntityCategoryContains(M28UnitInfo.refCategoryFactory, sBPToBuild) then
-                    M28Economy.UpgradeUnit(oFactory, true)
-                else
-                    M28Orders.IssueTrackedFactoryBuild(oFactory, sBPToBuild, bDontWait)
-                end
-            else
-                WaitTicks(10)
-                if M28UnitInfo.IsUnitValid(oFactory) then
-                    ForkThread(DecideAndBuildUnitForFactory, aiBrain, oFactory, false)
-                end
-            end
-        end
+    while not(bProceed) do
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    WaitTicks(1)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    iTicksWaited = iTicksWaited + 1
+    if M28UnitInfo.IsUnitValid(oFactory) == false then return nil end
+    bProceed = IsFactoryReadyToBuild(oFactory)
+    if oFactory:GetWorkProgress() > iWorkProgressStart then
+    if bDebugMessages == true then LOG(sFunctionRef..': Factory work progress is going up so will abort as it presumably already has an order') end
+    break
+    end
+    if iTicksWaited >= 200 then
+    M28Utilities.ErrorHandler('oFactory has waited more than 200 ticks and still isnt showing as ready to build, oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; brain nickname='..oFactory:GetAIBrain().Nickname..'; Work progress='..oFactory:GetWorkProgress()..'; Factory fraction complete='..oFactory:GetFractionComplete()..'; Factory status='..M28UnitInfo.GetUnitState(oFactory)..'; Is command queue empty='..tostring(M28Utilities.IsTableEmpty(oFactory:GetCommandQueue()))..'; iWorkProgressStart='..(iWorkProgressStart or 'nil'))
+    break
+    end
+    end
+    if bProceed then
+    local sBPToBuild = DetermineWhatToBuild(aiBrain, oFactory)
+    if bDebugMessages == true then LOG(sFunctionRef..': oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; sBPToBuild='..(sBPToBuild or 'nil')..'; Does factory have an empty command queue='..tostring(M28Utilities.IsTableEmpty(oFactory:GetCommandQueue()))..'; Factory work progress='..oFactory:GetWorkProgress()..'; Factory unit state='..M28UnitInfo.GetUnitState(oFactory)) end
+    if sBPToBuild then
+    --Is this an upgrade or a unit to build?
+    if EntityCategoryContains(M28UnitInfo.refCategoryFactory, sBPToBuild) then
+    M28Economy.UpgradeUnit(oFactory, true)
+    else
+    M28Orders.IssueTrackedFactoryBuild(oFactory, sBPToBuild, bDontWait)
+    end
+    else
+    WaitTicks(10)
+    if M28UnitInfo.IsUnitValid(oFactory) then
+    ForkThread(DecideAndBuildUnitForFactory, aiBrain, oFactory, false)
+    end
+    end
+    end
     end
     oFactory['M28ActiveBuilderCheck'] = false
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-end
+    end
 
-function SetPreferredUnitsByCategory(aiBrain)
+    function SetPreferredUnitsByCategory(aiBrain)
     --If have multiple units that can build for a particular category, this will specify what to build
     --special cases where want to prioritise one unit over another where multiple of same type satisfy the category
     --NOTE: This gets ignored if we have coded in special cases where we want to pick the fastest or slowest unit
@@ -618,35 +661,35 @@ function SetPreferredUnitsByCategory(aiBrain)
     --Engineers
     aiBrain[reftBlueprintPriorityOverride]['uel0208'] = 1 --T2 Engi (instead of sparky)
 
-end
+    end
 
 
-function IdleFactoryMonitor(aiBrain)
+    function IdleFactoryMonitor(aiBrain)
     --Cycles through every factory owned by aiBrain, max of 1 factory per tick, to check if it is idle
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'IdleFactoryMonitor'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     while not(aiBrain.M28IsDefeated) do
-        local tOurFactories = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryFactory, false, true)
-        local tCommandQueue
-        local sBPToBuild
-        if M28Utilities.IsTableEmpty(tOurFactories) == false then
-            for iFactory, oFactory in tOurFactories do
-                if M28UnitInfo.IsUnitValid(oFactory) and oFactory:GetFractionComplete() == 1 then
-                    tCommandQueue = oFactory:GetCommandQueue()
-                    if IsFactoryReadyToBuild(oFactory) and GetGameTimeSeconds() - (oFactory[refiTimeSinceLastOrderCheck] or 0) >= 5 then
-                        oFactory[refiTimeSinceLastOrderCheck] = GetGameTimeSeconds()
-                        ForkThread(DecideAndBuildUnitForFactory, aiBrain, oFactory)
-                    end
-                end
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                WaitTicks(1)
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-            end
-        end
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        WaitTicks(1)
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    local tOurFactories = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryFactory, false, true)
+    local tCommandQueue
+    local sBPToBuild
+    if M28Utilities.IsTableEmpty(tOurFactories) == false then
+    for iFactory, oFactory in tOurFactories do
+    if M28UnitInfo.IsUnitValid(oFactory) and oFactory:GetFractionComplete() == 1 then
+    tCommandQueue = oFactory:GetCommandQueue()
+    if IsFactoryReadyToBuild(oFactory) and GetGameTimeSeconds() - (oFactory[refiTimeSinceLastOrderCheck] or 0) >= 5 then
+    oFactory[refiTimeSinceLastOrderCheck] = GetGameTimeSeconds()
+    ForkThread(DecideAndBuildUnitForFactory, aiBrain, oFactory)
     end
-end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    WaitTicks(1)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    WaitTicks(1)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    end
+    end

@@ -14,6 +14,7 @@ local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
 local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
+local M28Chat = import('/mods/M28AI/lua/AI/M28Chat.lua')
 
 
 bInitialSetup = false
@@ -33,13 +34,13 @@ function GetNearestEnemyBrain(aiBrain)
     if (aiBrain[refoNearestEnemyBrain] and not(aiBrain[refoNearestEnemyBrain].M28IsDefeated) and not(aiBrain[refoNearestEnemyBrain]:IsDefeated())) or aiBrain.M28IsDefeated then
         return aiBrain[refoNearestEnemyBrain]
     else
-        if bDebugMessages == true then LOG(sFunctionRef..': Dont have a valid nearest enemy already recorded so will get a new one; are all enemies defeated for team '..aiBrain.M28Team..'='..tostring(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbAllEnemiesDefeated])) end
+        if bDebugMessages == true then LOG(sFunctionRef..': GameTime='..GetGameTimeSeconds()..'; Is pathing complete='..tostring(M28Map.bMapSetupComplete)..'; Dont have a valid nearest enemy already recorded for aiBrain '..(aiBrain.Nickname or 'nil')..' with index '..aiBrain:GetArmyIndex()..' so will get a new one; are all enemies defeated for team '..aiBrain.M28Team..'='..tostring(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbAllEnemiesDefeated])) end
         local oNearestBrain
         if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbAllEnemiesDefeated] then
             --All enemies defeated so will consider civilians as enemy brains
             local oCivilianBrain
             for iCurBrain, oBrain in ArmyBrains do
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering obrain '..oBrain.Nickname..'; is enemy to us='..tostring(IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()))) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering obrain '..(oBrain.Nickname or 'nil')..'; is enemy to us='..tostring(IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()))) end
                 if IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) then
                     oNearestBrain = oBrain
                     break
@@ -112,10 +113,24 @@ function GetNearestEnemyBrain(aiBrain)
                 end
             end
         end
-        aiBrain[refoNearestEnemyBrain] = oNearestBrain
         if not(oNearestBrain) then
             M28Utilities.ErrorHandler('Couldnt find a nearest brain to aiBrain='..aiBrain.Nickname)
+            if GetGameTimeSeconds() <= 10 then M28Chat.SendForkedMessage(aiBrain, 'NoEnemies', 'Unable to identify any enemies, M28 may not function properly', 0, 10000, false) end
+            M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbAllEnemiesDefeated] = true
+            --Set the nearest enemy as the furthest away other brain (even if it isnt an enemy) - i.e. if do as furthest enemy then more likely to have units passing enemy units
+            local iFurthestDist = 0
+            local iCurDist
+            for iBrain, oBrain in ArmyBrains do
+                if not(oBrain == aiBrain) then
+                    iCurDist = M28Utilities.GetDistanceBetweenPositions(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()], M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+                    if iCurDist > iFurthestDist then
+                        oNearestBrain = oBrain
+                        iFurthestDist = iCurDist
+                    end
+                end
+            end
         end
+        aiBrain[refoNearestEnemyBrain] = oNearestBrain
     end
     return aiBrain[refoNearestEnemyBrain]
 end
