@@ -555,86 +555,120 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         end
     end
 
+
+
+    --Upgrade T1 to T2 if we have multiple mex upgrades and T1 land facs in this land zone, and already have T2 land, even if have low mass
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if iFactoryTechLevel == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 20 and GetGameTimeSeconds() - M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] >= 3 then
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]) == false and table.getn(tLZTeamData[M28Map.subrefActiveUpgrades]) >= 3 then
+            local iCurMexUpgrades = 0
+            local iCurT1FactoryUpgrades = 0
+            for iUnit, oUnit in tLZTeamData[M28Map.subrefActiveUpgrades] do
+                if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then iCurMexUpgrades = iCurMexUpgrades + 1
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory * categories.TECH1, oUnit.UnitId) then iCurT1FactoryUpgrades = iCurT1FactoryUpgrades + 1
+                end
+            end
+            if iCurT1FactoryUpgrades == 0 and iCurMexUpgrades >= 2 then
+                --Do we have more than 1 T1 land factory in this land zone?
+                local tT1LandFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory * categories.TECH1, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                if table.getn(tT1LandFactories) >= 2 then
+                    if ConsiderUpgrading() then return sBPIDToBuild end
+                end
+            end
+        end
+    end
+
+    --Build more engineers if we have multiple upgrades and need more engineers for the current LZ, even if relatively low mass
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]) == false and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 50 and GetGameTimeSeconds() - M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] >= 5 and tLZTeamData[M28Map.subrefLZTbWantBP] and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) == false then
+        if table.getn(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 3 then
+            --Build engineers as we have lots of upgrades
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+        end
+    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-    function DetermineWhatToBuild(aiBrain, oFactory)
+function DetermineWhatToBuild(aiBrain, oFactory)
     local sBPIDToBuild
 
     if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oFactory.UnitId) then
-    sBPIDToBuild = GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
+        sBPIDToBuild = GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     else
-    M28Utilities.ErrorHandler('Need to add code')
+        M28Utilities.ErrorHandler('Need to add code')
     end
 
     return sBPIDToBuild
-    end
+end
 
-    function IsFactoryReadyToBuild(oFactory)
-    if oFactory:GetFractionComplete() == 1 and oFactory:GetWorkProgress() == 0 and oFactory:GetFractionComplete() == 1 and not(oFactory:IsUnitState('Building')) and not(oFactory:IsUnitState('Upgrading')) and not(oFactory:IsUnitState('Busy')) and M28Utilities.IsTableEmpty(oFactory:GetCommandQueue()) then
-    return true
+function IsFactoryReadyToBuild(oFactory)
+    if oFactory:GetFractionComplete() == 1 and oFactory:GetWorkProgress() == 0 and oFactory:GetFractionComplete() == 1 and not (oFactory:IsUnitState('Building')) and not (oFactory:IsUnitState('Upgrading')) and not (oFactory:IsUnitState('Busy')) and M28Utilities.IsTableEmpty(oFactory:GetCommandQueue()) then
+        return true
     end
     return false
-    end
+end
 
-    function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait)
+function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait)
     --If factory is idle then gets it to build something; if its not idle then keeps checking for up to 20 seconds, but will abort if the factory appears to be building something
     local sFunctionRef = 'DecideAndBuildUnitForFactory'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-    if not(oFactory['M28ActiveBuilderCheck']) then
-
-    oFactory['M28ActiveBuilderCheck'] = true
-
-    local iTicksWaited = 0
-
-    local bProceed = bDontWait
-    if not(bProceed) then
-    bProceed = IsFactoryReadyToBuild(oFactory)
+    local bDebugMessages = false
+    if M28Profiler.bGlobalDebugOverride == true then
+        bDebugMessages = true
     end
-
-    local iWorkProgressStart = (oFactory:GetWorkProgress() or 0)
-
-    while not(bProceed) do
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    WaitTicks(1)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    iTicksWaited = iTicksWaited + 1
-    if M28UnitInfo.IsUnitValid(oFactory) == false then return nil end
-    bProceed = IsFactoryReadyToBuild(oFactory)
-    if oFactory:GetWorkProgress() > iWorkProgressStart then
+
+    if not (oFactory['M28ActiveBuilderCheck']) then
+        oFactory['M28ActiveBuilderCheck'] = true
+        local iTicksWaited = 0
+
+        local bProceed = bDontWait
+        if not (bProceed) then
+            bProceed = IsFactoryReadyToBuild(oFactory)
+        end
+
+        local iWorkProgressStart = (oFactory:GetWorkProgress() or 0)
+
+        while not (bProceed) do
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitTicks(1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            iTicksWaited = iTicksWaited + 1
+            if M28UnitInfo.IsUnitValid(oFactory) == false then
+                return nil
+            end
+            bProceed = IsFactoryReadyToBuild(oFactory)
+            if oFactory:GetWorkProgress() > iWorkProgressStart then
     if bDebugMessages == true then LOG(sFunctionRef..': Factory work progress is going up so will abort as it presumably already has an order') end
-    break
+        break
     end
-    if iTicksWaited >= 200 then
-    M28Utilities.ErrorHandler('oFactory has waited more than 200 ticks and still isnt showing as ready to build, oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; brain nickname='..oFactory:GetAIBrain().Nickname..'; Work progress='..oFactory:GetWorkProgress()..'; Factory fraction complete='..oFactory:GetFractionComplete()..'; Factory status='..M28UnitInfo.GetUnitState(oFactory)..'; Is command queue empty='..tostring(M28Utilities.IsTableEmpty(oFactory:GetCommandQueue()))..'; iWorkProgressStart='..(iWorkProgressStart or 'nil'))
-    break
+        if iTicksWaited >= 200 then
+            M28Utilities.ErrorHandler('oFactory has waited more than 200 ticks and still isnt showing as ready to build, oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; brain nickname=' .. oFactory:GetAIBrain().Nickname .. '; Work progress=' .. oFactory:GetWorkProgress() .. '; Factory fraction complete=' .. oFactory:GetFractionComplete() .. '; Factory status=' .. M28UnitInfo.GetUnitState(oFactory) .. '; Is command queue empty=' .. tostring(M28Utilities.IsTableEmpty(oFactory:GetCommandQueue())) .. '; iWorkProgressStart=' .. (iWorkProgressStart or 'nil'))
+            break
+        end
+    end
+        if bProceed then
+            local sBPToBuild = DetermineWhatToBuild(aiBrain, oFactory)
+        if bDebugMessages == true then LOG(sFunctionRef..': oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; sBPToBuild='..(sBPToBuild or 'nil')..'; Does factory have an empty command queue='..tostring(M28Utilities.IsTableEmpty(oFactory:GetCommandQueue()))..'; Factory work progress='..oFactory:GetWorkProgress()..'; Factory unit state='..M28UnitInfo.GetUnitState(oFactory)) end
+        if sBPToBuild then
+            --Is this an upgrade or a unit to build?
+            if EntityCategoryContains(M28UnitInfo.refCategoryFactory, sBPToBuild) then
+                M28Economy.UpgradeUnit(oFactory, true)
+            else
+                M28Orders.IssueTrackedFactoryBuild(oFactory, sBPToBuild, bDontWait)
+            end
+        else
+            WaitTicks(10)
+            if M28UnitInfo.IsUnitValid(oFactory) then
+                ForkThread(DecideAndBuildUnitForFactory, aiBrain, oFactory, false)
+            end
+        end
     end
     end
-    if bProceed then
-    local sBPToBuild = DetermineWhatToBuild(aiBrain, oFactory)
-    if bDebugMessages == true then LOG(sFunctionRef..': oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; sBPToBuild='..(sBPToBuild or 'nil')..'; Does factory have an empty command queue='..tostring(M28Utilities.IsTableEmpty(oFactory:GetCommandQueue()))..'; Factory work progress='..oFactory:GetWorkProgress()..'; Factory unit state='..M28UnitInfo.GetUnitState(oFactory)) end
-    if sBPToBuild then
-    --Is this an upgrade or a unit to build?
-    if EntityCategoryContains(M28UnitInfo.refCategoryFactory, sBPToBuild) then
-    M28Economy.UpgradeUnit(oFactory, true)
-    else
-    M28Orders.IssueTrackedFactoryBuild(oFactory, sBPToBuild, bDontWait)
-    end
-    else
-    WaitTicks(10)
-    if M28UnitInfo.IsUnitValid(oFactory) then
-    ForkThread(DecideAndBuildUnitForFactory, aiBrain, oFactory, false)
-    end
-    end
-    end
-    end
-    oFactory['M28ActiveBuilderCheck'] = false
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        oFactory['M28ActiveBuilderCheck'] = false
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
 
-    function SetPreferredUnitsByCategory(aiBrain)
+function SetPreferredUnitsByCategory(aiBrain)
     --If have multiple units that can build for a particular category, this will specify what to build
     --special cases where want to prioritise one unit over another where multiple of same type satisfy the category
     --NOTE: This gets ignored if we have coded in special cases where we want to pick the fastest or slowest unit
@@ -661,35 +695,37 @@ end
     --Engineers
     aiBrain[reftBlueprintPriorityOverride]['uel0208'] = 1 --T2 Engi (instead of sparky)
 
-    end
+end
 
-
-    function IdleFactoryMonitor(aiBrain)
+function IdleFactoryMonitor(aiBrain)
     --Cycles through every factory owned by aiBrain, max of 1 factory per tick, to check if it is idle
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false
+    if M28Profiler.bGlobalDebugOverride == true then
+        bDebugMessages = true
+    end
     local sFunctionRef = 'IdleFactoryMonitor'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    while not(aiBrain.M28IsDefeated) do
-    local tOurFactories = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryFactory, false, true)
-    local tCommandQueue
-    local sBPToBuild
-    if M28Utilities.IsTableEmpty(tOurFactories) == false then
-    for iFactory, oFactory in tOurFactories do
-    if M28UnitInfo.IsUnitValid(oFactory) and oFactory:GetFractionComplete() == 1 then
-    tCommandQueue = oFactory:GetCommandQueue()
-    if IsFactoryReadyToBuild(oFactory) and GetGameTimeSeconds() - (oFactory[refiTimeSinceLastOrderCheck] or 0) >= 5 then
-    oFactory[refiTimeSinceLastOrderCheck] = GetGameTimeSeconds()
-    ForkThread(DecideAndBuildUnitForFactory, aiBrain, oFactory)
+    while not (aiBrain.M28IsDefeated) do
+        local tOurFactories = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryFactory, false, true)
+        local tCommandQueue
+        local sBPToBuild
+        if M28Utilities.IsTableEmpty(tOurFactories) == false then
+            for iFactory, oFactory in tOurFactories do
+                if M28UnitInfo.IsUnitValid(oFactory) and oFactory:GetFractionComplete() == 1 then
+                    tCommandQueue = oFactory:GetCommandQueue()
+                    if IsFactoryReadyToBuild(oFactory) and GetGameTimeSeconds() - (oFactory[refiTimeSinceLastOrderCheck] or 0) >= 5 then
+                        oFactory[refiTimeSinceLastOrderCheck] = GetGameTimeSeconds()
+                        ForkThread(DecideAndBuildUnitForFactory, aiBrain, oFactory)
+                    end
+                end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitTicks(1)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            end
+        end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitTicks(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
-    end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    WaitTicks(1)
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    end
-    end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    WaitTicks(1)
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    end
-    end
+end

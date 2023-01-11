@@ -2324,6 +2324,12 @@ function GetBPToAssignToAssistUpgrade(tLZTeamData, iTeam, bCoreZone, bHaveLowMas
             end
             if not(bCoreZone) and iBPWanted > 5 then iBPWanted = math.min(25, iBPWanted * 0.5) end
         end
+        --Increase assistance if we have lots of upgrades
+        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] >= 0.95 then
+            if table.getn(tLZTeamData[M28Map.subrefActiveUpgrades]) >= 3 then iBPWanted = iBPWanted * 2
+            elseif table.getn(tLZTeamData[M28Map.subrefActiveUpgrades]) == 2 then iBPWanted = iBPWanted * 1.25
+            end
+        end
         if bDebugMessages == true then LOG(sFunctionRef .. ': iBPWanted=' .. iBPWanted) end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
