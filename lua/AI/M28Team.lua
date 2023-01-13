@@ -100,9 +100,9 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     reftoEnemyTorpBombers = 'M28TeamEnemyTorpUnits' --table of enemy units that are torpedo bombers
     reftoEnemyAirOther = 'M28TeamEnemyAirOtherUnits' --AIr scouts and transports
     reftoEnemyUnitsWithNoLZ = 'M28TeamEnemyNoLZAir' --AIr units that arent currently over a land zone
-    refiEnemyAirAAThreat = 'M28TeamEnemyAirToGroundThreat'
+    refiEnemyAirAAThreat = 'M28TeamEnemyAirAAThreat'
     refiEnemyAirToGroundThreat = 'M28TeamEnemyAirToGroundThreat'
-    refiEnemyTorpBombersThreat = 'M28TeamEnemyAirToGroundThreat'
+    refiEnemyTorpBombersThreat = 'M28TeamEnemyTorpBomberThreat'
     refiEnemyAirOtherThreat = 'M28TeamEnemyAirOtherThreat'
 
     --Misc details
@@ -1405,6 +1405,7 @@ function TeamInitialisation(iM28Team)
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftLZEnemyAirUnits] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiLZEnemyAirToGroundThreat] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiLZEnemyAirOtherThreat] = 0
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZMAAThreatWanted] = 0
         end
     end
     ForkThread(M28Map.RecordClosestAllyAndEnemyBaseForEachLandZone, iM28Team)

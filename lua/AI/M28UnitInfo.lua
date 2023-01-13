@@ -734,13 +734,13 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                         iHealthThreatFactor = (1 - (1-iHealthPercentage) * iHealthFactor) * iHealthThreatFactor
                     end
                     iCurThreat = iBaseThreat * iHealthThreatFactor + iGhettoGunshipAdjust
-                    if bDebugMessages == true then LOG(sFunctionRef..': UnitBP='..(oUnit.UnitId or 'nil')..'; iBaseThreat='..(iBaseThreat or 'nil')..'; iMassMod='..(iMassMod or 'nil')..'iCurThreat='..(iCurThreat or 'nil')) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': UnitBP='..(oUnit.UnitId or 'nil')..'; iBaseThreat='..(iBaseThreat or 'nil')..'; iHealthThreatFactor='..(iHealthThreatFactor or 'nil')..'iGhettoGunshipAdjust='..(iGhettoGunshipAdjust or 'nil')..'; iCurThreat='..(iCurThreat or 'nil')) end
                 end
             else
                 --Calculate the base threat for hte blueprint (start of game)
                 if bBlueprintThreat then
                     local oBP = __blueprints[oUnit.UnitId]
-                    if bDebugMessages == true then LOG(sFunctionRef..': About to calculate threat using actual unit data') end
+                    if bDebugMessages == true then LOG(sFunctionRef..': About to calculate threat using actual unit data, iThreatRef='..iThreatRef) end
                     --get actual threat calc
                     local iMassMod = 0 --For non-offensive structures
                     --Does the unit contain any of the categories of interest?
@@ -768,7 +768,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
 
                             else
                                 if bIncludeAirToGround == true then
-                                    if EntityCategoryContains(categories.BOMBER + categories.GROUNDATTACK + categories.OVERLAYDIRECTFIRE, sCurUnitBP) == true then iMassMod = 1
+                                    if EntityCategoryContains(categories.BOMBER + categories.GROUNDATTACK + categories.OVERLAYDIRECTFIRE + categories.DIRECTFIRE, sCurUnitBP) == true then iMassMod = 1
                                     elseif EntityCategoryContains(categories.TRANSPORTATION, sCurUnitBP) then iMassMod = 1 --might be a ghetto
                                     end
                                 end
@@ -1253,7 +1253,6 @@ function PauseOrUnpauseEnergyUsage(oUnit, bPauseNotUnpause)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'PauseOrUnpauseEnergyUsage'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    --if EntityCategoryContains(categories.COMMAND + refCategoryAirFactory, oUnit.UnitId) then bDebugMessages = true end
 
     if bDebugMessages == true then
         LOG(sFunctionRef..': Start of code, oUnit='..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; Unit state='..GetUnitState(oUnit))

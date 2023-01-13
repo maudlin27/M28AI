@@ -12,6 +12,11 @@ local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
 local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 
 function RecordNewAirUnitForTeam(iTeam, oUnit)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordNewAirUnitForTeam'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': iTeam='..iTeam..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
     local sTeamTableRef
     --Is this an enemy unit?
     if not(oUnit:GetAIBrain().M28Team == iTeam) then
@@ -24,7 +29,7 @@ function RecordNewAirUnitForTeam(iTeam, oUnit)
         else
             sTeamTableRef = M28Team.reftoEnemyAirOther
         end
-
+        if bDebugMessages == true then LOG(sFunctionRef..': About to insert unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; into table sTeamTableRef='..sTeamTableRef) end
         table.insert(M28Team.tTeamData[iTeam][sTeamTableRef], oUnit)
         table.insert(M28Team.tTeamData[iTeam][M28Team.reftoAllEnemyAir], oUnit)
 
@@ -41,6 +46,7 @@ function RecordNewAirUnitForTeam(iTeam, oUnit)
             M28Team.AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, true)
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function RecordEnemyAirUnitWithNoZone(iTeam, oUnit)
@@ -69,10 +75,19 @@ function UpdateEnemyAirThreats(iTeam)
     local sFunctionRef = 'UpdateEnemyAirThreats'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --Calculate threat ratings
-    M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] = M28UnitInfo.GetAirThreatLevel(M28Team.tTeamData[iTeam][M28Team.reftoAllEnemyAir], true, true, false, false, false, false)
-    M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] = M28UnitInfo.GetAirThreatLevel(M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirToGround], true, false, false, true, false, false)
-    M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] = M28UnitInfo.GetAirThreatLevel(M28Team.tTeamData[iTeam][M28Team.reftoEnemyTorpBombers], true, false, false, false, false, true)
-    M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat] = M28UnitInfo.GetAirThreatLevel(M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirOther], true, true, false, true, true, true)
+    if bDebugMessages == true then
+        LOG(sFunctionRef..': Start of code, gametime='..GetGameTimeSeconds()..'; Is table of enemy air to ground threat empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirToGround])))
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirToGround]) == false then
+            for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirToGround] do
+                LOG(sFunctionRef..': unit '..iUnit..' in enemy air to ground, ref='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has an air to ground threat of '..M28UnitInfo.GetAirThreatLevel({ oUnit }, true, false, false, true, false, false))
+            end
+        end
+    end
+                                                                        --GetAirThreatLevel(tUnits,                                             bEnemyUnits,    bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo, bBlueprintThreat)
+    M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] = M28UnitInfo.GetAirThreatLevel(M28Team.tTeamData[iTeam][M28Team.reftoAllEnemyAir], true,            true,               false,              false,                  false,              false)
+    M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] = M28UnitInfo.GetAirThreatLevel(M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirToGround], true, false,              false,              true,                   false, false)
+    M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] = M28UnitInfo.GetAirThreatLevel(M28Team.tTeamData[iTeam][M28Team.reftoEnemyTorpBombers], true, false,              false,              false,                  false, true)
+    M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat] = M28UnitInfo.GetAirThreatLevel(M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirOther], true, true, false,              true,               true,                   true)
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, time='..GetGameTimeSeconds()..'; Enemy AirAA threat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]..'; Air to ground threat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]..'; Torp bomber threat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]..'; Other threat='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat]) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
