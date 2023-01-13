@@ -49,9 +49,11 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
     local sFunctionRef = 'UpgradeUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, reprs of oUnitToUpgrade='..reprs(oUnitToUpgrade)..'; GetUnitUpgradeBlueprint='..reprs((M28UnitInfo.GetUnitUpgradeBlueprint(oUnitToUpgrade, true) or 'nil'))..'; bUpdateUpgradeTracker='..tostring((bUpdateUpgradeTracker or false))) end
+
     --Do we have any HQs of the same factory type of a higher tech level?
     local sUpgradeID = M28UnitInfo.GetUnitUpgradeBlueprint(oUnitToUpgrade, true) --If not a factory or dont recognise the faction then just returns the normal unit ID
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, sUpgradeID='..(sUpgradeID or 'nil')..'; bUpdateUpgradeTracker='..tostring((bUpdateUpgradeTracker or false))) end
+
 
     if sUpgradeID and M28UnitInfo.IsUnitValid(oUnitToUpgrade) then
         local aiBrain = oUnitToUpgrade:GetAIBrain()
@@ -107,6 +109,7 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
         --Clear any pausing of the unit
         oUnitToUpgrade:SetPaused(false)
         oUnitToUpgrade[M28UnitInfo.refbPaused] = false
+        if bDebugMessages == true then LOG(sFunctionRef..': Just set paused to false for unit '..oUnitToUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToUpgrade)) end
 
         if bUpdateUpgradeTracker then
             M28Team.UpdateUpgradeTrackingOfUnit(oUnitToUpgrade, false, sUpgradeID)
@@ -255,7 +258,8 @@ function FindAndUpgradeUnitOfCategory(aiBrain, iCategoryWanted)
                 end
             end
             if oClosestUnit then
-                UpgradeUnit(aiBrain, oClosestUnit, true) --Will queue up transport or engineer for factories as well as figuring out whether to upgrade a support factory or an HQ
+                if bDebugMessages == true then LOG(sFunctionRef..': WIll try and upgrade oClosestUnit '..oClosestUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestUnit)..'; Fraction complete='..oClosestUnit:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oClosestUnit)) end
+                UpgradeUnit(oClosestUnit, true) --Will queue up transport or engineer for factories as well as figuring out whether to upgrade a support factory or an HQ
             end
         end
     end
@@ -1059,6 +1063,7 @@ function ManageEnergyStalls(iTeam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageEnergyStalls'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
 
     --if GetGameTimeSeconds() >= 1080 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] <= 0.05 or M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) then bDebugMessages = true end
 

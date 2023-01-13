@@ -263,52 +263,59 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
     --bOptionalShouldBePathable - if e.g. have a unit at tPosition, then set this to true as it means somehow a unit could path in this area, and the code will then try backup options and give error messages
 
     --Get the plateau reference and the land segment X and Z references:
-    local iPlateau = NavUtils.GetLabel(refPathingTypeAmphibious, tPosition)
+    local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tPosition)
+    local iPlateau = NavUtils.GetLabel(refPathingTypeAmphibious, GetPositionFromPathingSegments(iSegmentX, iSegmentZ))
     local iLandZone
 
     if (iPlateau or 0) <= 0 or not(tAllPlateaus[iPlateau]) then
         --Check if we have previously recorded this location with a pathing override
         iPlateau, iLandZone = GetPathingOverridePlateauAndLandZone(tPosition, bOptionalShouldBePathable, oOptionalPathingUnit)
         if not(tAllPlateaus[iPlateau]) then
-            --Potential error - get the plateau if the midpoint instead if should be pathable
+            --Potential error - see if there is a plateau for the preicse position if it shoudl be pathable
+
             --LOG('GetPlateauAndLandZoneReferenceFromPosition: tAllPlateaus is nil for iPlateau='..(iPlateau or 'nil')..'; if should be pathable will check the segment we are in/ bOptionalShouldBePathable='..tostring(bOptionalShouldBePathable or false))
             if bOptionalShouldBePathable then
-                local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tPosition)
-                iPlateau = NavUtils.GetLabel(refPathingTypeAmphibious, GetPositionFromPathingSegments(iSegmentX, iSegmentZ))
-                --bUsingSegmentPlateauRef = true
+                iPlateau = NavUtils.GetLabel(refPathingTypeAmphibious, tPosition)
+
                 if not(tAllPlateaus[iPlateau]) then
                     if bOptionalShouldBePathable then
                         M28Utilities.ErrorHandler('No plateau group for tPosition '..repru(tPosition)..' or segment midpoint '..repru(GetPositionFromPathingSegments(iSegmentX, iSegmentZ))..'; Plateau group of segment midpoint='..(NavUtils.GetLabel(refPathingTypeAmphibious, GetPositionFromPathingSegments(iSegmentX, iSegmentZ)) or 'nil')..'; Plateau Group of tPosition='..(NavUtils.GetLabel(refPathingTypeAmphibious, tPosition) or 'nil'))
                     end
                     return nil
                 else
-                    iLandZone = tLandZoneBySegment[iSegmentX][iSegmentZ]
+                    if tAllPlateaus[iPlateau][subrefiPlateauMexes] == 0 then
+                        iLandZone = 1
+                    else
+                        --more than 1 land zone so return nil
+                        iLandZone = nil
+                    end
                 end
             else
                 return nil
             end
         end
-        if iPlateau and iLandZone then return iPlateau, iLandZone end
-    end
+        return iPlateau, iLandZone
+    else
+        --Have a valid plateau, get the land zone reference:
+        --local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tPosition)
+        iLandZone = tLandZoneBySegment[iSegmentX][iSegmentZ]
 
-
-    --Get the land zone reference:
-    local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tPosition)
-    local iLandZone = tLandZoneBySegment[iSegmentX][iSegmentZ]
-    if not(iLandZone) then
-        --Are we above water in height? If so check for override
-        if tPosition[2] > iMapWaterHeight then
-            iPlateau, iLandZone = GetPathingOverridePlateauAndLandZone(tPosition, bOptionalShouldBePathable, oOptionalPathingUnit)
-            if not(iLandZone) and bOptionalShouldBePathable then
-                --Possible explanation - engineer has traveled across water and reached a cliff
-                if EntityCategoryContains(categories.HOVER + categories.AMPHIBIOUS, oOptionalPathingUnit.UnitId) then
-                    --Do nothing - hopefully unit has orders that it will follow that will resolve this on its own
-                else
-                    M28Utilities.ErrorHandler('Unable to find valid land zone, tPosition[1-3]='..tPosition[1]..'-'..tPosition[2]..'-'..tPosition[3]..'; oOptionalPathingUnit='..(oOptionalPathingUnit.UnitId or 'nil')..' with LC='.. M28UnitInfo.GetUnitLifetimeCount(oOptionalPathingUnit))
+        if not(iLandZone) then
+            --Are we above water in height? If so check for override
+            if tPosition[2] > iMapWaterHeight then
+                iPlateau, iLandZone = GetPathingOverridePlateauAndLandZone(tPosition, bOptionalShouldBePathable, oOptionalPathingUnit)
+                if not(iLandZone) and bOptionalShouldBePathable then
+                    --Possible explanation - engineer has traveled across water and reached a cliff
+                    if EntityCategoryContains(categories.HOVER + categories.AMPHIBIOUS, oOptionalPathingUnit.UnitId) then
+                        --Do nothing - hopefully unit has orders that it will follow that will resolve this on its own
+                    else
+                        M28Utilities.ErrorHandler('Unable to find valid land zone, tPosition[1-3]='..tPosition[1]..'-'..tPosition[2]..'-'..tPosition[3]..'; oOptionalPathingUnit='..(oOptionalPathingUnit.UnitId or 'nil')..' with LC='.. M28UnitInfo.GetUnitLifetimeCount(oOptionalPathingUnit))
+                    end
                 end
             end
         end
     end
+
 
     return iPlateau, iLandZone
 end

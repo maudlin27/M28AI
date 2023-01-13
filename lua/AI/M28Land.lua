@@ -404,13 +404,15 @@ function RecordGroundThreatForLandZone(tLZTeamData, iTeam, iPlateau, iLandZone)
         end
         tLZTeamData[M28Map.subrefLZIndirectThreatWanted] = iEnemyStructureThreat * 2 + tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] * 2
         tLZTeamData[M28Map.subrefLZDFThreatWanted] = math.max(200, tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] * 2)
-        --If we have no friendly combat units and enemy has combat threat, then dont request AA
-        if tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] < 10 or tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] or tLZTeamData[M28Map.subrefLZTCoreBase] then
-            tLZTeamData[M28Map.subrefLZMAAThreatWanted] = math.max(tLZTeamData[M28Map.refiLZEnemyAirToGroundThreat] * 0.5 + tLZTeamData[M28Map.refiLZEnemyAirToGroundThreat] * 0.15, tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] * 0.1)
-        end
     else
         tLZTeamData[M28Map.subrefLZDFThreatWanted] = 0
         tLZTeamData[M28Map.subrefLZIndirectThreatWanted] = 0
+    end
+
+    --If we have no friendly combat units and enemy has combat threat, then dont request AA
+    if tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] < 11 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= math.min(1500, tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] * 0.9) or tLZTeamData[M28Map.subrefLZTCoreBase] then
+        tLZTeamData[M28Map.subrefLZMAAThreatWanted] = math.max(tLZTeamData[M28Map.refiLZEnemyAirToGroundThreat] * 0.5 + tLZTeamData[M28Map.refiLZEnemyAirToGroundThreat] * 0.15, tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] * 0.1)
+    else
         tLZTeamData[M28Map.subrefLZMAAThreatWanted] = 0
     end
 
@@ -649,7 +651,7 @@ function RecordClosestAdjacentEnemiesAndGetBestEnemyRange(tLZData, tLZTeamData, 
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering adjacent LZ '..iAdjLandZone..'; Enemy mobile DF for this LZ='..tAltLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange]..'; Mobile structure range='..tAltLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange]..'; Mobile indirect='..tAltLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange]) end
                 if M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subrefLZTEnemyUnits]) == false and tAltLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] >= 10 then
                     for iUnit, oUnit in tAltLZTeamData[M28Map.subrefLZTEnemyUnits] do
-                        if oUnit[M28UnitInfo.refiDFRange] > 0 then
+                        if oUnit[M28UnitInfo.refiDFRange] > 0 and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout - categories.SERAPHIM, oUnit.UnitId)) then
                             iCurDistUntilInRange = M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], tMidpoint) - oUnit[M28UnitInfo.refiDFRange]
                             if iCurDistUntilInRange < iLowestDistUntilInRange then
                                 oLowestDFDistUntilInRange = oUnit
@@ -667,7 +669,7 @@ function RecordClosestAdjacentEnemiesAndGetBestEnemyRange(tLZData, tLZTeamData, 
         --Add all units from this zone into reftoNearestDFEnemies
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTEnemyUnits]) == false and tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] then
             for iUnit, oUnit in tLZTeamData[M28Map.subrefLZTEnemyUnits] do
-                if oUnit[M28UnitInfo.refiDFRange] > 0 then
+                if oUnit[M28UnitInfo.refiDFRange] > 0 and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout - categories.SERAPHIM, oUnit.UnitId)) then
                     table.insert(tLZTeamData[M28Map.reftoNearestDFEnemies], oUnit)
                 end
             end
@@ -759,6 +761,7 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageMAAInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if iLandZone == 3 and GetGameTimeSeconds() >= 1320 then bDebugMessages = true end
 
     local tRallyPoint = GetNearestRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2) --Get a LZ up to 3 land zones away to retreat to (i.e. will pick rally point and then move 2 towards it)
 
@@ -783,7 +786,7 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
 
     --If enemy has air units in this zone then send the MAA to advance units towards it, but avoid enemy land units
     if M28Utilities.IsTableEmpty(tMAAToAdvance) == false then
-        if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy air units for this LZ '..iLandZone..' empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]))) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Number of MAA units to advance='..table.getn(tMAAToAdvance)..'; Is table of enemy air units for this LZ '..iLandZone..' empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]))) end
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) == false then
             --Move towards the nearest enemy air unit to the LZ midpoint
             local oNearestEnemyToMidpoint
@@ -808,12 +811,20 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
             local iMAALZToSupport
             --Check if any adjacent zones want support, and if not then check for further away zones wanting support
             if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                local iHighestAirValue = 0
+                local iHighestAirLZ
+                local iCurAirValue
                 for iEntry, tPathDetails in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering which adjacent LZ has the biggest air threat, cur entry=LZ'..tPathDetails[M28Map.subrefLZNumber]..'; MAA threat wanted='..M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tPathDetails[M28Map.subrefLZNumber]][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZMAAThreatWanted]..'; GroundAA have already='..M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tPathDetails[M28Map.subrefLZNumber]][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZThreatAllyGroundAA]..'; Enemy air to ground threat='..M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tPathDetails[M28Map.subrefLZNumber]][M28Map.subrefLZTeamData][iTeam][M28Map.refiLZEnemyAirToGroundThreat]..'; Air othre threat='..M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tPathDetails[M28Map.subrefLZNumber]][M28Map.subrefLZTeamData][iTeam][M28Map.refiLZEnemyAirOtherThreat]..'; Is table of enemy air empty for this alt LZ='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tPathDetails[M28Map.subrefLZNumber]][M28Map.subrefLZTeamData][iTeam][M28Map.reftLZEnemyAirUnits]))..' iHighestAirValue so far='..iHighestAirValue) end
                     if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tPathDetails[M28Map.subrefLZNumber]][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZMAAThreatWanted] > M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tPathDetails[M28Map.subrefLZNumber]][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZThreatAllyGroundAA] then
-                        iMAALZToSupport = tPathDetails[M28Map.subrefLZNumber]
-                        break
+                        iCurAirValue = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tPathDetails[M28Map.subrefLZNumber]][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZMAAThreatWanted] * 0.01 + M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tPathDetails[M28Map.subrefLZNumber]][M28Map.subrefLZTeamData][iTeam][M28Map.refiLZEnemyAirToGroundThreat] + M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tPathDetails[M28Map.subrefLZNumber]][M28Map.subrefLZTeamData][iTeam][M28Map.refiLZEnemyAirOtherThreat] * 0.1
+                        if iCurAirValue > iHighestAirValue then
+                            iHighestAirValue = iCurAirValue
+                            iHighestAirLZ = tPathDetails[M28Map.subrefLZNumber]
+                        end
                     end
                 end
+                iMAALZToSupport = iHighestAirLZ
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Do any adjacent zones want support? iMAALZToSupport='..(iMAALZToSupport or 'nil')) end
             if iMAALZToSupport then

@@ -32,7 +32,6 @@ iFullOutputCount = 0 --increased each time do a full output
 iFullOutputCycleCount = 0 --Increased each time do a full output, and reset to 0 when reach
 tProfilerCountByTickByFunction = {}
 tbProfilerOutputGivenForTick = {} --true if already given output for [iTick]
-IssueCount = 0 --Used to track no. of times issuemove has been sent in game
 
 tFunctionCallByName = {}
 iFunctionCurCount = 0
@@ -189,7 +188,6 @@ function ProfilerOutput()
                     LOG(sFunctionRef..': iTick='..iCurTick..': No.'..iCount..'='..sFunctionName..'; TimesRun='..(tProfilerCountByTickByFunction[iCurTick][sFunctionName] or 'nil')..'; Total Time='..iValue)
                     if iCount >= 10 then break end
                 end
-                LOG(sFunctionRef..': IssueMove cumulative count='..IssueCount)
             end
             --else
             --LOG(sFunctionRef..': Tick='..iCurTick..'; Below threshold at '..(tProfilerCumulativeTimeTakenInTick[iCurTick] or 'missing'))

@@ -89,6 +89,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
 
     --Land combat related
     subrefiLandZonesWantingSupportByPlateau = 'M28TeamLZWantingSupport' --[x] is the plateau ref, [y] is the land zone ref, returns true if we want support for the plateau
+    subrefiLandZonesWantingMAAByPlateau = 'M28TeamLZWantingMAA' --[x] is the plateau ,ref, [y] is the land zone ref, returns true if we want MAA support for the plateau
     subrefiRallyPointLandZonesByPlateau = 'M28TeamLZRallyPoint' --[x] is the plateau ref, y is the land zone ref
     refiTimeOfLastRallyPointRefresh = 'M28TeamRallyPointRefreshTime' --Game time in seconds that last refreshed rally points
 
@@ -473,7 +474,7 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
             RemoveUnitFromCurrentLandZone(aiBrain, oUnit)
         end
     end--]]
-    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Considering adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to iPlateau '..iPlateau..'; iLandZone='..iLandZone..' for brain '..aiBrain.Nickname..'; bAddToZone='..tostring(bAddToZone)..'; Is enemy='..tostring(IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()))..'; Is ally='..tostring(IsAlly(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Considering adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to iPlateau '..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..' for brain '..aiBrain.Nickname..'; bAddToZone='..tostring(bAddToZone)..'; Is enemy='..tostring(IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()))..'; Is ally='..tostring(IsAlly(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()))) end
     if bAddToZone then
         if not(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) then oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam] = {} end
         oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][aiBrain.M28Team] = {iPlateau, iLandZone}
@@ -546,54 +547,62 @@ function AssignUnitToZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if M28UnitInfo.IsUnitValid(oUnit) then
+
         local bPreviouslyConsidered = (oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][aiBrain.M28Team] or false)
 
 
         if not(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam]) then oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam] = {} end
         if not(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][aiBrain.M28Team]) then oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][aiBrain.M28Team] = true end
 
-        if not(bAlreadyUpdatedPosition) then
-            UpdateUnitLastKnownPosition(aiBrain, oUnit, true)
-            if IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) and aiBrain.M28AI then UpdateEnemyTechTracking(aiBrain.M28Team, oUnit) end
-        end
-        if bDebugMessages == true then LOG(sFunctionRef..': aiBrain '..aiBrain.Nickname..' is Considering how to assign unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' that is owned by brain '..oUnit:GetAIBrain().Nickname) end
-
-
-        --Air units - always assign to air groups, and also to land zones if in one
-        if EntityCategoryContains(M28UnitInfo.refCategoryAllAir - M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
-            if not(bPreviouslyConsidered) then
-                M28Air.RecordNewAirUnitForTeam(aiBrain.M28Team, oUnit)
-            end
-            if bAlreadyUpdatedPosition then
-                --Presumably air unit has fallen out of a land zone - add to table of enemy air without a LZ
-                if not(aiBrain.M28Team == oUnit:GetAIBrain().M28Team) then --redundancy, - hopefully shouldnt get to this point if this isnt the case
-                    M28Air.RecordEnemyAirUnitWithNoZone(aiBrain.M28Team, oUnit)
-                end
-            end
+        if EntityCategoryContains(M28UnitInfo.refCategoryWall + categories.UNSELECTABLE + categories.UNTARGETABLE, oUnit.UnitId) then
+            --Do nothing
+            if bDebugMessages == true then LOG(sFunctionRef..': Unit is insignificant so will ignore, Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
         else
-            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
-            if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
-            if iLandZone > 0 then
-                --Unit is in a land zone so assign it to a land zone instead of a pond
-                AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone)
-            elseif iPlateau > 0 then
-                --Does the unit already have orders, and is a non-naval unit? If so then wait and try to reassign it in a bit, as e.g. may be a land unit that can path across water so has taken a shortcut
-                if EntityCategoryContains(M28UnitInfo.refCategoryAllNavy, oUnit.UnitId) then
-                    local iCurPond = NavUtils.GetLabel(M28Map.refPathingTypeNavy, oUnit:GetPosition())
-                    if iCurPond > 0 then
-                        M28Utilities.ErrorHandler('#To add code for naval units')
-                    else
-                        M28Utilities.ErrorHandler('Naval unit but not in a recognised poind')
+
+
+            if not(bAlreadyUpdatedPosition) then
+                UpdateUnitLastKnownPosition(aiBrain, oUnit, true)
+                if IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) and aiBrain.M28AI then UpdateEnemyTechTracking(aiBrain.M28Team, oUnit) end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': aiBrain '..aiBrain.Nickname..' is Considering how to assign unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' that is owned by brain '..oUnit:GetAIBrain().Nickname) end
+
+
+            --Air units - always assign to air groups, and also to land zones if in one
+            if EntityCategoryContains(M28UnitInfo.refCategoryAllAir - M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
+                if not(bPreviouslyConsidered) then
+                    M28Air.RecordNewAirUnitForTeam(aiBrain.M28Team, oUnit)
+                end
+                if bAlreadyUpdatedPosition then
+                    --Presumably air unit has fallen out of a land zone - add to table of enemy air without a LZ
+                    if not(aiBrain.M28Team == oUnit:GetAIBrain().M28Team) then --redundancy, - hopefully shouldnt get to this point if this isnt the case
+                        M28Air.RecordEnemyAirUnitWithNoZone(aiBrain.M28Team, oUnit)
                     end
-                elseif oUnit:IsUnitState('Attached') then
-                    M28Utilities.ErrorHandler('Add logic for transports or attached units')
-                else
-                    --Reassign in a bit
-                    ForkThread(DelayedUnitPlateauAssignment, aiBrain, oUnit, 20, bAlreadyUpdatedPosition)
                 end
             else
-                --No valid plateau or land zone for unit so likely a pathing error; have unit move randomly if we are updating for the owner
-                ForkThread(HaveGroundUnitWithNoPlateau, aiBrain, oUnit)
+                local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
+                if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
+                if iLandZone > 0 then
+                    --Unit is in a land zone so assign it to a land zone instead of a pond
+                    AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone)
+                elseif iPlateau > 0 then
+                    --Does the unit already have orders, and is a non-naval unit? If so then wait and try to reassign it in a bit, as e.g. may be a land unit that can path across water so has taken a shortcut
+                    if EntityCategoryContains(M28UnitInfo.refCategoryAllNavy, oUnit.UnitId) then
+                        local iCurPond = NavUtils.GetLabel(M28Map.refPathingTypeNavy, oUnit:GetPosition())
+                        if iCurPond > 0 then
+                            M28Utilities.ErrorHandler('#To add code for naval units')
+                        else
+                            M28Utilities.ErrorHandler('Naval unit but not in a recognised poind')
+                        end
+                    elseif oUnit:IsUnitState('Attached') then
+                        M28Utilities.ErrorHandler('Add logic for transports or attached units')
+                    else
+                        --Reassign in a bit
+                        ForkThread(DelayedUnitPlateauAssignment, aiBrain, oUnit, 20, bAlreadyUpdatedPosition)
+                    end
+                else
+                    --No valid plateau or land zone for unit so likely a pathing error; have unit move randomly if we are updating for the owner
+                    ForkThread(HaveGroundUnitWithNoPlateau, aiBrain, oUnit)
+                end
             end
         end
     end

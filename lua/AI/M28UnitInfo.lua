@@ -560,7 +560,10 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                                 else
                                     if EntityCategoryContains(categories.DIRECTFIRE, oUnit.UnitId) then
                                         if EntityCategoryContains(refCategoryLandScout, oUnit.UnitId) then
-                                            iMassMod = 0.55 --Selen costs 20, so Selen ends up with a threat of 12; engineer logic will ignore threats <10 (so all other lands couts)
+                                            if EntityCategoryContains(categories.SERAPHIM, oUnit.UnitId) then
+                                                iMassMod = 0.55 --Selen costs 20, so Selen ends up with a threat of 12; engineer logic will ignore threats <10 (so all other lands couts)
+                                            else iMassMod = 0.25
+                                            end
                                         elseif EntityCategoryContains(refCategoryCruiserCarrier, oUnit.UnitId) then
                                             if EntityCategoryContains(categories.CYBRAN * categories.TECH2, oUnit.UnitId) then iMassMod = 0.55
                                             elseif EntityCategoryContains(categories.AEON, oUnit.UnitId) then
@@ -1219,10 +1222,19 @@ function PauseOrUnpauseMassUsage(oUnit, bPauseNotUnpause)
 
         --Want to pause unit, check for any special logic for pausing
         --Normal logic - just pause unit - exception if are dealing with a factory whose workcomplete is 100% and want to pause it
-        if not(EntityCategoryContains(refCategoryFactory, oUnit.UnitId)) or not(bPauseNotUnpause) or (oUnit.GetWorkProgress and oUnit:GetWorkProgress() > 0 and oUnit:GetWorkProgress() < 1) then
+        if oUnit.SetPaused and (not(bPauseNotUnpause) or not(oUnit:IsPaused())) and oUnit:GetFractionComplete() == 1 and (not(EntityCategoryContains(refCategoryFactory, oUnit.UnitId)) or (oUnit.GetWorkProgress and oUnit:GetWorkProgress() > 0 and oUnit:GetWorkProgress() < 1) or (oUnit:IsPaused() and not(bPauseNotUnpause))) then
             if oUnit.UnitId == 'xsb2401' then M28Utilities.ErrorHandler('Pausing Yolona') end
+            if bDebugMessages == true then LOG(sFunctionRef..': About to set paused to '..tostring(bPauseNotUnpause)..' for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' Unit state='..GetUnitState(oUnit))
+                if oUnit.GetWorkProgress then LOG(sFunctionRef..': Unit work progress='..oUnit:GetWorkProgress()) end
+            end
             oUnit:SetPaused(bPauseNotUnpause)
             oUnit[refbPaused] = bPauseNotUnpause
+            --If unit isnt actually paused (e.g. due to error with set paused) then clear this flag
+            if oUnit[refbPaused] and not(oUnit:IsPaused()) then
+                oUnit[refbPaused] = false
+                if bDebugMessages == true then LOG(sFunctionRef..': Unit isnt actually paused so wont set this flag') end
+            end
+
             if bDebugMessages == true then LOG(sFunctionRef..': Just set paused to '..tostring(bPauseNotUnpause)..' for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)) end
         elseif bDebugMessages == true then
             LOG(sFunctionRef..': Factory with either no workprogress or workprogress that isnt <1')
@@ -1261,30 +1273,40 @@ function PauseOrUnpauseEnergyUsage(oUnit, bPauseNotUnpause)
 
         --Want to pause/unpause unit, check for any special logic for pausing
         --local bWasUnitPaused = (oUnit[refbPaused] or false)
-        oUnit[refbPaused] = bPauseNotUnpause
         if oUnit.MyShield and oUnit.MyShield:GetMaxHealth() > 0 then
             if IsUnitShieldEnabled(oUnit) == bPauseNotUnpause then
                 if bPauseNotUnpause then DisableUnitShield(oUnit)
                 else EnableUnitShield(oUnit) end
+                oUnit[refbPaused] = bPauseNotUnpause
             end
         elseif oBP.Intel.ReactivateTime and (oBP.Intel.SonarRadius or oBP.Intel.RadarRadius) then
             if bPauseNotUnpause then DisableUnitIntel(oUnit)
             else EnableUnitIntel(oUnit)
             end
+            oUnit[refbPaused] = bPauseNotUnpause
         elseif oBP.Intel.Cloak or oBP.Intel.RadarStealth or oBP.Intel.RadarStealthFieldRadius then
             if bPauseNotUnpause then DisableUnitStealth(oUnit)
             else EnableUnitStealth(oUnit)
             end
+            oUnit[refbPaused] = bPauseNotUnpause
         end
         --Normal logic - just pause unit - exception if are dealing with a factory whose workcomplete is 100%
-        if oUnit.SetPaused and (not(EntityCategoryContains(refCategoryFactory, oUnit.UnitId)) or not(bPauseNotUnpause) or (oUnit.GetWorkProgress and oUnit:GetWorkProgress() > 0 and oUnit:GetWorkProgress() < 1)) then
+        if oUnit.SetPaused and (not(bPauseNotUnpause) or not(oUnit:IsPaused())) and oUnit:GetFractionComplete() == 1 and (not(EntityCategoryContains(refCategoryFactory, oUnit.UnitId)) or (oUnit.GetWorkProgress and oUnit:GetWorkProgress() > 0 and oUnit:GetWorkProgress() < 1)) then
             if oUnit.UnitId == 'xsb2401' then M28Utilities.ErrorHandler('Pausing Yolona') end
-            if bDebugMessages == true then LOG(sFunctionRef..': About to set paused to '..tostring(bPauseNotUnpause)..' for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': About to set paused to '..tostring(bPauseNotUnpause)..' for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; Unit state='..GetUnitState(oUnit))
+                if oUnit.GetWorkProgress then LOG(sFunctionRef..': Unit work progress='..oUnit:GetWorkProgress()) end
+            end
             oUnit:SetPaused(bPauseNotUnpause)
             oUnit[refbPaused] = bPauseNotUnpause
+            --If unit isnt actually paused (e.g. due to error with set paused) then clear this flag
+            if oUnit[refbPaused] and not(oUnit:IsPaused()) then
+                oUnit[refbPaused] = false
+                if bDebugMessages == true then LOG(sFunctionRef..': Unit isnt actually paused so wont set this flag') end
+            end
 
+            if bDebugMessages == true then LOG(sFunctionRef..': Just set paused to '..tostring(bPauseNotUnpause)..' for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)) end
         elseif bDebugMessages == true then
-            LOG(sFunctionRef..': Factory with either no workprogress or workprogress that isnt <1')
+            LOG(sFunctionRef..': Factory with either no workprogress or workprogress that isnt <1; is .SetPaused nil='..tostring(oUnit.SetPaused == nil)..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; Unit[refbPaused]='..tostring(oUnit[refbPaused])..'; fraction complete='..oUnit:GetFractionComplete()..'; Is unit a factory='..tostring(EntityCategoryContains(refCategoryFactory, oUnit.UnitId)))
             if oUnit.GetWorkProgress then LOG(sFunctionRef..': Workprogress='..oUnit:GetWorkProgress()) end
         end
 
