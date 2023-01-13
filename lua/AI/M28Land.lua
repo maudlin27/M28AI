@@ -715,23 +715,33 @@ function GetNearestRallyPoint(tLZData, iTeam, iPlateau, iLandZone, iMaxLZTowards
         local iClosestDist = 100000
         local iClosestLZ
         for iEntry, iAltLZ in M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau][iPlateau] do
-            iCurDist = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iAltLZ)  --M28Utilities.GetDistanceBetweenPositions(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAltLZ][M28Map.subrefLZMidpoint], tLZData[M28Map.subrefLZMidpoint])
+            if iAltLZ == iLandZone then
+                iClosestLZ = iAltLZ
+                break
+            else
+                iCurDist = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iAltLZ)  --M28Utilities.GetDistanceBetweenPositions(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAltLZ][M28Map.subrefLZMidpoint], tLZData[M28Map.subrefLZMidpoint])
+            end
             if iCurDist < iClosestDist then
                 iClosestDist = iCurDist
                 iClosestLZ = iAltLZ
             end
         end
-        --Do we have a path to this rally point from the current land zone? If so move 2 along the path
-        if not(tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iClosestLZ]) then
-            M28Map.ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iPlateau, iLandZone, iClosestLZ, tLZData[M28Map.subrefLZMidpoint])
-        end
-        if iMaxLZTowardsRally and tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iClosestLZ] then
-            if bDebugMessages == true then LOG(sFunctionRef..': WIll consider changing to the '..iMaxLZTowardsRally..' entry along the path; repru of the path='..repru(tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iClosestLZ]][M28Map.subrefLZPath])..'; Position in the path='..tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iClosestLZ]) end
-            --Change closest LZ to run to to be 2 along the path from cur LZ to the target LZ
-            for iEntry, iLZPointInPath in tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iClosestLZ]][M28Map.subrefLZPath] do
-                if iEntry >= iMaxLZTowardsRally then
-                    iClosestLZ = iLZPointInPath
-                    break
+        if iClosestLZ == iLandZone then
+            --Do nothing - wont find a closer one
+        else
+            --Do we have a path to this rally point from the current land zone? If so move 2 along the path
+            if not(tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iClosestLZ]) then
+                M28Utilities.ErrorHandler('Dont have pathing recorded for iClosetsLZ='..iClosestLZ..'; iPlateau='..iPlateau..'; iBaesLZ='..iLandZone)
+                M28Map.ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iPlateau, iLandZone, iClosestLZ, tLZData[M28Map.subrefLZMidpoint])
+            end
+            if iMaxLZTowardsRally and tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iClosestLZ] then
+                if bDebugMessages == true then LOG(sFunctionRef..': WIll consider changing to the '..iMaxLZTowardsRally..' entry along the path; repru of the path='..repru(tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iClosestLZ]][M28Map.subrefLZPath])..'; Position in the path='..tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iClosestLZ]) end
+                --Change closest LZ to run to to be 2 along the path from cur LZ to the target LZ
+                for iEntry, iLZPointInPath in tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iClosestLZ]][M28Map.subrefLZPath] do
+                    if iEntry >= iMaxLZTowardsRally then
+                        iClosestLZ = iLZPointInPath
+                        break
+                    end
                 end
             end
         end
@@ -741,7 +751,7 @@ function GetNearestRallyPoint(tLZData, iTeam, iPlateau, iLandZone, iMaxLZTowards
         M28Utilities.ErrorHandler('No rally point for P'..(iPlateau or 'nil')..' LZ'..(iLandZone or 'nil')..'; will return current midpoint')
         return {tLZData[M28Map.subrefLZMidpoint][1], tLZData[M28Map.subrefLZMidpoint][2], tLZData[M28Map.subrefLZMidpoint][3]}
     end
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function RefreshRallyPoints(iTeam)
