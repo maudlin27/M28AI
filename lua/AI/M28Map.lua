@@ -192,6 +192,10 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             reftLZEnemyAirUnits = 'EnAir' --All enemy air units that are currently in the land zone
             refiLZEnemyAirToGroundThreat = 'EnA2GT' --Air to ground threat of enemy air units in the LZ
             refiLZEnemyAirOtherThreat = 'EnAirOT' --mass value of AirAA, air scouts and transports in the LZ
+            --Shield and stealth
+            refbLZWantsMobileShield = 'MobSh' --true if LZ wants mobile shields
+            reftoLZUnitsWantingMobileShield = 'UMobSh' --table of units in the LZ that want mobile shield
+            refbLZWantsStealth = 'MobSt' --true if LZ wants mobile stealth
             --Misc
             reftClosestFriendlyBase = 'ClosestFB' --Position of the closest friendly start position
             reftClosestEnemyBase = 'ClosestEB' --Closest enemy start position

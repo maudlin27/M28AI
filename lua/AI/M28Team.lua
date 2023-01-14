@@ -1406,6 +1406,7 @@ function TeamInitialisation(iM28Team)
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiLZEnemyAirToGroundThreat] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiLZEnemyAirOtherThreat] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZMAAThreatWanted] = 0
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftoLZUnitsWantingMobileShield] = {}
         end
     end
     ForkThread(M28Map.RecordClosestAllyAndEnemyBaseForEachLandZone, iM28Team)

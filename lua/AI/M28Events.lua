@@ -200,6 +200,14 @@ function OnUnitDeath(oUnit)
                                 --If unit was traveling to another land zone, then update that land zone so it no longer things the unit is traveling here
                                 M28Land.RemoveUnitFromListOfUnitsTravelingToLandZone(oUnit) --(this will check if it was or not)
                             end
+
+                            --Mobile shield update
+                            if oUnit[M28Land.refoAssignedMobileShield] then
+                                oUnit[M28Land.refoAssignedMobileShield][M28Land.refoMobileShieldTarget] = nil
+                            end
+                            if oUnit[M28Land.refoMobileShieldTarget] then
+                                oUnit[M28Land.refoMobileShieldTarget][M28Land.refoAssignedMobileShield] = nil
+                            end
                         end
                     end
                 end

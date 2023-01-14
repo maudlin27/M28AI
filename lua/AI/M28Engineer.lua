@@ -103,11 +103,11 @@ refActionBuildSecondLandFactory = 34
     refActionAssistMexUpgrade = 54
     refActionSAMCreep = 55 --Intended to gradually expand SAM coverage for mexes
     refActionBuildMassFab = 56
-
 refActionMoveToLandZone = 57
 refActionRunToLandZone = 58
 refActionAssistUpgrade = 59
 refActionReclaimEnemyUnit = 60
+refActionBuildSecondMassStorage = 61
 
 --tiEngiActionsThatDontBuild = {refActionReclaimArea, refActionSpare, refActionNavalSpareAction, refActionHasNearbyEnemies, refActionReclaimFriendlyUnit, refActionReclaimTrees, refActionUpgradeBuilding, refActionAssistSMD, refActionAssistTML, refActionAssistMexUpgrade, refActionAssistAirFactory, refActionAssistNavalFactory, refActionUpgradeHQ, refActionAssistNuke, refActionLoadOnTransport, refActionAssistShield}
 
@@ -123,6 +123,7 @@ tiActionCategory = {
     [refActionBuildT3Radar] = M28UnitInfo.refCategoryT3Radar,
     [refActionBuildEnergyStorage] = M28UnitInfo.refCategoryEnergyStorage,
     [refActionBuildSecondLandFactory] = M28UnitInfo.refCategoryLandFactory,
+    [refActionBuildSecondMassStorage] = M28UnitInfo.refCategoryMassStorage,
 }
 
 tiActionOrder = {
@@ -142,6 +143,7 @@ tiActionOrder = {
     [refActionReclaimArea] = M28Orders.refiOrderIssueReclaim,--will actually have a move order followed by reclaim order
     [refActionBuildSecondLandFactory] = M28Orders.refiOrderIssueBuild,
     [refActionReclaimEnemyUnit] = M28Orders.refiOrderIssueReclaim,
+    [refActionBuildSecondMassStorage] = M28Orders.refiOrderIssueBuild,
 }
 
 --Adjacent categories to search for for a particular action
@@ -168,6 +170,7 @@ tbActionsThatDontHaveCategory = {
 tbIgnoreUnderConstructionActions = { --Any actions that are building something where would by default search for an under construction building should be set to true in this table if we dont want to, e.g. if want to build a second land factory, dont want to end up repairing a factory that is upgrading to a higher tech level; similarly for mex dont want to assist an existing engineer
     [refActionBuildMex] = true,
     [refActionBuildSecondLandFactory] = true,
+    [refActionBuildSecondMassStorage] = true,
 }
 
 tbIgnoreEngineerAssistance = { --Any actions where we dont want to assist an engineer already constructiong the building should go here; main purpose is building a mex
@@ -2060,9 +2063,13 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
 
             if iCategoryWanted then
                 --Do we have a part complete unit of this category already under construction in this land zone?
-                --Building a factory - change whether to search for assistance based on mass stored %
+                --Building a factory - change whether to search for assistance based on mass stored %; for mass storage instead base the check on how many locations we have as we may be trying to build a second storage
                 local bShouldIgnoreUnderConstruction = tbIgnoreUnderConstructionActions[iActionToAssign]
-                if iActionToAssign == refActionBuildLandFactory and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.4 then bShouldIgnoreUnderConstruction = true end
+                if iActionToAssign == refActionBuildLandFactory then
+                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.4 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10 then bShouldIgnoreUnderConstruction = true end
+                elseif iActionToAssign == refActionBuildMassStorage and table.getn(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMassStorageLocationsAvailable]) >= 5 then bShouldIgnoreUnderConstruction = true
+                end
+
                 local oBuildingToAssist
                 if not(bShouldIgnoreUnderConstruction) then oBuildingToAssist = GetPartCompleteBuildingInZone(iTeam, iPlateau, iLandZone, iCategoryWanted) end
 
@@ -2286,11 +2293,11 @@ function GetBPToAssignToMassStorage(iPlateau, iLandZone, iTeam, tLZTeamData, bCo
     local iBPWanted = 0
     --Are all mexes in the LZ at T2+?
     if bDebugMessages == true then LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; T2+T3 mex count='..tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3]..'; T1 mex count='..tLZTeamData[M28Map.subrefMexCountByTech][1]..'; Is table of mass storage locations to build empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMassStorageLocationsAvailable]))..'; Size of mex table='..table.getn(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations])) end
-    if tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and (tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][1] == 0) then
+    if tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and (tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 or tLZTeamData[M28Map.subrefMexCountByTech][2] >= 4) then
         --Do we have empty locations for mass storage?
         if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMassStorageLocationsAvailable]) == false then
             --Do we have really low power?
-            if not(bWantMorePower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] < 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 3) then
+            if not(bWantMorePower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] < 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 0) then
 
                 iBPWanted = 10
                 if not (bHaveLowMass) or tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 then
@@ -2574,7 +2581,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --Higher priority mass storage if we have T3 in the LZ and available storage locations
     iCurPriority = iCurPriority + 1
-    if tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 then
+    if (tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][2] >= 4) and tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 then
         iBPWanted = GetBPToAssignToMassStorage(iPlateau, iLandZone, iTeam, tLZTeamData, true, bHaveLowMass, bWantMorePower)
         if iBPWanted > 0 then
             HaveActionToAssign(refActionBuildMassStorage, 1, iBPWanted)
@@ -2601,6 +2608,17 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Have lots of mass so want to build more than one factory at once as high priority, iBPWanted='..iBPWanted) end
         HaveActionToAssign(refActionBuildSecondLandFactory, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech], iBPWanted)
+    end
+
+    --Second mass storage if we have T3 mex in this LZ and 5+ mass storage locations
+    iCurPriority = iCurPriority + 1
+    if (tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][2] >= 4) and tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 then
+        iBPWanted = GetBPToAssignToMassStorage(iPlateau, iLandZone, iTeam, tLZTeamData, true, bHaveLowMass, bWantMorePower)
+        if iBPWanted > 0 then
+            if table.getn(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMassStorageLocationsAvailable]) >= 5 then
+                HaveActionToAssign(refActionBuildSecondMassStorage, 1, iBPWanted)
+            end
+        end
     end
 
     --Assist upgrades:
