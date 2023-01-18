@@ -21,6 +21,7 @@ local M28Config = import('/mods/M28AI/lua/M28Config.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 local M28Logic = import('/mods/M28AI/lua/AI/M28Logic.lua')
+local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
 
 
 function OnPlayerDefeated(aiBrain)
@@ -103,8 +104,36 @@ function OnPropDestroyed(oProp)
 end
 
 function OnYthothaDeath(oUnit)
-    --Called when a ythotha (oUnit) is flagged as dying or being killed        
-    M28Utilities.ErrorHandler('To add code')
+    --Called when a ythotha (oUnit) is flagged as dying or being killed
+    local sFunctionRef = 'OnYthothaDeath'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local refbYthothaDeath = 'M27EventYthothaDeath'
+
+    if not(oUnit[refbYthothaDeath]) then
+        oUnit[refbYthothaDeath] = true
+        local tNearbyUnits
+        if bDebugMessages == true then LOG(sFunctionRef..': Ythotha has just died, will look for nearby units and tell them to run away') end
+        local iTimeToRun
+        local iSearchRange = 70
+        for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
+            tNearbyUnits = oBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand, oUnit:GetPosition(), 50, 'Ally')
+            if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
+                for iFriendlyUnit, oFriendlyUnit in tNearbyUnits do
+                    if bDebugMessages == true then LOG(sFunctionRef..': oFriendlyUnit='..oFriendlyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFriendlyUnit)..'; if we own it then will make it run away') end
+                    if oFriendlyUnit:GetAIBrain() == oBrain then --Only do this for M27 units
+                        if M28UnitInfo.IsUnitValid(oFriendlyUnit, true) then
+                            iTimeToRun = math.min(32, math.max(10, 18 + (50 - M28Utilities.GetDistanceBetweenPositions(oFriendlyUnit:GetPosition(), oUnit:GetPosition()) / (oFriendlyUnit:GetBlueprint().Physics.MaxSpeed or 1))))
+                            if bDebugMessages == true then LOG(sFunctionRef..': Telling friendly unit '..oFriendlyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFriendlyUnit)..' to move away for 18s via moveawayfromtarget order') end
+                            ForkThread(M28Micro.MoveAwayFromTargetTemporarily, oFriendlyUnit, iTimeToRun, oUnit:GetPosition())
+                        end
+                    end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 
@@ -237,7 +266,25 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
 end
 
 function OnBombFired(oWeapon, projectile)
-    if M28Utilities.bM28AIInGame then        
+    if M28Utilities.bM28AIInGame then
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'OnBombFired'
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code') end
+        local oUnit = oWeapon.unit
+        if oUnit and oUnit.GetUnitId then
+            local sUnitID = oUnit.UnitId
+            if bDebugMessages == true then LOG(sFunctionRef..': bomber position when firing bomb='..repru(oUnit:GetPosition())) end
+            if EntityCategoryContains(M28UnitInfo.refCategoryBomber + M28UnitInfo.refCategoryTorpBomber, sUnitID) then
+                --Try to dodge non-experimental bombs
+                if not(EntityCategoryContains(categories.EXPERIMENTAL, sUnitID)) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will try and dodge the bomb fired by unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                    M28Micro.DodgeBomb(oUnit, oWeapon, projectile)
+                end
+            end
+        end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
 end
 
@@ -263,6 +310,21 @@ function OnWeaponFired(oWeapon)
                         end
                     end
                 end
+            end
+
+            --Consider dodging
+            if EntityCategoryContains(M28UnitInfo.refCategoryBomber, oUnit.UnitId) and oWeapon.Label == 'GroundMissile' then
+                --Corsairs dont trigger the onbombfired event normally
+                if bDebugMessages == true then
+                    LOG(sFunctionRef..': Weapon fired by corsair, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit))
+                    if oWeapon:GetCurrentTarget().GetPosition then LOG(sFunctionRef..': Target of weapon='..repru(oWeapon:GetCurrentTarget():GetPosition())) end
+                end
+
+                ForkThread(M28Micro.DodgeBomb, oUnit, oWeapon, nil)
+            else
+                --Dodge logic for certain other attacks (conditions for this are in considerdodgingshot)
+                if bDebugMessages == true then LOG(sFunctionRef..': Will consider whether we want to dodge the shot') end
+                ForkThread(M28Micro.ConsiderDodgingShot, oUnit, oWeapon)
             end
 
             --M28 owned unit specific logic

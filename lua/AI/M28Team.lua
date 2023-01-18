@@ -714,7 +714,7 @@ end
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, bIsEnemy='..tostring((bIsEnemy or false))..'; Unit brain index='..oUnit:GetAIBrain():GetArmyIndex()..'; Unit assigned pond='..(oUnit[refiAssignedPond] or 'nil')..'; Contains fixed pond category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryPondFixedCategory, oUnit.UnitId))) end
 
     if bIsEnemy or (oUnit:GetAIBrain().M28AI and (not(oUnit[refiAssignedPond]) or not(EntityCategoryContains(M28UnitInfo.refCategoryPondFixedCategory, oUnit.UnitId)))) then --and not(oUnit[reftisubrefsUpdatedFor][iM28TeamUpdatingFor])) then
-        local iCurPond = iPondRefOverride or M28MapInfo.GetSegmentGroupOfLocation(M28UnitInfo.refPathingTypeNavy, oUnit:GetPosition())
+        local iCurPond = iPondRefOverride or M28MapInfo.GetSegmentGroupOfLocation(M28Map.refPathingTypeNavy, oUnit:GetPosition())
         if bDebugMessages == true then LOG(sFunctionRef..': bIsEnemy='..tostring(bIsEnemy)..'; Updating for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iPondRefOverride='..(iPondRefOverride or 'nil')..'; iCurPond='..(iCurPond or 'nil')..'; oUnit[refiAssignedPond]='..(oUnit[refiAssignedPond] or 'nil')) end --LOG('iCurPond pre adj='..(iCurPond or 'nil'))
         --if tPondDetails[iCurPond] then LOG('Pond size='..(tPondDetails[iCurPond][subrefPondSize] or 'nil')) end
         if not(tPondDetails[iCurPond]) or (tPondDetails[iCurPond][subrefPondSize] or 0) <= iMinPondSize then

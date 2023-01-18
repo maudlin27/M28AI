@@ -851,7 +851,7 @@ function GetLocationToMoveForConstruction(oUnit, tTargetLocation, sBlueprintID, 
 
     --Below was from M27 - left commented out as might be of use when introduce naval factory logic again
     --[[
-    tPossibleTarget = GetPositionAtOrNearTargetInPathingGroup(tBuilderLocation, tLocation, iDistanceWantedFromTarget, 0, oBuilder, true, true, iMinDistanceFromCurrentBuilderMoveTarget)
+    tPossibleTarget = M28Map.GetPositionAtOrNearTargetInPathingGroup(tBuilderLocation, tLocation, iDistanceWantedFromTarget, 0, oBuilder, true, true, iMinDistanceFromCurrentBuilderMoveTarget)
 
     --Adjust further for naval factory to facilitate greater cliff-building
     if tPossibleTarget and EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, sBlueprintID) then
@@ -2693,7 +2693,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         --T3 radar
         iCurPriority = iCurPriority + 1
         if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to build T3 radar, tLZTeamData[M28Map.refiRadarCoverage]='..tLZTeamData[M28Map.refiRadarCoverage]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Closest enemy base dist to midpoint='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefLZMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])) end
-        if tLZTeamData[M28Map.refiRadarCoverage] <= 300 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 500 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 200 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10 and (M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefLZMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]) > tLZTeamData[M28Map.refiRadarCoverage] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 20) then
+        if tLZTeamData[M28Map.refiRadarCoverage] <= 300 and ((M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 500 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 200) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 350 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 100 and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryMobileLand * categories.TECH3 - M28UnitInfo.refCategoryEngineer) >= 40) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10 and (M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefLZMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]) > tLZTeamData[M28Map.refiRadarCoverage] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 20) then
             iBPWanted = 30
             if not(bHaveLowMass) then iBPWanted = 100 end
             if bDebugMessages == true then LOG(sFunctionRef..': Will build T3 radar, iBPWanted='..iBPWanted) end

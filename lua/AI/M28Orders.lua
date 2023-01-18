@@ -114,6 +114,9 @@ function IssueTrackedClearCommands(oUnit)
         end
     end
 
+    --Clear any micro flag
+    oUnit[M28UnitInfo.refbSpecialMicroActive] = nil
+
     --Clear orders:
     IssueClearCommands({oUnit})
 
@@ -163,12 +166,12 @@ function UpdateRecordedOrders(oUnit)
     end
 end
 
-function IssueTrackedMove(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc)
+function IssueTrackedMove(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
     UpdateRecordedOrders(oUnit)
     --If we are close enough then issue the order again
     local tLastOrder
     if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]] end
-    if not(tLastOrder and tLastOrder[subrefiOrderType] == refiOrderIssueMove and iDistanceToReissueOrder and M28Utilities.GetDistanceBetweenPositions(tOrderPosition, tLastOrder[subreftOrderPosition]) < iDistanceToReissueOrder) then
+    if not(tLastOrder and tLastOrder[subrefiOrderType] == refiOrderIssueMove and iDistanceToReissueOrder and M28Utilities.GetDistanceBetweenPositions(tOrderPosition, tLastOrder[subreftOrderPosition]) < iDistanceToReissueOrder) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive]))  then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
@@ -179,12 +182,12 @@ function IssueTrackedMove(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddTo
 
 end
 
-function IssueTrackedAggressiveMove(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc)
+function IssueTrackedAggressiveMove(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
     UpdateRecordedOrders(oUnit)
     --If we are close enough then issue the order again
     local tLastOrder
     if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]] end
-    if not(tLastOrder and tLastOrder[subrefiOrderType] == refiOrderIssueAggressiveMove and iDistanceToReissueOrder and M28Utilities.GetDistanceBetweenPositions(tOrderPosition, tLastOrder[subreftOrderPosition]) < iDistanceToReissueOrder) then
+    if not(tLastOrder and tLastOrder[subrefiOrderType] == refiOrderIssueAggressiveMove and iDistanceToReissueOrder and M28Utilities.GetDistanceBetweenPositions(tOrderPosition, tLastOrder[subreftOrderPosition]) < iDistanceToReissueOrder) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
@@ -194,7 +197,7 @@ function IssueTrackedAggressiveMove(oUnit, tOrderPosition, iDistanceToReissueOrd
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 end
 
-function PatrolPath(oUnit, tPath, bAddToExistingQueue, sOptionalOrderDesc)
+function PatrolPath(oUnit, tPath, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
     --If the unit's last movement point isnt the first point in the path, then will reissue orders, with the path start point based on the estimated last path that it got to
     local sFunctionRef = 'PatrolPath'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -206,7 +209,7 @@ function PatrolPath(oUnit, tPath, bAddToExistingQueue, sOptionalOrderDesc)
     if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]] end
     if bDebugMessages == true then LOG(sFunctionRef..': Unit orders after update='..repru(oUnit[reftiLastOrders])..'; Last order='..repru(tLastOrder)..'; Is the last order a move order='..tostring(tLastOrder[subrefiOrderType] == refiOrderIssueMove)..'; Last order position='..repru(tLastOrder[subreftOrderPosition])..'; tLastOrder pos 2 of table='..repru(tLastOrder[2])..'; Dist between path1 nd last order position='..M28Utilities.GetDistanceBetweenPositions(tPath[1], (tLastOrder[subreftOrderPosition] or {0,0,0}))) end
 
-    if not(tLastOrder) or not(tLastOrder[subrefiOrderType] == refiOrderIssueMove) or M28Utilities.GetDistanceBetweenPositions(tPath[1], tLastOrder[subreftOrderPosition]) > 1 then
+    if (not(tLastOrder) or not(tLastOrder[subrefiOrderType] == refiOrderIssueMove) or M28Utilities.GetDistanceBetweenPositions(tPath[1], tLastOrder[subreftOrderPosition]) > 1) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
         --Our last active order isn't to move to the first point in the path, so will be reissuing the path
         if bDebugMessages == true then LOG(sFunctionRef..'; Will reissue orders to move along the path based on the closest point') end
 
@@ -241,12 +244,12 @@ function PatrolPath(oUnit, tPath, bAddToExistingQueue, sOptionalOrderDesc)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function IssueTrackedAttackMove(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc)
+function IssueTrackedAttackMove(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
     UpdateRecordedOrders(oUnit)
     --If we are close enough then issue the order again
     local tLastOrder
     if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]] end
-    if not(tLastOrder[subrefiOrderType] == refiOrderIssueAggressiveMove and iDistanceToReissueOrder and M28Utilities.GetDistanceBetweenPositions(tOrderPosition, tLastOrder[subreftOrderPosition]) < iDistanceToReissueOrder) then
+    if not(tLastOrder[subrefiOrderType] == refiOrderIssueAggressiveMove and iDistanceToReissueOrder and M28Utilities.GetDistanceBetweenPositions(tOrderPosition, tLastOrder[subreftOrderPosition]) < iDistanceToReissueOrder) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
@@ -256,12 +259,12 @@ function IssueTrackedAttackMove(oUnit, tOrderPosition, iDistanceToReissueOrder, 
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 end
 
-function IssueTrackedAttack(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalOrderDesc)
+function IssueTrackedAttack(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
     UpdateRecordedOrders(oUnit)
     --Issue order if we arent already trying to attack them
     local tLastOrder
     if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]] end
-    if not(tLastOrder[subrefiOrderType] == refiOrderIssueAttack and oOrderTarget == tLastOrder[subrefoOrderTarget]) then
+    if not(tLastOrder[subrefiOrderType] == refiOrderIssueAttack and oOrderTarget == tLastOrder[subrefoOrderTarget]) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
@@ -337,12 +340,12 @@ function IssueTrackedFactoryBuild(oUnit, sOrderBlueprint, bAddToExistingQueue, s
 end
 
 
-function IssueTrackedReclaim(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalOrderDesc)
+function IssueTrackedReclaim(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
     UpdateRecordedOrders(oUnit)
     --Issue order if we arent already trying to attack them
     local tLastOrder
     if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]] end
-    if not(tLastOrder[subrefiOrderType] == refiOrderIssueReclaim and oOrderTarget == tLastOrder[subrefoOrderTarget]) or (not(oUnit:IsUnitState('Reclaiming'))) then
+    if (not(tLastOrder[subrefiOrderType] == refiOrderIssueReclaim and oOrderTarget == tLastOrder[subrefoOrderTarget]) or (not(oUnit:IsUnitState('Reclaiming')))) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
@@ -357,12 +360,12 @@ function IssueTrackedReclaim(oUnit, oOrderTarget, bAddToExistingQueue, sOptional
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc..(oOrderTarget.UnitId or '')) end
 end
 
-function IssueTrackedGroundAttack(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc)
+function IssueTrackedGroundAttack(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
     UpdateRecordedOrders(oUnit)
     --If we are close enough then issue the order again
     local tLastOrder
     if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]] end
-    if not(tLastOrder[subrefiOrderType] == refiOrderIssueGroundAttack and iDistanceToReissueOrder and M28Utilities.GetDistanceBetweenPositions(tOrderPosition, tLastOrder[subreftOrderPosition]) < iDistanceToReissueOrder) then
+    if not(tLastOrder[subrefiOrderType] == refiOrderIssueGroundAttack and iDistanceToReissueOrder and M28Utilities.GetDistanceBetweenPositions(tOrderPosition, tLastOrder[subreftOrderPosition]) < iDistanceToReissueOrder) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
@@ -372,12 +375,12 @@ function IssueTrackedGroundAttack(oUnit, tOrderPosition, iDistanceToReissueOrder
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 end
 
-function IssueTrackedGuard(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalOrderDesc)
+function IssueTrackedGuard(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
     UpdateRecordedOrders(oUnit)
     --Issue order if we arent already trying to attack them
     local tLastOrder
     if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]] end
-    if not(tLastOrder[subrefiOrderType] == refiOrderIssueGuard and oOrderTarget == tLastOrder[subrefoOrderTarget]) then
+    if not(tLastOrder[subrefiOrderType] == refiOrderIssueGuard and oOrderTarget == tLastOrder[subrefoOrderTarget]) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
@@ -389,12 +392,12 @@ function IssueTrackedGuard(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalOr
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 end
 
-function IssueTrackedRepair(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalOrderDesc)
+function IssueTrackedRepair(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
     UpdateRecordedOrders(oUnit)
     --Issue order if we arent already trying to attack them
     local tLastOrder
     if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]] end
-    if not(tLastOrder[subrefiOrderType] == refiOrderIssueRepair and oOrderTarget == tLastOrder[subrefoOrderTarget]) then
+    if not(tLastOrder[subrefiOrderType] == refiOrderIssueRepair and oOrderTarget == tLastOrder[subrefoOrderTarget]) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1

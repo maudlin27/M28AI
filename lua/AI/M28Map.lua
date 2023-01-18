@@ -2867,3 +2867,116 @@ function GetTravelDistanceBetweenLandZones(iPlateau, iStartLZ, iEndLZ)
     end
     return tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ]
 end
+
+
+function GetPositionAtOrNearTargetInPathingGroup(tStartPos, tTargetPos, iDistanceFromTargetToStart, iAngleAdjust, oPathingUnit, bMoveCloserBeforeFurtherIfBlocked, bCheckIfExistingTargetIsBetter, iMinDistanceFromExistingCommandTarget)
+    --Intended as a rewriting of GetPositionNearTargetInSamePathingGroup due to some inconsistencies arising with the below, to make use of new logic that allows any angle; introduced from v15
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetPositionAtOrNearTargetInPathingGroup'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --Get angle from target to start
+    local iAngleFromTargetToStart = M28Utilities.GetAngleFromAToB(tTargetPos, tStartPos) + (iAngleAdjust or 0)
+    --Get initial desired position
+    local tPossibleTarget = M28Utilities.MoveInDirection(tTargetPos, iAngleFromTargetToStart, iDistanceFromTargetToStart)
+    local sPathing = M28UnitInfo.GetUnitPathingType(oPathingUnit)
+    local iPathingGroupWanted = NavUtils.GetLabel(sPathing, tTargetPos)
+    local iPathingGroupOfPossibleTarget = NavUtils.GetLabel(sPathing, tPossibleTarget)
+    local bCanPathToTarget = false
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code; oPathingUnit='..oPathingUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oPathingUnit)..'; tTargetPos='..repru(tTargetPos)..'; iAngleAdjust ='..iAngleAdjust..'; iDistanceFromTargetToStart='..iDistanceFromTargetToStart..'; tStartPos='..repru(tStartPos)..'; iPathingGroupOfPossibleTarget='..iPathingGroupOfPossibleTarget..'; iPathingGroupWanted='..iPathingGroupWanted..'; Angle from start to target='..M28Utilities.GetAngleFromAToB(tStartPos, tTargetPos)..'; iAngleFromTargetToStart='..iAngleFromTargetToStart..'; Amphibious group of target position='..NavUtils.GetLabel(refPathingTypeAmphibious, tTargetPos)..'; Amphib group of our base='..NavUtils.GetLabel(refPathingTypeAmphibious, PlayerStartPoints[oPathingUnit:GetAIBrain():GetArmyIndex()])..'; tPossibleTarget before adjust='..repru(tPossibleTarget)..'; Distance between possible target and tTargetPos='..M28Utilities.GetDistanceBetweenPositions(tPossibleTarget, tTargetPos)) end
+    --Find a target we can path to
+    if iPathingGroupOfPossibleTarget == iPathingGroupWanted then
+        bCanPathToTarget = true
+    else
+        --Dif pathing group, need to try alternatives; first try the target itself
+        if not(bMoveCloserBeforeFurtherIfBlocked == false) then
+            tPossibleTarget = {tTargetPos[1], tTargetPos[2], tTargetPos[3]}
+            iPathingGroupOfPossibleTarget = NavUtils.GetLabel(sPathing, tPossibleTarget)
+            if bDebugMessages == true then LOG(sFunctionRef..': Pathing group if just try target position='..iPathingGroupOfPossibleTarget) end
+            if iPathingGroupOfPossibleTarget == iPathingGroupWanted then
+                bCanPathToTarget = true
+            end
+        end
+
+        if bCanPathToTarget == false then
+            if bDebugMessages == true then LOG(sFunctionRef..': Cant path to the initial expected point so will try nearby points') end
+            local tDistanceFactors
+            if bMoveCloserBeforeFurtherIfBlocked then
+                tDistanceFactors = {0.5, 1.5, 3}
+            else tDistanceFactors = {1.25, 3}
+            end
+            local tAngleVariations = {-45, 0, 45}
+            --Make sure we have at least some distance we're moving away from
+            if iDistanceFromTargetToStart == 0 then iDistanceFromTargetToStart = 1 end
+
+            if math.abs(iDistanceFromTargetToStart) < 4 then
+                local iFactorIncrease = 4 / iDistanceFromTargetToStart
+                for iDistanceFactor = 1, table.getn(tDistanceFactors) do
+                    tDistanceFactors[iDistanceFactor] = tDistanceFactors[iDistanceFactor] * iFactorIncrease
+                end
+            end
+            for iDistanceFactor = 1, table.getn(tDistanceFactors) do
+                for iAngleAlternative = 1, table.getn(tAngleVariations) do
+                    tPossibleTarget = M28Utilities..MoveInDirection(tTargetPos, iAngleFromTargetToStart + tAngleVariations[iAngleAlternative], iDistanceFromTargetToStart * tDistanceFactors[iDistanceFactor])
+                    if NavUtils.GetLabel(sPathing, tPossibleTarget) == iPathingGroupWanted then
+                        bCanPathToTarget = true
+                        break
+                    end
+                end
+                if bCanPathToTarget then break end
+                if bDebugMessages == true then LOG(sFunctionRef..': iDistanceFactor='..iDistanceFactor..'; tPossibleTarget based on the last of the angle variations='..repru(tPossibleTarget)..'; still cant path to the target so will keep looking') end
+            end
+        end
+
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if can path to target, bCanPathToTarget='..tostring(bCanPathToTarget)..'; tPossibleTarget='..repru(tPossibleTarget)) end
+
+    if bCanPathToTarget then
+        --Consider if the target meets any other values specified (e.g. if must be certain distance away from current target or unit)
+        if bCheckIfExistingTargetIsBetter == true or iMinDistanceFromExistingCommandTarget then
+            if bDebugMessages == true then LOG(sFunctionRef..': Checking against existing target to see if thats better') end
+            if oPathingUnit.GetNavigator then
+                local oNavigator = oPathingUnit:GetNavigator()
+                if oNavigator.GetCurrentTargetPos then
+                    local tExistingTargetPos = oNavigator:GetCurrentTargetPos()
+                    if M28Utilities.IsTableEmpty(tExistingTargetPos) == false then
+                        if bDebugMessages == true then LOG(sFunctionRef..': tExistingTargetPos='..repru(tExistingTargetPos)..'; Distance to possible target='..M28Utilities.GetDistanceBetweenPositions(tExistingTargetPos, tPossibleTarget)..'; iMinDistanceFromExistingCommandTarget='..(iMinDistanceFromExistingCommandTarget or 'nil')..'; Pathing group of this='..NavUtils.GetLabel(sPathing, tExistingTargetPos)..'; Pathing group wanted='..iPathingGroupWanted..'; sPathing='..sPathing..'; Distance of existing position toa ctual target='..M28Utilities.GetDistanceBetweenPositions(tExistingTargetPos, tTargetPos)) end
+                        if NavUtils.GetLabel(sPathing, tExistingTargetPos) == iPathingGroupWanted then
+
+                            --Do we have a minimum distance away from current target required?
+                            if iMinDistanceFromExistingCommandTarget and M28Utilities.GetDistanceBetweenPositions(tExistingTargetPos, tPossibleTarget) < iMinDistanceFromExistingCommandTarget then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Distance between existing target position and possible target position is less than the min distance; tExistingTargetPos='..repru(tExistingTargetPos)..'; tPossibleTarget='..repru(tPossibleTarget)) end
+                                tPossibleTarget = tExistingTargetPos
+                            else
+                                --Is the existing target position closer to the distance required than the new position, factoring in if we want a negative position or not?
+                                local iDistanceFromQueuedMoveLocationToTarget = M28Utilities.GetDistanceBetweenPositions(tExistingTargetPos, tTargetPos)
+                                local iDistanceFromPossibleTargetToTarget = M28Utilities.GetDistanceBetweenPositions(tPossibleTarget, tTargetPos)
+                                --Are these further away from the start position than the actual target?
+                                if math.abs(iDistanceFromQueuedMoveLocationToTarget - iDistanceFromTargetToStart) < math.abs(iDistanceFromPossibleTargetToTarget - iDistanceFromTargetToStart) then
+                                    --Have we said we want to move closer if the initial point is blocked?
+                                    if not(bMoveCloserBeforeFurtherIfBlocked) or iDistanceFromQueuedMoveLocationToTarget <= iDistanceFromTargetToStart then
+                                        --Factor in we might be infront of the target and actually want to be behind
+                                        local iDistanceFromStartToTarget = M28Utilities.GetDistanceBetweenPositions(tStartPos, tTargetPos)
+                                        local iDistanceFromQueuedToStart = M28Utilities.GetDistanceBetweenPositions(tStartPos, tExistingTargetPos)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': iDistanceFromQueuedMoveLocationToTarget='..iDistanceFromQueuedMoveLocationToTarget..'; iDistanceFromPossibleTargetToTarget='..iDistanceFromPossibleTargetToTarget..'; iDistanceFromQueuedToStart='..iDistanceFromQueuedToStart..'; iDistanceFromStartToTarget='..iDistanceFromStartToTarget..'; iDistanceFromTargetToStart='..iDistanceFromTargetToStart) end
+                                        if iDistanceFromQueuedToStart > 1 and ((iDistanceFromQueuedToStart < iDistanceFromStartToTarget and iDistanceFromTargetToStart > 0) or (iDistanceFromQueuedToStart > iDistanceFromStartToTarget and iDistanceFromTargetToStart < 0)) then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Existing location is closer than the new possible location so go with this') end
+                                            --Existing location is closer than the new location so go with this
+                                            tPossibleTarget = tExistingTargetPos
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    else
+        --This could be due to a pathfinding error, will just use the potential target
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code; tPossibleTarget='..repru(tPossibleTarget or {'nil'})..'; bCanPathToTarget='..tostring(bCanPathToTarget)) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return tPossibleTarget
+end

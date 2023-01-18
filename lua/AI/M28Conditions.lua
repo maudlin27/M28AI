@@ -14,6 +14,7 @@ local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
 local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
 local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
+local M28Logic = import('/mods/M28AI/lua/AI/M28Logic.lua')
 
 function AreMobileLandUnitsInRect(rRectangleToSearch)
     --returns true if have mobile land units in rRectangleToSearch
@@ -154,71 +155,73 @@ function IsEngineerAvailable(oEngineer)
     if oEngineer:GetFractionComplete() == 1 and not(oEngineer:IsUnitState('Attached')) then
         M28Orders.UpdateRecordedOrders(oEngineer)
         if not(oEngineer[M28Orders.reftiLastOrders]) then
-            --If last order is to move, then treat engineer as available
             if bDebugMessages == true then LOG(sFunctionRef..': Engineer has no last orders active so is available') end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return true
         else
-            --If engineer is moving but it doesnt have an assignment, or its assignment isnt to move, then make it available
-            local iLastOrderType = oEngineer[M28Orders.reftiLastOrders][table.getn(oEngineer[M28Orders.reftiLastOrders])][M28Orders.subrefiOrderType]
-            if bDebugMessages == true then LOG(sFunctionRef..': Engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' owned by '..oEngineer:GetAIBrain().Nickname..' has a last order type of '..(iLastOrderType or 'nil')..'; and an action assigned of '..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')..'; Order for this action='..(M28Engineer.tiActionOrder[oEngineer[M28Engineer.refiAssignedAction]] or 'nil')) end
-            if iLastOrderType == M28Orders.refiOrderIssueMove then
-                if oEngineer[M28Engineer.refiAssignedAction] and M28Engineer.tiActionOrder[oEngineer[M28Engineer.refiAssignedAction]] == iLastOrderType then
-                    --Engineer not available, unless its order was to move to a land zone, in which case check if it is now in that land zone
-                    if oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionMoveToLandZone then
-                        local iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Engineer has action to move to LZ, reftiPlateauAndLZToMoveTo='..reprs(oEngineer[M28Land.reftiPlateauAndLZToMoveTo])..'; Eng position iCurPlateau='..(iCurPlateau or 'nil')..'; iCurLZ='..(iCurLZ or 'nil')) end
-                        if iCurPlateau == oEngineer[M28Land.reftiPlateauAndLZToMoveTo][1] and iCurLZ == oEngineer[M28Land.reftiPlateauAndLZToMoveTo][2] then
-                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                            return true
+            --If engineer is moving but it doesnt have an assignment, or its assignment isnt to move, then make it available, unless it has special micro active
+            if oEngineer[M28UnitInfo.refbSpecialMicroActive] then return false
+            else
+                local iLastOrderType = oEngineer[M28Orders.reftiLastOrders][table.getn(oEngineer[M28Orders.reftiLastOrders])][M28Orders.subrefiOrderType]
+                if bDebugMessages == true then LOG(sFunctionRef..': Engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' owned by '..oEngineer:GetAIBrain().Nickname..' has a last order type of '..(iLastOrderType or 'nil')..'; and an action assigned of '..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')..'; Order for this action='..(M28Engineer.tiActionOrder[oEngineer[M28Engineer.refiAssignedAction]] or 'nil')) end
+                if iLastOrderType == M28Orders.refiOrderIssueMove then
+                    if oEngineer[M28Engineer.refiAssignedAction] and M28Engineer.tiActionOrder[oEngineer[M28Engineer.refiAssignedAction]] == iLastOrderType then
+                        --Engineer not available, unless its order was to move to a land zone, in which case check if it is now in that land zone
+                        if oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionMoveToLandZone then
+                            local iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Engineer has action to move to LZ, reftiPlateauAndLZToMoveTo='..reprs(oEngineer[M28Land.reftiPlateauAndLZToMoveTo])..'; Eng position iCurPlateau='..(iCurPlateau or 'nil')..'; iCurLZ='..(iCurLZ or 'nil')) end
+                            if iCurPlateau == oEngineer[M28Land.reftiPlateauAndLZToMoveTo][1] and iCurLZ == oEngineer[M28Land.reftiPlateauAndLZToMoveTo][2] then
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                return true
+                            else
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                return false
+                            end
+                        elseif oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionRunToLandZone then --Make available if no enemies in cur LZ and adjacent LZ, or alternatively none in cur LZ, and have friendly cmobat in cur LZ and dont need more
+                            local iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Engineer has action to run to LZ, reftiPlateauAndLZToMoveTo='..reprs(oEngineer[M28Land.reftiPlateauAndLZToMoveTo])..'; Eng position iCurPlateau='..(iCurPlateau or 'nil')..'; iCurLZ='..(iCurLZ or 'nil')) end
+                            if iCurPlateau == oEngineer[M28Land.reftiPlateauAndLZToMoveTo][1] and iCurLZ == oEngineer[M28Land.reftiPlateauAndLZToMoveTo][2] then
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                return true
+                            else
+                                local tLZTeamData = M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLZ][M28Map.subrefLZTeamData][oEngineer:GetAIBrain().M28Team]
+                                if bDebugMessages == true then LOG(sFunctionRef..': Engineer isnt at LZ to run to yet, are there enemies in this or adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])) end
+                                if not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) then
+                                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                    return true
+                                else
+                                    if tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] >= 10 then
+                                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                        return false
+                                    else
+                                        local iTotalEnemyThreatNearby = tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal]
+                                        if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLZ][M28Map.subrefLZAdjacentLandZones]) == false then
+                                            for _, iAdjLZ in M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLZ][M28Map.subrefLZAdjacentLandZones] do
+                                                iTotalEnemyThreatNearby = iTotalEnemyThreatNearby + M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][oEngineer:GetAIBrain().M28Team][M28Map.subrefLZTThreatEnemyCombatTotal]
+                                            end
+                                        end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': iTotalEnemyThreatNearby='..iTotalEnemyThreatNearby..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]='..tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]) end
+                                        if iTotalEnemyThreatNearby * 5 < tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] then
+                                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                            return true
+                                        end
+                                    end
+                                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                    return false
+                                end
+                            end
                         else
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             return false
                         end
-                    elseif oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionRunToLandZone then --Make available if no enemies in cur LZ and adjacent LZ, or alternatively none in cur LZ, and have friendly cmobat in cur LZ and dont need more
-                        local iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Engineer has action to run to LZ, reftiPlateauAndLZToMoveTo='..reprs(oEngineer[M28Land.reftiPlateauAndLZToMoveTo])..'; Eng position iCurPlateau='..(iCurPlateau or 'nil')..'; iCurLZ='..(iCurLZ or 'nil')) end
-                        if iCurPlateau == oEngineer[M28Land.reftiPlateauAndLZToMoveTo][1] and iCurLZ == oEngineer[M28Land.reftiPlateauAndLZToMoveTo][2] then
-                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                            return true
-                        else
-                            local tLZTeamData = M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLZ][M28Map.subrefLZTeamData][oEngineer:GetAIBrain().M28Team]
-                            if bDebugMessages == true then LOG(sFunctionRef..': Engineer isnt at LZ to run to yet, are there enemies in this or adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])) end
-                            if not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) then
-                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                                return true
-                            else
-                                if tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] >= 10 then
-                                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                                    return false
-                                else
-                                    local iTotalEnemyThreatNearby = tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal]
-                                    if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLZ][M28Map.subrefLZAdjacentLandZones]) == false then
-                                        for _, iAdjLZ in M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLZ][M28Map.subrefLZAdjacentLandZones] do
-                                            iTotalEnemyThreatNearby = iTotalEnemyThreatNearby + M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][oEngineer:GetAIBrain().M28Team][M28Map.subrefLZTThreatEnemyCombatTotal]
-                                        end
-                                    end
-                                    if bDebugMessages == true then LOG(sFunctionRef..': iTotalEnemyThreatNearby='..iTotalEnemyThreatNearby..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]='..tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]) end
-                                    if iTotalEnemyThreatNearby * 5 < tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] then
-                                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                                        return true
-                                    end
-                                end
-                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                                return false
-                            end
-                        end
                     else
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                        return false
+                        return true
                     end
                 else
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                    return true
+                    return false
                 end
-            else
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                return false
             end
         end
     else
@@ -479,4 +482,43 @@ function GetActiveMexUpgrades(tLZTeamData)
         end
     end
     return iActiveMexUpgrades
+end
+
+function CanUnitUseOvercharge(aiBrain, oUnit)
+    --For now checks if enough energy and not underwater and not fired in last 5s; separate function used as may want to expand this with rate of fire check in future
+    local sFunctionRef = 'CanUnitUseOvercharge'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local oBP = oUnit:GetBlueprint()
+    local iEnergyNeeded
+    local bCanUseOC = false
+    if GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastOverchargeShot] or -100) >= 5 then
+        for iWeapon, oWeapon in oBP.Weapon do
+            if oWeapon.OverChargeWeapon then
+                if oWeapon.EnergyRequired then
+                    iEnergyNeeded = oWeapon.EnergyRequired
+                    break
+                end
+            end
+        end
+
+        if aiBrain:GetEconomyStored('ENERGY') >= iEnergyNeeded then bCanUseOC = true end
+        if bDebugMessages == true then LOG(sFunctionRef..': iEnergyNeeded='..iEnergyNeeded..'; aiBrain:GetEconomyStored='..aiBrain:GetEconomyStored('ENERGY')..'; bCanUseOC='..tostring(bCanUseOC)) end
+        if bCanUseOC == true then
+            --Check if underwater
+            local oUnitPosition = oUnit:GetPosition()
+            local iHeightAtWhichConsideredUnderwater = M28Map.IsUnderwater(oUnitPosition, true) + 0.25 --small margin of error
+            local tFiringPositionStart = M28Logic.GetDirectFireWeaponPosition(oUnit)
+            if tFiringPositionStart then
+                local iFiringHeight = tFiringPositionStart[2]
+                if iFiringHeight <= iHeightAtWhichConsideredUnderwater then
+                    if bDebugMessages == true then LOG(sFunctionRef..': ACU is underwater; iFiringHeight='..iFiringHeight..'; iHeightAtWhichConsideredUnderwater='..iHeightAtWhichConsideredUnderwater) end
+                    bCanUseOC = false
+                end
+            end
+        end
+    elseif bDebugMessages == true then LOG(sFunctionRef..': Has been less tahn 5s since last overcharged')
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return bCanUseOC
 end

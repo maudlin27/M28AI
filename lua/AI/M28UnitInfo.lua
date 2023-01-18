@@ -30,6 +30,12 @@ refiDFMassThreatOverride = 'M28BaseMassOverride' --e.g. for ACUs, will override 
 refbShieldIsDisabled = 'M28UnitShieldDisabled'
 refiTimeOfLastCheck = 'M28UnitTimeOfLastCheck' --Currently used for shot is blocked (M27 also used for T3 arti adjacency, when first detected enemy SMD)
 refbLastShotBlocked = 'M28UnitLastShotBlocked' --Used for DF units to indicate if last shot was blocked
+refiTimeOfLastOverchargeShot = 'M28UnitTimeLastOvercharge' --Gametimeseconds
+
+    --Unit micro related
+refiGameTimeMicroStarted = 'M28UnitTimeMicroStarted' --Gametimeseconds that started special micro
+refbSpecialMicroActive = 'M28UnitSpecialMicroActive'
+refiGameTimeToResetMicroActive = 'M28UnitTimeToResetMicro' --Gametimeseconds
 
     --Ranges and weapon details
 refiDFRange = 'M28UDFR'
@@ -1344,5 +1350,38 @@ function GetFactoryType(oUnit)
     elseif EntityCategoryContains(refCategoryNavalFactory, oUnit.UnitId) then
         return M28Factory.refiFactoryTypeNaval
     else return M28Factory.refiFactoryTypeOther
+    end
+end
+
+function GetUnitFacingAngle(oUnit)
+    --0/360 = north, 90 = west, 180 = south, 270 = east
+
+    --T3 arti - get the angle of the turret
+    if EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) then
+        if oUnit.GetWeapon then
+            local oWeapon = oUnit:GetWeapon(1)
+            if oWeapon and oWeapon.GetAimManipulator then
+                return M27Utilities.ConvertRadiansToAngle(oWeapon:GetAimManipulator():GetHeadingPitch())
+            else return 0
+            end
+        else return 0
+        end
+        if oUnit:IsValidBone('Turret') then
+            --0% = south, 25% = east, 50% = north; want to convert from % into angle where 0 is north
+            return M27Utilities.ConvertCounterclockwisePercentageToAngle(oUnit:GetBoneDirection('Turret'))
+        else
+            return 180 - oUnit:GetHeading() / math.pi * 180 --redundancy - for a building this is likeliy to be the same value every time
+        end
+    else
+        --Other units (would expect to be mobile) - get the unit direction
+        return 180 - oUnit:GetHeading() / math.pi * 180
+    end
+
+end
+
+function IsUnitUnderwater(oUnit)
+    if oUnit.GetPosition and oUnit.GetBlueprint then
+        return M28Map.IsUnderwater({oUnit:GetPosition()[1], oUnit:GetPosition()[2] + (oUnit:GetBlueprint().SizeY or 0), oUnit:GetPosition()[3]}, false)
+    else return false
     end
 end
