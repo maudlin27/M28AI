@@ -16,14 +16,15 @@ local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
 --ACU specific variables against the ACU
 refbDoingInitialBuildOrder = 'M28ACUInitialBO'
 
-function ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearch, iOptionalAdjacencyCategory, iOptionalCategoryBuiltUnitCanBuild)
+function ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearchForAdjacencyAndUnderConstruction, iMaxAreaToSearchForBuildLocation, iOptionalAdjacencyCategory, iOptionalCategoryBuiltUnitCanBuild)
     local sFunctionRef = 'ACUBuildUnit'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    
+
     --Do we have a nearby unit of the type we want to build under construction?
-    local tNearbyUnitsOfCategoryToBuild = aiBrain:GetUnitsAroundPoint(iCategoryToBuild, oACU:GetPosition(), iMaxAreaToSearch, 'Ally')
+    local tNearbyUnitsOfCategoryToBuild = aiBrain:GetUnitsAroundPoint(iCategoryToBuild, oACU:GetPosition(), iMaxAreaToSearchForAdjacencyAndUnderConstruction, 'Ally')
     local oNearestPartComplete
+
     if M28Utilities.IsTableEmpty(tNearbyUnitsOfCategoryToBuild) == false then
         local iClosestUnit = 10000
         local iCurDist
@@ -37,16 +38,18 @@ function ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearch, iOption
             end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': Is tNearbyUnitsOfCategoryToBuild empty='..tostring(tNearbyUnitsOfCategoryToBuild)..'; Is oNearestPartComplete valid='..tostring(M28UnitInfo.IsUnitValid(oNearestPartComplete))) end
     if oNearestPartComplete then
         if bDebugMessages == true then LOG(sFunctionRef..': Will assist part complete building='..oNearestPartComplete.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestPartComplete)) end
         M28Orders.IssueTrackedGuard(oACU, oNearestPartComplete, false)
     else
         --No nearby under construction factory, so build one
         --GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy,         tAlternativePositionToLookFrom, bLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure)
-        local sBlueprint, tBuildLocation = M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearch, iOptionalAdjacencyCategory, nil,                           false,                      nil,         iOptionalCategoryBuiltUnitCanBuild, nil)
+        local sBlueprint, tBuildLocation = M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearchForAdjacencyAndUnderConstruction, iOptionalAdjacencyCategory, nil,                           false,                      nil,         iOptionalCategoryBuiltUnitCanBuild, nil)
+        if not(tBuildLocation) then sBlueprint, tBuildLocation = M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearchForBuildLocation, nil, nil,                           false,                      nil,         iOptionalCategoryBuiltUnitCanBuild, nil) end
         if bDebugMessages == true then
             local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oACU:GetPosition(), true, oACU)
-            LOG(sFunctionRef..': Blueprint to build='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation)..'; ACU plateau and land zone based on cur position='..iPlateau..'; iLandZone='..(iLandZone or 'nil'))
+            LOG(sFunctionRef..': Blueprint to build='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation)..'; ACU plateau and land zone based on cur position='..iPlateau..'; iLandZone='..(iLandZone or 'nil')..'; iMaxAreaToSearchForBuildLocation='..(iMaxAreaToSearchForBuildLocation or 'nil')..'; was iOptionalAdjacencyCategory nil='..tostring(iOptionalAdjacencyCategory == nil))
         end
         if sBlueprint and tBuildLocation then
             --Move to the target and then build on it
@@ -75,7 +78,7 @@ function ACUActionBuildFactory(aiBrain, oACU)
     if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory) >= 2 and iCategoryToBuild == M28UnitInfo.refCategoryLandFactory then
         iMaxAreaToSearch = 20
     end
-    ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearch, M28UnitInfo.refCategoryMex, M28UnitInfo.refCategoryEngineer)
+    ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearch, iMaxAreaToSearch * 2, M28UnitInfo.refCategoryMex, M28UnitInfo.refCategoryEngineer)
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -151,7 +154,7 @@ function ACUActionBuildPower(aiBrain, oACU)
     elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] <= 11 then iOptionalAdjacencyCategory = M28UnitInfo.refCategoryLandFactory
     end
     if bDebugMessages == true then LOG(sFunctionRef..': About to tell ACU to build power; is optional adjacency category nil='..tostring(iOptionalAdjacencyCategory == nil)) end
-    ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearch, iOptionalAdjacencyCategory, nil)
+    ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearch, iMaxAreaToSearch * 3, iOptionalAdjacencyCategory, nil)
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -169,7 +172,7 @@ function ACUActionBuildMex(aiBrain, oACU)
     end
 
     if bDebugMessages == true then LOG(sFunctionRef..': About to tell ACU to build a mex, iMaxAreaToSearch='..iMaxAreaToSearch) end
-    ACUBuildUnit(aiBrain, oACU, M28UnitInfo.refCategoryMex, iMaxAreaToSearch, nil, nil)
+    ACUBuildUnit(aiBrain, oACU, M28UnitInfo.refCategoryMex, iMaxAreaToSearch, iMaxAreaToSearch * 2, nil, nil)
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -207,18 +210,25 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                 else
                     local iMexInLandZone = 0
                     if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]) == false then iMexInLandZone = table.getn(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Deciding on ACU action for where no hydro nearby, gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; Gross energy income='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; iMexInLandZone='..iMexInLandZone..'; iMinEnergyPerTickWanted='..iMinEnergyPerTickWanted..'; iCurLandFactories='..iCurLandFactories) end
                     if aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(2, iMexInLandZone) * 0.2 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want at least 2 mexes') end
                         ACUActionBuildMex(aiBrain, oACU)
 
                     elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 8 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want at least 4 PGens') end
                         ACUActionBuildPower(aiBrain, oACU)
                     elseif aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(4, iMexInLandZone) * 0.2 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want up to 4 mexes') end
                         ACUActionBuildMex(aiBrain, oACU)
                     elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] < iMinEnergyPerTickWanted then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want basic level of power') end
                         ACUActionBuildPower(aiBrain, oACU)
-                    elseif iCurLandFactories < 1 then
+                    elseif iCurLandFactories < 2 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want 2 land factories') end
                         ACUActionBuildFactory(aiBrain, oACU)
                     elseif aiBrain[M28Economy.refiGrossMassBaseIncome] < iMexInLandZone * 0.2 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want to build on every mex in land zone') end
                         ACUActionBuildMex(aiBrain, oACU)
                     else
                         --No more actions so abort initial BO
@@ -250,6 +260,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                     ACUActionAssistHydro(aiBrain, oACU)
                 else
                     --Have base level of power suggesting already have hydro
+                    if bDebugMessages == true then LOG(sFunctionRef..': Want more power to reach a base level') end
                     ACUActionBuildPower(aiBrain, oACU)
                 end
 
@@ -260,6 +271,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                         ACUActionAssistHydro(aiBrain, oACU)
                         if bDebugMessages == true then LOG(sFunctionRef..': Assuming we are waiting for an engi to start on building a hydro, or we have no nearby mexes to our ACU') end
                     else
+                        if bDebugMessages == true then LOG(sFunctionRef..': Failed to get order from above so will resort to backup logic') end
                         --No hydro nearby - try building power; then try building mex; then cancel initial build order
                         ACUActionBuildMex(aiBrain, oACU)
                         if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then
@@ -356,7 +368,7 @@ function ManageACU(aiBrain)
     end
 
     --Make sure ACU is recorded
-    M28Team.AssignUnitToZoneOrPond(aiBrain, oACU)
+    M28Team.AssignUnitToLandZoneOrPond(aiBrain, oACU)
 
     while M28UnitInfo.IsUnitValid(oACU) do
         GetACUOrder(aiBrain, oACU)

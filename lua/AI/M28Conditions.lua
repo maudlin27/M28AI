@@ -143,7 +143,9 @@ function IsEngineerAvailable(oEngineer)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'IsEngineerAvailable'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    --if oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer) == 'xsl010515' then bDebugMessages = true end
+
+    --if oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer) == 'uel010510' then bDebugMessages = true end
+
 
     if bDebugMessages == true then
         local iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
@@ -163,7 +165,7 @@ function IsEngineerAvailable(oEngineer)
             if iLastOrderType == M28Orders.refiOrderIssueMove then
                 if oEngineer[M28Engineer.refiAssignedAction] and M28Engineer.tiActionOrder[oEngineer[M28Engineer.refiAssignedAction]] == iLastOrderType then
                     --Engineer not available, unless its order was to move to a land zone, in which case check if it is now in that land zone
-                    if (oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionMoveToLandZone or oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionRunToLandZone) then
+                    if oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionMoveToLandZone then
                         local iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
                         if bDebugMessages == true then LOG(sFunctionRef..': Engineer has action to move to LZ, reftiPlateauAndLZToMoveTo='..reprs(oEngineer[M28Land.reftiPlateauAndLZToMoveTo])..'; Eng position iCurPlateau='..(iCurPlateau or 'nil')..'; iCurLZ='..(iCurLZ or 'nil')) end
                         if iCurPlateau == oEngineer[M28Land.reftiPlateauAndLZToMoveTo][1] and iCurLZ == oEngineer[M28Land.reftiPlateauAndLZToMoveTo][2] then
@@ -172,6 +174,39 @@ function IsEngineerAvailable(oEngineer)
                         else
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             return false
+                        end
+                    elseif oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionRunToLandZone then --Make available if no enemies in cur LZ and adjacent LZ, or alternatively none in cur LZ, and have friendly cmobat in cur LZ and dont need more
+                        local iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Engineer has action to run to LZ, reftiPlateauAndLZToMoveTo='..reprs(oEngineer[M28Land.reftiPlateauAndLZToMoveTo])..'; Eng position iCurPlateau='..(iCurPlateau or 'nil')..'; iCurLZ='..(iCurLZ or 'nil')) end
+                        if iCurPlateau == oEngineer[M28Land.reftiPlateauAndLZToMoveTo][1] and iCurLZ == oEngineer[M28Land.reftiPlateauAndLZToMoveTo][2] then
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            return true
+                        else
+                            local tLZTeamData = M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLZ][M28Map.subrefLZTeamData][oEngineer:GetAIBrain().M28Team]
+                            if bDebugMessages == true then LOG(sFunctionRef..': Engineer isnt at LZ to run to yet, are there enemies in this or adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])) end
+                            if not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) then
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                return true
+                            else
+                                if tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] >= 10 then
+                                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                    return false
+                                else
+                                    local iTotalEnemyThreatNearby = tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal]
+                                    if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLZ][M28Map.subrefLZAdjacentLandZones]) == false then
+                                        for _, iAdjLZ in M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLZ][M28Map.subrefLZAdjacentLandZones] do
+                                            iTotalEnemyThreatNearby = iTotalEnemyThreatNearby + M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][oEngineer:GetAIBrain().M28Team][M28Map.subrefLZTThreatEnemyCombatTotal]
+                                        end
+                                    end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': iTotalEnemyThreatNearby='..iTotalEnemyThreatNearby..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]='..tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]) end
+                                    if iTotalEnemyThreatNearby * 5 < tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] then
+                                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                        return true
+                                    end
+                                end
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                return false
+                            end
                         end
                     else
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -313,6 +348,23 @@ function HaveLowPower(iTeam)
         end
     end
     return false
+end
+
+function GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, iCategoryWanted)
+    --Returns the number of factories that are building a unit meeting iCategoryWanted
+    local iAlreadyBuilding = 0
+    local tLZFactories = EntityCategoryFilterDown(categories.FACTORY, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+    if M28Utilities.IsTableEmpty(tLZFactories) == false then
+        local oCurUnitBuilding
+        for iFactory, oFactory in tLZFactories do
+            oCurUnitBuilding = oFactory:GetFocusUnit()
+            if oCurUnitBuilding and EntityCategoryContains(iCategoryWanted, oCurUnitBuilding) then
+                --LOG('Temp to check we have a factory building the category wanted - we do, oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Unit building='..oCurUnitBuilding.UnitId)
+                iAlreadyBuilding = iAlreadyBuilding + 1
+            end
+        end
+    end
+    return iAlreadyBuilding
 end
 
 function WantMorePower(iTeam)

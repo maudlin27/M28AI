@@ -337,16 +337,16 @@ function OnConstructed(oEngineer, oJustBuilt)
                 for iBrain, oBrain in M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subreftoEnemyBrains] do
                     if oBrain.M28AI and not(tTeamsUpdated[oBrain.M28Team]) then
                         tTeamsUpdated[oBrain.M28Team] = true
-                        M28Team.AssignUnitToZoneOrPond(oBrain, oJustBuilt)
+                        M28Team.AssignUnitToLandZoneOrPond(oBrain, oJustBuilt)
                     end
                 end
-                --Also update the name
-                if M28Config.M28ShowUnitNames then
-                    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oJustBuilt:GetPosition(), false)
-                    local sPlateauAndZoneDesc = ':P='..(iPlateau or 0)..'LZ='..(iLandZone or 0)
+            end
+            --Also update the name
+            if M28Config.M28ShowUnitNames then
+                local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oJustBuilt:GetPosition(), false)
+                local sPlateauAndZoneDesc = ':P='..(iPlateau or 0)..'LZ='..(iLandZone or 0)
 
-                    oJustBuilt:SetCustomName(oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..sPlateauAndZoneDesc..': Built')
-                end
+                oJustBuilt:SetCustomName(oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..sPlateauAndZoneDesc..': Built')
             end
 
             --If we have just built a radar then update radar logic

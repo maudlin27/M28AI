@@ -214,7 +214,6 @@ function DrawPath(tPath, iOptionalColour, iOptionalTimeInTicks)
         end
         tPrevPosition = {tPath[1], tPath[2], tPath[3]}
     end
-
 end
 
 function GetApproxTravelDistanceBetweenPositions(tStart, tEnd)

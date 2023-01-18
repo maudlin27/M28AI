@@ -15,6 +15,7 @@ local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
 local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 local M28Chat = import('/mods/M28AI/lua/AI/M28Chat.lua')
+local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 
 
 bInitialSetup = false
@@ -163,13 +164,23 @@ function M28BrainCreated(aiBrain)
 end
 
 function TestCustom(aiBrain)
+    --Detail rally point info for a land zone
+    local tLZData = M28Map.tAllPlateaus[27][M28Map.subrefPlateauLandZones][20]
+    local tStartMidpoint = tLZData[M28Map.subrefLZMidpoint]
+    local tRallyPoint = M28Land.GetNearestRallyPoint(tLZData, 1, 27, 20, 3)
+    LOG('tStartMidpoint='..repru(tStartMidpoint)..'; tRallyPoint='..repru(tRallyPoint)..'; Path from LZ20 to LZ5='..repru(tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][5]]))
+
+    --Draw specific land zones
+    --M28Map.DrawSpecificLandZone(27, 33, 2)
+    --M28Map.DrawSpecificLandZone(27, 34, 1)
+
     --Test alternative to table.remove for sequentially indexed numerical keys
-    local tTestArray = {[1] = 'Test1', [2] = 'Test2', [3] = 'Test3', [4] = 'Test4'}
+    --[[local tTestArray = {[1] = 'Test1', [2] = 'Test2', [3] = 'Test3', [4] = 'Test4'}
     local function WantToKeep(tArray, i, j)
         if tArray[i] == 'Test2' then return false else return true end
     end
     M28Utilities.RemoveEntriesFromArrayBasedOnCondition(tTestArray, WantToKeep)
-    LOG('Finished updating array, tTestArray='..repru(tTestArray))
+    LOG('Finished updating array, tTestArray='..repru(tTestArray))--]]
     
     
     --Check for sparky and how many orders it has

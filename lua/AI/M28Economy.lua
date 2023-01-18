@@ -42,6 +42,7 @@ refiLastMassUsage = 'M28EconomyLastMassUsage' --per tick massu sage of the unit 
 --global variables
 tiMinEnergyPerTech = {[1]=20,[2]=60,[3]=250}
 iSpecialHQCategory = 'M28EconomyFactoryHQ' --Used as a way of choosing to pause HQ
+iSpecialSurplusUpgradeCategory = 'M28EconomySurplusUpgrade' --used as a way of choosing to pause excess upgrades
 
 function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
     --Work out the upgrade ID wanted; if bUpdateUpgradeTracker is true then records upgrade against unit's aiBrain
@@ -610,13 +611,13 @@ end
 function GetCategoriesAndActionsToPause(iTeam, bStallingMass)
     local tCategoriesByPriority, tEngineerActionsByPriority
     if bStallingMass then
-        tCategoriesByPriority = { M28UnitInfo.refCategorySMD, M28UnitInfo.refCategoryEngineerStation, M28UnitInfo.refCategoryLandFactory, M28UnitInfo.refCategoryRASSACU, M28UnitInfo.refCategoryEngineer, M28UnitInfo.refCategoryTML, M28UnitInfo.refCategoryAirFactory, iSpecialHQCategory, M28UnitInfo.refCategoryT2Mex, categories.COMMAND, M28UnitInfo.refCategoryT1Mex, M28UnitInfo.refCategoryEngineer }
+        tCategoriesByPriority = { M28UnitInfo.refCategorySMD, M28UnitInfo.refCategoryEngineerStation, iSpecialSurplusUpgradeCategory, M28UnitInfo.refCategoryLandFactory * categories.TECH1, M28UnitInfo.refCategoryLandFactory * categories.TECH2, M28UnitInfo.refCategoryLandFactory * categories.TECH3, M28UnitInfo.refCategoryRASSACU, M28UnitInfo.refCategoryEngineer, M28UnitInfo.refCategoryTML, M28UnitInfo.refCategoryAirFactory, iSpecialHQCategory, M28UnitInfo.refCategoryT2Mex, categories.COMMAND, M28UnitInfo.refCategoryT1Mex, M28UnitInfo.refCategoryEngineer }
 
         tEngineerActionsByPriority = { { M28Engineer.refActionBuildQuantumOptics, M28Engineer.refActionBuildHive, M28Engineer.refActionBuildT3Radar, M28Engineer.refActionBuildSecondExperimental, M28Engineer.refActionNavalSpareAction, M28Engineer.refActionBuildT2Sonar, M28Engineer.refActionBuildThirdPower, M28Engineer.refActionBuildSecondAirFactory, M28Engineer.refActionBuildSecondLandFactory, M28Engineer.refActionBuildLandFactory, M28Engineer.refActionSAMCreep, M28Engineer.refActionBuildNavalFactory, M28Engineer.refActionAssistNavalFactory, M28Engineer.refActionBuildAirFactory, M28Engineer.refActionBuildT1Sonar, M28Engineer.refActionBuildT2Radar, M28Engineer.refActionBuildT1Radar, M28Engineer.refActionBuildSecondPower, M28Engineer.refActionBuildTML, M28Engineer.refActionBuildEnergyStorage, M28Engineer.refActionBuildAirStaging, M28Engineer.refActionBuildShield, M28Engineer.refActionBuildSecondShield, M28Engineer.refActionBuildExperimental, M28Engineer.refActionAssistAirFactory, M28Engineer.refActionUpgradeBuilding, M28Engineer.refActionBuildPower },
                                        { M28Engineer.refActionFortifyFirebase, M28Engineer.refActionAssistShield, M28Engineer.refActionBuildSecondTMD, M28Engineer.refActionBuildMassStorage, M28Engineer.refActionAssistMexUpgrade, M28Engineer.refActionSpare, M28Engineer.refActionBuildTMD, M28Engineer.refActionBuildSMD, M28Engineer.refActionBuildEmergencyArti, M28Engineer.refActionBuildEmergencyPD }}
     else
 
-        tCategoriesByPriority = { M28UnitInfo.refCategoryQuantumOptics, M28UnitInfo.refCategorySMD, M28UnitInfo.refCategoryEngineerStation, M28UnitInfo.refCategoryQuantumOptics, M28UnitInfo.refCategoryTML, M28UnitInfo.refCategoryAirFactory, M28UnitInfo.refCategoryRASSACU, M28UnitInfo.refCategoryEngineer, M28UnitInfo.refCategoryT3Radar, M28UnitInfo.refCategoryT2Mex, M28UnitInfo.refCategoryT1Mex, categories.COMMAND, M28UnitInfo.refCategoryLandFactory, M28UnitInfo.refCategoryEngineer, M28UnitInfo.refCategorySML - categories.EXPERIMENTAL, iSpecialHQCategory, M28UnitInfo.refCategoryStealthGenerator, M28UnitInfo.refCategoryStealthAndCloakPersonal, M28UnitInfo.refCategoryRadar, M28UnitInfo.refCategoryPersonalShield, M28UnitInfo.refCategoryFixedShield, M28UnitInfo.refCategoryMobileLandShield, M28UnitInfo.refCategoryEngineer }
+        tCategoriesByPriority = { M28UnitInfo.refCategoryQuantumOptics, M28UnitInfo.refCategorySMD, M28UnitInfo.refCategoryEngineerStation, M28UnitInfo.refCategoryQuantumOptics, iSpecialSurplusUpgradeCategory, M28UnitInfo.refCategoryTML, M28UnitInfo.refCategoryAirFactory, M28UnitInfo.refCategoryRASSACU, M28UnitInfo.refCategoryEngineer, M28UnitInfo.refCategoryT3Radar, M28UnitInfo.refCategoryT2Mex, M28UnitInfo.refCategoryT1Mex, categories.COMMAND, M28UnitInfo.refCategoryLandFactory * categories.TECH1, M28UnitInfo.refCategoryLandFactory * categories.TECH2, M28UnitInfo.refCategoryLandFactory * categories.TECH3, M28UnitInfo.refCategoryEngineer, M28UnitInfo.refCategorySML - categories.EXPERIMENTAL, iSpecialHQCategory, M28UnitInfo.refCategoryStealthGenerator, M28UnitInfo.refCategoryStealthAndCloakPersonal, M28UnitInfo.refCategoryRadar, M28UnitInfo.refCategoryPersonalShield, M28UnitInfo.refCategoryFixedShield, M28UnitInfo.refCategoryMobileLandShield, M28UnitInfo.refCategoryEngineer }
         tEngineerActionsByPriority = { { M28Engineer.refActionBuildQuantumOptics, M28Engineer.refActionBuildHive, M28Engineer.refActionBuildT3Radar, M28Engineer.refActionBuildSecondExperimental, M28Engineer.refActionNavalSpareAction, M28Engineer.refActionBuildT2Sonar, M28Engineer.refActionBuildT1Sonar, M28Engineer.refActionBuildT2Radar, M28Engineer.refActionBuildT1Radar, M28Engineer.refActionBuildTML, M28Engineer.refActionBuildEnergyStorage, M28Engineer.refActionBuildAirStaging, M28Engineer.refActionBuildShield, M28Engineer.refActionBuildSecondShield, M28Engineer.refActionBuildThirdPower, M28Engineer.refActionBuildExperimental, M28Engineer.refActionBuildSecondAirFactory, M28Engineer.refActionBuildAirFactory, M28Engineer.refActionBuildSecondLandFactory, M28Engineer.refActionSAMCreep, M28Engineer.refActionBuildLandFactory, M28Engineer.refActionBuildNavalFactory, M28Engineer.refActionAssistNavalFactory, M28Engineer.refActionAssistNavalFactory, M28Engineer.refActionBuildMassStorage,M28Engineer.refActionAssistMexUpgrade, M28Engineer.refActionUpgradeBuilding },
                                        { M28Engineer.refActionAssistAirFactory, M28Engineer.refActionSpare, M28Engineer.refActionBuildSecondPower, M28Engineer.refActionFortifyFirebase },
                                        { M28Engineer.refActionBuildTMD, M28Engineer.refActionBuildSMD, M28Engineer.refActionBuildEmergencyArti, M28Engineer.refActionBuildEmergencyPD, M28Engineer.refActionAssistShield, M28Engineer.refActionBuildSecondTMD } }
@@ -682,17 +683,17 @@ function ManageMassStalls(iTeam)
             local tCategoriesByPriority, tEngineerActionsByPriority = GetCategoriesAndActionsToPause(iTeam, true)
 
             local iMassPerTickSavingNeeded
-            if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] then
+            if bPauseNotUnpause then
                 if M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] then iMassPerTickSavingNeeded = math.max(1, -M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass])
                 else
                     iMassPerTickSavingNeeded = math.max(1, -M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] * 0.8)
                 end
             else
-                iMassPerTickSavingNeeded = math.min(-1, -M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] * 1.2)
-                if M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] then iMassPerTickSavingNeeded = math.min(-1, -M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass])
+                if M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] then iMassPerTickSavingNeeded = math.min(-1, -M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass], -M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] / 30)
                 else
-                    iMassPerTickSavingNeeded = math.min(-1, -M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] * 1.2)
+                    iMassPerTickSavingNeeded = math.min(-1, -M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] * 1.2, -M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] / 20)
                 end
+                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.15 then iMassPerTickSavingNeeded = iMassPerTickSavingNeeded * 1.2 - 0.5 end
             end
 
             local iMassSavingManaged = 0
@@ -739,6 +740,7 @@ function ManageMassStalls(iTeam)
             end
 
             local bConsideringHQ
+            local bConsideringTeamWideUnits = false
             local bNoRelevantUnits = true
 
             if bDebugMessages == true then
@@ -751,7 +753,13 @@ function ManageMassStalls(iTeam)
                 if iCategoryRef == iSpecialHQCategory then
                     iCategoryRef = M28UnitInfo.refCategoryAllHQFactories
                     bConsideringHQ = true
+                    bConsideringTeamWideUnits = false
                 else
+                    if iCategoryRef == iSpecialSurplusUpgradeCategory then
+                        bConsideringTeamWideUnits = true
+                    else
+                        bConsideringTeamWideUnits = false
+                    end
                     bConsideringHQ = false
                 end
 
@@ -761,11 +769,47 @@ function ManageMassStalls(iTeam)
                 local oFocusUnitBP
                 local bFirstEngiCategoryRefBrain = true
 
+
                 for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-                    if bPauseNotUnpause then
-                        tRelevantUnits = oBrain:GetListOfUnits(iCategoryRef, false, true)
+                    if iCategoryRef == iSpecialSurplusUpgradeCategory then
+                        --Pause all but 1 upgrade per brain, pausing the lowest progress first, if we have multiple upgrades
+                        tRelevantUnits = {}
+                        if M28Utilities.IsTableEmpty(M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingMexes]) == false then
+                            local iMexesToPause = math.max(0, table.getn(M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingMexes]) - M28Team.tTeamData[oBrain.M28Team][M28Team.subrefiActiveM28BrainCount])
+                            while iMexesToPause > 0 do
+                                local iLowestProgress = 1
+                                local oLowestProgress
+                                local bAlreadyIncluded
+                                for iUnit, oUnit in M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingMexes] do
+                                    if oUnit:GetWorkProgress() < iLowestProgress then
+                                        bAlreadyIncluded = false
+                                        --Is the unit already in the table of relevant units?
+                                        if M28Utilities.IsTableEmpty(tRelevantUnits) == false then
+                                            for iRecordedUnit, oRecordedUnit in tRelevantUnits do
+                                                if oRecordedUnit == oUnit then bAlreadyIncluded = true break end
+                                            end
+                                        end
+                                        if not(bAlreadyIncluded) then
+                                            oLowestProgress = oUnit
+                                            iLowestProgress = oUnit:GetWorkProgress()
+                                        end
+                                    end
+                                end
+                                table.insert(tRelevantUnits, oLowestProgress)
+                                iMexesToPause = iMexesToPause - 1
+                            end
+                        end
+                        if M28Utilities.IsTableEmpty(M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingOther]) == false then
+                            for iUnit, oUnit in M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingOther] do
+                                table.insert(tRelevantUnits, oUnit)
+                            end
+                        end
                     else
-                        tRelevantUnits = EntityCategoryFilterDown(iCategoryRef, oBrain[reftPausedUnits])
+                        if bPauseNotUnpause then
+                            tRelevantUnits = oBrain:GetListOfUnits(iCategoryRef, false, true)
+                        else
+                            tRelevantUnits = EntityCategoryFilterDown(iCategoryRef, oBrain[reftPausedUnits])
+                        end
                     end
 
                     --for iBrain, oBrain in M28Team.tTeamData[iTeam][
@@ -952,7 +996,7 @@ function ManageMassStalls(iTeam)
                                     if not((iCurUnitMassUsage or 0) == 0) then iUnitsAdjusted = iUnitsAdjusted + 1 end
                                     M28UnitInfo.PauseOrUnpauseMassUsage(oUnit, bPauseNotUnpause)
                                     --Cant move the below into unitinfo as get a crash if unitinfo tries to refernce the table of paused units
-                                        --Have made localised variable which looks to fix the issue
+                                    --Have made localised variable which looks to fix the issue
                                 end
                             end
                             if not (bWasUnitPaused) and bPauseNotUnpause then
@@ -964,7 +1008,7 @@ function ManageMassStalls(iTeam)
                                 LOG(sFunctionRef .. ': iMassSavingManaged=' .. iMassSavingManaged .. '; iMassPerTickSavingNeeded=' .. iMassPerTickSavingNeeded .. '; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]))
                             end
 
-                            if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] then
+                            if bPauseNotUnpause then
                                 if iMassSavingManaged > iMassPerTickSavingNeeded then
                                     if bDebugMessages == true then
                                         LOG(sFunctionRef .. ': Estimate we have saved ' .. iMassSavingManaged .. ' which is more tahn we wanted so will pause')
@@ -990,6 +1034,7 @@ function ManageMassStalls(iTeam)
                     if bAbort then
                         break
                     end
+                    if bConsideringTeamWideUnits then break end --dont want to consider for more than one brain
                 end
                 if bAbort then
                     break
@@ -1143,7 +1188,7 @@ function ManageEnergyStalls(iTeam)
             local tCategoriesByPriority, tEngineerActionsByPriority = GetCategoriesAndActionsToPause(iTeam)
 
             local iEnergyPerTickSavingNeeded
-            if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] then
+            if bPauseNotUnpause then
                 iEnergyPerTickSavingNeeded = math.max(1, -M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] + iNetMod * 0.5 + M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.02)
                 if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] <= 0.15 then
                     if bDebugMessages == true then LOG(sFunctionRef..': Have less than 15% energy stored so increasing the energy saving wanted. iEnergyPerTickSavingNeeded pre increase='..iEnergyPerTickSavingNeeded..'; Gross base income='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Team lowest energy storage units='..M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount]) end
@@ -1156,7 +1201,7 @@ function ManageEnergyStalls(iTeam)
                     iEnergyPerTickSavingNeeded = math.max(iEnergyPerTickSavingNeeded * 1.15, iEnergyPerTickSavingNeeded + M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.015)
                 end
             else
-                iEnergyPerTickSavingNeeded = math.min(-1, -M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy])
+                iEnergyPerTickSavingNeeded = math.min(-1, -M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy], -M28Team.tTeamData[iTeam][M28Team.subrefiTeamEnergyStored] / 30)
                 iEnergyPerTickSavingNeeded = math.max(iEnergyPerTickSavingNeeded, -300)
                 if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] <= 0.75 then iEnergyPerTickSavingNeeded = iEnergyPerTickSavingNeeded * 0.75 end
             end
@@ -1181,6 +1226,7 @@ function ManageEnergyStalls(iTeam)
             end
 
             local bConsideringHQ
+            local bConsideringTeamWideUnits = false
             local bNoRelevantUnits = true
 
             if bDebugMessages == true then
@@ -1195,7 +1241,13 @@ function ManageEnergyStalls(iTeam)
                 if iCategoryRef == iSpecialHQCategory then
                     iCategoryRef = M28UnitInfo.refCategoryAllHQFactories
                     bConsideringHQ = true
+                    bConsideringTeamWideUnits = false
                 else
+                    if iCategoryRef == iSpecialSurplusUpgradeCategory then
+                        bConsideringTeamWideUnits = true
+                    else
+                        bConsideringTeamWideUnits = false
+                    end
                     bConsideringHQ = false
                 end
 
@@ -1206,13 +1258,48 @@ function ManageEnergyStalls(iTeam)
                 local bFirstEngiCategoryRefBrain = true
 
                 for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-                    if bPauseNotUnpause then
-                        tRelevantUnits = oBrain:GetListOfUnits(iCategoryRef, false, true)
+                    if iCategoryRef == iSpecialSurplusUpgradeCategory then
+                        --Pause all but 1 upgrade per brain, pausing the lowest progress first, if we have multiple upgrades
+                        tRelevantUnits = {}
+                        if M28Utilities.IsTableEmpty(M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingMexes]) == false then
+                            local iMexesToPause = math.max(0, table.getn(M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingMexes]) - M28Team.tTeamData[oBrain.M28Team][M28Team.subrefiActiveM28BrainCount])
+                            while iMexesToPause > 0 do
+                                local iLowestProgress = 1
+                                local oLowestProgress
+                                local bAlreadyIncluded
+                                for iUnit, oUnit in M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingMexes] do
+                                    if oUnit:GetWorkProgress() < iLowestProgress then
+                                        bAlreadyIncluded = false
+                                        --Is the unit already in the table of relevant units?
+                                        if M28Utilities.IsTableEmpty(tRelevantUnits) == false then
+                                            for iRecordedUnit, oRecordedUnit in tRelevantUnits do
+                                                if oRecordedUnit == oUnit then bAlreadyIncluded = true break end
+                                            end
+                                        end
+                                        if not(bAlreadyIncluded) then
+                                            oLowestProgress = oUnit
+                                            iLowestProgress = oUnit:GetWorkProgress()
+                                        end
+                                    end
+                                end
+                                table.insert(tRelevantUnits, oLowestProgress)
+                                iMexesToPause = iMexesToPause - 1
+                            end
+                        end
+                        if M28Utilities.IsTableEmpty(M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingOther]) == false then
+                            for iUnit, oUnit in M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingOther] do
+                                table.insert(tRelevantUnits, oUnit)
+                            end
+                        end
                     else
-                        tRelevantUnits = EntityCategoryFilterDown(iCategoryRef, oBrain[reftPausedUnits])
+                        if bPauseNotUnpause then
+                            tRelevantUnits = oBrain:GetListOfUnits(iCategoryRef, false, true)
+                        else
+                            tRelevantUnits = EntityCategoryFilterDown(iCategoryRef, oBrain[reftPausedUnits])
+                        end
                     end
 
-
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iCategoryCount='..iCategoryCount..' for brain '..oBrain.Nickname..'; Is table of relevant units empty='..tostring(M28Utilities.IsTableEmpty(tRelevantUnits))) end
                     if M28Utilities.IsTableEmpty(tRelevantUnits) == false then
                         bNoRelevantUnits = false
                         iTotalUnits = table.getn(tRelevantUnits)
@@ -1422,6 +1509,7 @@ function ManageEnergyStalls(iTeam)
                                     end--]]
 
                                 end
+                            elseif bDebugMessages == true then LOG(sFunctionRef..': Unit entry='..iUnit..'; Unit isnt valid')
                             end
                             if not (bWasUnitPaused) and bPauseNotUnpause then
                                 iEnergySavingManaged = iEnergySavingManaged + iCurUnitEnergyUsage
@@ -1429,10 +1517,10 @@ function ManageEnergyStalls(iTeam)
                                 iEnergySavingManaged = iEnergySavingManaged - iCurUnitEnergyUsage
                             end
                             if bDebugMessages == true then
-                                LOG(sFunctionRef .. ': iEnergySavingManaged=' .. iEnergySavingManaged .. '; iEnergyPerTickSavingNeeded=' .. iEnergyPerTickSavingNeeded .. '; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]))
+                                LOG(sFunctionRef .. ': iEnergySavingManaged=' .. iEnergySavingManaged .. '; iEnergyPerTickSavingNeeded=' .. iEnergyPerTickSavingNeeded .. '; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; bWasUnitPaused='..tostring(bWasUnitPaused)..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; iCurUnitEnergyUsage='..iCurUnitEnergyUsage)
                             end
 
-                            if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] then
+                            if bPauseNotUnpause then
                                 if iEnergySavingManaged > iEnergyPerTickSavingNeeded then
                                     if bDebugMessages == true then
                                         LOG(sFunctionRef .. ': Estimate we have saved ' .. iEnergySavingManaged .. ' which is more tahn we wanted so will pause')
@@ -1458,6 +1546,7 @@ function ManageEnergyStalls(iTeam)
                     if bAbort then
                         break
                     end
+                    if bConsideringTeamWideUnits then break end --dont want to consider for more than one brain
                 end
                 if bAbort then
                     break

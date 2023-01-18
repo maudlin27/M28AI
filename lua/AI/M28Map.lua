@@ -285,11 +285,11 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
 
                 if not(tAllPlateaus[iPlateau]) then
                     if bOptionalShouldBePathable then
-                        M28Utilities.ErrorHandler('No plateau group for tPosition '..repru(tPosition)..' or segment midpoint '..repru(GetPositionFromPathingSegments(iSegmentX, iSegmentZ))..'; Plateau group of segment midpoint='..(NavUtils.GetLabel(refPathingTypeAmphibious, GetPositionFromPathingSegments(iSegmentX, iSegmentZ)) or 'nil')..'; Plateau Group of tPosition='..(NavUtils.GetLabel(refPathingTypeAmphibious, tPosition) or 'nil'))
+                        M28Utilities.ErrorHandler('No plateau group for iSegmentX='..iSegmentX..'; iSegmentZ='..iSegmentZ..'; Plateau group of segment midpoint='..(NavUtils.GetLabel(refPathingTypeAmphibious, GetPositionFromPathingSegments(iSegmentX, iSegmentZ)) or 'nil')..'; Plateau Group of tPosition='..(NavUtils.GetLabel(refPathingTypeAmphibious, tPosition) or 'nil'))
                     end
                     return nil
                 else
-                    if tAllPlateaus[iPlateau][subrefiPlateauMexes] == 0 then
+                    if tAllPlateaus[iPlateau][subrefPlateauTotalMexCount] == 0 then
                         iLandZone = 1
                     else
                         --more than 1 land zone so return nil
@@ -1194,23 +1194,32 @@ local function AssignMexesALandZone()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --Key config values
-    local iNearbyMexRange = 40 --Initially mexes will be grouped together based on this, i.e. will assign mexes within this distance of each other to the same land zone
+    local iNearbyMexRange --Initially mexes will be grouped together based on this, i.e. will assign mexes within this distance of each other to the same land zone
+    --rMapPlayableArea = {0,0, 256, 256} --{x1,z1, x2,z2}
+    local iMaxMapSize = math.max(rMapPlayableArea[3] - rMapPlayableArea[1], rMapPlayableArea[4] - rMapPlayableArea[2])
+    if iMaxMapSize > 1024 then --1024 is 20k, so this is 40k or 80k
+        iNearbyMexRange = 54
+    elseif iMaxMapSize > 512 then --i.e. 20k
+        iNearbyMexRange = 42
+    else iNearbyMexRange = 34
+    end
 
     if bDebugMessages == true then LOG('About to setup land zones') end
 
     local tiLandZoneByMexRef
 
     --Subfunction - if we have a mex to assign to a land zone then this subfunction should be called to check for any nearby mexes without a zone and assign these to the same zone
-    function AddNearbyMexesToLandZone(iPlateau, iCurLandZone, tMex)
+    function AddNearbyMexesToLandZone(iPlateau, iCurLandZone, tMex, iRecursiveCount)
         local iLandGroupWanted = NavUtils.GetLabel(refPathingTypeLand, tMex)
+        local iMaxRange = math.max(15, iNearbyMexRange - iRecursiveCount * 2)
         for iAltMex, tAltMex in tAllPlateaus[iPlateau][subrefPlateauMexes] do
             if not(tiLandZoneByMexRef[iAltMex]) then
                 if NavUtils.GetLabel(refPathingTypeLand, tAltMex) == iLandGroupWanted and not(IsUnderwater(tAltMex, false, 0.1)) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering iAltMex='..iAltMex..'; Distance straight line='..M28Utilities.GetDistanceBetweenPositions(tAltMex, tMex)..'; Travel distance='..M28Utilities.GetTravelDistanceBetweenPositions(tAltMex, tMex)) end
-                    if M28Utilities.GetTravelDistanceBetweenPositions(tAltMex, tMex) <= iNearbyMexRange then
+                    if M28Utilities.GetTravelDistanceBetweenPositions(tAltMex, tMex) <= iMaxRange then
                         AddMexToLandZone(iPlateau, iCurLandZone, iAltMex, tiLandZoneByMexRef)
                         if bDebugMessages == true then LOG(sFunctionRef..': Added mex '..iAltMex..' with position '..repru(tAltMex)..' to land zone, tiLandZoneByMexRef='..(tiLandZoneByMexRef[iAltMex] or 'nil')..'; Distance in straight line='..M28Utilities.GetDistanceBetweenPositions(tAltMex, tMex)..'; Travel distance='..M28Utilities.GetTravelDistanceBetweenPositions(tAltMex, tMex)) end
-                        AddNearbyMexesToLandZone(iPlateau, iCurLandZone, tAltMex) --Needs to be recursive or else can end up with 2 mees that are really close to each other not being in the same group depending on the order in which the original mexes are called
+                        AddNearbyMexesToLandZone(iPlateau, iCurLandZone, tAltMex, iRecursiveCount + 1) --Needs to be recursive or else can end up with 2 mees that are really close to each other not being in the same group depending on the order in which the original mexes are called
                     end
                 end
             end
@@ -1232,7 +1241,7 @@ local function AssignMexesALandZone()
                     if bDebugMessages == true then LOG(sFunctionRef..': Added mex '..iMex..' with position '..repru(tMex)..' to land zone, tiLandZoneByMexRef='..(tiLandZoneByMexRef[iMex] or 'nil')) end
 
                     --Cycle through each other mex in the plateau and if it is within iNearbyMexRange then assign it to the same group if it hasnt had a group assigned already
-                    AddNearbyMexesToLandZone(iPlateau, iCurLandZone, tMex)
+                    AddNearbyMexesToLandZone(iPlateau, iCurLandZone, tMex, 0)
                 end
             end
         end
@@ -1450,7 +1459,7 @@ function RecordAdjacentLandZones()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iPlateau, iStartLandZone, iTargetLandZone, tStart)
+function ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iPlateau, iStartLandZone, iTargetLandZone, tStart, bWillUpdateLZEntryRefLater)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderAddingTargetLandZoneToDistanceFromBaseTable'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -1459,8 +1468,8 @@ function ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iPlateau, iStartLan
     if not(tbTempConsideredLandPathingForLZ[iPlateau][iStartLandZone][iTargetLandZone]) then
 
         local tEnd = tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZMidpoint]
-        if bDebugMessages == true then LOG(sFunctionRef..': WIll try and get amphibious path from tStart='..repru(tStart)..' to tEnd='..repru(tEnd)..'; iStartLandZone='..iStartLandZone..'; iTargetLandZone='..iTargetLandZone) end
-        local tFullPath, iPathSize, iDistance = NavUtils.PathTo(refPathingTypeAmphibious, tStart, tEnd, nil)
+        local tFullPath, iPathSize, iDistance = NavUtils.PathTo(refPathingTypeLand, tStart, tEnd, nil)
+        if bDebugMessages == true then LOG(sFunctionRef..': Have just tried to get amphibious path from tStart='..repru(tStart)..' to tEnd='..repru(tEnd)..'; iStartLandZone='..iStartLandZone..'; iTargetLandZone='..iTargetLandZone..'; tFullPath='..repru(tFullPath)..'; iPathSize='..iPathSize) end
 
         if tFullPath then
             local iPathingPlateau, iPathingLandZone
@@ -1491,7 +1500,10 @@ function ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iPlateau, iStartLan
             if not(tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZTravelDistToOtherLandZones][iPlateau]) then tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZTravelDistToOtherLandZones][iPlateau] = {} end
             tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZTravelDistToOtherLandZones][iPlateau][iTargetLandZone] = iTravelDistance
 
-            if bDebugMessages == true then LOG(sFunctionRef..': Travel distance to iTargetLandZone '..iTargetLandZone..' from '..iStartLandZone..' = '..iTravelDistance) end
+            if bDebugMessages == true then
+                LOG(sFunctionRef..': Travel distance to iTargetLandZone '..iTargetLandZone..' from '..iStartLandZone..' = '..iTravelDistance..'; tPathingLZConsidered='..repru(tPathingLZConsidered)..'; will draw path between LZs')
+                M28Utilities.DrawPath(tFullPath, 1)
+            end
 
             --Get position in new table
             local iPosition = 1
@@ -1525,10 +1537,9 @@ function ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iPlateau, iStartLan
             end
 
             table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLandZones], iPosition, {[subrefLZNumber] = iTargetLandZone, [subrefLZPath] = {}, [subrefLZTravelDist] = iTravelDistance})
-            tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLZEntryRef][iTargetLandZone] = iPosition
-
             table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZPathingToOtherLandZones], iOppositePosition, {[subrefLZNumber] = iStartLandZone, [subrefLZPath] = {}, [subrefLZTravelDist] = iTravelDistance})
-            tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZPathingToOtherLZEntryRef][iStartLandZone] = iOppositePosition
+
+            --Will update subrefLZPathingToOtherLZEntryRef in UpdateLZPathingEntryReferences, as we need to do this for iOppositePositon once we have finished adding all oppositepositions or it will end up out of order
 
             --Record the land zone path from start to target
             for iEntry, iLZ in tPathingLZFromStartToTarget do
@@ -1552,8 +1563,14 @@ function ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iPlateau, iStartLan
             tbTempConsideredLandPathingForLZ[iPlateau][iStartLandZone][iTargetLandZone] = true
             tbTempConsideredLandPathingForLZ[iPlateau][iTargetLandZone][iStartLandZone] = true
 
+            if bDebugMessages == true then LOG(sFunctionRef..': Path for goign the opposite direction='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZPathingToOtherLandZones][iOppositePosition][subrefLZPath])..'; path for going the normal direction='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLandZones][iPosition][subrefLZPath])..'; iPosition='..iPosition..'; iOppositePosition='..iOppositePosition) end
+
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Finsihed recording for iPlateau='..iPlateau..'; iStartLandZone='..iStartLandZone..'; subrefLZPathingToOtherLandZones='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLandZones])) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finsihed recording for iPlateau='..iPlateau..'; iStartLandZone='..iStartLandZone..'; subrefLZPathingToOtherLandZones='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLandZones])..'; will now do repru of the target land zone pathing to other land zones='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZPathingToOtherLandZones])) end
+        if not(bWillUpdateLZEntryRefLater) then
+            UpdateLZPathingEntryReferences(iPlateau, iStartLandZone)
+            UpdateLZPathingEntryReferences(iPlateau, iTargetLandZone)
+        end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -1579,6 +1596,17 @@ local function RecordMaxAdjacencyTravelDistance()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function UpdateLZPathingEntryReferences(iPlateau, iLandZone)
+    local tLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
+    if M28Utilities.IsTableEmpty(tLZData[subrefLZPathingToOtherLandZones]) == false then
+        local iCurCount = 0
+        for iEntry, tPathData in tLZData[subrefLZPathingToOtherLandZones] do
+            iCurCount = iCurCount + 1
+            tLZData[subrefLZPathingToOtherLZEntryRef][tPathData[subrefLZNumber]] = iCurCount
+        end
+    end
+end
+
 local function RecordPathingBetweenZones()
     --For each zone that is where a player starts, record pathing to every other zone; for other zones, record pathing to up to 3 layers of adjacency
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -1591,9 +1619,14 @@ local function RecordPathingBetweenZones()
             local tStartPoint = tAllPlateaus[iCurPlateau][subrefPlateauLandZones][iCurLandZone][subrefLZMidpoint]
             for iTargetLandZone, tTargetLZInfo in tPlateauSubtable[subrefPlateauLandZones] do
                 if not(iTargetLandZone == iCurLandZone) then
-                    ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iCurPlateau, iCurLandZone, iTargetLandZone, tStartPoint)
+                    ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iCurPlateau, iCurLandZone, iTargetLandZone, tStartPoint, true)
                 end
             end
+        end
+        --Now record the entry refs
+        local iCurCount
+        for iCurLandZone, tLandZoneInfo in tPlateauSubtable[subrefPlateauLandZones] do
+            UpdateLZPathingEntryReferences(iCurPlateau, iCurLandZone)
         end
     end
     --Record max adjacency distance
