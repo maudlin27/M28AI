@@ -255,6 +255,14 @@ function OnEnhancementComplete(oUnit, sEnhancement)
     --LOG('Enhancement completed for self='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; sEnhancement='..reprs(sEnhancement))
     M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit)
     M28UnitInfo.RecordUnitRange(oUnit) --Refresh the range incase enhancement has increased anything
+    if oUnit:GetAIBrain().M28AI then
+        if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+            oUnit[M28ACU.refiUpgradeCount] = (oUnit[M28ACU.refiUpgradeCount] or 0) + 1
+            M28ACU.GetUpgradePathForACU(oUnit)
+        end
+        --Remove any upgrade tracking
+        M28Team.UpdateUpgradeTrackingOfUnit(oUnit, true, sEnhancement)
+    end
 end
 
 function OnShieldBubbleDamaged(self, instigator)
@@ -380,6 +388,13 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
         if M28Utilities.IsTableEmpty(oEngineer[M28Engineer.reftQueuedBuildings]) == false then
             M28Engineer.RemoveBuildingFromQueuedBuildings(oEngineer, oConstruction)
         end
+
+        --Record any mexes so we can repair them if construction gets interrupted
+        if oEngineer:GetAIBrain().M28AI then
+            if EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oConstruction.UnitId) then
+                M28Engineer.RecordPartBuiltMex(oEngineer, oConstruction)
+            end
+        end
     end
 end
 
@@ -450,6 +465,10 @@ function OnConstructed(oEngineer, oJustBuilt)
                                 end
                             end
                         end
+                    end
+                    --Update part built t1 mex tracking
+                    if EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oJustBuilt.UnitId) then
+                        M28Engineer.UpdatePartBuiltListForCompletedMex(oJustBuilt)
                     end
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryMassStorage, oJustBuilt.UnitId) then
                     --If just built a mass storage but we dont own the mex it is adjacent to, then gift the storage

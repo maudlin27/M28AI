@@ -27,11 +27,12 @@ refiOrderIssueGuard = 7
 refiOrderIssueRepair = 8
 refiOrderIssueBuild = 9
 refiOrderOvercharge = 10
-refiOrderUpgrade = 11
+refiOrderUpgrade = 11 --For building upgrades; ACU upgrades are refiOrderEnhancement
 refiOrderTransportLoad = 12
 refiOrderIssueGroundAttack = 13
 refiOrderIssueFactoryBuild = 14
 refiOrderKill = 15 --If we want to self destruct a unit
+refiOrderEnhancement = 16 --I.e. ACU upgrades
 
 --Other tracking: Against units
 toUnitsOrderedToRepairThis = 'M28OrderRepairing' --Table of units given an order to repair the unit
@@ -43,6 +44,7 @@ local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 local M28Config = import('/mods/M28AI/lua/M28Config.lua')
 local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
 local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
+local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
 
 
 function UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc)
@@ -425,6 +427,22 @@ function IssueTrackedUpgrade(oUnit, sUpgradeRef, bAddToExistingQueue, sOptionalO
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderUpgrade, [subrefsOrderBlueprint] = sUpgradeRef})
         IssueUpgrade({oUnit}, sUpgradeRef)
+    end
+    if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
+end
+
+function IssueTrackedEnhancement(oUnit, sUpgradeRef, bAddToExistingQueue, sOptionalOrderDesc)
+    UpdateRecordedOrders(oUnit)
+    --Issue order if we arent already trying to attack them
+    local tLastOrder
+    if oUnit[reftiLastOrders] then tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]] end
+    if not(tLastOrder[subrefiOrderType] == refiOrderEnhancement and sUpgradeRef == tLastOrder[subrefsOrderBlueprint]) and not(oUnit:IsUnitState('Upgrading')) then
+        if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
+        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
+        oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
+        table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderEnhancement, [subrefsOrderBlueprint] = sUpgradeRef})
+        IssueScript({oUnit}, {TaskName = 'EnhanceTask', Enhancement = sUpgradeRef})
+        M28Team.UpdateUpgradeTrackingOfUnit(oUnit, false, sUpgradeRef)
     end
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 end

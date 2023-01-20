@@ -11,10 +11,13 @@ local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
-
+local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
+local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 
 --ACU specific variables against the ACU
 refbDoingInitialBuildOrder = 'M28ACUInitialBO'
+reftPreferredUpgrades = 'M28ACUPreferredUpgrades' --table of the enhancement IDs in the order that we want to get them (which is updated to remove any upgrades we already have as and when we get them)
+refiUpgradeCount = 'M28ACUUpgradeCount' --Number of upgrades the ACU has
 
 function ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearchForAdjacencyAndUnderConstruction, iMaxAreaToSearchForBuildLocation, iOptionalAdjacencyCategory, iOptionalCategoryBuiltUnitCanBuild)
     local sFunctionRef = 'ACUBuildUnit'
@@ -307,6 +310,118 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function GetUpgradePathForACU(oACU)
+    --Records the order of upgrades we will want for the ACU
+    local sFunctionRef = 'GetUpgradePathForACU'
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if EntityCategoryContains(categories.UEF, oACU.UnitId) then
+        oACU[reftPreferredUpgrades] = {'HeavyAntiMatterCannon', 'DamageStabilization', 'Shield'}
+    elseif EntityCategoryContains(categories.AEON, oACU.UnitId) then
+        oACU[reftPreferredUpgrades] = {'CrysalisBeam', 'HeatSink', 'Shield'}
+    elseif EntityCategoryContains(categories.CYBRAN, oACU.UnitId) then
+        oACU[reftPreferredUpgrades] = {'CoolingUpgrade', 'StealthGenerator'}
+    elseif EntityCategoryContains(categories.SERAPHIM, oACU.UnitId) then
+        oACU[reftPreferredUpgrades] = {'RateOfFire', 'AdvancedEngineering'}
+    end
+
+    --Check all of these are options (in case a mod has changed them)
+    if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) == false then
+        local oBP = oACU:GetBlueprint()
+        for iUpgradeWanted, sUpgradeWanted in oACU[reftPreferredUpgrades] do
+            if M28Utilities.IsTableEmpty(oBP.Enhancements[sUpgradeWanted]) then
+                oACU[reftPreferredUpgrades] = {}
+                break
+            end
+        end
+    end
+    if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) then
+        --Find the cheapest upgrade that boosts either rate of fire or range
+        oACU[reftPreferredUpgrades] = {}
+        local iLowestMassCost = 1000000
+        local sLowestUpgrade
+        for sUpgrade, tUpgrade in oACU:GetBlueprint().Enhancements do
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering sUpgrade='..sUpgrade..'; tUpgrade='..reprs(tUpgrade)) end
+            if tUpgrade.NewMaxRadius or tUpgrade.NewRateOfFire then
+                if tUpgrade.BuildCostMass < iLowestMassCost and not(tUpgrade.Prerequisite) then
+                    sLowestUpgrade = sUpgrade
+                    iLowestMassCost = tUpgrade.BuildCostMass
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have a new preferred upgrade '..sUpgrade..'; iLowestMassCost='..iLowestMassCost) end
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished considering the cheapest gun improving upgrade, sLowestUpgrade='..(sLowestUpgrade or 'nil')) end
+        if sLowestUpgrade then oACU[reftPreferredUpgrades] = {sLowestUpgrade} end
+    end
+
+    --Remove any upgrades that we already have
+    if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) == false then
+        local iRevisedIndex = 1
+        local iTableSize = table.getn(oACU[reftPreferredUpgrades])
+
+        for iOrigIndex=1, iTableSize do
+            if oACU[reftPreferredUpgrades][iOrigIndex] then
+                if not(oACU:HasEnhancement(oACU[reftPreferredUpgrades][iOrigIndex])) then --I.e. this should run the logic to decide whether we want to keep this entry of the table or remove it
+                    --We want to keep the entry; Move the original index to be the revised index number (so if e.g. a table of 1,2,3 removed 2, then this would've resulted in the revised index being 2 (i.e. it starts at 1, then icnreases by 1 for the first valid entry); this then means we change the table index for orig index 3 to be 2
+                    if (iOrigIndex ~= iRevisedIndex) then
+                        oACU[reftPreferredUpgrades][iRevisedIndex] = oACU[reftPreferredUpgrades][iOrigIndex];
+                        oACU[reftPreferredUpgrades][iOrigIndex] = nil;
+                    end
+                    iRevisedIndex = iRevisedIndex + 1; --i.e. this will be the position of where the next value that we keep will be located
+                else
+                    oACU[reftPreferredUpgrades][iOrigIndex] = nil;
+                end
+            end
+        end
+    end
+end
+
+function GetACUUpgradeWanted(oACU)
+    --Returns nil if cantr find anything
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetACUUpgradeWanted'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local sUpgradeWanted
+
+    --If we were to get an upgrade, what upgrade would it be?
+    if not(oACU[reftPreferredUpgrades]) then
+        GetUpgradePathForACU(oACU)
+    end
+    local iTeam = oACU:GetAIBrain().M28Team
+    if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) == false and not(M28Conditions.HaveLowPower(iTeam)) then
+
+        local sPotentialUpgrade = oACU[reftPreferredUpgrades][1]
+        if sPotentialUpgrade then
+            local tEnhancement = oACU:GetBlueprint().Enhancements[sPotentialUpgrade]
+            --Do we have the eco to support the upgrade?
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering sPotentialUpgrade='..sPotentialUpgrade..'; for ACU '..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' for brain '..oACU:GetAIBrain().Nickname..'; tEnhancement='..reprs(tEnhancement)) end
+            local iBuildRate = oACU:GetBlueprint().Economy.BuildRate
+            local iMassCostPerTick = 0.1 * tEnhancement.BuildCostMass / (tEnhancement.BuildTime / iBuildRate)
+            local iEnergyCostPerTick = 0.1 * tEnhancement.BuildCostEnergy / (tEnhancement.BuildTime / iBuildRate)
+            --Do we have enough gross energy?
+            local iActiveACUUpgrades = 0
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingACUs]) == false then iActiveACUUpgrades = table.getn(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingACUs]) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering if we have enough resources to get this upgrade, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Net mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]..'; Other active upgrades='..iActiveACUUpgrades..'; Is safe to get upgrade='..tostring(M28Conditions.SafeToUpgradeUnit(oACU))..'; iEnergyCostPerTick='..iEnergyCostPerTick..'; iMassCostPerTick='..iMassCostPerTick) end
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 45 * iActiveACUUpgrades + iEnergyCostPerTick * 1.35 then
+                --Do we have enough gross mass?
+                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 2.5 * iActiveACUUpgrades * iMassCostPerTick * 2 then
+                    --Do we have enough net energy?
+                    if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 100 * iActiveACUUpgrades + iEnergyCostPerTick * 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 5) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= iEnergyCostPerTick * 0.4 then
+                        --Do we have enoguh net mass?
+                        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 3.5 * iActiveACUUpgrades * iMassCostPerTick * 3 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= iMassCostPerTick * 0.4 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= tEnhancement.BuildCostMass * 0.5 then
+                            sUpgradeWanted = sPotentialUpgrade
+                        end
+                    end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return sUpgradeWanted
+end
+
 function GetACUOrder(aiBrain, oACU)
     --Early game - do we want to build factory/power?
     local sFunctionRef = 'GetACUOrder'
@@ -315,21 +430,54 @@ function GetACUOrder(aiBrain, oACU)
 
     if bDebugMessages == true then LOG(sFunctionRef..': oACU[refbDoingInitialBuildOrder]='..tostring(oACU[refbDoingInitialBuildOrder])) end
 
-    if oACU[refbDoingInitialBuildOrder] then
-        GetACUEarlyGameOrders(aiBrain, oACU)
+    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oACU:GetPosition(), true, oACU)
+    local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+    local tLZTeamData = tLZData[M28Map.subrefLZTeamData][aiBrain.M28Team]
 
-        --Have we finished our initial build order? (even if we stil lahve some early game orders)
-        if bDebugMessages == true then LOG(sFunctionRef..': Checking if have finished initial build order, Economy stored mass='..aiBrain:GetEconomyStored('MASS')..'; Gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; Gross energy income='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]) end
-        if not(oACU:IsUnitState('Building')) and aiBrain:GetEconomyStored('MASS') == 0 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 0.3 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 15 then
-            bDoingInitialBuildOrder = false
-        end
+    --Are there enemies in the same LZ as the ACU? If so then consider action for these
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTEnemyUnits]) == false then
+        AttackOrRunFromNearbyEnemies(tLZData, tLZTeamData, oACU)
+        M28Utilities.ErrorHandler('To add code for ACU enemies')
     else
-        --Placeholder - assist nearest factory
-        if bDebugMessages == true then LOG(sFunctionRef..': ACU no longer doing iniitial BO; Will give backup assist factory order if not building or guarding, ACU unit state='..M28UnitInfo.GetUnitState(oACU)) end
-        if not(oACU:IsUnitState('Building')) and not(oACU:IsUnitState('Guarding')) then
-            local oNearestFactory = M28Utilities.GetNearestUnit(aiBrain:GetListOfUnits(M28UnitInfo.refCategoryFactory, false, true), oACU:GetPosition(), true, M28Map.refPathingTypeAmphibious)
-            if M28UnitInfo.IsUnitValid(oNearestFactory) then
-                M28Orders.IssueTrackedGuard(oACU, oNearestFactory, false)
+        if oACU[refbDoingInitialBuildOrder] then
+            GetACUEarlyGameOrders(aiBrain, oACU)
+
+            --Have we finished our initial build order? (even if we stil lahve some early game orders)
+            if bDebugMessages == true then LOG(sFunctionRef..': Checking if have finished initial build order, Economy stored mass='..aiBrain:GetEconomyStored('MASS')..'; Gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; Gross energy income='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]) end
+            if not(oACU:IsUnitState('Building')) and aiBrain:GetEconomyStored('MASS') == 0 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 0.3 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 15 then
+                bDoingInitialBuildOrder = false
+            end
+        else
+            --Is ACU already upgrading or has special micro active? If so then leave it be (long term will want to abort upgrade if it might die
+            if oACU:IsUnitState('Upgrading') then
+            elseif oACU[M28UnitInfo.refbSpecialMicroActive] then
+            else
+
+
+                --Do we want to get an upgrade?
+                local sUpgradeToGet = GetACUUpgradeWanted(oACU)
+                if sUpgradeToGet then
+                    --Are we safe to get the upgrade here? if not then retreat
+                    if M28Conditions.SafeToUpgradeUnit(oACU) then
+                        M28Orders.IssueTrackedEnhancement(oACU, sUpgradeToGet, false, 'ACUUp')
+                    else
+                        --Retreat
+                        local tRallyPoint = M28Land.GetNearestRallyPoint(tLZData, 1, 27, 20, 3)
+                        M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'R4U')
+                    end
+                else
+                    --We dont want an upgrade, and have no enemies in this LZ, but there might be enemies nearby (e.g. in an adjacent land zone); there might also be mexes to build or reclaim to get in this LZ - decide on what we want to do
+
+
+                    --Placeholder - assist nearest factory
+                    if bDebugMessages == true then LOG(sFunctionRef..': ACU no longer doing iniitial BO; Will give backup assist factory order if not building or guarding, ACU unit state='..M28UnitInfo.GetUnitState(oACU)) end
+                    if not(oACU:IsUnitState('Building')) and not(oACU:IsUnitState('Guarding')) then
+                        local oNearestFactory = M28Utilities.GetNearestUnit(aiBrain:GetListOfUnits(M28UnitInfo.refCategoryFactory, false, true), oACU:GetPosition(), true, M28Map.refPathingTypeAmphibious)
+                        if M28UnitInfo.IsUnitValid(oNearestFactory) then
+                            M28Orders.IssueTrackedGuard(oACU, oNearestFactory, false)
+                        end
+                    end
+                end
             end
         end
     end

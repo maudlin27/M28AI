@@ -960,10 +960,11 @@ function ManageMassStalls(iTeam)
                                                 end
                                             end
                                         else
-                                            if iCategoryRef == categories.COMMAND and oUnit[M28UnitInfo.refsUpgradeRef] then
+                                            if iCategoryRef == categories.COMMAND and oUnit[M28Orders.refiOrderCount] > 0 and oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]][M28Orders.subrefiOrderType] == M28Orders.refiOrderEnhancement then
                                                 --Determine mass cost per BP
-                                                if bDebugMessages == true then LOG(sFunctionRef..': aiBrain='..oUnit:GetAIBrain():GetArmyIndex()..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oUnit[M28UnitInfo.refsUpgradeRef]='..(oUnit[M28UnitInfo.refsUpgradeRef] or 'nil')..'; Upgrade mass cost='..(M28UnitInfo.GetUpgradeMassCost(oUnit, oUnit[M28UnitInfo.refsUpgradeRef]) or 'nil')..'; Upgrade build time='..(M28UnitInfo.GetUpgradeBuildTime(oUnit, oUnit[M28UnitInfo.refsUpgradeRef]) or 'nil')) end
-                                                iMassPerBP = M28UnitInfo.GetUpgradeMassCost(oUnit, oUnit[M28UnitInfo.refsUpgradeRef]) / (M28UnitInfo.GetUpgradeBuildTime(oUnit, oUnit[M28UnitInfo.refsUpgradeRef]) or 1)
+                                                local sUpgradeRef = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint]
+                                                if bDebugMessages == true then LOG(sFunctionRef..': aiBrain='..oUnit:GetAIBrain():GetArmyIndex()..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; sUpgradeRef='..(sUpgradeRef or 'nil')..'; Upgrade mass cost='..(M28UnitInfo.GetUpgradeMassCost(oUnit, sUpgradeRef) or 'nil')..'; Upgrade build time='..(M28UnitInfo.GetUpgradeBuildTime(oUnit, sUpgradeRef) or 'nil')) end
+                                                iMassPerBP = M28UnitInfo.GetUpgradeMassCost(oUnit, sUpgradeRef) / (M28UnitInfo.GetUpgradeBuildTime(oUnit, sUpgradeRef) or 1)
                                             end
 
                                             if oBP.Economy.BuildRate then
@@ -1439,9 +1440,10 @@ function ManageEnergyStalls(iTeam)
                                                 end
                                             end
                                         else
-                                            if iCategoryRef == categories.COMMAND and oUnit[M28UnitInfo.refsUpgradeRef] then
+                                            if iCategoryRef == categories.COMMAND and oUnit[M28Orders.refiOrderCount] > 0 and oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]][M28Orders.subrefiOrderType] == M28Orders.refiOrderEnhancement then
                                                 --Determine energy cost per BP
-                                                iEnergyPerBP = M28UnitInfo.GetUpgradeEnergyCost(oUnit, oUnit[M28UnitInfo.refsUpgradeRef]) / (M28UnitInfo.GetUpgradeBuildTime(oUnit, oUnit[M28UnitInfo.refsUpgradeRef]) or 1)
+                                                local sUpgradeRef = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint]
+                                                iEnergyPerBP = M28UnitInfo.GetUpgradeEnergyCost(oUnit, sUpgradeRef) / (M28UnitInfo.GetUpgradeBuildTime(oUnit, sUpgradeRef) or 1)
                                                 oUnit[refiLastEnergyUsage] = iCurUnitEnergyUsage
                                             else
                                                 --Engineer - adjust energy consumption based on what are building

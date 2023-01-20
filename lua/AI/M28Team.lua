@@ -56,6 +56,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
 
     subreftTeamUpgradingHQs = 'M28TeamUpgradingHQs'
     subreftTeamUpgradingMexes = 'M28TeamUpgradingMexes'
+    subreftTeamUpgradingACUs = 'M28TeamUpgradingACUs'
     subreftTeamUpgradingOther = 'M28TeamUpgradingOther'
     subrefiMassUpgradesStartedThisCycle = 'M28TeamMassUpgradesThisCycle' --Amount of mass per tick that we have committed in upgrades this cycle
     subrefiEnergyUpgradesStartedThisCycle = 'M28TeamEnergyUpgradesThisCycle' --Amount of energy per tick that we have committed in upgrades this cycle
@@ -241,6 +242,8 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
         sUpgradeTableRef = subreftTeamUpgradingHQs
     elseif EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnitDoingUpgrade.UnitId) then
         sUpgradeTableRef = subreftTeamUpgradingMexes
+    elseif EntityCategoryContains(categories.COMMAND, oUnitDoingUpgrade.UnitId) then
+        sUpgradeTableRef = subreftTeamUpgradingACUs
     else
         sUpgradeTableRef = subreftTeamUpgradingOther
     end
@@ -349,6 +352,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][subreftoEnemyBrains] = {}
     tTeamData[iTotalTeamCount][subrefiActiveM28BrainCount] = 0
     tTeamData[iTotalTeamCount][subreftTeamUpgradingOther] = {}
+    tTeamData[iTotalTeamCount][subreftTeamUpgradingACUs] = {}
     tTeamData[iTotalTeamCount][subreftTeamUpgradingMexes] = {}
     tTeamData[iTotalTeamCount][subreftTeamUpgradingHQs] = {}
     tTeamData[iTotalTeamCount][subrefiHighestEnemyGroundTech] = 0
