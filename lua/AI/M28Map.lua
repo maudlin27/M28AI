@@ -100,7 +100,6 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         subrefLZMexCount = 'MexCount' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns number of mexes in the LZ
         subrefLZMexLocations = 'MexLoc' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of mex locations in the LZ, e.g. get with tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefLZMexLocations]
         subrefLZMexUnbuiltLocations = 'MexAvailLoc' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of mex locations in the LZ, e.g. get with tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefLZMexLocations]
-        subrefLZReclaimMass = 'ReclaimMass' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns total mass reclaim in the LZ
         subrefLZMidpoint = 'Midpoint' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns the midpoint of the land zone, e.g. get with tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefLZMidpoint]
         subrefLZHydroLocations = 'HydroLoc' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of hydro locations in the LZ
         subrefLZHydroUnbuiltLocations = 'HydroAvailLoc' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of hydro locations in the LZ that dont have buildings on them
@@ -123,6 +122,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         subrefLZTotalMassReclaim = 'RecMass' --total mass reclaim in the land zone
         subrefLZTotalEnergyReclaim = 'RecEn' --Total energy reclaim in the land zone
         subrefLZLastReclaimRefresh = 'RecTime' --Time that we last refreshed the reclaim in the land zone, against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
+        subrefLZPlayerWallSegments = 'PlWalls' --Table of wall units that aren't owned by M28AI
 
         --Land scout/intel related
         subreftPatrolPath = 'PatrPth' --table of locations intended for a land scout to patrol the perimeter of the land zone
@@ -707,7 +707,7 @@ local function AddNewLandZoneReferenceToPlateau(iPlateau)
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexUnbuiltLocations] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZHydroLocations] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZHydroUnbuiltLocations] = {}
-    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZReclaimMass] = 0
+    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTotalMassReclaim] = 0
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZBuildLocationsBySize] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZBuildLocationSegmentCountBySize] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZSegments] = {}
@@ -715,6 +715,7 @@ local function AddNewLandZoneReferenceToPlateau(iPlateau)
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTotalMassReclaim] = 0
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTotalEnergyReclaim] = 0
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTravelDistToOtherLandZones] = {}
+    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZPlayerWallSegments] = {}
 
     if bDebugMessages == true then LOG('Finished setting up variables for iPlateau='..iPlateau..'; iLandZone='..iLandZone) end
 
@@ -2579,7 +2580,7 @@ function ReclaimManager()
             else
                 --Copy table into tAreasToUpdateThisCycle
                 if bDebugMessages == true then
-                    LOG(sFunctionRef..': Will list out all entries in tReclaimSegmentsToUpdate if it isnt nil')
+                    LOG(sFunctionRef..': GameTime='..GetGameTimeSeconds()..'; Will list out all entries in tReclaimSegmentsToUpdate if it isnt nil')
                     if tReclaimSegmentsToUpdate then LOG(repru(tReclaimSegmentsToUpdate)) end
                 end
                 for iEntry, tSubtable in tReclaimSegmentsToUpdate do
@@ -2685,19 +2686,22 @@ function RefreshLandZoneReclaimValue(iPlateau, iLandZone)
     local sFunctionRef = 'RefreshLandZoneReclaimValue'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZLastReclaimRefresh] = GetGameTimeSeconds()
     local tLZDetails = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
     local iMassReclaim = 0
     local iEnergyReclaim = 0
-    if bDebugMessages == true then LOG(sFunctionRef..': Considering Plateau='..iPlateau..'; iLandZone='..iLandZone..'; Is table of LZ reclaim segments empty='..tostring(M28Utilities.IsTableEmpty(tLZDetails[subrefLZReclaimSegments]))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Considering Plateau='..iPlateau..'; iLandZone='..iLandZone..'; Is table of LZ reclaim segments empty='..tostring(M28Utilities.IsTableEmpty(tLZDetails[subrefLZReclaimSegments]))) end
     if M28Utilities.IsTableEmpty(tLZDetails[subrefLZReclaimSegments]) == false then
         for iSegmentCount, tSegmentXZ in tLZDetails[subrefLZReclaimSegments] do
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering tSegmentXZ='..tSegmentXZ[1]..'-'..tSegmentXZ[2]..'; total mass in this segment='..tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refReclaimTotalMass]) end
             iMassReclaim = iMassReclaim + tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refReclaimTotalMass]
             iEnergyReclaim = iEnergyReclaim + tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refReclaimTotalEnergy]
         end
     end
     tLZDetails[subrefLZTotalMassReclaim] = iMassReclaim
     tLZDetails[subrefLZTotalEnergyReclaim] = iEnergyReclaim
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, iMassReclaim='..iMassReclaim..'; LZ reclaim='..tLZDetails[subrefLZTotalMassReclaim]) end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -2751,36 +2755,21 @@ function GetReclaimablesMassAndEnergy(tReclaimables, iMinMass, iMinEnergy)
     return iTotalMass, tReclaimPos, iLargestCurReclaim, iTotalEnergy
 end
 
-function UpdateReclaimDataNearSegments(iBaseSegmentX, iBaseSegmentZ, iSegmentRange, tBrainsToAlwaysUpdateFor)
-    --Updates reclaim data for all segments within iSegmentRange of tLocation, and updates reclaim prioritisation for all brians specified in tBrainsToAlwaysUpdateFor
+function UpdateReclaimDataNearSegments(iBaseSegmentX, iBaseSegmentZ, iSegmentRange)
+    --Updates reclaim data for all segments within iSegmentRange of tLocation
 
-    --tBrainsToAlwaysUpdateFor - specify any brains to update even if reclaim hasnt changed; set to nil if only want to update M27 brains when reclaim has changed from before
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end --set to true for certain positions where want logs to print
     local sFunctionRef = 'UpdateReclaimDataNearSegments'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart) --Want the profile coutn to reflect the number of times actually running the core code
-    --M28Profiler.tiProfilerStartCountByFunction[sFunctionRef] = (M28Profiler.tiProfilerStartCountByFunction[sFunctionRef] or 0) + 1 LOG(sFunctionRef..': M28Profiler.tiProfilerStartCountByFunction[sFunctionRef]='..M28Profiler.tiProfilerStartCountByFunction[sFunctionRef])
 
-
-    --if math.floor(GetGameTimeSeconds()*10) - 1 >= 3780 and math.floor(GetGameTimeSeconds()*10) - 1 <= 3781 then bDebugMessages = true end
-
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code; Systemtimeforprofileuse='..GetSystemTimeSecondsOnlyForProfileUse()) end
     local iMinValueOfIndividualReclaim = 2.5
     local iMinEnergyValue = 15
 
-    --local iBaseSegmentX = tLocation[1] / iReclaimSegmentSizeX
-    --local iBaseSegmentZ = tLocation[3] / iReclaimSegmentSizeZ
-
-    --if not(tBrainsToAlwaysUpdateFor) then tBrainsToAlwaysUpdateFor = M28Overseer.tAllActiveM28Brains end
     local iTotalMassValue, tReclaimables, iLargestCurReclaim, tReclaimPos, iTotalEnergyValue
     local iCumulativeMassValue = 0
 
     if bDebugMessages == true then
-        LOG(sFunctionRef..': About to update for iBaseSegmentX='..(iBaseSegmentX or 'nil')..'; iSegmentRange='..(iSegmentRange or 'nil')..'; iBaseSegmentZ='..(iBaseSegmentZ or 'nil'))
-        if M28Utilities.IsTableEmpty(tBrainsToAlwaysUpdateFor) then LOG('tBrainsToAlwaysUpdateFor is empty')
-        else LOG('tBrainsToAlwaysUpdateFor size='..table.getn(tBrainsToAlwaysUpdateFor)) end
-        if M28Utilities.IsTableEmpty(M28Overseer.tAllActiveM28Brains) then LOG('tAllActiveM28Brains is empty')
-        else LOG('size of tAllActiveM28Brains='..table.getn(M28Overseer.tAllActiveM28Brains))
-        end
+        LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; About to update for iBaseSegmentX='..(iBaseSegmentX or 'nil')..'; iSegmentRange='..(iSegmentRange or 'nil')..'; iBaseSegmentZ='..(iBaseSegmentZ or 'nil'))
     end
 
     local iPlateau, iLandZone
@@ -2790,6 +2779,8 @@ function UpdateReclaimDataNearSegments(iBaseSegmentX, iBaseSegmentZ, iSegmentRan
             iTotalMassValue = 0
             tReclaimables = GetReclaimablesInRect(Rect((iCurX - 1) * iReclaimSegmentSizeX, (iCurZ - 1) * iReclaimSegmentSizeZ, iCurX * iReclaimSegmentSizeX, iCurZ * iReclaimSegmentSizeZ))
             iLargestCurReclaim = 0
+
+            if bDebugMessages == true then LOG(sFunctionRef..': iCurX='..iCurX..'; iCurZ='..iCurZ..'; iReclaimSegmentSizeX='..iReclaimSegmentSizeX..'; iReclaimSegmentSizeZ='..iReclaimSegmentSizeZ..'; Reclaim search rect='..repru(Rect((iCurX - 1) * iReclaimSegmentSizeX, (iCurZ - 1) * iReclaimSegmentSizeZ, iCurX * iReclaimSegmentSizeX, iCurZ * iReclaimSegmentSizeZ))..'; Is tReclaimables empty='..tostring(M28Utilities.IsTableEmpty(tReclaimables))) end
 
             if tReclaimables and table.getn( tReclaimables ) > 0 then
                 -- local iWreckCount = 0
@@ -2810,8 +2801,11 @@ function UpdateReclaimDataNearSegments(iBaseSegmentX, iBaseSegmentZ, iSegmentRan
                 --iHighestReclaimInASegment = math.max(iHighestReclaimInASegment, iTotalMassValue)
                 tReclaimAreas[iCurX][iCurZ][refReclaimTotalEnergy] = iTotalEnergyValue
                 iPlateau, iLandZone = GetPlateauAndLandZoneReferenceFromPosition(tReclaimAreas[iCurX][iCurZ][refReclaimSegmentMidpoint])
+                if bDebugMessages == true then LOG(sFunctionRef..': Reclaim segment midpoint='..repru(tReclaimAreas[iCurX][iCurZ][refReclaimSegmentMidpoint])..'; iPlateau for this='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
                 if iLandZone > 0 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Time of last refresh for land zone '..iLandZone..'='.. (tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZLastReclaimRefresh] or 0)) end
                     if GetGameTimeSeconds() - (tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZLastReclaimRefresh] or 0) >= 1 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will refresh the reclaim value for land zone '..iLandZone) end
                         RefreshLandZoneReclaimValue(iPlateau, iLandZone)
                     end
                 end
@@ -2839,16 +2833,19 @@ function RecordThatWeWantToUpdateReclaimAtLocation(tLocation, iNearbySegmentsToU
         iReclaimSegmentSizeZ = 8.5
     end
     local iReclaimSegmentX, iReclaimSegmentZ = GetReclaimSegmentsFromLocation(tLocation)
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time='..GetGameTimeSeconds()..'; tLocation='..repru(tLocation)..'; iReclaimSegmentX-Z='..iReclaimSegmentX..'-'..iReclaimSegmentZ) end
     if iReclaimSegmentX >= 10000 or iNearbySegmentsToUpdate >= 10000 or iReclaimSegmentZ >= 10000 then M28Utilities.ErrorHandler('Likely infinite loop about to start. iReclaimSegmentX='..(iReclaimSegmentX or 'nil')..'; iNearbySegmentsToUpdate='..(iNearbySegmentsToUpdate or 'nil')..'; iReclaimSegmentSizeX='..(iReclaimSegmentSizeX or 'nil')..'; iReclaimSegmentSizeZ='..(iReclaimSegmentSizeX or 'nil')..'; rMapPlayableArea='..repru(rMapPlayableArea or {'nil'})..'; iMaxSegmentInterval='..(iMaxSegmentInterval or 'nil'))
     else
 
         if iNearbySegmentsToUpdate then
             for iSegmentX = iReclaimSegmentX - iNearbySegmentsToUpdate, iReclaimSegmentX + iNearbySegmentsToUpdate do
                 for iSegmentZ = iReclaimSegmentZ - iNearbySegmentsToUpdate, iReclaimSegmentZ + iNearbySegmentsToUpdate do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will record that we want to update the reclaim segment XZ='..iSegmentX..'-'..iSegmentZ) end
                     RecordThatWeWantToUpdateReclaimSegment(iSegmentX, iSegmentZ)
                 end
             end
         else
+            if bDebugMessages == true then LOG(sFunctionRef..': Will record that we want to update the base reclaim segment XZ='..iReclaimSegmentX..'-'..iReclaimSegmentZ) end
             RecordThatWeWantToUpdateReclaimSegment(iReclaimSegmentX, iReclaimSegmentZ)
         end
     end

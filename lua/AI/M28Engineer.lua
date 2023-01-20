@@ -1937,7 +1937,7 @@ function TrackEngineerAction(oEngineer, iActionToAssign, bIsPrimaryBuilder, tOpt
     end
 end
 
-function GetEngineerToReclaimNearbyArea(oEngineer, tLZTeamData, iPlateau, iLandZone, bWantEnergyNotMass, bOnlyConsiderReclaimInRangeOfEngineer)
+function GetEngineerToReclaimNearbyArea(oEngineer, tLZTeamData, iPlateau, iLandZone, bWantEnergyNotMass, bOnlyConsiderReclaimInRangeOfEngineer, iMinIndividualValueOverride)
     --Gets engineer to find the nearest unassigned reclaim segment in the land zone that has mass/energy, to move to the middle of it, and reclaim it
     --Factors in how much mass is in the segment and how many engineers have been assigned already and adjusts the chosen segment accordingly
     --bOnlyConsiderReclaimInRangeOfEngineer - if true then will use oEngineer position instead of the midpoint of the reclaim segment that want to target
@@ -1957,7 +1957,7 @@ function GetEngineerToReclaimNearbyArea(oEngineer, tLZTeamData, iPlateau, iLandZ
         local iReclaimValuePerEngi
         local bGivenOrder = false
 
-        local iMinReclaimIndividualValue = 1
+        local iMinReclaimIndividualValue = (iMinIndividualValueOverride or 1)
 
 
         if bWantEnergyNotMass then
@@ -1969,7 +1969,7 @@ function GetEngineerToReclaimNearbyArea(oEngineer, tLZTeamData, iPlateau, iLandZ
         end
 
         local oEngBP = oEngineer:GetBlueprint()
-        if oEngBP.Economy.MaxBuildDistance >= 10 then iSegmentSearchSize = math.max(1, math.ceil((oEngBP.Economy.MaxBuildDistance + 2) / math.min(M28Map.iReclaimSegmentSizeX, M28Map.iReclaimSegmentSizeZ))) end
+        --if oEngBP.Economy.MaxBuildDistance >= 10 then iSegmentSearchSize = math.max(1, math.ceil((oEngBP.Economy.MaxBuildDistance + 2) / math.min(M28Map.iReclaimSegmentSizeX, M28Map.iReclaimSegmentSizeZ))) end
         --local iMoveSpeed = oEngBP.Physics.MaxSpeed
         local iMaxDistanceToEngineer = oEngBP.Economy.MaxBuildDistance + math.min(oEngBP.SizeX, oEngBP.SizeZ) * 0.5 - 0.1
         local sReclaimTableRef
@@ -2066,12 +2066,12 @@ function GetEngineerToReclaimNearbyArea(oEngineer, tLZTeamData, iPlateau, iLandZ
         else
             if bDebugMessages == true then LOG(sFunctionRef..': No segments in land zone with sufficient reclaim') end
         end
-        if bGivenOrder then
+        if bGivenOrder and not(EntityCategoryContains(categories.COMMAND, oEngineer.UnitId)) then
             TrackEngineerAction(oEngineer, refActionReclaimArea, false, nil, tiClosestSegmentXZ)
         end
     end
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
 
 function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, iCurPriority, tLZTeamData, iTeam, iPlateau, iLandZone, toAvailableEngineersByTech, toAssignedEngineers)
     --vOptionalVariable can be a table, nil or a value; used to pass info specific to the action if it needs it

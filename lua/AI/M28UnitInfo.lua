@@ -1361,14 +1361,14 @@ function GetUnitFacingAngle(oUnit)
         if oUnit.GetWeapon then
             local oWeapon = oUnit:GetWeapon(1)
             if oWeapon and oWeapon.GetAimManipulator then
-                return M27Utilities.ConvertRadiansToAngle(oWeapon:GetAimManipulator():GetHeadingPitch())
+                return M28Utilities.ConvertRadiansToAngle(oWeapon:GetAimManipulator():GetHeadingPitch())
             else return 0
             end
         else return 0
         end
         if oUnit:IsValidBone('Turret') then
             --0% = south, 25% = east, 50% = north; want to convert from % into angle where 0 is north
-            return M27Utilities.ConvertCounterclockwisePercentageToAngle(oUnit:GetBoneDirection('Turret'))
+            return M28Utilities.ConvertCounterclockwisePercentageToAngle(oUnit:GetBoneDirection('Turret'))
         else
             return 180 - oUnit:GetHeading() / math.pi * 180 --redundancy - for a building this is likeliy to be the same value every time
         end

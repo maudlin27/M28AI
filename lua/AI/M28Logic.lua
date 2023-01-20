@@ -224,3 +224,164 @@ function IsShotBlocked(oFiringUnit, oTargetUnit)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return bShotIsBlocked
 end
+
+function IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisHealth, bReturnShieldHealthInstead, bIgnoreMobileShields, bTreatPartCompleteAsComplete, bCumulativeShieldHealth)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'IsTargetUnderShield'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    --Determines if target is under a shield
+    --bCumulativeShieldHealth - if true, then will treat as being under a shield if all shields combined have health of at least iIgnoreShieldsWithLessThanThisHealth
+    --if oTarget.UnitId == 'urb4206' then bDebugMessages = true end
+    if M28UnitInfo.IsUnitValid(oTarget) and oTarget.GetHealth then
+        if bDebugMessages == true and EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oTarget.UnitId) then
+            if oTarget.MyShield.GetHealth then
+                LOG(sFunctionRef..': oTarget is a shield='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; Shield ratio='..oTarget:GetShieldRatio(false)..'; Shield ratio true='..oTarget:GetShieldRatio(true)..'; Shield health='..oTarget.MyShield:GetHealth()..'; SHield max health='..oTarget.MyShield:GetMaxHealth()..'; Active consumption='..tostring(oTarget.ActiveConsumption)..'; reprs of shield='..reprs(oTarget.MyShield))
+            else
+                LOG(sFunctionRef..': oTarget is a shield but it doesnt have a .GetHealth property. target='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'reprs of shield='..reprs(oTarget.MyShield))
+            end
+        end
+        if iIgnoreShieldsWithLessThanThisHealth == nil then iIgnoreShieldsWithLessThanThisHealth = 0 end
+        local bUnderShield = false
+        local iShieldSearchRange = 46 --T3 sera shield is 46; bulwark is 120; will go with sera t3 for now; if changing here then also change reference in getmaxstrikedamage
+        --Is the target an enemy?
+        local oTBrain = oTarget:GetAIBrain()
+        local bEnemy
+        if oTBrain == aiBrain then
+            bEnemy = false
+        else
+            local iOurArmyIndex = aiBrain:GetArmyIndex()
+            local iTargetArmyIndex = oTBrain:GetArmyIndex()
+            if iOurArmyIndex and iTargetArmyIndex then
+                bEnemy = IsEnemy(iOurArmyIndex, iTargetArmyIndex)
+            else bEnemy = true
+            end
+        end
+        local sSearchType = 'Ally'
+        if bEnemy then sSearchType = 'Enemy' end
+        local tTargetPos = oTarget:GetPosition()
+        local iShieldCategory = M28UnitInfo.refCategoryMobileLandShield + M28UnitInfo.refCategoryFixedShield
+        if bIgnoreMobileShields then iShieldCategory = M28UnitInfo.refCategoryFixedShield end
+        local tNearbyShields = aiBrain:GetUnitsAroundPoint(iShieldCategory, tTargetPos, iShieldSearchRange, sSearchType)
+        if bDebugMessages == true then LOG(sFunctionRef..': Searching for shields around '..repru(tTargetPos)..'; iShieldSearchRange='..iShieldSearchRange..'; sSearchType='..sSearchType) end
+        local iShieldCurHealth, iShieldMaxHealth
+        local iTotalShieldCurHealth = 0
+        local iTotalShieldMaxHealth = 0
+        local iMinFractionComplete = 0.95
+
+        local iShieldSizeAdjust = 2 --i.e. if want to be prudent about whether can hit an enemy should be positive, if prudent about whether an ally is protected want a negative value
+        if not(bEnemy) then iShieldSizeAdjust = -1 end
+
+        if bTreatPartCompleteAsComplete then iMinFractionComplete = 0 end
+        if M28Utilities.IsTableEmpty(tNearbyShields) == false then
+            if bDebugMessages == true then LOG(sFunctionRef..': Size of tNearbyShields='..table.getn(tNearbyShields)) end
+            local oCurUnitBP, iCurShieldRadius, iCurDistanceFromTarget
+            for iUnit, oUnit in tNearbyShields do
+                if not(oUnit.Dead) and oUnit:GetFractionComplete() >= iMinFractionComplete then
+                    oCurUnitBP = oUnit:GetBlueprint()
+                    iCurShieldRadius = 0
+                    if oCurUnitBP.Defense and oCurUnitBP.Defense.Shield then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Target has a shield, will check its shield size and how close that is to the target') end
+                        iCurShieldRadius = oCurUnitBP.Defense.Shield.ShieldSize * 0.5
+                        if iCurShieldRadius > 0 then
+                            iCurDistanceFromTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tTargetPos)
+                            if bDebugMessages == true then LOG(sFunctionRef..': iCurDistance to shield='..iCurDistanceFromTarget..'; iCurShieldRadius='..iCurShieldRadius..'; shield position='..repru(oUnit:GetPosition())..'; target position='..repru(tTargetPos)) end
+                            if iCurDistanceFromTarget <= (iCurShieldRadius + iShieldSizeAdjust) then --if dont increase by anything then half of unit might be under shield which means bombs cant hit it
+                                if bDebugMessages == true then LOG(sFunctionRef..': Shield is large enough to cover target, will check its health') end
+                                iShieldCurHealth, iShieldMaxHealth = M28UnitInfo.GetCurrentAndMaximumShield(oUnit)
+                                iTotalShieldCurHealth = iTotalShieldCurHealth + iShieldCurHealth
+                                iTotalShieldMaxHealth = iTotalShieldMaxHealth + iShieldMaxHealth
+                                if bTreatPartCompleteAsComplete or (oUnit:GetFractionComplete() >= 0.95 and oUnit:GetFractionComplete() < 1) then iShieldCurHealth = iShieldMaxHealth end
+                                if bDebugMessages == true then LOG(sFunctionRef..': iShieldCurHealth='..iShieldCurHealth..'; iIgnoreShieldsWithLessThanThisHealth='..iIgnoreShieldsWithLessThanThisHealth) end
+                                if (not(bCumulativeShieldHealth) and iShieldCurHealth >= iIgnoreShieldsWithLessThanThisHealth) or (bCumulativeShieldHealth and iTotalShieldCurHealth >= iIgnoreShieldsWithLessThanThisHealth) then
+                                    bUnderShield = true
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Shield health more than threshold so unit is under a shield') end
+                                    if not(bReturnShieldHealthInstead) then break end
+                                end
+                            end
+                        elseif bDebugMessages == true then LOG(sFunctionRef..': Shield radius isnt >0')
+                        end
+                    else
+                        if bDebugMessages == true then LOG(sFunctionRef..': Blueprint doesnt have a shield value; UnitID='..oUnit.UnitId) end
+                    end
+                elseif bDebugMessages == true then LOG(sFunctionRef..': Unit is dead')
+                end
+            end
+        else
+            if bDebugMessages == true then LOG(sFunctionRef..': tNearbyShields is empty') end
+        end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        if bReturnShieldHealthInstead then
+            return iTotalShieldCurHealth, iTotalShieldMaxHealth
+        else return bUnderShield
+        end
+    end
+end
+
+function GetDamageFromOvercharge(aiBrain, oTargetUnit, iAOE, iDamage, bTargetWalls)
+    --Originally copied from the 'getdamagefrombomb' function, but adjusted since OC doesnt deal full damage to ACU or structures
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetDamageFromOvercharge'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+    local iTotalDamage = 0
+
+    local tEnemiesInRange
+    if bTargetWalls then tEnemiesInRange =  aiBrain:GetUnitsAroundPoint(categories.WALL + M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryAllNavy, oTargetUnit:GetPosition(), iAOE, 'Enemy')
+    else tEnemiesInRange = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryAllNavy, oTargetUnit:GetPosition(), iAOE, 'Enemy')
+    end
+
+    local oCurBP
+    local iMassFactor
+    local iCurHealth, iMaxHealth, iCurShield, iMaxShield
+    local iActualDamage
+    local iKillsExpected = 0
+    local iUnitsHit = 0 --E.g. if targeting walls then this means we target the most walls assuming no nearby other units
+    if bDebugMessages == true then LOG(sFunctionRef..': About to loop through all enemies in range; iDamage='..iDamage..'; iAOE='..iAOE..'; Base target unit='..oTargetUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTargetUnit)..'; position='..repru(oTargetUnit:GetPosition())) end
+
+    if M28Utilities.IsTableEmpty(tEnemiesInRange) == false then
+        for iUnit, oUnit in tEnemiesInRange do
+            if oUnit.GetBlueprint then
+                oCurBP = oUnit:GetBlueprint()
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; dist to postiion='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oTargetUnit:GetPosition())) end
+                --Is the unit within range of the aoe?
+                if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oTargetUnit:GetPosition()) <= iAOE then
+                    --Is the unit shielded by a non-mobile shield (mobile shields should take full damage I think)
+                    --IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisHealth, bReturnShieldHealthInstead, bIgnoreMobileShields, bTreatPartCompleteAsComplete)
+                    if not(IsTargetUnderShield(aiBrain, oUnit, 800, false, true, false)) then
+                        iActualDamage = iDamage
+                        if EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) then
+                            iActualDamage = 800
+                        elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+                            iActualDamage = 400
+                        end
+
+                        iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit)
+                        iCurHealth = iCurShield + oUnit:GetHealth()
+                        iMaxHealth = iMaxShield + oUnit:GetMaxHealth()
+                        --Set base mass value based on health
+                        if iDamage >= iMaxHealth or iDamage >= math.min(iCurHealth * 3, iCurHealth + 1000) then
+                            iMassFactor = 1
+                            iKillsExpected = iKillsExpected + 1
+                            --Was the unit almost dead already?
+                            if (iCurShield + iCurHealth) <= iMaxHealth * 0.4 then iMassFactor = math.max(0.25, (iCurShield + iCurHealth) / iMaxHealth) end
+                        else
+                            --Still some value in damaging a unit (as might get a second strike), but far less than killing it
+                            iMassFactor = 0.4
+                            if EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then iMassFactor = 0.5 end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iMassFactor after considering if will kill it='..iMassFactor..'; Unit max health='..iMaxHealth..'; CurHealth='..iCurHealth) end
+                        --Is the target mobile and within 1 of the AOE edge? If so then reduce to 25% as it might move out of the wayif
+                        if oUnit:GetFractionComplete() == 1 and EntityCategoryContains(categories.MOBILE, oUnit.UnitId) and iAOE - 0.5 < M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oTargetUnit:GetPosition()) then iMassFactor = iMassFactor * 0.25 end
+                        iTotalDamage = iTotalDamage + oCurBP.Economy.BuildCostMass * oUnit:GetFractionComplete() * iMassFactor
+                        if bDebugMessages == true then LOG(sFunctionRef..': Finished considering the unit; iTotalDamage='..iTotalDamage..'; oCurBP.Economy.BuildCostMass='..oCurBP.Economy.BuildCostMass..'; oUnit:GetFractionComplete()='..oUnit:GetFractionComplete()..'; iMassFactor after considering if unit is mobile='..iMassFactor) end
+                    end
+                end
+            end
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished going through units in the aoe, iTotalDamage in mass='..iTotalDamage..'; iAOE='..iAOE..'; iDamage='..iDamage) end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return iTotalDamage, iKillsExpected
+end

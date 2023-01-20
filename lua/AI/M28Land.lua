@@ -1911,7 +1911,7 @@ function AssignValuesToLandZones(iTeam)
                     if bDebugMessages == true then LOG(sFunctionRef..': About to refresh value of iPlateau='..iPlateau..'; iLandZone='..iLandZone..' for team '..iTeam) end
                     --Decide on value of the land zone ignoring distance:
                     --Treat each mex position as being worth 250 mass, value reclaim at 25% of the total value, and reflect the value of all non-PD in the area
-                    iCurValue = tLandZoneData[M28Map.subrefLZMexCount] * 250 + (tLandZoneData[M28Map.subrefLZReclaimMass] or 0) * 0.25
+                    iCurValue = tLandZoneData[M28Map.subrefLZMexCount] * 250 + (tLandZoneData[M28Map.subrefLZTotalMassReclaim] or 0) * 0.25
                     if M28Utilities.IsTableEmpty(tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedUnits]) == false then
                         tFriendlyNonPDBuildings = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure - M28UnitInfo.refCategoryPD, tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedUnits])
                         iCurValue = iCurValue + M28UnitInfo.GetCombatThreatRating(tFriendlyNonPDBuildings, false, true)
@@ -2303,4 +2303,46 @@ function UpdateLandZoneIntelForRadar(oRadar)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function TrackWallSegment(oWall, bJustBuilt)
+    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oWall:GetPosition())
+    if iLandZone > 0 then
+        local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+        if bJustBuilt then
+            local bAlreadyRecorded = false
+            if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPlayerWallSegments]) == false then
+                for iUnit, oUnit in tLZData[M28Map.subrefLZPlayerWallSegments] do
+                    if oWall == oUnit then
+                        bAlreadyRecorded = true
+                        break
+                    end
+                end
+            end
+            if not(bAlreadyRecorded) then
+                table.insert(tLZData[M28Map.subrefLZPlayerWallSegments], oWall)
+            end
+        else
+            if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPlayerWallSegments]) == false then
+                --Remove any old entries
+                local iRevisedIndex = 1
+                local iTableSize = table.getn(tLZData[M28Map.subrefLZPlayerWallSegments])
+
+                for iOrigIndex=1, iTableSize do
+                    if tLZData[M28Map.subrefLZPlayerWallSegments][iOrigIndex] then
+                        if tLZData[M28Map.subrefLZPlayerWallSegments][iOrigIndex] == oWall or not(M28UnitInfo.IsUnitValid(tLZData[M28Map.subrefLZPlayerWallSegments][iOrigIndex])) then --I.e. this should run the logic to decide whether we want to keep this entry of the table or remove it
+                            --We want to keep the entry; Move the original index to be the revised index number (so if e.g. a table of 1,2,3 removed 2, then this would've resulted in the revised index being 2 (i.e. it starts at 1, then icnreases by 1 for the first valid entry); this then means we change the table index for orig index 3 to be 2
+                            if (iOrigIndex ~= iRevisedIndex) then
+                                tLZData[M28Map.subrefLZPlayerWallSegments][iRevisedIndex] = tLZData[M28Map.subrefLZPlayerWallSegments][iOrigIndex];
+                                tLZData[M28Map.subrefLZPlayerWallSegments][iOrigIndex] = nil;
+                            end
+                            iRevisedIndex = iRevisedIndex + 1; --i.e. this will be the position of where the next value that we keep will be located
+                        else
+                            tLZData[M28Map.subrefLZPlayerWallSegments][iOrigIndex] = nil;
+                        end
+                    end
+                end
+            end
+        end
+    end
 end

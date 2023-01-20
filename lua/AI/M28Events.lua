@@ -184,9 +184,11 @@ function OnUnitDeath(oUnit)
                                 end
                             end
                         end
-                    --Radar intel coverage update
+                        --Radar intel coverage update
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryRadar, oUnit.UnitId) then
                         ForkThread(M28Land.UpdateRadarCoverageForDestroyedRadar, oUnit)
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryWall, oUnit.UnitId) and not(oUnit:GetAIBrain().M28AI) then
+                        M28Land.TrackWallSegment(oUnit, false)
                     end
                     --Ythotha deathball avoidance
                     --Note -seraphimunits.lua contains SEnergyBallUnit which looks like it is for when the death ball is spawned; ID is XSL0402; SpawnElectroStorm is in the ythotha script
@@ -335,6 +337,15 @@ function OnWeaponFired(oWeapon)
                 ForkThread(M28Micro.ConsiderDodgingShot, oUnit, oWeapon)
             end
 
+            --Update overcharge tracking
+            if oWeapon.GetBlueprint and oWeapon:GetBlueprint().Overcharge then
+                oUnit[M28UnitInfo.refiTimeOfLastOverchargeShot] = GetGameTimeSeconds()
+                if EntityCategoryContains(categories.COMMAND. oUnit.UnitId) and oUnit:GetAIBrain().M28AI then
+                    --Get another order immediately rather than waiting (means we dont have to try and queue orders up for ACU logic)
+                    M28ACU.GetACUOrder(oUnit:GetAIBrain(), oUnit)
+                end
+            end
+
             --M28 owned unit specific logic
             if oUnit:GetAIBrain().M28AI then
                 --Shot is blocked logic
@@ -429,6 +440,11 @@ function OnConstructed(oEngineer, oJustBuilt)
             --If we have just built a radar then update radar logic
             if EntityCategoryContains(M28UnitInfo.refCategoryRadar, oJustBuilt.UnitId) then
                 ForkThread(M28Land.UpdateLandZoneIntelForRadar, oJustBuilt)
+            end
+
+            --Track non-M28AI wall segments
+            if EntityCategoryContains(M28UnitInfo.refCategoryWall, oJustBuilt.UnitId) and not(oJustBuilt:GetAIBrain().M28AI) then
+                M28Land.TrackWallSegment(oJustBuilt, true)
             end
         end
 
@@ -614,7 +630,11 @@ function OnCreateWreck(tPosition, iMass, iEnergy)
             end
         end
     end
-    if iMass == 113 then LOG('OnCreateWreck: iMass='..iMass..'; tPosition='..repru(tPosition)..'; will record we want to update reclaim at this location') end
+    --[[if iMass >= 35 then
+        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tPosition)
+        local iReclaimSegmentX, iReclaimSegmentZ = M28Map.GetReclaimSegmentsFromLocation(tPosition)
+        LOG('OnCreateWreck: Time='..GetGameTimeSeconds()..'; iMass='..iMass..'; tPosition='..repru(tPosition)..'; will record we want to update reclaim at this location, iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iReclaimSegmentX='..iReclaimSegmentX..'; iReclaimSegmentZ='..iReclaimSegmentZ)
+    end--]]
     ForkThread(M28Map.RecordThatWeWantToUpdateReclaimAtLocation, tPosition, 0)
 end
 
