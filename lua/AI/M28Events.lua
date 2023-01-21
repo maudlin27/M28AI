@@ -23,6 +23,8 @@ local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 local M28Logic = import('/mods/M28AI/lua/AI/M28Logic.lua')
 local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
 
+refiLastWeaponEvent = 'M28LastWep' --Gametimeseconds that last updated onweapon
+
 
 function OnPlayerDefeated(aiBrain)
     M28Utilities.ErrorHandler('To add code')
@@ -305,65 +307,69 @@ function OnWeaponFired(oWeapon)
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         local sFunctionRef = 'OnWeaponFired'
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code; does the weapon have a valid unit='..tostring(M28UnitInfo.IsUnitValid(oWeapon.unit))..'; Weapon unitID='..(oWeapon.unit.UnitId or 'nil')) end
 
         local oUnit = oWeapon.unit
         if oUnit and oUnit.GetUnitId and oUnit.GetAIBrain then
-            --Update unit last known position/record it
-            local oParentBrain = oUnit:GetAIBrain()
-            for iTeam, tTeam in M28Team.tTeamData do
-                if not(iTeam == oParentBrain.M28Team) then
-                    if M28Utilities.IsTableEmpty(tTeam[M28Team.subreftoFriendlyActiveM28Brains]) == false then
-                        for iBrain, oBrain in tTeam[M28Team.subreftoFriendlyActiveM28Brains] do
-                            M28Team.ConsiderAssigningUnitToZoneForBrain(oBrain, oUnit) --This function includes check of whether this is an M28 brain, and updates last known position
-                            break
+            if not(oUnit[refiLastWeaponEvent]) or GetGameTimeSeconds() - (oUnit[refiLastWeaponEvent] or -1) >= 0.5 then
+                oUnit[refiLastWeaponEvent] = GetGameTimeSeconds()
+                --Update unit last known position/record it
+                local oParentBrain = oUnit:GetAIBrain()
+                for iTeam, tTeam in M28Team.tTeamData do
+                    if not(iTeam == oParentBrain.M28Team) then
+                        if M28Utilities.IsTableEmpty(tTeam[M28Team.subreftoFriendlyActiveM28Brains]) == false then
+                            for iBrain, oBrain in tTeam[M28Team.subreftoFriendlyActiveM28Brains] do
+                                M28Team.ConsiderAssigningUnitToZoneForBrain(oBrain, oUnit) --This function includes check of whether this is an M28 brain, and updates last known position
+                                break
+                            end
                         end
                     end
                 end
-            end
 
-            --Consider dodging
-            if EntityCategoryContains(M28UnitInfo.refCategoryBomber, oUnit.UnitId) and oWeapon.Label == 'GroundMissile' then
-                --Corsairs dont trigger the onbombfired event normally
-                if bDebugMessages == true then
-                    LOG(sFunctionRef..': Weapon fired by corsair, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit))
-                    if oWeapon:GetCurrentTarget().GetPosition then LOG(sFunctionRef..': Target of weapon='..repru(oWeapon:GetCurrentTarget():GetPosition())) end
+                --Consider dodging
+                if EntityCategoryContains(M28UnitInfo.refCategoryBomber, oUnit.UnitId) and oWeapon.Label == 'GroundMissile' then
+                    --Corsairs dont trigger the onbombfired event normally
+                    if bDebugMessages == true then
+                        LOG(sFunctionRef..': Weapon fired by corsair, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit))
+                        if oWeapon:GetCurrentTarget().GetPosition then LOG(sFunctionRef..': Target of weapon='..repru(oWeapon:GetCurrentTarget():GetPosition())) end
+                    end
+
+                    ForkThread(M28Micro.DodgeBomb, oUnit, oWeapon, nil)
+                else
+                    --Dodge logic for certain other attacks (conditions for this are in considerdodgingshot)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will consider whether we want to dodge the shot') end
+                    ForkThread(M28Micro.ConsiderDodgingShot, oUnit, oWeapon)
                 end
 
-                ForkThread(M28Micro.DodgeBomb, oUnit, oWeapon, nil)
-            else
-                --Dodge logic for certain other attacks (conditions for this are in considerdodgingshot)
-                if bDebugMessages == true then LOG(sFunctionRef..': Will consider whether we want to dodge the shot') end
-                ForkThread(M28Micro.ConsiderDodgingShot, oUnit, oWeapon)
-            end
-
-            --Update overcharge tracking
-            if oWeapon.GetBlueprint and oWeapon:GetBlueprint().Overcharge then
-                oUnit[M28UnitInfo.refiTimeOfLastOverchargeShot] = GetGameTimeSeconds()
-                if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and oUnit:GetAIBrain().M28AI then
-                    --Get another order immediately rather than waiting (means we dont have to try and queue orders up for ACU logic)
-                    M28ACU.GetACUOrder(oUnit:GetAIBrain(), oUnit)
+                --Update overcharge tracking
+                if oWeapon.GetBlueprint and oWeapon:GetBlueprint().Overcharge then
+                    oUnit[M28UnitInfo.refiTimeOfLastOverchargeShot] = GetGameTimeSeconds()
+                    if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and oUnit:GetAIBrain().M28AI then
+                        --Get another order immediately rather than waiting (means we dont have to try and queue orders up for ACU logic)
+                        M28ACU.GetACUOrder(oUnit:GetAIBrain(), oUnit)
+                    end
                 end
-            end
 
-            --M28 owned unit specific logic
-            if oUnit:GetAIBrain().M28AI then
-                --Shot is blocked logic
-                if bDebugMessages == true then LOG(sFunctionRef..': COnsidering if unit shot is blocked Time='..GetGameTimeSeconds()..', range category='..(oWeapon.Blueprint.RangeCategory or 'nil')..'; Is unit a relevant DF category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId))) end
-                if oWeapon.Blueprint.RangeCategory == 'UWRC_DirectFire' and EntityCategoryContains(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId) then
-                    --Get weapon target if it is a DF weapon
-                    local oTarget = oWeapon:GetCurrentTarget()
-                    if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has just fired a shot. Do we have a valid target for our weapon='..tostring(M28UnitInfo.IsUnitValid(oTarget))..'; time last shot was blocked='..(oUnit[M28UnitInfo.refiTimeOfLastCheck] or 'nil')) end
-                    if M28UnitInfo.IsUnitValid(oTarget) then
+                --M28 owned unit specific logic
+                if oUnit:GetAIBrain().M28AI then
+                    --Shot is blocked logic
+                    if bDebugMessages == true then LOG(sFunctionRef..': COnsidering if unit shot is blocked Time='..GetGameTimeSeconds()..', range category='..(oWeapon.Blueprint.RangeCategory or 'nil')..'; Is unit a relevant DF category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId))) end
+                    if oWeapon.Blueprint.RangeCategory == 'UWRC_DirectFire' and EntityCategoryContains(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId) then
+                        --Get weapon target if it is a DF weapon
+                        local oTarget = oWeapon:GetCurrentTarget()
+                        if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has just fired a shot. Do we have a valid target for our weapon='..tostring(M28UnitInfo.IsUnitValid(oTarget))..'; time last shot was blocked='..(oUnit[M28UnitInfo.refiTimeOfLastCheck] or 'nil')) end
+                        if M28UnitInfo.IsUnitValid(oTarget) then
 
-                        oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds()
-                        oUnit[M28UnitInfo.refbLastShotBlocked] = M28Logic.IsShotBlocked(oUnit, oTarget)
-                        if bDebugMessages == true then LOG(sFunctionRef..': oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; Is shot blocked='..tostring(oUnit[M28UnitInfo.refbLastShotBlocked])..'; built in blocking terrain result for low profile='..tostring(oUnit:GetAIBrain():CheckBlockingTerrain(oUnit:GetPosition(), oTarget:GetPosition(), 'Low'))..'; High profile='..tostring(oUnit:GetAIBrain():CheckBlockingTerrain(oUnit:GetPosition(), oTarget:GetPosition(), 'High'))) end
+                            oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds()
+                            oUnit[M28UnitInfo.refbLastShotBlocked] = M28Logic.IsShotBlocked(oUnit, oTarget)
+                            if bDebugMessages == true then LOG(sFunctionRef..': oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; Is shot blocked='..tostring(oUnit[M28UnitInfo.refbLastShotBlocked])..'; built in blocking terrain result for low profile='..tostring(oUnit:GetAIBrain():CheckBlockingTerrain(oUnit:GetPosition(), oTarget:GetPosition(), 'Low'))..'; High profile='..tostring(oUnit:GetAIBrain():CheckBlockingTerrain(oUnit:GetPosition(), oTarget:GetPosition(), 'High'))) end
 
-                        if oUnit[M28UnitInfo.refbLastShotBlocked] then
-                            --Reset after 20s if we havent fired any more shots at the target
-                            --function DelayChangeVariable(oVariableOwner, sVariableName, vVariableValue, iDelayInSeconds, sOptionalOwnerConditionRef, iMustBeLessThanThisTimeValue, iMustBeMoreThanThisTimeValue, vMustNotEqualThisValue)
-                            M28Utilities.DelayChangeVariable(oUnit, M28UnitInfo.refbLastShotBlocked, false, 20, M28UnitInfo.refiTimeOfLastCheck, GetGameTimeSeconds() + 0.01)
+                            if oUnit[M28UnitInfo.refbLastShotBlocked] then
+                                --Reset after 20s if we havent fired any more shots at the target
+                                --function DelayChangeVariable(oVariableOwner, sVariableName, vVariableValue, iDelayInSeconds, sOptionalOwnerConditionRef, iMustBeLessThanThisTimeValue, iMustBeMoreThanThisTimeValue, vMustNotEqualThisValue)
+                                M28Utilities.DelayChangeVariable(oUnit, M28UnitInfo.refbLastShotBlocked, false, 20, M28UnitInfo.refiTimeOfLastCheck, GetGameTimeSeconds() + 0.01)
+                            end
                         end
                     end
                 end

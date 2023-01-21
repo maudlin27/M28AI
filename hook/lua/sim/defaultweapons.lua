@@ -16,5 +16,9 @@ DefaultProjectileWeapon = Class(M28DefaultProjectileWeapon) {
     CalculateBallisticAcceleration = function(self, projectile)
         ForkThread(M28Events.OnBombFired, self, projectile)
         return M28DefaultProjectileWeapon.CalculateBallisticAcceleration(self, projectile)
-    end
+    end,
+    CreateProjectileAtMuzzle = function(self, muzzle)
+        ForkThread(M28Events.OnWeaponFired, self)
+        return M28DefaultProjectileWeapon.CreateProjectileAtMuzzle(self, muzzle)
+    end,
 }
