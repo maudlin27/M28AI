@@ -25,7 +25,6 @@ tAllAIBrainsByArmyIndex = {} --[x] is the brain army index, returns the aibrain
 --aiBrain variables
 refiDistanceToNearestEnemyBase = 'M28OverseerDistToNearestEnemyBase'
 refoNearestEnemyBrain = 'M28OverseerNearestEnemyBrain'
-refiHighestEnemyGroundUnitHealth = 'M28OverseerHighestEnemyGroundUnitHealth' --e.g. for deciding how much overcharge to get
 
 function GetNearestEnemyBrain(aiBrain)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -165,10 +164,10 @@ end
 
 function TestCustom(aiBrain)
     --Detail rally point info for a land zone
-    local tLZData = M28Map.tAllPlateaus[27][M28Map.subrefPlateauLandZones][20]
+    --[[local tLZData = M28Map.tAllPlateaus[27][M28Map.subrefPlateauLandZones][20]
     local tStartMidpoint = tLZData[M28Map.subrefLZMidpoint]
-    local tRallyPoint = M28Land.GetNearestRallyPoint(tLZData, 1, 27, 20, 3)
-    LOG('tStartMidpoint='..repru(tStartMidpoint)..'; tRallyPoint='..repru(tRallyPoint)..'; Path from LZ20 to LZ5='..repru(tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][5]]))
+    local tRallyPoint = M28Land.GetNearestRallyPoint(tLZData, 1, 27, 20, 3)--]]
+    --LOG('tStartMidpoint='..repru(tStartMidpoint)..'; tRallyPoint='..repru(tRallyPoint)..'; Path from LZ20 to LZ5='..repru(tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][5]]))
 
     --Draw specific land zones
     --M28Map.DrawSpecificLandZone(27, 33, 2)
@@ -215,8 +214,6 @@ function Initialisation(aiBrain)
     ForkThread(M28Factory.SetPreferredUnitsByCategory, aiBrain)
     ForkThread(M28Factory.IdleFactoryMonitor, aiBrain)
 
-    --Overseer variables
-    aiBrain[refiHighestEnemyGroundUnitHealth] = 200
 end
 
 function OverseerManager(aiBrain)

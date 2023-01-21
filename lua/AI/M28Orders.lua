@@ -136,7 +136,8 @@ function UpdateRecordedOrders(oUnit)
         if (oUnit[refiOrderCount] or 0) == 0 then
             oUnit[refiOrderCount] = table.getn(oUnit[reftiLastOrders])
         end
-        local tCommandQueue = oUnit:GetCommandQueue()
+        local tCommandQueue
+        if oUnit.GetCommandQueue then tCommandQueue = oUnit:GetCommandQueue() end
         local iCommandQueue = 0
         if tCommandQueue then iCommandQueue = table.getn(tCommandQueue) end
         if iCommandQueue < oUnit[refiOrderCount] then
@@ -287,6 +288,13 @@ function IssueTrackedOvercharge(oUnit, oOrderTarget, bAddToExistingQueue, sOptio
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderOvercharge, [subrefoOrderTarget] = oOrderTarget})
         IssueOverCharge({oUnit}, oOrderTarget)
+    else --OC - add to queue if we think we are already overcharging, as in some cases we dont
+        if (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
+            if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
+            oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
+            table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderOvercharge, [subrefoOrderTarget] = oOrderTarget})
+            IssueOverCharge({oUnit}, oOrderTarget)
+        end
     end
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 end

@@ -2661,12 +2661,26 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --Energy storage once have eco to support it
     iCurPriority = iCurPriority + 1
-    if bDebugMessages == true then LOG(sFunctionRef..': iCurPriority='..iCurPriority..'; Considering building energy storage, Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Have low power='..tostring(bHaveLowPower)..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount]='..M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount]) end
-    if not(bHaveLowPower) and M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount] == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 30 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 2.5 then
-        if bDebugMessages == true then LOG(sFunctionRef..': Is tEngineers[1] valid='..tostring(M28UnitInfo.IsUnitValid(tEngineers[1]))) end
-        iBPWanted = 5
-        if not(bHaveLowMass) then iBPWanted = 20 end
-        HaveActionToAssign(refActionBuildEnergyStorage, 1, iBPWanted)
+    if bDebugMessages == true then LOG(sFunctionRef..': iCurPriority='..iCurPriority..'; Considering building energy storage, Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Have low power='..tostring(bHaveLowPower)..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount]='..M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount]..'; Enemy unit with highest health='..M28Team.tTeamData[iTeam][M28Team.refiEnemyHighestMobileLandHealth]) end
+    if not(bHaveLowPower) and M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount] <= 7 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 1 + M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount] * 5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 30 + M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount] * 20 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 2.5 + 0.25 * M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount] then
+        --Do we have enough storage to 1-shot any enemy unit?
+        if M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount] < math.max(1, math.ceil((M28Team.tTeamData[iTeam][M28Team.refiEnemyHighestMobileLandHealth] / 0.9 - 1000) / 1250)) then
+            --Is the number of storage in this LZ <= lowest storage count?
+            local toStorageInThisLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryEnergyStorage, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+            local iStorageInThisLZ
+            if M28Utilities.IsTableEmpty(toStorageInThisLZ) == false then
+                iStorageInThisLZ = table.getn(toStorageInThisLZ)
+            else
+                iStorageInThisLZ = 0
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': iStorageInThisLZ='..iStorageInThisLZ) end
+            if iStorageInThisLZ <= M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount] then
+                if bDebugMessages == true then LOG(sFunctionRef..': Want to get storage, Is tEngineers[1] valid='..tostring(M28UnitInfo.IsUnitValid(tEngineers[1]))) end
+                iBPWanted = 5
+                if not(bHaveLowMass) then iBPWanted = 20 end
+                HaveActionToAssign(refActionBuildEnergyStorage, 1, iBPWanted)
+            end
+        end
     end
 
     --More power

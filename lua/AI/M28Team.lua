@@ -88,6 +88,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefiAlliedIndirectThreat = 'M28TeamIndirectThreat' --Total indirect threat
     subrefiAlliedGroundAAThreat = 'M28TeamGroundAAThreat' --Total MAA and structure threat
     refbEnemyHasPerciesOrBricks = 'M28TeamEnemyHasBrickOrPercy' --true if enemy has percy or brick unit at any time in the game
+    refiEnemyHighestMobileLandHealth = 'M28TeamEnemyHighestMobileLandHealth' --Used to calculate storage wanted
 
     --Land combat related
     subrefiLandZonesWantingSupportByPlateau = 'M28TeamLZWantingSupport' --[x] is the plateau ref, [y] is the land zone ref, returns true if we want support for the plateau
@@ -371,6 +372,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][subrefiAlliedIndirectThreat] = 0
     tTeamData[iTotalTeamCount][subrefiAlliedGroundAAThreat] = 0
     tTeamData[iTotalTeamCount][refiLastTimeNoShieldTargetsByPlateau] = {}
+    tTeamData[iTotalTeamCount][refiEnemyHighestMobileLandHealth] = 300
 
 
     local bHaveM28BrainInTeam = false

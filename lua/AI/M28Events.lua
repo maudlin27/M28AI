@@ -340,7 +340,7 @@ function OnWeaponFired(oWeapon)
             --Update overcharge tracking
             if oWeapon.GetBlueprint and oWeapon:GetBlueprint().Overcharge then
                 oUnit[M28UnitInfo.refiTimeOfLastOverchargeShot] = GetGameTimeSeconds()
-                if EntityCategoryContains(categories.COMMAND. oUnit.UnitId) and oUnit:GetAIBrain().M28AI then
+                if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and oUnit:GetAIBrain().M28AI then
                     --Get another order immediately rather than waiting (means we dont have to try and queue orders up for ACU logic)
                     M28ACU.GetACUOrder(oUnit:GetAIBrain(), oUnit)
                 end
@@ -660,8 +660,8 @@ function OnDetectedBy(oUnitDetected, iBrainIndex)
             if EntityCategoryContains(M28UnitInfo.refCategoryLandCombat - categories.COMMAND - categories.SUBCOMMANDER, oUnitDetected.UnitId) then
                 local iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnitDetected)
                 local iMaxHealth = oUnitDetected:GetMaxHealth() + iMaxShield
-                if iMaxHealth > aiBrain[M28Overseer.refiHighestEnemyGroundUnitHealth] then
-                    aiBrain[M28Overseer.refiHighestEnemyGroundUnitHealth] = iMaxHealth
+                if iMaxHealth > M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyHighestMobileLandHealth] then
+                    M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyHighestMobileLandHealth] = iMaxHealth
                 end
             end
         end
