@@ -260,7 +260,7 @@ function DodgeBomb(oBomber, oWeapon, projectile)
 
                             else
                                 --Are we a mobile shield that isn't on the same team as the bomber? If so, then dont worry about dodging
-                                if not(EntityCategoryContains(M28UnitInfo.refCategoryMobileLandShield, oUnit.UnitId)) or (oUnit.MyShield:GetHealth() == 0 or not(oUnit.MyShield.Enabled) or oUnit.MyShield.DepletedByEnergy) then
+                                if not(EntityCategoryContains(M28UnitInfo.refCategoryMobileLandShield, oUnit.UnitId)) or not(oUnit.MyShield.GetHealth) or oUnit.MyShield:GetHealth() == 0 or not(oUnit.MyShield.Enabled) or oUnit.MyShield.DepletedByEnergy then
                                     if bDebugMessages == true then LOG(sFunctionRef..': about to call moveawayfromtargettemporarily') end
                                     MoveAwayFromTargetTemporarily(oUnit, iTimeToRun, tBombTarget)
                                     oUnit[M28UnitInfo.refiGameTimeMicroStarted] = GetGameTimeSeconds()

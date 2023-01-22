@@ -1678,10 +1678,11 @@ function GiveResourcesToPlayer(oBrainGiver, oBrainReceiver, iMass, iEnergy)
 
 end
 
+function ShareResourcesMassAndEnergyBetweenTeam() M28Utilities.ErrorHandler('Using superceded code')  end --Done to make the below easier to find
 function AllocateTeamEnergyAndMassResources(iTeam)
     --Smoothes out energy storage for M28 brains on the same team, where % storage is <95%
 
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AllocateTeamEnergyResources'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -1707,6 +1708,8 @@ function AllocateTeamEnergyAndMassResources(iTeam)
     local iAverageMassStored = iTotalMassStored / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]
     local iCurEnergySpare, iCurMassSpare
 
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start, time='..GetGameTimeSeconds()..'; iAverageEnergyStored='..iAverageEnergyStored..'; iAverageMassStored='..iAverageMassStored) end
+
     --Sort brains into those that have mass, and those that give mass
     for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
         iCurEnergySpare = oBrain:GetEconomyStored('ENERGY') - iAverageEnergyStored
@@ -1730,60 +1733,62 @@ function AllocateTeamEnergyAndMassResources(iTeam)
         elseif iCurMassSpare > 0 then
             table.insert(tDetailsOfBrainsWithMass, {[subrefoBrain] = oBrain, [subrefiResourceToGive] = iCurMassSpare})
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..oBrain.Nickname..': iCurEnergySpare='..iCurEnergySpare..'; iCurMassSpare='..iCurMassSpare) end
     end
 
-    --Allocate resources:
-    local tBrainsNeedingResource, tBrainsWithResource
-    local iResourceToGive
-    for iResourceType = 1, 2, 1 do
-        if iResourceType == refiResourceEnergy then
-            tBrainsNeedingResource = tDetailsOfBrainsNeedingEnergy
-            tBrainsWithResource = tDetailsOfBrainsWithEnergy
-        else
-            tBrainsNeedingResource = tDetailsOfBrainsNeedingMass
-            tBrainsWithResource = tDetailsOfBrainsWithMass
-        end
+        --Allocate resources:
+        local tBrainsNeedingResource, tBrainsWithResource
+        local iResourceToGive
+        for iResourceType = 1, 2, 1 do
+            if iResourceType == refiResourceEnergy then
+                tBrainsNeedingResource = tDetailsOfBrainsNeedingEnergy
+                tBrainsWithResource = tDetailsOfBrainsWithEnergy
+            else
+                tBrainsNeedingResource = tDetailsOfBrainsNeedingMass
+                tBrainsWithResource = tDetailsOfBrainsWithMass
+            end
 
-        if M28Utilities.IsTableEmpty(tBrainsNeedingResource) == false and M28Utilities.IsTableEmpty(tBrainsWithResource) == false then
-            for iBrainWithResource, tBrainWithResourceSubtable in tBrainsWithResource do
-                for iBrainNeedingResource, tBrainNeedingResourceSubtable in tBrainsNeedingResource do
-                    iResourceToGive = math.min(-tBrainNeedingResourceSubtable[subrefiRemainingResourceNeeded], tBrainWithResourceSubtable[subrefiResourceToGive])
-                    if iResourceToGive > 0 then
-                        if iResourceType == refiResourceEnergy then
-                            GiveResourcesToPlayer(tBrainWithResourceSubtable[subrefoBrain], tBrainNeedingResourceSubtable[subrefoBrain], 0, iResourceToGive)
-                        else
-                            GiveResourcesToPlayer(tBrainWithResourceSubtable[subrefoBrain], tBrainNeedingResourceSubtable[subrefoBrain], iResourceToGive, 0)
-                        end
-                        tBrainNeedingResourceSubtable[subrefiRemainingResourceNeeded] = tBrainNeedingResourceSubtable[subrefiRemainingResourceNeeded] + iResourceToGive
-                        tBrainWithResourceSubtable[subrefiRemainingResourceNeeded] = tBrainNeedingResourceSubtable[subrefiRemainingResourceNeeded] - iResourceToGive
-                        if tBrainWithResourceSubtable[subrefiRemainingResourceNeeded] <= 0 then
-                            break
+            if M28Utilities.IsTableEmpty(tBrainsNeedingResource) == false and M28Utilities.IsTableEmpty(tBrainsWithResource) == false then
+                for iBrainWithResource, tBrainWithResourceSubtable in tBrainsWithResource do
+                    for iBrainNeedingResource, tBrainNeedingResourceSubtable in tBrainsNeedingResource do
+                        iResourceToGive = math.min(-tBrainNeedingResourceSubtable[subrefiRemainingResourceNeeded], tBrainWithResourceSubtable[subrefiResourceToGive])
+                        if iResourceToGive > 0 then
+                            if iResourceType == refiResourceEnergy then
+                                GiveResourcesToPlayer(tBrainWithResourceSubtable[subrefoBrain], tBrainNeedingResourceSubtable[subrefoBrain], 0, iResourceToGive)
+                            else
+                                if bDebugMessages == true then LOG(sFunctionRef..': About to give '..iResourceToGive..' mass from player '..tBrainWithResourceSubtable[subrefoBrain].Nickname..' to player '..tBrainNeedingResourceSubtable[subrefoBrain].Nickname) end
+                                GiveResourcesToPlayer(tBrainWithResourceSubtable[subrefoBrain], tBrainNeedingResourceSubtable[subrefoBrain], iResourceToGive, 0)
+                            end
+                            tBrainNeedingResourceSubtable[subrefiRemainingResourceNeeded] = tBrainNeedingResourceSubtable[subrefiRemainingResourceNeeded] + iResourceToGive
+                            tBrainWithResourceSubtable[subrefiRemainingResourceNeeded] = tBrainNeedingResourceSubtable[subrefiRemainingResourceNeeded] - iResourceToGive
+                            if tBrainWithResourceSubtable[subrefiRemainingResourceNeeded] <= 0 then
+                                break
+                            end
                         end
                     end
                 end
             end
         end
-    end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-end
-
-function TeamResourceSharingMonitor(iTeam)
-    --Monitors resources for AI in the team and shares resources
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'TeamResourceSharingMonitor'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, checking if already running a monitor for iTeam='..iTeam..': Is table of friendl yM28 brains for this team empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))) end
-    if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        WaitSeconds(120) --Dont want to share in the first 2m
+    end
+
+    function TeamResourceSharingMonitor(iTeam)
+        --Monitors resources for AI in the team and shares resources
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'TeamResourceSharingMonitor'
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-        while M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 do
-            ForkThread(AllocateTeamEnergyAndMassResources, iTeam)
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code, checking if already running a monitor for iTeam='..iTeam..': Is table of friendl yM28 brains for this team empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))) end
+        if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-            WaitTicks(1)
+            WaitSeconds(120) --Dont want to share in the first 2m
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+            while M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 do
+                ForkThread(AllocateTeamEnergyAndMassResources, iTeam)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitTicks(1)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            end
         end
     end
-end

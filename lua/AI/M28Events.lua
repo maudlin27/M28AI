@@ -27,15 +27,52 @@ refiLastWeaponEvent = 'M28LastWep' --Gametimeseconds that last updated onweapon
 
 
 function OnPlayerDefeated(aiBrain)
-    M28Utilities.ErrorHandler('To add code')
+    aiBrain.M28IsDefeated = true
+
+    --Was it an M28AI?
+    if aiBrain.M28AI then
+        --Give resources to teammates
+        local bHaveTeammates = false
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveBrains]) == false then
+            for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveBrains] do
+                if not(oBrain == aiBrain) and not(oBrain.M28IsDefeated) and not(oBrain:IsDefeated()) then
+                    bHaveTeammates = true
+                    break
+                end
+            end
+        end
+        if bHaveTeammates then
+            ForkThread(M28Team.GiveAllResourcesToAllies, aiBrain)
+        end
+    end
+
+    --Update tables tracking the various brains
+    ForkThread(M28Team.RefreshActiveBrainListForBrainDeath, aiBrain)
 end
 
 function OnACUKilled(oUnit)
     if M28Utilities.bM28AIInGame then
         local sFunctionRef = 'OnACUKilled'
-        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-        M28Utilities.ErrorHandler('To add code')
+        if bDebugMessages == true then
+            local oKilledBrain = oUnit:GetAIBrain()
+            if oKilledBrain then
+                LOG(sFunctionRef..': ACU '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has just died, and its brain is '..oKilledBrain.Nickname)
+            else
+                LOG(sFunctionRef..': ACU '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has just died, and it doesnt have a brain')
+            end
+        end
+        if ScenarioInfo.Options.Victory == "demoralization" then
+            if oUnit:GetAIBrain() then
+                if not(oUnit:GetAIBrain().M28IsDefeated) then
+                    OnPlayerDefeated(oUnit:GetAIBrain())
+                end
+            else
+                --Possibility that we have already recorded the unit death, so wait 1 second and then if any brains show as defeated but not M28Defeated then run the function
+                ForkThread(M28Team.DelayedPlayerDeathCheck)
+            end
+        end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
 end

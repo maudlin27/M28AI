@@ -20,7 +20,9 @@ local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 local M28Config = import('/mods/M28AI/lua/M28Config.lua')
 
+
 --Team data variables
+bActiveTeamDeathChecker = false
 bRecordedAllPlayers = false
 iPlayersAtGameStart = 0
 iTotalTeamCount = 0 --Increased by 1 each time we create a new team
@@ -440,6 +442,7 @@ function CreateNewTeam(aiBrain)
 
         ForkThread(TeamInitialisation, iTotalTeamCount)
     end
+    ForkThread(TeamDeathChecker)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -986,16 +989,16 @@ function ConsiderPriorityMexUpgrades(iM28Team)
     local sFunctionRef = 'ConsiderPriorityMexUpgrades'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Is table of upgrading mexes empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]))..'; tTeamData[iM28Team][subrefiTeamMassStored]='..tTeamData[iM28Team][subrefiTeamMassStored]..'; tTeamData[iM28Team][subrefiTeamNetMass]='..tTeamData[iM28Team][subrefiTeamNetMass]..'; tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]='..tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]) end
-    if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) or (tTeamData[iM28Team][subrefiTeamNetMass] - tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]) > 0 then
+    if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) or (tTeamData[iM28Team][subrefiTeamNetMass] - tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]) > 0 or 2 * tTeamData[iM28Team][subrefiActiveM28BrainCount] + table.getn(tTeamData[iM28Team][subreftTeamUpgradingMexes]) * 2.5 < tTeamData[iM28Team][subrefiTeamGrossMass] then
         --Do we have enough energy?
         if tTeamData[iM28Team][subrefiTeamNetEnergy] - tTeamData[iM28Team][subrefiEnergyUpgradesStartedThisCycle] > 0 and (tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] >= 0.75 or tTeamData[iM28Team][subrefiTeamNetEnergy] - tTeamData[iM28Team][subrefiEnergyUpgradesStartedThisCycle] >= 5) then
             --Do we have mexes in start positions that are lower than the enemy's highest tech?
-            local iTechLevelToUpgrade = math.min(3, (tTeamData[iM28Team][subrefiHighestEnemyMexTech] or 0)) - 1
+            local iTechLevelToUpgrade = math.min(3, math.max(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech], (tTeamData[iM28Team][subrefiHighestEnemyMexTech] or 0))) - 1
             if iTechLevelToUpgrade >= 1 then
                 local iPlateau, iLandZone, tMexesToConsiderUpgrading
                 local bAbort = false
 
-                --Want to be upgrading at least 1 mex on our team, or more if we have positive mass income
+                --Want to be upgrading at least 1 mex on our team, or more if we have positive mass income, subject to gross income
                 local tiExtraMassStoredPerUpgrade = {[1] = 300, [2] = 1000}
                 local iMassStoredToKeepUpgrading = 0
                 if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) == false then
@@ -1435,7 +1438,7 @@ function TeamEconomyRefresh(iM28Team)
 end
 
 function TeamOverseer(iM28Team)
-    while M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftoFriendlyActiveM28Brains]) == false do
+    while tTeamData[iM28Team][subrefiActiveM28BrainCount] > 0 do
         ForkThread(TeamEconomyRefresh, iM28Team)
         WaitTicks(10)
     end
@@ -1514,4 +1517,106 @@ end
 
 function TransferUnitsToPlayer(tUnits, iArmyIndex, bCaptured)
     import('/lua/SimUtils.lua').TransferUnitsOwnership(tUnits, iArmyIndex, bCaptured)
+end
+
+function GiveAllResourcesToAllies(aiBrain)
+    local iMassToGive = aiBrain:GetEconomyStored('MASS')
+    local iEnergyToGive = aiBrain:GetEconomyStored('ENERGY')
+    local iSpareMassStorage
+    local iSpareEnergyStorage
+    for iBrain, oBrain in tTeamData[aiBrain.M28Team][subreftoFriendlyActiveBrains] do
+        if not(oBrain.M28IsDefeated) then
+            iSpareMassStorage = 0
+            iSpareEnergyStorage = 0
+            if iMassToGive > 0 and aiBrain:GetEconomyStoredRatio('MASS') < 1 then
+                iSpareMassStorage = M28Economy.GetMassStorageMaximum(aiBrain) * (1 -aiBrain:GetEconomyStoredRatio('MASS'))
+            end
+            if iEnergyToGive > 0 and aiBrain:GetEconomyStoredRatio('ENERGY') < 1 then
+                iSpareEnergyStorage = M28Economy.GetEnergyStorageMaximum(aiBrain) * (1 -aiBrain:GetEconomyStoredRatio('ENERGY'))
+            end
+
+            if iSpareMassStorage + iSpareEnergyStorage > 0 then
+                M28Economy.GiveResourcesToPlayer(aiBrain, oBrain, math.min(iMassToGive, iSpareMassStorage), math.min(iEnergyToGive, iSpareEnergyStorage))
+            end
+
+        end
+        if iMassToGive + iEnergyToGive < 0 then break end
+    end
+end
+
+function RefreshActiveBrainListForBrainDeath(oDefeatedBrain)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RefreshActiveBrainListForBrainDeath'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; brain '..oDefeatedBrain.Nickname..' has died, will update all teams for this, iTotalTeamCount='..iTotalTeamCount) end
+    LOG('Brain death detected for '..oDefeatedBrain.Nickname)
+    for iTeam = 1, iTotalTeamCount do
+        if IsAlly(oDefeatedBrain:GetArmyIndex(), tTeamData[iTeam][subreftoFriendlyActiveBrains][1]:GetArmyIndex()) then
+            if M28Utilities.IsTableEmpty(tTeamData[iTeam][subreftoFriendlyActiveBrains]) == false then
+
+                for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveBrains] do
+                    if oBrain == oDefeatedBrain then
+                        if oBrain.M28AI then
+                            for iM28Brain, oM28Brain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
+                                if oM28Brain == oBrain then
+                                    table.remove(tTeamData[iTeam][subreftoFriendlyActiveM28Brains], iM28Brain)
+                                    break
+                                end
+                            end
+                            tTeamData[iTeam][subrefiActiveM28BrainCount] = tTeamData[iTeam][subrefiActiveM28BrainCount] - 1
+                        end
+                        table.remove(tTeamData[iTeam][subreftoFriendlyActiveBrains], iBrain)
+                        break
+                    end
+                end
+            end
+        else
+            if M28Utilities.IsTableEmpty(tTeamData[iTeam][subreftoEnemyBrains]) == false then
+                for iBrain, oBrain in tTeamData[iTeam][subreftoEnemyBrains] do
+                    if oBrain == oDefeatedBrain then
+                        table.remove(tTeamData[iTeam][subreftoEnemyBrains], iBrain)
+                        break
+                    end
+                end
+            end
+            if M28Utilities.IsTableEmpty(tTeamData[iTeam][subreftoEnemyBrains]) then
+                tTeamData[iTeam][subrefbAllEnemiesDefeated] = true
+            end
+        end
+    end
+
+
+
+    for iArmyIndex, oBrain in M28Overseer.tAllAIBrainsByArmyIndex do
+        if oDefeatedBrain == oBrain then
+            M28Overseer.tAllAIBrainsByArmyIndex[iArmyIndex] = nil
+            M28Overseer.tAllActiveM28Brains[iArmyIndex] = nil --Should only have had a value for m28 brains anyway but this is a redundancy
+        end
+    end
+end
+
+function TeamDeathChecker()
+    WaitSeconds(1) --Make sure have given time for brains to be setup
+    if not(bActiveTeamDeathChecker) and not(ScenarioInfo.Options.Victory == "demoralization") then
+        bActiveTeamDeathChecker = true
+        while M28Utilities.bM28AIInGame do
+            --Treat any players as defeated when they show as defeated
+            WaitSeconds(1)
+            for iBrain, oBrain in ArmyBrains do
+                if oBrain:IsDefeated() and not(oBrain.M28IsDefeated) then
+                    ForkThread(M28Events.OnPlayerDefeated, oBrain)
+                end
+            end
+        end
+        bActiveTeamDeathChecker = false
+    end
+end
+
+function DelayedPlayerDeathCheck()
+    WaitSeconds(1)
+    for iBrain, oBrain in ArmyBrains do
+        if oBrain:IsDefeated() and not(oBrain.M28IsDefeated) then
+            M28Events.OnPlayerDefeated(oBrain)
+        end
+    end
 end
