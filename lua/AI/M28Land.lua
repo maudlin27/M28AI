@@ -981,6 +981,20 @@ function ManageMobileShieldsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
     local tShieldsToRetreat = {}
     local tShieldsToAssign = {}
     local tEnemyBase = tLZTeamData[M28Map.reftClosestEnemyBase]
+    if M28Utilities.IsTableEmpty(tEnemyBase) then
+        M28Utilities.ErrorHandler('Couldnt find enemy base, will try backup approach')
+        local iCurDist
+        local iClosestDist = 100000
+        local oClosestBrain
+        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
+            iCurDist = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefLZMidpoint], M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+            if iCurDist < iClosestDist then
+                iClosestDist = iCurDist
+                oClosestBrain = oBrain
+            end
+        end
+        tEnemyBase = M28Map.PlayerStartPoints[oClosestBrain:GetArmyIndex()]
+    end
 
     for iUnit, oUnit in tMobileShields do
         iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, false)

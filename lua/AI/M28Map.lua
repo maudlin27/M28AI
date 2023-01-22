@@ -867,13 +867,13 @@ end
 local function AssignSegmentsNearMexesToLandZones()
     --Assigns every land pathable segment near a mex to that mex's land zone (where mexes from multiple zones are nearby then it picks the closest one)
 
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AssignSegmentsNearMexesToLandZones'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
-    local iMaxSegmentSearchDistance = math.max(10, math.ceil(50 / iLandZoneSegmentSize)) --NOTE: If changing this consider if also want to change the value for AssignRemainingSegmentsToLandZones
-    local iDistanceCap = math.max(50, iMaxSegmentSearchDistance * iLandZoneSegmentSize)
+    local iMaxSegmentSearchDistance = math.max(10, math.ceil(85 / iLandZoneSegmentSize)) --NOTE: If changing this consider if also want to change the value for AssignRemainingSegmentsToLandZones
+    local iDistanceCap = math.max(100, iMaxSegmentSearchDistance * iLandZoneSegmentSize + 15)
 
     local iBaseSegmentX, iBaseSegmentZ
     local iPathingGroupWanted
@@ -883,6 +883,7 @@ local function AssignSegmentsNearMexesToLandZones()
     tTempZoneTravelDistanceBySegment = {} --[x][z] are the segment x and z values, returns a table with a key which is the zone ID, which returns the travel distance for that zone
     local iCurSegmentX, iCurSegmentZ
     local iMaxAdjustedX,iMaxAdjustedZ, iMinAdjustedX, iMinAdjustedZ
+    if bDebugMessages == true then LOG(sFunctionRef..': Will record areas around mexes, iMaxSegmentSearchDistance='..iMaxSegmentSearchDistance..'; iDistanceCap='..iDistanceCap..'; iLandZoneSegmentSize='..iLandZoneSegmentSize) end
 
     --Cycle through every plateau, and then every mex within every plateau
     for iPlateau, tPlateauSubtable in tAllPlateaus do
@@ -1986,7 +1987,7 @@ local function SetupLandZones()
     --To return both the plateau reference, and the land zone reference, of a position tPosiiton, use the function GetPlateauAndLandZoneReferenceFromPosition(tPosition) (which will return nil if it doesnt have a value)
 
 
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SetupLandZones'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of land zone generation, system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
