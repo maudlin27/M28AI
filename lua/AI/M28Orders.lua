@@ -50,7 +50,7 @@ local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
 function UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc)
     local sBaseOrder = 'Clear'
     if oUnit[reftiLastOrders] then
-        sBaseOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]][subrefiOrderType]
+        sBaseOrder = (oUnit[reftiLastOrders][oUnit[refiOrderCount]][subrefiOrderType] or 'Unknown')
     end
     local sExtraOrder = ''
     if sOptionalOrderDesc then sExtraOrder = ' '..sOptionalOrderDesc end
@@ -181,7 +181,7 @@ function IssueTrackedMove(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddTo
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueMove, [subreftOrderPosition] = tOrderPosition})
         IssueMove({oUnit}, tOrderPosition)
     end
-    if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
+    if M28Config.M28ShowUnitNames and tLastOrder[subrefiOrderType] then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 
 end
 

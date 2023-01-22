@@ -1486,6 +1486,7 @@ function TeamInitialisation(iM28Team)
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftoLZUnitsWantingMobileShield] = {}
         end
     end
+    TeamEconomyRefresh(iM28Team)
     ForkThread(M28Map.RecordClosestAllyAndEnemyBaseForEachLandZone, iM28Team)
     M28Air.AirTeamInitialisation(iM28Team)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
