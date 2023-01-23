@@ -1682,7 +1682,7 @@ function ShareResourcesMassAndEnergyBetweenTeam() M28Utilities.ErrorHandler('Usi
 function AllocateTeamEnergyAndMassResources(iTeam)
     --Smoothes out energy storage for M28 brains on the same team, where % storage is <95%
 
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AllocateTeamEnergyResources'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

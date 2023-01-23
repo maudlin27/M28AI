@@ -53,7 +53,7 @@ end
 function OnACUKilled(oUnit)
     if M28Utilities.bM28AIInGame then
         local sFunctionRef = 'OnACUKilled'
-        local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         if bDebugMessages == true then
             local oKilledBrain = oUnit:GetAIBrain()
@@ -148,7 +148,7 @@ function OnYthothaDeath(oUnit)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    local refbYthothaDeath = 'M27EventYthothaDeath'
+    local refbYthothaDeath = 'M28EventYthothaDeath'
 
     if not(oUnit[refbYthothaDeath]) then
         oUnit[refbYthothaDeath] = true
@@ -161,7 +161,7 @@ function OnYthothaDeath(oUnit)
             if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
                 for iFriendlyUnit, oFriendlyUnit in tNearbyUnits do
                     if bDebugMessages == true then LOG(sFunctionRef..': oFriendlyUnit='..oFriendlyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFriendlyUnit)..'; if we own it then will make it run away') end
-                    if oFriendlyUnit:GetAIBrain() == oBrain then --Only do this for M27 units
+                    if oFriendlyUnit:GetAIBrain() == oBrain then --Only do this for M28 units
                         if M28UnitInfo.IsUnitValid(oFriendlyUnit, true) then
                             iTimeToRun = math.min(32, math.max(10, 18 + (50 - M28Utilities.GetDistanceBetweenPositions(oFriendlyUnit:GetPosition(), oUnit:GetPosition()) / (oFriendlyUnit:GetBlueprint().Physics.MaxSpeed or 1))))
                             if bDebugMessages == true then LOG(sFunctionRef..': Telling friendly unit '..oFriendlyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFriendlyUnit)..' to move away for 18s via moveawayfromtarget order') end
@@ -349,8 +349,8 @@ function OnWeaponFired(oWeapon)
 
         local oUnit = oWeapon.unit
         if oUnit and oUnit.GetUnitId and oUnit.GetAIBrain then
-            if not(oUnit[refiLastWeaponEvent]) or GetGameTimeSeconds() - (oUnit[refiLastWeaponEvent] or -1) >= 0.5 then
-                oUnit[refiLastWeaponEvent] = GetGameTimeSeconds()
+            if not(oWeapon[refiLastWeaponEvent]) or GetGameTimeSeconds() - (oWeapon[refiLastWeaponEvent] or -1) >= 0.5 then
+                oWeapon[refiLastWeaponEvent] = GetGameTimeSeconds()
                 --Update unit last known position/record it
                 local oParentBrain = oUnit:GetAIBrain()
                 for iTeam, tTeam in M28Team.tTeamData do
@@ -560,7 +560,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                             end
                         end
                     end
-                elseif EntityCategoryContains(M28UnitInfo.refCategoryEnergyStorage, oJustBuilt.UnitId) then M28Team.TeamEconomyRefresh(oJustBuilt:GetAIBrain().M28Team)
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryEnergyStorage, oJustBuilt.UnitId) then
+                    M28Team.TeamEconomyRefresh(oJustBuilt:GetAIBrain().M28Team)
+                    M28Team.ConsiderGiftingStorageToTeammate(oJustBuilt)
                 end
             end
 

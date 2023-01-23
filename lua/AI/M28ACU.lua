@@ -433,9 +433,11 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
     local sFunctionRef = 'DoesACUWantToRun'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     --Dont run if in core base
-    if bDebugMessages == true then LOG(sFunctionRef..': Is ACU in core base='..tostring(tLZData[M28Map.subrefLZTCoreBase])..' iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; oACU='..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.refbDangerousForACUs]='..tostring(M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.refbDangerousForACUs] or false)) end
-    if tLZData[M28Map.subrefLZTCoreBase] then
+    if bDebugMessages == true then LOG(sFunctionRef..': Is ACU in core base='..tostring(tLZTeamData[M28Map.subrefLZTCoreBase])..' iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; oACU='..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.refbDangerousForACUs]='..tostring(M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.refbDangerousForACUs] or false)) end
+    if tLZTeamData[M28Map.subrefLZTCoreBase] then
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return false
     else
@@ -487,7 +489,7 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': iEnemyNearbyThreat='..iEnemyNearbyThreat) end
                         --Run if enemy has a really large threat (regardless of if we think we can beat it)
-                        if iEnemyNearbyThreat > math.min(iACUThreat * 2, 3500) then
+                        if iEnemyNearbyThreat > math.min(iACUThreat * 2, 6000) then
                             return true
                         else
                             --Run if we dont have enough threat in this LZ to easily beat enemy threat in all adjacent LZs
@@ -519,9 +521,11 @@ function GiveOverchargeOrderIfRelevant(tLZData, tLZTeamData, oACU)
     local sFunctionRef = 'GiveOverchargeOrderIfRelevant'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; DO we have enemies in this or adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; Can we use overcharge='..tostring(M28Conditions.CanUnitUseOvercharge(oACU:GetAIBrain(), oACU))) end
 
-    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and M28Conditions.CanUnitUseOvercharge(oACU:GetAIBrain(), oACU) then
+    if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and M28Conditions.CanUnitUseOvercharge(oACU:GetAIBrain(), oACU) then
         local oUnitToOvercharge = M28Micro.GetOverchargeTarget(tLZData, oACU:GetAIBrain(), oACU)
         if bDebugMessages == true then LOG(sFunctionRef..': Do we have a valid OC target='..tostring(M28UnitInfo.IsUnitValid(oUnitToOvercharge))) end
         if oUnitToOvercharge then
@@ -721,7 +725,7 @@ function GetACUOrder(aiBrain, oACU)
     M28Orders.UpdateRecordedOrders(oACU)
 
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; oACU[refbDoingInitialBuildOrder]='..tostring(oACU[refbDoingInitialBuildOrder])..'; ACU unit state='..M28UnitInfo.GetUnitState(oACU)..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; oACU[refbDoingInitialBuildOrder]='..tostring(oACU[refbDoingInitialBuildOrder])..'; ACU unit state='..M28UnitInfo.GetUnitState(oACU)..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; Can ACU use overcharge='..tostring(M28Conditions.CanUnitUseOvercharge(oACU:GetAIBrain(), oACU))) end
 
     --Is the ACU busy with something?
     if oACU:IsUnitState('Upgrading') then

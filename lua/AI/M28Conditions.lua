@@ -504,7 +504,7 @@ function CanUnitUseOvercharge(aiBrain, oUnit)
             end
         end
 
-        if aiBrain:GetEconomyStored('ENERGY') >= iEnergyNeeded then bCanUseOC = true end
+        if aiBrain:GetEconomyStored('ENERGY') >= (iEnergyNeeded or 5000) then bCanUseOC = true end
         if bDebugMessages == true then LOG(sFunctionRef..': iEnergyNeeded='..iEnergyNeeded..'; aiBrain:GetEconomyStored='..aiBrain:GetEconomyStored('ENERGY')..'; bCanUseOC='..tostring(bCanUseOC)) end
         if bCanUseOC == true then
             --Check if underwater

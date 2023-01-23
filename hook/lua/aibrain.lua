@@ -8,10 +8,10 @@ local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 M28AIBrainClass = AIBrain
 AIBrain = Class(M28AIBrainClass) {
 
-    --[[OnDefeat = function(self)
-        ForkThread(M27Events.OnPlayerDefeated, self)
+    OnDefeat = function(self)
+        ForkThread(M28Events.OnPlayerDefeated, self)
         M28AIBrainClass.OnDefeat(self)
-    end,--]]
+    end,
 
     OnCreateAI = function(self, planName)
         M28Events.OnCreateBrain(self, planName, false)

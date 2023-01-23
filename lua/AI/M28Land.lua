@@ -1199,6 +1199,17 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
                     end
                 end
 
+                if M28Utilities.IsTableEmpty(tMAAToAdvance) == false then
+                    if M28Utilities.IsTableEmpty(tMAAToAdvance) == false then
+                        for iEntry, tPathDetails in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
+                            local tAltLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tPathDetails[M28Map.subrefLZNumber]][M28Map.subrefLZTeamData][iTeam]
+                            if not(tAltLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subrefLZTAlliedUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tAltLZTeamData[M28Map.subrefLZTAlliedUnits])) == false and tAltLZTeamData[M28Map.subrefLZThreatAllyGroundAA] < tAltLZTeamData[M28Map.subrefLZTValue] * 0.1 then
+                                SendMAAToSupportLandZone(tMAAToAdvance, iPlateau, iTeam, tPathDetails[M28Map.subrefLZNumber])
+                            end
+                        end
+                    end
+                end
+
 
 
                 --Do we have any MAA remaining after sending MAA to any LZ wanting support?
@@ -1539,12 +1550,24 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         end
                     end
                 else
-                    --Enemy outranges us and we dont ahve enough threat / high enough priority location to defend so want to retreat
+                    --Enemy outranges us and we dont ahve enough threat / high enough priority location to defend so want to retreat; exception to this if enemy has an experimental unit and it is in the same LZ as us, in which case want to attack with any units that are within 10 of being in range of it
+                    local tNearbyEnemyExperimentals
+                    local bConsiderAttackingExperimental = false
+                    if oNearestEnemyToMidpoint then
+                        tNearbyEnemyExperimentals = EntityCategoryFilterDown(categories.EXPERIMENTAL, tLZTeamData[M28Map.reftoNearestDFEnemies])
+                        if M28Utilities.IsTableEmpty(tNearbyEnemyExperimentals) == false then
+                            bConsiderAttackingExperimental = true
+                        end
+                    end
 
                     for iUnit, oUnit in tAvailableCombatUnits do
                         --Only retreat units from this LZ
                         if oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone then
-                            M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'GenRetr'..iLandZone)
+                            if bConsiderAttackingExperimental and oUnit[M28UnitInfo.refiDFRange] > 0 and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tNearbyEnemyExperimentals, 10, iTeam, true) then
+                                M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'ExpA'..iLandZone)
+                            else
+                                M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'GenRetr'..iLandZone)
+                            end
                         end
                     end
                 end
@@ -1976,12 +1999,11 @@ function AssignValuesToLandZones(iTeam)
     local tFriendlyNonPDBuildings
     local bAdjacentToCoreFactory
     while M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false do
-
         local tiPlateauAndLZWithFriendlyStartPosition = {}
         local iBaseCategory
         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
             local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering iBrain='..iBrain..'; oBrain='..oBrain.Nickname..'; Army index='..oBrain:GetArmyIndex()..'; Player start point='..repru(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])..'; Plateau and LZ='..iPlateau..'-'..iLandZone) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering iBrain='..iBrain..'; oBrain='..oBrain.Nickname..'; Army index='..oBrain:GetArmyIndex()..'; Player start point='..repru(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])..'; Plateau and LZ of this start point='..iPlateau..'-'..iLandZone) end
             if not(tiPlateauAndLZWithFriendlyStartPosition[iPlateau]) then tiPlateauAndLZWithFriendlyStartPosition[iPlateau] = {} end
             tiPlateauAndLZWithFriendlyStartPosition[iPlateau][iLandZone] = true
         end
@@ -2009,14 +2031,16 @@ function AssignValuesToLandZones(iTeam)
 
                     tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTCoreBase] = nil
                     --Is this a core base land zone?
+                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if we are a friendly land zone - tiPlateauAndLZWithFriendlyStartPosition='..repru(tiPlateauAndLZWithFriendlyStartPosition)..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedUnits]))) end
                     if tiPlateauAndLZWithFriendlyStartPosition[iPlateau][iLandZone] then
                         tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTCoreBase] = true
                         if bDebugMessages == true then LOG(sFunctionRef..': Core LZ='..iLandZone..'; All adjacent zones='..repru(tLandZoneData[M28Map.subrefLZAdjacentLandZones])) end
                     elseif M28Utilities.IsTableEmpty(tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedUnits]) == false then
-                        --Are we adjacent to a core factoroy?  If so then check if we also have a factory of our highest tech level in this zone, and if so treat it as a core base zone
+                        --Are we adjacent to a core zone and we contain a factory or high value unit? If so then treat us as a core LZ
                         bAdjacentToCoreFactory = false
                         if M28Utilities.IsTableEmpty(tLandZoneData[M28Map.subrefLZAdjacentLandZones]) == false then
                             for iEntry, iAdjLZ in tLandZoneData[M28Map.subrefLZAdjacentLandZones] do
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering if we are adjacent to a core LZ, iAdjLZ='..iAdjLZ..'; Is AdjLZ a core LZ='..tostring(tPlateauData[M28Map.subrefPlateauLandZones][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTCoreBase])) end
                                 if tPlateauData[M28Map.subrefPlateauLandZones][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTCoreBase] then
                                     bAdjacentToCoreFactory = true
                                     break

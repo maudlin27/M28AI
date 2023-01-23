@@ -281,7 +281,7 @@ function ConsiderDodgingShot(oUnit, oWeapon)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderDodgingShot'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    --if EntityCategoryContains(categories.TECH2, oUnit.UnitId) then bDebugMessages = true end
+       
     if bDebugMessages == true then
         LOG(sFunctionRef..': Just fired, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit))
         if oWeapon.GetCurrentTarget then
@@ -766,7 +766,7 @@ end
                                 if M28Utilities.GetDistanceBetweenPositions(oEnemyT2PD:GetPosition(), tUnitPosition) - iACURange + 2 < iNearestT1PD then
                                     if M28Logic.IsShotBlocked(oUnitWithOvercharge, oEnemyT2PD) == false then
                                         --Can the T2 PD see us?
-                                        if M28Utilities.CanSeeUnit(oEnemyT2PD:GetAIBrain(), oUnitWithOvercharge, true) then
+                                        if M28Conditions.CanSeeUnit(oEnemyT2PD:GetAIBrain(), oUnitWithOvercharge, true) then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Setting target to T2 PD') end
                                             oOverchargeTarget = oEnemyT2PD
                                             break

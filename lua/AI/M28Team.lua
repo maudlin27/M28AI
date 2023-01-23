@@ -1545,7 +1545,7 @@ function GiveAllResourcesToAllies(aiBrain)
 end
 
 function RefreshActiveBrainListForBrainDeath(oDefeatedBrain)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RefreshActiveBrainListForBrainDeath'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; brain '..oDefeatedBrain.Nickname..' has died, will update all teams for this, iTotalTeamCount='..iTotalTeamCount) end
@@ -1593,6 +1593,7 @@ function RefreshActiveBrainListForBrainDeath(oDefeatedBrain)
             M28Overseer.tAllActiveM28Brains[iArmyIndex] = nil --Should only have had a value for m28 brains anyway but this is a redundancy
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function TeamDeathChecker()
@@ -1619,4 +1620,30 @@ function DelayedPlayerDeathCheck()
             M28Events.OnPlayerDefeated(oBrain)
         end
     end
+end
+
+function ConsiderGiftingStorageToTeammate(oEnergyStorage)
+    --If have a teammate with less energy storage then will gift the energy storage to them
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderGiftingStorageToTeammate'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local aiBrain = oEnergyStorage:GetAIBrain()
+    local iTeam = aiBrain.M28Team
+    if bDebugMessages == true then LOG(sFunctionRef..': Brain '..aiBrain.Nickname..' has just built energy storage '..oEnergyStorage.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnergyStorage)..'; active M28 brain count for team '..iTeam..' = '..tTeamData[iTeam][subrefiActiveM28BrainCount]..'; Total no. of storage for this brain='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage)..'; lowest storage count for team='..tTeamData[iTeam][subrefiLowestEnergyStorageCount]) end
+    if tTeamData[iTeam][subrefiActiveM28BrainCount] > 1 then
+        local iOurEnergyStorage = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage)
+        if iOurEnergyStorage >= 2 and iOurEnergyStorage > 1 + tTeamData[iTeam][subrefiLowestEnergyStorageCount] then
+            for iBrain, oBrain in  tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
+                if not(oBrain == aiBrain) and oBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage) + 1 < iOurEnergyStorage then
+                    --We have 2 less energy storage so want to give this storage to them
+                    if bDebugMessages == true then LOG(sFunctionRef..': Brain '..oBrain.Nickname..' only has '..oBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage)..' energy storage so will gift this storage to them') end
+                    TransferUnitsToPlayer({ oEnergyStorage }, oBrain:GetArmyIndex(), false)
+                    ForkThread(TeamEconomyRefresh, iTeam)
+                    break
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
