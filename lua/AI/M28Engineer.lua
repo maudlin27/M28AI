@@ -2877,6 +2877,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
+
     local iBPWanted
     local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
     local bWantMorePower = M28Conditions.WantMorePower(iTeam)
@@ -2929,8 +2930,15 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         M28Land.DrawReclaimSegmentsInLandZone(iPlateau, iLandZone)
     end
     if bHaveLowMass and tLZData[M28Map.subrefLZTotalMassReclaim] >= 50 then
+        local iReclaimFactor = 60
+        if GetGameTimeSeconds() <= 540 then iReclaimFactor = 90 end
+        iBPWanted = math.min(40, math.max(5, tLZData[M28Map.subrefLZTotalMassReclaim] / iReclaimFactor))
+        if iBPWanted > 15 and GetGameTimeSeconds() <= 540 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 then
+            iBPWanted = math.min(iBPWanted, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] * 15)
+        end
+        if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then iBPWanted = math.max(5, iBPWanted * 0.6) end
         if bDebugMessages == true then LOG(sFunctionRef..': Higher priority reclaim, Total mass in Plateau '..iPlateau..' LZ '..iLandZone..'='..tLZData[M28Map.subrefLZTotalMassReclaim]) end
-        HaveActionToAssign(refActionReclaimArea, 1, math.min(40, math.max(5, tLZData[M28Map.subrefLZTotalMassReclaim] / 50)), false)
+        HaveActionToAssign(refActionReclaimArea, 1, iBPWanted, false)
         if bDebugMessages == true then LOG(sFunctionRef..': Have just tried assigning action to reclaim area') end
     elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] <= 0.7 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 80 and tLZData[M28Map.refReclaimTotalEnergy] >= 100 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 2 then
         HaveActionToAssign(refActionReclaimArea, 1, 5, true)
@@ -3003,8 +3011,16 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     --Lower priority mass reclaim
     iCurPriority = iCurPriority + 1
     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.35 and tLZData[M28Map.subrefLZTotalMassReclaim] >= 5 then
+        local iReclaimFactor = 75
+        if GetGameTimeSeconds() <= 540 then iReclaimFactor = 125 end
+        iBPWanted = math.min(40, math.max(5, tLZData[M28Map.subrefLZTotalMassReclaim] / iReclaimFactor))
+        if iBPWanted > 15 and GetGameTimeSeconds() <= 540 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 3 then
+            iBPWanted = math.min(iBPWanted, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] * 10)
+        end
+        if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then iBPWanted = math.max(5, iBPWanted * 0.6) end
+
         if bDebugMessages == true then LOG(sFunctionRef..': Lower priority reclaim, Total mass in Plateau '..iPlateau..' LZ '..iLandZone..'='..tLZData[M28Map.subrefLZTotalMassReclaim]) end
-        HaveActionToAssign(refActionReclaimArea, 1, math.min(100, math.max(5, tLZData[M28Map.subrefLZTotalMassReclaim] / 50)), false)
+        HaveActionToAssign(refActionReclaimArea, 1, math.min(100, math.max(5, iBPWanted)), false)
     end
 
     --Lower priority LZs wanting engineers:

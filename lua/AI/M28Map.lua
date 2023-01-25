@@ -132,9 +132,9 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             --Variables that are against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData]:
             subrefLZTValue = 'ZVal' --Value of the zone factoring in mass, reclaim, and allied units
             subrefLZTCoreBase = 'ZCore' --true if this is considered a 'core base' land zone
+            subrefLZAlliedACU = 'AACU' --table of ACU units for the land zone (so can factor into decisions on support and attack)
             subrefLZTAlliedUnits = 'Allies' --table of all allied units in the land zone, tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam][subrefLZTAlliedUnits]
             subrefLZTAlliedCombatUnits = 'AllComb' --table of allied units that are to be considered for combat orders
-            subrefLZAlliedMAA = 'AllMAA' --table of MAA units to be considered for MAA orders
             subrefLZTEnemyUnits = 'Enemies' --table of all enemy units in the land zone
             reftoNearestDFEnemies = 'NearestDF' --Table of enemy DF units in this LZ, plus the nearest DF unit in each adjacnet LZ, with proximity based on unit distance and unit range (i.e. the dist until the unit is in range)
             --Ground threat values for land zones (also against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam])
@@ -143,9 +143,11 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZDFThreatWanted = 'DFWanted'
             subrefLZMAAThreatWanted = 'MAAThreatWanted'
             subrefLZThreatEnemyMobileDFByRange = 'EMDFByRange'
+            subrefLZThreatEnemyMobileDFTotal = 'EMDFTo'
             subrefLZThreatAllyMobileDFByRange = 'AMDFByRange'
             subrefLZThreatAllyMobileDFTotal = 'ATDFT'
             subrefLZThreatEnemyMobileIndirectByRange = 'EMIFByRange'
+            subrefLZThreatEnemyMobileIndirectTotal = 'EMIFTo'
             subrefLZThreatAllyMobileIndirectByRange = 'AMIFByRange'
             subrefLZThreatAllyMobileIndirectTotal = 'ATIFT'
             subrefLZThreatEnemyBestMobileDFRange = 'EBDFR'
@@ -287,7 +289,7 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
 
                 if not(tAllPlateaus[iPlateau]) then
                     if bOptionalShouldBePathable then
-                        M28Utilities.ErrorHandler('No plateau group for iSegmentX='..iSegmentX..'; iSegmentZ='..iSegmentZ..'; Plateau group of segment midpoint='..(NavUtils.GetLabel(refPathingTypeAmphibious, GetPositionFromPathingSegments(iSegmentX, iSegmentZ)) or 'nil')..'; Plateau Group of tPosition='..(NavUtils.GetLabel(refPathingTypeAmphibious, tPosition) or 'nil'))
+                        M28Utilities.ErrorHandler('No plateau group for iSegmentX='..iSegmentX..'; iSegmentZ='..iSegmentZ..'; Plateau group of segment midpoint='..(NavUtils.GetLabel(refPathingTypeAmphibious, GetPositionFromPathingSegments(iSegmentX, iSegmentZ)) or 'nil')..'; Plateau Group of tPosition='..(NavUtils.GetLabel(refPathingTypeAmphibious, tPosition) or 'nil')..'; Pathing unit='..(oOptionalPathingUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oOptionalPathingUnit) or 'nil'))
                     end
                     return nil
                 else

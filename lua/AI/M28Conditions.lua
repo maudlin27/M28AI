@@ -244,7 +244,7 @@ function IsResourceBlockedByResourceBuilding(iResourceCategory, sResourceBluepri
 end
 
 function CanBuildStorageAtLocation(tLocation)
-    if M28Overseer.tAllActiveM28Brains[1]:CanBuildStructureAt('ueb1106', tLocation) == true then
+    if M28Overseer.tAllActiveM28Brains[1].CanBuildStructureAt and M28Overseer.tAllActiveM28Brains[1]:CanBuildStructureAt('ueb1106', tLocation) == true then
         return true
     else
         return not(IsResourceBlockedByResourceBuilding(M28UnitInfo.refCategoryStructure, 'ueb1106', tLocation))
@@ -254,7 +254,7 @@ end
 function CanBuildOnMexLocation(tMexLocation)
     --True if can build on mex location; will return true if aiBrain result is true
     --Want to use a function in case t urns out reclaim on a mex means aibrain canbuild returns false
-    if M28Overseer.tAllActiveM28Brains[1]:CanBuildStructureAt('urb1103', tMexLocation) == true then
+    if M28Overseer.tAllActiveM28Brains[1].CanBuildStructureAt and M28Overseer.tAllActiveM28Brains[1]:CanBuildStructureAt('urb1103', tMexLocation) == true then
         return true
     else
         return not(IsResourceBlockedByResourceBuilding(M28UnitInfo.refCategoryMex, 'urb1103', tMexLocation))
@@ -264,7 +264,7 @@ end
 function CanBuildOnHydroLocation(tHydroLocation)
     --True if can build on hydro; will return true if aiBrain result is true
     --Want to use a function in case t urns out reclaim on a hydro means aibrain canbuild returns false
-    if M28Overseer.tAllActiveM28Brains[1]:CanBuildStructureAt('ueb1102', tHydroLocation) == true then
+    if M28Overseer.tAllActiveM28Brains[1].CanBuildStructureAt and M28Overseer.tAllActiveM28Brains[1]:CanBuildStructureAt('ueb1102', tHydroLocation) == true then
         return true
     else
         --local iPlateau, iLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tHydroLocation)
@@ -344,7 +344,7 @@ function TeamHasLowMass(iTeam)
 end
 
 function HaveLowPower(iTeam)
-    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 0 or M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] < 0.5 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.15 and M28Team.tTeamData[iTeam][M28Team.subrefbTooLittleEnergyForUpgrade]) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < math.max((M28Economy.tiMinEnergyPerTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] or 0), M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] * 1.05) then
+    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 0 or M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] * 1.05 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.15 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] < 0.5 or M28Team.tTeamData[iTeam][M28Team.subrefbTooLittleEnergyForUpgrade] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < M28Economy.tiMinEnergyPerTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]])) then
         if not(M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower]) then
             return true
         else return false

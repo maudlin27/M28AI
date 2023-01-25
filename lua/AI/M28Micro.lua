@@ -281,7 +281,7 @@ function ConsiderDodgingShot(oUnit, oWeapon)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderDodgingShot'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-       
+
     if bDebugMessages == true then
         LOG(sFunctionRef..': Just fired, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit))
         if oWeapon.GetCurrentTarget then

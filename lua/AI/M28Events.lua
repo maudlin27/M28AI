@@ -293,7 +293,11 @@ function OnWorkEnd(self, work)
 end
 
 function OnEnhancementComplete(oUnit, sEnhancement)
-    --LOG('Enhancement completed for self='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; sEnhancement='..reprs(sEnhancement))
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'OnEnhancementComplete'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Enhancement completed for self='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; sEnhancement='..reprs(sEnhancement)) end
     M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit)
     M28UnitInfo.RecordUnitRange(oUnit) --Refresh the range incase enhancement has increased anything
     if oUnit:GetAIBrain().M28AI then
@@ -304,6 +308,9 @@ function OnEnhancementComplete(oUnit, sEnhancement)
         --Remove any upgrade tracking
         M28Team.UpdateUpgradeTrackingOfUnit(oUnit, true, sEnhancement)
     end
+    M28UnitInfo.RecordUnitRange(oUnit)
+    if bDebugMessages == true then LOG(sFunctionRef..': Unit DF range after updating recorded range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function OnShieldBubbleDamaged(self, instigator)

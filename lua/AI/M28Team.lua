@@ -1471,6 +1471,7 @@ function TeamInitialisation(iM28Team)
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZTEnemyUnits] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefMexCountByTech] = {[1]=0,[2]=0,[3]=0}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZTValue] = 0
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZAlliedACU] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZTThreatEnemyCombatTotal] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatEnemyBestMobileDFRange] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatEnemyBestStructureDFRange] = 0
@@ -1479,6 +1480,8 @@ function TeamInitialisation(iM28Team)
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZDFThreatWanted] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiRadarCoverage] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefQueuedBuildings] = {}
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatEnemyMobileDFTotal] = 0
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatEnemyMobileIndirectTotal] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatAllyMobileDFTotal] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatAllyMobileIndirectTotal] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatAllyGroundAA] = 0
@@ -1551,7 +1554,7 @@ function RefreshActiveBrainListForBrainDeath(oDefeatedBrain)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; brain '..oDefeatedBrain.Nickname..' has died, will update all teams for this, iTotalTeamCount='..iTotalTeamCount) end
     LOG('Brain death detected for '..oDefeatedBrain.Nickname)
     for iTeam = 1, iTotalTeamCount do
-        if IsAlly(oDefeatedBrain:GetArmyIndex(), tTeamData[iTeam][subreftoFriendlyActiveBrains][1]:GetArmyIndex()) then
+        if oDefeatedBrain.M28Team == iTeam then
             if M28Utilities.IsTableEmpty(tTeamData[iTeam][subreftoFriendlyActiveBrains]) == false then
 
                 for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveBrains] do
@@ -1570,7 +1573,7 @@ function RefreshActiveBrainListForBrainDeath(oDefeatedBrain)
                     end
                 end
             end
-        else
+        else --Enemy team
             if M28Utilities.IsTableEmpty(tTeamData[iTeam][subreftoEnemyBrains]) == false then
                 for iBrain, oBrain in tTeamData[iTeam][subreftoEnemyBrains] do
                     if oBrain == oDefeatedBrain then

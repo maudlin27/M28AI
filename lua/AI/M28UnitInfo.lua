@@ -493,7 +493,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                             iHealthFactor = iHealthPercentage --threat will be mass * iHealthFactor
                             --iMassCost = GetACUCombatMassRating(oUnit) --have already calculated this earlier
                             if bEnemyUnits then
-                                iOtherAdjustFactor = 1.15 --Want to send 15% more than what expect to need against enemy ACU given it can gain veterancy
+                                iOtherAdjustFactor = 1.10 --Want to allow for enemy ACU to be 10% higher threat due to potential of veterancy
                             else
                                 if iHealthPercentage < 0.5 then iHealthFactor = iHealthPercentage * iHealthPercentage
                                 elseif iHealthPercentage < 0.9 then iHealthFactor = iHealthPercentage * (iHealthPercentage + 0.1) end
@@ -1038,6 +1038,14 @@ function RecordUnitRange(oUnit)
                     end
                 else
                     M28Utilities.ErrorHandler('Unrecognised range category '..oCurWeapon.RangeCategory..' for unit '..oUnit.UnitId)
+                end
+            end
+        end
+        if M28Utilities.IsTableEmpty(oBP.Enhancements) == false and (oUnit[refiDFRange] or 0) > 0 then
+            --Check if we have a max range in an enhancement
+            for sEnhancement, tEnhancement in oBP.Enhancements do
+                if tEnhancement.NewMaxRadius and oUnit:HasEnhancement(sEnhancement) then
+                    oUnit[refiDFRange] = math.max(oUnit[refiDFRange], tEnhancement.NewMaxRadius)
                 end
             end
         end
