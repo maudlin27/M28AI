@@ -46,6 +46,8 @@ function GetUnitPlateauAndLandZoneOverride(oUnit)
     local sFunctionRef = 'GetUnitPlateauAndLandZoneOverride'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     local iPossiblePlateau
     local iPossibleLZ
     local iBestPlateau
@@ -55,22 +57,24 @@ function GetUnitPlateauAndLandZoneOverride(oUnit)
 
     if M28Utilities.IsTableEmpty(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) == false then
         for iTeam, tTeamPlateauAndLZ in oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam] do
-            if iTeam == oUnit:GetAIBrain().M28Team and M28Utilities.IsTableEmpty(tTeamPlateauAndLZ) == false then
-                iBestPlateau = tTeamPlateauAndLZ[1]
-                iBestLZ = tTeamPlateauAndLZ[2]
-                break
-            else
-                iPossiblePlateau = tTeamPlateauAndLZ[1]
-                iPossibleLZ = tTeamPlateauAndLZ[2]
+            if tTeamPlateauAndLZ[2] > 0 then
+                if iTeam == oUnit:GetAIBrain().M28Team and M28Utilities.IsTableEmpty(tTeamPlateauAndLZ) == false then
+                    iBestPlateau = tTeamPlateauAndLZ[1]
+                    iBestLZ = tTeamPlateauAndLZ[2]
+                    break
+                else
+                    iPossiblePlateau = tTeamPlateauAndLZ[1]
+                    iPossibleLZ = tTeamPlateauAndLZ[2]
+                end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Just considered iTeam='..iTeam..'; tTeamPlateauAndLZ='..repru(tTeamPlateauAndLZ)..'; iBestPlateau='..(iBestPlateau or 'nil')..'; iBestLZ='..(iBestLZ or 'nil')..'; iPossiblePlateau='..(iPossiblePlateau or 'nil')..'; iPossibleLZ='..(iPossibleLZ or 'nil')) end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': iBestPlateau='..(iBestPlateau or 'nil')..'; iBestLZ='..(iBestLZ or 'nil')..'; iPossiblePlateau='..(iPossiblePlateau or 'nil')..'; iPossibleLZ='..(iPossibleLZ or 'nil')) end
-        if iBestPlateau then
+        if iBestPlateau and iBestLZ then
             M28Map.AddLocationToPlateauExceptions(oUnit:GetPosition(), iBestPlateau, iBestLZ)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return true
-        elseif iPossiblePlateau then
+        elseif iPossiblePlateau and iPossibleLZ then
 
             M28Map.AddLocationToPlateauExceptions(oUnit:GetPosition(), iPossiblePlateau, iPossibleLZ)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -84,7 +88,7 @@ function GetUnitPlateauAndLandZoneOverride(oUnit)
         for iEntry, tAdjustXZ in tLocationAdjust do
             iPossiblePlateau, iPossibleLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition({ tBasePosition[1] + tAdjustXZ[1], tBasePosition[2], tBasePosition[3] + tAdjustXZ[2] })
             if bDebugMessages == true then LOG(sFunctionRef..': Considering tBasePosition='..repru(tBasePosition)..'; tAdjustXZ='..repru(tAdjustXZ)..'; iPossiblePlateau='..(iPossiblePlateau or 'nil')..'; iPossibleLZ='..(iPossibleLZ or 'nil')..'; NavUtils plateau for this position='..NavUtils.GetLabel(M28Map.refPathingTypeAmphibious, { tBasePosition[1] + tAdjustXZ[1], tBasePosition[2], tBasePosition[3] + tAdjustXZ[2] })) end
-            if (iPossiblePlateau or 0) > 0 then
+            if (iPossiblePlateau or 0) > 0 and (iPossibleLZ or 0) > 0 then
                 --LOG('Found a plateau override for oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at position '..repru(oUnit:GetPosition())..' and tAdjustXZ='..repru(tAdjustXZ))
                 M28Map.AddLocationToPlateauExceptions(oUnit:GetPosition(), iPossiblePlateau, iPossibleLZ)
                 break
