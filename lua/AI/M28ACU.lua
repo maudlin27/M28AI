@@ -448,8 +448,16 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
         local bAgainstEnemyACUAndMightWin = false
 
         --If we are closer to enemy base then require a greater threat differential
-        local iDistToFriendlyBase = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestFriendlyBase], oACU:GetPosition())
-        local iDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], oACU:GetPosition())
+        local iDistToFriendlyBase
+        local iDistToEnemyBase
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftClosestFriendlyBase]) == false then
+            iDistToFriendlyBase = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestFriendlyBase], oACU:GetPosition())
+            iDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], oACU:GetPosition())
+        else
+            --May e.g. be underwater and not have a LZ
+             iDistToFriendlyBase = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), M28Map.PlayerStartPoints[oACU:GetAIBrain():GetArmyIndex()])
+             iDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), M28Map.GetPrimaryEnemyBaseLocation(oACU:GetAIBrain()))
+        end
         local iPercentageToFriendlyBase = iDistToFriendlyBase / (iDistToFriendlyBase + iDistToEnemyBase)
 
         if tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] > 0 then
