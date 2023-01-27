@@ -350,7 +350,7 @@ function SearchForBuildableLocationsForLandZone(aiBrain, iPlateau, iLandZone, iS
     local sFunctionRef = 'SearchForBuildableLocationsForLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    --if iSize == 6 and iLandZone == 2 then bDebugMessages = true end
+
     local sGenericBlueprint =  tsBlueprintsBySize[iSize]
     if not(sGenericBlueprint) then
         if sBlueprint then
@@ -406,12 +406,12 @@ function GetAvailableLandZoneBuildLocations(aiBrain, tLocation, sBlueprint)
     local sFunctionRef = 'GetAvailableLandZoneBuildLocations'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    --if sBlueprint == 'xsb1201' then bDebugMessages = true end
+
 
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tLocation)
     if iLandZone > 0 then
         local iSize = M28UnitInfo.GetBuildingSize(sBlueprint)
-        --if iSize == 6 and iLandZone == 2 then bDebugMessages = true end
+
         --Have we tried to get a location for this size before?
         if bDebugMessages == true then LOG(sFunctionRef..': tLocation='..repru(tLocation)..'; sBlueprint='..sBlueprint..'; iSize='..iSize..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize]='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize])..'; Segments considered for build locations='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationSegmentCountBySize])..'; Total segments in LZ='..M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTotalSegmentCount]) end
         if not(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationsBySize][iSize]) or M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationSegmentCountBySize] < M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTotalSegmentCount] then
@@ -666,7 +666,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iCategoryToBuild, iM
             LOG(sFunctionRef..': Had category to build. oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; UC='..GetEngineerUniqueCount(oEngineer)..'; All blueprints that satisfy the category='..repru(EntityCategoryGetUnitList(iCategoryToBuild)))
         end
     else
-        --if sBlueprintToBuild == 'xsb1201' then bDebugMessages = true end
+
         --Adjust the search range and record key info needed for the search
         local tEngineerPosition = oEngineer:GetPosition()
         local tTargetLocation = (tAlternativePositionToLookFrom or tEngineerPosition)

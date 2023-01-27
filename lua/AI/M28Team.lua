@@ -100,6 +100,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefiRallyPointLandZonesByPlateau = 'M28TeamLZRallyPoint' --[x] is the plateau ref, y is the land zone ref
     refiTimeOfLastRallyPointRefresh = 'M28TeamRallyPointRefreshTime' --Game time in seconds that last refreshed rally points
     refiLastTimeNoShieldTargetsByPlateau = 'M28TeamLastTimeNoShieldTargets' --[x] is the plateau ref, returns gametime seconds
+    refiLastTimeNoStealthTargetsByPlateau = 'M28TeamLastTimeNoStealthTargets' --[x] is the plateau ref, returns gametime seconds
 
     --Air related
     reftoAllEnemyAir = 'M28TeamEnemyAirAll'
@@ -376,6 +377,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][subrefiAlliedIndirectThreat] = 0
     tTeamData[iTotalTeamCount][subrefiAlliedGroundAAThreat] = 0
     tTeamData[iTotalTeamCount][refiLastTimeNoShieldTargetsByPlateau] = {}
+    tTeamData[iTotalTeamCount][refiLastTimeNoStealthTargetsByPlateau] = {}
     tTeamData[iTotalTeamCount][refiEnemyHighestMobileLandHealth] = 300
 
 
@@ -743,7 +745,7 @@ end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --if bDebugMessages == true then M28Utilities.ErrorHandler('Audit trail', true) end
 
-    --if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'xes02051' and oUnit:GetAIBrain():GetArmyIndex() == 2 and GetGameTimeSeconds() >= 840 then bDebugMessages = true end
+
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, bIsEnemy='..tostring((bIsEnemy or false))..'; Unit brain index='..oUnit:GetAIBrain():GetArmyIndex()..'; Unit assigned pond='..(oUnit[refiAssignedPond] or 'nil')..'; Contains fixed pond category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryPondFixedCategory, oUnit.UnitId))) end
 
     if bIsEnemy or (oUnit:GetAIBrain().M28AI and (not(oUnit[refiAssignedPond]) or not(EntityCategoryContains(M28UnitInfo.refCategoryPondFixedCategory, oUnit.UnitId)))) then --and not(oUnit[reftisubrefsUpdatedFor][iM28TeamUpdatingFor])) then
@@ -1490,6 +1492,7 @@ function TeamInitialisation(iM28Team)
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiLZEnemyAirOtherThreat] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZMAAThreatWanted] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftoLZUnitsWantingMobileShield] = {}
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftoLZUnitsWantingMobileStealth] = {}
         end
     end
     TeamEconomyRefresh(iM28Team)

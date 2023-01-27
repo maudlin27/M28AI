@@ -637,7 +637,7 @@ function ManageMassStalls(iTeam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageMassStalls'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    --if GetGameTimeSeconds() >= 960 and (aiBrain:GetEconomyStoredRatio('ENERGY') <= 0.05 or aiBrain[refbStallingEnergy]) then bDebugMessages = true end
+
 
     local bPauseNotUnpause = true
     local bChangeRequired = false
@@ -1111,7 +1111,6 @@ function ManageEnergyStalls(iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
-    --if GetGameTimeSeconds() >= 1080 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] <= 0.05 or M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) then bDebugMessages = true end
 
     local bPauseNotUnpause = true
     local bChangeRequired = false

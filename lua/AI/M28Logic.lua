@@ -231,7 +231,7 @@ function IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisHea
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --Determines if target is under a shield
     --bCumulativeShieldHealth - if true, then will treat as being under a shield if all shields combined have health of at least iIgnoreShieldsWithLessThanThisHealth
-    --if oTarget.UnitId == 'urb4206' then bDebugMessages = true end
+
     if M28UnitInfo.IsUnitValid(oTarget) and oTarget.GetHealth then
         if bDebugMessages == true and EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oTarget.UnitId) then
             if oTarget.MyShield.GetHealth then

@@ -28,6 +28,8 @@ refiTimeOfLastAssignment = 'M28LandLastAssignmenttime' --returns gametimeseconds
 reftiRadarPlateauAndLandZonesCoveredByTeam = 'M28LandRadarLZs' --Returns talbes of {iPlateau, iLandZone} that the radar is providing the best radar coverage of
 refoAssignedMobileShield = 'M28LandAssignedMobileShield' --Gives the mobile shield assigned ot this unit
 refoMobileShieldTarget = 'M28LandMobileShieldTarget' --the unit that the mobile shield is trying to protect
+refoAssignedMobileStealth = 'M28LandAssignedMobileStealth' --If a mobile stealth is assigned to this unit, then returns the mobile stealth unit assigned
+refoMobileStealthTarget = 'M28LandMobileStealthTarget' --Against mobile stleaht units, returns the unit the mobile stealth is trying to cover
 
 function UpdateIfLandZoneWantsSupport(tLZTeamData, iPlateau, iLandZone, iTeam, bWantDFSupport, bWantIndirectSupport)
     tLZTeamData[M28Map.subrefbLZWantsSupport] = (bWantDFSupport or bWantIndirectSupport)
@@ -274,7 +276,7 @@ function RecordGroundThreatForLandZone(tLZTeamData, iTeam, iPlateau, iLandZone)
     M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] - tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]
 
 
-    --if iLandZone == 12 then bDebugMessages = true end
+
 
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code for iTeam='..iTeam..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTEnemyUnits]))) end
@@ -514,7 +516,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
     local sFunctionRef = 'ManageLandZoneScouts'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    --if iLandZone == 1 then bDebugMessages = true end
+
 
     tLZTeamData[M28Map.refbWantLandScout] = false
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want a land scout for iPlateau '..iPlateau..'; iLandZone='..iLandZone..'; bLandZoneContainsNonScouts='..tostring(bLandZoneContainsNonScouts or false)..'; Enemy combat threat='..tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal]..'; Is table of land scouts traveling here empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTScoutsTravelingHere]))..'; Is table of scouts currently in this LZ empty='..tostring(M28Utilities.IsTableEmpty(tScouts))) end
@@ -917,6 +919,115 @@ function SendMAAToSupportLandZone(tMAAToAdvance, iPlateau, iTeam, iLZToSupport)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function StealthUnitsInLandZone(tTeamTargetLZData, tStealthsToAssign, bAssignAllStealths)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'StealthUnitsInLandZone'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --local tTargetLandZone = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone][M28Map.subrefLZTeamData][iTeam]
+    local bNoUnitsWantingStealthing = true
+    if M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.subrefLZTAlliedCombatUnits]) and M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.reftoLZUnitsWantingMobileStealth]) then
+        M28Utilities.ErrorHandler('Are trying to send mobile Stealths to support a land zone that has no allied combat units in it and no units wanting Stealthing')
+    else
+        if M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.reftoLZUnitsWantingMobileStealth]) == false then
+            for iTarget, oTarget in tTeamTargetLZData[M28Map.reftoLZUnitsWantingMobileStealth] do
+                if not(oTarget[refoAssignedMobileStealth]) then
+                    if M28Utilities.IsTableEmpty(tStealthsToAssign) then
+                        bNoUnitsWantingStealthing = false
+                        break
+                    else
+                        --Assign the closest mobile Stealth
+                        local iCurDist
+                        local iClosestDist = 100000
+                        local iClosestRef
+
+                        for iStealth, oStealth in tStealthsToAssign do
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering entry iStealth='..iStealth..'; Stealth unit='..oStealth.UnitId..M28UnitInfo.GetUnitLifetimeCount(oStealth)) end
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oStealth:GetPosition(), oTarget:GetPosition())
+                            if iCurDist < iClosestDist then
+                                iClosestDist = iCurDist
+                                iClosestRef = iStealth
+                            end
+                            break
+                        end
+                        tStealthsToAssign[iClosestRef][refoMobileStealthTarget] = oTarget
+                        oTarget[refoAssignedMobileStealth] = tStealthsToAssign[iClosestRef]
+                        MoveToStealthTarget(tStealthsToAssign[iClosestRef], tTeamTargetLZData[M28Map.reftClosestEnemyBase])
+                        table.remove(tStealthsToAssign, iClosestRef)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have just removed Stealth with iClosestRef='..iClosestRef..' from the table of tStealthsToAssign; is table empty='..tostring(M28Utilities.IsTableEmpty(tStealthsToAssign))..'; size of table='..table.getn(tStealthsToAssign)) end
+                    end
+                end
+            end
+        end
+        if M28Utilities.IsTableEmpty(tStealthsToAssign) == false and bAssignAllStealths then
+            bNoUnitsWantingStealthing = true
+            --No units that want Stealthing - e.g. we might be telling mobile Stealths to defend here temporarily; dont assign the Stealths, instead just give them orders so they are still of some use
+            if M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.subrefLZTAlliedCombatUnits]) == false then
+                for iTarget, oTarget in tTeamTargetLZData[M28Map.subrefLZTAlliedCombatUnits] do
+                    if not(oTarget[refoAssignedMobileStealth]) then --redundancy
+                        --Assign the closest mobile Stealth
+                        local iCurDist
+                        local iClosestDist = 100000
+                        local iClosestRef
+
+                        for iStealth, oStealth in tStealthsToAssign do
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering entry iStealth='..iStealth..'; Stealth unit='..oStealth.UnitId..M28UnitInfo.GetUnitLifetimeCount(oStealth)) end
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oStealth:GetPosition(), oTarget:GetPosition())
+                            if iCurDist < iClosestDist then
+                                iClosestDist = iCurDist
+                                iClosestRef = iStealth
+                            end
+                            break
+                        end
+                        --Dont record the Stealth as helpin this unit, instead just have it move to the unit temporarily - so only change the variable so movetoStealthtarget works
+                        tStealthsToAssign[iClosestRef][refoMobileStealthTarget] = oTarget
+                        MoveToStealthTarget(tStealthsToAssign[iClosestRef], tTeamTargetLZData[M28Map.reftClosestEnemyBase])
+                        tStealthsToAssign[iClosestRef][refoMobileStealthTarget] = nil
+                        table.remove(tStealthsToAssign, iClosestRef)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Backup Stealth assignment - Have removed Stealth with iClosestRef='..iClosestRef..' from the table of tStealthsToAssign; is table empty='..tostring(M28Utilities.IsTableEmpty(tStealthsToAssign))..'; size of table='..table.getn(tStealthsToAssign)) end
+                        if M28Utilities.IsTableEmpty(tStealthsToAssign) then break end
+                    end
+                end
+
+                --Do we still have spare mobile Stealths?
+                if M28Utilities.IsTableEmpty(tStealthsToAssign) == false then
+                    --Get closest unit to enemy base and assign all remaining Stealths temporarily here
+                    local iCurDist
+                    local iClosestDist = 100000
+                    local oClosestToEnemyBase
+
+                    for iTarget, oTarget in tTeamTargetLZData[M28Map.subrefLZTAlliedCombatUnits] do
+                        if M28UnitInfo.IsUnitValid(oTarget) then
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oTarget:GetPosition(), tTeamTargetLZData[M28Map.reftClosestEnemyBase])
+                            if iCurDist < iClosestDist then
+                                iClosestDist = iCurDist
+                                oClosestToEnemyBase = oTarget
+                            end
+                        end
+                    end
+                    if oClosestToEnemyBase then
+                        local tEnemyBase = tTeamTargetLZData[M28Map.reftClosestEnemyBase]
+                        for iStealth, oStealth in tStealthsToAssign do
+                            --Dont record the Stealth as helpin this unit, instead just have it move to the unit temporarily - so only change the variable so movetoStealthtarget works
+                            if bDebugMessages == true then LOG(sFunctionRef..': About to tell Stealth '..(oStealth.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oStealth) or 'nil')..' to move towards oClosestToEnemyBase='..(oClosestToEnemyBase.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestToEnemyBase) or 'nil')) end
+                            oStealth[refoMobileStealthTarget] = oClosestToEnemyBase
+                            MoveToStealthTarget(oStealth, tEnemyBase)
+                            oStealth[refoMobileStealthTarget] = nil
+                            if bDebugMessages == true then LOG(sFunctionRef..': Backup Stealth assignment - have told Stealth '..oStealth.UnitId..M28UnitInfo.GetUnitLifetimeCount(oStealth)..' to go to the closest enemy in this LZ to enemy base='..oClosestToEnemyBase.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestToEnemyBase)) end
+                        end
+                    elseif bDebugMessages == true then LOG(sFunctionRef..': No friendly units close to enemy base - assuming this is termpoary due to unit being destroyed')
+                    end
+                end
+            end
+        end
+    end
+    if bNoUnitsWantingStealthing then
+        --Flag that this LZ no longer wants mobile Stealths
+        tTeamTargetLZData[M28Map.refbLZWantsMobileStealth] = false
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function ShieldUnitsInLandZone(tTeamTargetLZData, tShieldsToAssign, bAssignAllShields)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ShieldUnitsInLandZone'
@@ -1033,6 +1144,12 @@ function MoveToShieldTarget(oShield, tEnemyBase)
     M28Orders.IssueTrackedMove(oShield, M28Utilities.MoveInDirection(oShield[refoMobileShieldTarget]:GetPosition(), M28Utilities.GetAngleFromAToB(tEnemyBase,oShield[refoMobileShieldTarget]:GetPosition()), iShieldDistanceWanted, true, false), math.min(5, iShieldDistanceWanted - 1), false, 'ShU'..oShield[refoMobileShieldTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield[refoMobileShieldTarget]))
 end
 
+function MoveToStealthTarget(oStealth, tEnemyBase)
+    local oBP = oStealth:GetBlueprint()
+    local iStealthDistanceWanted = math.max(8, oBP.Intel.RadarStealthFieldRadius - 1 - oBP.Physics.MaxSpeed - (oStealth[refoMobileStealthTarget]:GetBlueprint().Physics.MaxSpeed or 0))
+    M28Orders.IssueTrackedMove(oStealth, M28Utilities.MoveInDirection(oStealth[refoMobileStealthTarget]:GetPosition(), M28Utilities.GetAngleFromAToB(tEnemyBase,oStealth[refoMobileStealthTarget]:GetPosition()), iStealthDistanceWanted, true, false), math.min(5, iStealthDistanceWanted - 1), false, 'ShU'..oStealth[refoMobileStealthTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oStealth[refoMobileStealthTarget]))
+end
+
 function ManageMobileShieldsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tMobileShields)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageMobileShieldsInLandZone'
@@ -1136,6 +1253,103 @@ function ManageMobileShieldsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
                         M28Utilities.ErrorHandler('couldnt find any land zones with friendly combat units so have nowhere to assign mobile shields; will send them all to the nearest rally point instead')
                         local tRallyPoint = GetNearestRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2)
                         for iUnit, oUnit in tShieldsToAssign do
+                            M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'SBckup'..iLandZone)
+                        end
+
+                    end
+
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ManageMobileStealthsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tMobileStealths)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ManageMobileStealthsInLandZone'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Size of tMobileStealths='..table.getn(tMobileStealths)) end
+
+    local tStealthsToAssign = {}
+    local tEnemyBase = tLZTeamData[M28Map.reftClosestEnemyBase]
+    if M28Utilities.IsTableEmpty(tEnemyBase) then
+        M28Utilities.ErrorHandler('Couldnt find enemy base, will try backup approach')
+        local iCurDist
+        local iClosestDist = 100000
+        local oClosestBrain
+        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
+            iCurDist = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefLZMidpoint], M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+            if iCurDist < iClosestDist then
+                iClosestDist = iCurDist
+                oClosestBrain = oBrain
+            end
+        end
+        tEnemyBase = M28Map.PlayerStartPoints[oClosestBrain:GetArmyIndex()]
+    end
+
+    for iUnit, oUnit in tMobileStealths do
+        if oUnit[refoMobileStealthTarget] and M28UnitInfo.IsUnitValid(oUnit[refoMobileStealthTarget]) then
+            --make sure we are behind the target
+            MoveToStealthTarget(oUnit, tEnemyBase)
+        else
+            table.insert(tStealthsToAssign, oUnit)
+        end
+    end
+    if M28Utilities.IsTableEmpty(tStealthsToAssign) == false then
+        --Cycle through every land zone and record priority ones to Stealth
+        if bDebugMessages == true then LOG(sFunctionRef..': Will give orders to tStealthsToAssign, size of table='..table.getn(tStealthsToAssign)) end
+        local tiClosestLZWithNearbyThreat = {}
+        local iClosestLZWithNoThreat
+        local iClosestLZNotWantingStealthButWithUnits
+        local iClosestLZWithAnyCombatUnits
+        if tLZTeamData[M28Map.subrefbLZWantsSupport] and not(tLZTeamData[M28Map.refbLZWantsMobileStealth]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedCombatUnits]) == false then iClosestLZNotWantingStealthButWithUnits = iLandZone end
+
+        for iEntry, tPathingDetails in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
+            local tTeamTargetLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tPathingDetails[M28Map.subrefLZNumber]][M28Map.subrefLZTeamData][iTeam]
+            if tTeamTargetLZData[M28Map.refbLZWantsMobileStealth] then
+                if tTeamTargetLZData[M28Map.refiLZEnemyAirToGroundThreat] > 0 or tTeamTargetLZData[M28Map.subrefLZTThreatEnemyCombatTotal] >= 40 then
+                    StealthUnitsInLandZone(tTeamTargetLZData, tStealthsToAssign)
+                    if M28Utilities.IsTableEmpty(tStealthsToAssign) then break end
+                elseif M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.subrefLZTEnemyUnits]) == false or tTeamTargetLZData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
+                    table.insert(tiClosestLZWithNearbyThreat, tPathingDetails[M28Map.subrefLZNumber])
+                elseif not(iClosestLZWithNoThreat) then iClosestLZWithNoThreat = tPathingDetails[M28Map.subrefLZNumber]
+                end
+            elseif not(iClosestLZNotWantingStealthButWithUnits) then
+                if tTeamTargetLZData[M28Map.subrefbLZWantsSupport] and M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.subrefLZTAlliedCombatUnits]) == false then iClosestLZNotWantingStealthButWithUnits = tPathingDetails[M28Map.subrefLZNumber] end
+                if not(iClosestLZWithAnyCombatUnits) and M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.subrefLZTAlliedCombatUnits]) == false then iClosestLZWithAnyCombatUnits = tPathingDetails[M28Map.subrefLZNumber] end
+            end
+
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished checking other zones we can path to for units wanting Stealthing, is tStealthsToAssign empty='..tostring(M28Utilities.IsTableEmpty(tStealthsToAssign))..'; Is M28Utilities.IsTableEmpty(tiClosestLZWithNearbyThreat) empty='..tostring(M28Utilities.IsTableEmpty(tiClosestLZWithNearbyThreat))) end
+        if M28Utilities.IsTableEmpty(tStealthsToAssign) == false then
+            if M28Utilities.IsTableEmpty(tiClosestLZWithNearbyThreat) == false then
+                for _, iTargetLZ in  tiClosestLZWithNearbyThreat do
+                    local tTeamTargetLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iTargetLZ][M28Map.subrefLZTeamData][iTeam]
+                    StealthUnitsInLandZone(tTeamTargetLZData, tStealthsToAssign)
+                    if M28Utilities.IsTableEmpty(tStealthsToAssign) then break end
+                end
+            end
+            if M28Utilities.IsTableEmpty(tStealthsToAssign) == false then
+                if iClosestLZWithNoThreat then
+                    local tTeamTargetLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iClosestLZWithNoThreat][M28Map.subrefLZTeamData][iTeam]
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have mobile Stealths to assign, closest LZ='..iClosestLZWithNoThreat..'; DOes this LZ want mobile Stealths='..tostring(tTeamTargetLZData[M28Map.refbLZWantsMobileStealth] or false)..'; is table of units wanting Stealthing empty='..tostring(M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.reftoLZUnitsWantingMobileStealth]))) end
+                    StealthUnitsInLandZone(tTeamTargetLZData, tStealthsToAssign)
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Is tStealthsToAssign empty after checking for closest LZ with no threat='..tostring(M28Utilities.IsTableEmpty(tStealthsToAssign))..'; iClosestLZNotWantingStealthButWithUnits='..(iClosestLZNotWantingStealthButWithUnits or 'nil')) end
+                if M28Utilities.IsTableEmpty(tStealthsToAssign) == false then
+                    M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoStealthTargetsByPlateau][iPlateau] = GetGameTimeSeconds()
+                    --Dont have any land zones that want a mobile Stealth, but we have mobile Stealths - find the closest LZ  that wants DF or IF support and has DF or IF units, and send them here; if that's this LZ, then have them go to the unit closest to the enemy in this LZ, but without assigning them
+                    if iClosestLZNotWantingStealthButWithUnits or iClosestLZWithAnyCombatUnits then
+                        local tTeamTargetLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][(iClosestLZNotWantingStealthButWithUnits or iClosestLZWithAnyCombatUnits)][M28Map.subrefLZTeamData][iTeam]
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have mobile Stealths to assign, closest LZ with friendly combat units that wants more units='..(iClosestLZNotWantingStealthButWithUnits or 'nil')..'; iClosestLZWithAnyCombatUnits='..(iClosestLZWithAnyCombatUnits or 'nil')..'; DOes this LZ want mobile Stealths='..tostring(tTeamTargetLZData[M28Map.refbLZWantsMobileStealth] or false)..'; is table of units wanting Stealthing empty='..tostring(M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.reftoLZUnitsWantingMobileStealth]))) end
+                        StealthUnitsInLandZone(tTeamTargetLZData, tStealthsToAssign, true)
+                    end
+                    if M28Utilities.IsTableEmpty(tStealthsToAssign) == false then
+                        M28Utilities.ErrorHandler('couldnt find any land zones with friendly combat units so have nowhere to assign mobile Stealths; will send them all to the nearest rally point instead')
+                        local tRallyPoint = GetNearestRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2)
+                        for iUnit, oUnit in tStealthsToAssign do
                             M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'SBckup'..iLandZone)
                         end
 
@@ -1297,7 +1511,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
     local sFunctionRef = 'ManageCombatUnitsInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iLandZone == 6 and GetGameTimeSeconds() >= 540 then bDebugMessages = true end
 
     if bDebugMessages == true then LOG(sFunctionRef..': start of code, iTeam='..iTeam..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is table of available combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))..'; iFriendlyBestMobileDFRange='..iFriendlyBestMobileDFRange..'; iFriendlyBestMobileIndirectRange='..iFriendlyBestMobileIndirectRange..'; Are there enemy units in this or adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])) end
 
@@ -1483,6 +1697,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
                 if tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] * 1.5 > M28UnitInfo.GetCombatThreatRating(tAvailableCombatUnits, false, true) then
                     bWantReinforcements = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Want reinforcements as enemy combat DF exceeds our combat rating, tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal]='..tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal]..'; Our combat units rating='..M28UnitInfo.GetCombatThreatRating(tAvailableCombatUnits, false, true)) end
                 end
 
                 if bUpdateNearestUnit then
@@ -1540,10 +1755,14 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     end
                     if iOurCombatThreat < iEnemyCombatThreat * 1.4 then
                         bWantReinforcements = true
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want reinforcements as iOurCombatThreat='..iOurCombatThreat..'; iEnemyCombatThreat='..iEnemyCombatThreat) end
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': We dont outrange enemy, considering if we have much more threat than them, iEnemyCombatThreat='..iEnemyCombatThreat..'; iOurCombatThreat='..iOurCombatThreat..'; bWantReinforcements='..tostring(bWantReinforcements)..'; bAttackWithEverything='..tostring(bAttackWithEverything)) end
                 else
-                    bWantReinforcements = true
+                    if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
+                        bWantReinforcements = true
+                        if bDebugMessages == true then LOG(sFunctionRef..': We have no friendly units in this LZ but enemy has units here or adjacent LZ so want reinforcements') end
+                    end
                     bAttackWithEverything = false
                 end
 
@@ -1649,7 +1868,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
         if M28Utilities.IsTableEmpty(tIndirectUnits) then iIndirectLZToSupport = -1 end
 
 
-        if bDebugMessages == true then LOG(sFunctionRef..': Dont have any enemy units in this LZ, so will consider supporting other land zones, is tDFUnits empty='..tostring(M28Utilities.IsTableEmpty(tDFUnits))..'; Is adjacent LZ empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]))) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Dont have any enemy units in this LZ or adjacent LZ, so will consider supporting other land zones, is tDFUnits empty='..tostring(M28Utilities.IsTableEmpty(tDFUnits))..'; Is adjacent LZ empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]))) end
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
             for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                 if not(iIndirectLZToSupport) and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsIndirectSupport] then
@@ -1761,8 +1980,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             if bDebugMessages == true then LOG(sFunctionRef..': Finished checking override for reinforcement type, bWantDFReinforcements='..tostring(bWantDFReinforcements)..'; bWantIndirectReinforcements='..tostring(bWantIndirectReinforcements)..'; iEnemyStructureThreatTotal='..iEnemyStructureThreatTotal..'; tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]='..tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]='..tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]='..tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]) end
         end
     end
-
     UpdateIfLandZoneWantsSupport(tLZTeamData, iPlateau, iLandZone, iTeam, bWantDFReinforcements, bWantIndirectReinforcements)
+    if bDebugMessages == true then LOG(sFunctionRef..': Just recorded if this LZ wants support, bWantDFReinforcements='..tostring(bWantDFReinforcements)..'; bWantIndirectReinforcements='..tostring(bWantIndirectReinforcements)..'; tLZTeamData[M28Map.subrefbLZWantsSupport] = '..tostring(tLZTeamData[M28Map.subrefbLZWantsSupport])..'; tLZTeamData[M28Map.subrefbLZWantsDFSupport]='..tostring(tLZTeamData[M28Map.subrefbLZWantsDFSupport])) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -1770,6 +1989,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageSpecificLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
 
 
     --Record enemy threat
@@ -1782,8 +2002,10 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
     tLZTeamData[M28Map.subrefLZTAlliedCombatUnits] = {}
     tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield] = {}
     tLZTeamData[M28Map.refbLZWantsMobileShield] = false --will change later
+    tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth] = {}
+    tLZTeamData[M28Map.refbLZWantsMobileStealth] = false --will change later
 
-    local tEngineers, tScouts, tMobileShields
+    local tEngineers, tScouts, tMobileShields, tMobileStealths
     local bLandZoneOrAdjHasUnitsWantingScout = false
     if bDebugMessages == true then LOG(sFunctionRef..': Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]))) end
     local bUpdateEnemyDataHere = true --Will handle this logic in logic for managing land zone units if htis is false
@@ -1792,6 +2014,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
         tEngineers = {}
         tScouts = {}
         tMobileShields = {}
+        tMobileStealths = {}
         local tAvailableCombatUnits = {}
         local tUnavailableUnitsInThisLZ = {}
         local tTempOtherUnits = {}
@@ -1804,6 +2027,10 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
 
         local iMobileShieldMassThreshold = 150 --When assigning mobile shields will also restrict further so e.g. seraphim mobile shields will have a higher threshold
         local iMobileShieldHigherMAAMassThreshold = 400 --for if we have MAA and enemy doesnt have much air threat
+        local iMobileStealthMassThreshold = 200 --will get adjusted further
+        local iMobileStealthHigherMassThreshold = 500 --i.e. wont stealth loyalists and titans
+        local iUnitMassCost
+        local iMobileStealthLowerThresholdCount = 0 --Used to avoid assigning too many mobile stealth at once to units not exceeding the higher mass threshold
         if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 600 and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 2000 or tLZTeamData[M28Map.refiLZEnemyAirToGroundThreat] > 0) then iMobileShieldHigherMAAMassThreshold = iMobileShieldMassThreshold end
 
 
@@ -1815,10 +2042,13 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                 --ACU logic - handled via M28ACU file, as amy not want to kite with it
                 bLandZoneOrAdjHasUnitsWantingScout = true
                 table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
+                table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth], oUnit)
             elseif EntityCategoryContains(M28UnitInfo.refCategoryLandScout, oUnit.UnitId) then
                 table.insert(tScouts, oUnit)
             elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileLandShield, oUnit.UnitId) then
                 table.insert(tMobileShields, oUnit)
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileLandStealth, oUnit.UnitId) then
+                table.insert(tMobileStealths, oUnit)
             elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryMobileLand - categories.COMMAND - M28UnitInfo.refCategoryRASSACU, oUnit.UnitId) then
                 --Tanks, skirmishers, and indirect fire units - handled by main combat unit manager
                 bIncludeUnit = false
@@ -1846,8 +2076,21 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                     else
                         table.insert(tUnavailableUnitsInThisLZ, oUnit)
                     end
-                    if oUnit:GetBlueprint().Economy.BuildCostMass >= iMobileShieldMassThreshold and (iMobileShieldHigherMAAMassThreshold == iMobileShieldMassThreshold or not(EntityCategoryContains(M28UnitInfo.refCategoryMAA, oUnit.UnitId)) or oUnit:GetBlueprint().Economy.BuildCostMass >= iMobileShieldHigherMAAMassThreshold) then
+                    iUnitMassCost =
+                    oUnit:GetBlueprint().Economy.BuildCostMass
+                    if iUnitMassCost >= iMobileShieldMassThreshold and (iUnitMassCost >= iMobileShieldHigherMAAMassThreshold or iMobileShieldHigherMAAMassThreshold == iMobileShieldMassThreshold or not(EntityCategoryContains(M28UnitInfo.refCategoryMAA, oUnit.UnitId))) then
                         table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
+                    end
+                    if iUnitMassCost >= iMobileStealthHigherMassThreshold then
+                        table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth], oUnit)
+                    elseif iUnitMassCost >= iMobileStealthMassThreshold and EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryIndirect - categories.TECH1, oUnit.UnitId) then
+                        --Only say we want a mobile shield if the unit doesnt have one assigned
+                        iMobileStealthLowerThresholdCount = iMobileStealthLowerThresholdCount + 1
+
+                        if iMobileStealthLowerThresholdCount >= 3 or oUnit[refoAssignedMobileStealth] then
+                            iMobileStealthLowerThresholdCount = 0
+                            table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth], oUnit)
+                        end
                     end
                 end
             elseif EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) then
@@ -1877,6 +2120,24 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
         end
         if M28Utilities.IsTableEmpty(tMobileShields) == false then
             ManageMobileShieldsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tMobileShields)
+        end
+        --Mobile stealth data:
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth]) == false then
+            for iUnit, oUnit in tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth] do
+                if oUnit[refoAssignedMobileStealth] then
+                    if not(M28UnitInfo.IsUnitValid(oUnit[refoAssignedMobileStealth])) then
+                        oUnit[refoAssignedMobileStealth] = nil
+                        tLZTeamData[M28Map.refbLZWantsMobileStealth] = true
+                        if bDebugMessages == true then LOG(sFunctionRef..': Recording that the land zone '..iLandZone..' wants mobile Stealths as a unit that had a mobile Stealth no longerh as a valid one') end
+                    end
+                else
+                    tLZTeamData[M28Map.refbLZWantsMobileStealth] = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Recording that the land zone '..iLandZone..' wants mobile Stealths as it has a unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' that doesnt have an assigned mobile Stealth yet') end
+                end
+            end
+        end
+        if M28Utilities.IsTableEmpty(tMobileStealths) == false then
+            ManageMobileStealthsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tMobileStealths)
         end
 
         local iCurDFThreat = 0
@@ -1987,6 +2248,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
             if tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] > 0 then bWantIndirectSupport = true end
             if not(bWantIndirectSupport) or tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] > 0 or tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] > 0 then bWantDFSupport = true end
             UpdateIfLandZoneWantsSupport(tLZTeamData, iPlateau, iLandZone, iTeam, bWantDFSupport, bWantIndirectSupport)
+            if bDebugMessages == true then LOG(sFunctionRef..': Will update if this land zone wants some DF support='..tostring(bWantDFSupport)..'; bWantIndirectSupport='..tostring(bWantIndirectSupport)) end
         else
             UpdateIfLandZoneWantsSupport(tLZTeamData, iPlateau, iLandZone, iTeam, false, false)
         end

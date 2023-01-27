@@ -198,7 +198,8 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             --Shield and stealth
             refbLZWantsMobileShield = 'MobSh' --true if LZ wants mobile shields
             reftoLZUnitsWantingMobileShield = 'UMobSh' --table of units in the LZ that want mobile shield
-            refbLZWantsStealth = 'MobSt' --true if LZ wants mobile stealth
+            refbLZWantsMobileStealth = 'MobSt' --true if LZ wants mobile stealth
+            reftoLZUnitsWantingMobileStealth = 'UMobSt' --table of units in the LZ that want mobile stealth
             --Misc
             reftClosestFriendlyBase = 'ClosestFB' --Position of the closest friendly start position
             reftClosestEnemyBase = 'ClosestEB' --Closest enemy start position
@@ -1236,8 +1237,9 @@ local function AssignMexesALandZone()
     if iMaxMapSize > 1024 then --1024 is 20k, so this is 40k or 80k
         iNearbyMexRange = 54
     elseif iMaxMapSize > 512 then --i.e. 20k
-        iNearbyMexRange = 42
-    else iNearbyMexRange = 34
+        iNearbyMexRange = 46
+    elseif iMaxMapSize > 256 then iNearbyMexRange = 42
+    else iNearbyMexRange = 35
     end
 
     if bDebugMessages == true then LOG('About to setup land zones') end
@@ -1250,7 +1252,10 @@ local function AssignMexesALandZone()
     --Subfunction - if we have a mex to assign to a land zone then this subfunction should be called to check for any nearby mexes without a zone and assign these to the same zone
     function AddNearbyMexesToLandZone(iPlateau, iCurLandZone, tMex, iRecursiveCount)
         local iLandGroupWanted = NavUtils.GetLabel(refPathingTypeLand, tMex)
-        local iMaxRange = math.max(15, iNearbyMexRange - iRecursiveCount * 2)
+        local iMaxRange
+        if iRecursiveCount <= 1 then iMaxRange = math.max(15, iNearbyMexRange)
+        else iMaxRange = math.max(15, iNearbyMexRange - iRecursiveCount * 2)
+        end
         for iAltMex, tAltMex in tAllPlateaus[iPlateau][subrefPlateauMexes] do
             if not(tiPlateauLandZoneByMexRef[iPlateau][iAltMex]) then
                 if NavUtils.GetLabel(refPathingTypeLand, tAltMex) == iLandGroupWanted and not(IsUnderwater(tAltMex, false, 0.1)) then
@@ -2133,7 +2138,7 @@ local function SetupLandZones()
     --To return both the plateau reference, and the land zone reference, of a position tPosiiton, use the function GetPlateauAndLandZoneReferenceFromPosition(tPosition) (which will return nil if it doesnt have a value)
 
 
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SetupLandZones'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of land zone generation, system time='..GetSystemTimeSecondsOnlyForProfileUse()) end

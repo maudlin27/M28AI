@@ -145,7 +145,6 @@ function IsEngineerAvailable(oEngineer)
     local sFunctionRef = 'IsEngineerAvailable'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    --if oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer) == 'uel010510' then bDebugMessages = true end
 
 
     if bDebugMessages == true then
