@@ -92,7 +92,8 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
             if oUnitKilled.GetAIBrain then
                 OnUnitDeath(oUnitKilled) --Ensure this is run when a unit dies
 
-                --[[local oKillerUnit
+                --were we killed by something?
+                local oKillerUnit
 
                 if instigator and not(instigator:BeenDestroyed()) and not(instigator.Dead) then
                     if instigator.Launcher then
@@ -106,14 +107,22 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                     elseif IsUnit(instigator) then
                         oKillerUnit = instigator
                     end
-                end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have an instigator, checking if have valid killer unit. Is valid='..tostring(M28UnitInfo.IsUnitValid(oKillerUnit))) end
+                    if oKillerUnit and oKillerUnit.GetAIBrain then
 
-                if IsUnit(oKillerUnit) then
-                    local oKillerBrain = instigator:GetAIBrain()
-                    if oKillerBrain.M28AI then
-                        --TODO - consider adding in logic e.g. chat messages and tracking
+                        --Non-M28 specific killer logic:
+                        --T2 arti firebase tracking if they get lots of kills:
+                        if oUnitKilled:GetAIBrain().M28AI then
+                            if EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oKillerUnit.UnitId) then M28Land.ConsiderIfHaveEnemyFirebase(oUnitKilled:GetAIBrain().M28Team, oKillerUnit) end
+                        end
+
+                        --M28 specific killer logic
+                        local oKillerBrain = instigator:GetAIBrain()
+                        if oKillerBrain.M28AI then
+                            --TODO - consider adding in logic e.g. chat messages and tracking
+                        end
                     end
-                end--]]
+                end
             elseif bDebugMessages == true then LOG(sFunctionRef..': Unit killed doesnt have a brain')
             end
         end
@@ -228,6 +237,9 @@ function OnUnitDeath(oUnit)
                         ForkThread(M28Land.UpdateRadarCoverageForDestroyedRadar, oUnit)
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryWall, oUnit.UnitId) and not(oUnit:GetAIBrain().M28AI) then
                         M28Land.TrackWallSegment(oUnit, false)
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) then
+                        --For each M28 team with active M28AI consider if we have a firebase
+                        M28Land.ConsiderIfAnyEnemyTeamsStillHaveFirebaseOnT2ArtiDeath(oUnit)
                     end
                     --Ythotha deathball avoidance
                     --Note -seraphimunits.lua contains SEnergyBallUnit which looks like it is for when the death ball is spawned; ID is XSL0402; SpawnElectroStorm is in the ythotha script

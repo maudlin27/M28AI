@@ -168,6 +168,8 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefbLZWantsDFSupport = 'LZWantsDFSupport' --true if want DF units for the LZ
             subrefbLZWantsIndirectSupport = 'LZWantsIndirectSupport' --true if want indirect units for the LZ
 
+            subreftEnemyFirebasesInRange = 'LZEnemyFirebasesInRange' --[x] is just a count (1,2,3), returns {iPlateau, iLandZone} of the firebase
+
             --Engineer related values
             subreftoPartBuiltMexes = 'PBMex' --If we are building a mex and the builder gets its orders cleared or dies, and it was building a mex, then the mex should be recorded in a table so it can be rebuilt
             subrefLZTbWantBP = 'WantBP' --true if we want BP at any tech level
@@ -2146,7 +2148,7 @@ local function SetupLandZones()
     --To return both the plateau reference, and the land zone reference, of a position tPosiiton, use the function GetPlateauAndLandZoneReferenceFromPosition(tPosition) (which will return nil if it doesnt have a value)
 
 
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SetupLandZones'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of land zone generation, system time='..GetSystemTimeSecondsOnlyForProfileUse()) end

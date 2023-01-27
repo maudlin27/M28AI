@@ -428,6 +428,7 @@ function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, 
     local sFunctionRef = 'CloseToEnemyUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
     local iCurDist
     if bDebugMessages == true then
         LOG(sFunctionRef..': tStartPosition='..repru(tStartPosition)..'; Size of tUnitsToCheck='..table.getn(tUnitsToCheck)..'; iDistThreshold='..iDistThreshold..'; bIncludeEnemyDFRange='..tostring(bIncludeEnemyDFRange or false))
@@ -437,7 +438,7 @@ function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, 
     end
     for iUnit, oUnit in tUnitsToCheck do
         iCurDist = M28Utilities.GetDistanceBetweenPositions(tStartPosition, oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])
-        if bIncludeEnemyDFRange then iCurDist = iCurDist - (oUnit[M28UnitInfo.refiDFRange] or 0) end
+
         if (bIncludeEnemyDFRange and (iCurDist - (oUnit[M28UnitInfo.refiDFRange] or 0) <= iDistThreshold or iCurDist <= (iAltThresholdToDFRange or 0))) or (not(bIncludeEnemyDFRange) and iCurDist <= iDistThreshold) then
             if bDebugMessages == true then LOG(sFunctionRef..': Are close to unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

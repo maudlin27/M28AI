@@ -314,9 +314,16 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iTargetLand
                     --Only consider amphibious indirect (so most factions wont build anything)
                     iBaseCategoryWanted = M28UnitInfo.refCategoryIndirect * categories.AMPHIBIOUS + M28UnitInfo.refCategoryIndirect * categories.HOVER
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Will get Indirect') end
+                --If enemy has a firebase in range then cancel request for indirect
+                if not(tLZTargetTeamData[M28Map.subrefLZTCoreBase]) and M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.subreftEnemyFirebasesInRange]) == false then
+                    iBaseCategoryWanted = nil
+                    if bDebugMessages == true then LOG(sFunctionRef..': Are in range of a firebase so wont get indirect afterall') end
+                else
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will get Indirect') end
+                end
             end
-        else
+        end
+        if not(iBaseCategoryWanted) then
             --We dont want indirect fire units, do we want MAA units?
             if bDebugMessages == true then LOG(sFunctionRef..': Dont want indirect fire, do we want MAA? M28Map.subrefLZThreatAllyGroundAA='..tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA]..'; M28Map.subrefLZMAAThreatWanted='..tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted]..'; tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA]='..reprs(tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA])..'; tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted]='..tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted]) end
             if not(bDontConsiderBuildingMAA) and tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA] < tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted] and (M28UnitInfo.GetUnitTechLevel(oFactory) >= 2 or (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoAllEnemyAir]) == false and (not(bDontConsiderBuildingMAA) or tLZTargetTeamData[M28Map.refiLZEnemyAirToGroundThreat] > 0))) then
@@ -333,6 +340,10 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iTargetLand
                     local iTechCategory = M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)
 
                     iBaseCategoryWanted = M28UnitInfo.refCategorySkirmisher * iTechCategory
+                    if not(tLZTargetTeamData[M28Map.subrefLZTCoreBase]) and M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.subreftEnemyFirebasesInRange]) == false then
+                        iBaseCategoryWanted = M28UnitInfo.refCategoryDFTank
+                        if bDebugMessages == true then LOG(sFunctionRef..': Are in range of a firebase so wont get indirect afterall') end
+                    end
                     if not(GetBlueprintsThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory)) then
                         iBaseCategoryWanted = M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategorySkirmisher
                     else

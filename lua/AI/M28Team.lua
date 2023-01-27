@@ -93,6 +93,9 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refbEnemyHasPerciesOrBricks = 'M28TeamEnemyHasBrickOrPercy' --true if enemy has percy or brick unit at any time in the game
     refiEnemyHighestMobileLandHealth = 'M28TeamEnemyHighestMobileLandHealth' --Used to calculate storage wanted
     refbDangerousForACUs = 'M28TeamDangerousForACUs' --True if are big threats that mean we should keep ACU at base
+    reftEnemyFirebaseByPlateauAndLZ = 'M28TeamEnemyFirebase' --[x] is the plateua, [y] is the LZ, returns the below subrefs
+        subrefiNearbyPlateauAndLandZones = 'NrbyPLZ' --ordered 1, 2 etc. in order that added, returning {iPlateau, iLandZone} for any land zone that shoudl consider itself in range of the firebase in question
+        subrefbInRangeOfCoreLZ = 'NearCLZ' --true if one of the land zones this firebase is likely in range of is a core land zone
 
     --Land combat related
     subrefiLandZonesWantingSupportByPlateau = 'M28TeamLZWantingSupport' --[x] is the plateau ref, [y] is the land zone ref, returns true if we want support for the plateau
@@ -379,6 +382,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][refiLastTimeNoShieldTargetsByPlateau] = {}
     tTeamData[iTotalTeamCount][refiLastTimeNoStealthTargetsByPlateau] = {}
     tTeamData[iTotalTeamCount][refiEnemyHighestMobileLandHealth] = 300
+    tTeamData[iTotalTeamCount][reftEnemyFirebaseByPlateauAndLZ] = {}
 
 
     local bHaveM28BrainInTeam = false
@@ -505,6 +509,10 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
                 table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.reftLZEnemyAirUnits], oUnit)
             else
                 table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTEnemyUnits], oUnit)
+                --T2 arti tracking - consider firebase
+                if EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) then
+                    M28Land.ConsiderIfHaveEnemyFirebase(aiBrain.M28Team, oUnit)
+                end
             end
         elseif IsAlly(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
             table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTAlliedUnits], oUnit)
@@ -579,6 +587,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
         if not(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam]) then oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam] = {} end
         if not(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][aiBrain.M28Team]) then
             oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][aiBrain.M28Team] = true
+            --Record if we are at the stage of the game where experimentals/similar high threats for ACU are present
             if not(tTeamData[aiBrain.M28Team][refbDangerousForACUs]) then
                 if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId) then
                     tTeamData[aiBrain.M28Team][refbDangerousForACUs] = true
@@ -1493,6 +1502,7 @@ function TeamInitialisation(iM28Team)
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZMAAThreatWanted] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftoLZUnitsWantingMobileShield] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftoLZUnitsWantingMobileStealth] = {}
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subreftEnemyFirebasesInRange] = {}
         end
     end
     TeamEconomyRefresh(iM28Team)
