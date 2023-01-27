@@ -1232,15 +1232,23 @@ local function AssignMexesALandZone()
 
     --Key config values
     local iNearbyMexRange --Initially mexes will be grouped together based on this, i.e. will assign mexes within this distance of each other to the same land zone
+    local iRecursiveFactor
     --rMapPlayableArea = {0,0, 256, 256} --{x1,z1, x2,z2}
     local iMaxMapSize = math.max(rMapPlayableArea[3] - rMapPlayableArea[1], rMapPlayableArea[4] - rMapPlayableArea[2])
     if iMaxMapSize > 1024 then --1024 is 20k, so this is 40k or 80k
         iNearbyMexRange = 54
+        iRecursiveFactor = 4
     elseif iMaxMapSize > 512 then --i.e. 20k
         iNearbyMexRange = 46
-    elseif iMaxMapSize > 256 then iNearbyMexRange = 42
-    else iNearbyMexRange = 35
+        iRecursiveFactor = 3.5
+    elseif iMaxMapSize > 256 then
+        iNearbyMexRange = 42
+        iRecursiveFactor = 3
+    else
+        iNearbyMexRange = 35
+        iRecursiveFactor = 2
     end
+
 
     if bDebugMessages == true then LOG('About to setup land zones') end
 
@@ -1254,7 +1262,7 @@ local function AssignMexesALandZone()
         local iLandGroupWanted = NavUtils.GetLabel(refPathingTypeLand, tMex)
         local iMaxRange
         if iRecursiveCount <= 1 then iMaxRange = math.max(15, iNearbyMexRange)
-        else iMaxRange = math.max(15, iNearbyMexRange - iRecursiveCount * 2)
+        else iMaxRange = math.max(15, iNearbyMexRange - iRecursiveCount * iRecursiveFactor)
         end
         for iAltMex, tAltMex in tAllPlateaus[iPlateau][subrefPlateauMexes] do
             if not(tiPlateauLandZoneByMexRef[iPlateau][iAltMex]) then
