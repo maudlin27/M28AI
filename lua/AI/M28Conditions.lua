@@ -458,19 +458,22 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
     if bDebugMessages == true then LOG(sFunctionRef..': Checking if want more factories at gamttime '..GetGameTimeSeconds()..' for iTeam='..iTeam..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Mass % stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]..'; Land fac count='..M28Team.tTeamData[iTeam][M28Team.subrefiTotalFactoryCountByType][M28Factory.refiFactoryTypeLand]..'; Gross mass count='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Highest factory tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
     local tiFactoryToMassByTechRatioWanted = {[1] = 0.8, [2] = 1.8, [3] = 4.8}
     if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.05 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.01 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) == false and table.getn(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) >= 3))  and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.4 or (M28Team.tTeamData[iTeam][M28Team.subrefiTotalFactoryCountByType][M28Factory.refiFactoryTypeLand] + M28Team.tTeamData[iTeam][M28Team.subrefiTotalFactoryCountByType][M28Factory.refiFactoryTypeAir] <= math.max(4 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount], M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * tiFactoryToMassByTechRatioWanted[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]])) or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 and GetGameTimeSeconds() <= 600)) then
-        --If we dont have at least 25% mass stored, do we have an enemy in the same plateau as us who is within 300 land travel distance?
-        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] < 0.25 then
-            local iStartPlateau, iStartLandZone
-            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
-                iStartPlateau, iStartLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
-                if iStartPlateau == iPlateau and iStartLandZone > 0 then
-                    if M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iStartLandZone) <= 350 then
-                        return true
+        --If enemy has a firebase then dont want more factories if dont have lots of mass
+        if not(WantToEcoDueToEnemyFirebase(iTeam, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam], iPlateau)) then
+            --If we dont have at least 25% mass stored, do we have an enemy in the same plateau as us who is within 300 land travel distance?
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] < 0.25 then
+                local iStartPlateau, iStartLandZone
+                for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
+                    iStartPlateau, iStartLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+                    if iStartPlateau == iPlateau and iStartLandZone > 0 then
+                        if M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iStartLandZone) <= 350 then
+                            return true
+                        end
                     end
                 end
+            else
+                return true
             end
-        else
-            return true
         end
     end
     return false
@@ -523,4 +526,23 @@ function CanUnitUseOvercharge(aiBrain, oUnit)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return bCanUseOC
+end
+
+function WantToEcoDueToEnemyFirebase(iTeam, tLZTeamData, iPlateau)
+    local bEnemyHasFirebaseAwayFromCoreLZ = false --true if enemy both has a firebase, and we dont have a firebase in range of this LZ or a core LZ
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau]) == false then
+        bEnemyHasFirebaseAwayFromCoreLZ = true
+        for iFBLZ, tSubtable in M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau] do
+            if tSubtable[M28Team.subrefbInRangeOfCoreLZ] then bEnemyHasFirebaseAwayFromCoreLZ = false end
+        end
+        if bEnemyHasFirebaseAwayFromCoreLZ then
+            --If we have any <T3 mexes in this LZ then eco
+            if tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] > 0 then
+                if TeamHasLowMass(iTeam) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] < 0.4 then
+                    return true
+                end
+            end
+        end
+    end
+    return false
 end

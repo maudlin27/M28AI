@@ -540,14 +540,8 @@ end
 
 function IssueTrackedKillUnit(oUnit)
     IssueTrackedClearCommands(oUnit)
-    if oUnit[reftiLastOrders] then
-        if bAddToExistingQueue then
-            tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]]
-        else tLastOrder = oUnit[reftiLastOrders][1]
-        end
-    end
-    oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
-    table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderKill})
+    oUnit[refiOrderCount] = 1
+    oUnit[reftiLastOrders] = {{[subrefiOrderType] = refiOrderKill}}
     oUnit:Kill()
 end
 

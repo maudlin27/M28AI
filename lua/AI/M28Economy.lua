@@ -639,6 +639,7 @@ function ManageMassStalls(iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
+
     local bPauseNotUnpause = true
     local bChangeRequired = false
     local iUnitsAdjusted = 0
@@ -693,7 +694,12 @@ function ManageMassStalls(iTeam)
                 else
                     iMassPerTickSavingNeeded = math.min(-1, -M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] * 1.2, -M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] / 20)
                 end
-                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.15 then iMassPerTickSavingNeeded = iMassPerTickSavingNeeded * 1.2 - 0.5 end
+                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.15 then
+                    iMassPerTickSavingNeeded = iMassPerTickSavingNeeded * 1.2 - 0.5
+                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 4000 then iMassPerTickSavingNeeded = iMassPerTickSavingNeeded - 1 end
+                end
+                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 2000 then iMassPerTickSavingNeeded = iMassPerTickSavingNeeded - 1 end
+                if bDebugMessages == true then LOG(sFunctionRef..': Want to unpause units, iMassPerTickSavingNeeded (negative means unpausing units)='..iMassPerTickSavingNeeded) end
             end
 
             local iMassSavingManaged = 0
@@ -1054,7 +1060,7 @@ function ManageMassStalls(iTeam)
                     LOG(sFunctionRef .. ': About to check if we wanted to unpause units but havent unpaused anything; iUnitsAdjusted=' .. iUnitsAdjusted .. '; bNoRelevantUnits=' .. tostring(bNoRelevantUnits) .. '; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]))
                 end
                 --Backup - sometimes we still have units in the table listed as being paused (e.g. if an engineer changes action to one that isnt listed as needing pausing) - unpause them if we couldnt find via category search
-                if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] and not (bPauseNotUnpause) and (iUnitsAdjusted == 0 or bNoRelevantUnits) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.03 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] >= 0.9 then
+                if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] and not (bPauseNotUnpause) and (iMassSavingManaged > iMassPerTickSavingNeeded or iUnitsAdjusted == 0 or bNoRelevantUnits) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.03 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] >= 0.9 then
                     --Have a decent amount of mass, are flagged as stalling mass, but couldnt find any categories to unpause
                     if bDebugMessages == true then
                         LOG(sFunctionRef .. ': werent able to find any units to unpause with normal approach so will unpause all remaining units')
@@ -1566,7 +1572,7 @@ function ManageEnergyStalls(iTeam)
                     LOG(sFunctionRef .. ': About to check if we wanted to unpause units but havent unpaused anything; iUnitsAdjusted=' .. iUnitsAdjusted .. '; bNoRelevantUnits=' .. tostring(bNoRelevantUnits) .. '; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]))
                 end
                 --Backup - sometimes we still have units in the table listed as being paused (e.g. if an engineer changes action to one that isnt listed as needing pausing) - unpause them if we couldnt find via category search
-                if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] and not (bPauseNotUnpause) and (iUnitsAdjusted == 0 or bNoRelevantUnits) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] >= 0.95 then
+                if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] and not (bPauseNotUnpause) and (iEnergySavingManaged > iEnergyPerTickSavingNeeded or iUnitsAdjusted == 0 or bNoRelevantUnits) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] >= 0.95 then
                     --Have a decent amount of power, are flagged as stalling energy, but couldnt find any categories to unpause
                     if bDebugMessages == true then
                         LOG(sFunctionRef .. ': werent able to find any units to unpause with normal approach so will unpause all remaining units for all M28 brains in the team')

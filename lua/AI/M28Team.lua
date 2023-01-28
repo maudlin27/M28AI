@@ -29,7 +29,7 @@ iTotalTeamCount = 0 --Increased by 1 each time we create a new team
 tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide information
     --Brain details
     subrefbAllEnemiesDefeated = 'M28TeamAllEnemiesDefeated' --true if all enemies of the team have been defeated
-    subreftoFriendlyActiveM28Brains = 'M28TeamFriendlyM28Brains' --Stored against tTeamData[brain.M28Team], returns table of all M28 brains on the same team (including this one)
+    subreftoFriendlyActiveM28Brains = 'M28TeamFriendlyM28Brains' --Stored against tTeamData[brain.M28Team], in sequential order (1,2,3...) rather than the key being any other value (i.e. its not army index), returns table of all M28 brains on the same team (including this one)
     subrefiActiveM28BrainCount = 'ActiveM28Count' --number of active m28 brains we have in the team
     subreftoFriendlyActiveBrains = 'M28TeamFriendlyBrains' --as above, but all friendly brains on this team, tTeamData[brain.M28Team][subreftoFriendlyActiveBrains]
     subreftoEnemyBrains = 'M28TeamEnemyBrains'
@@ -82,6 +82,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     --Intel details
     subrefbTeamHasOmni = 'M28TeamHaveOmni' --True if our team has omni vision (i.e. one of our team is an AiX with omni vision)
     subrefbEnemyHasOmni = 'M28EnemyHasOmni' --true if any enemy non-civilian brains have omni vision
+    subrefbEnemyBuiltOmni = 'M28EnemyBuiltOmni' --true if any enemy has built omni at any point in the game (used as basic threshold for deciding whether to build things like deceivers)
 
 
     --Notable unit count and threat details
@@ -104,6 +105,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiTimeOfLastRallyPointRefresh = 'M28TeamRallyPointRefreshTime' --Game time in seconds that last refreshed rally points
     refiLastTimeNoShieldTargetsByPlateau = 'M28TeamLastTimeNoShieldTargets' --[x] is the plateau ref, returns gametime seconds
     refiLastTimeNoStealthTargetsByPlateau = 'M28TeamLastTimeNoStealthTargets' --[x] is the plateau ref, returns gametime seconds
+    refiLastTimeNoMAATargetsByPlateau = 'M28TeamLastTimeNoMAATargets' --[x] is the plateau ref, returns gametimeseconds
 
     --Air related
     reftoAllEnemyAir = 'M28TeamEnemyAirAll'
@@ -381,6 +383,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][subrefiAlliedGroundAAThreat] = 0
     tTeamData[iTotalTeamCount][refiLastTimeNoShieldTargetsByPlateau] = {}
     tTeamData[iTotalTeamCount][refiLastTimeNoStealthTargetsByPlateau] = {}
+    tTeamData[iTotalTeamCount][refiLastTimeNoMAATargetsByPlateau] = {}
     tTeamData[iTotalTeamCount][refiEnemyHighestMobileLandHealth] = 300
     tTeamData[iTotalTeamCount][reftEnemyFirebaseByPlateauAndLZ] = {}
 
@@ -597,6 +600,11 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryAllAir * categories.TECH3, oUnit.UnitId) then
                     tTeamData[aiBrain.M28Team][refbDangerousForACUs] = true
                 end
+            end
+
+            --If enemy hasnt built omni yet check whether this is omni
+            if not(tTeamData[aiBrain.M28Team][subrefbEnemyBuiltOmni]) and EntityCategoryContains(M28UnitInfo.refCategoryT3Radar, oUnit.UnitId) and not(oUnit:GetAIBrain().M28Team == aiBrain.M28Team) then
+                tTeamData[aiBrain.M28Team][subrefbEnemyBuiltOmni] = true
             end
         end
 
@@ -996,14 +1004,14 @@ function ConsiderPriorityAirFactoryUpgrades(iM28Team)
 end
 
 function ConsiderPriorityMexUpgrades(iM28Team)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderPriorityMexUpgrades'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Is table of upgrading mexes empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]))..'; tTeamData[iM28Team][subrefiTeamMassStored]='..tTeamData[iM28Team][subrefiTeamMassStored]..'; tTeamData[iM28Team][subrefiTeamNetMass]='..tTeamData[iM28Team][subrefiTeamNetMass]..'; tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]='..tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]) end
     if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) or (tTeamData[iM28Team][subrefiTeamNetMass] - tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]) > 0 or 2 * tTeamData[iM28Team][subrefiActiveM28BrainCount] + table.getn(tTeamData[iM28Team][subreftTeamUpgradingMexes]) * 2.5 < tTeamData[iM28Team][subrefiTeamGrossMass] then
         --Do we have enough energy?
         if tTeamData[iM28Team][subrefiTeamNetEnergy] - tTeamData[iM28Team][subrefiEnergyUpgradesStartedThisCycle] > 0 and (tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] >= 0.75 or tTeamData[iM28Team][subrefiTeamNetEnergy] - tTeamData[iM28Team][subrefiEnergyUpgradesStartedThisCycle] >= 5) then
-            --Do we have mexes in start positions that are lower than the enemy's highest tech?
+            --Do we have mexes in start positions that are lower than the enemy's highest tech, or 2 lower than the highest mex in that LZ?
             local iTechLevelToUpgrade = math.min(3, math.max(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech], (tTeamData[iM28Team][subrefiHighestEnemyMexTech] or 0))) - 1
             if iTechLevelToUpgrade >= 1 then
                 local iPlateau, iLandZone, tMexesToConsiderUpgrading
@@ -1383,7 +1391,7 @@ function ConsiderNormalUpgrades(iM28Team)
 end
 
 function ConsiderGettingUpgrades(iM28Team)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderGettingUpgrades'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

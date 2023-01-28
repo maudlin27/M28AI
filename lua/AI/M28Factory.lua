@@ -398,9 +398,11 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     end
 
     local bDontConsiderBuildingMAA = false
-    if (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] >= math.min(600 or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 2)) and (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] >= M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] + (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] + M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] + M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat]) * 0.2) or (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] > math.max(4000, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]) and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] <= 4000 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMAA * categories.TECH3) >= 5) then
+    if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoShieldTargetsByPlateau][iPlateau][M28Team.refiLastTimeNoMAATargetsByPlateau] or -10) <= 10 then
+        bDontConsiderBuildingMAA = true
+    elseif (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] >= math.min(600 or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 2)) and (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] >= M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] + (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] + M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] + M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat]) * 0.2) or (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] > math.max(4000, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]) and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] <= 4000 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMAA * categories.TECH3) >= 5) then
         --Do we have more than 1/8 of our DF and indirect force in AA? Or alternatively enemy has no air to ground and we have a lot of AA
-        if M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] < M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] * 8 or (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] >= 4000 and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] <= 4000 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMAA * categories.TECH3 >= 3)) then
+        if M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] < M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] * 8 or (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] >= 4000 and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] <= 4000 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMAA * categories.TECH3) >= 3) then
             if bDebugMessages == true then LOG(sFunctionRef..': We have lots of MAA; M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat]='..M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat]..'; M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat]='..M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat]..'; M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat]='..M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat]..'; M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat]='..M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat]..'; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]) end
             bDontConsiderBuildingMAA = true
         end
@@ -444,7 +446,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
     --Mobile stealth if we are at T2+ as part of the land zone reinforcement logic
     local bConsiderMobileStealths = false
-    if iFactoryTechLevel >= 2 and not(bHaveLowPower) and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoStealthTargetsByPlateau][iPlateau] or -100) >= 15 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 15 * iFactoryTechLevel and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 70 then
+    if iFactoryTechLevel >= 2 and not(bHaveLowPower) and not(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbEnemyHasOmni]) and not(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbEnemyBuiltOmni]) and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoStealthTargetsByPlateau][iPlateau] or -100) >= 15 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 15 * iFactoryTechLevel and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 70 then
         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 60 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= (1 + M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategoryMobileLandStealth)) * 16 then
             local iCurMobileStealths = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMobileLandStealth)
             if iCurMobileStealths <= 16 and iCurMobileStealths * 600 <= math.max(1800, (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] + M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat]) * 0.3) then
@@ -453,7 +455,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         end
     end
 
-
+    local bEcoDueToEnemyFirebase = M28Conditions.WantToEcoDueToEnemyFirebase(iTeam, tLZTeamData, iPlateau)
 
     iCategoryToBuild = M28UnitInfo.refCategoryEngineer --Placeholder
     local sBPIDToBuild
@@ -480,7 +482,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     --MAIN BUILDER LOGIC:
     --Enemies nearby and have built fewer tanks of this tech level than engineers
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if bDebugMessages == true then LOG(sFunctionRef..': CHecking if nearby enemy threat and we are T2 plus, iFactoryTechLevel='..iFactoryTechLevel..'; Enemies in this or adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])) end
+    if bDebugMessages == true then LOG(sFunctionRef..': CHecking if nearby enemy threat and we are T2 plus, iFactoryTechLevel='..iFactoryTechLevel..'; Enemies in this or adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; bEcoDueToEnemyFirebase='..tostring(bEcoDueToEnemyFirebase)) end
     if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
         --Build tanks unless we have a LC of tanks of at least 5 and more than our LC of engineers
         local iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, false, bConsiderMobileShields, bConsiderMobileStealths)
@@ -588,7 +590,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
 
     --Other actions - dont do unless we have lots of mass if this is lower than our highest tech level
-    if bHaveHighestLZTech then
+    if bHaveHighestLZTech and not(bEcoDueToEnemyFirebase) then
 
         --Combat or MAA if this LZ needs more units
         iCurrentConditionToTry = iCurrentConditionToTry + 1
@@ -690,7 +692,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 end
             end
         end
-    else
+    elseif not(bHaveHighestLZTech) then
         if bDebugMessages == true then LOG(sFunctionRef..': Consideringi f we want to upgrade factory, iFactoryTechLevel='..iFactoryTechLevel..'; Brain highest tech='..aiBrain[M28Economy.refiOurHighestLandFactoryTech]) end
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if iFactoryTechLevel < aiBrain[M28Economy.refiOurHighestLandFactoryTech] then
@@ -738,7 +740,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
     --T1 mobile arti if we dont ahve low mass and are below highest tech level, or normal tanks otherwise
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if not(bHaveLowMass) then
+    if not(bHaveLowMass) and not(bEcoDueToEnemyFirebase) then
         --Is there a relatively nearby enemy?
 
         local bEnemiesRelativelyNear = tLZData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]
