@@ -480,6 +480,31 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     local iCurrentConditionToTry = 0
 
     --MAIN BUILDER LOGIC:
+    --Enemy early bomber defence (higher priority than tanks since we have our ACU to deal with tanks as a last resort)
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if not(bDontConsiderBuildingMAA) then
+        local iNearbyMAAThreat = tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]
+        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+            for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                iNearbyMAAThreat = iNearbyMAAThreat + tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]
+            end
+        end
+        if iNearbyMAAThreat < 165 then
+            --If enemy has any air units then want at least 110 MAA; if they have any air to ground want at least 165
+            if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 0 or (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat] + M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] > 0 and iNearbyMAAThreat < 110) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Want to have a basic level of MAA unless we have lots already; MAA that we alreayd have='..oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMAA)) end
+                if oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMAA) <= 5 then
+                    --Only build if we ahve <2 under construction in this LZ
+                    if M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategoryMAA) < 2 then
+                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryMAA - categories.TECH3) then return sBPIDToBuild end
+                    end
+                end
+            end
+        end
+    end
+
+
+
     --Enemies nearby and have built fewer tanks of this tech level than engineers
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if bDebugMessages == true then LOG(sFunctionRef..': CHecking if nearby enemy threat and we are T2 plus, iFactoryTechLevel='..iFactoryTechLevel..'; Enemies in this or adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; bEcoDueToEnemyFirebase='..tostring(bEcoDueToEnemyFirebase)) end
