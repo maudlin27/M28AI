@@ -32,6 +32,14 @@ refiTimeOfLastCheck = 'M28UnitTimeOfLastCheck' --Currently used for shot is bloc
 refbLastShotBlocked = 'M28UnitLastShotBlocked' --Used for DF units to indicate if last shot was blocked
 refiTimeOfLastOverchargeShot = 'M28UnitTimeLastOvercharge' --Gametimeseconds
 
+    --TMD:
+    refbTMDChecked = 'M27TMDChecked' --Used against enemy TML to flag if we've already checked for TMD we want when it was first detected
+    reftPositionWhenTMDChecked = 'M27PositionTMDCheck' --Used for enemy TML and mobile long range missiles (e.g. cruisers) to flag if we've checked for TMD near the current position
+    reftTMLDefence = 'M27TMLDefence' --[sTMLRef] - returns either nil if not considered, or the unit object of TMD protecting it
+    reftTMLThreats = 'M27TMLThreats' --[sTMLRef] - returns object number of TML that is threatening this unit
+    refbCantBuildTMDNearby = 'M27CantBuildTMDNearby'
+    refiNearbyTMD = 'M27TMDNearby' --Number of friendly TMD nearby
+
     --Unit micro related
 refiGameTimeMicroStarted = 'M28UnitTimeMicroStarted' --Gametimeseconds that started special micro
 refbSpecialMicroActive = 'M28UnitSpecialMicroActive'
@@ -1033,6 +1041,8 @@ function RecordUnitRange(oUnit)
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                     elseif (oCurWeapon.Damage or 0) == 0 or (oCurWeapon.MaxRadius or 0) <= 1 then
                         --Ignore
+                    elseif oUnit.UnitId == 'uab4201' then
+                        --Aeon TMD - ignore as it has a rangecategory for the weapon that uses the correct range so want to ignore the other waepon anyway
                     else
                         M28Utilities.ErrorHandler('Unrecognised range category for unit '..oUnit.UnitId..'; reprs of weapon='..reprs(oCurWeapon))
                     end
@@ -1393,4 +1403,8 @@ function IsUnitUnderwater(oUnit)
         return M28Map.IsUnderwater({oUnit:GetPosition()[1], oUnit:GetPosition()[2] + (oUnit:GetBlueprint().SizeY or 0), oUnit:GetPosition()[3]}, false)
     else return false
     end
+end
+
+function GetUnitUniqueRef(oUnit)
+    return oUnit:GetAIBrain():GetArmyIndex()..oUnit.UnitId..GetUnitLifetimeCount(oUnit)
 end

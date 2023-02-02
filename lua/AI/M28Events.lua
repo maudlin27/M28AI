@@ -22,6 +22,7 @@ local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 local M28Logic = import('/mods/M28AI/lua/AI/M28Logic.lua')
 local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
+local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 
 refiLastWeaponEvent = 'M28LastWep' --Gametimeseconds that last updated onweapon
 
@@ -209,6 +210,11 @@ function OnUnitDeath(oUnit)
             else
                 if oUnit.GetAIBrain then
                     --------Non-M28 Specific logic------
+
+                    --TMD protection logic - refresh land zone TMD entries
+                    if oUnit[M28Building.refbUnitWantsMoreTMD] then M28Building.UpdateLZUnitsWantingTMDForUnitDeath(oUnit) end
+
+
                     M28Orders.ClearAnyRepairingUnits(oUnit)
 
                     --Hydro resource location made available again
@@ -240,6 +246,12 @@ function OnUnitDeath(oUnit)
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) then
                         --For each M28 team with active M28AI consider if we have a firebase
                         M28Land.ConsiderIfAnyEnemyTeamsStillHaveFirebaseOnT2ArtiDeath(oUnit)
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryTMD + M28UnitInfo.refCategoryTML, oUnit.UnitId) then
+                        if EntityCategoryContains(M28UnitInfo.refCategoryTMD, oUnit.UnitId) then
+                            M28Building.TMDDied(oUnit)
+                        else
+                            M28Building.TMLDied(oUnit)
+                        end
                     end
                     --Ythotha deathball avoidance
                     --Note -seraphimunits.lua contains SEnergyBallUnit which looks like it is for when the death ball is spawned; ID is XSL0402; SpawnElectroStorm is in the ythotha script

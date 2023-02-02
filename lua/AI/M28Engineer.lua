@@ -16,6 +16,7 @@ local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
 local NavUtils = import("/lua/sim/navutils.lua")
 local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 local M28Config = import('/mods/M28AI/lua/M28Config.lua')
+local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 
 
 
@@ -78,7 +79,7 @@ refActionReclaimFriendlyUnit = 22
     refActionAssistNuke = 28
     refActionBuildShield = 29
     refActionBuildT3ArtiPower = 30
-    refActionBuildTMD = 31
+refActionBuildTMD = 31
     refActionBuildAA = 32
     refActionBuildEmergencyPD = 33 --Not yet got the main code in place
 refActionBuildSecondLandFactory = 34
@@ -124,6 +125,7 @@ tiActionCategory = {
     [refActionBuildT2Radar] = M28UnitInfo.refCategoryT2Radar,
     [refActionBuildT3Radar] = M28UnitInfo.refCategoryT3Radar,
     [refActionBuildEnergyStorage] = M28UnitInfo.refCategoryEnergyStorage,
+    [refActionBuildTMD] = M28UnitInfo.refCategoryTMD,
     [refActionBuildSecondLandFactory] = M28UnitInfo.refCategoryLandFactory,
     [refActionBuildSecondMassStorage] = M28UnitInfo.refCategoryMassStorage,
     [refActionCompletePartBuiltMex] = M28UnitInfo.refCategoryT1Mex,
@@ -144,6 +146,7 @@ tiActionOrder = {
     [refActionBuildT2Radar] = M28Orders.refiOrderIssueBuild,
     [refActionBuildT3Radar] = M28Orders.refiOrderIssueBuild,
     [refActionReclaimArea] = M28Orders.refiOrderIssueReclaim,--will actually have a move order followed by reclaim order
+    [refActionBuildTMD] = M28Orders.refiOrderIssueBuild,
     [refActionBuildSecondLandFactory] = M28Orders.refiOrderIssueBuild,
     [refActionReclaimEnemyUnit] = M28Orders.refiOrderIssueReclaim,
     [refActionBuildSecondMassStorage] = M28Orders.refiOrderIssueBuild,
@@ -649,7 +652,7 @@ function GetPotentialAdjacencyLocations(aiBrain, sBlueprintToBuild, tTargetLocat
     return tPotentialLocations
 end
 
-function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy, tAlternativePositionToLookFrom, bLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure)
+function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy, tAlternativePositionToLookFrom, bLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZTeamData)
     --Returns blueprint and location for oEngineer to build at and returns these or nil if no suitable locations can be found
     --iCatToBuildBy: Optional, specify if want to look for adjacency locations; Note to factor in 50% of the builder's size and 50% of the likely adjacency building size
 
@@ -690,6 +693,44 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iCategoryToBuild, iM
         end
 
         if not(tTargetLocation) then tTargetLocation = tEngineerPosition end
+
+        --Target location adjustments
+        local oClosestUnitToTML
+        if EntityCategoryContains(M28UnitInfo.refCategoryTMD, sBlueprintToBuild) then
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]) == false and M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftEnemyTML]) == false then
+                local iStartingPlateau, iStartingLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
+                local iCurDist
+                local iClosestDist = 100000
+                local oClosestTML
+                for iUnit, oUnit in M28Team.tTeamData[aiBrain.M28Team][M28Team.reftEnemyTML] do
+                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tTargetLocation)
+                    if iCurDist < iClosestDist then
+                        oClosestTML = oUnit
+                        iClosestDist = iCurDist
+                    end
+                end
+                iClosestDist = 100000
+                local tClosestTMLLocation = oClosestTML:GetPosition()
+                for iUnit, oUnit in tLZTeamData[M28Map.reftUnitsWantingTMD] do
+                    iCurDist = M28Utilities.GetDistanceBetweenPositions(tClosestTMLLocation, oUnit:GetPosition())
+                    if iCurDist < iClosestDist then
+                        iClosestDist = iCurDist
+                        oClosestUnitToTML = oUnit
+                    end
+                end
+                local iDistToMoveAway = 10
+                if EntityCategoryContains(categories.AEON, sBlueprintToBuild) then iDistToMoveAway = 6 end
+                tTargetLocation = M28Utilities.MoveInDirection(oClosestUnitToTML:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestUnitToTML:GetPosition(), tClosestTMLLocation), 10, true)
+                if iStartingPlateau > 0 and iStartingLZ > 0 then
+                    --Check the new target location is in the same LZ, if not then change distance to 0
+                    local iNewPlateau, iNewLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
+                    if not(iNewLZ == iStartingLZ) then
+                        tTargetLocation = oClosestUnitToTML:GetPosition()
+                    end
+                end
+            end
+
+        end
 
         if bDebugMessages == true then LOG(sFunctionRef..': sBlueprintToBuild='..(sBlueprintToBuild or 'nil')..'; Location to look from='..repru(tTargetLocation)) end
         --Mex or hydro or mass storage - consider the resource/storage locations
@@ -754,7 +795,16 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iCategoryToBuild, iM
         if M28Utilities.IsTableEmpty(tPotentialBuildLocations) == false then
             --GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLocation, tPotentialBuildLocations, iOptionalMaxDistanceFromTargetLocation)
             local tBestLocation = GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLocation, tPotentialBuildLocations, iMaxAreaToSearch)
-            if tBestLocation then return sBlueprintToBuild, tBestLocation end
+            if tBestLocation then
+                --TMD check - if too far away to proect the unit we are interested in, then flag that dont want to try building tmd for the unit anymore
+                if oClosestUnitToTML then
+                    local iCurDist = M28Utilities.GetDistanceBetweenPositions(oClosestUnitToTML:GetPosition(), tBestLocation)
+                    if iCurDist >= 30 or (EntityCategoryContains(categories.AEON, sBlueprintToBuild) and iCurDist >= 12.5) then
+                        oClosestUnitToTML[M28Building.refbNoNearbyTMDBuildLocations] = true
+                    end
+                end
+                return sBlueprintToBuild, tBestLocation
+            end
         end
     end
     return nil, nil
@@ -2201,7 +2251,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
 
                         --No building under construciton, and no existing engineer to assist - assign engineers to build instead
                         local oFirstEngineer = tEngineersOfTechWanted[iEngiCount]
-                        local sBlueprint, tBuildLocation = GetBlueprintAndLocationToBuild(aiBrain, oFirstEngineer, iCategoryWanted, iMaxSearchRange, tiActionAdjacentCategory[iActionToAssign], nil, false, nil, nil, false)
+                        local sBlueprint, tBuildLocation = GetBlueprintAndLocationToBuild(aiBrain, oFirstEngineer, iCategoryWanted, iMaxSearchRange, tiActionAdjacentCategory[iActionToAssign], nil, false, nil, nil, false, tLZTeamData)
                         if bDebugMessages == true then LOG(sFunctionRef..': Just got blueprint and location to build for oFirstEngineer='..oFirstEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFirstEngineer)..'; iActionTOAssign='..iActionToAssign..'; sBlueprint='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation)) end
                         if sBlueprint then
                             local tMoveLocation
@@ -2656,6 +2706,15 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         HaveActionToAssign(refActionReclaimArea, 1, 5, true)
     end
 
+    --TMD
+    iCurPriority = iCurPriority + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Considering if we want to get TMD; is table of units wanting TMD empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]))) end
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]) == false then
+        iBPWanted = 40
+        if not(bHaveLowMass) and not(bHaveLowPower) then iBPWanted = 70 end
+        HaveActionToAssign(refActionBuildTMD, 2, iBPWanted, nil)
+    end
+
     --High priority factories
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to build a factory, bWantMoreFactories='..tostring(bWantMoreFactories)..'; bHaveLowMass='..tostring(bHaveLowMass)..'; Mass % stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]..'; Highest tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
@@ -2948,6 +3007,14 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         if bDebugMessages == true then LOG(sFunctionRef..': Have just tried assigning action to reclaim area') end
     elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] <= 0.7 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 80 and tLZData[M28Map.refReclaimTotalEnergy] >= 100 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 2 then
         HaveActionToAssign(refActionReclaimArea, 1, 5, true)
+    end
+
+    --TMD
+    iCurPriority = iCurPriority + 1
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]) == false then
+        iBPWanted = 30
+        if not(bHaveLowMass) then iBPWanted = 50 end
+        HaveActionToAssign(refActionBuildTMD, 2, iBPWanted, nil)
     end
 
     --Reclaim specific units if are low on mass

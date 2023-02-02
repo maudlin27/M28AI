@@ -87,14 +87,69 @@ function GetUnitPlateauAndLandZoneOverride(oUnit)
         local iDistAdjust = math.max(2, M28Map.iLandZoneSegmentSize)
         local tLocationAdjust = {{-iDistAdjust,0}, {-iDistAdjust, -iDistAdjust}, {-iDistAdjust, iDistAdjust}, {0, -iDistAdjust}, {0, iDistAdjust}, {iDistAdjust, -iDistAdjust}, {iDistAdjust, 0}, {iDistAdjust,iDistAdjust}}
         local tBasePosition = oUnit:GetPosition()
+        local bFoundAlternative = false
         if bDebugMessages == true then LOG(sFunctionRef..': Will look in a box around the unit to see if can find a valid plateau, iDistAdjust='..iDistAdjust) end
         for iEntry, tAdjustXZ in tLocationAdjust do
             iPossiblePlateau, iPossibleLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition({ tBasePosition[1] + tAdjustXZ[1], tBasePosition[2], tBasePosition[3] + tAdjustXZ[2] })
             if bDebugMessages == true then LOG(sFunctionRef..': Considering tBasePosition='..repru(tBasePosition)..'; tAdjustXZ='..repru(tAdjustXZ)..'; iPossiblePlateau='..(iPossiblePlateau or 'nil')..'; iPossibleLZ='..(iPossibleLZ or 'nil')..'; NavUtils plateau for this position='..(NavUtils.GetLabel(M28Map.refPathingTypeAmphibious, { tBasePosition[1] + tAdjustXZ[1], tBasePosition[2], tBasePosition[3] + tAdjustXZ[2] }) or 'nil')) end
             if (iPossiblePlateau or 0) > 0 and (iPossibleLZ or 0) > 0 then
                 --LOG('Found a plateau override for oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at position '..repru(oUnit:GetPosition())..' and tAdjustXZ='..repru(tAdjustXZ))
+                bFoundAlternative = true
                 M28Map.AddLocationToPlateauExceptions(oUnit:GetPosition(), iPossiblePlateau, iPossibleLZ)
                 break
+            end
+        end
+        if not(bFoundAlternative) then
+            --Try in a 1x1 box around the unit to see if we can find a plateau that is land pathable, and if so, see if we can path to a land zone, and if so then update to record this as the closest land zone
+            iDistAdjust = 1
+            tLocationAdjust = {{0,0}, {-iDistAdjust,0}, {-iDistAdjust, -iDistAdjust}, {-iDistAdjust, iDistAdjust}, {0, -iDistAdjust}, {0, iDistAdjust}, {iDistAdjust, -iDistAdjust}, {iDistAdjust, 0}, {iDistAdjust,iDistAdjust}}
+            if bDebugMessages == true then LOG(sFunctionRef..': Will look in a smaller radius box around the unit to see if can find a valid plateau, iDistAdjust='..iDistAdjust) end
+            for iEntry, tAdjustXZ in tLocationAdjust do
+                local tAltLocation = { tBasePosition[1] + tAdjustXZ[1], tBasePosition[2], tBasePosition[3] + tAdjustXZ[2] }
+                iPossiblePlateau = NavUtils.GetLabel(M28Map.refPathingTypeAmphibious, tAltLocation)
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering tAltLocation='..repru(tAltLocation)..'; iPossiblePlateau='..(iPossiblePlateau or 'nil')..'; iPossibleLZ='..(iPossibleLZ or 'nil')..'; NavUtils land pathing label='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tAltLocation) or 'nil')..'; Is table of land zones for this plateau empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPossiblePlateau][M28Map.subrefPlateauLandZones]))) end
+                if (iPossiblePlateau or 0) > 0 and (NavUtils.GetLabel(M28Map.refPathingTypeLand, tAltLocation) or 0) > 0 then
+                    --We have a plateau, but dont have a land zone for this position even though it is pathable by land - is there a land zone for this plateau nearby that can path here?
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering nearby LZs that might be able to path here, is table of LZs empty for plateau '..iPossiblePlateau..' = '..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPossiblePlateau][M28Map.subrefPlateauLandZones]))) end
+                    if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPossiblePlateau][M28Map.subrefPlateauLandZones]) == false then
+                        local iClosestLZDist = 100000
+                        local iClosestUnpathableLZDist = 100000
+                        local iClosestUnpathableLZRef
+                        local iCurLZDist
+                        for iLandZone, tAltLZData in M28Map.tAllPlateaus[iPossiblePlateau][M28Map.subrefPlateauLandZones] do
+                            iCurLZDist = M28Utilities.GetDistanceBetweenPositions(tAltLocation, M28Map.tAllPlateaus[iPossiblePlateau][M28Map.subrefPlateauLandZones][M28Map.subrefLZMidpoint])
+
+                            if iCurLZDist < iClosestLZDist then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Can we path from alt location to midpoint of land zone '..iLandZone..' with iCurLZDist='..iCurLZDist..'='..tostring(NavUtils.CanPathTo(M28Map.refPathingTypeLand, tAltLocation, M28Map.tAllPlateaus[iPossiblePlateau][M28Map.subrefPlateauLandZones][M28Map.subrefLZMidpoint]))) end
+                                if NavUtils.CanPathTo(M28Map.refPathingTypeLand, tAltLocation, M28Map.tAllPlateaus[iPossiblePlateau][M28Map.subrefPlateauLandZones][M28Map.subrefLZMidpoint]) then
+                                    if iCurLZDist < iClosestLZDist then
+                                        iClosestLZDist = iCurLZDist
+                                        iPossibleLZ = iLandZone
+                                    end
+                                elseif not(iPossibleLZ) and iCurLZDist < iClosestUnpathableLZDist then
+                                    iClosestUnpathableLZDist = iCurLZDist
+                                    iClosestUnpathableLZRef = iLandZone
+                                end
+                            end
+                        end
+                        if not(iPossibleLZ) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Couldnt find any LZs that are actually pathable, closest unpaathable dist='..iClosestUnpathableLZDist..'; if this is within 50 then will use this') end
+                            if iClosestUnpathableLZDist < 50 then
+                                iPossibleLZ = iClosestUnpathableLZDist
+                            end
+                        end
+                    end
+                end
+                if bDebugMessages == true then
+                    LOG(sFunctionRef..': Finsihed considering alternative entries in 1x1 box, iPossiblePlateau='..(iPossiblePlateau or 'nil')..'; iPossibleLZ='..(iPossibleLZ or 'nil')..'; If couldnt find anywhere will draw this units position in red')
+                    if not(iPossibleLZ) then M28Utilities.DrawLocation(oUnit:GetPosition()) end
+                end
+                if (iPossiblePlateau or 0) > 0 and (iPossibleLZ or 0) > 0 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Identified a backup land zone override for oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at position '..repru(oUnit:GetPosition())..' and tAdjustXZ='..repru(tAdjustXZ)..'; will add to list of exceptions') end
+                    bFoundAlternative = true
+                    M28Map.AddLocationToPlateauExceptions(oUnit:GetPosition(), iPossiblePlateau, iPossibleLZ)
+                    break
+                end
             end
         end
     end
@@ -245,6 +300,7 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
                         M28Team.AssignUnitToLandZoneOrPond(aiBrain, oUnitToAdd, true)
                     end
                 end
+
                 tUnits[iOrigIndex] = nil
             end
         end

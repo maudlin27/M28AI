@@ -18,6 +18,7 @@ local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
 local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
+local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 local M28Config = import('/mods/M28AI/lua/M28Config.lua')
 
 
@@ -88,6 +89,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     --Notable unit count and threat details
     refbDefendAgainstArti = 'M28TeamDefendAgainstArti' --true if enemy has t3 arti or equivelnt
     subreftoT3Arti = 'M28TeamT3Arti' --table of T3 and experimental arti that M28 players on the team have
+    reftEnemyTML = 'M28TeamEnTML' --table of enemy TML
     subrefiAlliedDFThreat = 'M28TeamDFThreat' --Total DF threat
     subrefiAlliedIndirectThreat = 'M28TeamIndirectThreat' --Total indirect threat
     subrefiAlliedGroundAAThreat = 'M28TeamGroundAAThreat' --Total MAA and structure threat
@@ -106,6 +108,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiLastTimeNoShieldTargetsByPlateau = 'M28TeamLastTimeNoShieldTargets' --[x] is the plateau ref, returns gametime seconds
     refiLastTimeNoStealthTargetsByPlateau = 'M28TeamLastTimeNoStealthTargets' --[x] is the plateau ref, returns gametime seconds
     refiLastTimeNoMAATargetsByPlateau = 'M28TeamLastTimeNoMAATargets' --[x] is the plateau ref, returns gametimeseconds
+
 
     --Air related
     reftoAllEnemyAir = 'M28TeamEnemyAirAll'
@@ -386,6 +389,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][refiLastTimeNoMAATargetsByPlateau] = {}
     tTeamData[iTotalTeamCount][refiEnemyHighestMobileLandHealth] = 300
     tTeamData[iTotalTeamCount][reftEnemyFirebaseByPlateauAndLZ] = {}
+    tTeamData[iTotalTeamCount][reftEnemyTML] = {}
 
 
     local bHaveM28BrainInTeam = false
@@ -515,12 +519,18 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
                 --T2 arti tracking - consider firebase
                 if EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) then
                     M28Land.ConsiderIfHaveEnemyFirebase(aiBrain.M28Team, oUnit)
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryTML, oUnit.UnitId) then
+                    M28Building.EnemyTMLFirstRecorded(aiBrain.M28Team, oUnit)
+
                 end
             end
         elseif IsAlly(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
             table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTAlliedUnits], oUnit)
             if M28Config.M28ShowUnitNames then
                 oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'New P'..iPlateau..'LZ'..iLandZone)
+            end
+            if EntityCategoryContains(M28UnitInfo.refCategoryTMD, oUnit.UnitId) then
+                M28Building.AlliedTMDFirstRecorded(aiBrain.M28Team, oUnit)
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Add unit as a friendly unit to Plateau-LZ='..iPlateau..'-'..iLandZone..' and team='..aiBrain.M28Team..'; Is table of friendly units empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTAlliedUnits]))) end
         end
@@ -1532,6 +1542,7 @@ function TeamInitialisation(iM28Team)
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftoLZUnitsWantingMobileShield] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftoLZUnitsWantingMobileStealth] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subreftEnemyFirebasesInRange] = {}
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftUnitsWantingTMD] = {}
         end
     end
     TeamEconomyRefresh(iM28Team)

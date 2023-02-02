@@ -384,6 +384,28 @@ function GetAngleFromAToB(tLocA, tLocB)
     return iTheta
 end
 
+function IsLineFromAToBInRangeOfCircleAtC(iDistFromAToB, iDistFromAToC, iDistFromBToC, iAngleFromAToB, iAngleFromAToC, iCircleRadius)
+    --E.g. if TML is at point A, target is at point B, and TMD is at point C, does the TMD block the TML in a straight line?
+    if iDistFromAToC <= iCircleRadius or iDistFromBToC <= iCircleRadius then
+        --LOG('Dist within circle radius so are in range, returning true')
+        return true
+        --Note - have done circleradius*1.2 as was one scenario where the SMD just overlapped despite distAtoB+CircleRadius being less than DistAtoC (for SMD was about 82 vs 90)
+    elseif (iDistFromAToC > iDistFromBToC and iDistFromAToB < iDistFromAToC) or iDistFromAToB + iCircleRadius*1.2 < iDistFromAToC then
+        --LOG('Dist to circle further than target and not in range of circle radius, so returning false')
+        return false
+    else
+        --Unclear so need more precise calculation
+        --LOG('Unclear so doing more precise calculation.  iAngleFromAToB - iAngleFromAToC='..(iAngleFromAToB - iAngleFromAToC)..'; ConvertAngleToRadians(iAngleFromAToB - iAngleFromAToC)='..ConvertAngleToRadians(iAngleFromAToB - iAngleFromAToC)..'; math.tan(math.abs(ConvertAngleToRadians(iAngleFromAToB - iAngleFromAToC)))='..math.tan(math.abs(ConvertAngleToRadians(iAngleFromAToB - iAngleFromAToC)))..'; iDistFromAToC='..iDistFromAToC..'; iCircleRadius='..iCircleRadius..'; Calculation result='..math.tan(math.abs(ConvertAngleToRadians(iAngleFromAToB - iAngleFromAToC))) * iDistFromAToC)
+        if math.abs(math.tan(ConvertAngleToRadians(iAngleFromAToB - iAngleFromAToC))) * iDistFromAToC <= iCircleRadius then
+            --LOG('Are in range so returning true')
+            return true
+        else
+            --LOG('Are out of range so returning false')
+            return false
+        end
+    end
+end
+
 function GetRectAroundLocation(tLocation, iRadius)
     --Looks iRadius left/right and up/down (e.g. if want 1x1 square centred on tLocation, iRadius should be 0.5)
     return Rect(tLocation[1] - iRadius, tLocation[3] - iRadius, tLocation[1] + iRadius, tLocation[3] + iRadius)

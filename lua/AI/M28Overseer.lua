@@ -163,7 +163,12 @@ function M28BrainCreated(aiBrain)
 end
 
 function TestCustom(aiBrain)
-    --Detail rally point info for a land zone
+    --Detail rally point info for a land zone - Forbidden pass - do we detect that the ridge is pathable?
+    --[[local NavUtils = import("/lua/sim/navutils.lua")
+    local tPosition = { 260.06228637695, 67.514915466309, 148.83508300781 }
+    M28Utilities.DrawLocation(tPosition)
+    LOG('NavUtils for tPosition='..(NavUtils.GetLabel('Land', tPosition) or 'nil'))--]]
+
     --[[local tLZData = M28Map.tAllPlateaus[27][M28Map.subrefPlateauLandZones][20]
     local tStartMidpoint = tLZData[M28Map.subrefLZMidpoint]
     local tRallyPoint = M28Land.GetNearestRallyPoint(tLZData, 1, 27, 20, 3)--]]

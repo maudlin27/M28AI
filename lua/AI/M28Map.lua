@@ -197,11 +197,12 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             reftLZEnemyAirUnits = 'EnAir' --All enemy air units that are currently in the land zone
             refiLZEnemyAirToGroundThreat = 'EnA2GT' --Air to ground threat of enemy air units in the LZ
             refiLZEnemyAirOtherThreat = 'EnAirOT' --mass value of AirAA, air scouts and transports in the LZ
-            --Shield and stealth
+            --Shield, stealth and tmd
             refbLZWantsMobileShield = 'MobSh' --true if LZ wants mobile shields
             reftoLZUnitsWantingMobileShield = 'UMobSh' --table of units in the LZ that want mobile shield
             refbLZWantsMobileStealth = 'MobSt' --true if LZ wants mobile stealth
             reftoLZUnitsWantingMobileStealth = 'UMobSt' --table of units in the LZ that want mobile stealth
+            reftUnitsWantingTMD = 'TMDW' --table of units in the LZ that want TMD coverage
             --Misc
             reftClosestFriendlyBase = 'ClosestFB' --Position of the closest friendly start position
             reftClosestEnemyBase = 'ClosestEB' --Closest enemy start position
@@ -292,6 +293,7 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
 
                 if not(tAllPlateaus[iPlateau]) then
                     if bOptionalShouldBePathable then
+                        --If get this error, then refer to GetUnitPlateauAndLandZoneOverride
                         M28Utilities.ErrorHandler('No plateau group for iSegmentX='..iSegmentX..'; iSegmentZ='..iSegmentZ..'; Plateau group of segment midpoint='..(NavUtils.GetLabel(refPathingTypeAmphibious, GetPositionFromPathingSegments(iSegmentX, iSegmentZ)) or 'nil')..'; Plateau Group of tPosition='..(NavUtils.GetLabel(refPathingTypeAmphibious, tPosition) or 'nil')..'; Pathing unit='..(oOptionalPathingUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oOptionalPathingUnit) or 'nil')..'; Enable logs in the function GetUnitPlateauAndLandZoneOverride for more details')
                     end
                     return nil
@@ -1116,6 +1118,13 @@ local function AssignRemainingSegmentsToLandZones()
             if (iLandPathingGroupWanted or 0) > 0 then
                 --Are we from a plateau that has mexes?
                 iPlateauGroup = NavUtils.GetLabel(refPathingTypeAmphibious, tBasePosition)
+                if not(iPlateauGroup) then
+                    local tiAdjust = {{-1,0}, {-1, -1}, {-1, 1}, {0, -1}, {0, 1}, {1, -1}, {1, 0}, {1,1}}
+                    for iEntry, tXZAdjust in tiAdjust do
+                        iPlateauGroup = NavUtils.GetLabel(refPathingTypeAmphibious, { tBasePosition[1] + tXZAdjust[1], tBasePosition[2], tBasePosition[3] + tXZAdjust[2] })
+                        if iPlateauGroup then break end
+                    end
+                end
                 if tAllPlateaus[iPlateauGroup][subrefPlateauTotalMexCount] > 0 then
 
 
@@ -1144,7 +1153,7 @@ local function AssignRemainingSegmentsToLandZones()
                         --Assign very nearby segments to this
                         AssignNearbySegmentsToSameLandZone(iBaseSegmentX, iBaseSegmentZ, iNewZoneCount, iNearbyAssignmentSegmentRange, iDistanceCap)
                     end
-                else
+                elseif iPlateauGroup > 0 then
                     --Plateau has no mexes so just create one large group based on the land pathing, if we havent already
                     if not(tiLZEntryByNavUtilsRef[iPlateauGroup][iLandPathingGroupWanted]) then
                         --We haven't created this LZ yet; have we created the plateau?
@@ -1163,6 +1172,8 @@ local function AssignRemainingSegmentsToLandZones()
                     else
                         RecordSegmentLandZone(iBaseSegmentX, iBaseSegmentZ, iPlateauGroup, tiLZEntryByNavUtilsRef[iPlateauGroup][iLandPathingGroupWanted])
                     end
+                else
+                    M28Utilities.ErrorHandler('somehow have a land zone but not a plateau group')
                 end
             end
         end
