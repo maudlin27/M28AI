@@ -144,7 +144,7 @@ refCategoryIndirect = categories.LAND * categories.MOBILE * categories.INDIRECTF
 refCategoryT3MobileArtillery = categories.ARTILLERY * categories.LAND * categories.MOBILE * categories.TECH3 - categories.UNSELECTABLE - categories.UNTARGETABLE
 refCategoryT3MML = categories.SILO * categories.MOBILE * categories.TECH3 * categories.LAND - categories.UNSELECTABLE - categories.UNTARGETABLE
 refCategoryFatboy = categories.EXPERIMENTAL * categories.UEF * categories.MOBILE * categories.LAND * categories.ARTILLERY - categories.UNSELECTABLE - categories.UNTARGETABLE
-refCategoryLandCombat = categories.MOBILE * categories.LAND * categories.DIRECTFIRE + categories.MOBILE * categories.LAND * categories.INDIRECTFIRE * categories.TECH1 + categories.FIELDENGINEER + refCategoryFatboy - refCategoryEngineer -refCategoryLandScout -refCategoryMAA - categories.UNSELECTABLE - categories.UNTARGETABLE
+refCategoryLandCombat = categories.MOBILE * categories.LAND * categories.DIRECTFIRE + categories.MOBILE * categories.LAND * categories.INDIRECTFIRE * categories.TECH1 + categories.FIELDENGINEER + refCategoryFatboy + categories.SUBCOMMANDER - refCategoryEngineer -refCategoryLandScout -refCategoryMAA - categories.UNSELECTABLE - categories.UNTARGETABLE
 refCategoryAmphibiousCombat = refCategoryLandCombat * categories.HOVER + refCategoryLandCombat * categories.AMPHIBIOUS - categories.ANTISHIELD * categories.AEON --Dont include aeon T3 anti-shield here as it sucks unless against shields
 refCategorySurfaceAmphibiousCombat = refCategoryLandCombat * categories.HOVER + categories.ANTINAVY * categories.LAND * categories.MOBILE - categories.UNSELECTABLE - categories.UNTARGETABLE
 refCategoryGroundAA = refCategoryMAA + categories.NAVAL * categories.ANTIAIR + categories.STRUCTURE * categories.ANTIAIR + categories.NAVALCARRIER * categories.EXPERIMENTAL
@@ -1108,6 +1108,14 @@ function GetUnitUpgradeBlueprint(oUnitToUpgrade, bGetSupportFactory)
                 ['urb0201'] = 'zrb9601',
                 ['urb0202'] = 'zrb9602',
                 ['urb0203'] = 'zrb9603',
+
+                -- Seraphim
+                ['xsb0101']  = 'zsb9501',
+                ['xsb0102']  = 'zsb9502',
+                ['xsb0103']  = 'zsb9503',
+                ['xsb0201'] = 'zsb9601',
+                ['xsb0202'] = 'zsb9602',
+                ['xsb0203'] = 'zsb9603',
 
                 -- Seraphim
                 ['xsb0101']  = 'zsb9501',
