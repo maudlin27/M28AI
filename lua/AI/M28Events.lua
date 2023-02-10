@@ -97,8 +97,8 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                 local oKillerUnit
 
                 if instigator and not(instigator:BeenDestroyed()) and not(instigator.Dead) then
-                    if instigator.Launcher then
-                        oKillerUnit = instigator.Launcher
+                    if instigator.GetLauncher and instigator:GetLauncher() then
+                        oKillerUnit = instigator:GetLauncher()
                     elseif instigator.DamageData and not(instigator.unit) and not(instigator.UnitId) then
                         --Can get errors for artillery shells when running IsProjectile
                     elseif IsProjectile(instigator) or IsCollisionBeam(instigator) then
@@ -213,6 +213,11 @@ function OnUnitDeath(oUnit)
 
                     --TMD protection logic - refresh land zone TMD entries
                     if oUnit[M28Building.refbUnitWantsMoreTMD] then M28Building.UpdateLZUnitsWantingTMDForUnitDeath(oUnit) end
+
+                    --Big threat global team table update
+                    if M28Utilities.IsTableEmpty(oUnit[M28UnitInfo.reftbInArmyIndexBigThreatTable]) == false then
+                        M28Team.RemoveUnitFromBigThreatTable(oUnit)
+                    end
 
 
                     M28Orders.ClearAnyRepairingUnits(oUnit)
@@ -450,7 +455,60 @@ end
 
 function OnMissileBuilt(self, weapon)
     if M28Utilities.bM28AIInGame then
-        
+        if self.GetAIBrain and self:GetAIBrain().M28AI then
+            local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+            local sFunctionRef = 'OnMissileBuilt'
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+            self[M28Building.refbMissileRecentlyBuilt] = true
+            M28Utilities.DelayChangeVariable(self, M28Building.refbMissileRecentlyBuilt, false, 5)
+
+
+            --Pause if we already have 2 missiles
+            if bDebugMessages == true then
+                if M28UnitInfo.IsUnitValid(self) then
+                    LOG(sFunctionRef..': Have valid unit='..self.UnitId..M28UnitInfo.GetUnitLifetimeCount(self))
+                else
+                    LOG(sFunctionRef..': self='..reprs(self))
+                end
+            end
+
+            local iMissiles = 1 --For some reason the count is off by 1, presumably a slight delay between the event being called and the below ammo counts working
+            if self.GetTacticalSiloAmmoCount then iMissiles = iMissiles + self:GetTacticalSiloAmmoCount() end
+            if bDebugMessages == true then LOG(sFunctionRef..': iMissiles based on tactical silo ammo='..iMissiles) end
+            if self.GetNukeSiloAmmoCount then iMissiles = iMissiles + self:GetNukeSiloAmmoCount() end
+            if bDebugMessages == true then LOG(sFunctionRef..': iMissiles after Nuke silo ammo='..iMissiles) end
+            if iMissiles >= 1 then
+                --Stop assisting units (so can reassess if we still want to assist)
+                if M28Utilities.IsTableEmpty(self[M28UnitInfo.reftoUnitsAssistingThis]) == false then
+                    local tEngineersToStop = {}
+                    for iEngineer, oEngineer in self[M28UnitInfo.reftoUnitsAssistingThis] do
+                        table.insert(tEngineersToStop, oEngineer)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want to make engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to stop assisting') end
+                    end
+                    for iEngineer, oEngineer in tEngineersToStop do
+                        M28Orders.IssueTrackedClearCommands(oEngineer)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Just sent a clear order to '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to stop assisting') end
+                    end
+                end
+
+                --If 2+ missiles then pause, and consider unpausing later
+                if iMissiles >= 2 and not(EntityCategoryContains(categories.EXPERIMENTAL, self.UnitId)) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have at least 2 missiles so will set paused to true') end
+                    self:SetPaused(true)
+                    --Recheck every minute
+                    ForkThread(M28Building.CheckIfWantToBuildAnotherMissile, self)
+                end
+            end
+
+            --Start logic to periodically check for targets to fire the missile at (in case there are no targets initially)
+            if not(self[M28Building.refbActiveMissileChecker]) and not(EntityCategoryContains(M28UnitInfo.refCategorySMD, self.UnitId)) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Calling logic to consider launching a missile') end
+                ForkThread(M28Building.ConsiderLaunchingMissile, self, weapon)
+            end
+        end
+
     end
 end
 
@@ -499,7 +557,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                 for iBrain, oBrain in M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subreftoEnemyBrains] do
                     if oBrain.M28AI and not(tTeamsUpdated[oBrain.M28Team]) then
                         tTeamsUpdated[oBrain.M28Team] = true
-                        M28Team.AssignUnitToLandZoneOrPond(oBrain, oJustBuilt)
+                        M28Team.AssignUnitToLandZoneOrPond(oBrain, oJustBuilt, false, false, true)
                     end
                 end
             end
@@ -594,6 +652,12 @@ function OnConstructed(oEngineer, oJustBuilt)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryEnergyStorage, oJustBuilt.UnitId) then
                     M28Team.TeamEconomyRefresh(oJustBuilt:GetAIBrain().M28Team)
                     M28Team.ConsiderGiftingStorageToTeammate(oJustBuilt)
+                end
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryLandCombat * categories.TECH3 + M28UnitInfo.refCategoryIndirectT3, oJustBuilt.UnitId) then
+                if not(M28Team.tTeamData[oJustBuilt:GetAIBrain().M28Team][M28Team.refbBuiltLotsOfT3Combat]) then
+                    if M28Conditions.GetTeamLifetimeBuildCount(oJustBuilt:GetAIBrain().M28Team, M28UnitInfo.refCategoryLandCombat * categories.TECH3 + M28UnitInfo.refCategoryIndirectT3) >= 30 then
+                        M28Team.tTeamData[oJustBuilt:GetAIBrain().M28Team][M28Team.refbBuiltLotsOfT3Combat] = true
+                    end
                 end
             end
 

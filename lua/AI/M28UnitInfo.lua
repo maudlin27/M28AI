@@ -31,14 +31,9 @@ refbShieldIsDisabled = 'M28UnitShieldDisabled'
 refiTimeOfLastCheck = 'M28UnitTimeOfLastCheck' --Currently used for shot is blocked (M27 also used for T3 arti adjacency, when first detected enemy SMD)
 refbLastShotBlocked = 'M28UnitLastShotBlocked' --Used for DF units to indicate if last shot was blocked
 refiTimeOfLastOverchargeShot = 'M28UnitTimeLastOvercharge' --Gametimeseconds
+reftbInArmyIndexBigThreatTable = 'M28UnitInBigThreatTable' --[x] is army index; true if have added unit to table of big threats for that army index
 
-    --TMD:
-    refbTMDChecked = 'M27TMDChecked' --Used against enemy TML to flag if we've already checked for TMD we want when it was first detected
-    reftPositionWhenTMDChecked = 'M27PositionTMDCheck' --Used for enemy TML and mobile long range missiles (e.g. cruisers) to flag if we've checked for TMD near the current position
-    reftTMLDefence = 'M27TMLDefence' --[sTMLRef] - returns either nil if not considered, or the unit object of TMD protecting it
-    reftTMLThreats = 'M27TMLThreats' --[sTMLRef] - returns object number of TML that is threatening this unit
-    refbCantBuildTMDNearby = 'M27CantBuildTMDNearby'
-    refiNearbyTMD = 'M27TMDNearby' --Number of friendly TMD nearby
+
 
     --Unit micro related
 refiGameTimeMicroStarted = 'M28UnitTimeMicroStarted' --Gametimeseconds that started special micro
@@ -156,7 +151,7 @@ refCategoryIndirectT3 = categories.MOBILE * categories.LAND * categories.INDIREC
 refCategoryObsidian = categories.AEON * categories.TECH2 * categories.SHIELD * categories.DIRECTFIRE * categories.MOBILE * categories.LAND * categories.TANK --
 refCategoryMobileLandShield = categories.LAND * categories.MOBILE * categories.SHIELD - refCategoryObsidian  --Miscategorised obsidian tank
 refCategoryPersonalShield = categories.PERSONALSHIELD + refCategoryObsidian
-refCategoryMobileLandStealth = categories.LAND * categories.MOBILE * categories.STEALTHFIELD
+refCategoryMobileLandStealth = categories.LAND * categories.MOBILE * categories.STEALTHFIELD - categories.EXPERIMENTAL --dont want monkeylords treated as a mobile stealth unit!
 refCategorySniperBot = categories.MOBILE * categories.SNIPER * categories.LAND
 refCategorySkirmisher = refCategorySniperBot * categories.TECH3 + refCategoryDFTank * categories.UEF * categories.TECH2 * categories.BOT + refCategoryDFTank * categories.CYBRAN * categories.TECH2 * categories.BOT - categories.BOMB --Mongoose, Hoplite, sniperbot
 refCategoryShieldDisruptor = categories.LAND * categories.MOBILE * categories.ANTISHIELD
@@ -214,6 +209,7 @@ refCategoryStealthGenerator = categories.STEALTHFIELD
 refCategoryStealthAndCloakPersonal = categories.STEALTH
 refCategoryProtectFromTML = refCategoryT2Mex + refCategoryT3Mex + refCategoryT2Power + refCategoryT3Power + refCategoryFixedT2Arti
 refCategoryExperimentalLevel = categories.EXPERIMENTAL + refCategoryFixedT3Arti + refCategorySML
+refCategoryBigThreatCategories = refCategoryExperimentalLevel + refCategoryMissileShip + refCategorySMD --Note - this is different to M27 which only considers land experimentals as big threat categories
 refCategoryFirebaseSuitable = refCategoryPD + refCategoryT1Radar + refCategoryT2Radar + refCategorySMD + refCategoryTMD + refCategoryFixedShield + refCategoryFixedT2Arti + refCategoryStructureAA
 refCategoryLongRangeDFLand = refCategoryFatboy + refCategorySniperBot + refCategoryShieldDisruptor
 refCategoryLongRangeMobile = refCategoryLongRangeDFLand + refCategoryNavalSurface * categories.DIRECTFIRE + refCategoryNavalSurface * categories.INDIRECTFIRE - refCategoryNavalSurface * categories.TECH1 + refCategoryIndirectT2Plus
@@ -483,7 +479,13 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
             if IsUnitValid(oUnit) then
                 iBaseThreat = (oUnit[refiDFMassThreatOverride] or tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef])
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; iBaseThreat='..(iBaseThreat or 0)..'; DF threat override='..(oUnit[refiDFMassThreatOverride] or 'nil')..'; tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef]='..(tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef] or 'nil')) end
+                if not(tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef]) and not(bBlueprintThreat) then
+                    iBaseThreat = GetCombatThreatRating({ { ['UnitId'] = oUnit.UnitId } }, bEnemyUnits, bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly, true)
+                    if not(tUnitThreatByIDAndType[oUnit.UnitId]) then tUnitThreatByIDAndType[oUnit.UnitId] = {} end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will rerun the blueprint logic as it seems to have missed this unit '..oUnit.UnitId..'; iBaseThreat after this='..(iBaseThreat or 'nil')) end
+                    if not(tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef]) then tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef] = (iBaseThreat or 0) end
 
+                end
                 if iBaseThreat > 0 then
                     --Have got the base threat for this type of unit, now adjust threat for unit health if want to calculate actual threat
                     iCurShield, iMaxShield = GetCurrentAndMaximumShield(oUnit)
@@ -1035,7 +1037,7 @@ function RecordUnitRange(oUnit)
                     oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
                     if oCurWeapon.WeaponUnpacks then oUnit[refbWeaponUnpacks] = true end
                 elseif not(oCurWeapon.RangeCategory) or oCurWeapon.RangeCategory == 'UWRC_Undefined' then
-                    if oCurWeapon.Label == 'Bomb' then
+                    if oCurWeapon.Label == 'Bomb' or oCurWeapon.DisplayName == 'Kamikaze' then
                         oUnit[refiBomberRange] = math.max((oUnit[refiBomberRange] or 0), oCurWeapon.MaxRadius)
                     elseif oCurWeapon.WeaponCategory == 'Direct Fire' or oCurWeapon.WeaponCategory == 'Direct Fire Experimental' then
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)

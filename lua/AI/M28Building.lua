@@ -21,6 +21,57 @@ reftUnitsCoveredByThisTMD = 'M28BuildUnitsCoveredByTMD' --Against TMD, table of 
 reftTMDCoveringThisUnit = 'M28BuildTMDCoveringUnit' --against unit, table of TMD providing TML coverage to it
 refbUnitWantsMoreTMD = 'M28BuildUnitWantsTMD' --true if a unit wants more TMD
 refbNoNearbyTMDBuildLocations = 'M28BuiltUnitHasNoNearbyTMDBuildLocations' --true if we buitl a TMD to cover this unit and the TMD ended up too far away
+refbMissileRecentlyBuilt = 'M28BuildMissileBuiltRecently' --true if unit has recently built a missile
+refbMissileChecker = 'M28BuildMissileChecker' --true if active missile builder checker for the unit
+refbActiveMissileChecker = 'M27BuildMissileTargetChecker' --true if active missile target checker for the unit
+
+function ConsiderLaunchingMissile(oSMLOrTML, oWeapon)
+    M28Utilities.ErrorHandler('To add code for SML and TML')
+    --make sue make use of refbActiveMissileChecker as part of this
+end
+
+function ForkedCheckForAnotherMissile(oUnit)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ForkedCheckForAnotherMissile'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if not(oUnit[refbMissileChecker]) then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(1) --make sure we have an accurate number for missiles
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        local iMissiles = 0
+        if oUnit.GetTacticalSiloAmmoCount then iMissiles = iMissiles + oUnit:GetTacticalSiloAmmoCount() end
+        if oUnit.GetNukeSiloAmmoCount then iMissiles = iMissiles + oUnit:GetNukeSiloAmmoCount() end
+        if iMissiles >= 2 then
+            oUnit[refbMissileChecker] = true
+            while M28UnitInfo.IsUnitValid(oUnit) do
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitSeconds(10)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                if M28UnitInfo.IsUnitValid(oUnit) then
+                    iMissiles = 0
+                    if oUnit.GetTacticalSiloAmmoCount then iMissiles = iMissiles + oUnit:GetTacticalSiloAmmoCount() end
+                    if oUnit.GetNukeSiloAmmoCount then iMissiles = iMissiles + oUnit:GetNukeSiloAmmoCount() end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iMissiles='..iMissiles) end
+                    if iMissiles < 2 then
+                        oUnit:SetPaused(false)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will change unit state so it isnt paused') end
+                        break
+                    end
+                else
+                    break
+                end
+
+            end
+        else
+            if M28UnitInfo.IsUnitValid(oUnit) then oUnit:SetPaused(false) end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function CheckIfWantToBuildAnotherMissile(oUnit)
+    ForkThread(ForkedCheckForAnotherMissile, oUnit)
+end
 
 function EnemyTMLFirstRecorded(iTeam, oTML)
     --Have just recorded an enemy TML against a land zone - want to record the TML against all units in its range who will want protecting from it

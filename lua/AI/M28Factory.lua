@@ -455,7 +455,12 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         end
     end
 
-    local bEcoDueToEnemyFirebase = M28Conditions.WantToEcoDueToEnemyFirebase(iTeam, tLZTeamData, iPlateau)
+    local bSaveMassDueToEnemyFirebaseOrOurExperimental
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals]) == false and bHaveLowMass then
+        bSaveMassDueToEnemyFirebaseOrOurExperimental = true
+    else bSaveMassDueToEnemyFirebaseOrOurExperimental = M28Conditions.WantToEcoDueToEnemyFirebase(iTeam, tLZTeamData, iPlateau)
+    end
+
 
     iCategoryToBuild = M28UnitInfo.refCategoryEngineer --Placeholder
     local sBPIDToBuild
@@ -507,7 +512,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
     --Enemies nearby and have built fewer tanks of this tech level than engineers
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if bDebugMessages == true then LOG(sFunctionRef..': CHecking if nearby enemy threat and we are T2 plus, iFactoryTechLevel='..iFactoryTechLevel..'; Enemies in this or adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; bEcoDueToEnemyFirebase='..tostring(bEcoDueToEnemyFirebase)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': CHecking if nearby enemy threat and we are T2 plus, iFactoryTechLevel='..iFactoryTechLevel..'; Enemies in this or adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; bSaveMassDueToEnemyFirebaseOrOurExperimental='..tostring(bSaveMassDueToEnemyFirebaseOrOurExperimental)) end
     if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
         --Build tanks unless we have a LC of tanks of at least 5 and more than our LC of engineers
         local iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, false, bConsiderMobileShields, bConsiderMobileStealths)
@@ -615,7 +620,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
 
     --Other actions - dont do unless we have lots of mass if this is lower than our highest tech level
-    if bHaveHighestLZTech and not(bEcoDueToEnemyFirebase) then
+    if bHaveHighestLZTech and not(bSaveMassDueToEnemyFirebaseOrOurExperimental) then
 
         --Combat or MAA if this LZ needs more units
         iCurrentConditionToTry = iCurrentConditionToTry + 1
@@ -765,7 +770,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
     --T1 mobile arti if we dont ahve low mass and are below highest tech level, or normal tanks otherwise
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if not(bHaveLowMass) and not(bEcoDueToEnemyFirebase) then
+    if not(bHaveLowMass) and not(bSaveMassDueToEnemyFirebaseOrOurExperimental) then
         --Is there a relatively nearby enemy?
 
         local bEnemiesRelativelyNear = tLZData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]
@@ -782,7 +787,9 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             if bHaveHighestLZTech then
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategorySkirmisher) then return sBPIDToBuild end
             else
-                if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect * categories.TECH1) then return sBPIDToBuild end
+                if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryIndirect * categories.TECH1) <= 60 then
+                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect * categories.TECH1) then return sBPIDToBuild end
+                end
             end
         end
     end

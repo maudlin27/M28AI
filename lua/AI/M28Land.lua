@@ -542,7 +542,7 @@ function RecordGroundThreatForLandZone(tLZTeamData, iTeam, iPlateau, iLandZone)
 
 
 
-    if bDebugMessages == true then LOG(sFunctionRef..': End of code, tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]='..repru(tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange])..'; bNearbyEnemies='..tostring(bNearbyEnemies)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]='..repru(tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange])..'; bNearbyEnemies='..tostring(bNearbyEnemies)..'; Allied combat='..(tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 'nil')) end
     tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] = bNearbyEnemies
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -1222,7 +1222,7 @@ end
 function MoveToStealthTarget(oStealth, tEnemyBase)
     local oBP = oStealth:GetBlueprint()
     local iStealthDistanceWanted = math.max(8, oBP.Intel.RadarStealthFieldRadius - 1 - oBP.Physics.MaxSpeed - (oStealth[refoMobileStealthTarget]:GetBlueprint().Physics.MaxSpeed or 0))
-    M28Orders.IssueTrackedMove(oStealth, M28Utilities.MoveInDirection(oStealth[refoMobileStealthTarget]:GetPosition(), M28Utilities.GetAngleFromAToB(tEnemyBase,oStealth[refoMobileStealthTarget]:GetPosition()), iStealthDistanceWanted, true, false), math.min(5, iStealthDistanceWanted - 1), false, 'ShU'..oStealth[refoMobileStealthTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oStealth[refoMobileStealthTarget]))
+    M28Orders.IssueTrackedMove(oStealth, M28Utilities.MoveInDirection(oStealth[refoMobileStealthTarget]:GetPosition(), M28Utilities.GetAngleFromAToB(tEnemyBase,oStealth[refoMobileStealthTarget]:GetPosition()), iStealthDistanceWanted, true, false), math.min(5, iStealthDistanceWanted - 1), false, 'StU'..oStealth[refoMobileStealthTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oStealth[refoMobileStealthTarget]))
 end
 
 function ManageMobileShieldsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tMobileShields)
@@ -1605,7 +1605,6 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
-
     if bDebugMessages == true then LOG(sFunctionRef..': start of code, iTeam='..iTeam..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is table of available combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))..'; iFriendlyBestMobileDFRange='..iFriendlyBestMobileDFRange..'; iFriendlyBestMobileIndirectRange='..iFriendlyBestMobileIndirectRange..'; Are there enemy units in this or adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])) end
 
     local bWantReinforcements = false
@@ -1622,6 +1621,9 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
     local iClosestFriendlyUnitToAnEnemyFirebase = 100000
 
     local iFirebaseThreatAdjust = 0
+    local iAdjacentFirebaseThreat = 0
+
+    local bHaveSignificantCombatCloserToFirebase = false
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false then
         --Is the firebase not in range of a core LZ?
         local bFirebaseInCoreLZRange = false
@@ -1630,38 +1632,79 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
         local tEnemyT2ArtiAndShields
         local iCurDist
         local iClosestDist
+        local iCurFirebaseThreat
+        local bIsAdjacent
+
         for iEntry, tPlateauAndLZ in tLZTeamData[M28Map.subreftEnemyFirebasesInRange] do
             if M28Map.tAllPlateaus[tPlateauAndLZ[1]][M28Map.subrefPlateauLandZones][tPlateauAndLZ[2]][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTCoreBase] then
                 bFirebaseInCoreLZRange = true
                 iFirebaseThreatAdjust = 0
                 break
             else
-                tEnemyT2ArtiAndShields = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryFixedShield, M28Map.tAllPlateaus[tPlateauAndLZ[1]][M28Map.subrefPlateauLandZones][tPlateauAndLZ[2]][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTEnemyUnits])
-                if M28Utilities.IsTableEmpty(tEnemyT2ArtiAndShields) == false then
-                    iClosestDist = 100000
-                    for iUnit, oUnit in tEnemyT2ArtiAndShields do
-                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefLZMidpoint])
-                        if iCurDist < iClosestDist then
-                            iClosestDist = iCurDist
-                            oNearestFirebaseUnit = oUnit
-                        end
-                    end
-                    iClosestDist = 100000
-                    local tFirebaseMidpoint = M28Map.tAllPlateaus[tPlateauAndLZ[1]][M28Map.subrefPlateauLandZones][tPlateauAndLZ[2]][M28Map.subrefLZMidpoint]
-                    for iUnit, oUnit in tAvailableCombatUnits do
-                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tFirebaseMidpoint)
-                        if iCurDist < iClosestDist then
-                            iClosestDist = iCurDist
-                            oOurNearestUnitToFirebase = oUnit
-                            if iClosestDist < iClosestFriendlyUnitToAnEnemyFirebase then
-                                oClosestFriendlyUnitToAnEnemyFirebase = oUnit
-                                iClosestFriendlyUnitToAnEnemyFirebase = iClosestDist
+                --Ignore firebase in the LZ we are already in
+                if not(iLandZone == tPlateauAndLZ[2]) then
+                    tEnemyT2ArtiAndShields = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryFixedShield, M28Map.tAllPlateaus[tPlateauAndLZ[1]][M28Map.subrefPlateauLandZones][tPlateauAndLZ[2]][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTEnemyUnits])
+                    if M28Utilities.IsTableEmpty(tEnemyT2ArtiAndShields) == false then
+                        iClosestDist = 100000
+                        for iUnit, oUnit in tEnemyT2ArtiAndShields do
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefLZMidpoint])
+                            if iCurDist < iClosestDist then
+                                iClosestDist = iCurDist
+                                oNearestFirebaseUnit = oUnit
                             end
                         end
-                    end
-                    if bDebugMessages == true then LOG(sFunctionRef..': oOurNearestUnitToFirebase='..oOurNearestUnitToFirebase.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOurNearestUnitToFirebase)..'; oNearestFirebaseUnit='..oNearestFirebaseUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestFirebaseUnit)..'; Dist between them='..M28Utilities.GetDistanceBetweenPositions(oOurNearestUnitToFirebase:GetPosition(), oNearestFirebaseUnit:GetPosition())) end
-                    if oOurNearestUnitToFirebase and oNearestFirebaseUnit and M28Utilities.GetDistanceBetweenPositions(oOurNearestUnitToFirebase:GetPosition(), oNearestFirebaseUnit:GetPosition()) <= 140 then
-                        iFirebaseThreatAdjust = iFirebaseThreatAdjust + M28UnitInfo.GetCombatThreatRating(tEnemyT2ArtiAndShields, true, true)
+                        iClosestDist = 100000
+                        local tFirebaseMidpoint = M28Map.tAllPlateaus[tPlateauAndLZ[1]][M28Map.subrefPlateauLandZones][tPlateauAndLZ[2]][M28Map.subrefLZMidpoint]
+                        for iUnit, oUnit in tAvailableCombatUnits do
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tFirebaseMidpoint)
+                            if iCurDist < iClosestDist then
+                                iClosestDist = iCurDist
+                                oOurNearestUnitToFirebase = oUnit
+                                if iClosestDist < iClosestFriendlyUnitToAnEnemyFirebase then
+                                    oClosestFriendlyUnitToAnEnemyFirebase = oUnit
+                                    iClosestFriendlyUnitToAnEnemyFirebase = iClosestDist
+                                end
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': oOurNearestUnitToFirebase='..oOurNearestUnitToFirebase.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOurNearestUnitToFirebase)..'; oNearestFirebaseUnit='..oNearestFirebaseUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestFirebaseUnit)..'; Dist between them='..M28Utilities.GetDistanceBetweenPositions(oOurNearestUnitToFirebase:GetPosition(), oNearestFirebaseUnit:GetPosition())) end
+                        if oOurNearestUnitToFirebase and oNearestFirebaseUnit and M28Utilities.GetDistanceBetweenPositions(oOurNearestUnitToFirebase:GetPosition(), oNearestFirebaseUnit:GetPosition()) <= 140 then
+                            iCurFirebaseThreat = M28UnitInfo.GetCombatThreatRating(tEnemyT2ArtiAndShields, true, true)
+                            if iCurFirebaseThreat > 0 then
+                                bIsAdjacent = false
+                                if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][tPlateauAndLZ[2]]][M28Map.subrefLZPath]) == false then
+
+                                    --Include friendly units in LZs between here and the firebase
+                                    if bDebugMessages == true then
+                                        --LOG(sFunctionRef..': iLandZone='..reprs(iLandZone))
+                                        --LOG(sFunctionRef..': tPlateauAndLZ[2]='..reprs(tPlateauAndLZ[2]))
+                                        --LOG(sFunctionRef..': tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][tPlateauAndLZ[2]]='..reprs(tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][tPlateauAndLZ[2]]))
+                                        --LOG(sFunctionRef..': pathing='..reprs(tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][tPlateauAndLZ[2]]][M28Map.subrefLZPath]))
+                                        --LOG(sFunctionRef..': tLZData[M28Map.subrefLZPathingToOtherLandZones]='..reprs(tLZData[M28Map.subrefLZPathingToOtherLandZones]))
+                                        LOG(sFunctionRef..': Will cycle through all LZs between LZ'..reprs(iLandZone or 'nil')..' and LZ'..reprs(tPlateauAndLZ[2] or 'nil')..' and factor in friendly threat; Entry in pathing table='..reprs(tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][tPlateauAndLZ[2]] or 'nil')..'; reprs of pathing='..reprs(tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][tPlateauAndLZ[2]]][M28Map.subrefLZPath])..'; tLZData[M28Map.subrefLZPathingToOtherLandZones]='..reprs(tLZData[M28Map.subrefLZPathingToOtherLandZones]))
+                                    end
+
+                                    for iEntry, iAdjacentLandZone in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                                        if iAdjacentLandZone == tPlateauAndLZ[2] then
+                                            bIsAdjacent = true
+                                        end
+                                    end
+                                    for iEntry, iPathLZ in tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][tPlateauAndLZ[2]]][M28Map.subrefLZPath] do
+                                        if not(iPathLZ == iLandZone) then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Friendly LZ that will pass through to get to firebase='..iPathLZ..'; Friendly combat threat of this='..(M28Map.tAllPlateaus[tPlateauAndLZ[1]][M28Map.subrefPlateauLandZones][iPathLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTThreatAllyCombatTotal] or 'nil')) end
+                                            iCurFirebaseThreat = iCurFirebaseThreat - (M28Map.tAllPlateaus[tPlateauAndLZ[1]][M28Map.subrefPlateauLandZones][iPathLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTThreatAllyCombatTotal] or 'nil')
+                                            if not(bHaveSignificantCombatCloserToFirebase) and M28Map.tAllPlateaus[tPlateauAndLZ[1]][M28Map.subrefPlateauLandZones][iPathLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTThreatAllyCombatTotal] >= 4000 then
+                                                bHaveSignificantCombatCloserToFirebase = true
+                                            end
+                                        end
+                                    end
+                                end
+                                if bIsAdjacent then
+                                    --Track adjacent firebase threat so if we want to take this into account later we can; dont think we are double-counting this though so currently only using to affect decision on whether to automatically retreat
+                                    iAdjacentFirebaseThreat = iAdjacentFirebaseThreat + math.max(iCurFirebaseThreat, 0)
+                                end
+                            end
+                            iFirebaseThreatAdjust = iFirebaseThreatAdjust + math.max(iCurFirebaseThreat, 0)
+                        end
                     end
                 end
             end
@@ -1670,7 +1713,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
     --If enemy has a firebase, then retreat if we dont have enough threat to beat it
     local bRunFromFirebase = false
-    if iFirebaseThreatAdjust > 0 and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] < math.min(20000, iFirebaseThreatAdjust)  then
+    if iFirebaseThreatAdjust > 0 and not(bHaveSignificantCombatCloserToFirebase) and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] < math.min(20000, iFirebaseThreatAdjust)  then
         --Retreat
         bRunFromFirebase = true
     end
@@ -1925,18 +1968,23 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             end
                         end
                     end
-                    if not(bAttackWithEverything) and iOurCombatThreat > iEnemyCombatThreat * 1.4 or (iOurCombatThreat > iEnemyCombatThreat and tLZTeamData[M28Map.subrefLZTValue] > iOurCombatThreat * 0.5) or (tLZTeamData[M28Map.subrefLZTCoreBase] and iOurCombatThreat > iEnemyCombatThreat * 0.8) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Deciding whether to attack with everything - pre firebase adjust bAttackWithEverything='..tostring(bAttackWithEverything)..'; iOurCombatThreat='..iOurCombatThreat..'; iEnemyCombatThreat='..iEnemyCombatThreat..'; iFirebaseThreatAdjust='..iFirebaseThreatAdjust..'; bHaveSignificantCombatCloserToFirebase='..tostring(bHaveSignificantCombatCloserToFirebase)..'; tLZTeamData[M28Map.subrefLZTValue]='..tLZTeamData[M28Map.subrefLZTValue]) end
+                    if not(bAttackWithEverything) and iOurCombatThreat > iEnemyCombatThreat * 1.4 or (iOurCombatThreat > iEnemyCombatThreat and ((iFirebaseThreatAdjust > 0 and bHaveSignificantCombatCloserToFirebase) or tLZTeamData[M28Map.subrefLZTValue] > iOurCombatThreat * 0.5)) or (tLZTeamData[M28Map.subrefLZTCoreBase] and iOurCombatThreat > iEnemyCombatThreat * 0.8) then
                         --Extra check if have a firebase - only want to include friendly units that are near our closest unit to enemy firebase
                         if iClosestFriendlyUnitToAnEnemyFirebase <= 170 and iFirebaseThreatAdjust > 0 then
                             --Get new combat threat based on allied mobile DF and indirect fire units around this unit
-                            local iNearbyCombatThreat = math.min(iOurCombatThreat, M28UnitInfo.GetCombatThreatRating(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains][1]:GetUnitsAroundPoint(M28UnitInfo.refCategoryLandCombat, oClosestFriendlyUnitToAnEnemyFirebase:GetPosition(), 40, 'Ally'), false))
+                            bDebugMessages = true
+                            local iSearchRange = math.max(40, math.min(140, 15 + table.getn(tOurDFAndT1ArtiUnits)))
+
+                            local iNearbyCombatThreat = math.min(iOurCombatThreat, M28UnitInfo.GetCombatThreatRating(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains][1]:GetUnitsAroundPoint(M28UnitInfo.refCategoryLandCombat, oClosestFriendlyUnitToAnEnemyFirebase:GetPosition(), iSearchRange, 'Ally'), false))
                             if bDebugMessages == true then LOG(sFunctionRef..': Nearby combat threat='..iNearbyCombatThreat..'; iEnemyCombatThreat='..iEnemyCombatThreat) end
-                            if iNearbyCombatThreat > iEnemyCombatThreat * 1.5 then
+                            if iNearbyCombatThreat > iEnemyCombatThreat * 1.5 or (iNearbyCombatThreat > iEnemyCombatThreat * 1.15 and iNearbyCombatThreat >= 20000) or (iNearbyCombatThreat > iEnemyCombatThreat and bHaveSignificantCombatCloserToFirebase) then
                                 bAttackWithEverything = true
                             else
                                 bAttackWithEverything = false
                                 bConsolidateAtMidpoint = true
                             end
+                            bDebugMessages = false
                         else
                             bAttackWithEverything = true
                         end
@@ -2382,6 +2430,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
 
         --Add adjacent combat units if the land zone is lower priority than us and the adjacent LZ doesnt have DF units of a significant threat in it
         local iCurUnitThreat
+        if bDebugMessages == true then LOG(sFunctionRef..': Will consider including adjacent combat units for LZ '..iLandZone..' with iCurLZValue='..iCurLZValue..'; is table of adjacent LZs empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]))..'; bConsiderAdjacentIndirect='..tostring(bConsiderAdjacentIndirect)..'; bConsiderAdjacentDF='..tostring(bConsiderAdjacentDF)) end
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false and (bConsiderAdjacentIndirect or bConsiderAdjacentDF) then
             for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                 local tAltLZTeam = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
@@ -2389,6 +2438,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                 if not(bLandZoneOrAdjHasUnitsWantingScout) and M28Utilities.IsTableEmpty(tAltLZTeam[M28Map.subrefLZTAlliedCombatUnits]) == false then bLandZoneOrAdjHasUnitsWantingScout = true end
                 if tAltLZTeam[M28Map.subrefLZTValue] < iCurLZValue and tAltLZTeam[M28Map.subrefLZThreatEnemyMobileDFTotal] <= 50 and M28Utilities.IsTableEmpty(tAltLZTeam[M28Map.subrefLZTAlliedCombatUnits]) == false then
                     for iUnit, oUnit in tAltLZTeam[M28Map.subrefLZTAlliedCombatUnits] do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want to add adjacent oUnit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' with cur assignment value '..(oUnit[refiCurrentAssignmentValue] or 0)..' and cur assignemnt LZ='..(oUnit[refiCurrentAssignmentPlateauAndLZ][2] or 'nil')) end
                         if not(oUnit.Dead) and ((oUnit[refiCurrentAssignmentValue] or 0) < iCurLZValue or (oUnit[refiCurrentAssignmentPlateauAndLZ][1] == iPlateau and oUnit[refiCurrentAssignmentPlateauAndLZ][2] == iAdjLZ)) then
                             --Combat unit related
                             if (bConsiderAdjacentDF and oUnit[M28UnitInfo.refiDFRange] > 0) or (bConsiderAdjacentIndirect and oUnit[M28UnitInfo.refiIndirectRange] > 0) then
@@ -2510,6 +2560,7 @@ function AssignValuesToLandZones(iTeam)
     local iCurValue
     local tFriendlyNonPDBuildings
     local bAdjacentToCoreFactory
+    local iFriendlyBuildingValue
     while M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false do
         local tiPlateauAndLZWithFriendlyStartPosition = {}
         local iBaseCategory
@@ -2535,12 +2586,15 @@ function AssignValuesToLandZones(iTeam)
                     iCurValue = tLandZoneData[M28Map.subrefLZMexCount] * 250 + (tLandZoneData[M28Map.subrefLZTotalMassReclaim] or 0) * 0.25
                     if M28Utilities.IsTableEmpty(tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedUnits]) == false then
                         tFriendlyNonPDBuildings = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure - M28UnitInfo.refCategoryPD, tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedUnits])
-                        iCurValue = iCurValue + M28UnitInfo.GetCombatThreatRating(tFriendlyNonPDBuildings, false, true)
+                        iFriendlyBuildingValue = M28UnitInfo.GetCombatThreatRating(tFriendlyNonPDBuildings, false, true)
+                        iCurValue = iCurValue + iFriendlyBuildingValue
+                    else
+                        iFriendlyBuildingValue = 0
                     end
 
                     --Record the value
                     tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTValue] = iCurValue
-
+                    tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZSValue] = iFriendlyBuildingValue
                     tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTCoreBase] = nil
                     --Is this a core base land zone?
                     if bDebugMessages == true then LOG(sFunctionRef..': Checking if we are a friendly land zone - tiPlateauAndLZWithFriendlyStartPosition='..repru(tiPlateauAndLZWithFriendlyStartPosition)..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedUnits]))) end

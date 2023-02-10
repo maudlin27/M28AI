@@ -1037,7 +1037,7 @@ function ManageACU(aiBrain)
     end
 
     --Make sure ACU is recorded
-    M28Team.AssignUnitToLandZoneOrPond(aiBrain, oACU)
+    M28Team.AssignUnitToLandZoneOrPond(aiBrain, oACU, false, false, true)
     oACU[refiUpgradeCount] = 0
 
     while M28UnitInfo.IsUnitValid(oACU) do

@@ -44,6 +44,7 @@ reftQueuedBuildings = 'M28EngQueuedBuildings' --Whenever issuebuild order is giv
     subrefBuildingRadius = 4 --Size (radius) of the building
     subrefPlateau = 5 --Plateau where hte building is to be built
     subrefLandZone = 6 --Land zone where hte building is to be built
+refbBuildingExperimental = 'M28EngBuildingExperimental' --True if engineer is building an experimental andh aving itself tracked in the team table for this
 
 
 --Actions for engineers (dont have as local variables due to cap on how many local variables we can have)
@@ -60,15 +61,15 @@ refActionBuildEnergyStorage = 6
     refActionBuildSecondPower = 10
     refActionBuildAirStaging = 11
     refActionBuildAirFactory = 12
-    refActionBuildSMD = 13
+refActionBuildSMD = 13
 refActionBuildMassStorage = 14
 refActionBuildT1Radar = 15
 refActionBuildT2Radar = 16
 refActionBuildT3Radar = 17
-    refActionAssistSMD = 18
+refActionAssistSMD = 18
     refActionAssistAirFactory = 19
     refActionBuildThirdPower = 20
-    refActionBuildExperimental = 21
+refActionBuildExperimental = 21
 refActionReclaimFriendlyUnit = 22
 --See below for reclaimenemyunit action
     refActionBuildT3MexOverT2 = 23
@@ -120,10 +121,12 @@ tiActionCategory = {
     [refActionBuildHydro] = M28UnitInfo.refCategoryHydro,
     [refActionBuildPower] = M28UnitInfo.refCategoryPower,
     [refActionBuildLandFactory] = M28UnitInfo.refCategoryLandFactory,
+    [refActionBuildSMD] = M28UnitInfo.refCategorySMD,
     [refActionBuildMassStorage] = M28UnitInfo.refCategoryMassStorage,
     [refActionBuildT1Radar] = M28UnitInfo.refCategoryT1Radar,
     [refActionBuildT2Radar] = M28UnitInfo.refCategoryT2Radar,
     [refActionBuildT3Radar] = M28UnitInfo.refCategoryT3Radar,
+    [refActionAssistSMD] = M28UnitInfo.refCategorySMD,
     [refActionBuildEnergyStorage] = M28UnitInfo.refCategoryEnergyStorage,
     [refActionBuildTMD] = M28UnitInfo.refCategoryTMD,
     [refActionBuildSecondLandFactory] = M28UnitInfo.refCategoryLandFactory,
@@ -141,10 +144,13 @@ tiActionOrder = {
     [refActionRunToLandZone] = M28Orders.refiOrderIssueMove,
     [refActionReclaimFriendlyUnit] = M28Orders.refiOrderIssueReclaim,
     [refActionAssistUpgrade] = M28Orders.refiOrderIssueGuard,
+    [refActionBuildSMD] = M28Orders.refiOrderIssueBuild,
     [refActionBuildMassStorage] = M28Orders.refiOrderIssueBuild,
     [refActionBuildT1Radar] = M28Orders.refiOrderIssueBuild,
     [refActionBuildT2Radar] = M28Orders.refiOrderIssueBuild,
     [refActionBuildT3Radar] = M28Orders.refiOrderIssueBuild,
+    [refActionAssistSMD] = M28Orders.refiOrderIssueGuard,
+    [refActionBuildExperimental] = M28Orders.refiOrderIssueBuild,
     [refActionReclaimArea] = M28Orders.refiOrderIssueReclaim,--will actually have a move order followed by reclaim order
     [refActionBuildTMD] = M28Orders.refiOrderIssueBuild,
     [refActionBuildSecondLandFactory] = M28Orders.refiOrderIssueBuild,
@@ -157,6 +163,7 @@ tiActionOrder = {
 tiActionAdjacentCategory = {
     [refActionBuildPower] = M28UnitInfo.refCategoryAirFactory + M28UnitInfo.refCategoryT3Radar + M28UnitInfo.refCategorySMD + M28UnitInfo.refCategorySML,
     [refActionBuildLandFactory] = M28UnitInfo.refCategoryMex,
+    [refActionBuildSMD] = M28UnitInfo.refCategoryT3Power,
     [refActionBuildT1Radar] = M28UnitInfo.refCategoryT1Power,
     [refActionBuildT2Radar] = M28UnitInfo.refCategoryT2Power,
     [refActionBuildT3Radar] = M28UnitInfo.refCategoryT3Power,
@@ -1548,6 +1555,11 @@ function SlowlyRefreshBuildableLandZoneLocations(oOrigBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function DecideOnExperimentalToBuild(iActionToAssign, aiBrain)
+    --Placeholder:
+    return M28UnitInfo.refCategoryLandExperimental
+end
+
 function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZTeamData, iTeam, iPlateau, iLandZone)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'FilterToAvailableEngineersByTech'
@@ -1886,6 +1898,33 @@ function ClearEngineerTracking(oEngineer)
     if oEngineer[M28UnitInfo.refbPaused] then M28UnitInfo.PauseOrUnpauseMassUsage(oEngineer, false) end
 
     oEngineer[refbPrimaryBuilder] = false
+
+    --Update experimental construction tracking:
+    if oEngineer[refbBuildingExperimental] then
+        --As backup, also remove any dead engineers from this table
+        local iRevisedIndex = 1
+        local tArray = M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subreftTeamEngineersBuildingExperimentals]
+        local iTableSize = table.getn(tArray)
+
+        for iOrigIndex=1, iTableSize do
+            if tArray[iOrigIndex] then
+                if oEngineer ~= tArray[iOrigIndex] and M28UnitInfo.IsUnitValid(tArray[iOrigIndex]) then --I.e. this should run the logic to decide whether we want to keep this entry of the table or remove it
+                    --We want to keep the entry; Move the original index to be the revised index number (so if e.g. a table of 1,2,3 removed 2, then this would've resulted in the revised index being 2 (i.e. it starts at 1, then icnreases by 1 for the first valid entry); this then means we change the table index for orig index 3 to be 2
+                    if (iOrigIndex ~= iRevisedIndex) then
+                        tArray[iRevisedIndex] = tArray[iOrigIndex];
+                        tArray[iOrigIndex] = nil;
+                    end
+                    iRevisedIndex = iRevisedIndex + 1; --i.e. this will be the position of where the next value that we keep will be located
+                else
+                    tArray[iOrigIndex] = nil;
+                end
+            end
+        end
+
+        oEngineer[refbBuildingExperimental] = nil
+    end
+
+    --Update details of engineers moving to a plateau
     if oEngineer[M28Land.reftiPlateauAndLZToMoveTo] then
         local tTargetLZTeamData = M28Map.tAllPlateaus[oEngineer[M28Land.reftiPlateauAndLZToMoveTo][1]][M28Map.subrefPlateauLandZones][oEngineer[M28Land.reftiPlateauAndLZToMoveTo][2]][M28Map.subrefLZTeamData][oEngineer:GetAIBrain().M28Team]
         if tTargetLZTeamData and M28Utilities.IsTableEmpty(tTargetLZTeamData[M28Map.subrefLZTEngineersTravelingHere]) == false then
@@ -1897,8 +1936,10 @@ function ClearEngineerTracking(oEngineer)
             end
         end
     end
-    oEngineer[refiAssignedAction] = nil
     oEngineer[M28Land.reftiPlateauAndLZToMoveTo] = nil
+
+    --Clear other data
+    oEngineer[refiAssignedAction] = nil
 
     --Clear reclaim assignment tracking
     if oEngineer[reftAssignedReclaimSegments] then
@@ -1959,6 +2000,16 @@ function TrackEngineerAction(oEngineer, iActionToAssign, bIsPrimaryBuilder, tOpt
     --bIsPrimaryBuilder - true if engineer will be building the item in question (so false if assisting an engineer or repairing a building or assisting an upgrade or moving somewhere etc.
     oEngineer[refiAssignedAction] = iActionToAssign
     oEngineer[refbPrimaryBuilder] = (bIsPrimaryBuilder or false)
+
+    --Track experimental construction
+    if iActionToAssign == refActionBuildExperimental or iActionToAssign == refActionBuildSecondExperimental then
+        table.insert(M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subreftTeamEngineersBuildingExperimentals], oEngineer)
+        oEngineer[refbBuildingExperimental] = true
+    else
+        oEngineer[refbBuildingExperimental] = nil
+    end
+
+    --Track info e.g. for units moving to other plateaus
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
     if tOptionalPlatAndLandToMoveTo then
         oEngineer[M28Land.reftiPlateauAndLZToMoveTo] = {tOptionalPlatAndLandToMoveTo[1], tOptionalPlatAndLandToMoveTo[2]}
@@ -2095,7 +2146,7 @@ function GetEngineerToReclaimNearbyArea(oEngineer, tLZTeamData, iPlateau, iLandZ
                                 LOG('oReclaim has a blueprint='..repru(oReclaim:GetBlueprint()))
                             else LOG('oReclaim doesnt have .GetBlueprint')
                             end
-                        end--M27Utilities.DebugArray(oReclaim)) end
+                        end
                     end
                     if oReclaim.CachePosition and ((not(bWantEnergyNotMass) and oReclaim.MaxMassReclaim >= iMinReclaimIndividualValue) or (bWantEnergyNotMass and oReclaim.MaxEnergyReclaim >= iMinReclaimIndividualValue)) and not(oReclaim:BeenDestroyed()) then
                         iCurDistToTargetPos = math.max(0, M28Utilities.GetDistanceBetweenPositions(tTargetPos, oReclaim.CachePosition) - math.min(oReclaim:GetBlueprint().SizeX, oReclaim:GetBlueprint().SizeZ)*0.5)
@@ -2136,6 +2187,8 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderActionToAssign'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
 
     if iTotalBuildPowerWanted < 0 then M28Utilities.ErrorHandler('Have negative BP wanted') end
 
@@ -2248,38 +2301,68 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                             UpdateBPTracking()
                         end
                     else
-
-                        --No building under construciton, and no existing engineer to assist - assign engineers to build instead
-                        local oFirstEngineer = tEngineersOfTechWanted[iEngiCount]
-                        local sBlueprint, tBuildLocation = GetBlueprintAndLocationToBuild(aiBrain, oFirstEngineer, iCategoryWanted, iMaxSearchRange, tiActionAdjacentCategory[iActionToAssign], nil, false, nil, nil, false, tLZTeamData)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Just got blueprint and location to build for oFirstEngineer='..oFirstEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFirstEngineer)..'; iActionTOAssign='..iActionToAssign..'; sBlueprint='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation)) end
-                        if sBlueprint then
-                            local tMoveLocation
-                            while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
-                                if bDebugMessages == true then LOG(sFunctionRef..': Assigning engineer for building action '..iActionToAssign..'; iEngiCount='..iEngiCount..'; iTotalBuildPowerWanted='..iTotalBuildPowerWanted..'; tiActionOrder[iActionToAssign]='..(tiActionOrder[iActionToAssign] or 'nil')..'; sBlueprint='..sBlueprint..'; tBuildLocation='..repru(tBuildLocation)..'; Eng cur state='..M28UnitInfo.GetUnitState(tEngineersOfTechWanted[iEngiCount])) end
-                                --Is our order to build or assist?
-                                if tiActionOrder[iActionToAssign] then
-                                    if tiActionOrder[iActionToAssign] == M28Orders.refiOrderIssueBuild then
-                                        tMoveLocation = GetLocationToMoveForConstruction(tEngineersOfTechWanted[iEngiCount], tBuildLocation, sBlueprint, 0, false)
-                                        if tMoveLocation then
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Telling engineer '..tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount])..' to move to '..repru(tMoveLocation)..' and then build '..sBlueprint..' and '..repru(tBuildLocation)) end
-                                            M28Orders.IssueTrackedMoveAndBuild(tEngineersOfTechWanted[iEngiCount], tBuildLocation, sBlueprint, tMoveLocation, 1, false, sOrderRef)
-                                        else
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Telling engineer '..tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount])..' to build '..sBlueprint..' at '..repru(tBuildLocation)) end
-                                            M28Orders.IssueTrackedBuild(tEngineersOfTechWanted[iEngiCount], tBuildLocation, sBlueprint, false, sOrderRef)
-                                        end
-                                        TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign, true)
-                                        UpdateBPTracking()
+                        if tiActionOrder[iActionToAssign] == M28Orders.refiOrderIssueGuard then
+                            --Want to assist something, and are just looking for a single predefined category (so dont need the  later on custom logic)
+                            local oUnitToAssist
+                            local oBackupUnit
+                            local tUnitsOfCategoryInLZ = EntityCategoryFilterDown(tiActionCategory[iActionToAssign], tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                            if M28Utilities.IsTableEmpty(tUnitsOfCategoryInLZ) == false then
+                                for iUnit, oUnit in tUnitsOfCategoryInLZ do
+                                    if oUnit:GetWorkProgress() > 0 then
+                                        oUnitToAssist = oUnit
                                     else
-                                        M28Utilities.ErrorHandler('Need to add code for actions that dont involve building, ActionToAssign='..iActionToAssign..'; order ref='..(tiActionOrder[iActionToAssign] or 'nil'))
+                                        oBackupUnit = oUnitToAssist
                                     end
-                                else
-                                    M28Utilities.ErrorHandler('Missing action order type for iActionToAssign '..iActionToAssign)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to assist unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with work progress '..oUnit:GetWorkProgress()) end
                                 end
+                                if not(oUnitToAssist) then oUnitToAssist = oBackupUnit end
                             end
+                            if oUnitToAssist then
+                                while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
+                                    if bDebugMessages == true then LOG(sFunctionRef..': About to tell engineer '..tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount])..' to assist unit '..oUnitToAssist.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToAssist)) end
+                                    M28Orders.IssueTrackedGuard(tEngineersOfTechWanted[iEngiCount], oUnitToAssist, false, sOrderRef)
+                                    TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign, false)
+                                    UpdateBPTracking()
+                                end
+                            else
+                                --Dont have anything to assist
+                                if bDebugMessages == true then LOG(sFunctionRef..': Cant assist the desired category so will stop trying to assist it and reduce build power required') end
+                                iTotalBuildPowerWanted = 0
+                            end
+
                         else
-                            if bDebugMessages == true then LOG(sFunctionRef..': Cant build the desired category so will stop trying to build it and reduce build power required') end
-                            iTotalBuildPowerWanted = 0
+                            --No building under construciton, and no existing engineer to assist - assign engineers to build instead
+                            local oFirstEngineer = tEngineersOfTechWanted[iEngiCount]
+                            local sBlueprint, tBuildLocation = GetBlueprintAndLocationToBuild(aiBrain, oFirstEngineer, iCategoryWanted, iMaxSearchRange, tiActionAdjacentCategory[iActionToAssign], nil, false, nil, nil, false, tLZTeamData)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Just got blueprint and location to build for oFirstEngineer='..oFirstEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFirstEngineer)..'; iActionTOAssign='..iActionToAssign..'; sBlueprint='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation)) end
+                            if sBlueprint then
+                                local tMoveLocation
+                                while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Assigning engineer for building action '..iActionToAssign..'; iEngiCount='..iEngiCount..'; iTotalBuildPowerWanted='..iTotalBuildPowerWanted..'; tiActionOrder[iActionToAssign]='..(tiActionOrder[iActionToAssign] or 'nil')..'; sBlueprint='..sBlueprint..'; tBuildLocation='..repru(tBuildLocation)..'; Eng cur state='..M28UnitInfo.GetUnitState(tEngineersOfTechWanted[iEngiCount])) end
+                                    --Is our order to build or assist?
+                                    if tiActionOrder[iActionToAssign] then
+                                        if tiActionOrder[iActionToAssign] == M28Orders.refiOrderIssueBuild then
+                                            tMoveLocation = GetLocationToMoveForConstruction(tEngineersOfTechWanted[iEngiCount], tBuildLocation, sBlueprint, 0, false)
+                                            if tMoveLocation then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Telling engineer '..tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount])..' to move to '..repru(tMoveLocation)..' and then build '..sBlueprint..' and '..repru(tBuildLocation)) end
+                                                M28Orders.IssueTrackedMoveAndBuild(tEngineersOfTechWanted[iEngiCount], tBuildLocation, sBlueprint, tMoveLocation, 1, false, sOrderRef)
+                                            else
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Telling engineer '..tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount])..' to build '..sBlueprint..' at '..repru(tBuildLocation)) end
+                                                M28Orders.IssueTrackedBuild(tEngineersOfTechWanted[iEngiCount], tBuildLocation, sBlueprint, false, sOrderRef)
+                                            end
+                                            TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign, true)
+                                            UpdateBPTracking()
+                                        else
+                                            M28Utilities.ErrorHandler('Need to add code for actions that dont involve building, ActionToAssign='..iActionToAssign..'; order ref='..(tiActionOrder[iActionToAssign] or 'nil'))
+                                        end
+                                    else
+                                        M28Utilities.ErrorHandler('Missing action order type for iActionToAssign '..iActionToAssign)
+                                    end
+                                end
+                            else
+                                if bDebugMessages == true then LOG(sFunctionRef..': Cant build the desired category so will stop trying to build it and reduce build power required') end
+                                iTotalBuildPowerWanted = 0
+                            end
                         end
                     end
                 end
@@ -2297,7 +2380,6 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                         while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
                             if bDebugMessages == true then
                                 LOG(sFunctionRef..': About to tell engineer '..tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount])..' to move to iPlateau '..iPlateau..'; iTargetLZ='..iTargetLZ)
-                                if tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount]) == 'xsl01051' and iTargetLZ == 9 then M28Utilities.ErrorHandler('Audit trail') end
                             end
                             M28Orders.IssueTrackedMove(tEngineersOfTechWanted[iEngiCount], tMoveLocation, 5, false, sOrderRef)
                             TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign, false, {iPlateau, iTargetLZ})
@@ -2418,6 +2500,81 @@ function UpdateSpareEngineerNumber(tLZTeamData, toAvailableEngineersByTech)
     end
 end
 
+function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, bHaveLowMass, bWantMorePower)
+    --Returns BP to assign, and whether it should be assigned to assist the SMD (returns true) rather than building a new SMD
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetBPToAssignToSMD'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    local iBPWanted = 0
+    local bAssistSMD = false
+    --Does this LZ have enough value?
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want SMD for iPlateau '..iPlateau..'; iLandZone '..iLandZone..'; LZ building vlaue='..(tLZTeamData[M28Map.subrefLZSValue] or 'nil')) end
+    if tLZTeamData[M28Map.subrefLZSValue] >= 11000 then
+        local tSMD = EntityCategoryFilterDown(M28UnitInfo.refCategorySMD, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+        local iSMDsWeHave = 0
+        local iSMDsWithNoMissiles = 0
+        if M28Utilities.IsTableEmpty(tSMD) == false then
+            for iSMDNumber, oSMD in tSMD do
+                --Check we've completed construction
+                if bDebugMessages == true then LOG(sFunctionRef .. ': Have an SMD '..oSMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSMD)..', will check if its completed construction; fraction complete='..oSMD:GetFractionComplete()..'; Ammo count='..oSMD:GetTacticalSiloAmmoCount()..'; oSMD[M28Building.refbMissileRecentlyBuilt]='..tostring(oSMD[M28Building.refbMissileRecentlyBuilt] or false)) end
+                if M28UnitInfo.IsUnitValid(oSMD) and oSMD:GetFractionComplete() == 1 then
+                    iSMDsWeHave = iSMDsWeHave + 1
+                    if oSMD.GetTacticalSiloAmmoCount and oSMD:GetTacticalSiloAmmoCount() < 1 and not (oSMD[M28Building.refbMissileRecentlyBuilt]) then
+                        iSMDsWithNoMissiles = iSMDsWithNoMissiles + 1
+                        if bDebugMessages == true then LOG(sFunctionRef..': SMD has no missile, iSMDsWithNoMissiles='..iSMDsWithNoMissiles) end
+                    end
+                end
+            end
+        end
+        local iEnemyNukes = 0 --Cant use table.getn
+        local iEnemyBattleshipNukes = 0
+        local iEnemyNormalNukes = 0
+        local bEnemyNukeNotConstructed = true
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false then
+            for iNuke, oNuke in M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers] do
+                if EntityCategoryContains(categories.BATTLESHIP, oNuke.UnitId) then
+                    iEnemyBattleshipNukes = iEnemyBattleshipNukes + 1
+                else
+                    iEnemyNormalNukes = iEnemyNormalNukes + 1
+                end
+                if oNuke:GetFractionComplete() >= 0.95 then
+                    bEnemyNukeNotConstructed = false
+                end
+            end
+        elseif bDebugMessages == true then
+            LOG(sFunctionRef .. ': No SML detected but will build SMD anyway as a precaution as we have a good economy')
+        end
+        iEnemyNukes = math.max(iEnemyNormalNukes, iEnemyBattleshipNukes, 1) --Redundancy - if table isnt empty enemy must have at least one, and will assume they have 1 if we are building as a precaution
+        if bDebugMessages == true then
+            LOG(sFunctionRef .. ': iSMDsWeHave=' .. iSMDsWeHave .. '; iEnemyNukes=' .. iEnemyNukes )
+            if iEnemyNukes > 1 then
+                LOG(sFunctionRef .. ': Will now list out each nuke unit ID')
+                for iNuke, oNuke in M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers] do
+                    LOG(sFunctionRef .. ': iNuke=' .. iNuke .. '; oNuke=' .. oNuke.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oNuke))
+                end
+            end
+        end
+        local iSMDWanted = math.min(4, iEnemyNukes, math.max(1, math.floor((M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) / 5)))
+        if bHaveLowMass then
+            iSMDWanted = math.min(3, iEnemyNukes * 2 / 3, iSMDWanted)
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': iSMDsWeHave='..iSMDsWeHave..'; iSMDWanted='..iSMDWanted..'; iSMDsWithNoMissiles='..iSMDsWithNoMissiles) end
+        if iSMDsWeHave < iSMDWanted or iSMDsWithNoMissiles > 0 then
+            if bHaveLowMass or iSMDsWeHave > 0 then iBPWanted = 150
+            elseif bWantMorePower then iBPWanted = 225
+            else iBPWanted = 300 end
+            if not(bCoreZone) then iBPWanted = iBPWanted * 0.5 end
+        end
+        if iSMDsWithNoMissiles > 0 then
+            bAssistSMD = true
+            iBPWanted = math.max(150, iBPWanted * 3)
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, iBPWanted='..(iBPWanted or 'nil')) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return iBPWanted, bAssistSMD
+end
+
 function GetBPToAssignToMassStorage(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, bHaveLowMass, bWantMorePower)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetBPToAssignToMassStorage'
@@ -2486,6 +2643,33 @@ function GetBPToAssignToAssistUpgrade(tLZTeamData, iTeam, bCoreZone, bHaveLowMas
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return iBPWanted
+end
+
+function GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone)
+    --returns two variables, the first is true/false if iLandZone has a queued experimental to build; the second is the number of other land zones for iTeam that have queued experimentals to build
+    local bHaveExperimentalForThisLandZone = false
+    local iOtherLandZonesWithExperimental = 0
+
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals]) == false then
+        local tiPlateauAndLZBuildingExperimental = {}
+        local iCurPlateau, iCurLZ
+        for iEngi, oEngi in M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals] do
+            iCurPlateau = oEngi[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]
+            iCurLZ = oEngi[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]
+            if not(tiPlateauAndLZBuildingExperimental[iCurPlateau]) then tiPlateauAndLZBuildingExperimental[iCurPlateau] = {} end
+            tiPlateauAndLZBuildingExperimental[iCurPlateau][iCurLZ] = (tiPlateauAndLZBuildingExperimental[iCurPlateau][iCurLZ] or 0) + 1
+        end
+        for iAssignedPlateau, tEngineersByLZ in tiPlateauAndLZBuildingExperimental do
+            for iAssignedLZ, iEngineersAssigned in tEngineersByLZ do
+                if iPlateau == iAssignedPlateau and iLandZone == iAssignedLZ then
+                    bHaveExperimentalForThisLandZone = true
+                else
+                    iOtherLandZonesWithExperimental = iOtherLandZonesWithExperimental + 1
+                end
+            end
+        end
+    end
+    return bHaveExperimentalForThisLandZone, iOtherLandZonesWithExperimental
 end
 
 function GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ, iPathingRef, iHighestTechEngiAvailable, bNearbyZone)
@@ -2656,6 +2840,22 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             if not(bHaveLowPower) then iBPWanted = iBPWanted * 2.5 end
             if bDebugMessages == true then LOG(sFunctionRef..': Will try and build factory, iBPWanted='..iBPWanted) end
             HaveActionToAssign(refActionBuildLandFactory, 1, iBPWanted)
+        end
+    end
+
+    --Need SMD
+    iCurPriority = iCurPriority + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': iCurPriority='..iCurPriority..'; About to consider if want SMD, is table of enemy nukes empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]))) end
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false then
+        local bAssistSMD = false
+        iBPWanted, bAssistSMD = GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, true, bHaveLowMass, bWantMorePower)
+        if bDebugMessages == true then LOG(sFunctionRef..': iBPWanted for SMD='..(iBPWanted or 'nil')..'; bAssistSMD='..tostring(bAssistSMD or false)) end
+        if iBPWanted > 0 then
+            if bAssistSMD then
+                HaveActionToAssign(refActionAssistSMD, 1, iBPWanted)
+            else
+                HaveActionToAssign(refActionBuildSMD, 3, iBPWanted)
+            end
         end
     end
 
@@ -2869,6 +3069,21 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
+    --Land experimental if lots of mass or have built lots of T3 units
+    local bExperimentalsBuiltInThisLZ, iExperimentalsBuiltInOtherLZ = GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone)
+    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 and
+            (bExperimentalsBuiltInThisLZ or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] > 7) and
+            ((M28Team.tTeamData[iTeam][M28Team.refbBuiltLotsOfT3Combat] and (bExperimentalsBuiltInThisLZ or iExperimentalsBuiltInOtherLZ == 0)) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 8000 + 8000 * iExperimentalsBuiltInOtherLZ or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] > 16 + iExperimentalsBuiltInOtherLZ * 30)) then
+
+        iBPWanted = 100 --No point trying to build an experimental with less build power
+        if not(bHaveLowPower) then
+            iBPWanted = iBPWanted * 1.5
+            --BP wanted: e.g. monkeylord will cost 0.07 mass per tick for 1 BP; so if want to spend approx 50% of mass on the experimental, then for every 1 mass per tick generated, would want roughly 7 build power
+            if not(bHaveLowMass) then iBPWanted = math.max(iBPWanted * 1.5, (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] - iExperimentalsBuiltInOtherLZ * 25 - 10) * 5) end
+        end
+        HaveActionToAssign(refActionBuildExperimental, 3, iBPWanted)
+    end
+
     --Build multiple land factories if have lots of mass stored (lower priority)
     iCurPriority = iCurPriority + 1
     if not(bHaveLowMass) and not(bHaveLowPower) and bWantMoreFactories and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 then
@@ -3027,6 +3242,19 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 400 and M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations]) == false then
         if bDebugMessages == true then LOG(sFunctionRef..': We have unbuilt hydro locations for this land zone, locations='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations])) end
         HaveActionToAssign(refActionBuildHydro, 1, 10)
+    end
+
+    --SMD if very high value
+    if tLZTeamData[M28Map.subrefLZSValue] >= 20000 then
+        local bAssistSMD = false
+        iBPWanted, bAssistSMD = GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, false, bHaveLowMass, bWantMorePower)
+        if iBPWanted > 0 then
+            if bAssistSMD then
+                HaveActionToAssign(refActionAssistSMD, 1, iBPWanted)
+            else
+                HaveActionToAssign(refActionBuildSMD, 3, iBPWanted)
+            end
+        end
     end
 
     iCurPriority = iCurPriority + 1

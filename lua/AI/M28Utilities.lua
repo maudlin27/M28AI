@@ -551,7 +551,7 @@ function SortTableBySubtable(tTableToSort, sSortByRef, bLowToHigh)
     local tPreSortedThreatGroup = {}
     local sThreatGroup
     for i1 = 1, 4 do
-        sThreatGroup = 'M27'..i1
+        sThreatGroup = 'M28'..i1
         tPreSortedThreatGroup[sThreatGroup] = {}
         if i1 == 1 then
             tPreSortedThreatGroup[sThreatGroup][refiDistanceFromOurBase] = 100
@@ -570,7 +570,7 @@ function SortTableBySubtable(tTableToSort, sSortByRef, bLowToHigh)
 end
 
 function SortTableByValue(tTableToSort, bHighToLow)
-    --e.g. for iCategory, iCount in M27Utilities.SortTableByValue(tCategoryUsage, true) do
+    --e.g. for iCategory, iCount in M28Utilities.SortTableByValue(tCategoryUsage, true) do
     if bHighToLow then return spairs(tTableToSort, function(t,a,b) return t[b] < t[a] end)
     else return spairs(tTableToSort, function(t,a,b) return t[b] > t[a] end)
     end

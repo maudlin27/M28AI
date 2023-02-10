@@ -131,6 +131,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         subrefLZTeamData = 'Subteam' --tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData] - Table for all the data by team for a plateau's land zone
             --Variables that are against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData]:
             subrefLZTValue = 'ZVal' --Value of the zone factoring in mass, reclaim, and allied units
+            subrefLZSValue = 'ZBVal' --Value of friendly buildings in the land zone
             subrefLZTCoreBase = 'ZCore' --true if this is considered a 'core base' land zone
             subrefLZAlliedACU = 'AACU' --table of ACU units for the land zone (so can factor into decisions on support and attack)
             subrefLZTAlliedUnits = 'Allies' --table of all allied units in the land zone, tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam][subrefLZTAlliedUnits]
@@ -2414,7 +2415,7 @@ function UpdateNewPrimaryBaseLocation(aiBrain)
     local sFunctionRef = 'UpdateNewPrimaryBaseLocation'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    --local refiTimeOfLastUpdate = 'M27RefTimeOfLastLocationUpdate'
+
     --LOG(sFunctionRef..': aiBrain='..aiBrain:GetArmyIndex()..'; Start position='..(aiBrain:GetArmyIndex() or 'nil'))
     if bDebugMessages == true then LOG(sFunctionRef..': About to get new primary base location for brain '..aiBrain.Nickname..' unless it is civilian or defeated. IsCivilian='..tostring(M28Conditions.IsCivilianBrain(aiBrain))..'; .M28IsDefeated='..tostring((aiBrain.M28IsDefeated or false))) end
     if not(M28Conditions.IsCivilianBrain(aiBrain)) and not(aiBrain.M28IsDefeated) and not(aiBrain:IsDefeated()) then
@@ -2470,7 +2471,7 @@ function UpdateNewPrimaryBaseLocation(aiBrain)
                             --Cycle through every valid enemy brain and pick the nearest one, if there is one
                             if bDebugMessages == true then LOG(sFunctionRef..': Will cycle through each brain to identify nearest enemy base') end
                             for iCurBrain, brain in ArmyBrains do
-                                if not(brain == aiBrain) and not(M27Logic.IsCivilianBrain(brain)) and IsEnemy(brain:GetArmyIndex(), aiBrain:GetArmyIndex()) and (not(brain:IsDefeated() and not(brain.M27IsDefeated)) or not(ScenarioInfo.Options.Victory == "demoralization")) then
+                                if not(brain == aiBrain) and not(M28Logic.IsCivilianBrain(brain)) and IsEnemy(brain:GetArmyIndex(), aiBrain:GetArmyIndex()) and (not(brain:IsDefeated() and not(brain.M27IsDefeated)) or not(ScenarioInfo.Options.Victory == "demoralization")) then
                                     if M28Utilities.GetDistanceBetweenPositions(PlayerStartPoints[brain:GetArmyIndex()], PlayerStartPoints[aiBrain:GetArmyIndex()]) < iNearestEnemyBase then
                                         if IsEnemyStartPositionValid(aiBrain, PlayerStartPoints[brain:GetArmyIndex()]) then
                                             iNearestEnemyBase = M28Utilities.GetDistanceBetweenPositions(PlayerStartPoints[brain:GetArmyIndex()], PlayerStartPoints[aiBrain:GetArmyIndex()])
@@ -2496,7 +2497,7 @@ function UpdateNewPrimaryBaseLocation(aiBrain)
                                     --Cant find anywhere so just pick the furthest away enemy start location
                                     iNearestEnemyBase = 10000
                                     for iCurBrain, brain in ArmyBrains do
-                                        if not(brain == aiBrain) and not(M27Logic.IsCivilianBrain(brain)) and IsEnemy(brain:GetArmyIndex(), aiBrain:GetArmyIndex()) then
+                                        if not(brain == aiBrain) and not(M28Logic.IsCivilianBrain(brain)) and IsEnemy(brain:GetArmyIndex(), aiBrain:GetArmyIndex()) then
                                             if M28Utilities.GetDistanceBetweenPositions(PlayerStartPoints[brain:GetArmyIndex()], PlayerStartPoints[aiBrain:GetArmyIndex()]) < iNearestEnemyBase then
                                                 iNearestEnemyBase = M28Utilities.GetDistanceBetweenPositions(PlayerStartPoints[brain:GetArmyIndex()], PlayerStartPoints[aiBrain:GetArmyIndex()])
                                                 tNearestEnemyBase = {PlayerStartPoints[brain:GetArmyIndex()][1], PlayerStartPoints[brain:GetArmyIndex()][2], PlayerStartPoints[brain:GetArmyIndex()][3]}
