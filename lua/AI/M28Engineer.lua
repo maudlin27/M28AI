@@ -291,62 +291,65 @@ function CheckIfBuildableLocationsNearPositionStillValid(aiBrain, tLocation)
     local sFunctionRef = 'CheckIfBuildableLocationsNearPositionStillValid'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tLocation)
-    if iLandZone > 0 then
-        local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
-        local sGenericBlueprint
-        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZBuildLocationsBySize]) == false then
+    if not(aiBrain.M28IsDefeated) then
+
+        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tLocation)
+        if iLandZone > 0 then
+            local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+            local sGenericBlueprint
+            if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZBuildLocationsBySize]) == false then
+                for iSize, tOldBuildableLocations in tLZData[M28Map.subrefLZBuildLocationsBySize] do
+                    sGenericBlueprint = tsBlueprintsBySize[iSize]
+                    --Is the location still valid?
+                    local function StillKeepLocation(tArray, iEntry)
+                        return aiBrain:CanBuildStructureAt(sGenericBlueprint, tArray[iEntry]) --Done instead of the detailed test since will have already passed the detailed test to get here and want something quick as will be running potentially tens of thousands of times
+                    end
+
+                    M28Utilities.RemoveEntriesFromArrayBasedOnCondition(tOldBuildableLocations, StillKeepLocation)    --Done instead of table.gen to avoid reindexing array multiple times in the same cycle
+                end
+            end
+            --Search for more building locations for every building where we havent considered the full amount
             for iSize, tOldBuildableLocations in tLZData[M28Map.subrefLZBuildLocationsBySize] do
-                sGenericBlueprint = tsBlueprintsBySize[iSize]
-                --Is the location still valid?
-                local function StillKeepLocation(tArray, iEntry)
-                    return aiBrain:CanBuildStructureAt(sGenericBlueprint, tArray[iEntry]) --Done instead of the detailed test since will have already passed the detailed test to get here and want something quick as will be running potentially tens of thousands of times
+                if tLZData[M28Map.subrefLZTotalSegmentCount] > (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationSegmentCountBySize][iSize] or 0) then
+                    SearchForBuildableLocationsForLandZone(aiBrain, iPlateau, iLandZone, iSize, tsBlueprintsBySize[iSize])
+                end
+            end
+
+            --Update mass storage locations
+            if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZMassStorageLocationsAvailable]) == false then
+                if bDebugMessages == true then LOG(sFunctionRef..': About to update mass storage locations for iPlateau='..iPlateau..'; iLandZone='..iLandZone..', tLZData[M28Map.subrefLZMassStorageLocationsAvailable]='..repru(tLZData[M28Map.subrefLZMassStorageLocationsAvailable])..'; Nickname of first aiBrain='..M28Overseer.tAllActiveM28Brains[1].Nickname) end
+                local aiBrain = M28Overseer.tAllActiveM28Brains[1]
+                local function WantToKeep(tArray, iEntry, aiBrain)
+                    LOG('Temp: tArray='..reprs(tArray)..'; iEntry='..iEntry)
+                    return aiBrain:CanBuildStructureAt('ueb1106', tArray[iEntry])
+                    --if M28Overseer.tAllActiveM28Brains[1]:CanBuildStructureAt('ueb1106', tArray[iEntry]) == true then return true else return false end
+                    --return M28Conditions.CanBuildStorageAtLocation(tArray[iEntry])
                 end
 
-                M28Utilities.RemoveEntriesFromArrayBasedOnCondition(tOldBuildableLocations, StillKeepLocation)    --Done instead of table.gen to avoid reindexing array multiple times in the same cycle
-            end
-        end
-        --Search for more building locations for every building where we havent considered the full amount
-        for iSize, tOldBuildableLocations in tLZData[M28Map.subrefLZBuildLocationsBySize] do
-            if tLZData[M28Map.subrefLZTotalSegmentCount] > (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZBuildLocationSegmentCountBySize][iSize] or 0) then
-                SearchForBuildableLocationsForLandZone(aiBrain, iPlateau, iLandZone, iSize, tsBlueprintsBySize[iSize])
-            end
-        end
+                local iRevisedIndex = 1
+                local iTableSize = table.getn(tLZData[M28Map.subrefLZMassStorageLocationsAvailable])
 
-        --Update mass storage locations
-        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZMassStorageLocationsAvailable]) == false then
-            if bDebugMessages == true then LOG(sFunctionRef..': About to update mass storage locations for iPlateau='..iPlateau..'; iLandZone='..iLandZone..', tLZData[M28Map.subrefLZMassStorageLocationsAvailable]='..repru(tLZData[M28Map.subrefLZMassStorageLocationsAvailable])..'; Nickname of first aiBrain='..M28Overseer.tAllActiveM28Brains[1].Nickname) end
-            local aiBrain = M28Overseer.tAllActiveM28Brains[1]
-            local function WantToKeep(tArray, iEntry, aiBrain)
-                LOG('Temp: tArray='..reprs(tArray)..'; iEntry='..iEntry)
-                return aiBrain:CanBuildStructureAt('ueb1106', tArray[iEntry])
-                --if M28Overseer.tAllActiveM28Brains[1]:CanBuildStructureAt('ueb1106', tArray[iEntry]) == true then return true else return false end
-                --return M28Conditions.CanBuildStorageAtLocation(tArray[iEntry])
-            end
-
-            local iRevisedIndex = 1
-            local iTableSize = table.getn(tLZData[M28Map.subrefLZMassStorageLocationsAvailable])
-
-            for iOrigIndex=1, iTableSize do
-                if tLZData[M28Map.subrefLZMassStorageLocationsAvailable][iOrigIndex] then --Needed as sometimes the last entry is nil
-                    if aiBrain:CanBuildStructureAt('ueb1106', tLZData[M28Map.subrefLZMassStorageLocationsAvailable][iOrigIndex]) then
-                        --We want to keep the entry; Move the original index to be the revised index number (so if e.g. a table of 1,2,3 removed 2, then this would've resulted in the revised index being 2 (i.e. it starts at 1, then icnreases by 1 for the first valid entry); this then means we change the table index for orig index 3 to be 2
-                        if (iOrigIndex ~= iRevisedIndex) then
-                            tLZData[M28Map.subrefLZMassStorageLocationsAvailable][iRevisedIndex] = tLZData[M28Map.subrefLZMassStorageLocationsAvailable][iOrigIndex];
+                for iOrigIndex=1, iTableSize do
+                    if tLZData[M28Map.subrefLZMassStorageLocationsAvailable][iOrigIndex] then --Needed as sometimes the last entry is nil
+                        if aiBrain:CanBuildStructureAt('ueb1106', tLZData[M28Map.subrefLZMassStorageLocationsAvailable][iOrigIndex]) then
+                            --We want to keep the entry; Move the original index to be the revised index number (so if e.g. a table of 1,2,3 removed 2, then this would've resulted in the revised index being 2 (i.e. it starts at 1, then icnreases by 1 for the first valid entry); this then means we change the table index for orig index 3 to be 2
+                            if (iOrigIndex ~= iRevisedIndex) then
+                                tLZData[M28Map.subrefLZMassStorageLocationsAvailable][iRevisedIndex] = tLZData[M28Map.subrefLZMassStorageLocationsAvailable][iOrigIndex];
+                                tLZData[M28Map.subrefLZMassStorageLocationsAvailable][iOrigIndex] = nil;
+                            end
+                            iRevisedIndex = iRevisedIndex + 1; --i.e. this will be the position of where the next value that we keep will be located
+                        else
                             tLZData[M28Map.subrefLZMassStorageLocationsAvailable][iOrigIndex] = nil;
                         end
-                        iRevisedIndex = iRevisedIndex + 1; --i.e. this will be the position of where the next value that we keep will be located
-                    else
-                        tLZData[M28Map.subrefLZMassStorageLocationsAvailable][iOrigIndex] = nil;
                     end
                 end
+
+
+                --M28Utilities.RemoveEntriesFromArrayBasedOnCondition(tLZData[M28Map.subrefLZMassStorageLocationsAvailable], WantToKeep, oBrain)
+
             end
 
-
-            --M28Utilities.RemoveEntriesFromArrayBasedOnCondition(tLZData[M28Map.subrefLZMassStorageLocationsAvailable], WantToKeep, oBrain)
-
         end
-
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -3062,9 +3065,10 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         iCurPriority = iCurPriority + 1
         if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to build T3 radar, tLZTeamData[M28Map.refiRadarCoverage]='..tLZTeamData[M28Map.refiRadarCoverage]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Closest enemy base dist to midpoint='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefLZMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])) end
         if tLZTeamData[M28Map.refiRadarCoverage] <= 300 and ((M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 500 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 200) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 350 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 100 and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryMobileLand * categories.TECH3 - M28UnitInfo.refCategoryEngineer) >= 40) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10 and (M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefLZMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]) > tLZTeamData[M28Map.refiRadarCoverage] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 20) then
+            bDebugMessages = true
             iBPWanted = 30
             if not(bHaveLowMass) then iBPWanted = 100 end
-            if bDebugMessages == true then LOG(sFunctionRef..': Will build T3 radar, iBPWanted='..iBPWanted) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Will build T3 radar, iBPWanted='..iBPWanted..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]) end
             HaveActionToAssign(refActionBuildT3Radar, 3, iBPWanted)
         end
     end

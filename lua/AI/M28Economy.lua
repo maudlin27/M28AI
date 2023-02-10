@@ -596,7 +596,7 @@ function ConsiderReclaimingPower(iTeam, oPowerJustBuilt)
         end
     elseif iPowerTechLevel == 3 then
         if not(M28Team.tTeamData[iTeam][M28Team.subrefbActiveT2PowerReclaimer]) then
-            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 500 then
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 600 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
                 CheckForUnitsToReclaimOfCategory(iTeam, M28UnitInfo.refCategoryT1Power + M28UnitInfo.refCategoryT2Power, M28Team.subrefbActiveT2PowerReclaimer)
             elseif not(M28Team.tTeamData[iTeam][M28Team.subrefbActiveT1PowerReclaimer]) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Built T3 PGen, but sitll low gross energy, Will check for t1 power that we can reclaim') end
