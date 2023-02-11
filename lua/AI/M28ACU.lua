@@ -440,6 +440,7 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
     --Dont run if in core base unless low health or close to the rally point
     if bDebugMessages == true then LOG(sFunctionRef..': Is ACU in core base='..tostring(tLZTeamData[M28Map.subrefLZTCoreBase])..' iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; oACU='..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.refbDangerousForACUs]='..tostring(M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.refbDangerousForACUs] or false)) end
     if tLZTeamData[M28Map.subrefLZTCoreBase] and (M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.4 or M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefLZMidpoint]) <= 15) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Are in core base with some health so dont want to run') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return false
     else
@@ -455,8 +456,8 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
             iDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], oACU:GetPosition())
         else
             --May e.g. be underwater and not have a LZ
-             iDistToFriendlyBase = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), M28Map.PlayerStartPoints[oACU:GetAIBrain():GetArmyIndex()])
-             iDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), M28Map.GetPrimaryEnemyBaseLocation(oACU:GetAIBrain()))
+            iDistToFriendlyBase = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), M28Map.PlayerStartPoints[oACU:GetAIBrain():GetArmyIndex()])
+            iDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), M28Map.GetPrimaryEnemyBaseLocation(oACU:GetAIBrain()))
         end
         local iPercentageToFriendlyBase = iDistToFriendlyBase / (iDistToFriendlyBase + iDistToEnemyBase)
 
@@ -478,18 +479,21 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
         end
         if bDebugMessages == true then LOG(sFunctionRef..': iACUThreat='..iACUThreat..'; LZ enemy combat total='..tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal]..'; bOneEnemyACUInSameLZ='..tostring(bAgainstEnemyACUAndMightWin)..'; tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]='..tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]='..tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]) end
         if (iACUThreat <= 500 or (iACUThreat <= 600 and (tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] or 0) >= 80)) and (not(bAgainstEnemyACUAndMightWin)) then
+            if bDebugMessages == true then LOG(sFunctionRef..': ACU has low threat so want to run') end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return true
         else
             local iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oACU, true)
             if bDebugMessages == true then LOG(sFunctionRef..'; iCurSHield='..iCurShield..'; iMaxShield='..iMaxShield) end
             if iMaxShield > 0 and iCurShield <= (iMaxShield * 0.1) then
+                if bDebugMessages == true then LOG(sFunctionRef..': ACU shield is less than 10% so want to run') end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return true
             else
                 local iHealthPercent = M28UnitInfo.GetUnitHealthPercent(oACU)
                 if bDebugMessages == true then LOG(sFunctionRef..': iHealthPercent='..iHealthPercent) end
                 if (iHealthPercent <= 0.6 or (iHealthPercent <= 0.75 and (tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] or 0) >= 80)) and (not(bAgainstEnemyACUAndMightWin) or iHealthPercent <= 0.5) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': ACU is injured so want to run') end
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     return true
                 else
@@ -507,10 +511,12 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
 
                         if M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.refbDangerousForACUs] then
                             if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': No adjacent land zones and dangerous for ACU so want to run') end
                                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                 return true
                             else
                                 if not(bAdjacentToCoreLZ) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Not adjacent to core LZ so want to run') end
                                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                     return true
                                 end
@@ -876,6 +882,8 @@ function GetACUOrder(aiBrain, oACU)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oACU:GetPosition(), true, oACU)
     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
     local tLZTeamData = tLZData[M28Map.subrefLZTeamData][aiBrain.M28Team]
@@ -913,8 +921,11 @@ function GetACUOrder(aiBrain, oACU)
             --Check if our economy is so good that we want to run next cycle
 
             if not(M28Team.tTeamData[aiBrain.M28Team][M28Team.refbDangerousForACUs]) and (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] >= 30 or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 12) then
-                M28Team.tTeamData[aiBrain.M28Team][M28Team.refbDangerousForACUs] = true
-                if bDebugMessages == true then LOG(sFunctionRef..': Dangerous for ACU due to general mass income level so will retreat with it') end
+                --Consider running if enemy is at T3 or has large air to ground threat, or we have built ltos of T3
+                if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyGroundTech] >= 3 or M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat] or M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftTeamEngineersBuildingExperimentals]) == false then
+                    M28Team.tTeamData[aiBrain.M28Team][M28Team.refbDangerousForACUs] = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Dangerous for ACU due to general mass income level so will retreat with ACU if not in adjacent LZ from now on') end
+                end
             end
 
             --If have orders for ACU but no land zone then wait until it is in a land zone again

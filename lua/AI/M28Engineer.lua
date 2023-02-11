@@ -670,8 +670,6 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iCategoryToBuild, iM
     local sFunctionRef = 'GetBlueprintAndLocationToBuild'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
-
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, Engineer UC='..GetEngineerUniqueCount(oEngineer)..'; Engineer LC='..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; Techlevel='..M28UnitInfo.GetUnitTechLevel(oEngineer)..'; tAlternativePositionToLookFrom='..repru(tAlternativePositionToLookFrom or {'nil'})..'; bBuildCheapestStructure='..tostring((bBuildCheapestStructure or false))..'; All blueprints that meet the category='..repru(EntityCategoryGetUnitList(iCategoryToBuild))..'; iMaxAreaToSearch='..(iMaxAreaToSearch or 'nil')) end
 
     --Get the blueprint to build
@@ -827,7 +825,9 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
     local sFunctionRef = 'GetBestBuildLocationForTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    local iHighestPriority = 0
+
+
+    local iHighestPriority = -100
     local iCurPriority, iCurDistance
     local iBestLocationRef
     local oEngiBP = oEngineer:GetBlueprint()
@@ -836,7 +836,7 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
     local rBuildAreaRect
     local iMaxRange = iOptionalMaxDistanceFromTargetLocation or 200
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; sBLueprintToBuild='..(sBlueprintToBuild or 'nil')..'; tTargetLocation='..repru(tTargetLocation)..'; tPotentialBuildLocations='..repru(tPotentialBuildLocations)..'; iOptionalMaxDistanceFromTargetLocation='..(iOptionalMaxDistanceFromTargetLocation or 'nil')..'; iMaxRange='..iMaxRange..'; iBuilderRange='..iBuilderRange..'; iNewBuildingRadius='..iNewBuildingRadius) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; sBLueprintToBuild='..(sBlueprintToBuild or 'nil')..'; tTargetLocation='..repru(tTargetLocation)..'; tPotentialBuildLocations='..repru(tPotentialBuildLocations)..'; iOptionalMaxDistanceFromTargetLocation='..(iOptionalMaxDistanceFromTargetLocation or 'nil')..'; iMaxRange='..iMaxRange..'; iBuilderRange='..iBuilderRange..'; iNewBuildingRadius='..iNewBuildingRadius) end
     for iCurLocation, tCurLocation in tPotentialBuildLocations do
         iCurPriority = 0
         iCurDistance = M28Utilities.GetDistanceBetweenPositions(tTargetLocation, tCurLocation)
@@ -848,12 +848,16 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
             if not(M28Conditions.AreMobileLandUnitsInRect(rBuildAreaRect)) then iCurPriority = iCurPriority + 3 end
             if iCurDistance <= 50 then
                 if iCurDistance <= 10 then
-                    iCurPriority = iCurPriority + 3
+                    iCurPriority = iCurPriority + 7
                 elseif iCurDistance <= 25 then
-                    iCurPriority = iCurPriority + 2
+                    iCurPriority = iCurPriority + 5
                 else
-                    iCurPriority = iCurPriority + 1
+                    iCurPriority = iCurPriority + 3
                 end
+            end
+            --General dist adjust
+            if iCurDistance >= 15 then
+                iCurPriority = iCurPriority - iCurDistance / iMaxRange * 6
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Considering tCurLocation='..repru(tCurLocation)..'; iCurDistance='..iCurDistance..'; iCurPriority='..iCurPriority) end

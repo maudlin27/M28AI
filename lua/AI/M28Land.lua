@@ -328,7 +328,7 @@ function RecordGroundThreatForLandZone(tLZTeamData, iTeam, iPlateau, iLandZone)
     local sFunctionRef = 'RecordGroundThreatForLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iLandZone == 4 then bDebugMessages = true end
+
     --Track team total threat - first remove the previous entry, then add in the new entry
     M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] - tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]
     M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] - tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]
@@ -1445,7 +1445,7 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageMAAInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if iLandZone == 1 then bDebugMessages = true end
+
     local tRallyPoint = GetNearestRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2) --Get a LZ up to 3 land zones away to retreat to (i.e. will pick rally point and then move 2 towards it)
 
     --First split the MAA into those that need to run (due to being in range of DF units) and those that can advance
