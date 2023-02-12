@@ -201,6 +201,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             --Shield, stealth and tmd
             refbLZWantsMobileShield = 'MobSh' --true if LZ wants mobile shields
             reftoLZUnitsWantingMobileShield = 'UMobSh' --table of units in the LZ that want mobile shield
+            reftoLZUnitWantingFixedShield = 'UFixSh' --table of untis in the LZ taht want a fixed shield
             refbLZWantsMobileStealth = 'MobSt' --true if LZ wants mobile stealth
             reftoLZUnitsWantingMobileStealth = 'UMobSt' --table of units in the LZ that want mobile stealth
             reftUnitsWantingTMD = 'TMDW' --table of units in the LZ that want TMD coverage

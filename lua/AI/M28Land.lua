@@ -1980,7 +1980,6 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         --Extra check if have a firebase - only want to include friendly units that are near our closest unit to enemy firebase
                         if iClosestFriendlyUnitToAnEnemyFirebase <= 170 and iFirebaseThreatAdjust > 0 then
                             --Get new combat threat based on allied mobile DF and indirect fire units around this unit
-                            bDebugMessages = true
                             local iSearchRange = math.max(40, math.min(140, 15 + table.getn(tOurDFAndT1ArtiUnits)))
 
                             local iNearbyCombatThreat = math.min(iOurCombatThreat, M28UnitInfo.GetCombatThreatRating(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains][1]:GetUnitsAroundPoint(M28UnitInfo.refCategoryLandCombat, oClosestFriendlyUnitToAnEnemyFirebase:GetPosition(), iSearchRange, 'Ally'), false))
@@ -1991,7 +1990,6 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 bAttackWithEverything = false
                                 bConsolidateAtMidpoint = true
                             end
-                            bDebugMessages = false
                         else
                             bAttackWithEverything = true
                         end

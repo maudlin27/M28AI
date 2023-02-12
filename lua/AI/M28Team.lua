@@ -635,7 +635,7 @@ function RemoveUnitFromBigThreatTable(oDeadUnit)
 end
 
 function AddUnitToBigThreatTable(iTeam, oUnit)
-    local bDebugMessages = false
+    local bDebugMessages = true
     if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
 
     local sFunctionRef = 'AddUnitToBigThreatTable'
@@ -665,7 +665,22 @@ function AddUnitToBigThreatTable(iTeam, oUnit)
                     if not(oUnit[M28UnitInfo.reftbInArmyIndexBigThreatTable]) then oUnit[M28UnitInfo.reftbInArmyIndexBigThreatTable] = {} end
                     oUnit[M28UnitInfo.reftbInArmyIndexBigThreatTable][iTeam] = true
                     if bDebugMessages == true then
-                        LOG(sFunctionRef .. ': Have some units for experimental threat category sReferenceTable=' .. sReferenceTable .. '; is tReferenceTableEmpty after considering if civilian or pathable to us='..tostring(M28Utilities.IsTableEmpty(tTeamData[iTeam][sReferenceTable])))
+                        LOG(sFunctionRef .. ': Have some units for experimental threat category sReferenceTable=' .. sReferenceTable .. '; is tReferenceTableEmpty after considering if civilian or pathable to us='..tostring(M28Utilities.IsTableEmpty(tTeamData[iTeam][sReferenceTable]))..'; tTeamData[iTeam][refbDefendAgainstArti]='..tostring(tTeamData[iTeam][refbDefendAgainstArti] or false)..'; iTeam='..iTeam..'; Is this a T3 arti or novax='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre + M28UnitInfo.refCategoryExperimentalArti, oUnit.UnitId)))
+                    end
+
+                    --Track T3 arti
+                    if not(tTeamData[iTeam][refbDefendAgainstArti]) and EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre + M28UnitInfo.refCategoryExperimentalArti, oUnit.UnitId) then
+                        tTeamData[iTeam][refbDefendAgainstArti] = true
+                        if bDebugMessages == true then LOG(sFunctionRef..': have set flag to defend against T3 arti to true for team '..iTeam..'; tTeamData[iTeam][refbDefendAgainstArti]='..tostring(tTeamData[iTeam][refbDefendAgainstArti])) end
+                        --Refresh shielding wanted on existing units
+                        local tPotentialUnitsToShield = tTeamData[iTeam][subreftoFriendlyActiveM28Brains][1]:GetUnitsAroundPoint(M28UnitInfo.refCategoryStructure - M28UnitInfo.refCategoryFixedShield - categories.TECH1, {0.5*(M28Map.rMapPlayableArea[1] + M28Map.rMapPlayableArea[3]), 0, 0.5*(M28Map.rMapPlayableArea[2] + M28Map.rMapPlayableArea[4])}, 10000, 'Ally')
+                        if M28Utilities.IsTableEmpty(tPotentialUnitsToShield) == false then
+                            for iPotentialUnit, oPotentialUnit in tPotentialUnitsToShield do
+                                if oPotentialUnit:GetAIBrain().M28AI and oPotentialUnit:GetFractionComplete() == 1 then
+                                    M28Building.CheckIfUnitWantsFixedShield(oPotentialUnit, true)
+                                end
+                            end
+                        end
                     end
                 end
                 break
@@ -1650,6 +1665,7 @@ function TeamInitialisation(iM28Team)
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiLZEnemyAirOtherThreat] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZMAAThreatWanted] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftoLZUnitsWantingMobileShield] = {}
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftoLZUnitWantingFixedShield] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftoLZUnitsWantingMobileStealth] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subreftEnemyFirebasesInRange] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftUnitsWantingTMD] = {}

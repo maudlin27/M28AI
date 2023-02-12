@@ -274,6 +274,17 @@ function OnUnitDeath(oUnit)
                     -------M28 specific logic---------
                     --Is the unit owned by M28AI?
                     if oUnit:GetAIBrain().M28AI then
+                        --Logic that doesnt require the unit to ahve finished construction:
+
+                        --Fixed shielding
+                        if oUnit[M28Building.refbUnitWantsShielding] or oUnit[M28Building.reftoUnitsCoveredByShield] or oUnit[M28Building.reftoShieldsProvidingCoverage] then
+                            if oUnit[M28Building.reftoUnitsCoveredByShield] then
+                                M28Building.UpdateShieldCoverageOfUnits(oUnit, true)
+                            else
+                                M28Building.CheckIfUnitWantsFixedShield(oUnit)
+                            end
+                        end
+
                         --Run unit type specific on death logic where the unit is completed
                         if oUnit:GetFractionComplete() == 1 then
                             M28Economy.UpdateGrossIncomeForUnit(oUnit, true)
@@ -534,8 +545,27 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
 
         --Record any mexes so we can repair them if construction gets interrupted
         if oEngineer:GetAIBrain().M28AI then
-            if EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oConstruction.UnitId) then
-                M28Engineer.RecordPartBuiltMex(oEngineer, oConstruction)
+            --Track experimental construction and other special on construction logic
+            local refbConstructionStart = 'M28FirstConstructionStart'
+            if oConstruction.GetUnitId and not(oConstruction[refbConstructionStart]) then
+                local sFunctionRef = 'OnConstructionStarted'
+                local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+                oConstruction[refbConstructionStart] = true
+                if EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oConstruction.UnitId) then
+                    M28Engineer.RecordPartBuiltMex(oEngineer, oConstruction)
+                end
+
+                --Decide if want to shield this construction
+                if EntityCategoryContains(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryExperimentalStructure, oConstruction.UnitId) then
+                    M28Building.CheckIfUnitWantsFixedShield(oConstruction, true)
+                    --If this is a fixed shield then instead update shield coverage
+                    if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oConstruction.UnitId) then
+                        M28Building.UpdateShieldCoverageOfUnits(oConstruction, false)
+                    end
+                end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             end
         end
     end

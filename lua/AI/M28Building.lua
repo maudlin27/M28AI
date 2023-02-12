@@ -14,7 +14,8 @@ local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
 iTMLMissileRange = 256 --e.g. use if dont have access to a unit blueprint
 
 
---Variables against a unit
+--Variables against a unit:
+    --TML and TMD
 reftTMLInRangeOfThisUnit = 'M28BuildTMLInRange' --Records table of TML in range of this unit
 reftUnitsInRangeOfThisTML = 'M28BuildUnitsInRangeOfTML' --Records units threatened by this TML
 reftUnitsCoveredByThisTMD = 'M28BuildUnitsCoveredByTMD' --Against TMD, table of units that it provides TML coverage to
@@ -23,7 +24,165 @@ refbUnitWantsMoreTMD = 'M28BuildUnitWantsTMD' --true if a unit wants more TMD
 refbNoNearbyTMDBuildLocations = 'M28BuiltUnitHasNoNearbyTMDBuildLocations' --true if we buitl a TMD to cover this unit and the TMD ended up too far away
 refbMissileRecentlyBuilt = 'M28BuildMissileBuiltRecently' --true if unit has recently built a missile
 refbMissileChecker = 'M28BuildMissileChecker' --true if active missile builder checker for the unit
-refbActiveMissileChecker = 'M27BuildMissileTargetChecker' --true if active missile target checker for the unit
+refbActiveMissileChecker = 'M28BuildMissileTargetChecker' --true if active missile target checker for the unit
+
+    --Shield related
+reftoShieldsProvidingCoverage = 'M28BuildShieldsCoveringUnit' --Against unit being shielded, records the fixed shields that are covering it
+reftoUnitsCoveredByShield = 'M28BuildUnitsCoveredByShield' --Against units covered by shield
+--refiShieldsWanted = 'M28BuildShieldsWanted' --number of fixed shield coverage wanted for the unit
+refbUnitWantsShielding = 'M28BuildUnitWantsFixedShield' --true if unit wants a fixed shield
+
+function CheckIfUnitWantsFixedShield(oUnit, bCheckForNearbyShields)
+    --Intended to be called whenever something happens that means oUnit may want to change whehter it is recorded as wanting a shield, e.g.:
+    --oUnit dies (done via OnUnitDeath)
+    --oUnit construction is started (done via OnConstructionStarted)
+    --A shield covering oUnit dies (done via UpdateShieldCoverageOfUnits)
+    --A shield covering oUnit has construction started (done via UpdateShieldCoverageOfUnits)
+    --bCheckForNearbyShields - if true, then will check for any already constructed shields; i.e. this should be true if this function is called from oUnit's construction being started
+
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'CheckIfUnitWantsFixedShield'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if EntityCategoryContains(categories.TECH3 * categories.STRUCTURE, oUnit.UnitId) then bDebugMessages = true end
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at game time '..GetGameTimeSeconds()..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bCheckForNearbyShields='..tostring(bCheckForNearbyShields or false)..'; oUnit[refbUnitWantsShielding] before update='..tostring(oUnit[refbUnitWantsShielding] or false)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
+
+    local iShieldsWanted = 0
+    local iShieldCoverage = 0
+
+    if oUnit[reftoShieldsProvidingCoverage] and M28Utilities.IsTableEmpty(oUnit[reftoShieldsProvidingCoverage]) == false then
+        iShieldCoverage = table.getn(oUnit[reftoShieldsProvidingCoverage])
+    end
+
+    if M28UnitInfo.IsUnitValid(oUnit) then
+        local oBP = oUnit:GetBlueprint()
+        --Dont get shields for other shields (to avoid infinite shields)
+        if bDebugMessages == true then LOG(sFunctionRef..': Unit mass cost='..oBP.Economy.BuildCostMass..'; Shieldm ax health='..(oBP.Defense.Shield.ShieldMaxHealth or 0)) end
+        if oBP.Economy.BuildCostMass >= 2000 and (oBP.Defense.Shield.ShieldMaxHealth or 0) == 0 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Unit health='..oBP.Defense.Health..'; Defending against t3 arti for iTeam'..oUnit:GetAIBrain().M28Team..'='..tostring(M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refbDefendAgainstArti] or false)) end
+            if oBP.Defense.Health / oBP.Economy.BuildCostMass < 1 or EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) or (M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refbDefendAgainstArti] and oBP.Economy.BuildCostMass >= 3000 and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId)) then
+                if M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refbDefendAgainstArti] and oBP.Economy.BuildCostMass >= 12000 then iShieldsWanted = 2
+                else iShieldsWanted = 1
+                end
+            end
+        end
+    end
+
+    --If have just started construction of oUnit then check if there are any existing shields that can help it
+    if bCheckForNearbyShields and iShieldsWanted > 0 then
+        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+        if iPlateau > 0 and iLandZone > 0 then
+            local tNearbyShields = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.subrefLZTAlliedUnits])
+            if M28Utilities.IsTableEmpty(tNearbyShields) == false then
+                if not(oUnit[reftoShieldsProvidingCoverage]) then oUnit[reftoShieldsProvidingCoverage] = {} end
+
+                for iLZShield, oLZShield in tNearbyShields do
+                    local iShieldRadius = oLZShield:GetBlueprint().Defense.Shield.ShieldSize * 0.5 - 1
+                    RecordIfShieldIsProtectingUnit(oLZShield, oUnit, iShieldRadius, true)
+                end
+
+                if oUnit[reftoShieldsProvidingCoverage] and M28Utilities.IsTableEmpty(oUnit[reftoShieldsProvidingCoverage]) == false then
+                    iShieldCoverage = table.getn(oUnit[reftoShieldsProvidingCoverage])
+                end
+            end
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': iShieldsWanted='..iShieldsWanted..'; iSHieldCoverage='..iShieldCoverage) end
+    if iShieldsWanted > iShieldCoverage then
+        --Want more shielding
+        if not(oUnit[refbUnitWantsShielding]) then
+            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+            if iPlateau > 0 and iLandZone > 0 then
+                oUnit[refbUnitWantsShielding] = true
+                table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.reftoLZUnitWantingFixedShield], oUnit)
+            end
+        end
+    else
+        --Dont want more shielding
+        if oUnit[refbUnitWantsShielding] then
+            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+            if iPlateau > 0 and iLandZone > 0 then
+                oUnit[refbUnitWantsShielding] = false
+                if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.reftoLZUnitWantingFixedShield]) == false then
+                    for iRecordedUnit, oRecordedUnit in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.reftoLZUnitWantingFixedShield] do
+                        if oRecordedUnit == oUnit then
+                            table.remove(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.reftoLZUnitWantingFixedShield], iRecordedUnit)
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function RecordIfShieldIsProtectingUnit(oShield, oUnit, iShieldRadius, bDontCheckIfWantsFixedShield)
+    --bDontCheckIfWantsFixedShield - true if calling from the 'CheckIfUnitWantsFixedShield' function to avoid infinite loop
+
+    if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oShield:GetPosition()) <= iShieldRadius then
+        local bAddToUnit = true
+        --Record against unit
+        if oUnit[reftoShieldsProvidingCoverage] and M28Utilities.IsTableEmpty(oUnit[reftoShieldsProvidingCoverage]) == false then
+            --Redundancy in case something goes wrong with tracking:
+            for iRecordedShield, oRecordedShield in oUnit[reftoShieldsProvidingCoverage] do
+                if oRecordedShield == oShield then
+                    bAddToUnit = false
+                    break
+                end
+            end
+        end
+        if bAddToUnit then
+            if not(oUnit[reftoShieldsProvidingCoverage]) then oUnit[reftoShieldsProvidingCoverage] = {} end
+            table.insert(oUnit[reftoShieldsProvidingCoverage], oShield)
+            if not(bDontCheckIfWantsFixedShield) then CheckIfUnitWantsFixedShield(oUnit) end
+        end
+        --Record against shield
+        if not(oShield[reftoUnitsCoveredByShield]) then oShield[reftoUnitsCoveredByShield] = {} end
+        table.insert(oShield[reftoUnitsCoveredByShield], oUnit)
+    end
+end
+
+function UpdateShieldCoverageOfUnits(oShield, bTreatAsDead)
+    --If shield has died, then remove any units it was protecting; if shield has just started construction then instead record any units it can provide coverage to
+    --Either way, clear any existing units from the shield (as redundancy - in theory should only be needed if shield is dead
+    if M28Utilities.IsTableEmpty(oShield[reftoUnitsCoveredByShield]) == false then
+        for iUnit, oUnit in oShield[reftoUnitsCoveredByShield] do
+            if M28Utilities.IsTableEmpty(oUnit[reftoShieldsProvidingCoverage]) == false then
+                for iRecordedShield, oRecordedShield in oUnit[reftoShieldsProvidingCoverage] do
+                    if oRecordedShield == oShield then
+                        table.remove(oUnit[reftoShieldsProvidingCoverage], iRecordedShield)
+                        break
+                    end
+                end
+                if M28Utilities.IsTableEmpty(oUnit[reftoShieldsProvidingCoverage]) == false then oUnit[reftoShieldsProvidingCoverage] = nil end
+            end
+            CheckIfUnitWantsFixedShield(oUnit)
+        end
+        oShield[reftoUnitsCoveredByShield] = nil
+    end
+
+    if not(bTreatAsDead) then
+        --Record what units this shield can protect in t he LZ it is in
+        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oShield:GetPosition())
+        if iPlateau > 0 and iLandZone > 0 then
+            local tUnitsWantingShielding = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oShield:GetAIBrain().M28Team][M28Map.reftoLZUnitWantingFixedShield]
+            if M28Utilities.IsTableEmpty(tUnitsWantingShielding) == false then
+                local iShieldRadius = oShield:GetBlueprint().Defense.Shield.ShieldSize * 0.5 - 1
+                oShield[reftoUnitsCoveredByShield] = {}
+                local bAddToUnit = false
+                local tUnitsToConsider = {}
+                --Copy table so we dont have to fork thread to update each unit
+                for iUnit, oUnit in tUnitsWantingShielding do
+                    if M28UnitInfo.IsUnitValid(oUnit) then table.insert(tUnitsToConsider, oUnit) end
+                end
+                for iUnit, oUnit in tUnitsToConsider do
+                    RecordIfShieldIsProtectingUnit(oShield, oUnit, iShieldRadius)
+                end
+            end
+        end
+    end
+end
 
 function ConsiderLaunchingMissile(oSMLOrTML, oWeapon)
     M28Utilities.ErrorHandler('To add code for SML and TML')

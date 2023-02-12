@@ -163,6 +163,17 @@ function M28BrainCreated(aiBrain)
 end
 
 function TestCustom(aiBrain)
+    --Destroy a T3 fixed shield to see if we rebuild it
+    if GetGameTimeSeconds() >= 1200 and GetGameTimeSeconds() <= 1201 then
+        local tFixedShields = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryFixedShield)
+        if M28Utilities.IsTableEmpty(tFixedShields) == false then
+            for iUnit, oUnit in tFixedShields do
+                oUnit:Kill()
+                break
+            end
+        end
+    end
+
     --Detail rally point info for a land zone - Forbidden pass - do we detect that the ridge is pathable?
     --[[local NavUtils = import("/lua/sim/navutils.lua")
     local tPosition = { 260.06228637695, 67.514915466309, 148.83508300781 }
@@ -185,8 +196,8 @@ function TestCustom(aiBrain)
     end
     M28Utilities.RemoveEntriesFromArrayBasedOnCondition(tTestArray, WantToKeep)
     LOG('Finished updating array, tTestArray='..repru(tTestArray))--]]
-    
-    
+
+
     --Check for sparky and how many orders it has
     --[[local tOurSparkies = aiBrain:GetListOfUnits(categories.FIELDENGINEER, false, true)
     if M28Utilities.IsTableEmpty(tOurSparkies) == false then
@@ -238,7 +249,7 @@ function OverseerManager(aiBrain)
     end
 
     while not(aiBrain:IsDefeated()) and not(aiBrain.M28IsDefeated) do
-        --TestCustom(aiBrain)
+        TestCustom(aiBrain)
 
         ForkThread(M28Economy.RefreshEconomyData, aiBrain)
         WaitSeconds(1)
