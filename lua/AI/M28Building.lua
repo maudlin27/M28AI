@@ -9,6 +9,7 @@ local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
 local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
+local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 
 --Global variables
 iTMLMissileRange = 256 --e.g. use if dont have access to a unit blueprint
@@ -28,9 +29,11 @@ refbActiveMissileChecker = 'M28BuildMissileTargetChecker' --true if active missi
 
     --Shield related
 reftoShieldsProvidingCoverage = 'M28BuildShieldsCoveringUnit' --Against unit being shielded, records the fixed shields that are covering it
-reftoUnitsCoveredByShield = 'M28BuildUnitsCoveredByShield' --Against units covered by shield
+reftoUnitsCoveredByShield = 'M28BuildUnitsCoveredByShield' --Against shield, returns table of units covered by shield
 --refiShieldsWanted = 'M28BuildShieldsWanted' --number of fixed shield coverage wanted for the unit
 refbUnitWantsShielding = 'M28BuildUnitWantsFixedShield' --true if unit wants a fixed shield
+refbPriorityShield = 'M28BuildPriorityShield' --True if shield is a priority shield for assistance
+refoPriorityShieldProvidingCoverage = 'M28BuildPriorityShieldCoveringUnit' --Against unit being shielded; If a shield marked as a priority shield is covering the unit, then this should return that shield
 
 function CheckIfUnitWantsFixedShield(oUnit, bCheckForNearbyShields)
     --Intended to be called whenever something happens that means oUnit may want to change whehter it is recorded as wanting a shield, e.g.:
@@ -513,4 +516,73 @@ function UpdateLZUnitsWantingTMDForUnitDeath(oUnit)
         end
     end
     oUnit[refbUnitWantsMoreTMD] = false --redundancy
+end
+
+
+function RecordPriorityShields(iTeam, tLZTeamData)
+    --Records shields that want to ahve engineers assisting
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordPriorityShields'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeOfLastShieldPriorityRefresh] or -100) >= 10 then
+        tLZTeamData[M28Map.refiTimeOfLastShieldPriorityRefresh] = GetGameTimeSeconds()
+        local tShieldsToAssist = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+        --First clear any engineers assigned to shields that arent listed as a priority shield from the last update
+        if bDebugMessages == true then LOG(sFunctionRef..': WIll refresh list of shields. Is table empty='..tostring(M28Utilities.IsTableEmpty(tShieldsToAssist))..'; do we already have any priority shields when when last ran this? is table empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]))) end
+        if M28Utilities.IsTableEmpty(tShieldsToAssist) == false then
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]) == false then
+                for iShield, oShield in tShieldsToAssist do
+                    if M28Utilities.IsTableEmpty(oShield[M28UnitInfo.reftoUnitsAssistingThis]) == false and not(oShield[refbPriorityShield]) then
+                        --Shield wasnt a priority shield in the last cycle but has engineers assigned to assist it - will clear these engineers
+                        local tEngineersToClear = {}
+                        for iEngi, oEngi in oShield[M28UnitInfo.reftoUnitsAssistingThis] do
+                            table.insert(tEngineersToClear, oEngi)
+                        end
+                        for iAssistingEngineer, oAssistingEngineer in tEngineersToClear do
+                            M28Orders.IssueTrackedClearCommands(oAssistingEngineer)
+                        end
+                        oShield[M28UnitInfo.reftoUnitsAssistingThis] = nil
+                    end
+                end
+            end
+
+            tLZTeamData[M28Map.reftPriorityShieldsToAssist] = {}
+            local iTotalUnitMassCoverage
+            local iCurMassValue
+            for iShield, oShield in tShieldsToAssist do
+                iTotalUnitMassCoverage = 0
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; size of table of units nearby='..table.getn(oShield[reftoUnitsCoveredByShield])) end
+                if M28Utilities.IsTableEmpty(oShield[reftoUnitsCoveredByShield]) == false then
+                    for iUnit, oUnit in oShield[reftoUnitsCoveredByShield] do
+                        if not(oUnit == oShield) then
+                            if EntityCategoryContains(M28UnitInfo.refCategorySMD, oUnit.UnitId) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false then
+                                iCurMassValue = 30000
+                            elseif EntityCategoryContains(M28UnitInfo.refCategorySML, oUnit.UnitId) then
+                                iCurMassValue = 27500
+                            else
+                                iCurMassValue = oUnit:GetBlueprint().Economy.BuildCostMass
+                            end
+                            if not(oUnit[refoPriorityShieldProvidingCoverage] == oShield) and M28UnitInfo.IsUnitValid(oUnit[refoPriorityShieldProvidingCoverage]) then
+                                iCurMassValue = iCurMassValue * 0.1
+                                if bDebugMessages == true then LOG(sFunctionRef..': Already have a priority shield providing coverage='..oUnit[refoPriorityShieldProvidingCoverage].UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit[refoPriorityShieldProvidingCoverage])..' so will reduce mass value') end
+                            end
+                            iTotalUnitMassCoverage = iTotalUnitMassCoverage + iCurMassValue
+                            if bDebugMessages == true then LOG(sFunctionRef..': Getting shield protection mass value of oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' for oShield='..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; iCurMassValue='..iCurMassValue..'; iTotalUnitMassCoverage='..iTotalUnitMassCoverage..'; Is there already a valid shield protecting it='..tostring(M28UnitInfo.IsUnitValid(oUnit[refoPriorityShieldProvidingCoverage]))) end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iTotalUnitMassCoverage='..iTotalUnitMassCoverage..'; refiAssignedFirebase='..(oShield[refiAssignedFirebase] or 'nil')) end
+                    if iTotalUnitMassCoverage >= 25000 then
+                        --Add as a priority shield
+                        table.insert(tLZTeamData[M28Map.reftPriorityShieldsToAssist], oShield)
+                        oShield[refbPriorityShield] = true
+                        for iUnit, oUnit in oShield[reftoUnitsCoveredByShield] do
+                            oUnit[refoPriorityShieldProvidingCoverage] = oShield --Deliberately overwrites existing value, means if 2 shields cover same area, and one can justify it even with the ot her, but the other cant, then we wont protect the other
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Adding the shield as a priority shield') end
+                    end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

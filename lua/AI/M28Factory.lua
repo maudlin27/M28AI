@@ -388,7 +388,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
     local iLandFactoriesInLZ = 0
     local bHaveHighestLZTech = true
-    if iFactoryTechLevel < 3 and iFactoryTechLevel < M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] then
+    --if iFactoryTechLevel < 3 and iFactoryTechLevel < M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] then
         local tLandFactoriesInLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
         for iLZFactory, oLZFactory in  tLandFactoriesInLZ do
             if not(oLZFactory == oFactory) and M28UnitInfo.GetUnitTechLevel(oLZFactory) > iFactoryTechLevel then
@@ -397,7 +397,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             end
         end
         iLandFactoriesInLZ = table.getn(tLandFactoriesInLZ)
-    end
+    --end
 
     local bDontConsiderBuildingMAA = false
     if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoShieldTargetsByPlateau][iPlateau][M28Team.refiLastTimeNoMAATargetsByPlateau] or -10) <= 10 then
@@ -713,6 +713,13 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                         if ConsiderBuildingCategory(iMAACat) then return sBPIDToBuild end
                     end
                 end
+            end
+        end
+
+        --Be building engineers in 1/4 of land facs if we have a shortfall for this land zone
+        if iLandFactoriesInLZ > 1 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] > 0.01 or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) and tLZTeamData[M28Map.subrefLZTbWantBP] then
+            if M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategoryEngineer) < iLandFactoriesInLZ * 0.25 then
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
             end
         end
 
