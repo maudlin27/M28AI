@@ -685,7 +685,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iCategoryToBuild, iM
             LOG(sFunctionRef..': Had category to build. oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; UC='..GetEngineerUniqueCount(oEngineer)..'; All blueprints that satisfy the category='..repru(EntityCategoryGetUnitList(iCategoryToBuild)))
         end
     else
-        if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, sBlueprintToBuild) then bDebugMessages = true end
+
         --Adjust the search range and record key info needed for the search
         local tEngineerPosition = oEngineer:GetPosition()
         local tTargetLocation = (tAlternativePositionToLookFrom or tEngineerPosition)
@@ -2205,7 +2205,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     local sFunctionRef = 'ConsiderActionToAssign'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iActionToAssign == refActionBuildShield then bDebugMessages = true end
+
 
     if iTotalBuildPowerWanted < 0 then M28Utilities.ErrorHandler('Have negative BP wanted') end
 
@@ -2665,7 +2665,7 @@ function GetBPToAssignToAssistUpgrade(tLZTeamData, iTeam, bCoreZone, bHaveLowMas
 end
 
 function GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, bCoreZone, bHaveLowMass, bWantMorePower)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetBPMinTechAndUnitForFixedShields'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

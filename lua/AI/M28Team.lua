@@ -635,7 +635,7 @@ function RemoveUnitFromBigThreatTable(oDeadUnit)
 end
 
 function AddUnitToBigThreatTable(iTeam, oUnit)
-    local bDebugMessages = true
+    local bDebugMessages = false
     if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
 
     local sFunctionRef = 'AddUnitToBigThreatTable'
