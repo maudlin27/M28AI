@@ -249,7 +249,7 @@ function OverseerManager(aiBrain)
     end
 
     while not(aiBrain:IsDefeated()) and not(aiBrain.M28IsDefeated) do
-        TestCustom(aiBrain)
+        --TestCustom(aiBrain)
 
         ForkThread(M28Economy.RefreshEconomyData, aiBrain)
         WaitSeconds(1)

@@ -729,7 +729,7 @@ function OnConstructed(oEngineer, oJustBuilt)
 
         end
         --Upgrade tracking (even if have run this already)
-        if oEngineer:GetAIBrain().M28AI and EntityCategoryContains(categories.STRUCTURE, oEngineer.UnitId) and EntityCategoryContains(categories.STRUCTURE, oJustBuilt.UnitId) then
+        if oEngineer.GetAIBrain and oEngineer:GetAIBrain().M28AI and EntityCategoryContains(categories.STRUCTURE, oEngineer.UnitId) and EntityCategoryContains(categories.STRUCTURE, oJustBuilt.UnitId) then
             M28Team.UpdateUpgradeTrackingOfUnit(oJustBuilt, true)
         end
     end

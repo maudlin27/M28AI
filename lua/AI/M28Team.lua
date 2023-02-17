@@ -115,7 +115,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiTimeOfLastRallyPointRefresh = 'M28TeamRallyPointRefreshTime' --Game time in seconds that last refreshed rally points
     refiLastTimeNoShieldTargetsByPlateau = 'M28TeamLastTimeNoShieldTargets' --[x] is the plateau ref, returns gametime seconds
     refiLastTimeNoStealthTargetsByPlateau = 'M28TeamLastTimeNoStealthTargets' --[x] is the plateau ref, returns gametime seconds
-    refiLastTimeNoMAATargetsByPlateau = 'M28TeamLastTimeNoMAATargets' --[x] is the plateau ref, returns gametimeseconds
+    refiLastTimeNoMAATargetsByIsland = 'M28TeamLastTimeNoMAATargets' --[x] is the plateau ref, returns gametimeseconds
 
 
     --Air related
@@ -399,7 +399,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][subrefiAlliedGroundAAThreat] = 0
     tTeamData[iTotalTeamCount][refiLastTimeNoShieldTargetsByPlateau] = {}
     tTeamData[iTotalTeamCount][refiLastTimeNoStealthTargetsByPlateau] = {}
-    tTeamData[iTotalTeamCount][refiLastTimeNoMAATargetsByPlateau] = {}
+    tTeamData[iTotalTeamCount][refiLastTimeNoMAATargetsByIsland] = {}
     tTeamData[iTotalTeamCount][refiEnemyHighestMobileLandHealth] = 300
     tTeamData[iTotalTeamCount][reftEnemyFirebaseByPlateauAndLZ] = {}
     tTeamData[iTotalTeamCount][reftEnemyTML] = {}
@@ -509,6 +509,8 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AddUnitToLandZoneForBrain'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
 
     if EntityCategoryContains(categories.MOBILE * categories.AIR, oUnit.UnitId) and not(bIsEnemyAirUnit) then M28Utilities.ErrorHandler('Havent flagged that an air unit is an air unit') end
 
@@ -700,6 +702,8 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
     local sFunctionRef = 'AssignUnitToLandZoneOrPond'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     if M28UnitInfo.IsUnitValid(oUnit) then
 
         local bPreviouslyConsidered = (oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][aiBrain.M28Team] or false)
@@ -780,7 +784,8 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                 M28Utilities.ErrorHandler('Naval unit but not in a recognised poind')
                             end
                         elseif oUnit:IsUnitState('Attached') then
-                            M28Utilities.ErrorHandler('Add logic for transports or attached units')
+                            --Try reassigning in a bit
+                            ForkThread(DelayedUnitPlateauAssignment, aiBrain, oUnit, 5, bAlreadyUpdatedPosition, true)
                         else
                             --Reassign in a bit if we own it
                             if bDebugMessages == true then LOG(sFunctionRef..': Unit has a plateau but not a LZ, and isnt a naval unit, will wait and try and reassign if this is the first time, bAlreadyTriedReassignment='..tostring(bAlreadyTriedReassignment or false)..'; aiBrain team='..aiBrain.M28Team..'; Units aibrain team='..oUnit:GetAIBrain().M28Team..'; aiBrain.M28AI='..tostring((aiBrain.M28AI or false))) end

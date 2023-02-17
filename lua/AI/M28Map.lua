@@ -90,6 +90,9 @@ reftPlateausOfInterest = 'M28PlateausOfInterest' --[x] = Amphibious pathing grou
     subrefPlateauMaxRadius = 'M28PlateauMaxRadius' --Radius to use to ensure the circle coveres the square of the plateau
 
     subrefPlateauEngineers = 'M28PlateauEngineers' --[x] is engineer unique ref (per m28engineer), returns engineer object
+    --Plateaus: Island variables (against tAllPlateaus[iPlateau])
+    subrefPlateauIslandLandZones = 'M28PlateauIslands' --[x] is the island, returns a table of land zones in that island for this plateau
+    subrefPlateauIslandMexCount = 'M28IslandMexCount' --[x] is the island, returns the number of mexes in the island
 
 --Plateaus - Land zone variables (still against tAllPlateaus[iPlateau]
     subrefLandZoneCount = 'M28PlateauZoneCount' --against the main plateau table, records how many land zones there are (alternative to table.getn on the land zones)
@@ -115,6 +118,11 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZTravelDist = 3 --against subrefLZPathingToOtherLandZones subtable
         subrefLZPathingToOtherLZEntryRef = 'PathRfLZ' --[x] is the target LZ reference; will return the entry in subrefLZPathingToOtherLandZones containing this path, if there is one
         subrefLZTravelDistToOtherLandZones = 'TravelLZ' --table used to store all land travel distance calculations to get from one LZ to another LZ; similar to subrefLZPathingToOtherLandZones, but intended to allow for all land zones to be recorded
+        subrefLZPathingToOtherIslands = 'PathIsl' --array, [x] = (1, 2...); Ordered based on shortest travel distance
+            subrefIslandNumber = 1 --Island reference number
+            subrefIslandClosestLZRef = 2 --LZ ref of the LZ closest to us in this island
+            subrefIslandTravelDist = 3 --Amphibious travel distance from the land zone to the closestLZRef in the IslandNumber
+            subrefIslandLZPath = 4 --table of the land zones that an amphibious unit would go through to get from this LZ to the ClosestLZRef
 
         subrefLZFurthestAdjacentLandZoneTravelDist = 'FurthestAdjLZ' --Returns the travel distance (rounded up) of the furthest immediately adjacent land zone - can combine with subrefLZPathingToOtherLandZones so can stop cycling through the prerecorded LZs once get further away than the immediately adjacent ones
         --Reclaim related:
@@ -127,12 +135,16 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         --Land scout/intel related
         subreftPatrolPath = 'PatrPth' --table of locations intended for a land scout to patrol the perimeter of the land zone
 
+        --Island related
+        subrefLZIslandRef = 'Island' --the island ref of the land zone (can also get by using NavUtils.GetLabel(refPathingTypeAmphibious) for the midpoint
+
         --Land zone subteam data (update M28Teams.TeamInitialisation function to include varaibles here so dont have to check if they exist each time)
         subrefLZTeamData = 'Subteam' --tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData] - Table for all the data by team for a plateau's land zone
             --Variables that are against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData]:
             subrefLZTValue = 'ZVal' --Value of the zone factoring in mass, reclaim, and allied units
             subrefLZSValue = 'ZBVal' --Value of friendly buildings in the land zone
             subrefLZTCoreBase = 'ZCore' --true if this is considered a 'core base' land zone
+            subrefLZCoreExpansion = 'ZExp' --true if considered the main land zone for an expansion (e.g. on an island); nil if we havent considered yet if it is a core expansion, and false if we have considered and it isnt
             subrefLZAlliedACU = 'AACU' --table of ACU units for the land zone (so can factor into decisions on support and attack)
             subrefLZTAlliedUnits = 'Allies' --table of all allied units in the land zone, tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam][subrefLZTAlliedUnits]
             subrefLZTAlliedCombatUnits = 'AllComb' --table of allied units that are to be considered for combat orders
@@ -211,6 +223,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             reftClosestFriendlyBase = 'ClosestFB' --Position of the closest friendly start position
             reftClosestEnemyBase = 'ClosestEB' --Closest enemy start position
             refiModDistancePercent = 'ModDPC' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam], mod dist based on closest friendly start position to closest enemy start position
+            refbIslandBeachhead = 'IslBeachd' --true if we are sending units to a closest island LZ to try and attack enemy - means will check for nearby untis vs enemy nearby units when deciding whether to attack or not
 
 
 
@@ -248,22 +261,22 @@ end
 
 function GetPathingOverridePlateauAndLandZone(tPosition, bOptionalShouldBePathable, oOptionalPathingUnit)
     local iX = math.floor(tPosition[1])
-    LOG('GetPathingOverridePlateauAndLandZone: iPlateau is nil or 0, tPosition='..repru(tPosition)..'; tPathingPlateauAndLZOverride[ix]='..repru(tPathingPlateauAndLZOverride[iX])..'; bOptionalShouldBePathable='..tostring(bOptionalShouldBePathable or false)..'; Is oOptionalPathingUnit valid='..tostring(M28UnitInfo.IsUnitValid(oOptionalPathingUnit)))
+    --LOG('GetPathingOverridePlateauAndLandZone: iPlateau is nil or 0, tPosition='..repru(tPosition)..'; tPathingPlateauAndLZOverride[ix]='..repru(tPathingPlateauAndLZOverride[iX])..'; bOptionalShouldBePathable='..tostring(bOptionalShouldBePathable or false)..'; Is oOptionalPathingUnit valid='..tostring(M28UnitInfo.IsUnitValid(oOptionalPathingUnit)))
     if tPathingPlateauAndLZOverride[iX] then
         local iZ = math.floor(tPosition[3])
         if tPathingPlateauAndLZOverride[iX][iZ] then
-            LOG('GetPathingOverridePlateauAndLandZone: Have a valid override so will return this, override='..repru(tPathingPlateauAndLZOverride[iX][iZ]))
+            --LOG('GetPathingOverridePlateauAndLandZone: Have a valid override so will return this, override='..repru(tPathingPlateauAndLZOverride[iX][iZ]))
             return tPathingPlateauAndLZOverride[iX][iZ][1], tPathingPlateauAndLZOverride[iX][iZ][2]
         end
     end
     --Dont have an override for here - if we think it shoudl be pathable then create an override
     if bOptionalShouldBePathable and oOptionalPathingUnit then
-        LOG('GetPathingOverridePlateauAndLandZone: No plateau for a unit that should be pathable, tPosition='..repru(tPosition)..'; bOptionalShouldBePathable='..tostring(bOptionalShouldBePathable)..'; oOptionalPathingUnit='..oOptionalPathingUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOptionalPathingUnit)..'; oOptionalPathingUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]='..repru(oOptionalPathingUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam])..'; Unit state='..M28UnitInfo.GetUnitState(oOptionalPathingUnit)..'; iMapWaterHeight='..iMapWaterHeight)
+        --LOG('GetPathingOverridePlateauAndLandZone: No plateau for a unit that should be pathable, tPosition='..repru(tPosition)..'; bOptionalShouldBePathable='..tostring(bOptionalShouldBePathable)..'; oOptionalPathingUnit='..oOptionalPathingUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOptionalPathingUnit)..'; oOptionalPathingUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]='..repru(oOptionalPathingUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam])..'; Unit state='..M28UnitInfo.GetUnitState(oOptionalPathingUnit)..'; iMapWaterHeight='..iMapWaterHeight)
         if M28Land.ConsiderAddingPlateauOverrideForUnit(oOptionalPathingUnit) then
             if tPathingPlateauAndLZOverride[iX] then
                 local iZ = math.floor(tPosition[3])
                 if tPathingPlateauAndLZOverride[iX][iZ] then
-                    LOG('GetPathingOverridePlateauAndLandZone: Have a valid override after considering plateau override for unit, override='..repru(tPathingPlateauAndLZOverride[iX][iZ]))
+                    --LOG('GetPathingOverridePlateauAndLandZone: Have a valid override after considering plateau override for unit, override='..repru(tPathingPlateauAndLZOverride[iX][iZ]))
                     return tPathingPlateauAndLZOverride[iX][iZ][1], tPathingPlateauAndLZOverride[iX][iZ][2]
                 end
             end
@@ -1177,7 +1190,12 @@ local function AssignRemainingSegmentsToLandZones()
                         RecordSegmentLandZone(iBaseSegmentX, iBaseSegmentZ, iPlateauGroup, tiLZEntryByNavUtilsRef[iPlateauGroup][iLandPathingGroupWanted])
                     end
                 else
-                    M28Utilities.ErrorHandler('somehow have a land zone but not a plateau group')
+                    M28Utilities.ErrorHandler('somehow have a land zone but not a plateau group; Refer to log for base position and other details if logs are enabled')
+                    if bDebugMessages == true then
+                        LOG(sFunctionRef..': Base position='..repru(tBasePosition)..'; Land nav='..(NavUtils.GetLabel(refPathingTypeLand, tBasePosition) or 'nil')..'; Plateau nav='..(NavUtils.GetLabel(refPathingTypeAmphibious, tBasePosition) or 'nil'))
+                        M28Utilities.DrawLocation(tBasePosition)
+                    end
+
                 end
             end
         end
@@ -1227,7 +1245,7 @@ local function AssignRemainingSegmentsToLandZones()
             if not(tLandZoneBySegment[iBaseSegmentX][iBaseSegmentZ]) then
                 tBasePosition = GetPositionFromPathingSegments(iBaseSegmentX, iBaseSegmentZ)
                 iLandPathingGroupWanted = NavUtils.GetLabel(refPathingTypeLand, tBasePosition)
-                if (iLandPathingGroupWanted or 0) > 1 then
+                if (iLandPathingGroupWanted or 0) > 1 and (NavUtils.GetLabel(refPathingTypeAmphibious, tBasePosition) or 0) > 0 then
                     M28Utilities.ErrorHandler('Have an unassigned land zone='..iBaseSegmentX..'-'..iBaseSegmentZ)
                     CreateNewLandZoneAtSegment(iBaseSegmentX, iBaseSegmentZ)
                     RecordTemporaryTravelDistanceForBaseSegment(iBaseSegmentX, iBaseSegmentZ, iLandPathingGroupWanted, tBasePosition, iMaxSegmentSearchDistance, iDistanceCap)
@@ -2217,6 +2235,108 @@ local function SetupLandZones()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function RecordIslands()
+    --Assumes have already setup every land zone on the map - will now record details of islands
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordIslands'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    --First record every island
+    for iPlateau, tPlateauSubtable in tAllPlateaus do
+        if tPlateauSubtable[subrefPlateauTotalMexCount] > 0 then
+            tPlateauSubtable[subrefPlateauIslandLandZones] = {}
+            tPlateauSubtable[subrefPlateauIslandMexCount] = { }
+            for iLandZone, tLZData in tPlateauSubtable[subrefPlateauLandZones] do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering iLandZone='..iLandZone..'; in Plateau '..iPlateau..'; Amphibious label='..(NavUtils.GetLabel(refPathingTypeLand, tLZData[subrefLZMidpoint]) or 'nil')) end
+                tLZData[subrefLZIslandRef] = NavUtils.GetLabel(refPathingTypeLand, tLZData[subrefLZMidpoint])
+                if tLZData[subrefLZIslandRef] > 0 then
+                    if not(tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]]) then tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]] = {} end
+                    table.insert(tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]], iLandZone)
+                    tPlateauSubtable[subrefPlateauIslandMexCount][tLZData[subrefLZIslandRef]] = (tPlateauSubtable[subrefPlateauIslandMexCount][tLZData[subrefLZIslandRef]] or 0) + tLZData[subrefLZMexCount]
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished recording all islands in plateau '..iPlateau..'; Mex count by island='..repru(tPlateauSubtable[subrefPlateauIslandMexCount])..'; LZs by island='..repru(tPlateauSubtable[subrefPlateauIslandLandZones])) end
+
+
+            for iLandZone, tLZData in tPlateauSubtable[subrefPlateauLandZones] do
+                --Cycle through each island in this plateau and consider pathing for it
+                if bDebugMessages == true then LOG(sFunctionRef..': Will record the pathing to every island from iLandZone='..iLandZone..'; ') end
+                for iIsland, tLandZonesInIsland in tPlateauSubtable[subrefPlateauIslandLandZones] do
+                    --Only consider islands with mexes (for performance reasons)
+                    if tPlateauSubtable[subrefPlateauIslandMexCount][iIsland] > 0 and not(iIsland == tLZData[subrefLZIslandRef]) then
+                        --Get the land zone in this island that is closest to our current land zone
+                        local iClosestTravelDist = 100000
+                        local iCurTravelDistance
+                        local iClosestLZRef
+
+
+                        for iEntry, iIslandLZ in tLandZonesInIsland do
+                            iCurTravelDistance = M28Utilities.GetTravelDistanceBetweenPositions(tLZData[subrefLZMidpoint], tPlateauSubtable[subrefPlateauLandZones][iIslandLZ][subrefLZMidpoint], refPathingTypeAmphibious)
+                            if bDebugMessages == true then LOG(sFunctionRef..': iCurTravelDistance='..repru(iCurTravelDistance)..'; iClosestTravelDist='..repru(iClosestTravelDist)) end
+                            if iCurTravelDistance and iCurTravelDistance < iClosestTravelDist then
+                                iClosestTravelDist = iCurTravelDistance
+                                iClosestLZRef = iIslandLZ
+                            end
+                        end
+
+                        --Get the position in the current table
+                        local iPosition = 1
+                        if not(tLZData[subrefLZPathingToOtherIslands]) then
+                            tLZData[subrefLZPathingToOtherIslands] = {}
+                            iPosition = 1
+                        else
+                            for iExistingIsland, tExistingSubtable in tLZData[subrefLZPathingToOtherIslands] do
+                                if tExistingSubtable[subrefIslandTravelDist] < iClosestTravelDist then
+                                    iPosition = iPosition + 1
+                                else
+                                    break
+                                end
+                            end
+                        end
+                        local tFullPath, iPathSize, iDistance = NavUtils.PathTo(refPathingTypeAmphibious, tLZData[subrefLZMidpoint], tPlateauSubtable[subrefPlateauLandZones][iClosestLZRef][subrefLZMidpoint], nil)
+
+                        --Reduce tFullPath to a table of land zones
+                        if tFullPath then
+                            local iPathingPlateau, iPathingLandZone
+                            local tPathingLZConsidered = {}
+                            local tPathingLZFromStartToTarget = {}
+
+
+                            local iTravelDistance = 0
+                            local tStart = {tLZData[subrefLZMidpoint][1], tLZData[subrefLZMidpoint][2], tLZData[subrefLZMidpoint][3]}
+                            local tEnd = {tPlateauSubtable[subrefPlateauLandZones][iClosestLZRef][subrefLZMidpoint][1], tPlateauSubtable[subrefPlateauLandZones][iClosestLZRef][subrefLZMidpoint][2], tPlateauSubtable[subrefPlateauLandZones][iClosestLZRef][subrefLZMidpoint][3]}
+                            tFullPath[0] = tStart
+                            tFullPath[iPathSize + 1] = tEnd
+                            for iPath = 1, iPathSize + 1 do
+                                iTravelDistance = iTravelDistance + VDist2(tFullPath[iPath - 1][1], tFullPath[iPath - 1][3], tFullPath[iPath][1], tFullPath[iPath][3])
+                                iPathingPlateau, iPathingLandZone = GetPlateauAndLandZoneReferenceFromPosition(tFullPath[iPath])
+                                if iPathingLandZone > 0 then
+                                    if not(tPathingLZConsidered[iPathingLandZone]) and not(iLandZone == iPathingLandZone) then
+                                        tPathingLZConsidered[iPathingLandZone] = true
+                                        table.insert(tPathingLZFromStartToTarget, iPathingLandZone)
+                                    end
+                                end
+                            end
+                            if not(tPathingLZConsidered[iClosestLZRef]) then
+                                table.insert(tPathingLZFromStartToTarget, iPathingLandZone)
+                                tPathingLZConsidered[iClosestLZRef] = true
+                            end
+                            table.insert(tLZData[subrefLZPathingToOtherIslands], iPosition, {[subrefIslandNumber] = iIsland, [subrefIslandClosestLZRef] = iClosestLZRef, [subrefLZTravelDist] = iClosestTravelDist, [subrefIslandLZPath] = { } })
+                            --Add in the LZ path
+                            for iEntry, iLZ in tPathingLZFromStartToTarget do
+                                table.insert(tLZData[subrefLZPathingToOtherIslands][iPosition][subrefIslandLZPath], iLZ)
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Plateau '..iPlateau..': Finished recording pathing to get from iLandZone='..iLandZone..' to iClosestLZRef='..(iClosestLZRef or 'nil')..' in island '..iIsland..'; tLZData[subrefLZPathingToOtherIslands]='..repru(tLZData[subrefLZPathingToOtherIslands])) end
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished recording for iPlateau='..iPlateau) end
+        end
+    end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 ---@param tPosition table
 ---@param bReturnSufaceHeightInstead boolean
 ---@param iOptionalAmountToBeUnderwatner number
@@ -2588,6 +2708,8 @@ function SetupMap()
 
     --Setup land zones
     SetupLandZones()
+
+    RecordIslands()
 
     ForkThread(ClearTemporarySetupVariables)
 
