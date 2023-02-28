@@ -338,7 +338,7 @@ function CheckIfBuildableLocationsNearPositionStillValid(aiBrain, tLocation)
 
                 for iOrigIndex=1, iTableSize do
                     if tLZData[M28Map.subrefLZMassStorageLocationsAvailable][iOrigIndex] then --Needed as sometimes the last entry is nil
-                        if aiBrain:CanBuildStructureAt('ueb1106', tLZData[M28Map.subrefLZMassStorageLocationsAvailable][iOrigIndex]) then
+                        if aiBrain.CanBuildStructureAt and aiBrain:CanBuildStructureAt('ueb1106', tLZData[M28Map.subrefLZMassStorageLocationsAvailable][iOrigIndex]) then
                             --We want to keep the entry; Move the original index to be the revised index number (so if e.g. a table of 1,2,3 removed 2, then this would've resulted in the revised index being 2 (i.e. it starts at 1, then icnreases by 1 for the first valid entry); this then means we change the table index for orig index 3 to be 2
                             if (iOrigIndex ~= iRevisedIndex) then
                                 tLZData[M28Map.subrefLZMassStorageLocationsAvailable][iRevisedIndex] = tLZData[M28Map.subrefLZMassStorageLocationsAvailable][iOrigIndex];
@@ -1684,7 +1684,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZTeamData, 
                                 if iClosestDistUntilInRangeOfStaticEnemy < 8 or iClosestDistUntilInRangeOfMobileEnemy <= iThresholdToRunFromMobileEnemies then
                                     local tPositionToRunFrom
                                     if oNearestEnemy then tPositionToRunFrom = oNearestEnemy:GetPosition() end
-                                    iLZToRunTo = M28Land.GetLandZoneToRunTo(iTeam, iPlateau, iLandZone, M28Map.refPathingTypeAmphibious, oEngineer:GetPosition(), tPositionToRunFrom)
+                                    iLZToRunTo = M28Land.GetLandZoneToRunTo(iTeam, iPlateau, iLandZone, M28Map.refPathingTypeHover, oEngineer:GetPosition(), tPositionToRunFrom)
                                     if not(iLZToRunTo == iLandZone) then --If LZ to run to is same as cur LZ might as well use engineer normally (e.g. might have defences to build)
                                         --Run to the LZ
                                         M28Orders.IssueTrackedMove(oEngineer, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLZToRunTo][M28Map.subrefLZMidpoint], 8, false, 'RunTo'..iLZToRunTo)
@@ -3035,7 +3035,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     local tLZWantingBPConsidered = {}
     local iAdjLZ
     if iHighestTechEngiAvailable > 0 then
-        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
             for iPathingRef, tPathingDetails in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
                 if tPathingDetails[M28Map.subrefLZTravelDist] <= tLZData[M28Map.subrefLZFurthestAdjacentLandZoneTravelDist] then
                     iAdjLZ = tPathingDetails[M28Map.subrefLZNumber]
@@ -3565,7 +3565,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     local tLZWantingBPConsidered = {}
     local iAdjLZ
     if iHighestTechEngiAvailable > 0 then
-        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
             for iPathingRef, tPathingDetails in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
                 if tPathingDetails[M28Map.subrefLZTravelDist] <= tLZData[M28Map.subrefLZFurthestAdjacentLandZoneTravelDist] then
                     iAdjLZ = tPathingDetails[M28Map.subrefLZNumber]

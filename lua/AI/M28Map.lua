@@ -19,12 +19,12 @@ bMapSetupComplete = false --set to true once have finished setting up map (used 
 
 --Pathing types
 --NavLayers 'Land' | 'Water' | 'Amphibious' | 'Hover' | 'Air'
-refPathingTypeAmphibious = 'Amphibious'
+refPathingTypeHover = 'Hover' --Amphibious is more restrictive so more likely to run into errors if base pathing on hover if enemy units then hover over it
 refPathingTypeNavy = 'Water'
 refPathingTypeAir = 'Air'
 refPathingTypeLand = 'Land'
 refPathingTypeNone = 'None'
-refPathingTypeAll = {refPathingTypeAmphibious, refPathingTypeNavy, refPathingTypeAir, refPathingTypeLand}
+refPathingTypeAll = {refPathingTypeHover, refPathingTypeNavy, refPathingTypeAir, refPathingTypeLand}
 
 --Map size
 rMapPlayableArea = {0,0, 256, 256} --{x1,z1, x2,z2} - Set at start of the game, use instead of the scenarioinfo method; note that x0 z0 is the top-left corner of the map
@@ -136,7 +136,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         subreftPatrolPath = 'PatrPth' --table of locations intended for a land scout to patrol the perimeter of the land zone
 
         --Island related
-        subrefLZIslandRef = 'Island' --the island ref of the land zone (can also get by using NavUtils.GetLabel(refPathingTypeAmphibious) for the midpoint
+        subrefLZIslandRef = 'Island' --the island ref of the land zone (can also get by using NavUtils.GetLabel(refPathingTypeHover) for the midpoint
 
         --Land zone subteam data (update M28Teams.TeamInitialisation function to include varaibles here so dont have to check if they exist each time)
         subrefLZTeamData = 'Subteam' --tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData] - Table for all the data by team for a plateau's land zone
@@ -295,7 +295,7 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
 
     --Get the plateau reference and the land segment X and Z references:
     local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tPosition)
-    local iPlateau = NavUtils.GetLabel(refPathingTypeAmphibious, GetPositionFromPathingSegments(iSegmentX, iSegmentZ))
+    local iPlateau = NavUtils.GetLabel(refPathingTypeHover, GetPositionFromPathingSegments(iSegmentX, iSegmentZ))
     local iLandZone
 
     if (iPlateau or 0) <= 0 or not(tAllPlateaus[iPlateau]) then
@@ -306,12 +306,12 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
 
             --LOG('GetPlateauAndLandZoneReferenceFromPosition: tAllPlateaus is nil for iPlateau='..(iPlateau or 'nil')..'; if should be pathable will check the segment we are in/ bOptionalShouldBePathable='..tostring(bOptionalShouldBePathable or false))
             if bOptionalShouldBePathable then
-                iPlateau = NavUtils.GetLabel(refPathingTypeAmphibious, tPosition)
+                iPlateau = NavUtils.GetLabel(refPathingTypeHover, tPosition)
 
                 if not(tAllPlateaus[iPlateau]) then
                     if bOptionalShouldBePathable then
                         --If get this error, then refer to GetUnitPlateauAndLandZoneOverride
-                        M28Utilities.ErrorHandler('No plateau group for iSegmentX='..iSegmentX..'; iSegmentZ='..iSegmentZ..'; Plateau group of segment midpoint='..(NavUtils.GetLabel(refPathingTypeAmphibious, GetPositionFromPathingSegments(iSegmentX, iSegmentZ)) or 'nil')..'; Plateau Group of tPosition='..(NavUtils.GetLabel(refPathingTypeAmphibious, tPosition) or 'nil')..'; Pathing unit='..(oOptionalPathingUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oOptionalPathingUnit) or 'nil')..'; Enable logs in the function GetUnitPlateauAndLandZoneOverride for more details')
+                        M28Utilities.ErrorHandler('No plateau group for iSegmentX='..iSegmentX..'; iSegmentZ='..iSegmentZ..'; Plateau group of segment midpoint='..(NavUtils.GetLabel(refPathingTypeHover, GetPositionFromPathingSegments(iSegmentX, iSegmentZ)) or 'nil')..'; Plateau Group of tPosition='..(NavUtils.GetLabel(refPathingTypeHover, tPosition) or 'nil')..'; Pathing unit='..(oOptionalPathingUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oOptionalPathingUnit) or 'nil')..'; Enable logs in the function GetUnitPlateauAndLandZoneOverride for more details')
                     end
                     return nil
                 else
@@ -447,7 +447,7 @@ local function RecordMexForPathingGroup()
     local sFunctionRef = 'RecordMexForPathingGroup'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': About to record mexes for each pathing group. MassPoints='..repru(tMassPoints)) end
-    local tsPathingTypes = {refPathingTypeAmphibious, refPathingTypeNavy, refPathingTypeLand}
+    local tsPathingTypes = {refPathingTypeHover, refPathingTypeNavy, refPathingTypeLand}
     local iCurResourceGroup
     local iValidCount = 0
     tMexByPathingAndGrouping = {}
@@ -504,7 +504,7 @@ end
 
 local function RecordAllPlateaus()
     --Records any plateaus that contain mexes, along with info on the plateau
-    --tAllPlateaus[iSegmentGroup] can be used to then reference subtables with further information on the plateau, where iSegmentGroup is the result of NavUtils.GetLabel(refPathingTypeAmphibious, {x,y,z})
+    --tAllPlateaus[iSegmentGroup] can be used to then reference subtables with further information on the plateau, where iSegmentGroup is the result of NavUtils.GetLabel(refPathingTypeHover, {x,y,z})
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordAllPlateaus'
@@ -520,7 +520,7 @@ local function RecordAllPlateaus()
     local iCurCount
     local tSegmentPosition
     local iReclaimSegmentStartX, iReclaimSegmentStartZ, iReclaimSegmentEndX, iReclaimSegmentEndZ
-    local sPathing = refPathingTypeAmphibious
+    local sPathing = refPathingTypeHover
 
 
     --Cycle through every amphibious pathing group that has mexes in it:
@@ -704,7 +704,7 @@ end
 local function AddNewLandZoneReferenceToPlateau(iPlateau)
     --Adds a new land zone reference number to iPlateau, assumes that information about the zone will be added later
     --Intended to be called as part of wider code for recording a land zone, e.g. from CreateNewLandZoneAtSegment and similar functions
-    --iPlateau is the result of NavUtils.GetLabel(refPathingTypeAmphibious, tLocation)
+    --iPlateau is the result of NavUtils.GetLabel(refPathingTypeHover, tLocation)
     --To get the land zone created by this immediately after it is created, use iLandZone = tAllPlateaus[iPlateau][subrefLandZoneCount]
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AddNewLandZoneReferenceToPlateau'
@@ -738,7 +738,10 @@ local function AddNewLandZoneReferenceToPlateau(iPlateau)
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTravelDistToOtherLandZones] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZPlayerWallSegments] = {}
 
-    if bDebugMessages == true then LOG('Finished setting up variables for iPlateau='..iPlateau..'; iLandZone='..iLandZone) end
+    if bDebugMessages == true then
+        LOG('Time='..GetGameTimeSeconds()..'; Finished setting up variables for iPlateau='..iPlateau..'; iLandZone='..iLandZone)
+        M28Utilities.ErrorHandler('Audit trail')
+    end
 
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -812,7 +815,7 @@ local function CreateNewLandZoneAtSegment(iBaseSegmentX, iBaseSegmentZ)
     if not(tLandZoneBySegment[iBaseSegmentX][iBaseSegmentZ]) then
         --PlateauGroup ref will be the amphibious pathing ref from navutils.getlabel (since that's what is used to define mexes by amphibious pathing group, and plateau recognition then uses the same reference)
         local tMidpoint = GetPositionFromPathingSegments(iBaseSegmentX, iBaseSegmentZ)
-        local iPlateau = NavUtils.GetLabel(refPathingTypeAmphibious, tMidpoint)
+        local iPlateau = NavUtils.GetLabel(refPathingTypeHover, tMidpoint)
         AddNewLandZoneReferenceToPlateau(iPlateau)
         --LOG('Have just created a new land zone reference for base segment XZ='..iBaseSegmentX..'-'..iBaseSegmentZ..' in the iPlateau='..iPlateau)
         RecordSegmentLandZone(iBaseSegmentX, iBaseSegmentZ, iPlateau, tAllPlateaus[iPlateau][subrefLandZoneCount])
@@ -829,7 +832,7 @@ end
 ---@param tTempPlateauLandZoneByMexRef table
 local function AddMexToLandZone(iPlateau, iOptionalLandZone, iPlateauMexRef, tTempPlateauLandZoneByMexRef)
     --Determine the land zone if it isnt specified
-        --iPlateau is the result of NavUtils.GetLabel(refPathingTypeAmphibious, tLocation)
+        --iPlateau is the result of NavUtils.GetLabel(refPathingTypeHover, tLocation)
         --iOptionalLandZone - if not specified, then this will create a new land zone for iPlateau and use htis reference
         --iPlateauMexRef - the reference key in the table tAllPlateaus[iPlateau][subrefPlateauMexes], which should return the location of the mex
         --tTempPlateauLandZoneByMexRef - temporary table used to store information for purposes of creating the land zones
@@ -887,8 +890,8 @@ local function AssignTempSegmentsWithDistance()
                                 iLowestZone = iZone
                             end
                         end
-                        --if bDebugMessages == true then LOG(sFunctionRef..': iCurSegmentX='..iCurSegmentX..'; iCurSegmentZ='..iCurSegmentZ..'; Position from pathing segments='..repru(GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ))..'; iLowestZone='..(iLowestZone or 'nil')..'; plateau group='..(NavUtils.GetLabel(refPathingTypeAmphibious, GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)) or 'nil')) end
-                        iCurPlateau = NavUtils.GetLabel(refPathingTypeAmphibious, GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ))
+                        --if bDebugMessages == true then LOG(sFunctionRef..': iCurSegmentX='..iCurSegmentX..'; iCurSegmentZ='..iCurSegmentZ..'; Position from pathing segments='..repru(GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ))..'; iLowestZone='..(iLowestZone or 'nil')..'; plateau group='..(NavUtils.GetLabel(refPathingTypeHover, GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)) or 'nil')) end
+                        iCurPlateau = NavUtils.GetLabel(refPathingTypeHover, GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ))
                         if not(iCurPlateau) then
                             --We have a land zone, so presumably this segment in isolation isn't in somewhere we recognise, but it is near somewhere suitable; keep searching nearby segments to try and find this land zone
                             iCurPlateau = tTempZonePlateauBySegment[iCurSegmentX][iCurSegmentZ][iLowestZone]
@@ -1029,7 +1032,7 @@ local function RecordTemporaryTravelDistanceForBaseSegment(iBaseSegmentX, iBaseS
                     iCurZone = tLandZoneBySegment[iCurSegmentX][iCurSegmentZ]
                     if bDebugMessages == true then LOG(sFunctionRef..': We have a segment nearby with a land zone, iCurZone='..iCurZone..'; will record iCurTravelDist of '..iCurTravelDist..'; against the base segment') end
                     tTempZoneTravelDistanceBySegment[iBaseSegmentX][iBaseSegmentZ][iCurZone] = math.min(iCurTravelDist, (tTempZoneTravelDistanceBySegment[iBaseSegmentX][iBaseSegmentZ][iCurZone] or 100000))
-                    if not(tTempZonePlateauBySegment[iBaseSegmentX][iBaseSegmentZ][iCurZone]) then tTempZonePlateauBySegment[iBaseSegmentX][iBaseSegmentZ][iCurZone] = NavUtils.GetLabel(refPathingTypeAmphibious, tCurPosition) end
+                    if not(tTempZonePlateauBySegment[iBaseSegmentX][iBaseSegmentZ][iCurZone]) then tTempZonePlateauBySegment[iBaseSegmentX][iBaseSegmentZ][iCurZone] = NavUtils.GetLabel(refPathingTypeHover, tCurPosition) end
                     if iCurTravelDist <= iAbortThreshold then
                         if bDebugMessages == true then LOG(sFunctionRef..': Found a really close segment so will stop looking for more') end
                         bAbort = true
@@ -1088,7 +1091,7 @@ local function AssignNearbySegmentsToSameLandZone(iBaseSegmentX, iBaseSegmentZ, 
     local iLandZone = tLandZoneBySegment[iBaseSegmentX][iBaseSegmentZ]
     local iCurTravelDist
     local tBaseMidpoint = GetPositionFromPathingSegments(iBaseSegmentX, iBaseSegmentZ)
-    local iPlateau = NavUtils.GetLabel(refPathingTypeAmphibious, tBaseMidpoint)
+    local iPlateau = NavUtils.GetLabel(refPathingTypeHover, tBaseMidpoint)
     for iCurSegmentX = math.max(1, iBaseSegmentX - iSegmentSearchRange), math.min(iBaseSegmentX + iSegmentSearchRange, iMaxLandSegmentX), 1 do
         for iCurSegmentZ = math.max(1, iBaseSegmentZ - iSegmentSearchRange), math.min(iBaseSegmentZ + iSegmentSearchRange, iMaxLandSegmentZ), 1 do
             if not(tLandZoneBySegment[iCurSegmentX][iCurSegmentZ]) then
@@ -1131,14 +1134,15 @@ local function AssignRemainingSegmentsToLandZones()
     function CheckForNearbyZonesAndCreateNewZoneIfNeeded(iBaseSegmentX, iBaseSegmentZ, iBasePositionX, iBasePositionZ, bUseRoughPathingDistance)
         if not(tLandZoneBySegment[iBaseSegmentX] and tLandZoneBySegment[iBaseSegmentX][iBaseSegmentZ]) then
             tBasePosition = {iBasePositionX, 0, iBasePositionZ} --GetPositionFromPathingSegments(iBaseSegmentX, iBaseSegmentZ)
+            --tBasePosition[2] = GetSurfaceHeight(tBasePosition[1], tBasePosition[3]) --Dont think this is needed
             iLandPathingGroupWanted = NavUtils.GetLabel(refPathingTypeLand, tBasePosition)
             if (iLandPathingGroupWanted or 0) > 0 then
                 --Are we from a plateau that has mexes?
-                iPlateauGroup = NavUtils.GetLabel(refPathingTypeAmphibious, tBasePosition)
+                iPlateauGroup = (NavUtils.GetLabel(refPathingTypeHover, tBasePosition) or NavUtils.GetLabel('Amphibious', tBasePosition))
                 if not(iPlateauGroup) then
-                    local tiAdjust = {{-1,0}, {-1, -1}, {-1, 1}, {0, -1}, {0, 1}, {1, -1}, {1, 0}, {1,1}}
+                    local tiAdjust = {{-1,0}, {-1, -1}, {-1, 1}, {0, -1}, {0, 1}, {1, -1}, {1, 0}, {1,1}, {-3,0}, {-3, -3}, {-3, 3}, {0, -3}, {0, 3}, {3, -3}, {3, 0}, {3,3}}
                     for iEntry, tXZAdjust in tiAdjust do
-                        iPlateauGroup = NavUtils.GetLabel(refPathingTypeAmphibious, { tBasePosition[1] + tXZAdjust[1], tBasePosition[2], tBasePosition[3] + tXZAdjust[2] })
+                        iPlateauGroup = NavUtils.GetLabel(refPathingTypeHover, { tBasePosition[1] + tXZAdjust[1], tBasePosition[2], tBasePosition[3] + tXZAdjust[2] })
                         if iPlateauGroup then break end
                     end
                 end
@@ -1190,10 +1194,11 @@ local function AssignRemainingSegmentsToLandZones()
                         RecordSegmentLandZone(iBaseSegmentX, iBaseSegmentZ, iPlateauGroup, tiLZEntryByNavUtilsRef[iPlateauGroup][iLandPathingGroupWanted])
                     end
                 else
+                    bDebugMessages = true
                     M28Utilities.ErrorHandler('somehow have a land zone but not a plateau group; Refer to log for base position and other details if logs are enabled')
                     if bDebugMessages == true then
-                        LOG(sFunctionRef..': Base position='..repru(tBasePosition)..'; Land nav='..(NavUtils.GetLabel(refPathingTypeLand, tBasePosition) or 'nil')..'; Plateau nav='..(NavUtils.GetLabel(refPathingTypeAmphibious, tBasePosition) or 'nil'))
-                        M28Utilities.DrawLocation(tBasePosition)
+                        LOG(sFunctionRef..': Base position='..repru(tBasePosition)..'; Land nav='..(NavUtils.GetLabel(refPathingTypeLand, tBasePosition) or 'nil')..'; Plateau nav='..(NavUtils.GetLabel(refPathingTypeHover, tBasePosition) or 'nil')..'; Amphibious plateau='..(NavUtils.GetLabel('Amphibious', tBasePosition) or 'nil'))
+                        M28Utilities.DrawLocation(tBasePosition, 2)
                     end
 
                 end
@@ -1245,7 +1250,7 @@ local function AssignRemainingSegmentsToLandZones()
             if not(tLandZoneBySegment[iBaseSegmentX][iBaseSegmentZ]) then
                 tBasePosition = GetPositionFromPathingSegments(iBaseSegmentX, iBaseSegmentZ)
                 iLandPathingGroupWanted = NavUtils.GetLabel(refPathingTypeLand, tBasePosition)
-                if (iLandPathingGroupWanted or 0) > 1 and (NavUtils.GetLabel(refPathingTypeAmphibious, tBasePosition) or 0) > 0 then
+                if (iLandPathingGroupWanted or 0) > 1 and (NavUtils.GetLabel(refPathingTypeHover, tBasePosition) or 0) > 0 then
                     M28Utilities.ErrorHandler('Have an unassigned land zone='..iBaseSegmentX..'-'..iBaseSegmentZ)
                     CreateNewLandZoneAtSegment(iBaseSegmentX, iBaseSegmentZ)
                     RecordTemporaryTravelDistanceForBaseSegment(iBaseSegmentX, iBaseSegmentZ, iLandPathingGroupWanted, tBasePosition, iMaxSegmentSearchDistance, iDistanceCap)
@@ -1330,7 +1335,7 @@ local function AssignMexesALandZone()
     --Create a table of the start locations that have their own unique land zone (as we want to combine those that are close together):
     for iIndex, tStartPosition in tRelevantStartPointsByIndex do
         iLZToUse = nil
-        iCurPlateau = NavUtils.GetLabel(refPathingTypeAmphibious, tStartPosition)
+        iCurPlateau = NavUtils.GetLabel(refPathingTypeHover, tStartPosition)
         --Are we close to an existing start position such that we should use the same LZ for both positions?
         if M28Utilities.IsTableEmpty(tiStartIndexPlateauAndLZ) == false then
             for iExistingIndex, tExistingPlateauAndLZ in tiStartIndexPlateauAndLZ do
@@ -1509,7 +1514,7 @@ local function DrawLandZones()
             iLandZoneRef = tLandZoneBySegment[iCurSegmentX][iCurSegmentZ]
             if (iLandZoneRef or 0) > 0 then
                 tLocation = GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)
-                if bDebugMessages == true then LOG(sFunctionRef..': Land zone ref for segments X-Z='..iCurSegmentX..'-'..iCurSegmentZ..' = '..iLandZoneRef..'; Plataeu ref based on navutils='..NavUtils.GetLabel(refPathingTypeAmphibious, tLocation)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Land zone ref for segments X-Z='..iCurSegmentX..'-'..iCurSegmentZ..' = '..iLandZoneRef..'; Plataeu ref based on navutils='..NavUtils.GetLabel(refPathingTypeHover, tLocation)) end
                 --M28Utilities.DrawLocation(tLocation, GetColourFromLandZoneNumber(iLandZoneRef), nil, iLandZoneSegmentSize - 0.1)
                 M28Utilities.DrawLocation(tLocation, GetColourFromLandZoneNumber(iLandZoneRef), nil, iLandZoneSegmentSize - 0.1)
             end
@@ -1629,7 +1634,7 @@ function RecordAdjacentLandZones()
                     iAltSegZ = tSegmentXZ[2] + tSegAdjXZ[2]
                     iAltLandZone = tLandZoneBySegment[iAltSegX][iAltSegZ]
                     if iAltLandZone and not(iAltLandZone == iLandZone) and not(tRecordedAdjacentZones[iAltLandZone]) then
-                        if NavUtils.GetLabel(refPathingTypeAmphibious, GetPositionFromPathingSegments(iAltSegX, iAltSegZ)) == iPlateau then
+                        if NavUtils.GetLabel(refPathingTypeHover, GetPositionFromPathingSegments(iAltSegX, iAltSegZ)) == iPlateau then
                             tRecordedAdjacentZones[iAltLandZone] = true
                             table.insert(tLandZoneInfo[subrefLZAdjacentLandZones], iAltLandZone)
                         end
@@ -1660,13 +1665,13 @@ function ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iPlateau, iStartLan
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderAddingTargetLandZoneToDistanceFromBaseTable'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if iStartLandZone == 31 and iTargetLandZone == 1 and iPlateau == 1577 then bDebugMessages = true end
     --Have we not already considered this?
     if not(tbTempConsideredLandPathingForLZ[iPlateau][iStartLandZone][iTargetLandZone]) then
 
         local tEnd = tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZMidpoint]
         local tFullPath, iPathSize, iDistance = NavUtils.PathTo(refPathingTypeLand, tStart, tEnd, nil)
-        if bDebugMessages == true then LOG(sFunctionRef..': Have just tried to get amphibious path from tStart='..repru(tStart)..' to tEnd='..repru(tEnd)..'; iStartLandZone='..iStartLandZone..'; iTargetLandZone='..iTargetLandZone..'; tFullPath='..repru(tFullPath)..'; iPathSize='..iPathSize) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Have just tried to get land path from tStart='..repru(tStart)..' to tEnd='..repru(tEnd)..'; iStartLandZone='..iStartLandZone..'; iTargetLandZone='..iTargetLandZone..'; tFullPath='..repru(tFullPath)..'; iPathSize='..iPathSize) end
 
         if tFullPath then
             local iPathingPlateau, iPathingLandZone
@@ -2237,14 +2242,16 @@ end
 
 function RecordIslands()
     --Assumes have already setup every land zone on the map - will now record details of islands
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordIslands'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    --First record every island
+    --First record every island where there are mexes in the plateau
     for iPlateau, tPlateauSubtable in tAllPlateaus do
+        if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; About to record any islands for plateau '..iPlateau..'; if it has mexes, tPlateauSubtable[subrefPlateauTotalMexCount]='..tPlateauSubtable[subrefPlateauTotalMexCount]) end
         if tPlateauSubtable[subrefPlateauTotalMexCount] > 0 then
             tPlateauSubtable[subrefPlateauIslandLandZones] = {}
             tPlateauSubtable[subrefPlateauIslandMexCount] = { }
+            local tLandZonesWithoutIslands = {}
             for iLandZone, tLZData in tPlateauSubtable[subrefPlateauLandZones] do
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering iLandZone='..iLandZone..'; in Plateau '..iPlateau..'; Amphibious label='..(NavUtils.GetLabel(refPathingTypeLand, tLZData[subrefLZMidpoint]) or 'nil')) end
                 tLZData[subrefLZIslandRef] = NavUtils.GetLabel(refPathingTypeLand, tLZData[subrefLZMidpoint])
@@ -2252,6 +2259,49 @@ function RecordIslands()
                     if not(tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]]) then tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]] = {} end
                     table.insert(tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]], iLandZone)
                     tPlateauSubtable[subrefPlateauIslandMexCount][tLZData[subrefLZIslandRef]] = (tPlateauSubtable[subrefPlateauIslandMexCount][tLZData[subrefLZIslandRef]] or 0) + tLZData[subrefLZMexCount]
+                else
+                    table.insert(tLandZonesWithoutIslands, iLandZone)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Dont have an island ref for iLandZone='..iLandZone..'; so will record in tLandZonesWithoutIslands') end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished checking all land zones for plateau '..iPlateau..' for first pass; is table of tLandZonesWithoutIslands empty='..tostring(M28Utilities.IsTableEmpty(tLandZonesWithoutIslands))) end
+            if M28Utilities.IsTableEmpty(tLandZonesWithoutIslands) == false then
+                for iEntry, iLandZone in tLandZonesWithoutIslands do
+                    local tLZData = tPlateauSubtable[subrefPlateauLandZones][iLandZone]
+                    --Cycle through adjacent LZs to see if any of them have an island recorded
+                    if M28Utilities.IsTableEmpty(tLZData[subrefLZPathingToOtherLandZones]) == false then
+                        for iEntry, tSubtable in tLZData[subrefLZPathingToOtherLandZones] do
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering adjacent LZs for iLandZone='..iLandZone..'; Adjacent LZ='..tSubtable[subrefLZNumber]..'; Island ref for this='..(tPlateauSubtable[subrefPlateauLandZones][tSubtable[subrefLZNumber]][subrefLZIslandRef] or 'nil')) end
+                            if (tPlateauSubtable[subrefPlateauLandZones][tSubtable[subrefLZNumber]][subrefLZIslandRef] or 0) > 0 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will use htis island ref') end
+                                tLZData[subrefLZIslandRef] = tPlateauSubtable[subrefPlateauLandZones][tSubtable[subrefLZNumber]][subrefLZIslandRef]
+                                if not(tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]]) then tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]] = {} end
+                                table.insert(tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]], iLandZone)
+                                tPlateauSubtable[subrefPlateauIslandMexCount][tLZData[subrefLZIslandRef]] = (tPlateauSubtable[subrefPlateauIslandMexCount][tLZData[subrefLZIslandRef]] or 0) + tLZData[subrefLZMexCount]
+                                break
+                            end
+                        end
+                    end
+                    --If still dont have an island ref then try searching around the midpoint until come across an island
+                    if (tLZData[subrefLZIslandRef] or 0) == 0 then
+                        local tAltMidpoint
+                        for iAdjust = 1, 50 do
+                            for iXMod = -1, 1, 1 do
+                                for iZMod = -1, 1, 1 do
+                                    tAltMidpoint = {tLZData[subrefLZMidpoint][1] + iAdjust * iXMod, 0, tLZData[subrefLZMidpoint][3] + iAdjust * iZMod}
+                                    tAltMidpoint[2] = GetTerrainHeight(tAltMidpoint[1], tAltMidpoint[3])
+                                    tLZData[subrefLZIslandRef] = NavUtils.GetLabel(refPathingTypeLand, tAltMidpoint)
+                                    if (tLZData[subrefLZIslandRef] or 0) > 0 then
+                                        break
+                                    end
+                                end
+                                if (tLZData[subrefLZIslandRef] or 0) > 0 then break end
+                            end
+                            if (tLZData[subrefLZIslandRef] or 0) > 0 then break end
+                        end
+                        if (tLZData[subrefLZIslandRef] or 0) == 0 then tLZData[subrefLZIslandRef] = 0 end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Finished searching nearby, tLZData[subrefLZIslandRef]='..(tLZData[subrefLZIslandRef] or 'nil')) end
+                    end
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Finished recording all islands in plateau '..iPlateau..'; Mex count by island='..repru(tPlateauSubtable[subrefPlateauIslandMexCount])..'; LZs by island='..repru(tPlateauSubtable[subrefPlateauIslandLandZones])) end
@@ -2270,7 +2320,7 @@ function RecordIslands()
 
 
                         for iEntry, iIslandLZ in tLandZonesInIsland do
-                            iCurTravelDistance = M28Utilities.GetTravelDistanceBetweenPositions(tLZData[subrefLZMidpoint], tPlateauSubtable[subrefPlateauLandZones][iIslandLZ][subrefLZMidpoint], refPathingTypeAmphibious)
+                            iCurTravelDistance = M28Utilities.GetTravelDistanceBetweenPositions(tLZData[subrefLZMidpoint], tPlateauSubtable[subrefPlateauLandZones][iIslandLZ][subrefLZMidpoint], refPathingTypeHover)
                             if bDebugMessages == true then LOG(sFunctionRef..': iCurTravelDistance='..repru(iCurTravelDistance)..'; iClosestTravelDist='..repru(iClosestTravelDist)) end
                             if iCurTravelDistance and iCurTravelDistance < iClosestTravelDist then
                                 iClosestTravelDist = iCurTravelDistance
@@ -2292,7 +2342,7 @@ function RecordIslands()
                                 end
                             end
                         end
-                        local tFullPath, iPathSize, iDistance = NavUtils.PathTo(refPathingTypeAmphibious, tLZData[subrefLZMidpoint], tPlateauSubtable[subrefPlateauLandZones][iClosestLZRef][subrefLZMidpoint], nil)
+                        local tFullPath, iPathSize, iDistance = NavUtils.PathTo(refPathingTypeHover, tLZData[subrefLZMidpoint], tPlateauSubtable[subrefPlateauLandZones][iClosestLZRef][subrefLZMidpoint], nil)
 
                         --Reduce tFullPath to a table of land zones
                         if tFullPath then
@@ -2511,7 +2561,7 @@ function SetWhetherCanPathToEnemy(aiBrain)
         else aiBrain[refbCanPathToEnemyBaseWithLand] = false
         end
 
-        if NavUtils.GetLabel(refPathingTypeAmphibious, tOurBase) == NavUtils.GetLabel(refPathingTypeAmphibious, tEnemyStartPosition) then
+        if NavUtils.GetLabel(refPathingTypeHover, tOurBase) == NavUtils.GetLabel(refPathingTypeHover, tEnemyStartPosition) then
             aiBrain[refbCanPathToEnemyBaseWithAmphibious] = true
         else aiBrain[refbCanPathToEnemyBaseWithAmphibious] = false end
 
@@ -3182,7 +3232,7 @@ function GetPositionAtOrNearTargetInPathingGroup(tStartPos, tTargetPos, iDistanc
     local iPathingGroupOfPossibleTarget = NavUtils.GetLabel(sPathing, tPossibleTarget)
     local bCanPathToTarget = false
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code; oPathingUnit='..oPathingUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oPathingUnit)..'; tTargetPos='..repru(tTargetPos)..'; iAngleAdjust ='..iAngleAdjust..'; iDistanceFromTargetToStart='..iDistanceFromTargetToStart..'; tStartPos='..repru(tStartPos)..'; iPathingGroupOfPossibleTarget='..iPathingGroupOfPossibleTarget..'; iPathingGroupWanted='..iPathingGroupWanted..'; Angle from start to target='..M28Utilities.GetAngleFromAToB(tStartPos, tTargetPos)..'; iAngleFromTargetToStart='..iAngleFromTargetToStart..'; Amphibious group of target position='..NavUtils.GetLabel(refPathingTypeAmphibious, tTargetPos)..'; Amphib group of our base='..NavUtils.GetLabel(refPathingTypeAmphibious, PlayerStartPoints[oPathingUnit:GetAIBrain():GetArmyIndex()])..'; tPossibleTarget before adjust='..repru(tPossibleTarget)..'; Distance between possible target and tTargetPos='..M28Utilities.GetDistanceBetweenPositions(tPossibleTarget, tTargetPos)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code; oPathingUnit='..oPathingUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oPathingUnit)..'; tTargetPos='..repru(tTargetPos)..'; iAngleAdjust ='..iAngleAdjust..'; iDistanceFromTargetToStart='..iDistanceFromTargetToStart..'; tStartPos='..repru(tStartPos)..'; iPathingGroupOfPossibleTarget='..iPathingGroupOfPossibleTarget..'; iPathingGroupWanted='..iPathingGroupWanted..'; Angle from start to target='..M28Utilities.GetAngleFromAToB(tStartPos, tTargetPos)..'; iAngleFromTargetToStart='..iAngleFromTargetToStart..'; Amphibious group of target position='..NavUtils.GetLabel(refPathingTypeHover, tTargetPos)..'; Amphib group of our base='..NavUtils.GetLabel(refPathingTypeHover, PlayerStartPoints[oPathingUnit:GetAIBrain():GetArmyIndex()])..'; tPossibleTarget before adjust='..repru(tPossibleTarget)..'; Distance between possible target and tTargetPos='..M28Utilities.GetDistanceBetweenPositions(tPossibleTarget, tTargetPos)) end
     --Find a target we can path to
     if iPathingGroupOfPossibleTarget == iPathingGroupWanted then
         bCanPathToTarget = true

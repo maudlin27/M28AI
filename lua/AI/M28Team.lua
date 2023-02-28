@@ -459,7 +459,7 @@ function CreateNewTeam(aiBrain)
                 local tiPlateauByIslandRefs = {}
                 local iStartPlateau, iStartIsland
                 for iBrain, oBrain in tAirSubteamData[oBrain.M28AirSubteam][subreftoFriendlyM28Brains] do
-                    iStartPlateau = NavUtils.GetLabel(M28Map.refPathingTypeAmphibious, M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+                    iStartPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
                     iStartIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
 
                     if not(tiIslandBrainsInSubteam[iStartIsland]) then tiIslandBrainsInSubteam[iStartIsland] = {} end
@@ -769,69 +769,72 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                         end
                     end
                 else
-                    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
-                    if iLandZone > 0 then
-                        --Unit is in a land zone so assign it to a land zone instead of a pond
-                        AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone)
-                    elseif iPlateau > 0 then
-                        --Does the unit already have orders, and is a non-naval unit? If so then wait and try to reassign it in a bit, as e.g. may be a land unit that can path across water so has taken a shortcut
-                        if EntityCategoryContains(M28UnitInfo.refCategoryAllNavy, oUnit.UnitId) then
-                            local iCurPond = NavUtils.GetLabel(M28Map.refPathingTypeNavy, oUnit:GetPosition())
-                            if iCurPond > 0 then
-                                M28Utilities.ErrorHandler('#To add code for naval units')
-                            else
-                                M28Utilities.ErrorHandler('Naval unit but not in a recognised poind')
-                            end
-                        elseif oUnit:IsUnitState('Attached') then
-                            --Try reassigning in a bit
-                            ForkThread(DelayedUnitPlateauAssignment, aiBrain, oUnit, 5, bAlreadyUpdatedPosition, true)
-                        else
-                            --Reassign in a bit if we own it
-                            if bDebugMessages == true then LOG(sFunctionRef..': Unit has a plateau but not a LZ, and isnt a naval unit, will wait and try and reassign if this is the first time, bAlreadyTriedReassignment='..tostring(bAlreadyTriedReassignment or false)..'; aiBrain team='..aiBrain.M28Team..'; Units aibrain team='..oUnit:GetAIBrain().M28Team..'; aiBrain.M28AI='..tostring((aiBrain.M28AI or false))) end
-                            if not(bAlreadyTriedReassignment) or not(aiBrain.M28Team == oUnit:GetAIBrain().M28Team) or not(aiBrain.M28AI) or not(oUnit:GetAIBrain().M28AI) then
-                                ForkThread(DelayedUnitPlateauAssignment, aiBrain, oUnit, 20, bAlreadyUpdatedPosition, true)
-                                if bDebugMessages == true then LOG(sFunctionRef..': Will retry in a bit') end
-                            else
-                                --Have an M28AI trying to update date for an M28AI owned unit in the same team as it, and we have already tried reassigning it after a 20 tick delay; if the unit has no orders then give it new orders
-                                M28Orders.UpdateRecordedOrders(oUnit)
-                                if bDebugMessages == true then LOG(sFunctionRef..': Refreshed unit orders, order count='.. oUnit[M28Orders.refiOrderCount]) end
-                                if oUnit[M28Orders.refiOrderCount] > 0 then
-                                    ForkThread(DelayedUnitPlateauAssignment, aiBrain, oUnit, 20, bAlreadyUpdatedPosition, true)
-                                    --If the unit is underwater and its last order was attack-move and it isnt a skirmisher then switch to being move
-                                    if not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher, oUnit.UnitId)) and oUnit[M28UnitInfo.refiDFRange] > 0 then
-                                        local tLastOrder = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
-                                        if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAggressiveMove then
-                                            M28Orders.IssueTrackedMove(oUnit, { tLastOrder[M28Orders.subreftOrderPosition][1], tLastOrder[M28Orders.subreftOrderPosition][2], tLastOrder[M28Orders.subreftOrderPosition][3] }, 1, false, 'UWMNA', false)
-                                        end
-                                    end
+                    if oUnit:IsUnitState('Attached') then
+                        --Try reassigning in a bit
+                        ForkThread(DelayedUnitPlateauAssignment, aiBrain, oUnit, 5, bAlreadyUpdatedPosition, true)
+                    else
+                        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
+                        if iLandZone > 0 then
+                            --Unit is in a land zone so assign it to a land zone instead of a pond
+                            AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone)
+                        elseif iPlateau > 0 then
+                            --Does the unit already have orders, and is a non-naval unit? If so then wait and try to reassign it in a bit, as e.g. may be a land unit that can path across water so has taken a shortcut
+                            if EntityCategoryContains(M28UnitInfo.refCategoryAllNavy, oUnit.UnitId) then
+                                local iCurPond = NavUtils.GetLabel(M28Map.refPathingTypeNavy, oUnit:GetPosition())
+                                if iCurPond > 0 then
+                                    M28Utilities.ErrorHandler('#To add code for naval units')
                                 else
-                                    --Give unit new orders - move to the nearest land zone
-                                    local iNearestLandZone
-                                    local iNearestDist = 100000
-                                    local iCurDist
-                                    for iLandZone, tLZData in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones] do
-                                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefLZMidpoint])
-                                        if iCurDist < iNearestDist then
-                                            iNearestDist = iCurDist
-                                            iNearestLandZone = iLandZone
-                                        end
-                                    end
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Tried looking for a nearby LZ, nearest LZ='..(iNearestLandZone or 'nil')) end
-                                    if iNearestLandZone then
-                                        M28Orders.IssueTrackedMove(oUnit, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iNearestLandZone][M28Map.subrefLZMidpoint], 1, true, 'StuckMLZ'..iNearestLandZone)
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Told unit to move to the midpoint of the nearest LZ after any current orders, will assign to that land zone as well') end
-                                        AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iNearestLandZone)
-                                    else
-                                        M28Utilities.ErrorHandler('Couldnt find a land zone for plateau '..iPlateau..' and unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit))
+                                    M28Utilities.ErrorHandler('Naval unit but not in a recognised poind')
+                                end
+                            else
+                                --Reassign in a bit if we own it
+                                if bDebugMessages == true then LOG(sFunctionRef..': Unit has a plateau but not a LZ, and isnt a naval unit, will wait and try and reassign if this is the first time, bAlreadyTriedReassignment='..tostring(bAlreadyTriedReassignment or false)..'; aiBrain team='..aiBrain.M28Team..'; Units aibrain team='..oUnit:GetAIBrain().M28Team..'; aiBrain.M28AI='..tostring((aiBrain.M28AI or false))) end
+                                if not(bAlreadyTriedReassignment) or not(aiBrain.M28Team == oUnit:GetAIBrain().M28Team) or not(aiBrain.M28AI) or not(oUnit:GetAIBrain().M28AI) then
+                                    ForkThread(DelayedUnitPlateauAssignment, aiBrain, oUnit, 20, bAlreadyUpdatedPosition, true)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will retry in a bit') end
+                                else
+                                    --Have an M28AI trying to update date for an M28AI owned unit in the same team as it, and we have already tried reassigning it after a 20 tick delay; if the unit has no orders then give it new orders
+                                    M28Orders.UpdateRecordedOrders(oUnit)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Refreshed unit orders, order count='.. oUnit[M28Orders.refiOrderCount]) end
+                                    if oUnit[M28Orders.refiOrderCount] > 0 then
                                         ForkThread(DelayedUnitPlateauAssignment, aiBrain, oUnit, 20, bAlreadyUpdatedPosition, true)
+                                        --If the unit is underwater and its last order was attack-move and it isnt a skirmisher then switch to being move
+                                        if not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher, oUnit.UnitId)) and oUnit[M28UnitInfo.refiDFRange] > 0 then
+                                            local tLastOrder = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
+                                            if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAggressiveMove then
+                                                M28Orders.IssueTrackedMove(oUnit, { tLastOrder[M28Orders.subreftOrderPosition][1], tLastOrder[M28Orders.subreftOrderPosition][2], tLastOrder[M28Orders.subreftOrderPosition][3] }, 1, false, 'UWMNA', false)
+                                            end
+                                        end
+                                    else
+                                        --Give unit new orders - move to the nearest land zone
+                                        local iNearestLandZone
+                                        local iNearestDist = 100000
+                                        local iCurDist
+                                        for iLandZone, tLZData in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones] do
+                                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefLZMidpoint])
+                                            if iCurDist < iNearestDist then
+                                                iNearestDist = iCurDist
+                                                iNearestLandZone = iLandZone
+                                            end
+                                        end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Tried looking for a nearby LZ, nearest LZ='..(iNearestLandZone or 'nil')) end
+                                        if iNearestLandZone then
+                                            M28Orders.IssueTrackedMove(oUnit, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iNearestLandZone][M28Map.subrefLZMidpoint], 1, true, 'StuckMLZ'..iNearestLandZone)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Told unit to move to the midpoint of the nearest LZ after any current orders, will assign to that land zone as well') end
+                                            AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iNearestLandZone)
+                                        else
+                                            M28Utilities.ErrorHandler('Couldnt find a land zone for plateau '..iPlateau..' and unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit))
+                                            ForkThread(DelayedUnitPlateauAssignment, aiBrain, oUnit, 20, bAlreadyUpdatedPosition, true)
+                                        end
                                     end
                                 end
                             end
+
+                        else
+                            --No valid plateau or land zone for unit so likely a pathing error; have unit move randomly if we are updating for the owner
+                            ForkThread(HaveGroundUnitWithNoPlateau, aiBrain, oUnit)
                         end
-                    else
-                        --No valid plateau or land zone for unit so likely a pathing error; have unit move randomly if we are updating for the owner
-                        ForkThread(HaveGroundUnitWithNoPlateau, aiBrain, oUnit)
                     end
                 end
             end

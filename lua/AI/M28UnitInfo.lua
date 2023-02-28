@@ -250,7 +250,7 @@ function GetUnitPathingType(oUnit)
     --if oUnit and not(oUnit.Dead) and oUnit.GetBlueprint then
     local mType = __blueprints[oUnit.UnitId].Physics.MotionType
     if (mType == 'RULEUMT_AmphibiousFloating' or mType == 'RULEUMT_Hover' or mType == 'RULEUMT_Amphibious') then
-        return M28Map.refPathingTypeAmphibious
+        return M28Map.refPathingTypeHover
     elseif (mType == 'RULEUMT_Water' or mType == 'RULEUMT_SurfacingSub') then
         return M28Map.refPathingTypeNavy
     elseif mType == 'RULEUMT_Air' then
@@ -1219,6 +1219,7 @@ end
 function AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause)
     local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
     --Remove from list of paused units
+
     if not(bPauseNotUnpause) then
         if oUnit[refbPaused] then
             local aiBrain = oUnit:GetAIBrain()
@@ -1234,7 +1235,20 @@ function AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause)
     else
         --Are pausing unit, make sure it is in the table of paused units
         if not(oUnit[refbPaused]) then
-            table.insert(oUnit:GetAIBrain()[M28Economy.reftPausedUnits], oUnit)
+            local aiBrain = oUnit:GetAIBrain()
+            local bRecordUnit = true
+            if M28Utilities.IsTableEmpty(aiBrain[M28Economy.reftPausedUnits]) == false then
+                --Check if already recorded - redundancy due to nasty near-infinite loop in M27 where it could keep adding units to the table resulting in the same unit considered 20+ times
+                for iRecordedUnit, oRecordedUnit in aiBrain[M28Economy.reftPausedUnits] do
+                    if oRecordedUnit == oUnit then
+                        bRecordUnit = false
+                        break
+                    end
+                end
+            end
+            if bRecordUnit then
+                table.insert(aiBrain[M28Economy.reftPausedUnits], oUnit)
+            end
         end
     end
 end
