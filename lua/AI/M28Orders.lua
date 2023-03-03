@@ -12,8 +12,8 @@ refiOrderCount = 'M28OrdersCount' --Size of the table of last orders
 
 --Subtables for each order:
 subrefiOrderType = 1
-subreftOrderPosition = 2
-subrefoOrderTarget = 3
+subreftOrderPosition = 2 --Location of the order
+subrefoOrderTarget = 3 --Unit target if there is one
 subrefsOrderBlueprint = 4
 
 --Order type references
@@ -107,7 +107,7 @@ function IssueTrackedClearCommands(oUnit)
         oUnit[M28Engineer.reftUnitsWeAreReclaiming] = nil
     end
 
-    --Update tracking for engineers:
+    --Update tracking for engineers (and clear any assisting engineers via ClearEngineerTracking)
     if EntityCategoryContains(M28UnitInfo.refCategoryEngineer + categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then
         M28Engineer.ClearEngineerTracking(oUnit)
         --Unpause engineers who are about to be cleared

@@ -406,6 +406,7 @@ function IsLineFromAToBInRangeOfCircleAtC(iDistFromAToB, iDistFromAToC, iDistFro
     end
 end
 
+function GetRectangleAtPosition()  end --Used to help locate the below
 function GetRectAroundLocation(tLocation, iRadius)
     --Looks iRadius left/right and up/down (e.g. if want 1x1 square centred on tLocation, iRadius should be 0.5)
     return Rect(tLocation[1] - iRadius, tLocation[3] - iRadius, tLocation[1] + iRadius, tLocation[3] + iRadius)

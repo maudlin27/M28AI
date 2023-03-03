@@ -245,7 +245,6 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iTargetLand
     local sFunctionRef = 'GetLandZoneSupportCategoryWanted'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if iTargetLandZone == 31 or iTargetLandZone == 8 or iTargetLandZone == 13 then bDebugMessages = true end
 
 
     local iBaseCategoryWanted
@@ -384,7 +383,6 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     local bHaveLowPower = M28Conditions.HaveLowPower(iTeam)
     local bCanPathToEnemyWithLand = false
     if tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) then bCanPathToEnemyWithLand = true end
-    if iLandZone == 31 or iLandZone == 13 or iLandZone == 8 then bDebugMessages = true end
 
 
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel='..iFactoryTechLevel..'; Highest friendly factory tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Allied ground threat='..(M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] or 'nil')..'; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]='..(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 'nil')..'; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]='..(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 'nil')..'; M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]='..(M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] or 'nil')..'; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat]='..(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat] or 'nil')..'; Is factory paused='..tostring(oFactory:IsPaused())..'; IsPaused value='..tostring(oFactory[M28UnitInfo.refbPaused])..'; Does LZ factory is in need BP='..tostring(tLZTeamData[M28Map.subrefLZTbWantBP])..'; Core LZ='..tostring(tLZTeamData[M28Map.subrefLZTCoreBase] or false)..'; Core expansion='..tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false)) end
@@ -792,25 +790,26 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 --enemy base is a dif island to ours, so want to control all of our island (within reason)
                 iDistToEnemyBaseToConsider = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefLZMidpoint], M28Map.GetPrimaryEnemyBaseLocation(aiBrain))
             end
-
-            for iEntry, tLZPathing in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
-                if bDebugMessages == true then LOG(sFunctionRef..': About to check alternative LZ '..tLZPathing[M28Map.subrefLZNumber]..'; iDistToEnemyBaseToConsider='..iDistToEnemyBaseToConsider..'; tLZPathing[M28Map.subrefLZTravelDist]='..tLZPathing[M28Map.subrefLZTravelDist]) end
-                if tLZPathing[M28Map.subrefLZTravelDist] <= iDistToEnemyBaseToConsider then
-                    --if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tLZPathing[M28Map.subrefLZNumber]][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefbLZWantsSupport] then
-                    --How far away is it?
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to reinforce alternative LZ '..(tLZPathing[M28Map.subrefLZNumber] or 'nil')..'; Travel dist='..(tLZPathing[M28Map.subrefLZTravelDist] or 'nil')..'; iDistToEnemyBaseToConsider='..(iDistToEnemyBaseToConsider or 'nil')..'; Size of this alt LZ in segments='..(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tLZPathing[M28Map.subrefLZNumber]][M28Map.subrefLZTotalSegmentCount] or 'nil')) end
-                    --if tLZPathing[M28Map.subrefLZTravelDist] <= iDistToEnemyBaseToConsider then
-                    local iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, tLZPathing[M28Map.subrefLZNumber], bDontConsiderBuildingMAA, bConsiderMobileShields, bConsiderMobileStealths, bSaveMassDueToEnemyFirebaseOrOurExperimental)
-                    if bDebugMessages == true then LOG(sFunctionRef..': DO we have no category (i.e. false means we want to build something) for this alternative LZ '..tLZPathing[M28Map.subrefLZNumber]..'='..tostring(iCategoryToGet==nil)..'; bDontConsiderBuildingMAA='..tostring(bDontConsiderBuildingMAA)) end
-                    if iCategoryToGet then
-                        if bDebugMessages == true then
-                            LOG(sFunctionRef..': Will draw the LZ where we want more units in a rnadom colour')
-                            M28Map.DrawSpecificLandZone(iPlateau, tLZPathing[M28Map.subrefLZNumber], math.random(1, 8))
+            if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
+                for iEntry, tLZPathing in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
+                    if bDebugMessages == true then LOG(sFunctionRef..': About to check alternative LZ '..tLZPathing[M28Map.subrefLZNumber]..'; iDistToEnemyBaseToConsider='..iDistToEnemyBaseToConsider..'; tLZPathing[M28Map.subrefLZTravelDist]='..tLZPathing[M28Map.subrefLZTravelDist]) end
+                    if tLZPathing[M28Map.subrefLZTravelDist] <= iDistToEnemyBaseToConsider then
+                        --if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tLZPathing[M28Map.subrefLZNumber]][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefbLZWantsSupport] then
+                        --How far away is it?
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to reinforce alternative LZ '..(tLZPathing[M28Map.subrefLZNumber] or 'nil')..'; Travel dist='..(tLZPathing[M28Map.subrefLZTravelDist] or 'nil')..'; iDistToEnemyBaseToConsider='..(iDistToEnemyBaseToConsider or 'nil')..'; Size of this alt LZ in segments='..(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tLZPathing[M28Map.subrefLZNumber]][M28Map.subrefLZTotalSegmentCount] or 'nil')) end
+                        --if tLZPathing[M28Map.subrefLZTravelDist] <= iDistToEnemyBaseToConsider then
+                        local iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, tLZPathing[M28Map.subrefLZNumber], bDontConsiderBuildingMAA, bConsiderMobileShields, bConsiderMobileStealths, bSaveMassDueToEnemyFirebaseOrOurExperimental)
+                        if bDebugMessages == true then LOG(sFunctionRef..': DO we have no category (i.e. false means we want to build something) for this alternative LZ '..tLZPathing[M28Map.subrefLZNumber]..'='..tostring(iCategoryToGet==nil)..'; bDontConsiderBuildingMAA='..tostring(bDontConsiderBuildingMAA)) end
+                        if iCategoryToGet then
+                            if bDebugMessages == true then
+                                LOG(sFunctionRef..': Will draw the LZ where we want more units in a rnadom colour')
+                                M28Map.DrawSpecificLandZone(iPlateau, tLZPathing[M28Map.subrefLZNumber], math.random(1, 8))
+                            end
+                            if ConsiderBuildingCategory(iCategoryToGet) then return sBPIDToBuild end
                         end
-                        if ConsiderBuildingCategory(iCategoryToGet) then return sBPIDToBuild end
+                    else
+                        break
                     end
-                else
-                    break
                 end
             end
         end
@@ -877,20 +876,21 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             local iEnemyPlateau, iEnemyLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.GetPrimaryEnemyBaseLocation(aiBrain))
             if iEnemyPlateau == iPlateau then
                 local iDistToEnemyBaseToConsider = (M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iEnemyLandZone) or aiBrain[M28Overseer.refiDistanceToNearestEnemyBase]) * 0.5
-
-                for iEntry, tLZPathing in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
-                    if tLZPathing[M28Map.subrefLZTravelDist] <= iDistToEnemyBaseToConsider then
-                        --How far away is it?
-                        if bDebugMessages == true then LOG(sFunctionRef..': T2 Considering whether to reinforce alternative LZ '..tLZPathing[M28Map.subrefLZNumber]..'; Travel dist='..tLZPathing[M28Map.subrefLZTravelDist]..'; iDistToEnemyBaseToConsider='..iDistToEnemyBaseToConsider) end
+                if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
+                    for iEntry, tLZPathing in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
                         if tLZPathing[M28Map.subrefLZTravelDist] <= iDistToEnemyBaseToConsider then
-                            local iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, tLZPathing[M28Map.subrefLZNumber], bDontConsiderBuildingMAA, bConsiderMobileShields, bConsiderMobileStealths, true)
-                            if bDebugMessages == true then LOG(sFunctionRef..': T2 DO we have no category for this alternative LZ '..tLZPathing[M28Map.subrefLZNumber]..'='..tostring(iCategoryToGet==nil)..'; bDontConsiderBuildingMAA='..tostring(bDontConsiderBuildingMAA)) end
-                            if iCategoryToGet then
-                                if ConsiderBuildingCategory(iCategoryToGet) then return sBPIDToBuild end
+                            --How far away is it?
+                            if bDebugMessages == true then LOG(sFunctionRef..': T2 Considering whether to reinforce alternative LZ '..tLZPathing[M28Map.subrefLZNumber]..'; Travel dist='..tLZPathing[M28Map.subrefLZTravelDist]..'; iDistToEnemyBaseToConsider='..iDistToEnemyBaseToConsider) end
+                            if tLZPathing[M28Map.subrefLZTravelDist] <= iDistToEnemyBaseToConsider then
+                                local iCategoryToGet = GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, tLZPathing[M28Map.subrefLZNumber], bDontConsiderBuildingMAA, bConsiderMobileShields, bConsiderMobileStealths, true)
+                                if bDebugMessages == true then LOG(sFunctionRef..': T2 DO we have no category for this alternative LZ '..tLZPathing[M28Map.subrefLZNumber]..'='..tostring(iCategoryToGet==nil)..'; bDontConsiderBuildingMAA='..tostring(bDontConsiderBuildingMAA)) end
+                                if iCategoryToGet then
+                                    if ConsiderBuildingCategory(iCategoryToGet) then return sBPIDToBuild end
+                                end
                             end
+                        else
+                            break
                         end
-                    else
-                        break
                     end
                 end
             end

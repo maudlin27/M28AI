@@ -1413,6 +1413,12 @@ function HaveEcoToSupportUpgrades(iM28Team)
                 end
             end
 
+            --Very high mass storage level adjustments
+            if tTeamData[iM28Team][subrefiTeamMassStored] >= 5000 and iNetMassIncomeWanted <= -1 then
+                --Want to be spending mass at a rate taht means in 75 seconds we will have used up all the amount stored
+                iNetMassIncomeWanted = math.min(iNetMassIncomeWanted, -tTeamData[iM28Team][subrefiTeamGrossMass] * 0.3, -tTeamData[iM28Team][subrefiTeamMassStored] / 75)
+            end
+
 
 
 
@@ -1459,6 +1465,7 @@ function ConsiderNormalUpgrades(iM28Team)
     local iCycleCount = 0
 
     local bLookForMexNotHQ
+
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, HaveEcoToSupportUpgrades for iM28Team '..iM28Team..'='..tostring(HaveEcoToSupportUpgrades(iM28Team))..'; Is table of mex upgrades empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]))..'; Is table of factory upgrades empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]))) end
     while HaveEcoToSupportUpgrades(iM28Team) do
         iCycleCount = iCycleCount + 1

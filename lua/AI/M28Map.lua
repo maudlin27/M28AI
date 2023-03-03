@@ -108,6 +108,12 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         subrefLZHydroUnbuiltLocations = 'HydroAvailLoc' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of hydro locations in the LZ that dont have buildings on them
         subrefLZBuildLocationsBySize = 'BuildLoc' --contains a table, with the index being the unit's highest footprint size, which returns a location that should be buildable in this zone;  only populated on demand (i.e. if we want to try and build something there by references to the predefined location), e.g. tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZBuildLocationsBySize][iSize]
         subrefLZBuildLocationSegmentCountBySize = 'BuildSegment' --[x] is the building size considered, returns Number of segments that we have considered when identifying segment build locations for the land zone for that particular size
+        subrefBuildLocationBlacklist = 'Blacklst' --[x] is the entry, returns a subtable
+            subrefBlacklistLocation = 1
+            subrefBlacklistSize = 2 --radius of the square, i.e. if do a square around the location where eaech side is this * 2 in length, then will cover the blacklist location
+            subrefBlacklistType = 3
+                BlacklistTimeout = 1 --i.e. we have tried building something for ages and have failed
+                BlacklistReserved = 2 --i.e. we dont want to build anything here because it's being saved for something
         subrefLZMassStorageLocationsAvailable = 'MassStorageLocations' --Against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], Returns table of locations which should be valid to build on for mass storage
         subrefLZSegments = 'Segments' --Contains a table which returns the X and Z segment values for every segment assigned to this land zone
         subrefLZTotalSegmentCount = 'SegCount' --Number of segments in a land zone, against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
@@ -145,6 +151,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZSValue = 'ZBVal' --Value of friendly buildings in the land zone
             subrefLZTCoreBase = 'ZCore' --true if this is considered a 'core base' land zone
             subrefLZCoreExpansion = 'ZExp' --true if considered the main land zone for an expansion (e.g. on an island); nil if we havent considered yet if it is a core expansion, and false if we have considered and it isnt
+            subrefbCoreBaseOverride = 'ZCreO' --true if we want to make this locatio na core zone even if it doesnt meet the normal criteria (e.g. to be used when we run out of places to build in our actual core LZ)
             subrefLZAlliedACU = 'AACU' --table of ACU units for the land zone (so can factor into decisions on support and attack)
             subrefLZTAlliedUnits = 'Allies' --table of all allied units in the land zone, tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam][subrefLZTAlliedUnits]
             subrefLZTAlliedCombatUnits = 'AllComb' --table of allied units that are to be considered for combat orders
@@ -730,6 +737,7 @@ local function AddNewLandZoneReferenceToPlateau(iPlateau)
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZHydroUnbuiltLocations] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTotalMassReclaim] = 0
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZBuildLocationsBySize] = {}
+    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefBuildLocationBlacklist] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZBuildLocationSegmentCountBySize] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZSegments] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTotalSegmentCount] = 0
@@ -1194,7 +1202,6 @@ local function AssignRemainingSegmentsToLandZones()
                         RecordSegmentLandZone(iBaseSegmentX, iBaseSegmentZ, iPlateauGroup, tiLZEntryByNavUtilsRef[iPlateauGroup][iLandPathingGroupWanted])
                     end
                 else
-                    bDebugMessages = true
                     M28Utilities.ErrorHandler('somehow have a land zone but not a plateau group; Refer to log for base position and other details if logs are enabled')
                     if bDebugMessages == true then
                         LOG(sFunctionRef..': Base position='..repru(tBasePosition)..'; Land nav='..(NavUtils.GetLabel(refPathingTypeLand, tBasePosition) or 'nil')..'; Plateau nav='..(NavUtils.GetLabel(refPathingTypeHover, tBasePosition) or 'nil')..'; Amphibious plateau='..(NavUtils.GetLabel('Amphibious', tBasePosition) or 'nil'))
@@ -1537,12 +1544,12 @@ local function RecordLandZoneMidpointAndUnbuiltMexes()
 
     for iPlateau, tPlateauSubtable in tAllPlateaus do
         for iZone, tZone in tAllPlateaus[iPlateau][subrefPlateauLandZones] do
-
             if bDebugMessages == true then LOG(sFunctionRef..': Considering iPlateau='..iPlateau..'; iZone='..iZone..'; Is table of mex locations empty='..tostring(M28Utilities.IsTableEmpty(tZone[subrefLZMexLocations]))) end
             local iMinX = 100000
             local iMaxX = 0
             local iMinZ = 100000
             local iMaxZ = 0
+            local iBaseIslandWanted
 
             if M28Utilities.IsTableEmpty(tZone[subrefLZMexLocations]) == false then
                 for iMex, tMex in tZone[subrefLZMexLocations] do
@@ -1551,6 +1558,7 @@ local function RecordLandZoneMidpointAndUnbuiltMexes()
                     iMaxX = math.max(tMex[1], iMaxX)
                     iMinZ = math.min(tMex[3], iMinZ)
                     iMaxZ = math.max(tMex[3], iMaxZ)
+                    if not(iBaseIslandWanted) then iBaseIslandWanted = NavUtils.GetLabel(refPathingTypeLand, tMex) end
                     --Record if can build on it:
                     if bDebugMessages == true then LOG(sFunctionRef..': About to check if can build on iMex='..iMex..'; tMex='..repru(tMex)) end
                     if M28Conditions.CanBuildOnMexLocation(tMex) then
@@ -1565,23 +1573,93 @@ local function RecordLandZoneMidpointAndUnbuiltMexes()
                     iMinZ = math.min(iMinZ, tCurPosition[3])
                     iMaxX = math.max(iMaxX, tCurPosition[1])
                     iMaxZ = math.max(iMaxZ, tCurPosition[3])
+                    if not(iBaseIslandWanted) then iBaseIslandWanted = NavUtils.GetLabel(refPathingTypeLand, tCurPosition) end
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Min and max position after cycling through each segment: iMinX='..iMinX..'; iMaxX='..iMaxX..'; iMinZ='..iMinZ..'; iMaxZ='..iMaxZ) end
             end
             tAverage = {(iMinX + iMaxX)*0.5, 0, (iMinZ + iMaxZ) * 0.5}
-            iAveragePlateau, iAverageLandZone = GetPlateauAndLandZoneReferenceFromPosition(tAverage, false)
+            iAveragePlateau = NavUtils.GetLabel(refPathingTypeHover, tAverage)
+            local iAverageIsland
+            iAverageIsland = NavUtils.GetLabel(refPathingTypeLand, tAverage)
+
+
+            --Move the midpoint if nav utils doesnt work for this position (to reduce the amount of grief we might have later)
+            if not(iAveragePlateau == iPlateau) or not(iAverageIsland == iBaseIslandWanted) then
+                local iStartSegmentX, iStartSegmentZ = GetPathingSegmentFromPosition(tAverage)
+                local tAltMidpoint
+                local iAdjustedSegmentX, iAdjustedSegmentZ
+                local bHaveValidAltMidpoint = false
+                for iAdjust = 1, 50 do
+                    for iXAdjust = -1, 1, 1 do
+                        for iZAdjust = -1, 1, 1 do
+                            if not(iXAdjust == 0 and iZAdjust == 0) then
+                                iAdjustedSegmentX = iStartSegmentX + iAdjust * iXAdjust
+                                iAdjustedSegmentZ = iStartSegmentZ + iAdjust * iZAdjust
+                                if tLandZoneBySegment[iAdjustedSegmentX][iAdjustedSegmentZ] == iZone then
+                                    tAltMidpoint = GetPositionFromPathingSegments(iAdjustedSegmentX, iAdjustedSegmentZ)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering adjusted segment X-Z='..iAdjustedSegmentX..'-'..iAdjustedSegmentZ..'; with land zone '..tLandZoneBySegment[iAdjustedSegmentX][iAdjustedSegmentZ]..'; tAltMidpoint='..repru(tAltMidpoint)..'; Plateau from navutils='..(NavUtils.GetLabel(refPathingTypeHover, tAltMidpoint) or 'nil')..'; Island from navutils='..(NavUtils.GetLabel(refPathingTypeLand, tAltMidpoint) or 'nil')) end
+                                    if NavUtils.GetLabel(refPathingTypeHover, tAltMidpoint) == iPlateau and NavUtils.GetLabel(refPathingTypeLand, tAltMidpoint) == iBaseIslandWanted then
+                                        bHaveValidAltMidpoint = true
+                                        iAveragePlateau = NavUtils.GetLabel(refPathingTypeHover, tAltMidpoint)
+                                        iAverageIsland = NavUtils.GetLabel(refPathingTypeLand, tAltMidpoint)
+                                        tAverage = {tAltMidpoint[1], tAltMidpoint[2], tAltMidpoint[3]}
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Have valid alternative midpoint which will now record and use, tAverage after update='..repru(tAverage)) end
+                                        break
+                                    end
+                                elseif bDebugMessages == true then
+                                    LOG(sFunctionRef..': Adjusted semgnet X-Z='..iAdjustedSegmentX..'-'..iAdjustedSegmentZ..'; didnt have the right land zone, was '..(tLandZoneBySegment[iAdjustedSegmentX][iAdjustedSegmentZ] or 'nil')..'; will draw segment midpoint in red if its in playaable area')
+                                    local tAltLocation = GetPositionFromPathingSegments(iAdjustedSegmentX, iAdjustedSegmentZ)
+                                    if tAltLocation and tAltLocation[1] > rMapPlayableArea[1] and tAltLocation[1] < rMapPlayableArea[3] and tAltLocation[3] > rMapPlayableArea[2] and tAltLocation[3] < rMapPlayableArea[4] then
+                                        M28Utilities.DrawLocation(tAltLocation, 2)
+                                    end
+                                end
+                            end
+                        end
+                        if bHaveValidAltMidpoint then break end
+                    end
+                    if bHaveValidAltMidpoint then break end
+                end
+
+                --If still dont have a valid location, then just try any segment recorded in the land zone (this wont be in the middle of the land zone, but is better than having an unpathable midpoint)
+                if not(bHaveValidAltMidpoint) then
+                    for iSegment, tSegmentXZ in tZone[subrefLZSegments] do
+                        if tLandZoneBySegment[tSegmentXZ[1]][tSegmentXZ[2]] == iZone then
+                            tAltMidpoint = GetPositionFromPathingSegments(tSegmentXZ[1], tSegmentXZ[2])
+                            if bDebugMessages == true then LOG(sFunctionRef..': Cycling through recorded segments for this LZ, and considering segment X-Z='..tSegmentXZ[1]..'-'..tSegmentXZ[2]..'; with land zone '..tLandZoneBySegment[tSegmentXZ[1]][tSegmentXZ[2]]..'; tAltMidpoint='..repru(tAltMidpoint)..'; Plateau from navutils='..(NavUtils.GetLabel(refPathingTypeHover, tAltMidpoint) or 'nil')..'; Island from navutils='..(NavUtils.GetLabel(refPathingTypeLand, tAltMidpoint) or 'nil')) end
+                            if NavUtils.GetLabel(refPathingTypeHover, tAltMidpoint) == iPlateau and NavUtils.GetLabel(refPathingTypeLand, tAltMidpoint) == iBaseIslandWanted then
+                                bHaveValidAltMidpoint = true
+                                iAveragePlateau = NavUtils.GetLabel(refPathingTypeHover, tAltMidpoint)
+                                iAverageIsland = NavUtils.GetLabel(refPathingTypeLand, tAltMidpoint)
+                                tAverage = {tAltMidpoint[1], tAltMidpoint[2], tAltMidpoint[3]}
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have valid alternative midpoint which will now record and use, tAverage after update='..repru(tAverage)) end
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+
+            --Further alternative/backup (hopefully will never need to use this - this was the old backup which didnt work very well)
+            if not(iAveragePlateau == iPlateau and iAverageLandZone == iZone) then
+                iAveragePlateau, iAverageLandZone = GetPlateauAndLandZoneReferenceFromPosition(tAverage, false)
+            end
             if (iAveragePlateau == iPlateau and iAverageLandZone == iZone) or M28Utilities.IsTableEmpty(tZone[subrefLZMexLocations]) then
+                --Either we have a valid location (in which case fine), or we have no mexes to use as a backup so will just use the midpoint (will cause some issues down the line though e.g. with the LZ not registering as being pathable to other land zones)
                 tZone[subrefLZMidpoint] = {tAverage[1], GetSurfaceHeight(tAverage[1], tAverage[3]), tAverage[3]}
             else
+                --We have mexes so will just use one of these as the midpoint as a basic backup
                 tZone[subrefLZMidpoint] = {tZone[subrefLZMexLocations][1][1], tZone[subrefLZMexLocations][1][2], tZone[subrefLZMexLocations][1][3]}
             end
+
             if bDebugMessages == true then
                 local iColour = iPlateau
                 while iColour > 8 do
                     iColour = iColour - 8
                 end
                 M28Utilities.DrawRectangle(Rect(iMinX, iMinZ, iMaxX, iMaxZ), iColour, 1000, 10)
-                if bDebugMessages == true then LOG(sFunctionRef..': Midpoint for iPlateau='..iPlateau..' and zone='..iZone..' = '..repru(tZone[subrefLZMidpoint])) end
+                if iColour <= 1 then iColour = 8 end
+                M28Utilities.DrawLocation(tZone[subrefLZMidpoint], iColour, 1000)
+                if bDebugMessages == true then LOG(sFunctionRef..': Midpoint after adjustment for iPlateau='..iPlateau..' and zone='..iZone..' = '..repru(tZone[subrefLZMidpoint])..'; iBaseIslandWanted='..(iBaseIslandWanted or 'nil')) end
             end
         end
     end
@@ -1665,13 +1743,16 @@ function ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iPlateau, iStartLan
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderAddingTargetLandZoneToDistanceFromBaseTable'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if iStartLandZone == 31 and iTargetLandZone == 1 and iPlateau == 1577 then bDebugMessages = true end
+
     --Have we not already considered this?
     if not(tbTempConsideredLandPathingForLZ[iPlateau][iStartLandZone][iTargetLandZone]) then
 
         local tEnd = tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZMidpoint]
         local tFullPath, iPathSize, iDistance = NavUtils.PathTo(refPathingTypeLand, tStart, tEnd, nil)
-        if bDebugMessages == true then LOG(sFunctionRef..': Have just tried to get land path from tStart='..repru(tStart)..' to tEnd='..repru(tEnd)..'; iStartLandZone='..iStartLandZone..'; iTargetLandZone='..iTargetLandZone..'; tFullPath='..repru(tFullPath)..'; iPathSize='..iPathSize) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Have just tried to get land path from tStart='..repru(tStart)..' to tEnd='..repru(tEnd)..'; iStartLandZone='..iStartLandZone..'; iTargetLandZone='..iTargetLandZone..'; tFullPath='..repru(tFullPath)..'; iPathSize='..iPathSize..'; will draw midpoint of the target LZ, and draw the start point, in blue')
+            M28Utilities.DrawLocation(tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZMidpoint])
+            M28Utilities.DrawLocation(tStart)
+        end
 
         if tFullPath then
             local iPathingPlateau, iPathingLandZone
@@ -1818,8 +1899,10 @@ local function RecordPathingBetweenZones()
     WaitTicks(1) --To ensure all brains will be setup
     for iCurPlateau, tPlateauSubtable in tAllPlateaus do
         for iCurLandZone, tLandZoneInfo in tPlateauSubtable[subrefPlateauLandZones] do
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering iCurLandZone='..iCurLandZone..' for plateau '..iCurPlateau..'; will go through every other LZ in the plateau and consider adding to the table of other land zones near this') end
             local tStartPoint = tAllPlateaus[iCurPlateau][subrefPlateauLandZones][iCurLandZone][subrefLZMidpoint]
             for iTargetLandZone, tTargetLZInfo in tPlateauSubtable[subrefPlateauLandZones] do
+                if bDebugMessages == true then LOG(sFunctionRef..': Will consider iTargetLandZone='..iTargetLandZone..' for starting LZ '..iCurLandZone) end
                 if not(iTargetLandZone == iCurLandZone) then
                     ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iCurPlateau, iCurLandZone, iTargetLandZone, tStartPoint, true)
                 end
@@ -1888,16 +1971,23 @@ end
 
 local function RecordTravelDistBetweenZonesOverTime()
     --Record how  long it would take to travel between each other land zone upfront so dont have to calculate on the fly
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordTravelDistBetweenZonesOverTime'
     WaitTicks(1)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     local iCurCount = 0
     for iPlateau, tPlateauSubtable in tAllPlateaus do
         for iStartLZ, tLandZoneInfo in tPlateauSubtable[subrefPlateauLandZones] do
+            if bDebugMessages == true then LOG(sFunctionRef..': About to consider all other land zones in plateau '..iPlateau..' for iStartLZ='..iStartLZ) end
             for iEndLZ,  tLandZoneInfo in tPlateauSubtable[subrefPlateauLandZones] do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering iEndLZ='..iEndLZ) end
                 if not(iStartLZ == iEndLZ) then
                     iCurCount = iCurCount + 1
                     if iCurCount >= 10 then
                         iCurCount = 0
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         WaitTicks(1)
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                     end
 
                     GetTravelDistanceBetweenLandZones(iPlateau, iStartLZ, iEndLZ)
@@ -1905,6 +1995,7 @@ local function RecordTravelDistBetweenZonesOverTime()
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
@@ -2242,7 +2333,7 @@ end
 
 function RecordIslands()
     --Assumes have already setup every land zone on the map - will now record details of islands
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordIslands'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --First record every island where there are mexes in the plateau
@@ -3208,11 +3299,17 @@ end
 
 
 function GetTravelDistanceBetweenLandZones(iPlateau, iStartLZ, iEndLZ)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetTravelDistanceBetweenLandZones'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local tStartLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLZ]
     if not(tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ]) then
         if not(tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau]) then tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau] = {} end
         tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ] = M28Utilities.GetTravelDistanceBetweenPositions(tStartLZData[subrefLZMidpoint], tAllPlateaus[iPlateau][subrefPlateauLandZones][iEndLZ][subrefLZMidpoint], refPathingTypeLand)
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': Travel distance from iStartLZ='..iStartLZ..' to iEndLZ='..iEndLZ..' is '..(tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ] or 'nil')) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ]
 end
 
