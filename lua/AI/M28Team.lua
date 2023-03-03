@@ -591,6 +591,8 @@ function ConsiderAssigningUnitToZoneForBrain(aiBrain, oUnit)
         local sFunctionRef = 'ConsiderAssigningUnitToZoneForBrain'
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
         if bDebugMessages == true then LOG(sFunctionRef..': Checking if should assign unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to a plateau/other table. Considered for assignment repru='..repru(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam])..'; Unit brain team='..(oUnit:GetAIBrain().M28Team or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
         if (not(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam]) or not(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][aiBrain.M28Team])) and M28UnitInfo.IsUnitValid(oUnit) and not(aiBrain.M28IsDefeated) then
             AssignUnitToLandZoneOrPond(aiBrain, oUnit)
@@ -796,7 +798,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                 else
                                     --Have an M28AI trying to update date for an M28AI owned unit in the same team as it, and we have already tried reassigning it after a 20 tick delay; if the unit has no orders then give it new orders
                                     M28Orders.UpdateRecordedOrders(oUnit)
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Refreshed unit orders, order count='.. oUnit[M28Orders.refiOrderCount]) end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Refreshed unit orders, order count='..oUnit[M28Orders.refiOrderCount]) end
                                     if oUnit[M28Orders.refiOrderCount] > 0 then
                                         ForkThread(DelayedUnitPlateauAssignment, aiBrain, oUnit, 20, bAlreadyUpdatedPosition, true)
                                         --If the unit is underwater and its last order was attack-move and it isnt a skirmisher then switch to being move

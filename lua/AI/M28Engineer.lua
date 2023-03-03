@@ -323,28 +323,30 @@ function CheckIfBuildableLocationsNearPositionStillValid(aiBrain, tLocation, bCh
             local sGenericBlueprint
             if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZBuildLocationsBySize]) == false then
                 for iSize, tOldBuildableLocations in tLZData[M28Map.subrefLZBuildLocationsBySize] do
-                    sGenericBlueprint = tsBlueprintsBySize[iSize]
-                    --Is the location still valid?
-                    local function StillKeepLocation(tArray, iEntry)
-                        if aiBrain:CanBuildStructureAt(sGenericBlueprint, tArray[iEntry]) then --Done instead of the detailed test since will have already passed the detailed test to get here and want something quick as will be running potentially tens of thousands of times
-                            if bCheckLastBlacklistEntry then
-                                --Check the last blacklist entry only (since the idea is we call this just after adding a blacklist entry)
-                                if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefBuildLocationBlacklist]) == false then
-                                    local tBlacklistLocation = tLZData[M28Map.subrefBuildLocationBlacklist][table.getn(tLZData[M28Map.subrefBuildLocationBlacklist])][M28Map.subrefBlacklistLocation]
-                                    local iDistThreshold = tLZData[M28Map.subrefBuildLocationBlacklist][table.getn(tLZData[M28Map.subrefBuildLocationBlacklist])][M28Map.subrefBlacklistSize] + iSize * 0.5
-                                    if math.abs(tLocation[1] - tBlacklistLocation[1]) <= iDistThreshold and math.abs(tLocation[3] - tBlacklistLocation[3]) <= iDistThreshold then
-                                        return false
+                    if not(tOldBuildableLocations == -1) then
+                        sGenericBlueprint = tsBlueprintsBySize[iSize]
+                        --Is the location still valid?
+                        local function StillKeepLocation(tArray, iEntry)
+                            if aiBrain:CanBuildStructureAt(sGenericBlueprint, tArray[iEntry]) then --Done instead of the detailed test since will have already passed the detailed test to get here and want something quick as will be running potentially tens of thousands of times
+                                if bCheckLastBlacklistEntry then
+                                    --Check the last blacklist entry only (since the idea is we call this just after adding a blacklist entry)
+                                    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefBuildLocationBlacklist]) == false then
+                                        local tBlacklistLocation = tLZData[M28Map.subrefBuildLocationBlacklist][table.getn(tLZData[M28Map.subrefBuildLocationBlacklist])][M28Map.subrefBlacklistLocation]
+                                        local iDistThreshold = tLZData[M28Map.subrefBuildLocationBlacklist][table.getn(tLZData[M28Map.subrefBuildLocationBlacklist])][M28Map.subrefBlacklistSize] + iSize * 0.5
+                                        if math.abs(tLocation[1] - tBlacklistLocation[1]) <= iDistThreshold and math.abs(tLocation[3] - tBlacklistLocation[3]) <= iDistThreshold then
+                                            return false
+                                        end
                                     end
+                                    return true
+                                else return true
                                 end
-                                return true
-                            else return true
+                            else
+                                return false
                             end
-                        else
-                            return false
                         end
+                        if bDebugMessages == true then LOG(sFunctionRef..': tOldBuildableLocations='..repru(tOldBuildableLocations)) end
+                        M28Utilities.RemoveEntriesFromArrayBasedOnCondition(tOldBuildableLocations, StillKeepLocation)    --Done instead of table.gen to avoid reindexing array multiple times in the same cycle
                     end
-
-                    M28Utilities.RemoveEntriesFromArrayBasedOnCondition(tOldBuildableLocations, StillKeepLocation)    --Done instead of table.gen to avoid reindexing array multiple times in the same cycle
                 end
             end
             --Search for more building locations for every building where we havent considered the full amount
@@ -1848,7 +1850,7 @@ function GetCategoryToBuildOrAssistFromAction(iActionToAssign, iMinTechLevel, ai
         end
     end
     if iCategoryToBuild then
-        --Power specific - only build at the minimum tech level
+        --Power specific - only build at the minimum tech level, presume this is so if we want to build T1/T2 power while having access to T3 (due to very low power) we can; will therefore add adjustment when looking for part-build buildings to counter this
         if iActionToAssign == refActionBuildPower then
             iCategoryToBuild = iCategoryToBuild * M28UnitInfo.ConvertTechLevelToCategory(iMinTechLevel)
         else
@@ -1901,17 +1903,29 @@ function GetEngineersOfTechWanted(iMinTechLevelWanted, toAvailableEngineersByTec
 end
 
 function GetPartCompleteBuildingInZone(iTeam, iPlateau, iLandZone, iCategoryWanted)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetPartCompleteBuildingInZone'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then
+        local tBlueprints = EntityCategoryGetUnitList(iCategoryWanted)
+        LOG(sFunctionRef..': Start of code at game time seconds='..GetGameTimeSeconds()..', will list out every blueprint of iCategoryWanted='..reprs(tBlueprints))
+    end
     local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
         local tBuildingsOfCategory = EntityCategoryFilterDown(iCategoryWanted, tLZTeamData[M28Map.subrefLZTAlliedUnits])
         if M28Utilities.IsTableEmpty(tBuildingsOfCategory) == false then
             for iUnit, oUnit in tBuildingsOfCategory do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fractino compelte='..oUnit:GetFractionComplete()) end
                 if oUnit:GetFractionComplete() < 1 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Found a part complete building, will return this') end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     return oUnit
                 end
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return nil
 end
 
@@ -2220,38 +2234,61 @@ function MonitorEngineerForBlacklistLocation(oEngineer)
             return false
         end
     end--]]
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
             WaitSeconds(10)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             if bDebugMessages == true then LOG(sFunctionRef..': time='..GetGameTimeSeconds()..'; oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..': Finished first wait, HaveSameTargetAndNotStartedBuilding='..tostring(HaveSameTargetAndNotStartedBuilding(oEngineer, iOrigAction, iOrigQueueRef, sOrigBlueprint, tOrigBuildLocation))..'; iOrigQueueRef='..repru(iOrigQueueRef or 'nil')..'; tOrigBuildLocation='..repru(tOrigBuildLocation)..'; iOrigAction='..repru(iOrigAction or 'nil')) end
 
             while HaveSameTargetAndNotStartedBuilding(oEngineer, iOrigAction, iOrigQueueRef, sOrigBlueprint, tOrigBuildLocation) and not(bCloseToTarget) do
                 if bDebugMessages == true then LOG(sFunctionRef..': time='..GetGameTimeSeconds()..'; oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..': bCloseToTarget='..tostring(bCloseToTarget)..'; Dist between engineer pos and orig build location='..M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), tOrigBuildLocation)) end
                 if M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), tOrigBuildLocation) <= 12 then bCloseToTarget = true break
                 else
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                     WaitSeconds(10)
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     iWaitCount = iWaitCount + 1
                     if iWaitCount >= 20 then break end
                 end
             end
             if bCloseToTarget then
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                 WaitSeconds(45)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 if bDebugMessages == true then LOG(sFunctionRef..': Finished another wait and are close to target, time='..GetGameTimeSeconds()..'; oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; HaveSameTargetAndNotStartedBuilding()='..tostring(HaveSameTargetAndNotStartedBuilding(oEngineer, iOrigAction, iOrigQueueRef, sOrigBlueprint, tOrigBuildLocation))) end
                 if HaveSameTargetAndNotStartedBuilding(oEngineer, iOrigAction, iOrigQueueRef, sOrigBlueprint, tOrigBuildLocation) then
-                    --Add location to blacklist
-                    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tOrigBuildLocation)
-                    if bDebugMessages == true then LOG(sFunctionRef..': time='..GetGameTimeSeconds()..'; oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..': Want to add to blacklist, iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; sOrigBlueprint='..sOrigBlueprint) end
-                    if iPlateau and iLandZone then
-                        local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
-                        table.insert(tLZData[M28Map.subrefBuildLocationBlacklist], {[M28Map.subrefBlacklistLocation] = tOrigBuildLocation, [M28Map.subrefBlacklistSize] = M28UnitInfo.GetBuildingSize(sOrigBlueprint) * 0.5, [M28Map.subrefBlacklistType] = M28Map.BlacklistTimeout})
-                        if bDebugMessages == true then
-                            LOG(sFunctionRef..': Added location to the blacklist as oEngineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' has failed to build there, time since we started trackgin='..GetGameTimeSeconds() - iOrigTime..'; repru of tLZData[M28Map.subrefBuildLocationBlacklist]='..repru(tLZData[M28Map.subrefBuildLocationBlacklist])..'; will draw all blacklisted locations for this LZ')
-                            DrawBlacklistedLocations(tLZData)
+                    --If there are no mobile units then wait another 30s
+                    local bAddToBlacklist = true
+                    local iRadius = M28UnitInfo.GetBuildingSize(sOrigBlueprint) * 0.5
+                    local rNearbyRect = M28Utilities.GetRectAroundLocation(tOrigBuildLocation, iRadius)
+                    local tUnitsInRect = GetUnitsInRect(rNearbyRect)
+                    if M28Utilities.IsTableEmpty(tUnitsInRect) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.MOBILE * categories.LAND, tUnitsInRect)) then
+                        bAddToBlacklist = false
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                        WaitSeconds(30)
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        if HaveSameTargetAndNotStartedBuilding(oEngineer, iOrigAction, iOrigQueueRef, sOrigBlueprint, tOrigBuildLocation) then
+                            bAddToBlacklist = true
                         end
+                    end
+                    if bAddToBlacklist then
 
-                        --Update existing build locations to remove if they are near here
-                        CheckIfBuildableLocationsNearPositionStillValid(oEngineer:GetAIBrain(), tOrigBuildLocation, true)
+                        --Add location to blacklist
+                        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tOrigBuildLocation)
+                        if bDebugMessages == true then LOG(sFunctionRef..': time='..GetGameTimeSeconds()..'; oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..': Want to add to blacklist, iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; sOrigBlueprint='..sOrigBlueprint) end
+                        if iPlateau and iLandZone then
+                            local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+                            table.insert(tLZData[M28Map.subrefBuildLocationBlacklist], {[M28Map.subrefBlacklistLocation] = tOrigBuildLocation, [M28Map.subrefBlacklistSize] = iRadius, [M28Map.subrefBlacklistType] = M28Map.BlacklistTimeout})
+                            if bDebugMessages == true then
+                                LOG(sFunctionRef..': Added location to the blacklist as oEngineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' has failed to build there, time since we started trackgin='..GetGameTimeSeconds() - iOrigTime..'; repru of tLZData[M28Map.subrefBuildLocationBlacklist]='..repru(tLZData[M28Map.subrefBuildLocationBlacklist])..'; will draw all blacklisted locations for this LZ')
+                                DrawBlacklistedLocations(tLZData)
+                            end
 
-                        --Clear this engineer and any assisting engineers (assisting engineers are cleared via ClearEngineerTracking)
-                        M28Orders.IssueTrackedClearCommands(oEngineer)
+                            --Update existing build locations to remove if they are near here
+                            CheckIfBuildableLocationsNearPositionStillValid(oEngineer:GetAIBrain(), tOrigBuildLocation, true)
+
+                            --Clear this engineer and any assisting engineers (assisting engineers are cleared via ClearEngineerTracking)
+                            M28Orders.IssueTrackedClearCommands(oEngineer)
+                        end
                     end
                 end
             end
@@ -2466,7 +2503,16 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                 end
 
                 local oBuildingToAssist
-                if not(bShouldIgnoreUnderConstruction) then oBuildingToAssist = GetPartCompleteBuildingInZone(iTeam, iPlateau, iLandZone, iCategoryWanted) end
+                if not(bShouldIgnoreUnderConstruction) then
+                    --We adjust power to only consider the min tech levle not higher ones (presumably so we can build t1/t2 power when we have access to t3, if we need more power to build t3); therefore need to take this into account here
+                    local iUnderConstructionCategory
+                    if iActionToAssign == refActionBuildPower then
+                        iUnderConstructionCategory = M28UnitInfo.refCategoryPower - M28UnitInfo.refCategoryHydro
+                    else iUnderConstructionCategory = iCategoryWanted
+                    end
+                    oBuildingToAssist = GetPartCompleteBuildingInZone(iTeam, iPlateau, iLandZone, iUnderConstructionCategory)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Finished checking to see if we have a unit of the desired category. oBuildingToAssist='..(oBuildingToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oBuildingToAssist) or 'nil')) end
+                end
 
                 if oBuildingToAssist then
                     --Assist the building under construction that has the category we want
@@ -2484,8 +2530,15 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                         for iEngi, oEngi in toAssignedEngineers do
                             if oEngi[refiAssignedAction] == iActionToAssign then
                                 --Only assist if engi last order was to build
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering if oEngi '..oEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngi)..' can be assisted to build this; Engi last orders reprs='..reprs(oEngi[M28Orders.reftiLastOrders])) end
-                                if oEngi[M28Orders.reftiLastOrders] and oEngi[M28Orders.reftiLastOrders][table.getn(oEngi[M28Orders.reftiLastOrders])][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueBuild then
+                                if bDebugMessages == true then
+                                    if oEngi[M28Orders.reftiLastOrders] then
+                                        LOG(sFunctionRef..': Considering if oEngi '..oEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngi)..' can be assisted to build this; tablegetn of last orders='..oEngi[M28Orders.refiOrderCount]..'; reprs of last orders='..reprs(oEngi[M28Orders.reftiLastOrders])..'; refiOrderCount='..oEngi[M28Orders.refiOrderCount]..'; Is the last order to build something='..tostring(oEngi[M28Orders.reftiLastOrders][oEngi[M28Orders.refiOrderCount]][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueBuild))
+                                    else
+                                        LOG(sFunctionRef..': Considering if oEngi '..oEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngi)..' can be assisted to build this; Engi last orders is nil, reprs='..reprs(oEngi[M28Orders.reftiLastOrders]))
+                                    end
+                                end
+                                if oEngi[M28Orders.reftiLastOrders] and oEngi[M28Orders.reftiLastOrders][oEngi[M28Orders.refiOrderCount]][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueBuild then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': We can assist the engineer') end
                                     oEngineerToAssist = oEngi
                                     break
                                 end

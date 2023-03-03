@@ -161,7 +161,7 @@ function IsEngineerAvailable(oEngineer)
             --If engineer is moving but it doesnt have an assignment, or its assignment isnt to move, then make it available, unless it has special micro active
             if oEngineer[M28UnitInfo.refbSpecialMicroActive] then return false
             else
-                local iLastOrderType = oEngineer[M28Orders.reftiLastOrders][table.getn(oEngineer[M28Orders.reftiLastOrders])][M28Orders.subrefiOrderType]
+                local iLastOrderType = oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]][M28Orders.subrefiOrderType]
                 if bDebugMessages == true then LOG(sFunctionRef..': Engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' owned by '..oEngineer:GetAIBrain().Nickname..' has a last order type of '..(iLastOrderType or 'nil')..'; and an action assigned of '..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')..'; Order for this action='..(M28Engineer.tiActionOrder[oEngineer[M28Engineer.refiAssignedAction]] or 'nil')) end
                 if iLastOrderType == M28Orders.refiOrderIssueMove then
                     if oEngineer[M28Engineer.refiAssignedAction] and M28Engineer.tiActionOrder[oEngineer[M28Engineer.refiAssignedAction]] == iLastOrderType then

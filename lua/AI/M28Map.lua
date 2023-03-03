@@ -1532,7 +1532,7 @@ local function DrawLandZones()
 end
 
 local function RecordLandZoneMidpointAndUnbuiltMexes()
-    --Cycles through each land zone, and calculates the average positio nof the mexes.  If this is in the asme land zone then records this as the midpoint, toehrwise records the first mex as the midpoint
+    --Run at the start of the game - Cycles through each land zone, and calculates the average positio nof the mexes.  If this is in the asme land zone then records this as the midpoint, toehrwise records the first mex as the midpoint
     --Also records which mexes can be built on initially
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordLandZoneMidpointAndUnbuiltMexes'
@@ -1544,7 +1544,7 @@ local function RecordLandZoneMidpointAndUnbuiltMexes()
 
     for iPlateau, tPlateauSubtable in tAllPlateaus do
         for iZone, tZone in tAllPlateaus[iPlateau][subrefPlateauLandZones] do
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering iPlateau='..iPlateau..'; iZone='..iZone..'; Is table of mex locations empty='..tostring(M28Utilities.IsTableEmpty(tZone[subrefLZMexLocations]))) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Considering iPlateau='..iPlateau..'; iZone='..iZone..'; Is table of mex locations empty='..tostring(M28Utilities.IsTableEmpty(tZone[subrefLZMexLocations]))) end
             local iMinX = 100000
             local iMaxX = 0
             local iMinZ = 100000
@@ -1560,11 +1560,12 @@ local function RecordLandZoneMidpointAndUnbuiltMexes()
                     iMaxZ = math.max(tMex[3], iMaxZ)
                     if not(iBaseIslandWanted) then iBaseIslandWanted = NavUtils.GetLabel(refPathingTypeLand, tMex) end
                     --Record if can build on it:
-                    if bDebugMessages == true then LOG(sFunctionRef..': About to check if can build on iMex='..iMex..'; tMex='..repru(tMex)) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': About to check if can build on iMex='..iMex..'; tMex='..repru(tMex)..'; can we build on it='..tostring(M28Conditions.CanBuildOnMexLocation(tMex))) end
                     if M28Conditions.CanBuildOnMexLocation(tMex) then
                         table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefLZMexUnbuiltLocations], tMex)
                     end
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': Size of mex locations for LZ='..table.getn(tZone[subrefLZMexLocations])..'; Size of unbuilt locations='..table.getn(tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefLZMexUnbuiltLocations])) end
             else
                 --No mexes for the plateau, so cycle through every zone and record the lowest and largest X and Z values
                 for iSegment, tSegmentXZ in tZone[subrefLZSegments] do
