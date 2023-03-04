@@ -34,7 +34,7 @@ function GetNearestEnemyBrain(aiBrain)
     if (aiBrain[refoNearestEnemyBrain] and not(aiBrain[refoNearestEnemyBrain].M28IsDefeated) and not(aiBrain[refoNearestEnemyBrain]:IsDefeated())) or aiBrain.M28IsDefeated then
         return aiBrain[refoNearestEnemyBrain]
     else
-        if bDebugMessages == true then LOG(sFunctionRef..': GameTime='..GetGameTimeSeconds()..'; Is pathing complete='..tostring(M28Map.bMapSetupComplete)..'; Dont have a valid nearest enemy already recorded for aiBrain '..(aiBrain.Nickname or 'nil')..' with index '..aiBrain:GetArmyIndex()..' so will get a new one; are all enemies defeated for team '..aiBrain.M28Team..'='..tostring(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbAllEnemiesDefeated])) end
+        if bDebugMessages == true then LOG(sFunctionRef..': GameTime='..GetGameTimeSeconds()..'; Is pathing complete='..tostring(M28Map.bMapLandSetupComplete)..'; Dont have a valid nearest enemy already recorded for aiBrain '..(aiBrain.Nickname or 'nil')..' with index '..aiBrain:GetArmyIndex()..' so will get a new one; are all enemies defeated for team '..aiBrain.M28Team..'='..tostring(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbAllEnemiesDefeated])) end
         local oNearestBrain
         if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbAllEnemiesDefeated] then
             --All enemies defeated so will consider civilians as enemy brains
@@ -229,6 +229,7 @@ function Initialisation(aiBrain)
     ForkThread(M28ACU.ManageACU, aiBrain)
     ForkThread(M28Factory.SetPreferredUnitsByCategory, aiBrain)
     ForkThread(M28Factory.IdleFactoryMonitor, aiBrain)
+    ForkThread(M28Map.RecordPondToExpandTo, aiBrain)
 
 end
 
@@ -237,7 +238,7 @@ function OverseerManager(aiBrain)
 
     --Make sure map setup will be done
     WaitTicks(1)
-    while not(M28Map.bMapSetupComplete) do
+    while not(M28Map.bMapLandSetupComplete) do
         WaitTicks(1)
     end
     --Initialise main systems

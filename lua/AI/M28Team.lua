@@ -912,8 +912,8 @@ end
     if bIsEnemy or (oUnit:GetAIBrain().M28AI and (not(oUnit[refiAssignedPond]) or not(EntityCategoryContains(M28UnitInfo.refCategoryPondFixedCategory, oUnit.UnitId)))) then --and not(oUnit[reftisubrefsUpdatedFor][iM28TeamUpdatingFor])) then
         local iCurPond = iPondRefOverride or M28MapInfo.GetSegmentGroupOfLocation(M28Map.refPathingTypeNavy, oUnit:GetPosition())
         if bDebugMessages == true then LOG(sFunctionRef..': bIsEnemy='..tostring(bIsEnemy)..'; Updating for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iPondRefOverride='..(iPondRefOverride or 'nil')..'; iCurPond='..(iCurPond or 'nil')..'; oUnit[refiAssignedPond]='..(oUnit[refiAssignedPond] or 'nil')) end --LOG('iCurPond pre adj='..(iCurPond or 'nil'))
-        --if tPondDetails[iCurPond] then LOG('Pond size='..(tPondDetails[iCurPond][subrefPondSize] or 'nil')) end
-        if not(tPondDetails[iCurPond]) or (tPondDetails[iCurPond][subrefPondSize] or 0) <= iMinPondSize then
+        --if tPondDetails[iCurPond] then LOG('Pond size='..(tPondDetails[iCurPond][subrefiSegmentCount] or 'nil')) end
+        if not(tPondDetails[iCurPond]) or (tPondDetails[iCurPond][subrefiSegmentCount] or 0) <= iMinPondSize then
             --If have a naval unit that isnt amphibious then update pathing
             if bDebugMessages == true then LOG(sFunctionRef..': Dont have details for the pond recorded, if its a naval unit then will check for if there is a pond nearby') end
             if EntityCategoryContains(categories.NAVAL * categories.MOBILE - categories.HOVER - categories.AMPHIBIOUS - categories.AIR - categories.LAND, oUnit.UnitId) then

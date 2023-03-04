@@ -15,7 +15,7 @@ local M28Chat = import('/mods/M28AI/lua/AI/M28Chat.lua')
 local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
 
-bMapSetupComplete = false --set to true once have finished setting up map (used to decide how long to wait before starting main aibrain logic)
+bMapLandSetupComplete = false --set to true once have finished setting up map (used to decide how long to wait before starting main aibrain logic)
 
 --Pathing types
 --NavLayers 'Land' | 'Water' | 'Amphibious' | 'Hover' | 'Air'
@@ -232,8 +232,43 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             refiModDistancePercent = 'ModDPC' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam], mod dist based on closest friendly start position to closest enemy start position
             refbIslandBeachhead = 'IslBeachd' --true if we are sending units to a closest island LZ to try and attack enemy - means will check for nearby untis vs enemy nearby units when deciding whether to attack or not
 
+--Pond and naval variables
+    --General
+iMinPondSize = 1000 --1000 is a small pond that probably barely fits a couple of naval factories
+iMinWaterDepth = 1.5 --Ships cant move right up to shore, this is a guess at how much clearance is needed (testing on Africa, depth of 2 leads to some pathable areas being considered unpathable)
+bHaveConsideredPreferredPondForM28AI = false --Used to make sure we dont try and create water zones until we have setup the factory build locations for each M28AI
+bHaveRecordedPonds = false --set to true once finished the RecordPonds logic
+    --Ponds:
+tPondDetails = {}
+    subreftiWaterSegmentXZ = 'WatSegXZ' --returns table, index is sequentially from 1, returns {segmentX, SegmentZ}
+    subrefiSegmentCount = 'WatSegCnt' --Number of segments for a particular pond (means can quickly tell the size of the pond)
+    subrefiRecordedSegmentsInWaterZones = 'WatSegRCnt' --Number of segments recorded against a specific water zone for this pond
+    --subrefPondSize - use subrefiSegmentCount instead
+    subrefPondMinX = 'PondMinX'
+    subrefPondMinZ = 'PondMinZ'
+    subrefPondMaxX = 'PondMaxX'
+    subrefPondMaxZ = 'PondMaxZ'
+    subrefPondMidpoint = 'PondMidpoint'
+--subrefPondNearbyBrains = 'PondNearbyBrains'
+    subrefPondMexInfo = 'PondMexInfo'
+    subrefMexLocation = 'PondMexLocation'
+    subrefMexDistance = 'PondMexDistance'
+    subrefMexDFDistance = 'PondMexDFDistance'
+    subrefMexDFUnblockedLocation = 'PondMexDFLocation' --i.e. the closest location we found where a DF unit should be able to hit the mex
+    subrefMexIndirectDistance = 'PondMexIndirectDistance'
+    subrefMexIndirectUnblockedLocation = 'PondMexIndirectLocation' --i.e. the closest location we found where an indirect unit should be able to hit the mex
+    subrefBuildLocationByStartPosition = 'PondBuildLocationByStart' --Subtable, key is start position number, which stores the build location for that start position (will only record for M28 brain start positions)
 
-
+    --Water zones (against tPondDetails)
+    subrefPondWaterZones = 'PondWZ' --e.g. access the water zone data tables via M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone], where iWaterZone is the NavUtils refPathingTypeNavy pathing result
+        subrefWZMidpoint = 'PWZMidp'
+        subrefWZSegments = 'PWZSeg' --e.g. tPondDetails[iPond][subrefPondWaterZones][iWaterZone][subrefWZSegments]
+        subrefWZTeamData = 'PWZTeam' --Used to house team related data for a particular water zone
+tPondBySegment = {} --[x][z] are the x and z segments based on iLandZoneSegmentSize, shoudl return the pond number (which is also the same as doing NavUtils.GetLabel(refPathingTypeNavy, tPosition)
+tWaterZoneBySegment = {} --[x][z] should be the x and z segments baed on iLandZoneSegmentSize, and should return the water zone number, or nil if there is none
+iTotalWaterZoneCount = 0 --Unique value for waterzones so if know the waterzone reference then can identify the pond and other information just from this
+iTotalWaterZoneRecordedSegmentCount = 0 --total number of segments regorded against water zones
+iTotalSegmentsInPonds = 0 --Total number of segments which appear to be on water
 
 --Land pathing segment data
 tLandZoneBySegment = {} --[x][z] should be the x and z segments baed on iLandZoneSegmentSize, and should return the land zone number, or nil if there is none
@@ -682,7 +717,7 @@ local function RecordAllPlateaus()
                 for iCurReclaimSegmentX = iReclaimSegmentStartX, iReclaimSegmentEndX do
                     tAllPlateaus[iSegmentGroup][subrefPlateauReclaimSegments][iCurReclaimSegmentX] = {}
                     for iCurReclaimSegmentZ = iReclaimSegmentStartZ, iReclaimSegmentEndZ do
-                        if iSegmentGroup == GetSegmentGroupOfLocation(sPathing, GetReclaimLocationFromSegment(iCurReclaimSegmentX, iCurReclaimSegmentZ)) then
+                        if iSegmentGroup == NavUtils.GetLabel(sPathing,GetReclaimLocationFromSegment(iCurReclaimSegmentX, iCurReclaimSegmentZ)) then
                             tAllPlateaus[iSegmentGroup][subrefPlateauReclaimSegments][iCurReclaimSegmentX][iCurReclaimSegmentZ] = true
                         end
                     end
@@ -1248,20 +1283,32 @@ local function AssignRemainingSegmentsToLandZones()
     if bDebugMessages == true then LOG(sFunctionRef..': Finsihed creating land zones for any remaining locations with no nearby land zone, system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
     --The above will have updated the temporary table with details of how long to path to each zone; now go through and assign each segment to the closest zone to it
     AssignTempSegmentsWithDistance()
-    if bDebugMessages == true then LOG(sFunctionRef..': Finsihed assigning zones for any temporary distances for the zones created in the previous step, system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Finsihed assigning zones for any temporary distances for the zones created in the previous step, system time='..GetSystemTimeSecondsOnlyForProfileUse()..'; about to run logic to check for any rmeaining segment') end
 
 
     --Redundancy - cycle through any zones that dont have a segment and create new zones for them - hopefully this shouldnt be possible provided we have setup the segment search ranges correctly above
+        --Also setup initial details on water segments
+
     for iBaseSegmentX = 1, iMaxLandSegmentX do
         for iBaseSegmentZ = 1, iMaxLandSegmentZ do
+            if bDebugMessages == true then LOG(sFunctionRef..': iBaseSegmentX-Z='..iBaseSegmentX..'-'..iBaseSegmentZ..'; Is the land zone for htis segment nil='..tostring(tLandZoneBySegment[iBaseSegmentX][iBaseSegmentZ]==nil)..'; Hover label='..(NavUtils.GetLabel(refPathingTypeHover, tBasePosition) or 0)..'; Land label='..(NavUtils.GetLabel(refPathingTypeLand, tBasePosition) or 'nil')..'; NavUtils.GetLabel(refPathingTypeNavy, tBasePosition)='..(NavUtils.GetLabel(refPathingTypeNavy, tBasePosition) or 'nil')) end
             if not(tLandZoneBySegment[iBaseSegmentX][iBaseSegmentZ]) then
                 tBasePosition = GetPositionFromPathingSegments(iBaseSegmentX, iBaseSegmentZ)
-                iLandPathingGroupWanted = NavUtils.GetLabel(refPathingTypeLand, tBasePosition)
-                if (iLandPathingGroupWanted or 0) > 1 and (NavUtils.GetLabel(refPathingTypeHover, tBasePosition) or 0) > 0 then
-                    M28Utilities.ErrorHandler('Have an unassigned land zone='..iBaseSegmentX..'-'..iBaseSegmentZ)
-                    CreateNewLandZoneAtSegment(iBaseSegmentX, iBaseSegmentZ)
-                    RecordTemporaryTravelDistanceForBaseSegment(iBaseSegmentX, iBaseSegmentZ, iLandPathingGroupWanted, tBasePosition, iMaxSegmentSearchDistance, iDistanceCap)
-                    AssignTempSegmentsWithDistance()
+                if (NavUtils.GetLabel(refPathingTypeHover, tBasePosition) or 0) > 0 then
+                    iLandPathingGroupWanted = NavUtils.GetLabel(refPathingTypeLand, tBasePosition)
+                    if (iLandPathingGroupWanted or 0) >= 1 then
+                        M28Utilities.ErrorHandler('Have an unassigned land zone='..iBaseSegmentX..'-'..iBaseSegmentZ)
+                        CreateNewLandZoneAtSegment(iBaseSegmentX, iBaseSegmentZ)
+                        RecordTemporaryTravelDistanceForBaseSegment(iBaseSegmentX, iBaseSegmentZ, iLandPathingGroupWanted, tBasePosition, iMaxSegmentSearchDistance, iDistanceCap)
+                        AssignTempSegmentsWithDistance()
+                    else
+                        --Do we have a water segment?
+                        local iPond = NavUtils.GetLabel(refPathingTypeNavy, tBasePosition)
+                        if (iPond or 0) > 0 then
+                            RecordNavalSegment(iPond, iBaseSegmentX, iBaseSegmentZ, tBasePosition)
+                        end
+                    end
                 end
             end
         end
@@ -2736,7 +2783,7 @@ function UpdateNewPrimaryBaseLocation(aiBrain)
                             --Cycle through every valid enemy brain and pick the nearest one, if there is one
                             if bDebugMessages == true then LOG(sFunctionRef..': Will cycle through each brain to identify nearest enemy base') end
                             for iCurBrain, brain in ArmyBrains do
-                                if not(brain == aiBrain) and not(M28Logic.IsCivilianBrain(brain)) and IsEnemy(brain:GetArmyIndex(), aiBrain:GetArmyIndex()) and (not(brain:IsDefeated() and not(brain.M27IsDefeated)) or not(ScenarioInfo.Options.Victory == "demoralization")) then
+                                if not(brain == aiBrain) and not(M28Logic.IsCivilianBrain(brain)) and IsEnemy(brain:GetArmyIndex(), aiBrain:GetArmyIndex()) and (not(brain:IsDefeated() and not(brain.M28IsDefeated)) or not(ScenarioInfo.Options.Victory == "demoralization")) then
                                     if M28Utilities.GetDistanceBetweenPositions(PlayerStartPoints[brain:GetArmyIndex()], PlayerStartPoints[aiBrain:GetArmyIndex()]) < iNearestEnemyBase then
                                         if IsEnemyStartPositionValid(aiBrain, PlayerStartPoints[brain:GetArmyIndex()]) then
                                             iNearestEnemyBase = M28Utilities.GetDistanceBetweenPositions(PlayerStartPoints[brain:GetArmyIndex()], PlayerStartPoints[aiBrain:GetArmyIndex()])
@@ -2814,6 +2861,688 @@ function ClearTemporarySetupVariables()
     tbTempConsideredLandPathingForLZ = {}
 end
 
+function CreateNewPond(iPond)
+    tPondDetails[iPond] = {}
+    tPondDetails[iPond][subreftiWaterSegmentXZ] = {}
+    tPondDetails[iPond][subrefiSegmentCount] = 0
+
+    tPondDetails[iPond][subrefPondMinX] = 100000
+    tPondDetails[iPond][subrefPondMinZ] = 100000
+    tPondDetails[iPond][subrefPondMaxX] = 0
+    tPondDetails[iPond][subrefPondMaxZ] = 0
+    tPondDetails[iPond][subrefiSegmentCount] = 0
+    --tPondDetails[iPond][subrefPondNearbyBrains] = {}
+    tPondDetails[iPond][subrefPondMidpoint] = {}
+    tPondDetails[iPond][subrefPondMexInfo] = {}
+end
+
+function RecordNavalSegment(iPond, iBaseSegmentX, iBaseSegmentZ, tSegmentPosition)
+    --Called from logic for land creation that cycles through every segment on the map
+    if not(tPondDetails[iPond]) then
+        CreateNewPond(iPond)
+    end
+    table.insert(tPondDetails[iPond][subreftiWaterSegmentXZ], iBaseSegmentX, iBaseSegmentZ)
+    if not(tPondBySegment[iBaseSegmentX]) then tPondBySegment[iBaseSegmentX] = {} end
+    tPondBySegment[iBaseSegmentX][iBaseSegmentZ] = iPond
+    iTotalSegmentsInPonds = iTotalSegmentsInPonds + 1
+    tPondDetails[iPond][subrefiSegmentCount] = tPondDetails[iPond][subrefiSegmentCount] + 1
+
+    tPondDetails[iPond][subrefPondMinX] = math.min(tPondDetails[iPond][subrefPondMinX], tSegmentPosition[1])
+    tPondDetails[iPond][subrefPondMinZ] = math.min(tPondDetails[iPond][subrefPondMinZ], tSegmentPosition[3])
+    tPondDetails[iPond][subrefPondMaxX] = math.max(tPondDetails[iPond][subrefPondMaxX], tSegmentPosition[1])
+    tPondDetails[iPond][subrefPondMaxZ] = math.max(tPondDetails[iPond][subrefPondMaxZ], tSegmentPosition[3])
+
+end
+
+function RecordPondDetails()
+    --Call after recording all pathfinding for the map, so after we have recorded all naval segments against ponds
+    --intended to record key information on any ponds of interest, in particular mexes that can be hit from the pond (and the range required)
+
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end --set to true for certain positions where want logs to print
+    local sFunctionRef = 'RecordPondDetails'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local tbUnderwaterGroup = {}
+    local tSegmentPosition
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code. Does map have water? Water height(0 means no water)='..iMapWaterHeight) end
+
+    if iMapWaterHeight > 0 then
+        --Record the size and dimensions of every pond
+        local iMaxMexDist = 200 --range of aeon missile ship
+        local iPondMexCount
+        local iCurMexDist
+        local tiDistToTry = { 24, 40, 56, 88, 120, 145, iMaxMexDist }
+        local bInRange
+        local iAngleInterval = 45
+        local tPossibleWaterPosition
+        local iPrevDist
+        local tShotStartPosition
+        local tShotEndPosition
+        local iAOE
+
+        --Want a brain in case we end up using the alternative 'line is blocked' built in functionality
+        local aiBrain
+        for iBrain, oBrain in ArmyBrains do
+            if oBrain.M28AI then
+                aiBrain = oBrain
+                break
+            end
+        end
+        if not (aiBrain) then
+            for iBrain, oBrain in ArmyBrains do
+                aiBrain = oBrain
+                break
+            end
+        end
+
+        for iPond, tPondSubtable in tPondDetails do
+            if bDebugMessages == true then
+                LOG(sFunctionRef .. ': Considering pond group ' .. iPond .. '; Pond size=' .. (tPondSubtable[subrefiSegmentCount] or 'nil'))
+            end
+            if (tPondSubtable[subrefiSegmentCount] or 0) >= iMinPondSize then
+                --Pond is large enough for us to consider tracking; record information of interest for the pond:
+                iPondMexCount = 0
+                tPondSubtable[subrefPondMidpoint] = { (tPondDetails[iPond][subrefPondMinX] + tPondDetails[iPond][subrefPondMaxX]) * 0.5, iMapWaterHeight, (tPondDetails[iPond][subrefPondMinZ] + tPondDetails[iPond][subrefPondMaxZ]) * 0.5 }
+                if bDebugMessages == true then LOG(sFunctionRef .. ': Recording pond, will check how many mexes are nearby. Pond midpoint=' .. repru(tPondSubtable[subrefPondMidpoint]) .. '; Pond min X-Z=' .. tPondDetails[iPond][subrefPondMinX] .. '-' .. tPondDetails[iPond][subrefPondMinZ] .. '; Max X-Z=' .. tPondDetails[iPond][subrefPondMaxX] .. '-' .. tPondDetails[iPond][subrefPondMaxZ]) end
+
+                --Details of all mexes near enough to the pond to be of interest
+                for iMex, tMex in tMassPoints do
+                    bInRange = false
+
+                    if tMex[1] >= tPondSubtable[subrefPondMinX] - iMaxMexDist and tMex[1] <= tPondSubtable[subrefPondMaxX] + iMaxMexDist and tMex[3] >= tPondSubtable[subrefPondMinZ] - iMaxMexDist and tMex[3] <= tPondSubtable[subrefPondMaxZ] + iMaxMexDist then
+                        --See how far away the water is
+                        for iEntry, iDist in tiDistToTry do
+                            for iAngleAdjust = iAngleInterval, 360, iAngleInterval do
+                                tPossibleWaterPosition = M28Utilities.MoveInDirection(tMex, iAngleAdjust, iDist, true, true) --Gets terrainheight rather than surface height
+                                if IsUnderwater(tPossibleWaterPosition, false, iMinWaterDepth) then
+                                    --Have a match, record the mex details:
+                                    bInRange = true
+                                    iCurMexDist = iDist
+
+                                    --Record initial mex details:
+                                    iPondMexCount = iPondMexCount + 1
+                                    tPondSubtable[subrefPondMexInfo][iPondMexCount] = {}
+                                    tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexLocation] = { tMex[1], tMex[2], tMex[3] }
+
+                                    --Do we expect to be able to hit the mex from here? a UEF Frigate y height is 1.1, while a t1 mex is 1.4; cant be bothered to check height of weapon and mex bone, and will vary based on how far away we are as well
+                                    tShotStartPosition = { tPossibleWaterPosition[1], GetSurfaceHeight(tPossibleWaterPosition[1], tPossibleWaterPosition[3]) + 1, tPossibleWaterPosition[3] }
+                                    tShotEndPosition = { tMex[1], tMex[2] + 1.1, tMex[3] }
+
+                                    iAOE = 0
+                                    if iCurMexDist >= 30 then
+                                        iAOE = 1
+                                    end --most destroyers have an aoe attack (except sera)
+
+                                    if M28Logic.IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, iAOE) then
+                                        tShotStartPosition[2] = tShotStartPosition[2] + 8
+                                        tShotEndPosition[2] = tShotEndPosition[2] + 8
+                                        if M28Logic.IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, 1) then
+                                            --cant hit with df or indirect
+                                            tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexIndirectDistance] = 10000
+                                            tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFDistance] = 10000
+                                        else
+                                            --Can hit with indirect but not DF, so consider whether if we move further back we can then hit
+                                            tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexIndirectDistance] = iCurMexDist
+                                            tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexIndirectUnblockedLocation] = {tShotStartPosition[1], tShotStartPosition[2], tShotStartPosition[3]}
+
+                                            --Find the point at which DF can hit, if any, in intervals of 5, assuming at max range we can hit
+                                            local iMaxDistAdjust = math.max(5, math.min(100, math.floor((150 - iCurMexDist) / 5) * 5))
+                                            tPossibleWaterPosition = M28Utilities.MoveInDirection(tMex, iAngleAdjust, iDist + iMaxDistAdjust, true, true)
+                                            if IsUnderwater(tPossibleWaterPosition, false, iMinWaterDepth) then
+                                                tShotStartPosition = { tPossibleWaterPosition[1], GetSurfaceHeight(tPossibleWaterPosition[1], tPossibleWaterPosition[3]) + 1, tPossibleWaterPosition[3] }
+                                                if M28Logic.IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, 1) then
+                                                    --Assume wont find any match
+                                                    tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFDistance] = 10000
+                                                else
+                                                    tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFDistance] = iDist + iMaxDistAdjust
+                                                    --Refine the distance by moving closer
+                                                    for iDFDistAdjust = 5, math.max(5, math.min(100, math.floor((150 - iCurMexDist) / 5) * 5)), 5 do
+                                                        tPossibleWaterPosition = M28Utilities.MoveInDirection(tMex, iAngleAdjust, iDist + iDFDistAdjust, true, true)
+                                                        tShotStartPosition = { tPossibleWaterPosition[1], GetSurfaceHeight(tPossibleWaterPosition[1], tPossibleWaterPosition[3]) + 1, tPossibleWaterPosition[3] }
+                                                        if not (M28Logic.IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, 1)) then
+                                                            tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFDistance] = iDist + iDFDistAdjust
+                                                            tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFUnblockedLocation] = {tShotStartPosition[1], tShotStartPosition[2], tShotStartPosition[3]}
+                                                            break
+                                                        end
+                                                    end
+                                                end
+                                            else
+                                                --Assume wont find any match as if move really far back we are not on water
+                                                tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFDistance] = 10000
+                                            end
+                                        end
+
+                                        if bDebugMessages == true and tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexIndirectDistance] then
+                                            LOG(sFunctionRef .. ' Drawing start in white and end in orangy pink')
+                                            M28Utilities.DrawLocation({ tShotStartPosition[1], tShotStartPosition[2] - 8, tShotStartPosition[3] }, 7, 100, nil)
+                                            M28Utilities.DrawLocation({ tShotEndPosition[1], tShotEndPosition[2] - 8, tShotEndPosition[3] }, 8, 100, nil)
+                                        end
+                                    else
+                                        --DF can hit from cur position so assume indirect can as well
+                                        tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFDistance] = iCurMexDist
+                                        tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexIndirectDistance] = iCurMexDist
+                                        tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFUnblockedLocation] = {tShotStartPosition[1], tShotStartPosition[2], tShotStartPosition[3]}
+                                        tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexIndirectUnblockedLocation] = {tShotStartPosition[1], tShotStartPosition[2], tShotStartPosition[3]}
+                                    end
+
+                                    --Refine the distance - see if can get any closer
+                                    if iEntry == 1 then
+                                        iPrevDist = 0
+                                    else
+                                        iPrevDist = tiDistToTry[iEntry - 1]
+                                    end
+                                    for iShortDist = iPrevDist + 1, iDist - 1, 1 do
+                                        tPossibleWaterPosition = M28Utilities.MoveInDirection(tMex, iAngleAdjust, iDist, true)
+                                        if IsUnderwater(tPossibleWaterPosition, false, iMinWaterDepth) then
+                                            iCurMexDist = iShortDist
+                                            break
+                                        end
+                                    end
+
+                                    tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDistance] = iCurMexDist
+
+                                    if bDebugMessages == true then LOG(sFunctionRef .. ': Finished recording mex in range for pond ' .. iPond .. '; iPondMexCount=' .. iPondMexCount .. '; full mex table of info=' .. repru(tPondSubtable[subrefPondMexInfo][iPondMexCount])) end
+                                    break
+                                end
+                            end
+                            if bInRange then
+                                break
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then
+                        LOG(sFunctionRef .. ': Considered Mex ' .. repru(tMex) .. '; bInRange=' .. tostring(bInRange))
+                    end
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished recording all ponds, repr='..reprs(tPondDetails)) end
+    end
+    bHaveRecordedPonds = true
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function RecordPondToExpandTo(aiBrain)
+    --Calculates which pond we think is most important to hold; assumes we have already recorded all segments and ponds (but havent yet setup water zones)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end --set to true for certain positions where want logs to print
+    local sFunctionRef = 'RecordPondToExpandTo'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    bHaveConsideredPreferredPondForM28AI = true
+    if bDebugMessages == true then LOG(sFunctionRef..': Starting RecordPondToExpandTo at '..GetGameTimeSeconds()..', Is table of pond details empty='..tostring(M28Utilities.IsTableEmpty(tPondDetails))..'; bHaveRecordedPonds='..tostring(bHaveRecordedPonds)) end
+    local iWaitCount = 0
+    while not(bHaveRecordedPonds) do
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitTicks(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        iWaitCount = iWaitCount + 1
+        if iWaitCount >= 20 then break end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting, time='..GetGameTimeSeconds()..'; Is table of pond details empty='..tostring(M28Utilities.IsTableEmpty(tPondDetails))..'; bHaveRecordedPonds='..tostring(bHaveRecordedPonds)) end
+    if M28Utilities.IsTableEmpty(tPondDetails) == false then
+        local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
+        aiBrain[M28Navy.reftiPondThreatToUs] = {}
+        aiBrain[M28Navy.reftiPondValueToUs] = {}
+        local iCurPondValue
+        local iCurPondDefensiveValue --Value of mexes that are threatened by enemy if they get navy
+        local iBestPondValue = 0
+        local iBestPondRef
+
+        local iDistanceThreshold = math.max(138, math.min(180, aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] * 0.35))
+        if not(aiBrain[refbCanPathToEnemyBaseWithLand]) then iDistanceThreshold = iDistanceThreshold + 50 end
+
+        local iFrigateRange = 28
+        local iDestroyerRange = 60
+        local iBattleshipRange = 128
+        local iMissileShipRange = 150
+        local iFrigateValue = 1
+        local iDestroyerValue = 0.8
+        local iBattleshipValue = 0.45
+        local iMissileShipValue = 0.6
+
+        local iEnemyDestroyerRange = 60
+        local iEnemyBattleshipRange = 128
+        local iEnemyMissileShipRange = 150
+
+
+        if aiBrain:GetFactionIndex() == M28UnitInfo.refFactionUEF then
+            iBattleshipRange = 150
+        elseif aiBrain:GetFactionIndex() == M28UnitInfo.refFactionCybran then
+            iDestroyerRange = 80
+            iMissileShipRange = 0
+        elseif aiBrain:GetFactionIndex() == M28UnitInfo.refFactionAeon then
+            iMissileShipRange = 200
+            iMissileShipValue = iBattleshipValue
+            --Seraphim - no change to default
+        end
+
+        local iEnemyBrainIndex = M28Logic.GetNearestEnemyIndex(aiBrain)
+        if iEnemyBrainIndex == M28UnitInfo.refFactionUEF then
+            iEnemyBattleshipRange = 150
+        elseif iEnemyBrainIndex == M28UnitInfo.refFactionCybran then
+            iEnemyDestroyerRange = 80
+            iEnemyMissileShipRange = 0
+        elseif iEnemyBrainIndex == M28UnitInfo.refFactionAeon then
+            iEnemyMissileShipRange = 200
+        end
+
+        local iMinModDistanceWanted = math.max(155, aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] * 0.4)
+        if bDebugMessages == true then LOG(sFunctionRef..': aiBrain='..aiBrain.Nickname..'; Start of logic to consider the best pond. iMinModDistanceWanted='..iMinModDistanceWanted..'; Dist to enemy base='..(aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] or 'nil')) end
+        local iMidModDistance = aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] * 0.5
+        local iBelowMidFactor = 0.3 --Reudces value of mex that is closer to our base than enemy base to this %, assuming it is above the iMinModDistanceWanted
+        local iCurMexValue
+        local iCurMexDefensiveValue
+        local iCurModDistance
+        local iDefensiveModDistanceMaxValue = math.max(120, math.min(300, aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] * 0.4))
+
+        local iPathingGroupWanted = NavUtils.GetLabel(refPathingTypeHover, PlayerStartPoints[aiBrain:GetArmyIndex()])
+
+        for iCurPondRef, tPondSubtable in tPondDetails do
+            aiBrain[M28Navy.reftiPondValueToUs][iCurPondRef] = 0
+            aiBrain[M28Navy.reftiPondThreatToUs][iCurPondRef] = 0
+            if M28Utilities.IsTableEmpty(tPondSubtable) == false then
+                iCurPondValue = 0
+                iCurPondDefensiveValue = 0
+                if bDebugMessages == true then LOG(sFunctionRef..': iCurPondRef='..iCurPondRef..'; Repru of subtable='..repru(tPondSubtable)..'; ai brain start point='..repru(PlayerStartPoints[aiBrain:GetArmyIndex()])) end
+
+                --Is the pond within 175 of our start position?  First see if X is within distance threshold:
+                if math.abs(tPondSubtable[subrefPondMinX] - PlayerStartPoints[aiBrain:GetArmyIndex()][1]) <= iDistanceThreshold or math.abs(PlayerStartPoints[aiBrain:GetArmyIndex()][1] - tPondSubtable[subrefPondMaxX]) <= iDistanceThreshold or (PlayerStartPoints[aiBrain:GetArmyIndex()][1] >= tPondSubtable[subrefPondMinX] and PlayerStartPoints[aiBrain:GetArmyIndex()][1] <= tPondSubtable[subrefPondMaxX]) then
+                    --X is in range, is Z?
+                    if math.abs(tPondSubtable[subrefPondMinZ] - PlayerStartPoints[aiBrain:GetArmyIndex()][3]) <= iDistanceThreshold or math.abs(PlayerStartPoints[aiBrain:GetArmyIndex()][3] - tPondSubtable[subrefPondMaxZ]) <= iDistanceThreshold or (PlayerStartPoints[aiBrain:GetArmyIndex()][3] >= tPondSubtable[subrefPondMinZ] and PlayerStartPoints[aiBrain:GetArmyIndex()][3] <= tPondSubtable[subrefPondMaxZ]) then
+                        --X and Z are in range
+
+
+                        for iMex, tMexInfo in tPondSubtable[subrefPondMexInfo] do
+                            iCurMexValue = 0
+                            iCurMexDefensiveValue = 0
+                            if tMexInfo[subrefMexDFDistance] <= iBattleshipRange or tMexInfo[subrefMexIndirectDistance] <= iMissileShipRange then
+                                --Can reach this mex with a ship, so it will have at least some value
+                                if tMexInfo[subrefMexDFDistance] <= iFrigateRange then iCurMexValue = iFrigateValue
+                                elseif tMexInfo[subrefMexDFDistance] <= iDestroyerRange then iCurMexValue = iDestroyerValue
+                                elseif tMexInfo[subrefMexIndirectDistance] <= iMissileShipRange then iCurMexValue = iMissileShipValue
+                                else iCurMexValue = iBattleshipValue
+                                end
+                            end
+
+                            --Adjust mex value based on distance
+                            iCurModDistance = GetModDistanceFromStart(aiBrain, tMexInfo[subrefMexLocation])
+                            if iCurMexValue > 0 then
+                                if iCurModDistance <  iMinModDistanceWanted then iCurMexValue = 0
+                                else
+                                    if iCurModDistance < iMidModDistance then
+                                        iCurMexValue = iCurMexValue * iBelowMidFactor
+                                    end
+                                end
+                                iCurPondValue = iCurPondValue + iCurMexValue
+                            end
+
+
+                            --Get defensive value
+                            if iCurModDistance <= iDefensiveModDistanceMaxValue then
+                                if tMexInfo[subrefMexDFDistance] <= iEnemyBattleshipRange or tMexInfo[subrefMexIndirectDistance] <= iEnemyMissileShipRange then
+                                    --Can reach this mex with a ship, so it will have at least some value
+                                    if tMexInfo[subrefMexDFDistance] <= iFrigateRange then iCurMexDefensiveValue = iFrigateValue
+                                    elseif tMexInfo[subrefMexDFDistance] <= iEnemyDestroyerRange then iCurMexDefensiveValue = iDestroyerValue
+                                    elseif tMexInfo[subrefMexIndirectDistance] <= iEnemyMissileShipRange then iCurMexDefensiveValue = iMissileShipValue
+                                    else iCurMexDefensiveValue = iBattleshipValue
+                                    end
+                                end
+                                iCurPondDefensiveValue = iCurPondDefensiveValue + iCurMexDefensiveValue
+                            end
+
+                        end
+
+                        --Increase vlaue if in part of pond likely to be near enemy base
+                        local tEnemyBase = GetPrimaryEnemyBaseLocation(aiBrain)
+                        local iEnemyBaseThreshold = math.max(iBattleshipRange, iMissileShipRange - 10)
+                        if math.abs(tPondSubtable[subrefPondMinX] - tEnemyBase[1]) <= iEnemyBaseThreshold or math.abs(tEnemyBase[1] - tPondSubtable[subrefPondMaxX]) <= iEnemyBaseThreshold or (tEnemyBase[1] >= tPondSubtable[subrefPondMinX] and tEnemyBase[1] <= tPondSubtable[subrefPondMaxX]) then
+                            --X is in range, is Z?
+                            if math.abs(tPondSubtable[subrefPondMinZ] - tEnemyBase[3]) <= iEnemyBaseThreshold or math.abs(tEnemyBase[3] - tPondSubtable[subrefPondMaxZ]) <= iEnemyBaseThreshold or (tEnemyBase[3] >= tPondSubtable[subrefPondMinZ] and tEnemyBase[3] <= tPondSubtable[subrefPondMaxZ]) then
+                                iCurPondValue = math.max(iCurPondValue * 1.2, iCurPondValue + 2)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Can probably hit enemy base with navy so increasing pond value by 20%') end
+                            end
+                        end
+
+
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have a pond that is in range of our start position, value based on mexes in range pre adjust='..iCurPondValue) end
+                        --Do we have sufficient value to consider?
+                        if iCurPondValue >= 4 or iCurPondDefensiveValue >= 4 then
+                            if iCurPondValue <= 0 then iCurPondValue = 0.1 end --Pond has defensive value so greater than 0
+                            --Adjust value based on how close the naval build location would be for this pond
+                            if not(tPondSubtable[subrefBuildLocationByStartPosition]) then
+                                tPondSubtable[subrefBuildLocationByStartPosition] = {}
+                            end
+                            local tNavalBuildArea = {}
+                            local iAngleToCentre = M28Utilities.GetAngleFromAToB(PlayerStartPoints[aiBrain:GetArmyIndex()], tPondSubtable[subrefPondMidpoint])
+                            local iDistInterval = 8
+                            local iBuildingInterval = 4
+                            local tPossibleLocationBase
+                            local tPossibleBuildLocation
+                            local bHaveValidLocation = false
+                            if bDebugMessages == true then LOG(sFunctionRef..': About to search for location to build naval factory for iCurPondRef='..iCurPondRef..'; iDistInterval='..iDistInterval..'; Angle='..iAngleToCentre..'; Midpoint='..repru(tPondSubtable[subrefPondMidpoint])..'; Start position='..repru(PlayerStartPoints[aiBrain:GetArmyIndex()])) end
+                            for iDistToTravel = iDistInterval, math.max(iDistInterval, math.floor(M28Utilities.GetDistanceBetweenPositions(PlayerStartPoints[aiBrain:GetArmyIndex()], tPondSubtable[subrefPondMidpoint]) / iDistInterval) * iDistInterval), iDistInterval do
+                                for iAngleAdjust = 0, 170, 10 do
+                                    for iAngleFactor = -1, 1, 2 do
+                                        tPossibleLocationBase = M28Utilities.MoveInDirection(PlayerStartPoints[aiBrain:GetArmyIndex()], iAngleToCentre + iAngleAdjust * iAngleFactor, iDistToTravel, true, true)
+                                        if NavUtils.GetLabel(refPathingTypeNavy, tPossibleLocationBase) == iCurPondRef then
+                                            --Try and find somewhere around here to build a naval factory
+                                            for iBuildingAdjustX = 0, iBuildingInterval, 1 do
+                                                for iBuildingAdjustZ = 0, iBuildingInterval, 1 do
+                                                    for iXFactor = -1, 1, 2 do
+                                                        for iZFactor = -1, 1, 2 do
+                                                            tPossibleBuildLocation = {tPossibleLocationBase[1] + iBuildingAdjustX * iXFactor, 0, tPossibleLocationBase[3] + iBuildingAdjustZ * iZFactor}
+                                                            tPossibleBuildLocation[2] = GetSurfaceHeight(tPossibleBuildLocation[1], tPossibleBuildLocation[3])
+                                                            if aiBrain:CanBuildStructureAt('ueb0103', tPossibleBuildLocation) then
+                                                                bHaveValidLocation = true
+                                                                tNavalBuildArea = {tPossibleBuildLocation[1], tPossibleBuildLocation[2], tPossibleBuildLocation[3]}
+                                                                if bDebugMessages == true then
+                                                                    LOG(sFunctionRef..': Have valid location='..repru(tPossibleBuildLocation)..'; will draw in white')
+                                                                    M28Utilities.DrawLocation(tPossibleBuildLocation, 1, 100, 2)
+                                                                end
+                                                                break
+                                                            else
+                                                                if bDebugMessages == true then
+                                                                    LOG(sFunctionRef..': Have invalid location='..repru(tPossibleBuildLocation)..'; will draw in red')
+                                                                    M28Utilities.DrawLocation(tPossibleBuildLocation, 2, 100, 2)
+                                                                end
+                                                            end
+                                                        end
+                                                        if bHaveValidLocation then break end
+                                                    end
+                                                    if bHaveValidLocation then break end
+
+                                                end
+                                                if bHaveValidLocation then break end
+                                            end
+                                            if iAngleAdjust == 0 or bHaveValidLocation then break end
+                                        elseif bDebugMessages == true then
+                                            LOG(sFunctionRef..': Failed tPossibleLocationBase pathing group, tPossibleLocationBase='..repru(tPossibleLocationBase)..'; naval label='..(NavUtils.GetLabel(refPathingTypeNavy, tPossibleLocationBase) or 'nil')..'; iCurPondRef='..iCurPondRef..'; iPathingGroupWanted='..iPathingGroupWanted..'; will draw in gold')
+                                            M28Utilities.DrawLocation(tPossibleLocationBase, 4, 100, 2)
+                                        end
+                                        if bHaveValidLocation then break end
+                                    end
+                                    if bHaveValidLocation then break end
+                                end
+                                if bHaveValidLocation then break end
+                            end
+
+                            if bDebugMessages == true then LOG(sFunctionRef..': Finsihed searching for naval build area, is table empty='..tostring(M28Utilities.IsTableEmpty(tNavalBuildArea))) end
+
+
+                            if M28Utilities.IsTableEmpty(tNavalBuildArea) == false then
+                                if bDebugMessages == true then LOG(sFunctionRef..': tNavalBuildArea pre adjust='..repru(tNavalBuildArea)) end
+                                --Move towards base to help with cliff building if we have cliffs
+                                local bHaveNearbyCliff = false
+                                local iDistToMoveTarget = M28Utilities.GetDistanceBetweenPositions(PlayerStartPoints[aiBrain:GetArmyIndex()], tNavalBuildArea)
+                                local iAngleFromTarget = M28Utilities.GetAngleFromAToB(tNavalBuildArea, PlayerStartPoints[aiBrain:GetArmyIndex()])
+                                local tCliffPositionCheck
+                                local sPathing = refPathingTypeHover
+                                local iStartPathingGroup = NavUtils.GetLabel(sPathing,PlayerStartPoints[aiBrain:GetArmyIndex()])
+
+                                if iDistToMoveTarget > 1 then
+                                    for iDistAdjust = 1, math.min(13, math.floor(iDistToMoveTarget)) do
+                                        tCliffPositionCheck = M28Utilities.MoveInDirection(tNavalBuildArea, iAngleFromTarget, iDistAdjust, true, false)
+                                        if not(NavUtils.GetLabel(sPathing, tCliffPositionCheck) == iStartPathingGroup) then
+                                            bHaveNearbyCliff = true
+                                            break
+                                        end
+
+                                    end
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': bHaveNearbyCliff='..tostring(bHaveNearbyCliff)) end
+                                if bHaveNearbyCliff then
+                                    --Try to move closer to base
+                                    local tLastValidPosition = {tNavalBuildArea[1], tNavalBuildArea[2], tNavalBuildArea[3]}
+                                    local tAlternativePosition
+
+                                    for iDistAdjust = 1, math.min(13, math.floor(iDistToMoveTarget)) do
+                                        tAlternativePosition = M28Utilities.MoveInDirection(tNavalBuildArea, iAngleFromTarget, iDistAdjust, true, false)
+                                        if not(NavUtils.GetLabel(refPathingTypeNavy, tAlternativePosition) == iCurPondRef) then
+                                            break
+                                        else
+                                            --Can we build here?
+                                            if aiBrain:CanBuildStructureAt('ueb0103', tAlternativePosition) then
+                                                tLastValidPosition = {tAlternativePosition[1], tAlternativePosition[2], tAlternativePosition[3]}
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Have an alternative position that is closer to our base, iDistAdjust='..iDistAdjust) end
+                                            else
+                                                break
+                                            end
+                                        end
+                                    end
+                                    tNavalBuildArea = tLastValidPosition
+
+
+                                end
+
+
+
+                                if bDebugMessages == true then
+                                    LOG(sFunctionRef..': Have a naval build area='..repru(tNavalBuildArea)..'; will draw large square around it in blue')
+                                    M28Utilities.DrawLocation(tNavalBuildArea, nil, 200, 10)
+                                end
+                                tPondSubtable[subrefBuildLocationByStartPosition][aiBrain:GetArmyIndex()] = tNavalBuildArea
+
+                                --Record pond value before distance adjustments - i.e. if we already have navy somewhere, this is how much the pond is worth to us
+                                aiBrain[M28Navy.reftiPondValueToUs][iCurPondRef] = iCurPondValue
+                                --Adjust pond value based on distance to us - used only for decision on whether to choose as a pond we want
+
+
+                                --Can we path here amphibiously?
+                                if not(NavUtils.GetLabel(refPathingTypeHover, tNavalBuildArea) == iPathingGroupWanted) then
+                                    iCurPondValue = 0
+                                    if bDebugMessages == true then LOG(sFunctionRef..': We cant path here amphibiously') end
+                                else
+                                    --Adjust value based on distance
+                                    local iDistToBuildArea = M28Utilities.GetDistanceBetweenPositions(tNavalBuildArea, PlayerStartPoints[aiBrain:GetArmyIndex()])
+                                    if iDistToBuildArea <= 50 then iCurPondValue = iCurPondValue * 1.1
+                                    else
+                                        iCurPondValue = iCurPondValue * math.max(0.1, 1 - 0.4 * iDistToBuildArea / iDistanceThreshold)
+                                    end
+
+                                    --Are we close enough to enemy base to be in danger and we can land path to enemy base?
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Dist to nearest enemy base='..aiBrain[M28Overseer.refiDistanceToNearestEnemyBase]..'; Can path with land='..tostring(aiBrain[refbCanPathToEnemyBaseWithLand])..'; Dist from naval build location to enemy base='..M28Utilities.GetDistanceBetweenPositions(tNavalBuildArea, GetPrimaryEnemyBaseLocation(aiBrain))) end
+                                    if aiBrain[refbCanPathToEnemyBaseWithLand] then
+                                        --Reduce value of pond if enemy base is close for land anyway
+                                        if aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] <= 300 then
+                                            iCurPondValue = iCurPondValue * 0.5
+                                        end
+                                        if M28Utilities.GetDistanceBetweenPositions(tNavalBuildArea, GetPrimaryEnemyBaseLocation(aiBrain)) <= 200 then
+                                            iCurPondValue = 0
+                                        end
+                                    end
+                                end
+                            else
+                                iCurPondValue = 0
+                            end
+                            aiBrain[M28Navy.reftiPondThreatToUs][iCurPondRef] = iCurPondDefensiveValue
+                            if bDebugMessages == true then LOG(sFunctionRef..': Pond value after getting naval build area='..iCurPondValue..'; Defensive value='..(aiBrain[M28Navy.reftiPondThreatToUs][iCurPondRef] or 'nil')) end
+                        else
+                            if bDebugMessages == true then LOG(sFunctionRef..': Pond value is too low to be worth considering') end
+                            iCurPondValue = 0
+                        end
+                    end
+                end
+                if iCurPondValue > iBestPondValue then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Updating the best pond ref to be '..iCurPondRef..'; as the cur pond value '..iCurPondValue..' is more than the prev best of '..iBestPondValue) end
+                    iBestPondRef = iCurPondRef
+                    iBestPondValue = iCurPondValue
+
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Near end of code, iBestPondRef='..(iBestPondRef or 'nil')..'; iBestPondValue='..(iBestPondValue or 'nil')) end
+        if iBestPondRef and iBestPondValue >= 4 then
+            aiBrain[M28Navy.refiPriorityPondRef] = iBestPondRef
+            if bDebugMessages == true then
+                LOG(sFunctionRef..': Have a priority pond ref='..aiBrain[M28Navy.refiPriorityPondRef]..'; will draw a square in orangy pink for the build position='..repru(tPondDetails[aiBrain[M28Navy.refiPriorityPondRef]][subrefBuildLocationByStartPosition][aiBrain:GetArmyIndex()]))
+                M28Utilities.DrawLocation(tPondDetails[aiBrain[M28Navy.refiPriorityPondRef]][subrefBuildLocationByStartPosition][aiBrain:GetArmyIndex()], 8, 200, 10)
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function AddSegmentToWaterZone(iPond, iWaterZone, iSegmentX, iSegmentZ)
+    table.insert(tPondDetails[iPond][subrefPondWaterZones][iWaterZone][subrefWZSegments], {iSegmentX, iSegmentZ})
+    if not(tWaterZoneBySegment[iSegmentX]) then tWaterZoneBySegment[iSegmentX] = {} end
+    tWaterZoneBySegment[iSegmentX][iSegmentZ] = iWaterZone
+    iTotalWaterZoneRecordedSegmentCount = iTotalWaterZoneRecordedSegmentCount + 1
+    tPondDetails[iPond][subrefiRecordedSegmentsInWaterZones] = (tPondDetails[iPond][subrefiRecordedSegmentsInWaterZones] or 0) + 1
+end
+
+function RecordWaterZoneAtPosition(tSegmentPosition)
+    iTotalWaterZoneCount = iTotalWaterZoneCount + 1
+    local iPond = NavUtils.GetLabel(refPathingTypeNavy, tSegmentPosition)
+    if not(iPond) then M28Utilities.ErrorHandler('Dont have a valid pond')
+    else
+        if not(tPondDetails[iPond][subrefPondWaterZones]) then tPondDetails[iPond][subrefPondWaterZones] = {} end
+        tPondDetails[iPond][subrefPondWaterZones][iTotalWaterZoneCount] = {}
+        tPondDetails[iPond][subrefPondWaterZones][iTotalWaterZoneCount][subrefWZSegments] = {}
+        local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tSegmentPosition)
+        AddSegmentToWaterZone(iPond, iTotalWaterZoneCount, iSegmentX, iSegmentZ)
+    end
+end
+
+function SetupWaterZones()
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'SetupWaterZones'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iTotalWaitTime = 0
+    --Allow up to 1s to setup preferred pond location, otherwise iwll just create water zones ignoring preferred factory build locations
+    while not(bHaveConsideredPreferredPondForM28AI) do
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitTicks(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        iTotalWaitTime = iTotalWaitTime + 1
+        if iTotalWaitTime >= 50 then M28Utilities.ErrorHandler('Havent setup preferred factory locations yet, will proceed with water zone creation anyway') break end
+    end
+    if M28Utilities.IsTableEmpty(tPondDetails) == false then
+        local bSmallMap = false
+        if math.max(rMapPlayableArea[3] - rMapPlayableArea[1], rMapPlayableArea[4] - rMapPlayableArea[2]) <= 256 then bSmallMap = true end
+
+        local iWaterZoneInterval = 160
+        if bSmallMap then iWaterZoneInterval = 128 end
+
+        --local iMinDistanceFromFactoryBuildPosition = 100
+        local iSegmentInterval = iWaterZoneInterval / iLandZoneSegmentSize
+        local iStartSegment = iSegmentInterval * 0.5
+        --local iEndSegmentX =
+        local iMaxBaseSegmentX = (iMaxLandSegmentX * iLandZoneSegmentSize) / iWaterZoneInterval
+        local iMaxBaseSegmentZ = (iMaxLandSegmentZ * iLandZoneSegmentSize) / iWaterZoneInterval
+        local iMaxXIntervals = math.floor((iMaxBaseSegmentX * iLandZoneSegmentSize - iStartSegment * iLandZoneSegmentSize) / iWaterZoneInterval) + 1
+        local iMaxZIntervals = math.floor((iMaxBaseSegmentZ * iLandZoneSegmentSize - iStartSegment * iLandZoneSegmentSize) / iWaterZoneInterval) + 1
+        local iBaseSegmentX, iBaseSegmentZ
+        local iPotentialZoneStartSegmentX, iPotentialZoneStartSegmentZ
+        local iSegmentIntervalAdjust = math.max(math.floor(20 / iLandZoneSegmentSize), 1)
+        local iMaxSegmentAdjust = math.floor((iWaterZoneInterval * 0.5) / iSegmentIntervalAdjust)
+        local iCurSegmentX, iCurSegmentZ, iPotentialPond
+        --local bRecordAsWaterZone
+
+        if bDebugMessages == true then LOG(sFunctionRef..': About to divide map into grids and assign to a zone, iMaxXIntervals='..iMaxXIntervals..'; iMaxZIntervals='..iMaxZIntervals..'; Playablearea='..repru(rMapPlayableArea)) end
+
+        for iIntervalCountX = 1, iMaxXIntervals do
+            iPotentialZoneStartSegmentX = nil
+            iPotentialZoneStartSegmentZ = nil
+            iBaseSegmentX = iSegmentInterval * (iIntervalCountX - 0.5)
+            for iIntervalCountZ = 1, iMaxZIntervals do
+                iBaseSegmentZ = iSegmentInterval * (iIntervalCountX - 0.5)
+                --See if there is anywhere near the base segment that is in a pond, and if so use this as the waterzone start point
+                iPotentialPond = NavUtils.GetLabel(refPathingTypeNavy, GetPositionFromPathingSegments(iBaseSegmentX, iBaseSegmentZ))
+                if (iPotentialPond or 0) > 0 then
+                    iPotentialZoneStartSegmentX = iBaseSegmentX
+                    iPotentialZoneStartSegmentZ = iBaseSegmentZ
+                else
+                    --Search nearby in intervals of 20, up to 80 (adjusted for segment size)
+                    for iAdjustBase = 1, iMaxSegmentAdjust do
+                        for iAdjustXFactor = -1, 1, 1 do
+                            for iAdjustZFactor = -1, 1, 1 do
+                                if not(iAdjustXFactor == 0 and iAdjustZFactor == 0) then
+                                    iCurSegmentX = iBaseSegmentX + iAdjustBase * iAdjustXFactor
+                                    iCurSegmentZ = iBaseSegmentZ + iAdjustBase * iAdjustZFactor
+                                    iPotentialPond = NavUtils.GetLabel(refPathingTypeNavy, GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ))
+                                    if (iPotentialPond or 0) > 0 then
+                                        iPotentialZoneStartSegmentX = iCurSegmentX
+                                        iPotentialZoneStartSegmentZ = iCurSegmentZ
+                                        break
+                                    end
+                                end
+                            end
+                            if iPotentialZoneStartSegmentX then break end
+                        end
+                        if iPotentialZoneStartSegmentX then break end
+                    end
+                end
+
+                if iPotentialZoneStartSegmentX then
+                    --Below was to not record near a start position, but on reflection will just let start positiosn be on the edge of a water zone, to keep things simple for now
+                    local tSegmentPosition = GetPositionFromPathingSegments(iPotentialZoneStartSegmentX, iPotentialZoneStartSegmentZ)
+
+                    --Have found a segment that is on water, record this as a waterzone unless it is close to a factory
+                    --bRecordAsWaterZone = true
+
+                    --[[if M28Utilities.IsTableEmpty(tPondDetails[iPotentialPond][subrefBuildLocationByStartPosition]) == false then
+                        for iArmyIndex, tBuildPosition in tPondDetails[iPotentialPond][subrefBuildLocationByStartPosition] do
+                            if M28Utilities.GetDistanceBetweenPositions(tSegmentPosition, tBuildPosition) <= iMinDistanceFromFactoryBuildPosition then
+                                bRecordAsWaterZone = false
+                                break
+                            end
+                        end
+                    end--]]
+                    --if bRecordAsWaterZone then
+                    RecordWaterZoneAtPosition(tSegmentPosition)
+                    --end
+                end
+            end
+        end
+
+        --Now go through any ponds that dont have a water zone and create one
+        for iPond, tPondSubtable in tPondDetails do
+            if M28Utilities.IsTableEmpty(tPondSubtable[subrefPondWaterZones]) and tPondSubtable[subrefiSegmentCount] > 0 then
+                iPotentialZoneStartSegmentX = tPondSubtable[subreftiWaterSegmentXZ][1]
+                iPotentialZoneStartSegmentZ = tPondSubtable[subreftiWaterSegmentXZ][2]
+                RecordWaterZoneAtPosition(GetPositionFromPathingSegments(iPotentialZoneStartSegmentX, iPotentialZoneStartSegmentZ))
+            end
+        end
+
+        --Now record segments around each waterzone as belonging to that waterzone if they dont already have a waterzone recorded and are on water
+        local bAbort = false
+        local iCurSegmentX, iCurSegmentZ
+        local iMaxPondSegmentX, iMaxPondSegmentZ
+        local iMinPondSegmentX, iMinPondSegmentZ
+
+        for iPond, tPondSubtable in tPondDetails do
+
+            iMaxPondSegmentX, iMaxPondSegmentZ = GetPathingSegmentFromPosition({ tPondSubtable[subrefPondMaxX], 0, tPondSubtable[subrefPondMaxZ] })
+            iMinPondSegmentX, iMinPondSegmentZ = GetPathingSegmentFromPosition({ tPondSubtable[subrefPondMinX], 0, tPondSubtable[subrefPondMinZ] })
+
+            for iAdjustBase = 1, math.max(iMaxLandSegmentX, iMaxLandSegmentZ) do --need to do the max values incase we only have 1 waterzone in say the top-right of hte map that somehow has a small path to other waterzones that were missed by the initial waterzone creation
+                for iAdjustXFactor = -1, 1, 1 do
+                    for iAdjustZFactor = -1, 1, 1 do
+                        if not(iAdjustXFactor == 0 and iAdjustZFactor == 0) then
+                            --Cycle through each water zone
+                            for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
+                                iCurSegmentX = tWZData[subrefWZSegments][1][1] + iAdjustBase * iAdjustXFactor
+                                iCurSegmentZ = tWZData[subrefWZSegments][1][2] + iAdjustBase * iAdjustZFactor
+                                if tPondBySegment[iCurSegmentX][iCurSegmentZ] and not(tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ]) then
+                                    AddSegmentToWaterZone(iPond, iWaterZone, iCurSegmentX, iCurSegmentZ)
+                                end
+                            end
+                        end
+                    end
+                end
+                --Have we recorded all segments in this water zone?
+                if tPondSubtable[subrefiRecordedSegmentsInWaterZones] >= tPondSubtable[subrefiSegmentCount] then break end
+            end
+        end
+
+        if bDebugMessages == true then LOG(sFunctionRef..': End of code, finished recording segments in water zone, iTotalWaterZoneRecordedSegmentCount='..iTotalWaterZoneRecordedSegmentCount..'; iTotalSegmentsInPonds='..iTotalSegmentsInPonds..'; iTotalWaterZoneCount='..iTotalWaterZoneCount) end
+        if iTotalWaterZoneRecordedSegmentCount < iTotalSegmentsInPonds then M28Utilities.ErrorHandler('May not have assigned every water segment a water zone') end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function SetupMap()
     --Sets up non-brain specific info on the map
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -2832,8 +3561,9 @@ function SetupMap()
 
     --Generate pathing
     if not(NavUtils.IsGenerated()) then
-        local NavGen = import("/lua/sim/navgenerator.lua")
-        NavGen.Generate()
+        --local NavGen = import("/lua/sim/navgenerator.lua")
+        --NavGen.Generate()
+        NavUtils.Generate()
     end
 
     GetMapWaterHeight()
@@ -2852,11 +3582,14 @@ function SetupMap()
     SetupLandZones()
 
     RecordIslands()
+    RecordPondDetails()
+
+    bMapLandSetupComplete = true
+    bDebugMessages = true
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished setting up land aspects of the map, will move on to water zones, time='..GetGameTimeSeconds()) end
+    SetupWaterZones() --Includes a wait to make sure we have M28 brains
 
     ForkThread(ClearTemporarySetupVariables)
-
-    bMapSetupComplete = true
-
     ForkThread(ReclaimManager)
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -2866,6 +3599,7 @@ function UpdatePlateausToExpandTo(aiBrain)
     M28Utilities.ErrorHandler('To add code')
 end
 
+--function GetDistanceFromStartAdjustedForDistanceFromMid()  end -- have replaced with GetModDistanceFromStart
 function GetModDistanceFromStart(aiBrain, tTarget, bUseEnemyStartInstead)
     local sFunctionRef = 'GetModDistanceFromStart'
     local bDebugMessages = false

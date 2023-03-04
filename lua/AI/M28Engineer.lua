@@ -1139,7 +1139,7 @@ function BuildStructureNearLocation(aiBrain, oEngineer, iCategoryToBuild, iMaxAr
         local sPathing = M28UnitInfo.GetUnitPathingType(oEngineer)
         local iNewBuildingRadius = M28UnitInfo.GetBuildingSize(sBlueprintToBuild)[1] * 0.5
         local iBuilderRange = oEngineer:GetBlueprint().Economy.MaxBuildDistance + math.min(oEngineer:GetBlueprint().SizeX, oEngineer:GetBlueprint().SizeZ)*0.5
-        local iDistanceFromStart = M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), M28Map.PlayerStartPoints[aiBrain.M28StartPositionNumber])
+        local iDistanceFromStart = M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()])
         local bBuildNearToEnemy = false
         if iDistanceFromStart <= 80 then bBuildNearToEnemy = true end
 

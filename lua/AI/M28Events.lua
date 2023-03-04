@@ -189,7 +189,7 @@ end
 function OnUnitDeath(oUnit)
     --NOTE: This is called by the death of any unit of any player, so careful with what commands are given
         --Some callbacks line onkilled will call this as well to make sure it is run (since for some things like when an ACU is killed it doesnt trigger directly)
-    if M28Utilities.bM28AIInGame and M28Map.bMapSetupComplete then --No point running on death logic for units at start of the game
+    if M28Utilities.bM28AIInGame and M28Map.bMapLandSetupComplete then --No point running on death logic for units at start of the game
         local sFunctionRef = 'OnUnitDeath'
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -843,8 +843,8 @@ end
 
 function OnCreate(oUnit)
     if M28Utilities.bM28AIInGame and M28UnitInfo.IsUnitValid(oUnit) then
-        if not(M28Map.bMapSetupComplete) then --Start of game ACU creation happens before we have setup the map
-            while not(M28Map.bMapSetupComplete) do
+        if not(M28Map.bMapLandSetupComplete) then --Start of game ACU creation happens before we have setup the map
+            while not(M28Map.bMapLandSetupComplete) do
                 WaitTicks(1)
             end
             WaitTicks(1)
