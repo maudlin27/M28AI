@@ -235,7 +235,7 @@ function GetUnitToTravelToLandZone(oUnit, iTargetPlateau, iTargetLandZone, subre
 end
 
 function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau, iRecordedLandZone, bUseLastKnownPosition, bAreAirUnits, tLZTeamData)
-    --Based on RemoveEntriesFromArrayAndAddToNewTableBasedOnCondition, but more complex as dont always want to add unit to a table
+    --Similar to UpdateUnitPositionsAndWaterZone; Based on RemoveEntriesFromArrayAndAddToNewTableBasedOnCondition, but more complex as dont always want to add unit to a table
 
 
     local iRevisedIndex = 1
@@ -292,12 +292,21 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
                     --AddUnitToLandZoneForBrain(aiBrain,        oUnit,      iPlateau,       iLandZone,      bIsEnemyAirUnit)
                     M28Team.AddUnitToLandZoneForBrain(aiBrain, oUnitToAdd, iActualPlateau, iActualLandZone, bAreAirUnits)
                 else
-                    if bAreAirUnits then
-                        --Add unit to table of air units without a plateau
-                        M28Air.RecordEnemyAirUnitWithNoZone(iTeam, oUnitToAdd)
+                    local iWaterZone
+                    if iActualPlateau > 0 then
+                        local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(oUnitToAdd:GetPosition())
+                        iWaterZone = M28Map.tWaterZoneBySegment[iSegmentX][iSegmentZ]
+                    end
+                    if iWaterZone then
+                        M28Team.AddUnitToWaterZoneForBrain(aiBrain, oUnitToAdd, iWaterZone, bAreAirUnits)
                     else
-                        --Not sure where to record unit so call main logic
-                        M28Team.AssignUnitToLandZoneOrPond(aiBrain, oUnitToAdd, true)
+                        if bAreAirUnits then
+                            --Add unit to table of air units without a plateau
+                            M28Air.RecordEnemyAirUnitWithNoZone(iTeam, oUnitToAdd)
+                        else
+                            --Not sure where to record unit so call main logic
+                            M28Team.AssignUnitToLandZoneOrPond(aiBrain, oUnitToAdd, true)
+                        end
                     end
                 end
 
@@ -946,7 +955,7 @@ function GetNearestRallyPoint(tLZData, iTeam, iPlateau, iLandZone, iMaxLZTowards
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function RefreshRallyPoints(iTeam)
+function RefreshLandRallyPoints(iTeam)
     --For now just has core bases and core expansion points as rally points, may adjust htis in the future
     M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointLandZonesByPlateau] = {}
     for iPlateau, tPlateauSubtable in M28Map.tAllPlateaus do
@@ -2746,13 +2755,6 @@ function ManageAllLandZones(aiBrain, iTeam)
     local iCurCycleRefreshCount = 0
     local iCurTicksWaited = 0
 
-    local function WantToKeepUnitInTable(tArray, iEntry)
-        if tArray[iEntry].Dead then
-            return false
-        else return true
-        end
-    end
-
     if bDebugMessages == true then
         LOG(sFunctionRef..': Start of code, Time='..GetGameTimeSeconds()..'; If have an ACU will list its plateau and land zone')
         local tOurACU = aiBrain:GetListOfUnits(categories.COMMAND, false, true)
@@ -2764,7 +2766,7 @@ function ManageAllLandZones(aiBrain, iTeam)
     end
 
     if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastRallyPointRefresh] or -100) >= 10 then
-        RefreshRallyPoints(iTeam)
+        RefreshLandRallyPoints(iTeam)
     end
 
 

@@ -25,6 +25,7 @@ refFactionUnrecognised = 6
 --Variables against units;
 reftLastKnownPositionByTeam = 'M28UnitLastPos' --[x] is the M28 team ref, returns the last known position of the unit
 reftAssignedPlateauAndLandZoneByTeam = 'M28UnitPlateauAndZone' --[x] is the M28 team ref, returns a table {iPlateau, iLandZoneRef}
+reftAssignedWaterZoneByTeam = 'M28UnitWaterZone' --[x] is the M28 team ref, returns the water zone assigned to the unit, if there is one
 reftbConsideredForAssignmentByTeam = 'M28UnitConsideredForAssignment' --[x] is the M28 team ref, returns true if have sent at least once to be assigned to a plateau/land zone/air logic/navy logic
 refiDFMassThreatOverride = 'M28BaseMassOverride' --e.g. for ACUs, will override the mass value suggested by the blueprint
 refbShieldIsDisabled = 'M28UnitShieldDisabled'

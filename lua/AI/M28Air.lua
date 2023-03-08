@@ -36,7 +36,19 @@ function RecordNewAirUnitForTeam(iTeam, oUnit)
 
         local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), false, nil)
         if (iLandZone or 0) == 0 then
-            RecordEnemyAirUnitWithNoZone(iTeam, oUnit)
+            --Does it have a water zone?
+            local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(tPosition)
+            local iWaterZone = M28Map.tWaterZoneBySegment[iSegmentX][iSegmentZ]
+            if iWaterZone > 0 then
+                local aiBrain
+                for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                    aiBrain = oBrain
+                    break
+                end
+                M28Team.AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone, true)
+            else
+                RecordEnemyAirUnitWithNoZone(iTeam, oUnit)
+            end
         else
             local aiBrain
             for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
@@ -54,6 +66,10 @@ function RecordEnemyAirUnitWithNoZone(iTeam, oUnit)
     if not(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam]) then
         if not(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) then oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam] = {} end
         oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam] = {}
+    end
+    if not(oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam]) then
+        if not(oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam]) then oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam] = {} end
+        oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] = {}
     end
 end
 

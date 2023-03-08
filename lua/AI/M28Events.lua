@@ -724,6 +724,15 @@ function OnConstructed(oEngineer, oJustBuilt)
                 local iPlateau, iLandZone = M28Map.GetPathingOverridePlateauAndLandZone(oJustBuilt:GetPosition(), true, oJustBuilt)
                 if not(oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) then oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam] = {} end
                 oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][oJustBuilt:GetAIBrain().M28Team] = {iPlateau, iLandZone}
+                if iPlateau and not(iLandZone) then
+                    --May be on water
+                    local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(oJustBuilt:GetPosition())
+                    local iWaterZone = M28Map.tWaterZoneBySegment[iSegmentX][iSegmentZ]
+                    if iWaterZone then
+                        if not(oJustBuilt[M28UnitInfo.reftAssignedWaterZoneByTeam]) then oJustBuilt[M28UnitInfo.reftAssignedWaterZoneByTeam] = {} end
+                        oJustBuilt[M28UnitInfo.reftAssignedWaterZoneByTeam][oJustBuilt:GetAIBrain().M28Team] = iWaterZone
+                    end
+                end
                 --[[if (iPlateau or 0) > 0 then
                     if not(oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) then oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam] = {} end
                     oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][oJustBuilt:GetAIBrain().M28Team] = {iPlateau, iLandZone}
