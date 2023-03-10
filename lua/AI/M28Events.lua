@@ -604,7 +604,7 @@ function OnConstructed(oEngineer, oJustBuilt)
 
             --If we have just built a radar then update radar logic
             if EntityCategoryContains(M28UnitInfo.refCategoryRadar, oJustBuilt.UnitId) then
-                ForkThread(M28Land.UpdateLandZoneIntelForRadar, oJustBuilt)
+                ForkThread(M28Land.UpdateZoneIntelForRadar, oJustBuilt)
             end
 
             --Track non-M28AI wall segments

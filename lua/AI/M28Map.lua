@@ -267,7 +267,7 @@ tPondDetails = {}
 
     --Water zones (against tPondDetails)
     subrefPondWaterZones = 'PondWZ' --e.g. access the water zone data tables via M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone], where iWaterZone is the NavUtils refPathingTypeNavy pathing result
-        subrefWZMidpoint = 'PWZMidp'
+        subrefWZMidpoint = 'Midpoint' --Uses same ref as land zone incase we mistyped/forgot to update copy of the code
         subrefWZSegments = 'PWZSeg' --e.g. tPondDetails[iPond][subrefPondWaterZones][iWaterZone][subrefWZSegments]
         subrefWZMinSegX = 'PWZMinSX'
         subrefWZMinSegZ = 'PWZMinSZ'
@@ -280,9 +280,14 @@ tPondDetails = {}
             subrefWZAWZRef = 1 --the water zone reference
             subrefWZAWZDistance = 2 --Travel distance between the midpoints of the water zones
         subrefWZTeamData = 'PWZTeam' --Used to house team related data for a particular water zone
-            subrefWZTCoreBase = 'WZCoreB' --true if is a 'core' base (i.e. has a naval factory in)
+            subrefWZbCoreBase = 'WZCoreB' --true if is a 'core' base (i.e. has a naval factory in)
+            subrefWZbContainsNavalBuildLocation = 'WZNavBL' --true if contains a naval build location for a friendly M28AI
             subrefWZTValue = 'WZVal' --Value of the WZ, used to prioritise sending untis to different water zones; likely to be based on distance to core base water zone
-            subrefiWZRadarCoverage = 'WZRadar' --range of radar/sonar for a water zone
+            --refiRadarCoverage - use same ref as for land zone
+            --refoBestRadar - use same ref as for land zone
+            --reftClosestFriendlyBase - use same ref as for land zone
+            --reftClosestEnemyBase - use same ref as for land zone
+            --refiModDistancePercent - use same ref as for land zone
 
             subrefWZTAlliedUnits = 'Allies' --table of all allied units in the water zone
             subrefWZTAlliedCombatUnits = 'AllComb' --table of allied units that are to be considered for combat orders
@@ -291,13 +296,15 @@ tPondDetails = {}
             --Threat values
             subrefbEnemiesInThisOrAdjacentWZ = 'EnInAdjWZ' --true if enemy in this or adjacent WZ
 
-            subrefLZTThreatEnemyCombatTotal = 'EnCom'
+            subrefWZTThreatEnemyCombatTotal = 'EnCom'
             subrefWZThreatEnemyAntiNavy = 'EnANav'
             subrefWZThreatEnemySubmersible = 'EnSub'
             subrefWZThreatEnemySurface = 'EnSurf'
             subrefWZThreatEnemyAA = 'EnEAA'
             subrefWZBestEnemyDFRange = 'EnDFRnge'
             subrefWZBestEnemyAntiNavyRange = 'EnANavRng'
+
+            reftoNearestCombatEnemies = 'WNrSufE'
 
             subrefWZTThreatAllyCombatTotal = 'AlCom'
             subrefWZThreatAlliedAntiNavy = 'AlANav'
@@ -307,7 +314,9 @@ tPondDetails = {}
             subrefWZBestAlliedDFRange = 'AlDFRnge'
             subrefWZBestAlliedSubmersibleRange = 'AlANavRng'
 
+            subrefWZCombatThreatWanted = 'CombWant'
             subrefWZMAAThreatWanted = 'MAAWant'
+            subrefbWZWantsSupport = 'WZWntSup'
 
             reftoWZUnitsWantingMobileShield = 'MShUnit'
             refbWZWantsMobileShield = 'bWntMSh'
@@ -2133,7 +2142,7 @@ local function RecordTravelDistBetweenZonesOverTime()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
+function RecordClosestAllyAndEnemyBaseForEachLandAndWaterZone(iTeam)
     local tEnemyBases = {}
     local tAllyBases = {}
     local tBrainsByIndex = {}
@@ -2175,6 +2184,26 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
             tLZTeamData[reftClosestFriendlyBase] = {PlayerStartPoints[iClosestBrainRef][1], PlayerStartPoints[iClosestBrainRef][2], PlayerStartPoints[iClosestBrainRef][3]}
             tLZTeamData[reftClosestEnemyBase] = GetPrimaryEnemyBaseLocation(tBrainsByIndex[iClosestBrainRef])
             tLZTeamData[refiModDistancePercent] = GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tLZData[subrefLZMidpoint], false)
+        end
+    end
+
+    --Update water zones
+    for iPond, tPondSubtable in tPondDetails do
+        for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
+            local tWZTeamData = tWZData[subrefWZTeamData][iTeam]
+            iClosestBrainDist = 100000
+            for iBrain, tStartPoint in tAllyBases do
+                iCurBrainDist = M28Utilities.GetDistanceBetweenPositions(tWZData[subrefWZMidpoint], tStartPoint)
+                if iCurBrainDist < iClosestBrainDist then
+                    iClosestBrainRef = iBrain
+                    iClosestBrainDist = iCurBrainDist
+                end
+            end
+
+            tWZTeamData[reftClosestFriendlyBase] = {PlayerStartPoints[iClosestBrainRef][1], PlayerStartPoints[iClosestBrainRef][2], PlayerStartPoints[iClosestBrainRef][3]}
+            tWZTeamData[reftClosestEnemyBase] = GetPrimaryEnemyBaseLocation(tBrainsByIndex[iClosestBrainRef])
+            tWZTeamData[refiModDistancePercent] = GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tWZData[subrefWZMidpoint], false)
+
         end
     end
 end

@@ -15,6 +15,7 @@ local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
 local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
+local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
 
 --Global
 tLZRefreshCountByTeam = {}
@@ -3011,6 +3012,7 @@ function DrawReclaimSegmentsInLandZone(iPlateau, iLandZone)
 end
 
 function UpdateRadarCoverageForDestroyedRadar(oRadar)
+    --First update land zones
     if M28Utilities.IsTableEmpty(oRadar[reftiRadarPlateauAndLandZonesCoveredByTeam]) == false then
         for iTeam, tRadarData in oRadar[reftiRadarPlateauAndLandZonesCoveredByTeam] do
             --local aiBrain = oRadar:GetAIBrain()
@@ -3051,12 +3053,56 @@ function UpdateRadarCoverageForDestroyedRadar(oRadar)
             end
         end
     end
+    --Then update water zones:
+    if M28Utilities.IsTableEmpty(oRadar[M28Navy.reftiRadarWaterZonesCoveredByTeam]) == false then
+        for iTeam, tRadarData in oRadar[M28Navy.reftiRadarWaterZonesCoveredByTeam] do
+            --local aiBrain = oRadar:GetAIBrain()
+            --local iTeam = aiBrain.M28Team
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+                local aiBrain
+                for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                    aiBrain = oBrain
+                    break
+                end
+                local iPond
+                for iEntry, iWaterZone in tRadarData do
+                    iPond = tiPondByWaterZone[iWaterZone]
+                    local tWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone]
+                    local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
+                    if tWZTeamData[M28Map.refoBestRadar] == oRadar then
+                        tWZTeamData[M28Map.refoBestRadar] = nil
+                        tWZTeamData[M28Map.refiRadarCoverage] = 0
+                        local tNearbyRadar = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryRadar, tWZData[M28Map.subrefWZMidpoint], 600, 'Ally')
+                        local iCurIntelRange
+                        local iBestIntelRange = 0
+                        local oBestRadar
+                        if M28Utilities.IsTableEmpty(tNearbyRadar) == false then
+                            for iUnit, oUnit in tNearbyRadar do
+                                iCurIntelRange = (oUnit:GetBlueprint().Intel.RadarRadius or 0) - M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tWZData[M28Map.subrefWZMidpoint])
+                                if iCurIntelRange > iBestIntelRange then
+                                    iBestIntelRange = iCurIntelRange
+                                    oBestRadar = oUnit
+                                end
+                            end
+                        end
+                        if oBestRadar then
+                            tWZTeamData[M28Map.refoBestRadar] = oBestRadar
+                            tWZTeamData[M28Map.refiRadarCoverage] = iBestIntelRange
+                            if not(oBestRadar[M28Navy.reftiRadarWaterZonesCoveredByTeam]) then oBestRadar[M28Navy.reftiRadarWaterZonesCoveredByTeam] = {} end
+                            if not(oBestRadar[M28Navy.reftiRadarWaterZonesCoveredByTeam][iTeam]) then oBestRadar[M28Navy.reftiRadarWaterZonesCoveredByTeam][iTeam] = {} end
+                            table.insert(oBestRadar[M28Navy.reftiRadarWaterZonesCoveredByTeam][iTeam], iWaterZone)
+                        end
+                    end
+                end
+            end
+        end
+    end
 end
 
-function UpdateLandZoneIntelForRadar(oRadar)
+function UpdateZoneIntelForRadar(oRadar)
     --If just built radar then want to update all land zones for the team to indicate the intel coverage
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'UpdateLandZoneIntelForRadar'
+    local sFunctionRef = 'UpdateZoneIntelForRadar'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iTeam = oRadar:GetAIBrain().M28Team
@@ -3068,6 +3114,7 @@ function UpdateLandZoneIntelForRadar(oRadar)
             local iCurIntelRange
             if bDebugMessages == true then LOG(sFunctionRef..': Radar intel range='..iIntelRange) end
             if iIntelRange > 0 then
+                --Update land zones:
                 for iPlateau, tPlateauSubtable in M28Map.tAllPlateaus do
                     for iLandZone, tLZData in tPlateauSubtable[M28Map.subrefPlateauLandZones] do
                         if tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refiRadarCoverage] < iIntelRange then
@@ -3091,6 +3138,39 @@ function UpdateLandZoneIntelForRadar(oRadar)
                                 if not(oRadar[reftiRadarPlateauAndLandZonesCoveredByTeam][iTeam]) then oRadar[reftiRadarPlateauAndLandZonesCoveredByTeam][iTeam] = {} end
                                 table.insert(oRadar[reftiRadarPlateauAndLandZonesCoveredByTeam][iTeam], {iPlateau, iLandZone})
                                 if bDebugMessages == true then LOG(sFunctionRef..': Finished udpating for the new intel range, tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refiRadarCoverage]='..tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refiRadarCoverage]) end
+                            end
+                        end
+                    end
+                end
+                --Update water zones
+                for iPond, tPondSubtable in M28Map.tPondDetails do
+                    M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointWaterZonesByPond][iPond] = {}
+                    if M28Utilities.IsTableEmpty(tPondSubtable[M28Map.subrefPondWaterZones]) == false then
+                        for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
+                            local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
+                            if tWZTeamData[M28Map.refiRadarCoverage] < iIntelRange then
+                                iCurIntelRange = iIntelRange - M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefWZMidpoint], oRadar:GetPosition())
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering iPond '..iPond..' Water zone '..iWaterZone..'; iCurIntelRange factoring in distance='..iCurIntelRange..'; Distance='..M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefWZMidpoint], oRadar:GetPosition())..'; WZ current radar coverage='..tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiRadarCoverage]) end
+                                if iCurIntelRange > tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiRadarCoverage] then
+                                    --First remove this WZ from the existing (worse) radar if there was one
+                                    if M28UnitInfo.IsUnitValid(tWZTeamData[M28Map.refoBestRadar]) then
+                                        if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.refoBestRadar][M28Navy.reftiRadarWaterZonesCoveredByTeam][iTeam]) == false then
+                                            for iEntry, iRecordedWaterZone in tWZTeamData[M28Map.refoBestRadar][M28Navy.reftiRadarWaterZonesCoveredByTeam][iTeam] do
+                                                if iRecordedWaterZone == iWaterZone then
+                                                    table.remove(tWZTeamData[M28Map.refoBestRadar][M28Navy.reftiRadarWaterZonesCoveredByTeam][iTeam], iEntry)
+                                                    break
+                                                end
+                                            end
+                                        end
+                                    end
+                                    --Now assign this WZ to this radar as providing the best coverage
+                                    tWZTeamData[M28Map.refiRadarCoverage] = iCurIntelRange
+                                    tWZTeamData[M28Map.refoBestRadar] = oRadar
+                                    if not(oRadar[M28Navy.reftiRadarWaterZonesCoveredByTeam]) then oRadar[M28Navy.reftiRadarWaterZonesCoveredByTeam] = {} end
+                                    if not(oRadar[M28Navy.reftiRadarWaterZonesCoveredByTeam][iTeam]) then oRadar[M28Navy.reftiRadarWaterZonesCoveredByTeam][iTeam] = {} end
+                                    table.insert(oRadar[M28Navy.reftiRadarWaterZonesCoveredByTeam][iTeam], iWaterZone)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Finished udpating for the new intel range, iWaterZone='..iWaterZone..'; tWZTeamData[M28Map.refiRadarCoverage]='..WZTeamData[M28Map.refiRadarCoverage]) end
+                                end
                             end
                         end
                     end

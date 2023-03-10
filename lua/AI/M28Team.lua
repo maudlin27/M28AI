@@ -1761,7 +1761,7 @@ function TeamInitialisation(iM28Team)
         end
     end
     TeamEconomyRefresh(iM28Team)
-    ForkThread(M28Map.RecordClosestAllyAndEnemyBaseForEachLandZone, iM28Team)
+    ForkThread(M28Map.RecordClosestAllyAndEnemyBaseForEachLandAndWaterZone, iM28Team)
     M28Air.AirTeamInitialisation(iM28Team)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
