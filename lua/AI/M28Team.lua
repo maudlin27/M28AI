@@ -20,6 +20,7 @@ local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 local M28Config = import('/mods/M28AI/lua/M28Config.lua')
+local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
 
 
 --Team data variables
@@ -540,7 +541,7 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
             if bIsEnemyAirUnit then
                 table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.reftLZEnemyAirUnits], oUnit)
             else
-                table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTEnemyUnits], oUnit)
+                table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefTEnemyUnits], oUnit)
                 --T2 arti tracking - consider firebase
                 if EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) then
                     M28Land.ConsiderIfHaveEnemyFirebase(aiBrain.M28Team, oUnit)
@@ -599,7 +600,7 @@ function AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone, bIsEnemyAirUnit)
             if bIsEnemyAirUnit then
                 table.insert(tWZTeamData[M28Map.reftWZEnemyAirUnits], oUnit)
             else
-                table.insert(tWZTeamData[M28Map.subrefWZTEnemyUnits], oUnit)
+                table.insert(tWZTeamData[M28Map.subrefTEnemyUnits], oUnit)
             end
         elseif IsAlly(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
             table.insert(tWZTeamData[M28Map.subrefWZTAlliedUnits], oUnit)
@@ -846,7 +847,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                             AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone)
                         elseif iPlateau > 0 then
                             --Is the unit in a water zone?
-                            local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(tPosition)
+                            local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(oUnit:GetPosition())
                             local iWaterZone = M28Map.tWaterZoneBySegment[iSegmentX][iSegmentZ]
                             if iWaterZone > 0 then
                                 AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone)
@@ -1720,6 +1721,7 @@ function TeamInitialisation(iM28Team)
             ForkThread(M28Land.LandZoneOverseer, iM28Team)
             ForkThread(TeamOverseer, iM28Team)
             ForkThread(M28Economy.TeamResourceSharingMonitor, iM28Team)
+            ForkThread(M28Navy.WaterZoneOverseer, iM28Team)
         end
     end
 
@@ -1730,11 +1732,11 @@ function TeamInitialisation(iM28Team)
             if not(tLZData[M28Map.subrefLZTeamData]) then tLZData[M28Map.subrefLZTeamData] = {} end
             tLZData[M28Map.subrefLZTeamData][iM28Team] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZTAlliedUnits] = {}
-            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZTEnemyUnits] = {}
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefTEnemyUnits] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefMexCountByTech] = {[1]=0,[2]=0,[3]=0}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZTValue] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZSValue] = 0
-            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZAlliedACU] = {}
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefAlliedACU] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZTThreatEnemyCombatTotal] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatEnemyBestMobileDFRange] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatEnemyBestStructureDFRange] = 0
@@ -1749,8 +1751,8 @@ function TeamInitialisation(iM28Team)
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatAllyMobileIndirectTotal] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatAllyGroundAA] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftLZEnemyAirUnits] = {}
-            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiLZEnemyAirToGroundThreat] = 0
-            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiLZEnemyAirOtherThreat] = 0
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiEnemyAirToGroundThreat] = 0
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiEnemyAirOtherThreat] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZMAAThreatWanted] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftoLZUnitsWantingMobileShield] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftoLZUnitWantingFixedShield] = {}
@@ -1760,9 +1762,77 @@ function TeamInitialisation(iM28Team)
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftUnitsWantingTMD] = {}
         end
     end
+    --NOTE: Water zone data is handled via RecordClosestAllyAndEnemyBaseForEachWaterZone, to ensure it is run after water zones are created
     TeamEconomyRefresh(iM28Team)
-    ForkThread(M28Map.RecordClosestAllyAndEnemyBaseForEachLandAndWaterZone, iM28Team)
+    ForkThread(M28Map.RecordClosestAllyAndEnemyBaseForEachLandZone, iM28Team)
+    ForkThread(M28Map.RecordClosestAllyAndEnemyBaseForEachWaterZone, iM28Team)
     M28Air.AirTeamInitialisation(iM28Team)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function WaterZoneTeamInitialisation(iTeam)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'WaterZoneTeamInitialisation'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    bDebugMessages = true
+    for iPond, tPondSubtable in M28Map.tPondDetails do
+        for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
+            if bDebugMessages == true then LOG(sFunctionRef..': Setting starting values for iPond='..iPond..'; iWaterZone='..iWaterZone) end
+            if not(tWZData[M28Map.subrefWZTeamData]) then tWZData[M28Map.subrefWZTeamData] = {} end
+            if not(tWZData[M28Map.subrefWZTeamData][iTeam]) then tWZData[M28Map.subrefWZTeamData][iTeam] = {} end
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefMexCountByTech] = {[1]=0,[2]=0,[3]=0}
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZbCoreBase] = 'WZCoreB' --true if is a 'core' base (i.e. has a naval factory in)
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZbContainsNavalBuildLocation] = 'WZNavBL' --true if contains a naval build location for a friendly M28AI
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTValue] = 'WZVal' --Value of the WZ, used to prioritise sending untis to different water zones; likely to be based on distance to core base water zone
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiRadarCoverage] = 0
+            --tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refoBestRadar] --nil by default
+            --tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.reftClosestFriendlyBase] --Updated separately
+            --tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.reftClosestEnemyBase] --Updated separately
+            --tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiModDistancePercent] --Updated separately
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refbWantLandScout] = false
+
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTAlliedUnits] = {}
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTAlliedCombatUnits] = {}
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefTEnemyUnits] = {}
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.reftWZEnemyAirUnits] = {}
+            --Threat values
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefbEnemiesInThisOrAdjacentWZ] = false
+
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTThreatEnemyCombatTotal] = 0
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatEnemyAntiNavy] = 0
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatEnemySubmersible] = 0
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatEnemySurface] = 0
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatEnemyAA] = 0
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZBestEnemyDFRange] = 0
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZBestEnemyAntiNavyRange] = 0
+
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.reftoNearestCombatEnemies] = {}
+
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTThreatAllyCombatTotal] = 0
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatAlliedAntiNavy] = 0
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatAlliedSubmersible] = 0
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatAlliedSurface] = 0
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatAlliedAA] = 0
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZBestAlliedDFRange] = 0
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZBestAlliedSubmersibleRange] = 0
+
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZCombatThreatWanted] = 0
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZMAAThreatWanted] = 0
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefbWZWantsSupport] = false
+
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.reftoWZUnitsWantingMobileShield] = {}
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refbWZWantsMobileShield] = false
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.reftoWZUnitsWantingMobileStealth] = {}
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refbWZWantsMobileStealth] = false
+
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTScoutsTravelingHere] = {}
+
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiEnemyAirToGroundThreat] = 0
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiEnemyAirOtherThreat] = 0
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefAlliedACU] = {}
+        end
+    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 

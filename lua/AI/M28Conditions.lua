@@ -304,7 +304,7 @@ function SafeToUpgradeUnit(oUnit)
         local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team]
         if not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) then
             return true
-        elseif tLZTeamData[M28Map.subrefLZTCoreBase] and tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] < 150 then
+        elseif tLZTeamData[M28Map.subrefLZbCoreBase] and tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] < 150 then
             return true
         end
     end

@@ -903,10 +903,10 @@ function ManageMassStalls(iTeam)
                                                         end
                                                         iCurPlateau, iCurLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
                                                         if (iCurPlateau or 0) > 0 and (iCurLandZone or 0) > 0 then
-                                                            if M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLandZone][M28Map.subrefLZTotalMassReclaim] > 30 then
+                                                            if M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLandZone][M28Map.subrefTotalMassReclaim] > 30 then
                                                                 M28Engineer.GetEngineerToReclaimNearbyArea(oUnit, M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLandZone][M28Map.subrefLZTeamData][iTeam], iCurPlateau, iCurLandZone, false, true)
                                                                 --Kill engineers if htey are in a core LZ
-                                                            elseif M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTCoreBase] then
+                                                            elseif M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] then
                                                                 KillEngineer(oUnit)
                                                             end
                                                         end

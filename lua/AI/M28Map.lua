@@ -16,6 +16,7 @@ local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
 
 bMapLandSetupComplete = false --set to true once have finished setting up map (used to decide how long to wait before starting main aibrain logic)
+bWaterZoneInitialCreation = false --set to true once have finished code for recording water zones (note WZ setup wont be fully complete yet)
 
 --Pathing types
 --NavLayers 'Land' | 'Water' | 'Amphibious' | 'Hover' | 'Air'
@@ -102,7 +103,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
     --Land zone subrefs (against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]):
         subrefLZMexCount = 'MexCount' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns number of mexes in the LZ
         subrefLZMexLocations = 'MexLoc' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of mex locations in the LZ, e.g. get with tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefLZMexLocations]
-        subrefLZMexUnbuiltLocations = 'MexAvailLoc' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of mex locations in the LZ, e.g. get with tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefLZMexLocations]
+        subrefMexUnbuiltLocations = 'MexAvailLoc' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of mex locations in the LZ, e.g. get with tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefLZMexLocations]
         subrefLZMidpoint = 'Midpoint' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns the midpoint of the land zone, e.g. get with tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefLZMidpoint]
         subrefLZMinSegX = 'LZMinSegX'
         subrefLZMinSegZ = 'LZMinSegZ'
@@ -139,7 +140,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         subrefLZFurthestAdjacentLandZoneTravelDist = 'FurthestAdjLZ' --Returns the travel distance (rounded up) of the furthest immediately adjacent land zone - can combine with subrefLZPathingToOtherLandZones so can stop cycling through the prerecorded LZs once get further away than the immediately adjacent ones
         --Reclaim related:
         subrefLZReclaimSegments = 'ReclSeg' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], table, orderd 1,2,3...; returns {iReclaimSegmentX, iReclaimSegmentZ}
-        subrefLZTotalMassReclaim = 'RecMass' --total mass reclaim in the land zone
+        subrefTotalMassReclaim = 'RecMass' --total mass reclaim in the land zone
         subrefLZTotalEnergyReclaim = 'RecEn' --Total energy reclaim in the land zone
         subrefLZLastReclaimRefresh = 'RecTime' --Time that we last refreshed the reclaim in the land zone, against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
         subrefLZPlayerWallSegments = 'PlWalls' --Table of wall units that aren't owned by M28AI
@@ -155,13 +156,13 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             --Variables that are against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData]:
             subrefLZTValue = 'ZVal' --Value of the zone factoring in mass, reclaim, and allied units
             subrefLZSValue = 'ZBVal' --Value of friendly buildings in the land zone
-            subrefLZTCoreBase = 'ZCore' --true if this is considered a 'core base' land zone
+            subrefLZbCoreBase = 'ZCore' --true if this is considered a 'core base' land zone
             subrefLZCoreExpansion = 'ZExp' --true if considered the main land zone for an expansion (e.g. on an island); nil if we havent considered yet if it is a core expansion, and false if we have considered and it isnt
             subrefbCoreBaseOverride = 'ZCreO' --true if we want to make this locatio na core zone even if it doesnt meet the normal criteria (e.g. to be used when we run out of places to build in our actual core LZ)
-            subrefLZAlliedACU = 'AACU' --table of ACU units for the land zone (so can factor into decisions on support and attack)
+            subrefAlliedACU = 'AACU' --table of ACU units for the land zone (so can factor into decisions on support and attack)
             subrefLZTAlliedUnits = 'Allies' --table of all allied units in the land zone, tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam][subrefLZTAlliedUnits]
             subrefLZTAlliedCombatUnits = 'AllComb' --table of allied units that are to be considered for combat orders
-            subrefLZTEnemyUnits = 'Enemies' --table of all enemy units in the land zone
+            subrefTEnemyUnits = 'Enemies' --table of all enemy units in the land zone
             reftoNearestDFEnemies = 'NearestDF' --Table of enemy DF units in this LZ, plus the nearest DF unit in each adjacnet LZ, with proximity based on unit distance and unit range (i.e. the dist until the unit is in range)
             --Ground threat values for land zones (also against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam])
             subrefLZTThreatEnemyCombatTotal = 'ECTotal'
@@ -198,11 +199,11 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
 
             --Engineer related values
             subreftoPartBuiltMexes = 'PBMex' --If we are building a mex and the builder gets its orders cleared or dies, and it was building a mex, then the mex should be recorded in a table so it can be rebuilt
-            subrefLZTbWantBP = 'WantBP' --true if we want BP at any tech level
-            subrefLZTBuildPowerByTechWanted = 'BPByTechW' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power wanted wanted
-            subrefLZTEngineersTravelingHere = 'EUnitsTrav' --Table of any engineer units in another LZ that have been told to move to this LZ
+            subrefTbWantBP = 'WantBP' --true if we want BP at any tech level
+            subrefTBuildPowerByTechWanted = 'BPByTechW' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power wanted wanted
+            subrefTEngineersTravelingHere = 'EUnitsTrav' --Table of any engineer units in another LZ/WZ that have been told to move to this LZ/WZ
             subrefLZTScoutsTravelingHere = 'SUnitsTrav' --Table of any land scout units in another LZ that have been told to move to this LZ
-            subrefLZSpareBPByTech = 'SpareBPByTech' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power of that tech level that we have spare
+            subrefSpareBPByTech = 'SpareBPByTech' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power of that tech level that we have spare
             subrefReclaimAreaAssignmentsBySegment = 'RecSegAss' --[ReclaimSegX][ReclaimZegY], returns count of how many engineers have been assigned
             subrefQueuedBuildings = 'QBByBP' --Queued buildings for a land zone
                 subrefQueueRef = 1 --Unique queue reference number
@@ -221,8 +222,8 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             refoBestRadar = 'BestRad' --Radar providing the best Radar Coverage for the land zone midpoint
             --Enemy air
             reftLZEnemyAirUnits = 'EnAir' --All enemy air units that are currently in the land zone
-            refiLZEnemyAirToGroundThreat = 'EnA2GT' --Air to ground threat of enemy air units in the LZ
-            refiLZEnemyAirOtherThreat = 'EnAirOT' --mass value of AirAA, air scouts and transports in the LZ
+            refiEnemyAirToGroundThreat = 'EnA2GT' --Air to ground threat of enemy air units in the LZ / WZ
+            refiEnemyAirOtherThreat = 'EnAirOT' --mass value of AirAA, air scouts and transports in the LZ / WZ
             --Shield, stealth and tmd
             refbLZWantsMobileShield = 'MobSh' --true if LZ wants mobile shields
             reftoLZUnitsWantingMobileShield = 'UMobSh' --table of units in the LZ that want mobile shield
@@ -274,9 +275,9 @@ tPondDetails = {}
         subrefWZMaxSegX = 'PWZMaxSX'
         subrefWZMaxSegZ = 'PWZMaxSZ'
         subrefAdjacentLandZones = 'WZAdjLZ' --table of details for land zones adjacent to the land zone
-            subrefWZNumber = 1 --The water zone reference
+            subrefWPlatAndLZNumber = 1 --returns {Plateau, LandZone}
             subrefALZDistance = 2 --Distance between midpoint from LZ to the WZ
-        subrefWZAdjacentWaterZones = 'WZAdjWZ' --table of details for water zones adjacent and further away
+        subrefWZOtherWaterZones = 'WZAdjWZ' --table of details for water zones adjacent and further away
             subrefWZAWZRef = 1 --the water zone reference
             subrefWZAWZDistance = 2 --Travel distance between the midpoints of the water zones
         subrefWZTeamData = 'PWZTeam' --Used to house team related data for a particular water zone
@@ -288,10 +289,11 @@ tPondDetails = {}
             --reftClosestFriendlyBase - use same ref as for land zone
             --reftClosestEnemyBase - use same ref as for land zone
             --refiModDistancePercent - use same ref as for land zone
+            --refbWantLandScout - use same ref as for land zone
 
             subrefWZTAlliedUnits = 'Allies' --table of all allied units in the water zone
             subrefWZTAlliedCombatUnits = 'AllComb' --table of allied units that are to be considered for combat orders
-            subrefWZTEnemyUnits = 'Enemies' --table of all enemy units in the water zone
+            --subrefTEnemyUnits = 'Enemies' --table of all enemy units in the water zone - uses same ref as for land zone
             reftWZEnemyAirUnits = 'EnAir' --All enemy air units that are currently in the water zone
             --Threat values
             subrefbEnemiesInThisOrAdjacentWZ = 'EnInAdjWZ' --true if enemy in this or adjacent WZ
@@ -322,6 +324,14 @@ tPondDetails = {}
             refbWZWantsMobileShield = 'bWntMSh'
             reftoWZUnitsWantingMobileStealth = 'MStUnit'
             refbWZWantsMobileStealth = 'bWntMSt'
+
+            subrefWZTScoutsTravelingHere = 'WZScTrav'
+            --subrefAlliedACU --Uses same variable as land zone
+            --refiEnemyAirToGroundThreat --Uses same variable as land zone
+            --refiEnemyAirOtherThreat --Uses same variable as land zone
+            --subrefTotalMassReclaim --Uses same variable as land zone
+            --Various engineer related variables - use the same references as for land zones
+
 
 
 tPondBySegment = {} --[x][z] are the x and z segments based on iLandZoneSegmentSize, shoudl return the pond number (which is also the same as doing NavUtils.GetLabel(refPathingTypeNavy, tPosition)
@@ -828,16 +838,16 @@ local function AddNewLandZoneReferenceToPlateau(iPlateau)
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexCount] = 0
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexLocations] = {}
-    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexUnbuiltLocations] = {}
+    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefMexUnbuiltLocations] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZHydroLocations] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZHydroUnbuiltLocations] = {}
-    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTotalMassReclaim] = 0
+    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefTotalMassReclaim] = 0
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZBuildLocationsBySize] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefBuildLocationBlacklist] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZBuildLocationSegmentCountBySize] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZSegments] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTotalSegmentCount] = 0
-    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTotalMassReclaim] = 0
+    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefTotalMassReclaim] = 0
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTotalEnergyReclaim] = 0
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTravelDistToOtherLandZones] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZPlayerWallSegments] = {}
@@ -1700,10 +1710,10 @@ local function RecordLandZoneMidpointAndUnbuiltMexes()
                     --Record if can build on it:
                     if bDebugMessages == true then LOG(sFunctionRef..': About to check if can build on iMex='..iMex..'; tMex='..repru(tMex)..'; can we build on it='..tostring(M28Conditions.CanBuildOnMexLocation(tMex))) end
                     if M28Conditions.CanBuildOnMexLocation(tMex) then
-                        table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefLZMexUnbuiltLocations], tMex)
+                        table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefMexUnbuiltLocations], tMex)
                     end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Size of mex locations for LZ='..table.getn(tLZData[subrefLZMexLocations])..'; Size of unbuilt locations='..table.getn(tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefLZMexUnbuiltLocations])) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Size of mex locations for LZ='..table.getn(tLZData[subrefLZMexLocations])..'; Size of unbuilt locations='..table.getn(tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefMexUnbuiltLocations])) end
             else
                 --No mexes for the plateau, so cycle through every zone and record the lowest and largest X and Z values
 
@@ -2142,7 +2152,15 @@ local function RecordTravelDistBetweenZonesOverTime()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function RecordClosestAllyAndEnemyBaseForEachLandAndWaterZone(iTeam)
+function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordClosestAllyAndEnemyBaseForEachLandZone'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    while not(bMapLandSetupComplete) do
+        WaitTicks(1)
+    end
+
     local tEnemyBases = {}
     local tAllyBases = {}
     local tBrainsByIndex = {}
@@ -2187,10 +2205,56 @@ function RecordClosestAllyAndEnemyBaseForEachLandAndWaterZone(iTeam)
         end
     end
 
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordClosestAllyAndEnemyBaseForEachWaterZone'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    while not(bWaterZoneInitialCreation) do
+        WaitTicks(1)
+        if GetGameTimeSeconds() >= 5 then break end
+    end
+
+    local tEnemyBases = {}
+    local tAllyBases = {}
+    local tBrainsByIndex = {}
+
+    local iCurBrainDist
+    local iClosestBrainDist
+    local iClosestBrainRef
+
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains]) == false then
+        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
+            tEnemyBases[oBrain:GetArmyIndex()] = PlayerStartPoints[oBrain:GetArmyIndex()]
+            tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
+        end
+    end
+    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains] do
+        tAllyBases[oBrain:GetArmyIndex()] = PlayerStartPoints[oBrain:GetArmyIndex()]
+        tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
+    end
+
+    if M28Utilities.IsTableEmpty(tEnemyBases) then
+        local aiBrain
+        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+            aiBrain = oBrain
+            break
+        end
+        table.insert(tEnemyBases, GetPrimaryEnemyBaseLocation(aiBrain))
+    end
+
     --Update water zones
+    if bDebugMessages == true then LOG(sFunctionRef..': About to start with updating water zone information, GameTime='..GetGameTimeSeconds()..'; bMapLandSetupComplete='..tostring(bMapLandSetupComplete or false)..'; bHaveConsideredPreferredPondForM28AI='..tostring(bHaveConsideredPreferredPondForM28AI or false)) end
     for iPond, tPondSubtable in tPondDetails do
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering iPond='..iPond..'; reprs of tPondSubtable='..reprs(tPondSubtable)) end
         for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
+            if not(tWZData[subrefWZTeamData]) then tWZData[subrefWZTeamData] = {} end
+            if not(tWZData[subrefWZTeamData][iTeam]) then tWZData[subrefWZTeamData][iTeam] = {} end
             local tWZTeamData = tWZData[subrefWZTeamData][iTeam]
+
             iClosestBrainDist = 100000
             for iBrain, tStartPoint in tAllyBases do
                 iCurBrainDist = M28Utilities.GetDistanceBetweenPositions(tWZData[subrefWZMidpoint], tStartPoint)
@@ -2206,6 +2270,8 @@ function RecordClosestAllyAndEnemyBaseForEachLandAndWaterZone(iTeam)
 
         end
     end
+    ForkThread(M28Team.WaterZoneTeamInitialisation, iTeam)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function ReturnNthValidLocationInSameLandZoneClosestToTarget(iPlateau, iLandZoneWanted, tStartLZData, tTargetDestination, iDistanceInterval, iNthEntryWanted, iMaxDistance)
@@ -3727,6 +3793,7 @@ function SetupWaterZones()
         RecordWaterZoneAdjacentLandZones()
         RecordWaterZonePathingToOtherWaterZones()
     end
+    bWaterZoneInitialCreation = true
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -3813,7 +3880,6 @@ function RecordWaterZoneMidpointAndMinMaxPositions()
                         end
                     end
                     if not(bHaveValidAltMidpoint) then
-                        bDebugMessages = true
                         M28Utilities.ErrorHandler(' dont have valid midpoint even after checking every water zone segment for iPond='..iPond)
                         if bDebugMessages == true then
                             LOG(sFunctionRef..': iWaterZone='..iWaterZone..'; tWZData[subrefWZSegments]='..repru(tWZData[subrefWZSegments] or 'nil')..'; First segment position='..repru(GetPositionFromPathingSegments(tWZData[subrefWZSegments][1][1], tWZData[subrefWZSegments][1][2]))..'; playable area='..repru(rMapPlayableArea)..'; GetLabel navy pathing result for the first segment position='..(NavUtils.GetLabel(refPathingTypeNavy, GetPositionFromPathingSegments(tWZData[subrefWZSegments][1][1], tWZData[subrefWZSegments][1][2])) or 'nil')..'; water zone of this segment position='..(tWaterZoneBySegment[tWZData[subrefWZSegments][1][1]][tWZData[subrefWZSegments][1][2]] or 'nil')..'; will draw the water zone')
@@ -3836,7 +3902,7 @@ end
 
 function RecordWaterZoneAdjacentLandZones()
     --Update land zones with details of adjacent water zones, and update water zones wit hdetails of adjacent land zones
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordWaterZoneAdjacentLandZones'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -3915,7 +3981,7 @@ function RecordWaterZoneAdjacentLandZones()
                                     end
                                 end
                             end
-                            table.insert(tWZData[subrefAdjacentLandZones], iAdjacencyTablePosition, {[subrefWZNumber] = iLandZone, [subrefALZDistance] = iDistBetweenMidpoints})
+                            table.insert(tWZData[subrefAdjacentLandZones], iAdjacencyTablePosition, {[subrefWPlatAndLZNumber] = {iPlateau, iLandZone}, [subrefALZDistance] = iDistBetweenMidpoints})
                         end
                     end
 
@@ -3928,7 +3994,7 @@ function RecordWaterZoneAdjacentLandZones()
 end
 
 function RecordWaterZonePathingToOtherWaterZones()
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordWaterZonePathingToOtherWaterZones'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -3954,10 +4020,10 @@ function RecordWaterZonePathingToOtherWaterZones()
                         iNavalTravelDistance = M28Utilities.GetTravelDistanceBetweenPositions(tWZData[subrefWZMidpoint], tOtherWZData[subrefWZMidpoint], refPathingTypeNavy)
                         if iNavalTravelDistance then
                             iStartWZAdjacencyTablePosition = 1
-                            if M28Utilities.IsTableEmpty(tWZData[subrefWZAdjacentWaterZones]) then
-                                tWZData[subrefWZAdjacentWaterZones] = {}
+                            if M28Utilities.IsTableEmpty(tWZData[subrefWZOtherWaterZones]) then
+                                tWZData[subrefWZOtherWaterZones] = {}
                             else
-                                for iEntry, tAdjacencySubtable in tWZData[subrefWZAdjacentWaterZones] do
+                                for iEntry, tAdjacencySubtable in tWZData[subrefWZOtherWaterZones] do
                                     if tAdjacencySubtable[subrefWZAWZDistance] < iNavalTravelDistance then
                                         iStartWZAdjacencyTablePosition = iEntry + 1
                                     else
@@ -3966,13 +4032,13 @@ function RecordWaterZonePathingToOtherWaterZones()
                                     end
                                 end
                             end
-                            table.insert(tWZData[subrefWZAdjacentWaterZones], iStartWZAdjacencyTablePosition, {[subrefWZAWZRef] = iOtherWaterZone, [subrefWZAWZDistance] = iNavalTravelDistance})
+                            table.insert(tWZData[subrefWZOtherWaterZones], iStartWZAdjacencyTablePosition, {[subrefWZAWZRef] = iOtherWaterZone, [subrefWZAWZDistance] = iNavalTravelDistance})
 
                             iEndWZAdjacencyTablePosition = 1
-                            if M28Utilities.IsTableEmpty(tOtherWZData[subrefWZAdjacentWaterZones]) then
-                                tOtherWZData[subrefWZAdjacentWaterZones] = {}
+                            if M28Utilities.IsTableEmpty(tOtherWZData[subrefWZOtherWaterZones]) then
+                                tOtherWZData[subrefWZOtherWaterZones] = {}
                             else
-                                for iEntry, tAdjacencySubtable in tOtherWZData[subrefWZAdjacentWaterZones] do
+                                for iEntry, tAdjacencySubtable in tOtherWZData[subrefWZOtherWaterZones] do
                                     if tAdjacencySubtable[subrefWZAWZDistance] < iNavalTravelDistance then
                                         iEndWZAdjacencyTablePosition = iEntry + 1
                                     else
@@ -3981,14 +4047,14 @@ function RecordWaterZonePathingToOtherWaterZones()
                                     end
                                 end
                             end
-                            table.insert(tOtherWZData[subrefWZAdjacentWaterZones], iEndWZAdjacencyTablePosition, {[subrefWZAWZRef] = iWaterZone, [subrefWZAWZDistance] = iNavalTravelDistance})
+                            table.insert(tOtherWZData[subrefWZOtherWaterZones], iEndWZAdjacencyTablePosition, {[subrefWZAWZRef] = iWaterZone, [subrefWZAWZDistance] = iNavalTravelDistance})
 
                             tiWaterZonePairsConsideredByLowestWZ[iLowestWZ][iHighestWZ] = true
                         end
                     end
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Finished considering all pathing for iWaterZone='..iWaterZone..'; tiWaterZonePairsConsideredByLowestWZ='..repru(tiWaterZonePairsConsideredByLowestWZ)..'; tWZData[subrefWZAdjacentWaterZones]='..repru(tWZData[subrefWZAdjacentWaterZones])) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished considering all pathing for iWaterZone='..iWaterZone..'; tiWaterZonePairsConsideredByLowestWZ='..repru(tiWaterZonePairsConsideredByLowestWZ)..'; tWZData[subrefWZOtherWaterZones]='..repru(tWZData[subrefWZOtherWaterZones])) end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -4327,9 +4393,9 @@ function RefreshLandZoneReclaimValue(iPlateau, iLandZone)
             iEnergyReclaim = iEnergyReclaim + tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refReclaimTotalEnergy]
         end
     end
-    tLZDetails[subrefLZTotalMassReclaim] = iMassReclaim
+    tLZDetails[subrefTotalMassReclaim] = iMassReclaim
     tLZDetails[subrefLZTotalEnergyReclaim] = iEnergyReclaim
-    if bDebugMessages == true then LOG(sFunctionRef..': End of code, iMassReclaim='..iMassReclaim..'; LZ reclaim='..tLZDetails[subrefLZTotalMassReclaim]) end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, iMassReclaim='..iMassReclaim..'; LZ reclaim='..tLZDetails[subrefTotalMassReclaim]) end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

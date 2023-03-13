@@ -182,7 +182,7 @@ function TestCustom(aiBrain)
 
     --[[local tLZData = M28Map.tAllPlateaus[27][M28Map.subrefPlateauLandZones][20]
     local tStartMidpoint = tLZData[M28Map.subrefLZMidpoint]
-    local tRallyPoint = M28Land.GetNearestRallyPoint(tLZData, 1, 27, 20, 3)--]]
+    local tRallyPoint = M28Land.GetNearestLandRallyPoint(tLZData, 1, 27, 20, 3)--]]
     --LOG('tStartMidpoint='..repru(tStartMidpoint)..'; tRallyPoint='..repru(tRallyPoint)..'; Path from LZ20 to LZ5='..repru(tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][5]]))
 
     --Draw specific land zones
