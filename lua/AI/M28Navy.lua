@@ -280,7 +280,7 @@ end
 function RecordGroundThreatForWaterZone(tWZTeamData, iTeam, iPond, iWaterZone)
     --Records the different types of threat for the water zone
 
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordGroundThreatForWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -1011,62 +1011,66 @@ function AssignValuesToWaterZones(iTeam)
     local sFunctionRef = 'AssignValuesToWaterZones'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bDebugMessages == true then LOG(sFunctionRef .. ': About to start the main loop for assigning values to water zones provided we have friendly M28 brains in the team ' .. iTeam .. '; is table empty=' .. tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))) end
+    if bDebugMessages == true then LOG(sFunctionRef .. ': About to start the main loop for assigning values to water zones provided we have friendly M28 brains in the team ' .. iTeam .. '; is table empty=' .. tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))..'; Is M28Map.tPondDetails empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tPondDetails))) end
     local iCurValue
     local iBuildLocationSegmentX, iBuildLocationSegmentZ
-
-    for iPond, tPondSubtable in M28Map.tPondDetails do
-        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-            if tPondSubtable[M28Map.subrefBuildLocationByStartPosition][oBrain:GetArmyIndex()] then
-                iBuildLocationSegmentX, iBuildLocationSegmentZ = M28Map.GetPathingSegmentFromPosition(tPondSubtable[M28Map.subrefBuildLocationByStartPosition][oBrain:GetArmyIndex()])
-                if M28Map.tWaterZoneBySegment[iBuildLocationSegmentX][iBuildLocationSegmentZ] then
-                    local tWZTeamData = tPondSubtable[M28Map.subrefPondWaterZones][M28Map.tWaterZoneBySegment[iBuildLocationSegmentX][iBuildLocationSegmentZ]][M28Map.subrefWZTeamData][iTeam]
-                    tWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation] = true
-                end
-            end
-
-        end
-    end
-
-
-    while M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false do
-        local iBaseCategory = M28UnitInfo.refCategoryNavalFactory
+    if M28Utilities.IsTableEmpty(M28Map.tPondDetails) == false then
         for iPond, tPondSubtable in M28Map.tPondDetails do
-            if M28Utilities.IsTableEmpty(tPondSubtable[M28Map.subrefPondWaterZones]) == false then
-                for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
-                    if bDebugMessages == true then LOG(sFunctionRef..': About to refresh value of iPond='..iPond..'; iWaterZone='..iWaterZone..' for team '..iTeam) end
-                    --Decide on value of the water zone ignoring distance:
-                    iCurValue = 1000
-                    --Are we adjacent to a core base? If so increase the value; also increase value if we are a core base
-                    local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
-                    if tWZTeamData[M28Map.subrefWZbCoreBase] then iCurValue = iCurValue * 2
-                    elseif M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZOtherWaterZones]) == false then
-                        for iEntry, tAltWZSubtable in tWZData[M28Map.subrefWZOtherWaterZones] do
-                            if M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][tAltWZSubtable[M28Map.subrefWZAWZRef]][M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZbCoreBase] then
-                                iCurValue = iCurValue * 1.5
-                                break
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                if tPondSubtable[M28Map.subrefBuildLocationByStartPosition][oBrain:GetArmyIndex()] then
+                    iBuildLocationSegmentX, iBuildLocationSegmentZ = M28Map.GetPathingSegmentFromPosition(tPondSubtable[M28Map.subrefBuildLocationByStartPosition][oBrain:GetArmyIndex()])
+                    if M28Map.tWaterZoneBySegment[iBuildLocationSegmentX][iBuildLocationSegmentZ] then
+                        local tWZTeamData = tPondSubtable[M28Map.subrefPondWaterZones][M28Map.tWaterZoneBySegment[iBuildLocationSegmentX][iBuildLocationSegmentZ]][M28Map.subrefWZTeamData][iTeam]
+                        tWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation] = true
+                    end
+                end
+
+            end
+        end
+
+
+        while M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false do
+            local iBaseCategory = M28UnitInfo.refCategoryNavalFactory
+            for iPond, tPondSubtable in M28Map.tPondDetails do
+                if M28Utilities.IsTableEmpty(tPondSubtable[M28Map.subrefPondWaterZones]) == false then
+                    for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
+                        if bDebugMessages == true then LOG(sFunctionRef..': About to refresh value of iPond='..iPond..'; iWaterZone='..iWaterZone..' for team '..iTeam) end
+                        --Decide on value of the water zone ignoring distance:
+                        iCurValue = 1000
+                        --Are we adjacent to a core base? If so increase the value; also increase value if we are a core base
+                        local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
+                        if tWZTeamData[M28Map.subrefWZbCoreBase] then iCurValue = iCurValue * 2
+                        elseif M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZOtherWaterZones]) == false then
+                            for iEntry, tAltWZSubtable in tWZData[M28Map.subrefWZOtherWaterZones] do
+                                if M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][tAltWZSubtable[M28Map.subrefWZAWZRef]][M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZbCoreBase] then
+                                    iCurValue = iCurValue * 1.5
+                                    break
+                                end
                             end
                         end
-                    end
 
-                    --Record the value
-                    tWZTeamData[M28Map.subrefWZTValue] = iCurValue
-                    tWZTeamData[M28Map.subrefWZbCoreBase] = nil
+                        --Record the value
+                        tWZTeamData[M28Map.subrefWZTValue] = iCurValue
+                        tWZTeamData[M28Map.subrefWZbCoreBase] = nil
 
-                    --Is this a core base water zone?
-                    if tWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation] then tWZTeamData[M28Map.subrefWZbCoreBase] = true
-                    elseif M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTAlliedUnits]) == false then
-                        local tFactories = EntityCategoryFilterDown(iBaseCategory, tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTAlliedUnits])
-                        if M28Utilities.IsTableEmpty(tFactories) == false then
-                            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZbCoreBase] = true
+                        --Is this a core base water zone?
+                        if tWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation] then tWZTeamData[M28Map.subrefWZbCoreBase] = true
+                        elseif M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTAlliedUnits]) == false then
+                            local tFactories = EntityCategoryFilterDown(iBaseCategory, tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTAlliedUnits])
+                            if M28Utilities.IsTableEmpty(tFactories) == false then
+                                tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZbCoreBase] = true
+                            end
                         end
-                    end
 
-                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                    WaitTicks(1)
-                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        WaitTicks(1)
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                    end
                 end
             end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitTicks(1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

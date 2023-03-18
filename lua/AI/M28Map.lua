@@ -14,6 +14,7 @@ local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 local M28Chat = import('/mods/M28AI/lua/AI/M28Chat.lua')
 local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
+local M28Config = import('/mods/M28AI/lua/M28Config.lua')
 
 bMapLandSetupComplete = false --set to true once have finished setting up map (used to decide how long to wait before starting main aibrain logic)
 bWaterZoneInitialCreation = false --set to true once have finished code for recording water zones (note WZ setup wont be fully complete yet)
@@ -2524,7 +2525,7 @@ local function SetupLandZones()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     WaitTicks(1)
     if bDebugMessages == true then
-        LOG(sFunctionRef..': Finished assining area aound mexes, will now draw resulting land zones')
+        LOG(sFunctionRef..': Finished assining area aound mexes, will now draw resulting land zones, system time='..GetSystemTimeSecondsOnlyForProfileUse())
         DrawLandZones()
         WaitTicks(5)
     end
@@ -2539,13 +2540,14 @@ local function SetupLandZones()
     tTempZonePlateauBySegment = nil
 
     RecordLandZoneMidpointAndUnbuiltMexes()
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished recording land zone midpoint and unbuilt mexes system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
     RecordHydroInLandZones()
     ReorderLandZoneSegmentsForEachPlateau()
     RecordAdjacentLandZones()
     RecordMassStorageLocationsForEachLandZone()
     RecordLandZonePatrolPaths()
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Finished LZ patrol paths') end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished LZ patrol paths, sys time='..GetSystemTimeSecondsOnlyForProfileUse()) end
 
     RecordPathingBetweenZones() --Includes a waitticks(1)
 
@@ -3783,17 +3785,25 @@ function SetupWaterZones()
         iTotalWaitTime = iTotalWaitTime + 1
         if iTotalWaitTime >= 50 then M28Utilities.ErrorHandler('Havent setup preferred factory locations yet, will proceed with water zone creation anyway') break end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': About to start with creating water zones, is tPondDetails empty='..tostring(M28Utilities.IsTableEmpty(tPondDetails))..'; GameTime='..GetGameTimeSeconds()..'; System time='..GetSystemTimeSecondsOnlyForProfileUse()) end
     if M28Utilities.IsTableEmpty(tPondDetails) == false then
         CreateWaterZones()
         bDebugMessages = true
-        if bDebugMessages == true then DrawWaterZones() end
+        if bDebugMessages == true then
+            LOG(sFunctionRef..': Finished running CreateWaterZones, Systemtime='..GetSystemTimeSecondsOnlyForProfileUse()..'; will draw water zones now')
+            DrawWaterZones()
+        end
+
 
         RecordWaterZoneMidpointAndMinMaxPositions()
-
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished recording water zone midpoint etc., system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
         RecordWaterZoneAdjacentLandZones()
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished recording adjacency for land zones vs water zones, system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
         RecordWaterZonePathingToOtherWaterZones()
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished recording water zone pathing to other water zones, system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
     end
     bWaterZoneInitialCreation = true
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -4077,7 +4087,7 @@ function SetupMap()
     SetupPlayableAreaAndSegmentSizes()
 
     --Generate pathing
-    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; will generate navmesh if it isnt already generated, NavUtils.IsGenerated()='..tostring(NavUtils.IsGenerated())) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; system time='..GetSystemTimeSecondsOnlyForProfileUse()..'; will generate navmesh if it isnt already generated, NavUtils.IsGenerated()='..tostring(NavUtils.IsGenerated())) end
     if not(NavUtils.IsGenerated()) then
         --local NavGen = import("/lua/sim/navgenerator.lua")
         --NavGen.Generate()
@@ -4104,9 +4114,9 @@ function SetupMap()
 
     bMapLandSetupComplete = true
     bDebugMessages = true
-    if bDebugMessages == true then LOG(sFunctionRef..': Finished setting up land aspects of the map, will move on to water zones, time='..GetGameTimeSeconds()) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished setting up land aspects of the map, will move on to water zones, time='..GetGameTimeSeconds()..'; system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
     SetupWaterZones() --Includes a wait to make sure we have M28 brains
-
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished setting up water zones, will also now clal forked threads for other aspects, time='..GetGameTimeSeconds()..'; system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
     ForkThread(ClearTemporarySetupVariables)
     ForkThread(ReclaimManager)
 
