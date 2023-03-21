@@ -878,6 +878,7 @@ function CalculateBlueprintThreatsByType()
             ['210111'] = { true, false, true, true, true }, --Air threat (general)
             ['200101'] = { true, false, true, true, true }, --Bombers and torpedo bombers
             ['210011'] = { true, false, false, true, true}, --Air excluding air to ground (but including torp bombers) - i.e. 'air excluding dangerous to land tanks on land'
+            ['210010'] = { true, false, false, true, false}, --Air excluding air to ground (i.e. excluding torp bombers as well)
             --['211000'] = { true, true, false, false, false} --GroundAA and AirAA combined - was thinking of using this for recording IMAP air version but decided to stick to just airaa
         }
 

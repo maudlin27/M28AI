@@ -37,7 +37,7 @@ function RecordNewAirUnitForTeam(iTeam, oUnit)
         local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), false, nil)
         if (iLandZone or 0) == 0 then
             --Does it have a water zone?
-            local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(tPosition)
+            local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(oUnit:GetPosition())
             local iWaterZone = M28Map.tWaterZoneBySegment[iSegmentX][iSegmentZ]
             if iWaterZone > 0 then
                 local aiBrain

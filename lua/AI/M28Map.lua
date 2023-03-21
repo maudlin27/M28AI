@@ -1378,7 +1378,6 @@ local function AssignRemainingSegmentsToLandZones()
                         --Do we have a water segment?
                         local iPond = NavUtils.GetLabel(refPathingTypeNavy, tBasePosition)
                         if (iPond or 0) > 0 then
-                            if iPond == 552 then bDebugMessages = true else bDebugMessages = false end
                             if bDebugMessages == true then LOG(sFunctionRef..': About to record a pond for iBaseSegmentX-Z='..iBaseSegmentX..'-'..iBaseSegmentZ..' for pond '..iPond..'; tBasePosition='..repru(tBasePosition)) end
                             RecordNavalSegment(iPond, iBaseSegmentX, iBaseSegmentZ, tBasePosition)
                         end
@@ -3571,7 +3570,6 @@ function AddSegmentToWaterZone(iPond, iWaterZone, iSegmentX, iSegmentZ)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AddSegmentToWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if iSegmentX == 11 and iSegmentZ == 80 then bDebugMessages = true end
     if bDebugMessages == true then LOG(sFunctionRef..': About to add Segment X-Z'..iSegmentX..'-'..iSegmentZ..' to iPond='..iPond..' and water zone='..iWaterZone..'; iTotalWaterZoneRecordedSegmentCount prior to this='..iTotalWaterZoneRecordedSegmentCount) end
     table.insert(tPondDetails[iPond][subrefPondWaterZones][iWaterZone][subrefWZSegments], {iSegmentX, iSegmentZ})
     if not(tWaterZoneBySegment[iSegmentX]) then tWaterZoneBySegment[iSegmentX] = {} end
@@ -3788,7 +3786,6 @@ function SetupWaterZones()
     if bDebugMessages == true then LOG(sFunctionRef..': About to start with creating water zones, is tPondDetails empty='..tostring(M28Utilities.IsTableEmpty(tPondDetails))..'; GameTime='..GetGameTimeSeconds()..'; System time='..GetSystemTimeSecondsOnlyForProfileUse()) end
     if M28Utilities.IsTableEmpty(tPondDetails) == false then
         CreateWaterZones()
-        bDebugMessages = true
         if bDebugMessages == true then
             LOG(sFunctionRef..': Finished running CreateWaterZones, Systemtime='..GetSystemTimeSecondsOnlyForProfileUse()..'; will draw water zones now')
             DrawWaterZones()
@@ -4113,7 +4110,6 @@ function SetupMap()
     RecordPondDetails()
 
     bMapLandSetupComplete = true
-    bDebugMessages = true
     if bDebugMessages == true then LOG(sFunctionRef..': Finished setting up land aspects of the map, will move on to water zones, time='..GetGameTimeSeconds()..'; system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
     SetupWaterZones() --Includes a wait to make sure we have M28 brains
     if bDebugMessages == true then LOG(sFunctionRef..': Finished setting up water zones, will also now clal forked threads for other aspects, time='..GetGameTimeSeconds()..'; system time='..GetSystemTimeSecondsOnlyForProfileUse()) end

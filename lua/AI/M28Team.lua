@@ -482,7 +482,7 @@ end
 
 function RecordAllPlayers()
 
-    --Call via forkthread from initialisation, so 1 tick after the first brain will have been created
+    --Call via ForkThread from initialisation, so 1 tick after the first brain will have been created
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordAllPlayers'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -1775,7 +1775,6 @@ function WaterZoneTeamInitialisation(iTeam)
     local sFunctionRef = 'WaterZoneTeamInitialisation'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    bDebugMessages = true
     for iPond, tPondSubtable in M28Map.tPondDetails do
         for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
             if bDebugMessages == true then LOG(sFunctionRef..': Setting starting values for iPond='..iPond..'; iWaterZone='..iWaterZone) end

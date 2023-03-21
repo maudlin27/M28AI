@@ -3068,7 +3068,7 @@ function UpdateRadarCoverageForDestroyedRadar(oRadar)
                 end
                 local iPond
                 for iEntry, iWaterZone in tRadarData do
-                    iPond = tiPondByWaterZone[iWaterZone]
+                    iPond = M28Map.tiPondByWaterZone[iWaterZone]
                     local tWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone]
                     local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
                     if tWZTeamData[M28Map.refoBestRadar] == oRadar then

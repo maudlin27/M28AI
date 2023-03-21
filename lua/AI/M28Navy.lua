@@ -232,7 +232,7 @@ function ManageAllWaterZones(aiBrain, iTeam)
                 end
                 if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftWZEnemyAirUnits]) == false then
                     iCurCycleRefreshCount = iCurCycleRefreshCount + 1
-                    UpdateUnitPositionsAndWaterZone(aiBrain, tWZeamData[M28Map.reftWZEnemyAirUnits], iTeam, iWaterZone, true, true, tWZTeamData)
+                    UpdateUnitPositionsAndWaterZone(aiBrain, tWZTeamData[M28Map.reftWZEnemyAirUnits], iTeam, iWaterZone, true, true, tWZTeamData)
                 end
                 if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefWZTAlliedUnits]) == false then
                     iCurCycleRefreshCount = iCurCycleRefreshCount + 1
@@ -300,9 +300,9 @@ function RecordGroundThreatForWaterZone(tWZTeamData, iTeam, iPond, iWaterZone)
         tWZTeamData[M28Map.subrefWZBestEnemyDFRange] = 0
         tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] = 0
     else
-        --function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly, bBlueprintThreat)
+                                                            --function GetCombatThreatRating(tUnits,                            bEnemyUnits, bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly, bBlueprintThreat)
         tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] = M28UnitInfo.GetCombatThreatRating(tWZTeamData[M28Map.subrefTEnemyUnits], true, false, false, true, false)
-        tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] = M28UnitInfo.GetCombatThreatRating(tWZTeamData[M28Map.subrefTEnemyUnits], true, false, false, false, true, true)
+        tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] = M28UnitInfo.GetCombatThreatRating(tWZTeamData[M28Map.subrefTEnemyUnits], true,     false,          false,                      false,          false,       true)
         tWZTeamData[M28Map.subrefWZThreatEnemySurface] = M28UnitInfo.GetCombatThreatRating(tWZTeamData[M28Map.subrefTEnemyUnits], true, false, false, false, true, false)
         --GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo, bBlueprintThreat)
         tWZTeamData[M28Map.subrefWZThreatEnemyAA] = M28UnitInfo.GetAirThreatLevel(tWZTeamData[M28Map.subrefTEnemyUnits], true, false, true, false, false, false, false)
@@ -327,7 +327,7 @@ function RecordGroundThreatForWaterZone(tWZTeamData, iTeam, iPond, iWaterZone)
     else
         --function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly, bBlueprintThreat)
         tWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy] = M28UnitInfo.GetCombatThreatRating(tWZTeamData[M28Map.subrefWZTAlliedUnits], true, false, false, true, false)
-        tWZTeamData[M28Map.subrefWZThreatAlliedSubmersible] = M28UnitInfo.GetCombatThreatRating(tWZTeamData[M28Map.subrefWZTAlliedUnits], true, false, false, false, true, true)
+        tWZTeamData[M28Map.subrefWZThreatAlliedSubmersible] = M28UnitInfo.GetCombatThreatRating(tWZTeamData[M28Map.subrefWZTAlliedUnits], true, false, false, false, false, true)
         tWZTeamData[M28Map.subrefWZThreatAlliedSurface] = M28UnitInfo.GetCombatThreatRating(tWZTeamData[M28Map.subrefWZTAlliedUnits], true, false, false, false, true, false)
         --GetAirThreatLevel(tUnits, bAlliedUnits, bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo, bBlueprintThreat)
         tWZTeamData[M28Map.subrefWZThreatAlliedAA] = M28UnitInfo.GetAirThreatLevel(tWZTeamData[M28Map.subrefWZTAlliedUnits], true, false, true, false, false, false, false)
@@ -1155,7 +1155,7 @@ function RecordClosestAdjacentRangesAndEnemies(tWZData, tWZTeamData, iPond, iWat
                     if M28Utilities.IsTableEmpty(tAltWZTeamData[M28Map.subrefTEnemyUnits]) == false and tAltWZTeamData[M28Map.subrefWZTThreatEnemyCombatTotal] >= 10 then
                         for iUnit, oUnit in tAltWZTeamData[M28Map.subrefTEnemyUnits] do
                             if oUnit[M28UnitInfo.refiDFRange] > 0 or oUnit[M28UnitInfo.refiAntiNavyRange] > 0 then
-                                iCurDistUntilInRange = M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], tMidpoint) - math.max(oUnit[M28UnitInfo.refiDFRange], oUnit[M28UnitInfo.refiAntiNavyRange])
+                                iCurDistUntilInRange = M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], tMidpoint) - math.max((oUnit[M28UnitInfo.refiDFRange] or 0), (oUnit[M28UnitInfo.refiAntiNavyRange] or 0))
                                 if iCurDistUntilInRange < iLowestDistUntilInRange then
                                     oLowestDFDistUntilInRange = oUnit
                                     iLowestDistUntilInRange = iCurDistUntilInRange

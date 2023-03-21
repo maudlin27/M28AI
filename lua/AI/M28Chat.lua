@@ -156,7 +156,7 @@ end
 end--]]
 
 function ConsiderPlayerSpecificMessages(aiBrain)
-    --Call via forkthread given the delay - considers messages at start of game, including generic gl hf
+    --Call via ForkThread( given the delay - considers messages at start of game, including generic gl hf
     local sFunctionRef = 'ConsiderPlayerSpecificMessages'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains]))) end

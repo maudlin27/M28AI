@@ -857,58 +857,63 @@ function OnCreate(oUnit)
                 WaitTicks(1)
             end
             WaitTicks(1)
-            if not(M28UnitInfo.IsUnitValid(oUnit)) then return nil end
-        end
-        M28Team.ConsiderAssigningUnitToZoneForBrain(oUnit:GetAIBrain(), oUnit) --This function includes check of whether this is an M28 brain
+            if M28UnitInfo.IsUnitValid(oUnit) then OnCreate(oUnit) end
+        else
+            M28Team.ConsiderAssigningUnitToZoneForBrain(oUnit:GetAIBrain(), oUnit) --This function includes check of whether this is an M28 brain
 
-        --All units (not just M28 specific):
-        M28UnitInfo.RecordUnitRange(oUnit)
-        if M28Config.M28ShowEnemyUnitNames then oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
-        --Units with upgrade - update the base threat value
-        if EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit) end --Will check if unit has enhancements as part of this
+            --All units (not just M28 specific):
+            M28UnitInfo.RecordUnitRange(oUnit)
+            if M28Config.M28ShowEnemyUnitNames then oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+            --Units with upgrade - update the base threat value
+            if EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit) end --Will check if unit has enhancements as part of this
 
-        --Hydro resource locations
-        if EntityCategoryContains(M28UnitInfo.refCategoryHydro, oUnit.UnitId) then
-            --Treat location as no longer having no buildings on it
-            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
-            if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations]) == false then
-                --LOG('About to loop through hydro locations; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; reprs='..reprs(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations]))
-                for iHydroLocation, tHydroLocation in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations] do
-                    if M28Utilities.GetDistanceBetweenPositions(tHydroLocation, oUnit:GetPosition()) <= 2 then
-                        table.remove(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations], iHydroLocation)
-                        break
+            --Hydro resource locations
+            if EntityCategoryContains(M28UnitInfo.refCategoryHydro, oUnit.UnitId) then
+                --Treat location as no longer having no buildings on it
+                local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
+                if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations]) == false then
+                    --LOG('About to loop through hydro locations; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; reprs='..reprs(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations]))
+                    for iHydroLocation, tHydroLocation in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations] do
+                        if M28Utilities.GetDistanceBetweenPositions(tHydroLocation, oUnit:GetPosition()) <= 2 then
+                            table.remove(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations], iHydroLocation)
+                            break
+                        end
+                    end
+                end
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
+                --Treat location as no longer having no buildings on it (if we were previously)
+                local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
+                if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]) == false then
+                    LOG('About to loop through Mex locations; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; reprs='..reprs(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]))
+                    for iMexLocation, tMexLocation in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations] do
+                        --Old code commented out below caused issues on maps like sludge:
+                        --if M28Utilities.GetDistanceBetweenPositions(tMexLocation, oUnit:GetPosition()) <= 2 then
+                        --Replaced with the following:
+                        if math.abs(tMexLocation[1] - oUnit:GetPosition()[1]) < 1 and math.abs(tMexLocation[3] - oUnit:GetPosition()[3]) < 1 then
+                            table.remove(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations], iMexLocation)
+                            break
+                        end
                     end
                 end
             end
-        elseif EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
-            --Treat location as no longer having no buildings on it (if we were previously)
-            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
-            if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]) == false then
-                LOG('About to loop through Mex locations; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; reprs='..reprs(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]))
-                for iMexLocation, tMexLocation in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations] do
-                    --Old code commented out below caused issues on maps like sludge:
-                    --if M28Utilities.GetDistanceBetweenPositions(tMexLocation, oUnit:GetPosition()) <= 2 then
-                    --Replaced with the following:
-                    if math.abs(tMexLocation[1] - oUnit:GetPosition()[1]) < 1 and math.abs(tMexLocation[3] - oUnit:GetPosition()[3]) < 1 then
-                        table.remove(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations], iMexLocation)
-                        break
-                    end
+
+            --M28 specific: Cover units transferred to us or cheated in or presumably that we have captured
+            if oUnit:GetAIBrain().M28AI and oUnit:GetFractionComplete() == 1 then
+                M28Economy.UpdateHighestFactoryTechLevelForBuiltUnit(oUnit) --this includes a check to see if are dealing with a factory HQ
+                M28Economy.UpdateGrossIncomeForUnit(oUnit, false) --This both includes a check of the unit type, and cehcks we havent already recorded
+                if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) and not(oUnit.M28OnConstructedCalled) then
+                    ForkThread(M28Economy.UpdateLandZoneM28MexByTechCount, oUnit)
                 end
             end
-        end
-
-        --M28 specific: Cover units transferred to us or cheated in or presumably that we have captured
-        if oUnit:GetAIBrain().M28AI and oUnit:GetFractionComplete() == 1 then
-            M28Economy.UpdateHighestFactoryTechLevelForBuiltUnit(oUnit) --this includes a check to see if are dealing with a factory HQ
-            M28Economy.UpdateGrossIncomeForUnit(oUnit, false) --This both includes a check of the unit type, and cehcks we havent already recorded
-            if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) and not(oUnit.M28OnConstructedCalled) then ForkThread(M28Economy.UpdateLandZoneM28MexByTechCount, oUnit) end
         end
     end
 end
 
 function OnCreateBrain(aiBrain, planName, bIsHuman)
     if not(aiBrain['M28BrainSetupRun']) then
-        if M28Config.M28RunProfiling then ForkThread(M28Profiler.ProfilerActualTimePerTick) end
+        if M28Config.M28RunProfiling then
+            ForkThread(M28Profiler.ProfilerActualTimePerTick)
+        end
         aiBrain['M28BrainSetupRun'] = true
 
         if bIsHuman == nil then

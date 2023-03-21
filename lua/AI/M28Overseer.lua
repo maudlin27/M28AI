@@ -161,10 +161,17 @@ function M28BrainCreated(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 
 end
+function Test2()
+    WaitSeconds(1)
+    LOG('Test')
+end
 
 function TestCustom(aiBrain)
+    --Forked threat invalid yield Jip example (failed to generate yield so likely misunderstood)
+    ForkThread(Test2)
+
     --Destroy a T3 fixed shield to see if we rebuild it
-    if GetGameTimeSeconds() >= 1200 and GetGameTimeSeconds() <= 1201 then
+    --[[if GetGameTimeSeconds() >= 1200 and GetGameTimeSeconds() <= 1201 then
         local tFixedShields = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryFixedShield)
         if M28Utilities.IsTableEmpty(tFixedShields) == false then
             for iUnit, oUnit in tFixedShields do
@@ -172,7 +179,7 @@ function TestCustom(aiBrain)
                 break
             end
         end
-    end
+    end--]]
 
     --Detail rally point info for a land zone - Forbidden pass - do we detect that the ridge is pathable?
     --[[local NavUtils = import("/lua/sim/navutils.lua")

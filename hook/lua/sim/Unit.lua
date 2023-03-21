@@ -46,7 +46,9 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
         end,
 
         OnStopBuild = function(self, unit)
-            if unit and not(unit.Dead) and unit.GetFractionComplete and unit:GetFractionComplete() == 1 then ForkThread(M28Events.OnConstructed, self, unit) end
+            if unit and not(unit.Dead) and unit.GetFractionComplete and unit:GetFractionComplete() == 1 then
+                ForkThread(M28Events.OnConstructed, self, unit)
+            end
             return M28OldUnit.OnStopBuild(self, unit)
         end,
 
