@@ -425,7 +425,7 @@ function CreateNewTeam(aiBrain)
         end--]]
 
 
-        if IsAlly(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) then
+        if IsAlly(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) and not(M28Conditions.IsCivilianBrain(oBrain)) then
             oBrain.M28Team = iTotalTeamCount
             table.insert(tTeamData[iTotalTeamCount][subreftoFriendlyActiveBrains], oBrain)
             if oBrain.M28AI then
@@ -768,7 +768,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AssignUnitToLandZoneOrPond'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    --if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uel02031' then bDebugMessages = true end
 
 
     if M28UnitInfo.IsUnitValid(oUnit) then
@@ -1781,9 +1781,9 @@ function WaterZoneTeamInitialisation(iTeam)
             if not(tWZData[M28Map.subrefWZTeamData]) then tWZData[M28Map.subrefWZTeamData] = {} end
             if not(tWZData[M28Map.subrefWZTeamData][iTeam]) then tWZData[M28Map.subrefWZTeamData][iTeam] = {} end
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefMexCountByTech] = {[1]=0,[2]=0,[3]=0}
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZbCoreBase] = 'WZCoreB' --true if is a 'core' base (i.e. has a naval factory in)
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZbContainsNavalBuildLocation] = 'WZNavBL' --true if contains a naval build location for a friendly M28AI
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTValue] = 'WZVal' --Value of the WZ, used to prioritise sending untis to different water zones; likely to be based on distance to core base water zone
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZbCoreBase] = false --true if is a 'core' base (i.e. has a naval factory in)
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZbContainsNavalBuildLocation] = false --true if contains a naval build location for a friendly M28AI
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTValue] = 0 --Value of the WZ, used to prioritise sending untis to different water zones; likely to be based on distance to core base water zone
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiRadarCoverage] = 0
             --tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refoBestRadar] --nil by default
             --tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.reftClosestFriendlyBase] --Updated separately

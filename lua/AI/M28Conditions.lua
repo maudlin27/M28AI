@@ -548,3 +548,14 @@ function WantToEcoDueToEnemyFirebase(iTeam, tLZTeamData, iPlateau)
     end
     return false
 end
+
+function HaveEnoughThreatToAttack(tLZTeamData, iOurCombatThreat, iEnemyCombatThreat, iFirebaseThreatAdjust, bHaveSignificantCombatCloserToFirebase)
+    if iOurCombatThreat > iEnemyCombatThreat * 1.4 then
+        return true
+    elseif  iOurCombatThreat > iEnemyCombatThreat and ((iFirebaseThreatAdjust > 0 and bHaveSignificantCombatCloserToFirebase) or tLZTeamData[M28Map.subrefLZTValue] > iOurCombatThreat * 0.5) then
+        return true
+    elseif tLZTeamData[M28Map.subrefLZbCoreBase] and iOurCombatThreat > iEnemyCombatThreat * 0.8 then
+        return true
+    end
+    return false
+end

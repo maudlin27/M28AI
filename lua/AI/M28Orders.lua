@@ -9,6 +9,7 @@
 --Order info
 reftiLastOrders = 'M28OrdersLastOrders' --Against unit, table first of the order number (1 = first order given, 2 = 2nd etc., qhere they were queued), which returns a table containing all the details of the order (including the order type per the below reference integers)
 refiOrderCount = 'M28OrdersCount' --Size of the table of last orders
+--How to get the last order of a unit: oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
 
 --Subtables for each order:
 subrefiOrderType = 1
