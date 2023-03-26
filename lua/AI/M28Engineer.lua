@@ -3292,11 +3292,19 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     end
     --Unclaimed mex in the zone
     iCurPriority = iCurPriority + 1
+    if iLandZone == 1 then bDebugMessages = true end
+    if bDebugMessages == true then
+        LOG(sFunctionRef..': Considering if unbuilt or part build mexes in t his LZ, is subrefMexUnbuiltLocations empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]))..'; Is subreftoPartBuiltMexes empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoPartBuiltMexes])))
+        if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]) == false then
+            LOG(sFunctionRef..': Size of unbuilt locations table='..table.getn(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]))
+        end
+    end
     if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]) == false then
         HaveActionToAssign(refActionBuildMex, 1, math.max(5, table.getn(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]) * 2.5))
     elseif M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoPartBuiltMexes]) == false then
         --Do we have no engineers assigned to building a mex?
         local bHaveEngisBuilding = false
+        if bDebugMessages == true then LOG(sFunctionRef..': Have part built mexes, is toAssignedEngineers empty='..tostring(M28Utilities.IsTableEmpty(toAssignedEngineers))) end
         if M28Utilities.IsTableEmpty(toAssignedEngineers) == false then
             for iEngi, oEngi in toAssignedEngineers do
                 if oEngi[refiAssignedAction] == refActionBuildMex then
@@ -3313,6 +3321,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             end
         end
     end
+    bDebugMessages = false
 
     --Very High priority factory if we have fewer than 4 (or if lwoer thre number of mexes in the LZ) and is a smaller map - takes priority over mex expansion
     iCurPriority = iCurPriority + 1
@@ -4063,6 +4072,37 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                     if iHighestTechEngiAvailable == 0 then break end
                 end
             end
+        end
+    end
+
+    --Adjacent water zones that want an engineer
+    iCurPriority = iCurPriority + 1
+    iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
+    if iHighestTechEngiAvailable > 0 and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false then
+        bDebugMessages = true
+        local iCurWZ
+        local iCurPond
+        local bWantBPOfOurTech
+        local iMinTechWanted = 1
+        for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
+            iCurWZ = tSubtable[M28Map.subrefAWZRef]
+            iCurPond = M28Map.tiPondByWaterZone[iCurPond]
+            local tWZTeamData = M28Map.tPondDetails[iCurPond][M28Map.subrefPondWaterZones][iCurWZ][M28Map.subrefWZTeamData][iTeam]
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering if want to send engineers to an adjaent water zone, iCurWZ='..iCurWZ..'; tWZTeamData[M28Map.subrefTbWantBP]='..tostring(tWZTeamData[M28Map.subrefTbWantBP] or false)) end
+            if tWZTeamData[M28Map.subrefTbWantBP] then
+                bWantBPOfOurTech = false
+                for iTech = iHighestTechEngiAvailable, 1, -1 do
+                    if tWZTeamData[iTech] > 0 then
+                        bWantBPOfOurTech = true
+                        iMinTechWanted = iTech
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': bWantBPOfOurTech='..tostring(bWantBPOfOurTech)) end
+                if bWantBPOfOurTech then
+                    HaveActionToAssign(refActionMoveToWaterZone, iMinTechWanted, tiBPByTech[iMinTechWanted] * 2, iCurWZ, true)
+                end
+            end
+            if bWantBPOfOurTech then break end
         end
     end
 

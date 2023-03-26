@@ -586,3 +586,58 @@ function RecordPriorityShields(iTeam, tLZTeamData)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
+
+function OnMexDeath(oUnit)
+    --Call via fork thread
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'OnMexDeath'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+    local tUnitPosition = {oUnit:GetPosition()[1], oUnit:GetPosition()[2], oUnit:GetPosition()[3]}
+    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tUnitPosition, true, oUnit)
+
+    if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]) == false then
+
+        WaitSeconds(2) --dont treat mex as available for a few seconds (this is also to ensure that if a mex has 'died' due to being upgraded, the new building will be here)
+        for iMexLocation, tMexLocation in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations] do
+            --Prev line - redid at same time as changing approach for removing an unbuilt location to try and be more accurate
+            --if M28Utilities.GetDistanceBetweenPositions(tMexLocation, oUnit:GetPosition()) <= 0.9 then
+            --Revised line:
+            if math.abs(tMexLocation[1] - tUnitPosition[1]) < 0.9 and math.abs(tMexLocation[3] - tUnitPosition[3]) < 0.9 then
+                --Do we have any mexes in this location?
+                local rRect = M28Utilities.GetRectAroundLocation(tMexLocation, 0.9)
+                local tUnitsInRect = GetUnitsInRect(rRect)
+                if bDebugMessages == true then
+                    LOG(sFunctionRef..': Is tUnitsInRect empty='..tostring(M28Utilities.IsTableEmpty(tUnitsInRect)))
+                    if M28Utilities.IsTableEmpty(tUnitsInRect) == false then
+                        LOG(sFunctionRef..': If filter to just mexes is the table empty='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tUnitsInRect))))
+                    end
+                end
+                local bNoMex = true
+                if M28Utilities.IsTableEmpty(tUnitsInRect) == false then
+                    local tMexes = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tUnitsInRect)
+                    if M28Utilities.IsTableEmpty(tMexes) == false then
+                        for iMex, oMex in tMexes do
+                            if M28UnitInfo.IsUnitValid(oMex) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have a valid mex in this location, oMex='..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)) end
+                                bNoMex = false
+                                break
+                            end
+                        end
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if we have a mex at this location anymore, bNoMex='..tostring(bNoMex)) end
+                if bNoMex then
+                    table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations], tMexLocation)
+                    if bDebugMessages == true then
+                        LOG(sFunctionRef..': Recording location as being unbuilt as mex is dead and no mexes visible there now')
+                        M28Utilities.DrawLocation(tMexLocation)
+                    end
+                    break
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end

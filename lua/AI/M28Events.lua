@@ -234,7 +234,8 @@ function OnUnitDeath(oUnit)
                             end
                         end
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
-                        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
+                        ForkThread(M28Building.OnMexDeath, oUnit)
+                        --[[local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
                         if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]) == false then
                             for iMexLocation, tMexLocation in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations] do
                                 --Prev line - redid at same time as changing approach for removing an unbuilt location to try and be more accurate
@@ -245,7 +246,7 @@ function OnUnitDeath(oUnit)
                                     break
                                 end
                             end
-                        end
+                        end--]]
                         --Radar intel coverage update
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryRadar, oUnit.UnitId) then
                         ForkThread(M28Land.UpdateRadarCoverageForDestroyedRadar, oUnit)
@@ -852,6 +853,10 @@ end
 
 function OnCreate(oUnit)
     if M28Utilities.bM28AIInGame and M28UnitInfo.IsUnitValid(oUnit) then
+        local sFunctionRef = 'OnCreate'
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
         if not(M28Map.bMapLandSetupComplete) then --Start of game ACU creation happens before we have setup the map
             while not(M28Map.bMapLandSetupComplete) do
                 WaitTicks(1)
@@ -884,16 +889,24 @@ function OnCreate(oUnit)
                 --Treat location as no longer having no buildings on it (if we were previously)
                 local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
                 if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]) == false then
-                    LOG('About to loop through Mex locations; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; reprs='..reprs(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]))
+                    if bDebugMessages == true then LOG('About to loop through Mex locations; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; reprs='..reprs(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations])) end
+                    local bFoundMexLocation = false
                     for iMexLocation, tMexLocation in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations] do
                         --Old code commented out below caused issues on maps like sludge:
                         --if M28Utilities.GetDistanceBetweenPositions(tMexLocation, oUnit:GetPosition()) <= 2 then
                         --Replaced with the following:
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering tMexLocation='..repru(tMexLocation)..'; compared with Unit position '..repru(oUnit:GetPosition())) end
                         if math.abs(tMexLocation[1] - oUnit:GetPosition()[1]) < 1 and math.abs(tMexLocation[3] - oUnit:GetPosition()[3]) < 1 then
+                            if bDebugMessages == true then
+                                LOG(sFunctionRef..': Have built a mex within 1 of a mex location so will treat this mex location as no longer available')
+                                M28Utilities.DrawLocation(tMexLocation, 2)
+                            end
+                            bFoundMexLocation = true
                             table.remove(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations], iMexLocation)
                             break
                         end
                     end
+                    if not(bFoundMexLocation) then M28Utilities.ErrorHandler('OnCreate triggered for a mex but no unbuilt locations near it, iPlateau='..iPlateau..'; iLandZone='..(iLandZone or 'nil')) end
                 end
             end
 

@@ -12,6 +12,10 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
             M28Events.OnKilled(self, instigator, type, overkillRatio)
             M28OldUnit.OnKilled(self, instigator, type, overkillRatio)
         end,
+        OnReclaimed = function(self, reclaimer)
+            M28Events.OnKilled(self, reclaimer)
+            M28OldUnit.OnReclaimed(self, reclaimer)
+        end,
         OnKilledUnit = function(self, unitKilled, massKilled)
             M28Events.OnKilled(unitKilled, self)
             M28OldUnit.OnKilledUnit(self, unitKilled, massKilled)
