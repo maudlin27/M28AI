@@ -1059,7 +1059,7 @@ function RecordUnitRange(oUnit)
             --Check if we have a max range in an enhancement
             for sEnhancement, tEnhancement in oBP.Enhancements do
                 if tEnhancement.NewMaxRadius and oUnit:HasEnhancement(sEnhancement) then
-                    oUnit[refiDFRange] = math.max(oUnit[refiDFRange], tEnhancement.NewMaxRadius)
+                    oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), tEnhancement.NewMaxRadius)
                 end
             end
         end

@@ -16,10 +16,24 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
             M28Events.OnKilled(self, reclaimer)
             M28OldUnit.OnReclaimed(self, reclaimer)
         end,
+        OnDecayed = function(self)
+            LOG('OnDecayed: Time='..GetGameTimeSeconds()..'; self.UnitId='..(self.UnitId or 'nil'))
+            M28Events.OnUnitDeath(self)
+            M28OldUnit.OnDecayed(self)
+        end,
         OnKilledUnit = function(self, unitKilled, massKilled)
             M28Events.OnKilled(unitKilled, self)
             M28OldUnit.OnKilledUnit(self, unitKilled, massKilled)
         end,
+        OnDestroy = function(self)
+            --LOG('OnDestroy: Time='..GetGameTimeSeconds()..'; self.UnitId='..(self.UnitId or 'nil'))
+            M28Events.OnUnitDeath(self)
+            M28OldUnit.OnDestroy(self)
+        end,
+        --[[OnFailedToBeBuilt = function(self)
+            LOG('OnFailedToBeBuilt: Time='..GetGameTimeSeconds()..'; self.UnitId='..(self.UnitId or 'nil'))
+            M28OldUnit.OnFailedToBeBuilt(self)
+        end,--]]
         OnDestroy = function(self)
             M28Events.OnUnitDeath(self) --Any custom code we want to run
             M28OldUnit.OnDestroy(self) --Normal code

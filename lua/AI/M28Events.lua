@@ -131,16 +131,6 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
     end
 end
 
-function OnMexDeath(oUnit)
-    --Make the mex status available
-    if M28Utilities.bM28AIInGame then
-        local sFunctionRef = 'OnMexDeath'
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-        
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    end
-end
-
 function OnPropDestroyed(oProp)
     --Confirmed manually this triggers e.g. if a bomber destroys a rock, and if a tree is reclaimed
     if M28Utilities.bM28AIInGame then
@@ -234,7 +224,12 @@ function OnUnitDeath(oUnit)
                             end
                         end
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
-                        ForkThread(M28Building.OnMexDeath, oUnit)
+                        --Record mex position first as it is a forked thread so may lose position if the unit dies
+                        local tMexPosition = {oUnit:GetPosition()[1], oUnit:GetPosition()[2], oUnit:GetPosition()[3]}
+                        bDebugMessages = true
+                        if bDebugMessages == true then LOG(sFunctionRef..': About to call OnMexDeath via fork, tMexPosition='..repru(tMexPosition)) end
+                        if tMexPosition[1] == 0 and tMexPosition[2] == 0 then M28Utilities.ErrorHandler('Dont have a valid mex position - mex is showing as 0,0,0') end
+                        ForkThread(M28Building.OnMexDeath, tMexPosition)
                         --[[local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
                         if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]) == false then
                             for iMexLocation, tMexLocation in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations] do
@@ -886,8 +881,9 @@ function OnCreate(oUnit)
                     end
                 end
             elseif EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
-                --Treat location as no longer having no buildings on it (if we were previously)
+                --Treat location as having buildings on it (if we were treating it as unbuilt previously)
                 local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
+
                 if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]) == false then
                     if bDebugMessages == true then LOG('About to loop through Mex locations; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; reprs='..reprs(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations])) end
                     local bFoundMexLocation = false
@@ -906,7 +902,10 @@ function OnCreate(oUnit)
                             break
                         end
                     end
-                    if not(bFoundMexLocation) then M28Utilities.ErrorHandler('OnCreate triggered for a mex but no unbuilt locations near it, iPlateau='..iPlateau..'; iLandZone='..(iLandZone or 'nil')) end
+                    if not(bFoundMexLocation) then
+                        M28Utilities.ErrorHandler('OnCreate triggered for a mex but no unbuilt locations near it, iPlateau='..iPlateau..'; iLandZone='..(iLandZone or 'nil'))
+                        if bDebugMessages == true then LOG(sFunctionRef..': M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations])..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit position='..repru(oUnit:GetPosition())) end
+                    end
                 end
             end
 

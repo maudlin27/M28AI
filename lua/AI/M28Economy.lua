@@ -237,7 +237,8 @@ function FindAndUpgradeUnitOfCategory(aiBrain, iCategoryWanted)
             if oUnit:GetFractionComplete() == 1 and not(oUnit:IsUnitState('Upgrading')) and not(oUnit.Dead) then
                 --Are we in a safe land zone?
                 iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
-                if M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLZ][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
+                local tLZTeamData = M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLZ][M28Map.subrefLZTeamData][aiBrain.M28Team]
+                if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] then
                     table.insert(tUnsafeUnitsOfCategory, oUnit)
                 else
                     table.insert(tUnitsToSearch, oUnit)

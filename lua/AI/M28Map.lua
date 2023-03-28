@@ -139,12 +139,12 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefAWZRef = 1 --The water zone reference
             subrefAWZDistance = 2 --Distance between midpoint from LZ to the WZ
         subrefLZFurthestAdjacentLandZoneTravelDist = 'FurthestAdjLZ' --Returns the travel distance (rounded up) of the furthest immediately adjacent land zone - can combine with subrefLZPathingToOtherLandZones so can stop cycling through the prerecorded LZs once get further away than the immediately adjacent ones
-        --Reclaim related:
-        subrefLZReclaimSegments = 'ReclSeg' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], table, orderd 1,2,3...; returns {iReclaimSegmentX, iReclaimSegmentZ}
-        subrefTotalMassReclaim = 'RecMass' --total mass reclaim in the land zone
-        subrefLZTotalEnergyReclaim = 'RecEn' --Total energy reclaim in the land zone
-        subrefLZLastReclaimRefresh = 'RecTime' --Time that we last refreshed the reclaim in the land zone, against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
         subrefLZPlayerWallSegments = 'PlWalls' --Table of wall units that aren't owned by M28AI
+        --Reclaim related (same values used for water zone)
+        subrefReclaimSegments = 'ReclSeg' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], table, orderd 1,2,3...; returns {iReclaimSegmentX, iReclaimSegmentZ}
+        subrefTotalMassReclaim = 'RecMass' --total mass reclaim in the land zone
+        subrefTotalEnergyReclaim = 'RecEn' --Total energy reclaim in the land zone
+        subrefLastReclaimRefresh = 'RecTime' --Time that we last refreshed the reclaim in the land zone, against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
 
         --Land scout/intel related
         subreftPatrolPath = 'PatrPth' --table of locations intended for a land scout to patrol the perimeter of the land zone
@@ -192,6 +192,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZThreatAllyGroundAA = 'AAATotal'
             subrefbEnemiesInThisOrAdjacentLZ = 'NearbyEnemies' --true if this LZ or adjacent LZ have nearby enemies
             subrefbDangerousEnemiesInThisLZ = 'HasDangEnemy' --true if combat units in this LZ
+            subrefbDangerousEnemiesInAdjacentWZ = 'WZNearEnemies' --true if there is an adjacent water zone that has dangerous enemies
             subrefbLZWantsSupport = 'LZWantsSupport' --true if want DF or indirect units for the LZ
             subrefbLZWantsDFSupport = 'LZWantsDFSupport' --true if want DF units for the LZ
             subrefbLZWantsIndirectSupport = 'LZWantsIndirectSupport' --true if want indirect units for the LZ
@@ -282,6 +283,12 @@ tPondDetails = {}
         subrefWZOtherWaterZones = 'WZOthWZ' --table of details for water zones adjacent and further away, ordered by distance
             subrefWZAWZRef = 1 --the water zone reference
             subrefWZAWZDistance = 2 --Travel distance between the midpoints of the water zones
+        --Reclaim related - uses same values as water zone
+        --subrefReclaimSegments
+        --subrefTotalMassReclaim
+        --subrefTotalEnergyReclaim
+        --subrefLastReclaimRefresh
+
         subrefWZTeamData = 'PWZTeam' --Used to house team related data for a particular water zone
             subrefWZbCoreBase = 'WZCoreB' --true if is a 'core' base (i.e. has a naval factory in)
             subrefWZbContainsNavalBuildLocation = 'WZNavBL' --true if contains a naval build location for a friendly M28AI
@@ -398,6 +405,11 @@ function GetPathingOverridePlateauAndLandZone(tPosition, bOptionalShouldBePathab
         end
     end
     return nil, nil
+end
+
+function GetWaterZoneFromPosition(tPosition)
+    local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tPosition)
+    return tWaterZoneBySegment[iSegmentX][iSegmentZ]
 end
 
 ---@param tPosition table
@@ -853,7 +865,7 @@ local function AddNewLandZoneReferenceToPlateau(iPlateau)
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZSegments] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTotalSegmentCount] = 0
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefTotalMassReclaim] = 0
-    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTotalEnergyReclaim] = 0
+    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefTotalEnergyReclaim] = 0
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTravelDistToOtherLandZones] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZPlayerWallSegments] = {}
 
@@ -1675,9 +1687,9 @@ local function RecordLandZoneMidpointAndUnbuiltMexes()
     local tAverage, iAveragePlateau, iAverageLandZone
     local tCurPosition
 
-
     for iPlateau, tPlateauSubtable in tAllPlateaus do
         for iZone, tLZData in tAllPlateaus[iPlateau][subrefPlateauLandZones] do
+
             if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Considering iPlateau='..iPlateau..'; iZone='..iZone..'; Is table of mex locations empty='..tostring(M28Utilities.IsTableEmpty(tLZData[subrefLZMexLocations]))) end
             local iMinX = 100000
             local iMaxX = 0
@@ -1712,9 +1724,24 @@ local function RecordLandZoneMidpointAndUnbuiltMexes()
                     iMaxZ = math.max(tMex[3], iMaxZ)
                     if not(iBaseIslandWanted) then iBaseIslandWanted = NavUtils.GetLabel(refPathingTypeLand, tMex) end
                     --Record if can build on it:
-                    if bDebugMessages == true then LOG(sFunctionRef..': About to check if can build on iMex='..iMex..'; tMex='..repru(tMex)..'; can we build on it='..tostring(M28Conditions.CanBuildOnMexLocation(tMex))) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': About to check if can build on iMex='..iMex..'; tMex='..repru(tMex)..'; can we build on it='..tostring(M28Conditions.CanBuildOnMexLocation(tMex))..'; aiBrain check whether can build using brain '..(M28Overseer.tAllActiveM28Brains[1].Nickname or 'nil')..'='..tostring(M28Overseer.tAllActiveM28Brains[1]:CanBuildStructureAt('urb1103', tMex))..'; Result of is resource blocked='..tostring(M28Conditions.IsResourceBlockedByResourceBuilding(M28UnitInfo.refCategoryMex, 'urb1103', tMex))) end
                     if M28Conditions.CanBuildOnMexLocation(tMex) then
                         table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefMexUnbuiltLocations], tMex)
+                    else
+                        --DOuble-check - if there are no buildings in a rectangle around the mex then treat it as buildable (note - havent tested the below as added when thought were failing to record mexes on a map but it turned out to be another unrelated issue)
+                        local rRect = M28Utilities.GetRectAroundLocation(tMex, 0.9)
+                        local tUnitsByMex = GetUnitsInRect(rRect)
+                        local bNearbyMex = false
+                        if M28Utilities.IsTableEmpty(tUnitsByMex) == false then
+                            local tBuildingsNearby = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tUnitsByMex)
+                            if M28Utilities.IsTableEmpty(tBuildingsNearby) == false then
+                                bNearbyMex = true
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Backup logic, is tUnitsByMex empty='..tostring(M28Utilities.IsTableEmpty(tUnitsByMex))..'; bNearbyMex ='..tostring(bNearbyMex)) end
+                        if not(bNearbyMex) then
+                            table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefMexUnbuiltLocations], tMex)
+                        end
                     end
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Size of mex locations for LZ='..table.getn(tLZData[subrefLZMexLocations])..'; Size of unbuilt locations='..table.getn(tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefMexUnbuiltLocations])) end
@@ -1722,13 +1749,13 @@ local function RecordLandZoneMidpointAndUnbuiltMexes()
                 --No mexes for the plateau, so cycle through every zone and record the lowest and largest X and Z values
 
                 --for iSegment, tSegmentXZ in tLZData[subrefLZSegments] do
-                    --tCurPosition = GetPositionFromPathingSegments(tSegmentXZ[1], tSegmentXZ[2])
-                    local tMinPosition = GetPositionFromPathingSegments(tLZData[subrefLZMinSegX], tLZData[subrefLZMinSegZ])
-                    local tMaxPosition = GetPositionFromPathingSegments(tLZData[subrefLZMaxSegX], tLZData[subrefLZMaxSegZ])
-                    iMinX = tMinPosition[1]
-                    iMinZ = tMinPosition[3]
-                    iMaxX = tMaxPosition[1]
-                    iMaxZ = tMaxPosition[3]
+                --tCurPosition = GetPositionFromPathingSegments(tSegmentXZ[1], tSegmentXZ[2])
+                local tMinPosition = GetPositionFromPathingSegments(tLZData[subrefLZMinSegX], tLZData[subrefLZMinSegZ])
+                local tMaxPosition = GetPositionFromPathingSegments(tLZData[subrefLZMaxSegX], tLZData[subrefLZMaxSegZ])
+                iMinX = tMinPosition[1]
+                iMinZ = tMinPosition[3]
+                iMaxX = tMaxPosition[1]
+                iMaxZ = tMaxPosition[3]
                 for iSegment, tSegmentXZ in tLZData[subrefLZSegments] do
                     if not(iBaseIslandWanted) then iBaseIslandWanted = NavUtils.GetLabel(refPathingTypeLand, GetPositionFromPathingSegments(tSegmentXZ[1], tSegmentXZ[2])) end
                     break
@@ -2554,8 +2581,8 @@ function RecordWaterZonePatrolPaths()
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordWaterZonePatrolPaths'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    for iPond, tPondSubtable in M28Map.tPondDetails do
-        for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
+    for iPond, tPondSubtable in tPondDetails do
+        for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
             --Are we interested in patrolling this water zone? Want to ignore very small water zones
             if table.getn(tWZData[subrefWZSegments]) >= 40 then
 
@@ -2648,7 +2675,6 @@ local function SetupLandZones()
 
     --Using land zones:
     --To return both the plateau reference, and the land zone reference, of a position tPosiiton, use the function GetPlateauAndLandZoneReferenceFromPosition(tPosition) (which will return nil if it doesnt have a value)
-
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SetupLandZones'
@@ -4514,38 +4540,55 @@ function CreateReclaimSegment(iReclaimSegmentX, iReclaimSegmentZ)
     if bDebugMessages == true then LOG(sFunctionRef..': Adding iReclaimSegmentX-Z'..iReclaimSegmentX..'-'..iReclaimSegmentZ..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
     if (iLandZone or 0) > 0 then
         --Record in the land zone
-        if not(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZReclaimSegments]) then tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZReclaimSegments] = {} end
-        table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZReclaimSegments], {iReclaimSegmentX, iReclaimSegmentZ})
+        if not(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefReclaimSegments]) then tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefReclaimSegments] = {} end
+        table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefReclaimSegments], {iReclaimSegmentX, iReclaimSegmentZ})
         if bDebugMessages == true then
-            LOG(sFunctionRef..': Finished adding reclaim segment to LZ, all reclaim segments for this LZ='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZReclaimSegments]))
+            LOG(sFunctionRef..': Finished adding reclaim segment to LZ, all reclaim segments for this LZ='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefReclaimSegments]))
             local rCurRect = M28Utilities.GetRectAroundLocation(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint], iReclaimSegmentSizeX * 0.5)
             M28Utilities.DrawRectangle(rCurRect, 4)
+        end
+    elseif (iPlateau or 0) > 0 then
+        --Record in the water zone
+        local iWaterZone = GetWaterZoneFromPosition(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint])
+        if (iWaterZone or 0) > 0 then
+            local iPond = tiPondByWaterZone[iWaterZone]
+            local tWZData = tPondDetails[iPond][subrefPondWaterZones][iWaterZone]
+            if not(tWZData[subrefReclaimSegments]) then tWZData[subrefReclaimSegments] = {} end
+            table.insert(tWZData[subrefReclaimSegments], {iReclaimSegmentX, iReclaimSegmentZ})
+            if bDebugMessages == true then
+                LOG(sFunctionRef..': Finished adding reclaim segment to WZ, all reclaim segments for this WZ='..repru(tWZData[subrefReclaimSegments]))
+                local rCurRect = M28Utilities.GetRectAroundLocation(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint], iReclaimSegmentSizeX * 0.5)
+                M28Utilities.DrawRectangle(rCurRect, 4)
+            end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function RefreshLandZoneReclaimValue(iPlateau, iLandZone)
+function RefreshLandOrWaterZoneReclaimValue(iPlateauOrPond, iLandOrWaterZone, bIsWaterZone)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end --set to true for certain positions where want logs to print
-    local sFunctionRef = 'RefreshLandZoneReclaimValue'
+    local sFunctionRef = 'RefreshLandOrWaterZoneReclaimValue'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
-    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZLastReclaimRefresh] = GetGameTimeSeconds()
-    local tLZDetails = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
+    local tLZOrWZData
+    if bIsWaterZone then tLZOrWZData = tPondDetails[iPlateauOrPond][subrefPondWaterZones][iLandOrWaterZone]
+    else
+        tLZOrWZData = tAllPlateaus[iPlateauOrPond][subrefPlateauLandZones][iLandOrWaterZone]
+    end
+    tLZOrWZData[subrefLastReclaimRefresh] = GetGameTimeSeconds()
     local iMassReclaim = 0
     local iEnergyReclaim = 0
-    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Considering Plateau='..iPlateau..'; iLandZone='..iLandZone..'; Is table of LZ reclaim segments empty='..tostring(M28Utilities.IsTableEmpty(tLZDetails[subrefLZReclaimSegments]))) end
-    if M28Utilities.IsTableEmpty(tLZDetails[subrefLZReclaimSegments]) == false then
-        for iSegmentCount, tSegmentXZ in tLZDetails[subrefLZReclaimSegments] do
+    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; bIsWaterZone='..tostring(bIsWaterZone or false)..'; Considering PlateauOrPond='..iPlateauOrPond..'; iLandOrWaterZone='..iLandOrWaterZone..'; Is table of LZ or WZ reclaim segments empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[subrefReclaimSegments]))) end
+    if M28Utilities.IsTableEmpty(tLZOrWZData[subrefReclaimSegments]) == false then
+        for iSegmentCount, tSegmentXZ in tLZOrWZData[subrefReclaimSegments] do
             if bDebugMessages == true then LOG(sFunctionRef..': Considering tSegmentXZ='..tSegmentXZ[1]..'-'..tSegmentXZ[2]..'; total mass in this segment='..tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refReclaimTotalMass]) end
             iMassReclaim = iMassReclaim + tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refReclaimTotalMass]
             iEnergyReclaim = iEnergyReclaim + tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refReclaimTotalEnergy]
         end
     end
-    tLZDetails[subrefTotalMassReclaim] = iMassReclaim
-    tLZDetails[subrefLZTotalEnergyReclaim] = iEnergyReclaim
-    if bDebugMessages == true then LOG(sFunctionRef..': End of code, iMassReclaim='..iMassReclaim..'; LZ reclaim='..tLZDetails[subrefTotalMassReclaim]) end
+    tLZOrWZData[subrefTotalMassReclaim] = iMassReclaim
+    tLZOrWZData[subrefTotalEnergyReclaim] = iEnergyReclaim
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, iMassReclaim='..iMassReclaim..'; LZ reclaim='..tLZOrWZData[subrefTotalMassReclaim]) end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -4647,10 +4690,20 @@ function UpdateReclaimDataNearSegments(iBaseSegmentX, iBaseSegmentZ, iSegmentRan
                 iPlateau, iLandZone = GetPlateauAndLandZoneReferenceFromPosition(tReclaimAreas[iCurX][iCurZ][refReclaimSegmentMidpoint])
                 if bDebugMessages == true then LOG(sFunctionRef..': Reclaim segment midpoint='..repru(tReclaimAreas[iCurX][iCurZ][refReclaimSegmentMidpoint])..'; iPlateau for this='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
                 if iLandZone > 0 then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Time of last refresh for land zone '..iLandZone..'='.. (tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZLastReclaimRefresh] or 0)) end
-                    if GetGameTimeSeconds() - (tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZLastReclaimRefresh] or 0) >= 1 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Time of last refresh for land zone '..iLandZone..'='.. (tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLastReclaimRefresh] or 0)) end
+                    if GetGameTimeSeconds() - (tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLastReclaimRefresh] or 0) >= 1 then
                         if bDebugMessages == true then LOG(sFunctionRef..': Will refresh the reclaim value for land zone '..iLandZone) end
-                        RefreshLandZoneReclaimValue(iPlateau, iLandZone)
+                        RefreshLandOrWaterZoneReclaimValue(iPlateau, iLandZone)
+                    end
+                else
+                    local iWaterZone = GetWaterZoneFromPosition(tReclaimAreas[iCurX][iCurZ][refReclaimSegmentMidpoint])
+                    if (iWaterZone or 0) > 0 then
+                        local iPond = tiPondByWaterZone[iWaterZone]
+                        if bDebugMessages == true then LOG(sFunctionRef..': Time of last refresh for water zone '..iWaterZone..'='.. (tPondDetails[iPond][subrefPondWaterZones][iWaterZone][subrefLastReclaimRefresh] or 0)) end
+                        if GetGameTimeSeconds() - (tPondDetails[iPond][subrefPondWaterZones][iWaterZone][subrefLastReclaimRefresh] or 0) >= 1 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will refresh the reclaim value for land zone '..iLandZone) end
+                            RefreshLandOrWaterZoneReclaimValue(iPond, iWaterZone, true)
+                        end
                     end
                 end
 
