@@ -2611,7 +2611,7 @@ function RecordLandZonePatrolPaths()
 end
 
 function RecordWaterZonePatrolPaths()
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordWaterZonePatrolPaths'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     for iPond, tPondSubtable in tPondDetails do
@@ -4022,7 +4022,6 @@ function RecordWaterZoneMidpointAndMinMaxPositions()
     local iAverageSegmentX, iAverageSegmentZ
     for iPond, tPondSubtable in tPondDetails do
         for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
-            if iWaterZone == 3 then bDebugMessages = true else bDebugMessages = false end
             --Record min and max values
             iMinX = 100000
             iMinZ = 100000

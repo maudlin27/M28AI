@@ -775,12 +775,27 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
             --Now assign any remaining available scouts to adjacent water zones wanting scouts (if any)
             if M28Utilities.IsTableEmpty(tAvailableScouts) == false then
                 if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false then
-                    local iPond, iAdjWZ
-                    for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
-                        iAdjWZ = tSubtable[M28Map.subrefAWZRef]
-                        iPond = M28Map.tiPondByWaterZone[iAdjWZ]
-                        if M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam][M28Map.refbWantLandScout] then
-                            M28Navy.GetUnitToTravelToWaterZone(tAvailableScouts[1], iPond, iAdjWZ, M28Map.subrefWZTScoutsTravelingHere)
+                    local tAmphibiousOrHoverScouts = EntityCategoryFilterDown(categories.AMPHIBIOUS + categories.HOVER, tAvailableScouts)
+                    if M28Utilities.IsTableEmpty(tAmphibiousOrHoverScouts) == false then
+                        local iPond, iAdjWZ
+                        for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
+                            iAdjWZ = tSubtable[M28Map.subrefAWZRef]
+                            iPond = M28Map.tiPondByWaterZone[iAdjWZ]
+                            if M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam][M28Map.refbWantLandScout] then
+                                M28Navy.GetUnitToTravelToWaterZone(tAmphibiousOrHoverScouts[1], iPond, iAdjWZ, M28Map.subrefWZTScoutsTravelingHere)
+                                M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam][M28Map.refbWantLandScout] = false
+                                local iAvailableScoutRef
+                                for iUnit, oUnit in tAvailableScouts do
+                                    if oUnit == tAmphibiousOrHoverScouts[1] then
+                                        iAvailableScoutRef = iUnit
+                                        break
+                                    end
+                                end
+                                table.remove(tAmphibiousOrHoverScouts, 1)
+                                if iAvailableScoutRef then
+                                    table.remove(tAvailableScouts, iAvailableScoutRef)
+                                end
+                            end
                         end
                     end
                 end

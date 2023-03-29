@@ -226,7 +226,6 @@ function OnUnitDeath(oUnit)
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
                         --Record mex position first as it is a forked thread so may lose position if the unit dies
                         local tMexPosition = {oUnit:GetPosition()[1], oUnit:GetPosition()[2], oUnit:GetPosition()[3]}
-                        bDebugMessages = true
                         if bDebugMessages == true then LOG(sFunctionRef..': About to call OnMexDeath via fork, tMexPosition='..repru(tMexPosition)) end
                         if tMexPosition[1] == 0 and tMexPosition[2] == 0 then M28Utilities.ErrorHandler('Dont have a valid mex position - mex is showing as 0,0,0') end
                         ForkThread(M28Building.OnMexDeath, tMexPosition)
