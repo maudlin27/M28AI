@@ -740,6 +740,10 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                         if bDebugMessages == true then LOG(sFunctionRef..': Scout should travel to another land zone so order it to travel there') end
                         M28Orders.IssueTrackedMove(oScout, M28Map.tAllPlateaus[oScout[reftiPlateauAndLZToMoveTo][1]][M28Map.subrefPlateauLandZones][oScout[reftiPlateauAndLZToMoveTo][2]][M28Map.subrefLZMidpoint], 6, false, 'TLZ'..oScout[reftiPlateauAndLZToMoveTo][2])
                     end
+                elseif oScout[M28Navy.refiWZToMoveTo] then
+                    --Scout should be traveling to another water zone - if it has no orders then refresh them
+                    M28Orders.IssueTrackedMove(oScout, M28Map.tPondDetails[M28Map.tiPondByWaterZone[oScout[M28Navy.refiWZToMoveTo]]][M28Map.subrefPondWaterZones][oScout[M28Navy.refiWZToMoveTo]][M28Map.subrefLZMidpoint], 6, false, 'TWZ'..oScout[M28Navy.refiWZToMoveTo])
+                    if bDebugMessages == true then LOG(sFunctionRef..': Scout should travel to a water zone '..oScout[M28Navy.refiWZToMoveTo]..' so will resend the order to ensure it is still moving there') end
                 else
                     --Scout has no nearby enemies to run from, and isnt traveling to a plateau, so it should be available for use
                     if bDebugMessages == true then LOG(sFunctionRef..': Dont want to run or attack with scout and it isnt already assigned to another LZ so will aadd to table of available scouts, oScout='..oScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout)) end
@@ -768,28 +772,42 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                 end
 
             end
+            --Now assign any remaining available scouts to adjacent water zones wanting scouts (if any)
             if M28Utilities.IsTableEmpty(tAvailableScouts) == false then
-                tLZTeamData[M28Map.refbWantLandScout] = false
-                --If we are here then we still have available land scouts; if we have ap atrol path then patrol; if we have a mex then go here, if we have an adjcent zone go here, otherwise move randomly if we have no orders
-                for iScout, oScout in tAvailableScouts do
-                    if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath]) == false then
-                        --Patrol the land zone
-                        M28Orders.PatrolPath(oScout, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath], false, 'SP')
-                    else
-                        --Do nothing if scout is moving as maybe it landed on a segment just out of the zone it shoudl have been in
-                        if not(oScout:IsUnitState('Moving')) then
-                            M28Orders.UpdateRecordedOrders(oScout)
-                            if (oScout[M28Orders.refiOrderCount] or 0) == 0 then
-                                --Want ot get somewhere to move to as a backup
-                                if tLZData[M28Map.subrefLZMexCount] > 0 then
-                                    M28Orders.IssueTrackedMove(oScout, tLZData[M28Map.subrefLZMidpoint], 5, false, 'BackupMid')
-                                else
-                                    --Do we have an adjacent LZ? If so move here
-                                    if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones]) == false then
-                                        GetUnitToTravelToLandZone(tAvailableScouts[1], iPlateau, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones][1], M28Map.subrefLZTScoutsTravelingHere)
+                if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false then
+                    local iPond, iAdjWZ
+                    for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
+                        iAdjWZ = tSubtable[M28Map.subrefAWZRef]
+                        iPond = M28Map.tiPondByWaterZone[iAdjWZ]
+                        if M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam][M28Map.refbWantLandScout] then
+                            M28Navy.GetUnitToTravelToWaterZone(tAvailableScouts[1], iPond, iAdjWZ, M28Map.subrefWZTScoutsTravelingHere)
+                        end
+                    end
+                end
+
+                if M28Utilities.IsTableEmpty(tAvailableScouts) == false then
+                    tLZTeamData[M28Map.refbWantLandScout] = false
+                    --If we are here then we still have available land scouts; if we have ap atrol path then patrol; if we have a mex then go here, if we have an adjcent zone go here, otherwise move randomly if we have no orders
+                    for iScout, oScout in tAvailableScouts do
+                        if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath]) == false then
+                            --Patrol the land zone
+                            M28Orders.PatrolPath(oScout, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath], false, 'SP')
+                        else
+                            --Do nothing if scout is moving as maybe it landed on a segment just out of the zone it shoudl have been in
+                            if not(oScout:IsUnitState('Moving')) then
+                                M28Orders.UpdateRecordedOrders(oScout)
+                                if (oScout[M28Orders.refiOrderCount] or 0) == 0 then
+                                    --Want ot get somewhere to move to as a backup
+                                    if tLZData[M28Map.subrefLZMexCount] > 0 then
+                                        M28Orders.IssueTrackedMove(oScout, tLZData[M28Map.subrefLZMidpoint], 5, false, 'BackupMid')
                                     else
-                                        --No adjacent LZs, and no mexes in this LZ, so just move randomly
-                                        M28Orders.IssueTrackedMove(oScout, M28Utilities.MoveInDirection(oScout:GetPosition(), math.random(1, 360), math.random(10, 30), true, false), 5, false, 'BackupRnd')
+                                        --Do we have an adjacent LZ? If so move here
+                                        if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones]) == false then
+                                            GetUnitToTravelToLandZone(tAvailableScouts[1], iPlateau, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones][1], M28Map.subrefLZTScoutsTravelingHere)
+                                        else
+                                            --No adjacent LZs, and no mexes in this LZ, so just move randomly
+                                            M28Orders.IssueTrackedMove(oScout, M28Utilities.MoveInDirection(oScout:GetPosition(), math.random(1, 360), math.random(10, 30), true, false), 5, false, 'BackupRnd')
+                                        end
                                     end
                                 end
                             end

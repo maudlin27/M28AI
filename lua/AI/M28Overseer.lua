@@ -167,8 +167,10 @@ function Test2()
 end
 
 function TestCustom(aiBrain)
-    --Forked threat invalid yield Jip example (failed to generate yield so likely misunderstood)
-    ForkThread(Test2)
+    M28Utilities.DrawLocation({10,GetTerrainHeight(10,10),10}, 3)
+    M28Utilities.DrawLocation({12,GetTerrainHeight(12,12),10}, 4)
+    M28Utilities.DrawLocation({14,GetTerrainHeight(14,14),14}, 5)
+
 
     --Destroy a T3 fixed shield to see if we rebuild it
     --[[if GetGameTimeSeconds() >= 1200 and GetGameTimeSeconds() <= 1201 then

@@ -133,28 +133,40 @@ function ForkedDrawRectangle(rRect, iColour, iDisplayCount)
     while true do
     iCount = iCount + 1
     if iCount > 10000 then ErrorHandler('Infinite loop') break end
-    for iValX = 1, 2 do
-    for iValZ = 1, 2 do
-    if iValX == 1 then
-    iCurX = rRect['x0']
-    if iValZ == 1 then iCurZ = rRect['y0'] else iCurZ = rRect['y1'] end
-    else
-    iCurX = rRect['x1']
-    if iValZ == 1 then iCurZ = rRect['y1'] else iCurZ = rRect['y0'] end
-    end
+        for iValX = 1, 2 do
+            for iValZ = 1, 2 do
+                if iValX == 1 then
+                    iCurX = rRect['x0']
+                    if iValZ == 1 then
+                        iCurZ = rRect['y0']
+                    else
+                        iCurZ = rRect['y1']
+                    end
+                else
+                    iCurX = rRect['x1']
+                    if iValZ == 1 then
+                        iCurZ = rRect['y1']
+                    else
+                        iCurZ = rRect['y0']
+                    end
+                end
 
-    tLastPos = tCurPos
-    tCurPos = {iCurX, GetTerrainHeight(iCurX, iCurZ), iCurZ}
-    if tLastPos then
-    if bDebugMessages == true then LOG(sFunctionRef..': tLastPos='..repru(tLastPos)..'; tCurPos='..repru(tCurPos)) end
-    DrawLine(tLastPos, tCurPos, sColour)
-    end
-    end
-    end
-    iCurDrawCount = iCurDrawCount + 1
-    if iCurDrawCount > iDisplayCount then return end
-        coroutine.yield(2) --Any more and lines will flash instead of being constant
+                tLastPos = tCurPos
+                tCurPos = { iCurX, GetTerrainHeight(iCurX, iCurZ), iCurZ }
+                if tLastPos then
+                    if bDebugMessages == true then
+                        LOG(sFunctionRef .. ': tLastPos=' .. repru(tLastPos) .. '; tCurPos=' .. repru(tCurPos)..'; sColour='..sColour)
+                    end
+                    DrawLine(tLastPos, tCurPos, sColour)
+                end
+            end
         end
+        iCurDrawCount = iCurDrawCount + 1
+        if iCurDrawCount > iDisplayCount then
+            return
+        end
+        coroutine.yield(2) --Any more and lines will flash instead of being constant
+    end
 end
 
 function DrawRectangle(rRectangle, iOptionalColour, iOptionalTimeInTicks, iOptionalSizeIncrease)

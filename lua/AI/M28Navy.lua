@@ -2031,9 +2031,9 @@ function ManageWaterZoneScouts(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, t
                         tWZTeamData[M28Map.refbWantLandScout] = false
                     else
                         --Scout should be traveling to another land zone - if it has no orders then refresh them
-                        if bDebugMessages == true then LOG(sFunctionRef..': Scout should travel to another water zone so order it to travel there') end
                         local iTravelPond = M28Map.tiPondByWaterZone[oScout[refiWZToMoveTo]]
-                        M28Orders.IssueTrackedMove(oScout, M28Map.tPondDetails[iTravelPond][M28Map.subrefPondWaterZones][M28Map.subrefWZMidpoint], 6, false, 'TWZ'..oScout[refiWZToMoveTo])
+                        if bDebugMessages == true then LOG(sFunctionRef..': Scout should travel to another water zone so order it to travel there, iTravelPond='..(iTravelPond or 'nil')..'; oScout[refiWZToMoveTo]='..(oScout[refiWZToMoveTo] or 'nil')..'; oScout='..oScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout)..'; Midpoint of WZ to move to='..repru(M28Map.tPondDetails[iTravelPond][M28Map.subrefPondWaterZones][oScout[refiWZToMoveTo]][M28Map.subrefWZMidpoint])) end
+                        M28Orders.IssueTrackedMove(oScout, M28Map.tPondDetails[iTravelPond][M28Map.subrefPondWaterZones][oScout[refiWZToMoveTo]][M28Map.subrefWZMidpoint], 6, false, 'TWZ'..oScout[refiWZToMoveTo])
                     end
                 elseif oScout[M28Land.reftiPlateauAndLZToMoveTo] then
                     --Scout is going to a land zone not a water zone
