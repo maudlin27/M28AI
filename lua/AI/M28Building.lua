@@ -690,6 +690,7 @@ function OnMexConstructionStarted(oUnit)
         local bFoundMexLocation = false
         local iSizeBefore = table.getn(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])
         local iSizeAfter
+        local iLocationToRemove
         for iMexLocation, tMexLocation in tLZOrWZData[M28Map.subrefMexUnbuiltLocations] do
             --Old code commented out below caused issues on maps like sludge:
             --if M28Utilities.GetDistanceBetweenPositions(tMexLocation, oUnit:GetPosition()) <= 2 then
@@ -701,14 +702,17 @@ function OnMexConstructionStarted(oUnit)
                     M28Utilities.DrawLocation(tMexLocation, 2)
                 end
                 bFoundMexLocation = true
-                local vRemoved = table.remove(tLZOrWZData[M28Map.subrefMexUnbuiltLocations], iMexLocation)
-                local iSizeAfter
-                if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) then iSizeAfter = 0
-                else iSizeAfter = table.getn(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])
-                end
-                if bDebugMessages == true then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations] after removal='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..'; vRemoved='..reprs(vRemoved)..'; iSizeBefore='..iSizeBefore..'; iSizeAfter='..iSizeAfter) end
+                iLocationToRemove = iMexLocation
                 break
             end
+        end
+        if iLocationToRemove then
+            local vRemoved = table.remove(tLZOrWZData[M28Map.subrefMexUnbuiltLocations], iLocationToRemove)
+            local iSizeAfter
+            if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) then iSizeAfter = 0
+            else iSizeAfter = table.getn(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations] after removal='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..'; vRemoved='..reprs(vRemoved)..'; iSizeBefore='..iSizeBefore..'; iSizeAfter='..iSizeAfter) end
         end
         if iSizeAfter >= iSizeBefore then
             --Backup for strange case where table.remove would remove a table but the table would still remain
