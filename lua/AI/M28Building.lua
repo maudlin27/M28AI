@@ -596,12 +596,27 @@ function OnMexDeath(tUnitPosition)
 
     --local tUnitPosition = {oUnit:GetPosition()[1], oUnit:GetPosition()[2], oUnit:GetPosition()[3]}
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tUnitPosition)
+    local tMexLocations
+    local tLZOrWZData
+    local iWaterZone, iPond
+    if iPlateau and not(iLandZone) then
+        iWaterZone = M28Map.GetWaterZoneFromPosition(tUnitPosition)
+        if iWaterZone then
+            iPond = M28Map.tiPondByWaterZone[iWaterZone]
+            tLZOrWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone]
+            tMexLocations = tLZOrWZData[M28Map.subrefWZMexLocations]
+        end
+    else
+        tLZOrWZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+        tMexLocations = tLZOrWZData[M28Map.subrefLZMexLocations]
+    end
+
+
 
     if bDebugMessages == true then LOG(sFunctionRef..': is table of mex locations empty='..tostring( M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]))..'; iLandZone='..(iLandZone or 'nil')) end
-    if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]) == false then
-
+    if M28Utilities.IsTableEmpty(tMexLocations) == false then
         WaitSeconds(2) --dont treat mex as available for a few seconds (this is also to ensure that if a mex has 'died' due to being upgraded, the new building will be here)
-        for iMexLocation, tMexLocation in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations] do
+        for iMexLocation, tMexLocation in tMexLocations do
             --Prev line - redid at same time as changing approach for removing an unbuilt location to try and be more accurate
             --if M28Utilities.GetDistanceBetweenPositions(tMexLocation, oUnit:GetPosition()) <= 0.9 then
             --Revised line:
@@ -630,7 +645,8 @@ function OnMexDeath(tUnitPosition)
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if we have a mex at this location anymore, bNoMex='..tostring(bNoMex)) end
                 if bNoMex then
-                    table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations], tMexLocation)
+                    if not(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) then tLZOrWZData[M28Map.subrefMexUnbuiltLocations] = {} end
+                    table.insert(tLZOrWZData[M28Map.subrefMexUnbuiltLocations], tMexLocation)
                     if bDebugMessages == true then
                         LOG(sFunctionRef..': Recording location as being unbuilt as mex is dead and no mexes visible there now')
                         M28Utilities.DrawLocation(tMexLocation)
@@ -639,6 +655,82 @@ function OnMexDeath(tUnitPosition)
                 end
             end
         end
+    else
+        M28Utilities.ErrorHandler('Mex has died but not in a recognised land or water zone that has mexes')
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function OnMexConstructionStarted(oUnit)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'OnMexConstructionStarted'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ueb11037' or oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ueb110358' then bDebugMessages = true end
+
+    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
+    local tMexLocations
+    local tLZOrWZData
+    local iWaterZone, iPond
+    if iPlateau and not(iLandZone) then
+        iWaterZone = M28Map.GetWaterZoneFromPosition(oUnit:GetPosition())
+        if iWaterZone then
+            iPond = M28Map.tiPondByWaterZone[iWaterZone]
+            tLZOrWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone]
+            tMexLocations = tLZOrWZData[M28Map.subrefWZMexLocations]
+        end
+    else
+        tLZOrWZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+        tMexLocations = tLZOrWZData[M28Map.subrefLZMexLocations]
+    end
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Have just started construction for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Is M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]))..'; Unit position='..repru(oUnit:GetPosition())) end
+    if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false then
+        if bDebugMessages == true then LOG('About to loop through Mex locations; iPlateau='..iPlateau..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; reprs='..reprs(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])) end
+        local bFoundMexLocation = false
+        local iSizeBefore = table.getn(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])
+        local iSizeAfter
+        for iMexLocation, tMexLocation in tLZOrWZData[M28Map.subrefMexUnbuiltLocations] do
+            --Old code commented out below caused issues on maps like sludge:
+            --if M28Utilities.GetDistanceBetweenPositions(tMexLocation, oUnit:GetPosition()) <= 2 then
+            --Replaced with the following:
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering tMexLocation='..repru(tMexLocation)..'; compared with Unit position '..repru(oUnit:GetPosition())) end
+            if math.abs(tMexLocation[1] - oUnit:GetPosition()[1]) < 1 and math.abs(tMexLocation[3] - oUnit:GetPosition()[3]) < 1 then
+                if bDebugMessages == true then
+                    LOG(sFunctionRef..': Have built a mex within 1 of a mex location so will treat this mex location as no longer available. iMexLocation='..iMexLocation)
+                    M28Utilities.DrawLocation(tMexLocation, 2)
+                end
+                bFoundMexLocation = true
+                local vRemoved = table.remove(tLZOrWZData[M28Map.subrefMexUnbuiltLocations], iMexLocation)
+                local iSizeAfter
+                if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) then iSizeAfter = 0
+                else iSizeAfter = table.getn(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations] after removal='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..'; vRemoved='..reprs(vRemoved)..'; iSizeBefore='..iSizeBefore..'; iSizeAfter='..iSizeAfter) end
+                break
+            end
+        end
+        if iSizeAfter >= iSizeBefore then
+            --Backup for strange case where table.remove would remove a table but the table would still remain
+
+        end
+        if not(bFoundMexLocation) then
+            M28Utilities.ErrorHandler('OnCreate triggered for a mex but no unbuilt locations near it, iPlateau='..iPlateau..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil'))
+            if bDebugMessages == true then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations]='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit position='..repru(oUnit:GetPosition())) end
+        end
+    end
+
+    --Add mex to enemy unit table if underwater, due to flaw with current approach - i.e. to reduce overhead all AI regardless of team use the same table for if a mex has been built; engineers are meant to either build on unbuilt mexes, or try and reclaim if the enemy is there; however without this step they effectively end up thinking a teammate has the mex so they never tyr sending an engineer to build or capture.  For land it's not an issue as would expect land scouts or other land units to reveal the mexes anyway
+    if iWaterZone > 0 then
+        local tTeamsUpdated = {}
+        for iBrain, oBrain in M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.subreftoEnemyBrains] do
+            if oBrain.M28AI and not(tTeamsUpdated[oBrain.M28Team]) then
+                tTeamsUpdated[oBrain.M28Team] = true
+                --(aiBrain, oUnit, bAlreadyUpdatedPosition, bAlreadyTriedReassignment, bIgnoreIfAssignedAlready)
+                M28Team.AssignUnitToLandZoneOrPond(oBrain, oUnit, false,                    false,                      true)
+            end
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, tLZOrWZData[M28Map.subrefMexUnbuiltLocations]='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

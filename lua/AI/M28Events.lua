@@ -592,9 +592,20 @@ function OnConstructed(oEngineer, oJustBuilt)
             --Also update the name
             if M28Config.M28ShowUnitNames then
                 local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oJustBuilt:GetPosition(), false)
-                local sPlateauAndZoneDesc = ':P='..(iPlateau or 0)..'LZ='..(iLandZone or 0)
 
-                oJustBuilt:SetCustomName(oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..sPlateauAndZoneDesc..': Built')
+                local sWZOrLZRef = ''
+                local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oJustBuilt:GetPosition())
+                local iWaterZone
+                if (iLandZone or 0) == 0 then
+                    iWaterZone = M28Map.GetWaterZoneFromPosition(oJustBuilt:GetPosition())
+                    if (iWaterZone or 0) > 0 then
+                        sWZOrLZRef = 'WZ'..iWaterZone
+                    end
+                else
+                    sWZOrLZRef = ':P='..(iPlateau or 0)..'LZ='..(iLandZone or 0)
+                end
+
+                oJustBuilt:SetCustomName(oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..sWZOrLZRef..': Built')
             end
 
             --If we have just built a radar then update radar logic
@@ -862,7 +873,22 @@ function OnCreate(oUnit)
 
             --All units (not just M28 specific):
             M28UnitInfo.RecordUnitRange(oUnit)
-            if M28Config.M28ShowEnemyUnitNames then oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+            if M28Config.M28ShowEnemyUnitNames then
+                local sWZOrLZRef = ''
+                if EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) then
+                    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+                    local iWaterZone
+                    if (iLandZone or 0) == 0 then
+                        iWaterZone = M28Map.GetWaterZoneFromPosition(oUnit:GetPosition())
+                        if (iWaterZone or 0) > 0 then
+                            sWZOrLZRef = 'WZ'..iWaterZone
+                        end
+                    else
+                        sWZOrLZRef = 'LZ'..iLandZone
+                    end
+                end
+                oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..sWZOrLZRef)
+            end
             --Units with upgrade - update the base threat value
             if EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit) end --Will check if unit has enhancements as part of this
 
@@ -881,31 +907,7 @@ function OnCreate(oUnit)
                 end
             elseif EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
                 --Treat location as having buildings on it (if we were treating it as unbuilt previously)
-                local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
-
-                if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]) == false then
-                    if bDebugMessages == true then LOG('About to loop through Mex locations; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; reprs='..reprs(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations])) end
-                    local bFoundMexLocation = false
-                    for iMexLocation, tMexLocation in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations] do
-                        --Old code commented out below caused issues on maps like sludge:
-                        --if M28Utilities.GetDistanceBetweenPositions(tMexLocation, oUnit:GetPosition()) <= 2 then
-                        --Replaced with the following:
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering tMexLocation='..repru(tMexLocation)..'; compared with Unit position '..repru(oUnit:GetPosition())) end
-                        if math.abs(tMexLocation[1] - oUnit:GetPosition()[1]) < 1 and math.abs(tMexLocation[3] - oUnit:GetPosition()[3]) < 1 then
-                            if bDebugMessages == true then
-                                LOG(sFunctionRef..': Have built a mex within 1 of a mex location so will treat this mex location as no longer available')
-                                M28Utilities.DrawLocation(tMexLocation, 2)
-                            end
-                            bFoundMexLocation = true
-                            table.remove(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations], iMexLocation)
-                            break
-                        end
-                    end
-                    if not(bFoundMexLocation) then
-                        M28Utilities.ErrorHandler('OnCreate triggered for a mex but no unbuilt locations near it, iPlateau='..iPlateau..'; iLandZone='..(iLandZone or 'nil'))
-                        if bDebugMessages == true then LOG(sFunctionRef..': M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations])..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit position='..repru(oUnit:GetPosition())) end
-                    end
-                end
+                M28Building.OnMexConstructionStarted(oUnit)
             end
 
             --M28 specific: Cover units transferred to us or cheated in or presumably that we have captured

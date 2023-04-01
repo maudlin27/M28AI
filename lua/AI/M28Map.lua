@@ -22,6 +22,7 @@ bWaterZoneInitialCreation = false --set to true once have finished code for reco
 --Pathing types
 --NavLayers 'Land' | 'Water' | 'Amphibious' | 'Hover' | 'Air'
 refPathingTypeHover = 'Hover' --Amphibious is more restrictive so more likely to run into errors if base pathing on hover if enemy units then hover over it
+refPathingTypeAmphibious = 'Amphibious' --Use sparingly - most logic uses hover instead of amphibious
 refPathingTypeNavy = 'Water'
 refPathingTypeAir = 'Air'
 refPathingTypeLand = 'Land'
@@ -104,7 +105,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
     --Land zone subrefs (against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]):
         subrefLZMexCount = 'MexCount' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns number of mexes in the LZ
         subrefLZMexLocations = 'MexLoc' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of mex locations in the LZ, e.g. get with tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefLZMexLocations]
-        subrefMexUnbuiltLocations = 'MexAvailLoc' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of mex locations in the LZ, e.g. get with tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefLZMexLocations]
+        subrefMexUnbuiltLocations = 'MexAvailLoc' --used by water and land zones; e.g. for LZ is against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of mex locations in the LZ, e.g. get with tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefLZMexLocations]
         subrefLZMidpoint = 'Midpoint' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns the midpoint of the land zone, e.g. get with tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefLZMidpoint]
         subrefLZMinSegX = 'LZMinSegX'
         subrefLZMinSegZ = 'LZMinSegZ'
@@ -161,7 +162,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZCoreExpansion = 'ZExp' --true if considered the main land zone for an expansion (e.g. on an island); nil if we havent considered yet if it is a core expansion, and false if we have considered and it isnt
             subrefbCoreBaseOverride = 'ZCreO' --true if we want to make this locatio na core zone even if it doesnt meet the normal criteria (e.g. to be used when we run out of places to build in our actual core LZ)
             subrefAlliedACU = 'AACU' --table of ACU units for the land zone (so can factor into decisions on support and attack)
-            subrefLZTAlliedUnits = 'Allies' --table of all allied units in the land zone, tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam][subrefLZTAlliedUnits]
+            subrefLZTAlliedUnits = 'Allies' --USE SAME REF AS FOR WATER ZONES - table of all allied units in the land zone, tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam][subrefLZTAlliedUnits]
             subrefLZTAlliedCombatUnits = 'AllComb' --table of allied units that are to be considered for combat orders
             subrefTEnemyUnits = 'Enemies' --table of all enemy units in the land zone
             reftoNearestDFEnemies = 'NearestDF' --Table of enemy DF units in this LZ, plus the nearest DF unit in each adjacnet LZ, with proximity based on unit distance and unit range (i.e. the dist until the unit is in range)
@@ -270,6 +271,10 @@ tPondDetails = {}
 
     --Water zones (against tPondDetails)
     subrefPondWaterZones = 'PondWZ' --e.g. access the water zone data tables via M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone], where iWaterZone is the NavUtils refPathingTypeNavy pathing result
+        subrefWZMexCount = 'MexCount' --(same ref as for land zones; reason for repating is to avoid confusion with the pond variables which track different information)
+        subrefWZMexLocations = 'MexLoc' --(same ref as for land zones)
+        --subrefMexUnbuiltLocations Uses same ref as LZ
+
         subrefWZMidpoint = 'Midpoint' --Uses same ref as land zone incase we mistyped/forgot to update copy of the code
         subrefWZSegments = 'PWZSeg' --e.g. tPondDetails[iPond][subrefPondWaterZones][iWaterZone][subrefWZSegments]
         subrefWZMinSegX = 'PWZMinSX'
@@ -301,7 +306,7 @@ tPondDetails = {}
             --refbWantLandScout - use same ref as for land zone
             --subreftPatrolPath - use same ref as for land zone
 
-            subrefWZTAlliedUnits = 'Allies' --table of all allied units in the water zone
+            subrefWZTAlliedUnits = 'Allies' --USE SAME REF AS FOR LAND ZONE - table of all allied units in the water zone
             subrefWZTAlliedCombatUnits = 'AllComb' --table of allied units that are to be considered for combat orders
             --subrefTEnemyUnits = 'Enemies' --table of all enemy units in the water zone - uses same ref as for land zone
             reftWZEnemyAirUnits = 'EnAir' --All enemy air units that are currently in the water zone
@@ -987,6 +992,44 @@ local function AddMexToLandZone(iPlateau, iOptionalLandZone, iPlateauMexRef, tTe
     tTempPlateauLandZoneByMexRef[iPlateau][iPlateauMexRef] = iLandZone
     local iCurSegmentX, iCurSegmentZ = GetPathingSegmentFromPosition(tAllPlateaus[iPlateau][subrefPlateauMexes][iPlateauMexRef])
     RecordSegmentLandZone(iCurSegmentX, iCurSegmentZ, iPlateau, iLandZone)
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+local function AddMexToWaterZone(iPond, iWaterZone, tMex)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AddMexToWaterZone'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --Add the mex to this water zone
+    local tWZData = tPondDetails[iPond][subrefPondWaterZones][iWaterZone]
+    if not(tWZData[subrefWZMexLocations]) then
+        tWZData[subrefWZMexLocations] = {}
+        tWZData[subrefWZMexCount] = 0
+    end
+    tWZData[subrefWZMexCount] = tWZData[subrefWZMexCount] + 1
+    table.insert(tWZData[subrefWZMexLocations], tMex)
+
+    if M28Conditions.CanBuildOnMexLocation(tMex) then
+        if not(tWZData[subrefMexUnbuiltLocations]) then tWZData[subrefMexUnbuiltLocations] = {} end
+        table.insert(tWZData[subrefMexUnbuiltLocations], tMex)
+    else
+        --DOuble-check - if there are no buildings in a rectangle around the mex then treat it as buildable (note - havent tested the below as added when thought were failing to record mexes on a map but it turned out to be another unrelated issue)
+        local rRect = M28Utilities.GetRectAroundLocation(tMex, 0.9)
+        local tUnitsByMex = GetUnitsInRect(rRect)
+        local bNearbyMex = false
+        if M28Utilities.IsTableEmpty(tUnitsByMex) == false then
+            local tBuildingsNearby = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tUnitsByMex)
+            if M28Utilities.IsTableEmpty(tBuildingsNearby) == false then
+                bNearbyMex = true
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Backup logic, is tUnitsByMex empty='..tostring(M28Utilities.IsTableEmpty(tUnitsByMex))..'; bNearbyMex ='..tostring(bNearbyMex)) end
+        if not(bNearbyMex) then
+            if not(tWZData[subrefMexUnbuiltLocations]) then tWZData[subrefMexUnbuiltLocations] = {} end
+            table.insert(tWZData[subrefMexUnbuiltLocations], tMex)
+        end
+    end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -4021,6 +4064,22 @@ function RecordWaterZoneMidpointAndMinMaxPositions()
     local iMinX, iMaxX, iMinZ, iMaxZ, iAveragePond, iAverageWaterZone
     local iAverageSegmentX, iAverageSegmentZ
     for iPond, tPondSubtable in tPondDetails do
+        bDebugMessages = true
+        --Go through any mexes near a pond, and record against a waterzone if they're in water
+        if M28Utilities.IsTableEmpty(tPondSubtable[subrefPondMexInfo]) == false then
+            local iMexWaterZone, iMexPond
+            for iMex, tSubtable in  tPondSubtable[subrefPondMexInfo] do
+                local tMex = tSubtable[subrefMexLocation]
+                iMexWaterZone = GetWaterZoneFromPosition(tMex)
+                if (iMexWaterZone or 0) > 0 then
+                    iMexPond = tiPondByWaterZone[iMexWaterZone]
+                    AddMexToWaterZone(iMexPond, iMexWaterZone, tMex)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Just added mex at position '..repru(tMex)..' to iMexWaterZone='..iMexWaterZone) end
+                end
+            end
+        end
+        bDebugMessages = false
+
         for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
             --Record min and max values
             iMinX = 100000

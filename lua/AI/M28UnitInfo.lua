@@ -50,6 +50,7 @@ refiMissileDefenceRange = 'M28UMDefR' --For SMD and TMD
 refiAARange = 'M28UAAR'
 refiBomberRange = 'M28UBR'
 refbWeaponUnpacks = 'M28WUP'
+refbCanKite = 'M28CanKite' --true unless weapon unpacks or experimental with a weapon fixed to body (GC and megalith)
 
 refbPaused = 'M28UnitPaused' --true if unit is paused
 reftoUnitsAssistingThis = 'M28UnitsAssisting' --table of units given an order to guard this unit
@@ -606,7 +607,7 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                                     elseif EntityCategoryContains(categories.INDIRECTFIRE * categories.ARTILLERY * categories.MOBILE * categories.TECH3, oUnit.UnitId) then iMassMod = 0.5
                                     elseif EntityCategoryContains(categories.SHIELD, oUnit.UnitId) then iMassMod = 0.75 --will be doubled for structures
                                     elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then iMassMod = 1 --Put in just in case - code was working before this, but dont want it to be affected yb more recenlty added engineer category
-                                    elseif EntityCategoryContains(categories.ENGINEER,oUnit.UnitId) then iMassMod = 0.1 --Engis can reclaim and capture so can't just e.g. beat with a scout
+                                    elseif EntityCategoryContains(categories.ENGINEER,oUnit.UnitId) then iMassMod = 0.01 --Engis can reclaim and capture so can't just e.g. beat with a scout, but also dont want a combat unit to run from engineers as they could still harm them; alot of logic uses a threshold of 10 for threats, which would be c.3 T3 engineers, so will go with this
                                     end
                                     if bAddAntiNavy and iMassMod < 1 and EntityCategoryContains(categories.ANTINAVY  + categories.OVERLAYANTINAVY, oUnit.UnitId) then
                                         --Increase mass mod for certain units
@@ -1020,8 +1021,10 @@ end
 
 function RecordUnitRange(oUnit)
     --Updates unit range variables - sets to nil if it has nothing with that range, otherwise records it as the highest range it has.  Factors in enhancements. Also records if unit unpacks for T3 mobile arti
+    --Also updates if unit can kite
     local oBP = oUnit:GetBlueprint()
-
+    local bWeaponUnpacks = false
+    local bWeaponIsFixed = false
     if oBP.Weapon then
         for iCurWeapon, oCurWeapon in oBP.Weapon do
             if not(oCurWeapon.EnabledByEnhancement) or (oCurWeapon.EnabledByEnhancement and oUnit:HasEnhancement(oCurWeapon.EnabledByEnhancement)) then
@@ -1054,6 +1057,9 @@ function RecordUnitRange(oUnit)
                     M28Utilities.ErrorHandler('Unrecognised range category '..oCurWeapon.RangeCategory..' for unit '..oUnit.UnitId)
                 end
             end
+            if oCurWeapon.WeaponUnpacks then bWeaponUnpacks = true
+            elseif oCurWeapon.SlavedToBody or oCurWeapon.SlavedToTurret then bWeaponIsFixed = true
+            end
         end
         if M28Utilities.IsTableEmpty(oBP.Enhancements) == false and (oUnit[refiDFRange] or 0) > 0 then
             --Check if we have a max range in an enhancement
@@ -1062,6 +1068,9 @@ function RecordUnitRange(oUnit)
                     oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), tEnhancement.NewMaxRadius)
                 end
             end
+        end
+        if not(bWeaponUnpacks or (bWeaponIsFixed and EntityCategoryContains(categories.EXPERIMENTAL - refCategoryFatboy, oUnit.UnitId))) then
+            oUnit[refbCanKite] = true
         end
     end
 
