@@ -645,11 +645,25 @@ function OnMexDeath(tUnitPosition)
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if we have a mex at this location anymore, bNoMex='..tostring(bNoMex)) end
                 if bNoMex then
-                    if not(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) then tLZOrWZData[M28Map.subrefMexUnbuiltLocations] = {} end
-                    table.insert(tLZOrWZData[M28Map.subrefMexUnbuiltLocations], tMexLocation)
-                    if bDebugMessages == true then
-                        LOG(sFunctionRef..': Recording location as being unbuilt as mex is dead and no mexes visible there now')
-                        M28Utilities.DrawLocation(tMexLocation)
+                    local bAlreadyRecorded = false
+                    if not(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) then
+                        tLZOrWZData[M28Map.subrefMexUnbuiltLocations] = {}
+                    else
+                        for iEntry, tUnbuiltLocation in tLZOrWZData[M28Map.subrefMexUnbuiltLocations] do --redundancy in case this code triggers more than once, as were comign across unbuilt locations with the same entry listed more than once (although it wasnt showing up with a reprs/repru)
+                            if math.abs(tUnbuiltLocation[1] - tMexLocation[1]) < 0.9 and math.abs(tUnbuiltLocation[3] - tMexLocation[3]) < 0.9 then
+                                bAlreadyRecorded = true
+                                break
+                            end
+                        end
+                    end
+                    if not(bAlreadyRecorded) then
+                        table.insert(tLZOrWZData[M28Map.subrefMexUnbuiltLocations], tMexLocation)
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef..': Recording location as being unbuilt as mex is dead and no mexes visible there now')
+                            M28Utilities.DrawLocation(tMexLocation)
+                        end
+                    else
+                        if bDebugMessages == true then LOG(sFunctionRef..': Already recorded this location as unbuilt') end
                     end
                     break
                 end
@@ -666,7 +680,7 @@ function OnMexConstructionStarted(oUnit)
     local sFunctionRef = 'OnMexConstructionStarted'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ueb11037' or oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ueb110358' then bDebugMessages = true end
+
 
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
     local tMexLocations
@@ -685,13 +699,32 @@ function OnMexConstructionStarted(oUnit)
     end
 
     if bDebugMessages == true then LOG(sFunctionRef..': Have just started construction for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Is M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]))..'; Unit position='..repru(oUnit:GetPosition())) end
+    local bFoundMexLocation = false
     if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false then
-        if bDebugMessages == true then LOG('About to loop through Mex locations; iPlateau='..iPlateau..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; reprs='..reprs(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])) end
-        local bFoundMexLocation = false
         local iSizeBefore = table.getn(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])
-        local iSizeAfter
-        local iLocationToRemove
-        for iMexLocation, tMexLocation in tLZOrWZData[M28Map.subrefMexUnbuiltLocations] do
+        if bDebugMessages == true then LOG('About to loop through Mex locations; iPlateau='..iPlateau..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; reprs='..reprs(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..'; iSizeBefore='..iSizeBefore) end
+        --local iSizeAfter
+        --local iLocationToRemove
+        if bDebugMessages == true then
+            for iMexLocation, tMexLocation in tLZOrWZData[M28Map.subrefMexUnbuiltLocations] do
+                LOG(sFunctionRef..': iMexLocation='..iMexLocation..'; tMexLocation='..repru(tMexLocation))
+            end
+        end
+        for iEntry = iSizeBefore, 1, -1 do
+            local tMexLocation = tLZOrWZData[M28Map.subrefMexUnbuiltLocations][iEntry]
+            if bDebugMessages == true then LOG(sFunctionRef..': Comparing dist for iEntry '..iEntry..'; tMexLocation='..repru(tMexLocation)) end
+            if math.abs(tMexLocation[1] - oUnit:GetPosition()[1]) < 1 and math.abs(tMexLocation[3] - oUnit:GetPosition()[3]) < 1 then
+                if bDebugMessages == true then
+                    LOG(sFunctionRef..': Have built a mex within 1 of a mex location so will treat this mex location as no longer available. iEntry='..iEntry)
+                    M28Utilities.DrawLocation(tMexLocation, 2)
+                end
+                bFoundMexLocation = true
+                local vRemoved = table.remove(tLZOrWZData[M28Map.subrefMexUnbuiltLocations], iEntry)
+                if bDebugMessages == true then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations] after removal='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..'; vRemoved='..reprs(vRemoved)..'; iSizeBefore='..iSizeBefore) end
+            end
+        end
+        --Old code - had issues with this sometimes where e.g. would have a table that with reprs showed as only having 1 entry, but it actually had 2 and were identical
+        --[[for iMexLocation, tMexLocation in tLZOrWZData[M28Map.subrefMexUnbuiltLocations] do
             --Old code commented out below caused issues on maps like sludge:
             --if M28Utilities.GetDistanceBetweenPositions(tMexLocation, oUnit:GetPosition()) <= 2 then
             --Replaced with the following:
@@ -717,11 +750,11 @@ function OnMexConstructionStarted(oUnit)
         if iSizeAfter >= iSizeBefore then
             --Backup for strange case where table.remove would remove a table but the table would still remain
 
-        end
-        if not(bFoundMexLocation) then
-            M28Utilities.ErrorHandler('OnCreate triggered for a mex but no unbuilt locations near it, iPlateau='..iPlateau..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil'))
-            if bDebugMessages == true then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations]='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit position='..repru(oUnit:GetPosition())) end
-        end
+        end--]]
+    end
+    if not(bFoundMexLocation) then
+        M28Utilities.ErrorHandler('OnCreate triggered for a mex but no unbuilt locations near it, iPlateau='..iPlateau..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil'), true)
+        if bDebugMessages == true then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations]='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit position='..repru(oUnit:GetPosition())) end
     end
 
     --Add mex to enemy unit table if underwater, due to flaw with current approach - i.e. to reduce overhead all AI regardless of team use the same table for if a mex has been built; engineers are meant to either build on unbuilt mexes, or try and reclaim if the enemy is there; however without this step they effectively end up thinking a teammate has the mex so they never tyr sending an engineer to build or capture.  For land it's not an issue as would expect land scouts or other land units to reveal the mexes anyway

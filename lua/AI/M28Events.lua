@@ -869,48 +869,51 @@ function OnCreate(oUnit)
             WaitTicks(1)
             if M28UnitInfo.IsUnitValid(oUnit) then OnCreate(oUnit) end
         else
-            M28Team.ConsiderAssigningUnitToZoneForBrain(oUnit:GetAIBrain(), oUnit) --This function includes check of whether this is an M28 brain
+            if not(oUnit['M28OnCrRn']) then
+                oUnit['M28OnCrRn'] = true
+                M28Team.ConsiderAssigningUnitToZoneForBrain(oUnit:GetAIBrain(), oUnit) --This function includes check of whether this is an M28 brain
 
-            --All units (not just M28 specific):
-            M28UnitInfo.RecordUnitRange(oUnit)
-            if M28Config.M28ShowEnemyUnitNames then
-                local sWZOrLZRef = ''
-                if EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) then
-                    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
-                    local iWaterZone
-                    if (iLandZone or 0) == 0 then
-                        iWaterZone = M28Map.GetWaterZoneFromPosition(oUnit:GetPosition())
-                        if (iWaterZone or 0) > 0 then
-                            sWZOrLZRef = 'WZ'..iWaterZone
-                        end
-                    else
-                        sWZOrLZRef = 'LZ'..iLandZone
-                    end
-                end
-                oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..sWZOrLZRef)
-            end
-            --Units with upgrade - update the base threat value
-            if EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit) end --Will check if unit has enhancements as part of this
-
-            --Hydro resource locations
-            if EntityCategoryContains(M28UnitInfo.refCategoryHydro, oUnit.UnitId) then
-                --Treat location as no longer having no buildings on it
-                local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
-                if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations]) == false then
-                    --LOG('About to loop through hydro locations; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; reprs='..reprs(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations]))
-                    for iHydroLocation, tHydroLocation in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations] do
-                        if M28Utilities.GetDistanceBetweenPositions(tHydroLocation, oUnit:GetPosition()) <= 2 then
-                            table.remove(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations], iHydroLocation)
-                            break
+                --All units (not just M28 specific):
+                M28UnitInfo.RecordUnitRange(oUnit)
+                if M28Config.M28ShowEnemyUnitNames then
+                    local sWZOrLZRef = ''
+                    if EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) then
+                        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+                        local iWaterZone
+                        if (iLandZone or 0) == 0 then
+                            iWaterZone = M28Map.GetWaterZoneFromPosition(oUnit:GetPosition())
+                            if (iWaterZone or 0) > 0 then
+                                sWZOrLZRef = 'WZ'..iWaterZone
+                            end
+                        else
+                            sWZOrLZRef = 'LZ'..iLandZone
                         end
                     end
+                    oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..sWZOrLZRef)
                 end
-            elseif EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
-                --Treat location as having buildings on it (if we were treating it as unbuilt previously)
-                M28Building.OnMexConstructionStarted(oUnit)
+                --Units with upgrade - update the base threat value
+                if EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit) end --Will check if unit has enhancements as part of this
+
+                --Hydro resource locations
+                if EntityCategoryContains(M28UnitInfo.refCategoryHydro, oUnit.UnitId) then
+                    --Treat location as no longer having no buildings on it
+                    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
+                    if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations]) == false then
+                        --LOG('About to loop through hydro locations; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; reprs='..reprs(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations]))
+                        for iHydroLocation, tHydroLocation in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations] do
+                            if M28Utilities.GetDistanceBetweenPositions(tHydroLocation, oUnit:GetPosition()) <= 2 then
+                                table.remove(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZHydroUnbuiltLocations], iHydroLocation)
+                                break
+                            end
+                        end
+                    end
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
+                    --Treat location as having buildings on it (if we were treating it as unbuilt previously)
+                    M28Building.OnMexConstructionStarted(oUnit)
+                end
             end
 
-            --M28 specific: Cover units transferred to us or cheated in or presumably that we have captured
+            --M28 specific: Cover units transferred to us or cheated in or presumably that we have captured - will leave outside the OnCreate flag above in case the oncreate variable transfers over when a unit is captured/gifted
             if oUnit:GetAIBrain().M28AI and oUnit:GetFractionComplete() == 1 then
                 M28Economy.UpdateHighestFactoryTechLevelForBuiltUnit(oUnit) --this includes a check to see if are dealing with a factory HQ
                 M28Economy.UpdateGrossIncomeForUnit(oUnit, false) --This both includes a check of the unit type, and cehcks we havent already recorded

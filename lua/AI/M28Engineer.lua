@@ -2558,7 +2558,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     local sFunctionRef = 'ConsiderActionToAssign'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iActionToAssign == refActionReclaimEnemyUnit then bDebugMessages = true end
+
 
     if iTotalBuildPowerWanted < 0 then M28Utilities.ErrorHandler('Have negative BP wanted') end
 
@@ -3814,7 +3814,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     local sFunctionRef = 'ConsiderMinorLandZoneEngineerAssignment'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iLandZone == 15 and iPlateau == 206 and M28Utilities.IsTableEmpty(tEngineers) == false then bDebugMessages = true end
+
     local iBPWanted
     local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
     local bWantMorePower = M28Conditions.WantMorePower(iTeam)
@@ -4297,7 +4297,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
             HaveActionToAssign(refActionBuildNavalFactory, 1, 30, nil)
         end
     end--]]
-    if iWaterZone == 6 then bDebugMessages = true end
+
     if bDebugMessages == true then LOG(sFunctionRef..': About to consider what actions we want to give engineers for iPond='..iPond..'; iWaterZone='..iWaterZone..'; iTeam='..iTeam..'; Is table of unbuilt mex locations empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subrefMexUnbuiltLocations]))..'; Is table of part complete mexes empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoPartBuiltMexes]))) end
 
     --Unclaimed mex in the zone
@@ -4451,7 +4451,7 @@ function ConsiderLandOrWaterZoneEngineerAssignment(tLZOrWZTeamData, iTeam, iPlat
     local sFunctionRef = 'ConsiderLandOrWaterZoneEngineerAssignment'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iLandOrWaterZone == 6 and bIsWaterZone then bDebugMessages = true end
+
 
     tLZOrWZTeamData[M28Map.subrefTbWantBP] = false --set to true later if any BP wanted
 

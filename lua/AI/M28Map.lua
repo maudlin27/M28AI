@@ -334,6 +334,8 @@ tPondDetails = {}
             subrefWZCombatThreatWanted = 'CombWant'
             subrefWZMAAThreatWanted = 'MAAWant'
             subrefbWZWantsSupport = 'WZWntSup'
+            subrefbWZOnlyHoverEnemies = 'WZHvEn' --true if only hover units (so we dont want to send subs to support)
+            subrefbWZOnlySubmersibleEnemies = 'WZSubEn' --true if only submersible enemies (so we dont want to send units without antinavy to support)
 
             reftoWZUnitsWantingMobileShield = 'MShUnit'
             refbWZWantsMobileShield = 'bWntMSh'
@@ -1002,32 +1004,44 @@ local function AddMexToWaterZone(iPond, iWaterZone, tMex)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --Add the mex to this water zone
+    local bAlreadyRecorded = false --(expect to be the case every time, but were getting issues with the same location appearing multiple itmes in unbuilt locations so adding as redundancy)
     local tWZData = tPondDetails[iPond][subrefPondWaterZones][iWaterZone]
     if not(tWZData[subrefWZMexLocations]) then
         tWZData[subrefWZMexLocations] = {}
         tWZData[subrefWZMexCount] = 0
-    end
-    tWZData[subrefWZMexCount] = tWZData[subrefWZMexCount] + 1
-    table.insert(tWZData[subrefWZMexLocations], tMex)
-
-    if M28Conditions.CanBuildOnMexLocation(tMex) then
-        if not(tWZData[subrefMexUnbuiltLocations]) then tWZData[subrefMexUnbuiltLocations] = {} end
-        table.insert(tWZData[subrefMexUnbuiltLocations], tMex)
     else
-        --DOuble-check - if there are no buildings in a rectangle around the mex then treat it as buildable (note - havent tested the below as added when thought were failing to record mexes on a map but it turned out to be another unrelated issue)
-        local rRect = M28Utilities.GetRectAroundLocation(tMex, 0.9)
-        local tUnitsByMex = GetUnitsInRect(rRect)
-        local bNearbyMex = false
-        if M28Utilities.IsTableEmpty(tUnitsByMex) == false then
-            local tBuildingsNearby = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tUnitsByMex)
-            if M28Utilities.IsTableEmpty(tBuildingsNearby) == false then
-                bNearbyMex = true
+        --Check not already recorded
+        for iEntry, tLocation in tWZData[subrefWZMexLocations] do
+            if math.abs(tLocation[1] - tMex[1]) <= 0.9 and math.abs(tLocation[3] - tMex[3]) <= 0.9 then
+                bAlreadyRecorded = true
+                break
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Backup logic, is tUnitsByMex empty='..tostring(M28Utilities.IsTableEmpty(tUnitsByMex))..'; bNearbyMex ='..tostring(bNearbyMex)) end
-        if not(bNearbyMex) then
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering recording mex at position '..repru(tMex)..' for iWaterZone'..iWaterZone..'; bAlreadyRecorded='..tostring(bAlreadyRecorded)) end
+    if not(bAlreadyRecorded) then
+        tWZData[subrefWZMexCount] = tWZData[subrefWZMexCount] + 1
+        table.insert(tWZData[subrefWZMexLocations], tMex)
+
+        if M28Conditions.CanBuildOnMexLocation(tMex) then
             if not(tWZData[subrefMexUnbuiltLocations]) then tWZData[subrefMexUnbuiltLocations] = {} end
             table.insert(tWZData[subrefMexUnbuiltLocations], tMex)
+        else
+            --DOuble-check - if there are no buildings in a rectangle around the mex then treat it as buildable (note - havent tested the below as added when thought were failing to record mexes on a map but it turned out to be another unrelated issue)
+            local rRect = M28Utilities.GetRectAroundLocation(tMex, 0.9)
+            local tUnitsByMex = GetUnitsInRect(rRect)
+            local bNearbyMex = false
+            if M28Utilities.IsTableEmpty(tUnitsByMex) == false then
+                local tBuildingsNearby = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tUnitsByMex)
+                if M28Utilities.IsTableEmpty(tBuildingsNearby) == false then
+                    bNearbyMex = true
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Backup logic, is tUnitsByMex empty='..tostring(M28Utilities.IsTableEmpty(tUnitsByMex))..'; bNearbyMex ='..tostring(bNearbyMex)) end
+            if not(bNearbyMex) then
+                if not(tWZData[subrefMexUnbuiltLocations]) then tWZData[subrefMexUnbuiltLocations] = {} end
+                table.insert(tWZData[subrefMexUnbuiltLocations], tMex)
+            end
         end
     end
 
@@ -4064,7 +4078,6 @@ function RecordWaterZoneMidpointAndMinMaxPositions()
     local iMinX, iMaxX, iMinZ, iMaxZ, iAveragePond, iAverageWaterZone
     local iAverageSegmentX, iAverageSegmentZ
     for iPond, tPondSubtable in tPondDetails do
-        bDebugMessages = true
         --Go through any mexes near a pond, and record against a waterzone if they're in water
         if M28Utilities.IsTableEmpty(tPondSubtable[subrefPondMexInfo]) == false then
             local iMexWaterZone, iMexPond
@@ -4078,7 +4091,6 @@ function RecordWaterZoneMidpointAndMinMaxPositions()
                 end
             end
         end
-        bDebugMessages = false
 
         for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
             --Record min and max values

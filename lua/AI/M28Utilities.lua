@@ -45,37 +45,6 @@ function ErrorHandler(sErrorMessage, bWarningNotError)
     --if iOptionalWaitInSeconds then WaitSeconds(iOptionalWaitInSeconds) end
 end
 
-function ErrorHandler(sErrorMessage, bWarningNotError)
-    --Intended to be put in code wherever a condition isn't met that should be, so can debug it without the code crashing
-    --Search for "error " in the log to find both these errors and normal lua errors, while not bringing up warnings
-    if sErrorMessage == nil then sErrorMessage = 'Not specified' end
-    local iCount = (tErrorCountByMessage[sErrorMessage] or 0) + 1
-    tErrorCountByMessage[sErrorMessage] = iCount
-    local iInterval = 1
-    local bShowError = true
-    if iCount > 3 then
-        bShowError = false
-        if iCount > 2187 then iInterval = 2187
-        elseif iCount > 729 then iInterval = 729
-        elseif iCount > 243 then iInterval = 243
-        elseif iCount >= 81 then iInterval = 81
-        elseif iCount >= 27 then iInterval = 27
-        elseif iCount >= 9 then iInterval = 9
-        else iInterval = 3
-        end
-        if math.floor(iCount / iInterval) == iCount/iInterval then bShowError = true end
-    end
-    if bShowError then
-        local sErrorBase = 'M28ERROR '
-        if bWarningNotError then sErrorBase = 'M28WARNING: ' end
-        sErrorBase = sErrorBase..'Count='..iCount..': GameTime '..math.floor(GetGameTimeSeconds())..': '
-        sErrorMessage = sErrorBase..sErrorMessage
-        local a, s = pcall(assert, false, sErrorMessage)
-        WARN(a, s)
-    end
-
-    --if iOptionalWaitInSeconds then WaitSeconds(iOptionalWaitInSeconds) end
-end
 
 function IsTableEmpty(tTable, bEmptyIfNonTableWithValue)
     --bEmptyIfNonTableWithValue - Optional, defaults to true

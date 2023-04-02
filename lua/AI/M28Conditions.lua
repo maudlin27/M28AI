@@ -357,6 +357,14 @@ function SafeToUpgradeUnit(oUnit)
         elseif tLZTeamData[M28Map.subrefLZbCoreBase] and tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] < 150 then
             return true
         end
+    else
+        --probably have a water zone - consider if safe to upgrade
+        local iWaterZone = M28Map.GetWaterZoneFromPosition(oUnit:GetPosition())
+        if (iWaterZone or 0) > 0 then
+            local iPond = M28Map.tiPondByWaterZone[iWaterZone]
+            local tWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][oUnit:GetAIBrain().M28Team]
+            if not(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]) then return true end
+        end
     end
     return false
 

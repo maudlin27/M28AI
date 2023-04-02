@@ -198,6 +198,20 @@ end
 
 function UpdateIfWaterZoneWantsSupport(tWZTeamData, bWantCombatSupport)
     tWZTeamData[M28Map.subrefbWZWantsSupport] = bWantCombatSupport
+    --Flag if the target WZ only has hover, or only has antinavy
+    local bOnlyHover = false
+    local bOnlySubmersible = false
+    if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+        bOnlyHover = true
+        bOnlySubmersible = true
+        for iUnit, oUnit in tWZTeamData[M28Map.subrefTEnemyUnits] do
+            --Check for hover
+            if bOnlyHover and EntityCategoryContains(categories.HOVER, oUnit.UnitId) then bOnlyHover = false end
+            if bOnlySubmersible and not(M28UnitInfo.IsUnitUnderwater(oUnit)) then bOnlySubmersible = false end
+        end
+    end
+    tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies] = bOnlyHover
+    tWZTeamData[M28Map.subrefbWZOnlySubmersibleEnemies] = bOnlySubmersible
 end
 
 function GetUnitToTravelToWaterZone(oUnit, iTargetPond, iTargetWaterZone, subrefWZTUnitTypeTravelingHere)
@@ -1450,6 +1464,135 @@ function RecordClosestAdjacentRangesAndEnemies(tWZData, tWZTeamData, iPond, iWat
     return iEnemyBestAntiNavyRange, iEnemyBestCombatRange
 end
 
+function ConsiderOrdersForUnitsWithNoTarget(tWZData, iPond, iWaterZone, iTeam, tSubmarinesWithNoTarget, tCombatUnitsWithNoTarget)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderOrdersForUnitsWithNoTarget'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --Handles logic for deciding where to send units to support other water zones (or returns units that could be used to support land zones), and also to handle bombardment logic
+    local tUnassignedLandUnits
+    local iOrderReissueDistToUse
+    local iResisueOrderDistanceHover = 16
+    local iReissueOrderDistanceStandard = 6
+
+    --Do we have adjacent zones wanting reinforcements?
+    local iSubmersibleWZToSupport
+    local iNoAntiNavyWZToSupport
+    local iWZToSupport
+
+    local tUnitsWithOnlyAntiNavy = tSubmarinesWithNoTarget
+    if not(tUnitsWithOnlyAntiNavy) then tUnitsWithOnlyAntiNavy = {} end
+    local tUnitsWithNoAntiNavy = {}
+    local tUnitsWithAntiNavyAndSurface = {}
+    local tPotentialBombardmentUnits
+    if M28Utilities.IsTableEmpty(tCombatUnitsWithNoTarget) == false then
+        for iUnit, oUnit in tCombatUnitsWithNoTarget do
+            if (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) == 0 then
+                table.insert(tUnitsWithNoAntiNavy, oUnit)
+            else
+                if (oUnit[M28UnitInfo.refiDFRange] or 0) == 0 then
+                    table.insert(tUnitsWithOnlyAntiNavy, oUnit)
+                else
+                    table.insert(tUnitsWithAntiNavyAndSurface, oUnit)
+                end
+            end
+        end
+    end
+    local bHaveSubs = not(M28Utilities.IsTableEmpty(tUnitsWithOnlyAntiNavy))
+
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Dont have any enemy units in this WZ or adjacent WZ, so will consider supporting other water zones') end
+    if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZOtherWaterZones]) == false then
+        for iEntry, tWZSubtable in tWZData[M28Map.subrefWZOtherWaterZones] do
+            local tAltWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][tWZSubtable[M28Map.subrefWZAWZRef]][M28Map.subrefWZTeamData][iTeam]
+            if tAltWZTeamData[M28Map.subrefbWZWantsSupport] then
+                if not(iWZToSupport) then iWZToSupport = tWZSubtable[M28Map.subrefWZAWZRef] end
+                if bHaveSubs and not(iSubmersibleWZToSupport) then
+                    if not(tAltWZTeamData[M28Map.subrefbWZOnlyHoverEnemies]) then
+                        iSubmersibleWZToSupport = tWZSubtable[M28Map.subrefWZAWZRef]
+                    end
+                end
+                if not(iNoAntiNavyWZToSupport) and not(tAltWZTeamData[M28Map.subrefbWZOnlySubmersibleEnemies]) then
+                    iNoAntiNavyWZToSupport = tWZSubtable[M28Map.subrefWZAWZRef]
+                end
+                if iNoAntiNavyWZToSupport and iWZToSupport and (iSubmersibleWZToSupport or not(bHaveSubs)) then
+                    break
+                end
+            end
+        end
+    end
+
+    --Decide on what to do based on the units we have:
+    --Subs
+    if M28Utilities.IsTableEmpty(tUnitsWithOnlyAntiNavy) == false then
+        --Subs - send to nearest WZ wanting sub support; if is none, then send to nearest WZ wanting support; if is none, then do nothing
+        if not(iSubmersibleWZToSupport) then iSubmersibleWZToSupport = iWZToSupport end
+        if iSubmersibleWZToSupport then
+            local tSupportWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iSubmersibleWZToSupport]
+            for iUnit, oUnit in tUnitsWithOnlyAntiNavy do
+                M28Orders.IssueTrackedMove(oUnit, tSupportWZData[M28Map.subrefWZMidpoint], iReissueOrderDistanceStandard, false, 'NSDFMovWZ' .. iWZToSupport .. ';' .. iWaterZone)
+            end
+        end
+    end
+    local tRallyPoint = GetNearestWaterRallyPoint(tWZData, iTeam, iPond, iWaterZone)
+    --Units with surface attack but no antinavy attack - switch to bombardment mode if nowhere to support
+    if M28Utilities.IsTableEmpty(tUnitsWithNoAntiNavy) == false then
+        if not(iNoAntiNavyWZToSupport) then
+            tUnassignedLandUnits = EntityCategoryFilterDown(M28UnitInfo.refCategoryAmphibiousCombat, tUnitsWithNoAntiNavy)
+            tPotentialBombardmentUnits = EntityCategoryFilterDown(categories.ALLUNITS - M28UnitInfo.refCategoryAmphibiousCombat, tUnitsWithNoAntiNavy)
+        else
+            local tSupportWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iNoAntiNavyWZToSupport]
+            for iUnit, oUnit in tUnitsWithNoAntiNavy do
+                if EntityCategoryContains(categories.HOVER, oUnit.UnitId) then iOrderReissueDistToUse = iResisueOrderDistanceHover
+                else iOrderReissueDistToUse = iReissueOrderDistanceStandard
+                end
+                M28Orders.IssueTrackedMove(oUnit, tSupportWZData[M28Map.subrefWZMidpoint], iOrderReissueDistToUse, false, 'NSFMovWZ' .. iWZToSupport .. ';' .. iWaterZone)
+            end
+        end
+    end
+
+    --Units with both surface attack and antinavy attack
+    if M28Utilities.IsTableEmpty(tUnitsWithAntiNavyAndSurface) == false then
+        if not(iWZToSupport) then
+            local tAmphibiousCombat = EntityCategoryFilterDown(M28UnitInfo.refCategoryAmphibiousCombat, tUnitsWithAntiNavyAndSurface)
+            local tOtherNavy = EntityCategoryFilterDown(categories.ALLUNITS - M28UnitInfo.refCategoryAmphibiousCombat, tUnitsWithAntiNavyAndSurface)
+            if not(tUnassignedLandUnits) then tUnassignedLandUnits = tAmphibiousCombat
+            else
+                if M28Utilities.IsTableEmpty(tAmphibiousCombat) == false then
+                    for iUnit, oUnit in tAmphibiousCombat do
+                        table.insert(tUnassignedLandUnits, oUnit)
+                    end
+                end
+            end
+            if not(tPotentialBombardmentUnits) then tPotentialBombardmentUnits = tOtherNavy
+            else
+                if M28Utilities.IsTableEmpty(tOtherNavy) == false then
+                    for iUnit, oUnit in tOtherNavy do
+                        table.insert(tPotentialBombardmentUnits, oUnit)
+                    end
+                end
+            end
+        else
+            local tSupportWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWZToSupport]
+            for iUnit, oUnit in tUnitsWithAntiNavyAndSurface do
+                if EntityCategoryContains(categories.HOVER, oUnit.UnitId) then iOrderReissueDistToUse = iResisueOrderDistanceHover
+                else iOrderReissueDistToUse = iReissueOrderDistanceStandard
+                end
+                M28Orders.IssueTrackedMove(oUnit, tSupportWZData[M28Map.subrefWZMidpoint], iOrderReissueDistToUse, false, 'NSFBMovWZ' .. iWZToSupport .. ';' .. iWaterZone)
+            end
+        end
+    end
+
+
+    if M28Utilities.IsTableEmpty(tPotentialBombardmentUnits) == false then
+        --consider doing via a separate function based on a set of units both to keep code tidy and incase we end up wanting to give certain untis bombardment orders from the main logic above
+        M28Utilities.ErrorHandler('To add bombardment code for surface navy')
+    end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return tUnassignedLandUnits
+end
+
 function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableCombatUnits, tAvailableSubmarines, tUnavailableUnitsInThisWZ)
     --Handles logic for main combat units (direct and indirect fire mobile units) that are noted as available to the land zone
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -1821,53 +1964,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
 
     if M28Utilities.IsTableEmpty(tSubmarinesWithNoTarget) == false or M28Utilities.IsTableEmpty(tCombatUnitsWithNoTarget) == false then
         --No enemies in the water zone or adjacent that can target so will look to reinforce another water zone
-
-        --Do we have adjacent zones wanting reinforcements?
-        local iWZToSupport
-
-        if bDebugMessages == true then LOG(sFunctionRef..': Dont have any enemy units in this WZ or adjacent WZ, so will consider supporting other water zones') end
-        if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZOtherWaterZones]) == false then
-            for iEntry, tWZSubtable in tWZData[M28Map.subrefWZOtherWaterZones] do
-                if M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][tWZSubtable[M28Map.subrefWZAWZRef]][M28Map.subrefWZTeamData][iTeam][M28Map.subrefbWZWantsSupport] then
-                    iWZToSupport = tWZSubtable[M28Map.subrefWZAWZRef]
-                    break
-                end
-            end
-        end
-        if iWZToSupport then
-            local tSupportWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWZToSupport]
-            if bDebugMessages == true then LOG(sFunctionRef..': Want to support WZ '..iWZToSupport) end
-            if M28Utilities.IsTableEmpty(tCombatUnitsWithNoTarget) == false then
-                for iUnit, oUnit in tCombatUnitsWithNoTarget do
-                    if EntityCategoryContains(categories.HOVER, oUnit.UnitId) then iOrderReissueDistToUse = iResisueOrderDistanceHover
-                    else iOrderReissueDistToUse = iReissueOrderDistanceStandard
-                    end
-
-                    M28Orders.IssueTrackedMove(oUnit, tSupportWZData[M28Map.subrefWZMidpoint], iOrderReissueDistToUse, false, 'NDFMovWZ' .. iWZToSupport .. ';' .. iWaterZone)
-                end
-            end
-            if M28Utilities.IsTableEmpty(tSubmarinesWithNoTarget) == false then
-                for iUnit, oUnit in tSubmarinesWithNoTarget do
-                    M28Orders.IssueTrackedMove(oUnit, tSupportWZData[M28Map.subrefWZMidpoint], iReissueOrderDistanceStandard, false, 'NSDFMovWZ' .. iWZToSupport .. ';' .. iWaterZone)
-                end
-            end
-        else
-            if bDebugMessages == true then LOG(sFunctionRef..': Cant find any WZ that wants support, so do different things based on the unit we have') end
-            --Submarines - dont do anything as want them nearby and dont want htem going to a predictable location (midpoint of waterzone)
-
-            --Hover and amphibious units - find the closest land zone that wants reinforcements
-            if M28Utilities.IsTableEmpty(tCombatUnitsWithNoTarget) == false then
-                tUnassignedLandUnits = EntityCategoryFilterDown(M28UnitInfo.refCategoryAmphibiousCombat, tCombatUnitsWithNoTarget)
-                local tOtherNavy = EntityCategoryFilterDown(categories.ALLUNITS - M28UnitInfo.refCategoryAmphibiousCombat, tCombatUnitsWithNoTarget)
-                --Will return tUnassignedLandUnits so can combine with any other units that dont want to treat as combat units for these purposes
-                --Other navy - consider bombardment of mexes and land units - consider doing via a separate function based on a set of units
-                if M28Utilities.IsTableEmpty(tOtherNavy) == false then
-                    --consider doing via a separate function based on a set of units both to keep code tidy and incase we end up wanting to give certain untis bombardment orders from the main logic above
-                    M28Utilities.ErrorHandler('To add bombardment code for surface navy')
-                end
-            end
-
-        end
+        local tUnassignedLandUnits = ConsiderOrdersForUnitsWithNoTarget(tWZData, iPond, iWaterZone, iTeam, tSubmarinesWithNoTarget, tCombatUnitsWithNoTarget)
     end
 
 
