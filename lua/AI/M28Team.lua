@@ -144,6 +144,11 @@ tAirSubteamData = {}
     subrefiMaxScoutRadius = 'M28ASTMaxScoutRadius' --Search range for scouts for this AirSubteam
     refbFarBehindOnAir = 'M28ASTFarBehindOnAir' --true if we are far behind on air
     refbHaveAirControl = 'M28ASTHaveAirControl'
+    reftACUAndExpOnSubteam = 'M28ASTACUExp' --Friendly ACUs and experimentals
+    subrefiAirAAThreat = 'M28ASTOurAirAA' --Our AirAA threat
+    reftAirSubRallyPoint = 'M28ASTRally' --Contains the location of the air subteam's rally point
+    reftAirSubSupportPoint = 'M28ASTSuppR' --Contains the location for airaa units to go to support a priority unit
+
 
 
 --Land subteam data varaibles (used for factory production logic)
@@ -209,7 +214,7 @@ function CreateNewAirSubteam(aiBrain)
     aiBrain.M28AirSubteam = iTotalAirSubteamCount
     tAirSubteamData[aiBrain.M28AirSubteam] = {}
     tAirSubteamData[aiBrain.M28AirSubteam][subreftoFriendlyM28Brains] = {}
-
+    tAirSubteamData[aiBrain.M28AirSubteam][reftAlliedACUAndExperimentals] = {}
 
     table.insert(tAirSubteamData[aiBrain.M28AirSubteam][subreftoFriendlyM28Brains], aiBrain)
     local tNearestEnemyBase = M28Map.GetPrimaryEnemyBaseLocation(aiBrain)
@@ -256,7 +261,7 @@ function CreateNewAirSubteam(aiBrain)
         end
     end
 
-    M28Air.AirSubteamInitialisation(aiBrain.M28AirSubteam) --Dont fork thread
+    M28Air.AirSubteamInitialisation(aiBrain.M28Team, aiBrain.M28AirSubteam) --Dont fork thread
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -1767,6 +1772,7 @@ function TeamInitialisation(iM28Team)
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatAllyGroundAA] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftLZEnemyAirUnits] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiEnemyAirToGroundThreat] = 0
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiEnemyAirAAThreat] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiEnemyAirOtherThreat] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZMAAThreatWanted] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftoLZUnitsWantingMobileShield] = {}
@@ -1845,6 +1851,7 @@ function WaterZoneTeamInitialisation(iTeam)
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTScoutsTravelingHere] = {}
 
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiEnemyAirToGroundThreat] = 0
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiEnemyAirAAThreat] = 0
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiEnemyAirOtherThreat] = 0
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefAlliedACU] = {}
 

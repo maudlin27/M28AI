@@ -336,8 +336,9 @@ function RecordAirThreatForWaterZone(tWZTeamData, iTeam, iPond, iWaterZone)
     local sFunctionRef = 'RecordAirThreatForWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                                                                     --GetAirThreatLevel(tUnits,                             bEnemyUnits, bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo, bBlueprintThreat)
-    tWZTeamData[M28Map.refiEnemyAirToGroundThreat] = M28UnitInfo.GetAirThreatLevel(tWZTeamData[M28Map.reftWZEnemyAirUnits], true,         false,          false,               true,                  false,              true)
-    tWZTeamData[M28Map.refiEnemyAirOtherThreat] = M28UnitInfo.GetAirThreatLevel(tWZTeamData[M28Map.reftWZEnemyAirUnits],      true,       true,           false,              false,                  true,               false)
+    tWZTeamData[M28Map.refiEnemyAirToGroundThreat] = M28UnitInfo.GetAirThreatLevel(tWZTeamData[M28Map.reftWZEnemyAirUnits],     true,         false,          false,               true,                  false,              true)
+    tWZTeamData[M28Map.refiEnemyAirAAThreat] = M28UnitInfo.GetAirThreatLevel(tWZTeamData[M28Map.reftWZEnemyAirUnits],           true,       true,               false,              false,              false,                   false)
+    tWZTeamData[M28Map.refiEnemyAirOtherThreat] = M28UnitInfo.GetAirThreatLevel(tWZTeamData[M28Map.reftWZEnemyAirUnits],        true,       false,           false,              false,                  true,               false)
 
     if bDebugMessages == true then LOG(sFunctionRef..': Finished updating enemy air threat values for iTeam '..iTeam..' iPond '..iPond..'; iWaterZOne '..iWaterZone..'; AirToGround threat='.. tWZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; Other air threat='..tWZTeamData[M28Map.refiEnemyAirOtherThreat]..'; Is table of enemy air units empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftWZEnemyAirUnits]))) end
 
@@ -439,7 +440,7 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
     --If we have no friendly combat units and enemy has combat threat, then request less MAA, or none if we have no non-MAA/scout units
     if bDebugMessages == true then LOG(sFunctionRef..': Setting the MAA level wanted for iWaterZone='..iWaterZone..'; tWZTeamData[M28Map.subrefWZTThreatEnemyCombatTotal]='..tWZTeamData[M28Map.subrefWZTThreatEnemyCombatTotal]..'; tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]='..tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]..'; tWZTeamData[M28Map.refiEnemyAirToGroundThreat]='..tWZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; tWZTeamData[M28Map.refiEnemyAirOtherThreat]='..tWZTeamData[M28Map.refiEnemyAirOtherThreat]..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefWZTAlliedUnits]))) end
     if tWZTeamData[M28Map.subrefWZTThreatEnemyCombatTotal] < 11 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] >= math.min(1500, tWZTeamData[M28Map.subrefWZTThreatEnemyCombatTotal] * 0.9) or tWZTeamData[M28Map.subrefWZbCoreBase] then
-        tWZTeamData[M28Map.subrefWZMAAThreatWanted] = math.max(tWZTeamData[M28Map.refiEnemyAirToGroundThreat] * 0.65 + tWZTeamData[M28Map.refiEnemyAirOtherThreat] * 0.15, tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] * 0.1)
+        tWZTeamData[M28Map.subrefWZMAAThreatWanted] = math.max(tWZTeamData[M28Map.refiEnemyAirToGroundThreat] * 0.65 + (tWZTeamData[M28Map.refiEnemyAirOtherThreat] + tWZTeamData[M28Map.refiEnemyAirAAThreat]) * 0.15, tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] * 0.1)
     elseif M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefWZTAlliedUnits]) == false then
         local bHaveAlliedNonMAAOrScout = false
         local bHaveAlliedMAA = false
@@ -455,9 +456,9 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
         if bHaveAlliedNonMAAOrScout or (bHaveAlliedMAA and tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0) then
             --SIgnificantly less MAA for dealing with non-air to ground threats
             if tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 then
-                tWZTeamData[M28Map.subrefWZMAAThreatWanted] = math.max(tWZTeamData[M28Map.refiEnemyAirToGroundThreat], tWZTeamData[M28Map.refiEnemyAirOtherThreat] * 0.075, tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] * 0.2)
+                tWZTeamData[M28Map.subrefWZMAAThreatWanted] = math.max(tWZTeamData[M28Map.refiEnemyAirToGroundThreat], (tWZTeamData[M28Map.refiEnemyAirOtherThreat] + tWZTeamData[M28Map.refiEnemyAirAAThreat]) * 0.075, tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] * 0.2)
             else
-                tWZTeamData[M28Map.subrefWZMAAThreatWanted] = math.max(tWZTeamData[M28Map.refiEnemyAirOtherThreat] * 0.075, tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] * 0.1)
+                tWZTeamData[M28Map.subrefWZMAAThreatWanted] = math.max((tWZTeamData[M28Map.refiEnemyAirOtherThreat] + tWZTeamData[M28Map.refiEnemyAirAAThreat]) * 0.075, tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] * 0.1)
             end
         else
             tWZTeamData[M28Map.subrefWZMAAThreatWanted] = 0
@@ -2054,7 +2055,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
                         if tAltTeamWZData[M28Map.refiEnemyAirToGroundThreat] > 0 then
                             iCurModDist = iCurModDist - 200
                             if tAltTeamWZData[M28Map.subrefWZTThreatAllyCombatTotal] > 0 then iCurModDist = iCurModDist - 35 end
-                        elseif tAltTeamWZData[M28Map.refiEnemyAirOtherThreat] > 45 then iCurModDist = iCurModDist - 100
+                        elseif (tAltTeamWZData[M28Map.refiEnemyAirOtherThreat] + tAltTeamWZData[M28Map.refiEnemyAirAAThreat]) > 45 then iCurModDist = iCurModDist - 100
                         end
                         if M28Utilities.IsTableEmpty(tAltTeamWZData[M28Map.subrefWZTAlliedUnits]) then iCurModDist = iCurModDist + 100 end
                         if tAltTeamWZData[M28Map.subrefWZTThreatEnemyCombatTotal] > 6 then

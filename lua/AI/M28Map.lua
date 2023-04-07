@@ -226,6 +226,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             --Enemy air
             reftLZEnemyAirUnits = 'EnAir' --All enemy air units that are currently in the land zone
             refiEnemyAirToGroundThreat = 'EnA2GT' --Air to ground threat of enemy air units in the LZ / WZ
+            refiEnemyAirAAThreat = 'EnAAT' --AirAA threat in the LZ/WZ
             refiEnemyAirOtherThreat = 'EnAirOT' --mass value of AirAA, air scouts and transports in the LZ / WZ
             --Shield, stealth and tmd
             refbLZWantsMobileShield = 'MobSh' --true if LZ wants mobile shields

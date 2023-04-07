@@ -919,6 +919,8 @@ function OnCreate(oUnit)
                 M28Economy.UpdateGrossIncomeForUnit(oUnit, false) --This both includes a check of the unit type, and cehcks we havent already recorded
                 if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) and not(oUnit.M28OnConstructedCalled) then
                     ForkThread(M28Economy.UpdateLandZoneM28MexByTechCount, oUnit)
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId) then
+                    M28Air.AddPriorityAirDefenceTarget(oUnit)
                 end
             end
         end

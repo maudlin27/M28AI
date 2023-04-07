@@ -783,6 +783,8 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                         if sCurUnitPathing == M28Map.refPathingTypeAir then
                             if bIncludeNonCombatAir == true then
                                 iMassMod = 1
+                                --Reduce to 25% for air scouts, as main concern is transports
+                                if EntityCategoryContains(refCategoryAirScout, sCurUnitBP) then iMassMod = 0.25 end
 
                             else
                                 if bIncludeAirToGround == true then
