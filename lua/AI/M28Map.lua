@@ -140,6 +140,11 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefAWZRef = 1 --The water zone reference
             subrefAWZDistance = 2 --Distance between midpoint from LZ to the WZ
         subrefLZFurthestAdjacentLandZoneTravelDist = 'FurthestAdjLZ' --Returns the travel distance (rounded up) of the furthest immediately adjacent land zone - can combine with subrefLZPathingToOtherLandZones so can stop cycling through the prerecorded LZs once get further away than the immediately adjacent ones
+        subrefOtherLandAndWaterZonesByDistance = 'AirAdjLZWZ' --orders land and air zones by distance, contains subtable with the following info:
+            subrefiPlateauOrPond = 1
+            subrefiLandOrWaterZoneRef = 2
+            subrefbIsWaterZone = 3
+            subrefiDistance = 4 --straight line distance
         subrefLZPlayerWallSegments = 'PlWalls' --Table of wall units that aren't owned by M28AI
         --Reclaim related (same values used for water zone)
         subrefReclaimSegments = 'ReclSeg' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], table, orderd 1,2,3...; returns {iReclaimSegmentX, iReclaimSegmentZ}
@@ -306,6 +311,7 @@ tPondDetails = {}
             --refiModDistancePercent - use same ref as for land zone
             --refbWantLandScout - use same ref as for land zone
             --subreftPatrolPath - use same ref as for land zone
+            --subrefOtherLandAndWaterZonesByDistance - use same ref as for land zone
 
             subrefWZTAlliedUnits = 'Allies' --USE SAME REF AS FOR LAND ZONE - table of all allied units in the water zone
             subrefWZTAlliedCombatUnits = 'AllComb' --table of allied units that are to be considered for combat orders

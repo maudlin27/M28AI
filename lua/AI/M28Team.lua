@@ -214,7 +214,7 @@ function CreateNewAirSubteam(aiBrain)
     aiBrain.M28AirSubteam = iTotalAirSubteamCount
     tAirSubteamData[aiBrain.M28AirSubteam] = {}
     tAirSubteamData[aiBrain.M28AirSubteam][subreftoFriendlyM28Brains] = {}
-    tAirSubteamData[aiBrain.M28AirSubteam][reftAlliedACUAndExperimentals] = {}
+    tAirSubteamData[aiBrain.M28AirSubteam][reftACUAndExpOnSubteam] = {}
 
     table.insert(tAirSubteamData[aiBrain.M28AirSubteam][subreftoFriendlyM28Brains], aiBrain)
     local tNearestEnemyBase = M28Map.GetPrimaryEnemyBaseLocation(aiBrain)
