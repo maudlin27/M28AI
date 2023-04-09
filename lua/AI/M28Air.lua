@@ -19,6 +19,7 @@ tAirZonePathingFromZoneToZone = {} --[x]: 1 if land zone start, 0 if water; [y]:
 
 --Against units:
     reftAssignedRefuelingUnits = 'M28AirRefueling'
+    refiGunshipPlacement = 'M28GSPlac' --The placement in the gunship group
 
 function RecordNewAirUnitForTeam(iTeam, oUnit)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -159,13 +160,13 @@ function AirSubteamOverseer(iTeam, iAirSubteam)
     end
     WaitSeconds(5) --extra delay to be safe
     while M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 0 do
-        UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
+        ForkThread(UpdateAirRallyAndSupportPoints, iTeam, iAirSubteam)
         WaitTicks(1)
-        ManageAirAAUnits(iTeam, iAirSubteam)
+        ForkThread(ManageAirAAUnits, iTeam, iAirSubteam)
         WaitTicks(1)
-        ManageBombers(iTeam, iAirSubteam)
+        ForkThread(ManageBombers, iTeam, iAirSubteam)
         WaitTicks(1)
-        ManageGunships(iTeam, iAirSubteam)
+        ForkThread(ManageGunships, iTeam, iAirSubteam)
         WaitTicks(1)
         WaitTicks(6)
     end
@@ -288,6 +289,10 @@ function IsAirUnitInCombat(oUnit, iTeam)
 end
 
 function GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, iCategory)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetAvailableLowFuelAndInUseAirUnits'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local tAvailableUnits = {}
     local tUnitsForRefueling = {}
     local tInUseUnits = {}
@@ -300,28 +305,44 @@ function GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, iCategory)
             if M28Utilities.IsTableEmpty(tCurUnits) == false then
                 for iUnit, oUnit in tCurUnits do
                     if M28UnitInfo.IsUnitValid(oUnit) then --Needed as sometimes an invalid unit is included from getlistofunits
-                        if oUnit[M28UnitInfo.refbSpecialMicroActive] or oUnit:IsUnitState('Attached') then
+                        if oUnit[M28UnitInfo.refbSpecialMicroActive] then
                             table.insert(tInUseUnits, oUnit)
                         else
-                            bSendUnitForRefueling = false
-                            --Consider if want to send unit to refuel
-                            if not(EntityCategoryContains(categories.CANNOTUSEAIRSTAGING, oUnit.UnitId)) then
-                                if oUnit.GetFuelRatio then
-                                    iFuelPercent = oUnit:GetFuelRatio()
-                                else iFuelPercent = 1
+                            local tLastOrder = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is unit attached='..tostring(oUnit:IsUnitState('Attached'))..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; reprs of tLastOrder='..reprs(tLastOrder)) end
+                            if oUnit:IsUnitState('Attached') then
+                                --Clear any orders it might have as it is refueling
+                                if tLastOrder and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderRefuel then
+                                    M28Orders.IssueTrackedClearCommands(oUnit)
                                 end
-                                if iFuelPercent < 0.25 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.55 then
-                                    --Send unit to refuel unless it is attacking a nearby enemy and isnt a gunship
-                                    if EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) or not(IsAirUnitInCombat(oUnit, iTeam)) then
-                                        bSendUnitForRefueling = true
+                                table.insert(tInUseUnits, oUnit)
+                            elseif tLastOrder and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderRefuel and M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderTarget]) then
+                                --Unit on its way to refuel
+                                table.insert(tInUseUnits, oUnit)
+                                --Also update unit orders in case something has happened so next cycle it will try again
+                                M28Orders.UpdateRecordedOrders(oUnit)
+                            else
+                                --Unit not refueling, and not got special micro - consider if we want it to refuel
+                                bSendUnitForRefueling = false
+                                --Consider if want to send unit to refuel
+                                if not(EntityCategoryContains(categories.CANNOTUSEAIRSTAGING, oUnit.UnitId)) then
+                                    if oUnit.GetFuelRatio then
+                                        iFuelPercent = oUnit:GetFuelRatio()
+                                    else iFuelPercent = 1
+                                    end
+                                    if iFuelPercent < 0.25 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.55 then
+                                        --Send unit to refuel unless it is attacking a nearby enemy and isnt a gunship
+                                        if EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) or not(IsAirUnitInCombat(oUnit, iTeam)) then
+                                            bSendUnitForRefueling = true
+                                        end
                                     end
                                 end
-                            end
-                            if bSendUnitForRefueling then
-                                table.insert(tUnitsForRefueling, oUnit)
-                            else
-                                --Unit is available
-                                table.insert(tAvailableUnits, oUnit)
+                                if bSendUnitForRefueling then
+                                    table.insert(tUnitsForRefueling, oUnit)
+                                else
+                                    --Unit is available
+                                    table.insert(tAvailableUnits, oUnit)
+                                end
                             end
                         end
                     end
@@ -329,6 +350,8 @@ function GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, iCategory)
             end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, is tAvailableUnits empty='..tostring(M28Utilities.IsTableEmpty(tAvailableUnits))..'; Is tUnitsForRefueling empty='..tostring(M28Utilities.IsTableEmpty(tUnitsForRefueling))..'; Is tInUseUnits empty='..tostring(M28Utilities.IsTableEmpty(tInUseUnits))) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     return tAvailableUnits, tUnitsForRefueling, tInUseUnits
 end
 
@@ -379,14 +402,14 @@ function GetRallyPointValueOfWaterZone(iTeam, tWZData, tWZTeamData)
     return iCurAAValue
 end
 
-function IsThereAAInWaterZone(tWZTeamData, bIgnoreAirAA)
-    if tWZTeamData[M28Map.subrefWZThreatEnemyAA] > 0 or (not(bIgnoreAirAA) and tWZTeamData[M28Map.refiEnemyAirAAThreat] >= math.max(40, tWZTeamData[M28Map.subrefWZThreatAlliedAA] * 0.5)) then
+function IsThereAAInWaterZone(tWZTeamData, bIgnoreAirAA, iGroundAAThreatThreshold)
+    if (tWZTeamData[M28Map.subrefWZThreatEnemyAA] or 0) > (iGroundAAThreatThreshold or 0) or (not(bIgnoreAirAA) and (tWZTeamData[M28Map.refiEnemyAirAAThreat] or 0) >= math.max(40, (tWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) * 0.5)) then
         return true
     end
 end
 
-function IsThereAAInLandZone(tLZTeamData, bIgnoreAirAA)
-    if tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] > 0 or (not(bIgnoreAirAA) and tLZTeamData[M28Map.refiEnemyAirAAThreat] >= math.max(40, tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] * 0.5)) then
+function IsThereAAInLandZone(tLZTeamData, bIgnoreAirAA, iGroundAAThreatThreshold)
+    if (tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) > (iGroundAAThreatThreshold or 0) or (not(bIgnoreAirAA) and (tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0) >= math.max(40, (tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) * 0.5)) then
         return true
     end
 end
@@ -529,7 +552,7 @@ function CalculateAirTravelPath(iEndPlateauOrZero, iEndLandOrWaterZone, iStartPl
     end
 end
 
-function GetAANearLandOrWaterZone(iTeam, iPlateau, iLandOrWaterZone, bIsWaterZone)
+function IsThereAANearLandOrWaterZone(iTeam, iPlateau, iLandOrWaterZone, bIsWaterZone)
     --returns true if enemy has AA threat in current zone or adjacent land or water zone
     --e.g. used to determine air rally points and support locations, doesnt factor in the path
     if bIsWaterZone then
@@ -580,8 +603,35 @@ function GetAANearLandOrWaterZone(iTeam, iPlateau, iLandOrWaterZone, bIsWaterZon
     return false
 end
 
+function RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartMidpoint)
+    --Records all other land and water zones in order of straight line distance to tStartLZOrWZData, if not already recorded
+    if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) then
+        tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] = {}
+        local tTableToSort = {}
+        --Add all land zones in the map
+        for iPlateau, tPlateauData in M28Map.tAllPlateaus do
+            if M28Utilities.IsTableEmpty(tPlateauData[M28Map.subrefPlateauLandZones]) == false then
+                --tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
+                for iLandZone, tLZData in tPlateauData[M28Map.subrefPlateauLandZones] do
+                    table.insert(tTableToSort, { [M28Map.subrefiPlateauOrPond] = iPlateau, [M28Map.subrefiLandOrWaterZoneRef] = iLandZone, [M28Map.subrefbIsWaterZone] = false, [M28Map.subrefiDistance] = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefLZMidpoint], tStartMidpoint)})
+                end
+            end
+        end
+        --Add all water zones in the map
+        for iPond, tPondSubtable in M28Map.tPondDetails do
+            for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
+                table.insert(tTableToSort, { [M28Map.subrefiPlateauOrPond] = iPond, [M28Map.subrefiLandOrWaterZoneRef] = iWaterZone, [M28Map.subrefbIsWaterZone] = true, [M28Map.subrefiDistance] = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefWZMidpoint], tStartMidpoint)})
+            end
+        end
+        --Sort the table from low to high
+        for iEntry, tValue in M28Utilities.SortTableBySubtable(tTableToSort, M28Map.subrefiDistance, true) do
+            table.insert(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance], tValue)
+        end
+    end
+end
+
 function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateAirRallyAndSupportPoints'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -671,10 +721,10 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                 if iPlateau and (iLandZone or 0) == 0 then
                     iWaterZone = M28Map.GetWaterZoneFromPosition(tClosestBase)
                     if (iWaterZone or 0) > 0 then
-                        if GetAANearLandOrWaterZone(iTeam, iPlateau, iWaterZone, true) then bClosestBaseIsSafe = false end
+                        if IsThereAANearLandOrWaterZone(iTeam, iPlateau, iWaterZone, true) then bClosestBaseIsSafe = false end
                     end
                 else
-                    if GetAANearLandOrWaterZone(iTeam, iPlateau, iLandZone, false) then bClosestBaseIsSafe = false end
+                    if IsThereAANearLandOrWaterZone(iTeam, iPlateau, iLandZone, false) then bClosestBaseIsSafe = false end
                 end
                 if bClosestBaseIsSafe then
                     tSupportRallyPoint = tClosestBase
@@ -699,7 +749,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                         if (iCurWZ or 0) > 0 and not(tbWaterZonesConsidered[iCurWZ]) then
                             --Have a valid water zone, check if it is dangerous
                             tbWaterZonesConsidered[iCurWZ] = true
-                            bCurTargetTooDangerous = GetAANearLandOrWaterZone(iTeam, iCurPlateau, iCurWZ, true)
+                            bCurTargetTooDangerous = IsThereAANearLandOrWaterZone(iTeam, iCurPlateau, iCurWZ, true)
                             if bCurTargetTooDangerous then
                                 break
                             else
@@ -713,7 +763,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                             if not(tbPlateauAndLandZonesConsidered[iCurPlateau][iCurLZ]) then
                                 if not(tbPlateauAndLandZonesConsidered[iCurPlateau]) then tbPlateauAndLandZonesConsidered[iCurPlateau] = {} end
                                 tbPlateauAndLandZonesConsidered[iCurPlateau][iCurLZ] = true
-                                bCurTargetTooDangerous = GetAANearLandOrWaterZone(iTeam, iCurPlateau, iCurLZ, false)
+                                bCurTargetTooDangerous = IsThereAANearLandOrWaterZone(iTeam, iCurPlateau, iCurLZ, false)
                                 if bCurTargetTooDangerous then
                                     break
                                 else
@@ -758,37 +808,15 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
     end
     if bDebugMessages == true then LOG(sFunctionRef..': About to record the land and water zones by order of distance to iStartPlateau '..(iStartPlateau or 'nil')..'; iStartLZOrWZ='..(iStartLZOrWZ or 'nil')) end
 
-    if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) then
-        tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] = {}
-        local tTableToSort = {}
-        --Add all land zones in the map
-        for iPlateau, tPlateauData in M28Map.tAllPlateaus do
-            if M28Utilities.IsTableEmpty(tPlateauData[M28Map.subrefPlateauLandZones]) == false then
-                --tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
-                for iLandZone, tLZData in tPlateauData[M28Map.subrefPlateauLandZones] do
-                    table.insert(tTableToSort, { [M28Map.subrefiPlateauOrPond] = iPlateau, [M28Map.subrefiLandOrWaterZoneRef] = iLandZone, [M28Map.subrefbIsWaterZone] = false, [M28Map.subrefiDistance] = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefLZMidpoint], tStartMidpoint)})
-                end
-            end
-        end
-        --Add all water zones in the map
-        for iPond, tPondSubtable in M28Map.tPondDetails do
-            for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
-                table.insert(tTableToSort, { [M28Map.subrefiPlateauOrPond] = iPond, [M28Map.subrefiLandOrWaterZoneRef] = iWaterZone, [M28Map.subrefbIsWaterZone] = true, [M28Map.subrefiDistance] = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefWZMidpoint], tStartMidpoint)})
-            end
-        end
-        --Sort the table from low to high
-        for iEntry, tValue in M28Utilities.SortTableBySubtable(tTableToSort, M28Map.subrefiDistance, true) do
-            table.insert(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance], tValue)
-        end
-    end
+    RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartMidpoint)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function GetUnitAirStagingSize(oUnit)
-    --Manually confirmed - ambassador takes up 4 spaces, janus and inties take up 1, broadswords and solace take up 2 spaces
+    --Manually confirmed - ambassador takes up 4 spaces, janus, inties and asf take up 1, broadswords and solace take up 2 spaces
     if EntityCategoryContains(categories.TECH3 * M28UnitInfo.refCategoryBomber, oUnit.UnitId) then
         return 4
-    elseif EntityCategoryContains(categories.TECH3, oUnit.UnitId) then
+    elseif EntityCategoryContains(categories.TECH3 - M28UnitInfo.refCategoryAirAA, oUnit.UnitId) then
         return 2
     else return 1
     end
@@ -799,7 +827,7 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam)
     local sFunctionRef = 'OrderUnitsToRefuel'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --Sends low fuel units to air staging
-    if M28Utilities.IsTableEmpty(tUnitsForRefueling) == false then
+    --if M28Utilities.IsTableEmpty(tUnitsForRefueling) == false then
         --Get available air staging units - Only consider actual air staging buildings for these purposes, or else risk interfering with other logic
         local tAirStagingUnitsAndCapacity = {}
         local subrefoUnit = 1
@@ -809,33 +837,64 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam)
         for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
             local tCurBrainStaging = oBrain:GetListOfUnits(M28UnitInfo.refCategoryAirStaging, false, true)
             if M28Utilities.IsTableEmpty(tCurBrainStaging) == false then
-                for iUnit, oUnit in tCurBrainStaging do
-                    if M28UnitInfo.IsUnitValid(oUnit) then
+                for iUnit, oAirStaging in tCurBrainStaging do
+                    if M28UnitInfo.IsUnitValid(oAirStaging) then
                         --Does this have capacity?
                         iMaxCapacity = 4
-                        if EntityCategoryContains(categories.MOBILE, oUnit.UnitId) then
-                            if EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then iMaxCapacity = 40
+                        if EntityCategoryContains(categories.MOBILE, oAirStaging.UnitId) then
+                            if EntityCategoryContains(categories.EXPERIMENTAL, oAirStaging.UnitId) then iMaxCapacity = 40
                             else iMaxCapacity = 1
                             end
                         end
 
                         iCapacityInUse = 0
-                        if M28Utilities.IsTableEmpty(oUnit[reftAssignedRefuelingUnits]) == false then
-                            --Remove any invalid units or units whose order isn't to refuel
-                            local iUnitCount = table.getn(oUnit[reftAssignedRefuelingUnits])
-                            for iCurUnit = iUnitCount, 1, -1 do
-                                local oRefuelingUnit = oUnit[reftAssignedRefuelingUnits][iCurUnit]
-                                if not(M28UnitInfo.IsUnitValid(oRefuelingUnit) or oRefuelingUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]][M28Orders.subrefiOrderType] == M28Orders.refiOrderRefuel) then
-                                    --Unit is dead or not refueling so remove from this list
-                                    table.remove(oUnit[reftAssignedRefuelingUnits], iCurUnit)
-                                else
-                                    --Unit is still assigned here
-                                    iCapacityInUse = iCapacityInUse + GetUnitAirStagingSize(oRefuelingUnit)
+                        --First check for air staging cargo and release if they are all at full health
+                        local bCargoReadyToRelease = false
+                        local tCargo = oAirStaging:GetCargo()
+                        if M28Utilities.IsTableEmpty(tCargo) == false then
+
+                            for iCargo, oCargo in tCargo do
+                                if oCargo.GetFuelRatio and EntityCategoryContains(categories.MOBILE, oCargo.UnitId) then --some mods add units as part of the cargo
+                                    bCargoReadyToRelease = true
+                                    if oCargo:GetFuelRatio() < 1 or M28UnitInfo.GetUnitHealthPercent(oCargo) < 1 then
+                                        bCargoReadyToRelease = false
+                                        break
+                                    end
                                 end
                             end
                         end
-                        if iMaxCapacity - iCapacityInUse > 0 then
-                            table.insert(tAirStagingUnitsAndCapacity, {[subrefoUnit] = oUnit, [subrefiCapacity] = iMaxCapacity - iCapacityInUse})
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering air staging unit '..oAirStaging.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirStaging)..'; Is tCargo empty='..tostring(M28Utilities.IsTableEmpty(tCargo))..'; bCargoReadyToRelease='..tostring(bCargoReadyToRelease)..'; Is oAirStaging[reftAssignedRefuelingUnits] empty='..tostring(M28Utilities.IsTableEmpty(oAirStaging[reftAssignedRefuelingUnits]))) end
+                        if bCargoReadyToRelease then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will try and release all units in air staging') end
+                            M28Orders.ReleaseStoredUnits(oAirStaging, false, 'ASUnl', false)
+                            --Dont clear unit status as should happen automatically in next cycle; dont consider sending units to it this cycle
+                        else
+                            if M28Utilities.IsTableEmpty(oAirStaging[reftAssignedRefuelingUnits]) == false then
+                                --Remove any invalid units or units whose order isn't to refuel
+                                local iUnitCount = table.getn(oAirStaging[reftAssignedRefuelingUnits])
+                                for iCurUnit = iUnitCount, 1, -1 do
+                                    local oRefuelingUnit = oAirStaging[reftAssignedRefuelingUnits][iCurUnit]
+                                    if M28UnitInfo.IsUnitValid(oRefuelingUnit) then
+                                        local tLastOrder = oRefuelingUnit[M28Orders.reftiLastOrders][oRefuelingUnit[M28Orders.refiOrderCount]]
+                                        if oRefuelingUnit:IsUnitState('Attached') or (tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderRefuel and tLastOrder[M28Orders.subrefoOrderTarget] == oAirStaging) then
+
+                                            --Unit is still assigned here
+                                            iCapacityInUse = iCapacityInUse + GetUnitAirStagingSize(oRefuelingUnit)
+                                            if bDebugMessages == true then LOG(sFunctionRef..' Staging has been assigned to oRefuelingUnit='..oRefuelingUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRefuelingUnit)..'; Size of this unit='..GetUnitAirStagingSize(oRefuelingUnit)..'; Capacity in use='..iCapacityInUse) end
+                                        else
+                                            --Unit has other orders so remove from here
+                                            table.remove(oAirStaging[reftAssignedRefuelingUnits], iCurUnit)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Removing unit '..oRefuelingUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRefuelingUnit)..' as it has other orders now; Unit state='..M28UnitInfo.GetUnitState(oRefuelingUnit)..'; tLastOrder[M28Orders.subrefoOrderTarget]='..(tLastOrder[M28Orders.subrefoOrderTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tLastOrder[M28Orders.subrefoOrderTarget]) or 'nil')..'; air staging it is recorded against='..oAirStaging.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirStaging)) end
+                                        end
+                                    else
+                                        --Unit is dead so remove from this list
+                                        table.remove(oAirStaging[reftAssignedRefuelingUnits], iCurUnit)
+                                    end
+                                end
+                            end
+                            if iMaxCapacity > iCapacityInUse then
+                                table.insert(tAirStagingUnitsAndCapacity, {[subrefoUnit] = oAirStaging, [subrefiCapacity] = iMaxCapacity - iCapacityInUse})
+                            end
                         end
                     end
                 end
@@ -843,49 +902,69 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam)
         end
 
         local tUnitsUnableToRefuel = {}
-        if M28Utilities.IsTableEmpty(tAirStagingUnitsAndCapacity) then
-            tUnitsUnableToRefuel = tUnitsForRefueling
-        else
+        if bDebugMessages == true then LOG(sFunctionRef..': Is table of tAirStagingUnitsAndCapacity empty='..tostring(M28Utilities.IsTableEmpty(tAirStagingUnitsAndCapacity))) end
+    if M28Utilities.IsTableEmpty(tAirStagingUnitsAndCapacity) then
+        tUnitsUnableToRefuel = tUnitsForRefueling
+    else
+        if M28Utilities.IsTableEmpty(tUnitsForRefueling) == false then
             --Have air staging available for units to refuel, cycle through each air unit and find the closest air staging to it that has sufficient capacity to take it
             local iClosestAirStagingDist, iCurDist, iClosestAirStagingRef
             local iCurSize
-            for iUnit, oUnit in tUnitsForRefueling do
+            for iUnit, oAirUnit in tUnitsForRefueling do
                 iClosestAirStagingDist = 100000
                 iClosestAirStagingRef = nil
-                local oClosestAirStaging
-                iCurSize = GetUnitAirStagingSize(oUnit)
+                iCurSize = GetUnitAirStagingSize(oAirUnit)
                 if M28Utilities.IsTableEmpty(tAirStagingUnitsAndCapacity) == false then
                     for iAirStagingRef, tSubtable in tAirStagingUnitsAndCapacity do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Looking for closest air staging '..(tSubtable[subrefoUnit].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tSubtable[subrefoUnit]) or 'nil')..', iAirStagingRef='..(iAirStagingRef or 'nil')..'; tSubtable[subrefiCapacity]='..(tSubtable[subrefiCapacity] or 'nil')..'; Unit that is trying to refuel size='..(iCurSize or 'nil')) end
                         if tSubtable[subrefiCapacity] >= iCurSize then
-                            iCurDist = M28Utilities.GetDistanceBetweenPositions(tSubtable[subrefoUnit]:GetPosition(), oUnit:GetPosition())
-                            if iCurDist < iClosestAirStagingRef then
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(tSubtable[subrefoUnit]:GetPosition(), oAirUnit:GetPosition())
+                            if bDebugMessages == true then LOG(sFunctionRef..': iCurDist='..iCurDist..'; iClosestAirStagingDist='..(iClosestAirStagingDist or 'nil')) end
+                            if iCurDist < iClosestAirStagingDist then
                                 iClosestAirStagingRef = iCurDist
                                 iClosestAirStagingRef = iAirStagingRef
                             end
                         end
                     end
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering unit wanting refueling='..oAirUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirUnit)..'; iCurSize='..iCurSize..'; iClosestAirStagingRef='..(iClosestAirStagingRef or 'nil')..'; iClosestAirStagingDist='..iClosestAirStagingDist) end
                 if iClosestAirStagingRef then
-                    M28Orders.IssueTrackedRefuel(oUnit, tAirStagingUnitsAndCapacity[iClosestAirStagingRef][subrefoUnit], false, 'Refuel', false)
+                    local oClosestAirStaging = tAirStagingUnitsAndCapacity[iClosestAirStagingRef][subrefoUnit]
+                    M28Orders.IssueTrackedRefuel(oAirUnit, oClosestAirStaging, false, 'Refuel', false)
+                    local bRecordRefuelingUnit = true
+                    if not(oClosestAirStaging[reftAssignedRefuelingUnits]) then oClosestAirStaging[reftAssignedRefuelingUnits] = {}
+                    else
+                        for iRecordedUnit, oRecordedUnit in oClosestAirStaging[reftAssignedRefuelingUnits] do
+                            if oRecordedUnit == oAirUnit then
+                                bRecordRefuelingUnit = false
+                                break
+                            end
+                        end
+                    end
+                    if bRecordRefuelingUnit then
+                        table.insert(oClosestAirStaging[reftAssignedRefuelingUnits], oAirUnit)
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Just told unit '..oAirUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirUnit)..' to refuel at '..oClosestAirStaging.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestAirStaging)..'; size of oClosestAirStaging[reftAssignedRefuelingUnits]='..table.getn(oClosestAirStaging[reftAssignedRefuelingUnits])..'; Available capacity pre this order='..tAirStagingUnitsAndCapacity[iClosestAirStagingRef][subrefiCapacity]..'; iCurSize='..iCurSize) end
                     if tAirStagingUnitsAndCapacity[iClosestAirStagingRef][subrefiCapacity] <= iCurSize then
                         table.remove(tAirStagingUnitsAndCapacity, iClosestAirStagingRef)
                     else
                         tAirStagingUnitsAndCapacity[iClosestAirStagingRef][subrefiCapacity] = tAirStagingUnitsAndCapacity[iClosestAirStagingRef][subrefiCapacity] - iCurSize
                     end
                 else
-                    table.insert(tUnitsUnableToRefuel, oUnit)
+                    table.insert(tUnitsUnableToRefuel, oAirUnit)
                 end
             end
         end
-        --Send any units that couldnt be refueld to the air rally point
-        if M28Utilities.IsTableEmpty(tUnitsUnableToRefuel) == false then
-            local tRallyPoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
-            for iUnit, oUnit in tUnitsUnableToRefuel do
-                M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 10, false, 'WntStgn', false)
-            end
-        end
-        if bDebugMessages == true then LOG(sFunctionRef .. ': Finished giving orders for refueling, was tUnitsUnableToRefuel empty='..tostring(M28Utilities.IsTableEmpty(tUnitsUnableToRefuel))) end
     end
+    --Send any units that couldnt be refueld to the air rally point
+    if M28Utilities.IsTableEmpty(tUnitsUnableToRefuel) == false then
+        local tRallyPoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
+        for iUnit, oUnit in tUnitsUnableToRefuel do
+            M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 10, false, 'WntStgn', false)
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef .. ': Finished giving orders for refueling, was tUnitsUnableToRefuel empty='..tostring(M28Utilities.IsTableEmpty(tUnitsUnableToRefuel))) end
+    --end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -935,13 +1014,13 @@ function AssignAirAATargets(tAvailableAirAA, tEnemyTargets)
     end
 end
 
-function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, bIgnoreAirAAThreat)
+function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, bIgnoreAirAAThreat, iMAAThreatThreshold)
     --Returns true if enemy has AA threat along the path from start to end (or in an adjacent land/water zone that is close enough to the path)
 
     --iStartPlateauOrZero: 0 if water zone
     --iEndPlateauOrZero: 0 if water zone
     --bIgnoreAirAAThreat - if true will only consider if groundAA threat, not airAA threat
-    --iThreatAbortThreshold - stop searching for the AA threat once reach this point
+    --iMAAThreatThreshold - if set, then will only avoid if has MAA above this levle (e.g. intended for gunships)
 
     --Calculate air travel path
     CalculateAirTravelPath(iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone)
@@ -952,7 +1031,7 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
     if M28Utilities.IsTableEmpty(tBasePathingTable[subreftPlateauAndLandZonesInPath]) == false then
         for iEntry, tPlateauAndLandZone in tBasePathingTable[subreftPlateauAndLandZonesInPath] do
             local tLZTeamData = M28Map.tAllPlateaus[tPlateauAndLandZone[1]][M28Map.subrefPlateauLandZones][tPlateauAndLandZone[2]][M28Map.subrefLZTeamData][iTeam]
-            if IsThereAAInLandZone(tLZTeamData, bIgnoreAirAAThreat) then
+            if IsThereAAInLandZone(tLZTeamData, bIgnoreAirAAThreat, iMAAThreatThreshold) then
                 return true
             end
         end
@@ -960,7 +1039,7 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
     if M28Utilities.IsTableEmpty(tBasePathingTable[subreftWaterZonesInPath]) == false then
         for iEntry, iWaterZone in tBasePathingTable[subreftWaterZonesInPath] do
             local tWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][iTeam]
-            if IsThereAAInWaterZone(tWZTeamData, bIgnoreAirAAThreat) then
+            if IsThereAAInWaterZone(tWZTeamData, bIgnoreAirAAThreat, iMAAThreatThreshold) then
                 return true
             end
         end
@@ -969,12 +1048,13 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
 end
 
 function ManageAirAAUnits(iTeam, iAirSubteam)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageAirAAUnits'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --Get available airAA units (owned by M28 brains in our subteam):
     local tAvailableAirAA, tAirForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, M28UnitInfo.refCategoryAirAA)
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; Is tAvailableAirAA empty='..tostring(M28Utilities.IsTableEmpty(tAvailableAirAA))) end
     --Update threat level
     M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiAirAAThreat] = M28UnitInfo.GetAirThreatLevel(tAvailableAirAA, false, true) + M28UnitInfo.GetAirThreatLevel(tAirForRefueling, false, true) + M28UnitInfo.GetAirThreatLevel(tUnavailableUnits, false, true)
 
@@ -1138,13 +1218,14 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                     end
                 end
                 --If still have available air send them to the support location (unless they could do with a fuel or health top-up)
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished considering AirAA targets for all land and water zones, is tAvailableAirAA empty='..tostring(M28Utilities.IsTableEmpty(tAvailableAirAA))) end
                 if M28Utilities.IsTableEmpty(tAvailableAirAA) == false then
                     local tMovePoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]
                     for iUnit, oUnit in tAvailableAirAA do
-                        if oUnit:GetFuelPercent() < 0.55 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.8 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering idle airAA order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' Unit fuel='..oUnit:GetFuelRatio()..'; Unit health%='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; support point='..repru(tMovePoint)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
+                        if oUnit:GetFuelRatio() < 0.55 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.8 then
                             table.insert(tAirForRefueling, oUnit)
                         else
-                            if bDebugMessages == true then LOG(sFunctionRef..': About to tell unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to move to the support point '..repru(tMovePoint)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
                             M28Orders.IssueTrackedMove(oUnit, tMovePoint, 10, false, 'AAIdle', false)
                         end
                     end
@@ -1156,16 +1237,320 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
     end
 
     --Send units for refueling
-    if M28Utilities.IsTableEmpty(tAirForRefueling) == false then
-        SendUnitsForRefueling(tAirForRefueling, iTeam, iAirSubteam)
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished giving availableAA orders, is table of air for refueling empty='..tostring(M28Utilities.IsTableEmpty(tAirForRefueling))) end
+    --Run the function even if no units wanting refueling so already attached untis can be sent on their way
+    SendUnitsForRefueling(tAirForRefueling, iTeam, iAirSubteam)
+    if bDebugMessages == true and M28Utilities.IsTableEmpty(tAirForRefueling) == false then
+        LOG(sFunctionRef..': Will send '..table.getn(tAirForRefueling)..' units to refuel')
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function ManageBombers(iTeam, iAirSubteam)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ManageBombers'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    local tAvailableBombers, tBombersForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, M28UnitInfo.refCategoryBomber)
 
+    if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
+        M28Utilities.ErrorHandler('Need to add code to manage available torp bombers')
+    end
+
+    --Send units for refueling
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished giving bomber orders, is table of air for refueling empty='..tostring(M28Utilities.IsTableEmpty(tBombersForRefueling))) end
+    --Run the function even if no units wanting refueling so already attached untis can be sent on their way
+    SendUnitsForRefueling(tBombersForRefueling, iTeam, iAirSubteam)
+    if bDebugMessages == true and M28Utilities.IsTableEmpty(tBombersForRefueling) == false then
+        LOG(sFunctionRef..': Will send '..table.getn(tBombersForRefueling)..' units to refuel')
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ManageTorpedoBombers(iTeam, iAirSubteam)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ManageTorpedoBombers'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    local tAvailableBombers, tBombersForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, M28UnitInfo.refCategoryTorpBomber)
+
+    if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
+        M28Utilities.ErrorHandler('Need to add code to manage available torp bombers')
+    end
+
+    --Send units for refueling
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished giving bomber orders, is table of air for refueling empty='..tostring(M28Utilities.IsTableEmpty(tBombersForRefueling))) end
+    --Run the function even if no units wanting refueling so already attached untis can be sent on their way
+    SendUnitsForRefueling(tBombersForRefueling, iTeam, iAirSubteam)
+    if bDebugMessages == true and M28Utilities.IsTableEmpty(tBombersForRefueling) == false then
+        LOG(sFunctionRef..': Will send '..table.getn(tBombersForRefueling)..' units to refuel')
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function GetUnitNearestEnemyBase(tUnitsToConsider, iTeam)
+    --e.g. used to get the front gunship - will use straight line distance so best used for air units
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetUnitNearestEnemyBase'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iCurPlateauOrZero, iCurLZOrWZ
+    local iClosestDist = 100000
+    local oClosestUnit
+    local iCurDist
+    for iUnit, oUnit in tUnitsToConsider do
+        if not(oClosestUnit) then oClosestUnit = oUnit end --backup incase fail to find a unit with below approach
+        --Get land/water zone, and get nearest enemy base from this
+        iCurPlateauOrZero, iCurLZOrWZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+        if (iCurPlateauOrZero or 0) > 0 then
+            if (iCurLZOrWZ or 0) == 0 then
+                iCurLZOrWZ = M28Map.GetWaterZoneFromPosition(oUnit:GetPosition())
+                if (iCurLZOrWZ or 0) > 0 then
+                    iCurPlateauOrZero = 0
+                end
+            end
+        end
+        if (iCurLZOrWZ or 0) > 0 then
+            local tLZOrWZTeamData
+            if (iCurPlateauOrZero or 0) == 0 then
+                tLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iCurLZOrWZ]][M28Map.subrefPondWaterZones][iCurLZOrWZ][M28Map.subrefWZTeamData][iTeam]
+            else
+                tLZOrWZTeamData = M28Map.tAllPlateaus[iCurPlateauOrZero][M28Map.subrefPlateauLandZones][iCurLZOrWZ][M28Map.subrefLZTeamData][iTeam]
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Checking unit distance for oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurLZOrWZ='..(iCurLZOrWZ or 'nil')..'; iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; tLZOrWZTeamData[M28Map.reftClosestEnemyBase]='..repru(tLZOrWZTeamData[M28Map.reftClosestEnemyBase])) end
+
+            iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(),  tLZOrWZTeamData[M28Map.reftClosestEnemyBase])
+            if iCurDist < iClosestDist then
+                iClosestDist = iCurDist
+                oClosestUnit = oUnit
+            end
+        end
+    end
+    return oClosestUnit
+end
+
+function GetGunshipsToMoveToTarget(tAvailableGunships, tTarget)
+
+
+    local iGunshipMoveTolerance = 3 --If last move target was within 2.5 of current move target then wont move
+    --Dist adjust - note this is a square, so e.g. if typical gunship range is 20+, then if are at +15x +15z from this, means will be 21 away, i.e. dont want to go further than +/- 15
+    local tDistanceAdjustXZ = {{0,0},{-5,-5},{5,5},{-5,5},{5,-5},{0,-5},{0,5},{-5,0},{5,0},{-10,-10},{10,10},{-10,10},{10,-10},{0,-10},{0,10},{-10,0},{10,0},{-15,-15},{15,15},{-15,15},{15,-15},{0,-15},{0,15},{-15,0},{15,0},  {-20,-20},{20,20},{-20,20},{20,-20},{0,-20},{0,20},{-20,0},{20,0}}
+    --Find the first placement that we dont have assigned
+    local tiValidPlacements = {}
+    local iTotalUnits = table.getn(tAvailableGunships)
+    for iUnit, oUnit in tAvailableGunships do
+        if oUnit[refiGunshipPlacement] then tiValidPlacements[oUnit[refiGunshipPlacement]] = true end
+    end
+    local iFirstMissingPlacement
+    for iCurPlacement = 1, iTotalUnits do
+        if not(tiValidPlacements[iCurPlacement]) then
+            iFirstMissingPlacement = iCurPlacement
+            break
+        end
+    end
+
+    local tAdjustedMovePosition
+    local iCurPlacement
+    local iPlacementSize = table.getn(tDistanceAdjustXZ)
+    if iFirstMissingPlacement then
+        local toUnitsToPlace = {}
+        for iUnit, oUnit in tAvailableGunships do
+            if (oUnit[refiGunshipPlacement] or 10000) >= iFirstMissingPlacement then
+                table.insert(toUnitsToPlace, oUnit)
+            end
+        end
+
+        local iClosestDist
+        local iCurDist
+        local iClosestUnitRef
+
+        for iBasePlacement = iFirstMissingPlacement, iTotalUnits do
+            --Adjust placement value to reflect we have only defined a limited number of options
+            if M28Utilities.IsTableEmpty(toUnitsToPlace) then break end --redundancy
+            iCurPlacement = iBasePlacement
+            while iCurPlacement  > iPlacementSize do
+                iCurPlacement = iCurPlacement - iPlacementSize
+            end
+            --Identify which gunship is closest to each placement point
+            tAdjustedMovePosition = {tTarget[1] + tDistanceAdjustXZ[iCurPlacement][1], tTarget[2], tTarget[3] + tDistanceAdjustXZ[iCurPlacement][2]}
+            iClosestDist = 10000
+            iClosestUnitRef = nil
+            for iUnit, oUnit in toUnitsToPlace do
+                iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tAdjustedMovePosition)
+                if iCurDist < iClosestDist then
+                    iClosestDist = iCurDist
+                    iClosestUnitRef = iUnit
+                end
+            end
+            --Assign this position to this gunship
+            toUnitsToPlace[iClosestUnitRef][refiGunshipPlacement] = iBasePlacement
+            table.remove(toUnitsToPlace, iClosestUnitRef)
+        end
+    end
+
+    --Issue move orders
+    local toUnitsByBasePlacementRef = {}
+    for iUnit, oUnit in tAvailableGunships do
+        toUnitsByBasePlacementRef[oUnit[refiGunshipPlacement]] = oUnit
+    end
+
+    function MoveIndividualGunship(oClosestUnit, tUnitDestination)
+        M28Orders.IssueTrackedMove(oClosestUnit, tUnitDestination, iGunshipMoveTolerance, false, 'GSAtc', false)
+    end
+
+
+    for iBasePlacement = 1, iTotalUnits do
+        iCurPlacement = iBasePlacement
+        while iCurPlacement  > iPlacementSize do
+            iCurPlacement = iCurPlacement - iPlacementSize
+        end
+
+        tAdjustedMovePosition = {tTarget[1] + tDistanceAdjustXZ[iCurPlacement][1], tTarget[2], tTarget[3] + tDistanceAdjustXZ[iCurPlacement][2]}
+        tAdjustedMovePosition[2] = GetSurfaceHeight(tAdjustedMovePosition[1], tAdjustedMovePosition[3])
+        if not(toUnitsByBasePlacementRef[iBasePlacement]) then
+            M28Utilities.ErrorHandler('Missing gunship for iBasePlacement='..iBasePlacement)
+        else
+            MoveIndividualGunship(toUnitsByBasePlacementRef[iBasePlacement], tAdjustedMovePosition)
+        end
+    end
 end
 
 function ManageGunships(iTeam, iAirSubteam)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ManageGunships'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    local tAvailableGunships, tGunshipsForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, M28UnitInfo.refCategoryGunship)
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; Is tAvailableGunships empty='..tostring(M28Utilities.IsTableEmpty(tAvailableGunships))) end
+
+    if M28Utilities.IsTableEmpty(tAvailableGunships) == false then
+        local iOurGunshipThreat = M28UnitInfo.GetAirThreatLevel(tAvailableGunships, false, false, false, true, false, false)
+        --Prioroity targets to attack - search for enemies around start positions (ignore AA):
+        local tEnemyGroundTargets = {}
+        --Get the gunship nearest to an enemy base and record this as the front gunship
+        local oFrontGunship = GetUnitNearestEnemyBase(tAvailableGunships, iTeam)
+        local iGunshipPlateauOrZero, iGunshipLandOrWaterZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oFrontGunship:GetPosition())
+        local tGunshipLandOrWaterZoneData, tGunshipMidpoint
+        if (iGunshipPlateauOrZero or 0) > 0 and (iGunshipLandOrWaterZone or 0) == 0 then
+            iGunshipLandOrWaterZone = M28Map.GetWaterZoneFromPosition(oFrontGunship:GetPosition())
+            tGunshipLandOrWaterZoneData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iGunshipLandOrWaterZone]][M28Map.subrefPondWaterZones][iGunshipLandOrWaterZone]
+            tGunshipMidpoint = tGunshipLandOrWaterZoneData[M28Map.subrefWZMidpoint]
+            if bDebugMessages == true then LOG(sFunctionRef..': Dont have valid land zone but have valid plateau, iGunshipLandOrWaterZone='..(iGunshipLandOrWaterZone or 'nil')) end
+        else
+            tGunshipLandOrWaterZoneData = M28Map.tAllPlateaus[iGunshipPlateauOrZero][M28Map.subrefPlateauLandZones][iGunshipLandOrWaterZone]
+            tGunshipMidpoint = tGunshipLandOrWaterZoneData[M28Map.subrefLZMidpoint]
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': oFrontGunship='..oFrontGunship.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFrontGunship)..'; Position='..repru(oFrontGunship:GetPosition())..'; iGunshipPlateauOrZero='..(iGunshipPlateauOrZero or 'nil')..'; iGunshipLandOrWaterZone='..(iGunshipLandOrWaterZone or 'nil')..'; tGunshipMidpoint='..repru(tGunshipMidpoint)..'; WZ from position='..(M28Map.GetWaterZoneFromPosition(oFrontGunship:GetPosition()) or 'nil')) end
+
+
+        function AddEnemyGroundUnitsToTargetsSubjectToAA(iPlateuOrZero, iLandOrWaterZone, iGunshipThreatFactorWanted, bCheckForAirAA)
+            local iMaxEnemyGroundAA
+            if iGunshipThreatFactorWanted == 0 then
+                iMaxEnemyGroundAA = -1 --   -1 is used to denote infinite in this case
+            else
+                iMaxEnemyGroundAA = iOurGunshipThreat / iGunshipThreatFactorWanted
+            end
+
+            --Check if enemy has enough AA nearby
+            local bTooMuchAA
+            if not (bCheckForAirAA) and iMaxEnemyGroundAA < 0 then
+                bTooMuchAA = false
+            else
+                bTooMuchAA = DoesEnemyHaveAAThreatAlongPath(iTeam, iGunshipPlateauOrZero, iGunshipLandOrWaterZone, iPlateuOrZero, iLandOrWaterZone, false, iMaxEnemyGroundAA)
+            end
+
+            if not (bTooMuchAA) then
+                --Add enemy air units in the plateau/land zone to list of enemy unit targets
+                local tLZOrWZTeamData
+                if iPlateuOrZero > 0 then
+                    --Land zone
+                    tLZOrWZTeamData = M28Map.tAllPlateaus[iPlateuOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
+
+                else
+                    --Water zone
+                    tLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone][M28Map.subrefWZTeamData][iTeam]
+                end
+                if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                    for iUnit, oUnit in tLZOrWZTeamData[M28Map.subrefTEnemyUnits] do
+                        if M28UnitInfo.IsUnitValid(oUnit) and EntityCategoryContains(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryNavalSurface + M28UnitInfo.refCategoryMobileLand, oUnit.UnitId) and not (M28UnitInfo.IsUnitUnderwater(oUnit)) then
+                            table.insert(tEnemyGroundTargets, oUnit)
+                        end
+                    end
+                end
+            end
+        end
+
+        local iCurPlateauOrZero, iCurLZOrWZ
+
+        --Emergency response - first include any ground threats in a start position
+        for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
+            iCurPlateauOrZero, iCurLZOrWZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+            if (iCurPlateauOrZero or 0) > 0 then
+                if (iCurLZOrWZ or 0) == 0 then
+                    iCurLZOrWZ = M28Map.GetWaterZoneFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+                    if (iCurLZOrWZ or 0) > 0 then
+                        iCurPlateauOrZero = 0
+                    end
+                end
+            end
+            if (iCurLZOrWZ or 0) > 0 then
+                AddEnemyGroundUnitsToTargetsSubjectToAA(iCurPlateauOrZero, iCurLZOrWZ, 0, false)
+            end
+        end
+
+        if M28Utilities.IsTableEmpty(tEnemyGroundTargets) then
+            --Check if want gunships to run to rally point if nearby enemy air (if give no targets for gunships then they will go to rally point or air staging
+            if not(IsThereAANearLandOrWaterZone(iTeam, iGunshipPlateauOrZero, iGunshipLandOrWaterZone, (iGunshipPlateauOrZero == 0))) then
+                --no nearby enemy air threat so can just evaluate each land zone or water zone on its own merits - cycle through each in order of distance
+                RecordOtherLandAndWaterZonesByDistance(tGunshipLandOrWaterZoneData, tGunshipMidpoint)
+                if M28Utilities.IsTableEmpty(tGunshipLandOrWaterZoneData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
+                    for iEntry, tSubtable in tGunshipLandOrWaterZoneData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+                        if tSubtable[M28Map.subrefbIsWaterZone] then
+                            AddEnemyGroundUnitsToTargetsSubjectToAA(0, tSubtable[M28Map.subrefiLandOrWaterZoneRef], 8, true)
+                        else
+                            AddEnemyGroundUnitsToTargetsSubjectToAA(tSubtable[M28Map.subrefiPlateauOrPond], tSubtable[M28Map.subrefiLandOrWaterZoneRef], 8, true)
+                        end
+                        if M28Utilities.IsTableEmpty(tEnemyGroundTargets) == false then break end
+                    end
+                end
+            end
+        end
+
+        if M28Utilities.IsTableEmpty(tEnemyGroundTargets) then
+            --Return available gunships to rally point
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished considering gunships targets for all land and water zones, will send any remaining gunships to refuel or go to rally') end
+            if M28Utilities.IsTableEmpty(tAvailableGunships) == false then --redundancy
+                local tMovePoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
+                for iUnit, oUnit in tAvailableGunships do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering idle airAA order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' Unit fuel='..oUnit:GetFuelRatio()..'; Unit health%='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; support point='..repru(tMovePoint)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
+                    if oUnit:GetFuelRatio() < 0.6 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.85 then
+                        table.insert(tGunshipsForRefueling, oUnit)
+                    else
+                        M28Orders.IssueTrackedMove(oUnit, tMovePoint, 10, false, 'AAIdle', false)
+                    end
+                end
+            end
+        else
+            --Have targets for gunships, and have available gunships - send orders for targeting
+            local oClosestEnemy
+            --Get the closest enemy unit to the front gunship
+            local iCurDist
+            local iClosestDist = 100000
+            for iUnit, oUnit in tEnemyGroundTargets do
+                iCurDist = M28Utilities.GetDistanceBetweenPositions(oFrontGunship:GetPosition(), oUnit:GetPosition())
+                if iCurDist < iClosestDist then
+                    iClosestDist = iCurDist
+                    oClosestEnemy = oUnit
+                end
+            end
+            GetGunshipsToMoveToTarget(tAvailableGunships, oClosestEnemy:GetPosition())
+        end
+    end
+
+    --Send units for refueling
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished giving gunship orders, is table of gunships for refueling empty='..tostring(M28Utilities.IsTableEmpty(tGunshipsForRefueling))) end
+    --Run the function even if no units wanting refueling so already attached untis can be sent on their way
+    SendUnitsForRefueling(tGunshipsForRefueling, iTeam, iAirSubteam)
+    if bDebugMessages == true and M28Utilities.IsTableEmpty(tGunshipsForRefueling) == false then
+        LOG(sFunctionRef..': Will send '..table.getn(tGunshipsForRefueling)..' units to refuel')
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

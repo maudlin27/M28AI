@@ -169,7 +169,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefAlliedACU = 'AACU' --table of ACU units for the land zone (so can factor into decisions on support and attack)
             subrefLZTAlliedUnits = 'Allies' --USE SAME REF AS FOR WATER ZONES - table of all allied units in the land zone, tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam][subrefLZTAlliedUnits]
             subrefLZTAlliedCombatUnits = 'AllComb' --table of allied units that are to be considered for combat orders
-            subrefTEnemyUnits = 'Enemies' --table of all enemy units in the land zone
+            subrefTEnemyUnits = 'Enemies' --table of all enemy units in the land zone or water zone (same ref used for WZ)
             reftoNearestDFEnemies = 'NearestDF' --Table of enemy DF units in this LZ, plus the nearest DF unit in each adjacnet LZ, with proximity based on unit distance and unit range (i.e. the dist until the unit is in range)
             --Ground threat values for land zones (also against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam])
             subrefLZTThreatEnemyCombatTotal = 'ECTotal'
@@ -442,7 +442,9 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
 
     if (iPlateau or 0) <= 0 or not(tAllPlateaus[iPlateau]) then
         --Check if we have previously recorded this location with a pathing override
+        --LOG('GetPlateauAndLandZoneReferenceFromPosition iPlateau='..(iPlateau or 'nil'))
         iPlateau, iLandZone = GetPathingOverridePlateauAndLandZone(tPosition, bOptionalShouldBePathable, oOptionalPathingUnit)
+        --LOG('GetPlateauAndLandZoneReferenceFromPosition iPlateau after getting override='..(iPlateau or 'nil'))
         if not(tAllPlateaus[iPlateau]) then
             --Potential error - see if there is a plateau for the preicse position if it shoudl be pathable
 
@@ -473,7 +475,7 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
         --Have a valid plateau, get the land zone reference:
         --local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tPosition)
         iLandZone = tLandZoneBySegment[iSegmentX][iSegmentZ]
-
+        --LOG('GetPlateauAndLandZoneReferenceFromPosition - iLandZOne='..(iLandZone or 'nil'))
         if not(iLandZone) then
             --Are we above water in height? If so check for override
             if tPosition[2] > iMapWaterHeight then
@@ -488,11 +490,14 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
                         --M28Utilities.DrawLocation(tPosition)
                     end
                 else
-                    iPlateau = iAltPlateau
+                    if iAltPlateau then
+                        iPlateau = iAltPlateau
+                    end
                 end
             end
         end
     end
+    --LOG('GetPlateauAndLandZoneReferenceFromPosition - end of code, iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil'))
 
 
     return iPlateau, iLandZone

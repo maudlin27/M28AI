@@ -370,10 +370,7 @@ function CheckIfBuildableLocationsNearPositionStillValid(aiBrain, tLocation, bCh
                 if bDebugMessages == true then LOG(sFunctionRef..': About to update mass storage locations for iPlateau='..iPlateau..'; iLandZone='..iLandZone..', tLZData[M28Map.subrefLZMassStorageLocationsAvailable]='..repru(tLZData[M28Map.subrefLZMassStorageLocationsAvailable])..'; Nickname of first aiBrain='..M28Overseer.tAllActiveM28Brains[1].Nickname) end
                 local aiBrain = M28Overseer.tAllActiveM28Brains[1]
                 local function WantToKeep(tArray, iEntry, aiBrain)
-                    LOG('Temp: tArray='..reprs(tArray)..'; iEntry='..iEntry)
                     return aiBrain:CanBuildStructureAt('ueb1106', tArray[iEntry])
-                    --if M28Overseer.tAllActiveM28Brains[1]:CanBuildStructureAt('ueb1106', tArray[iEntry]) == true then return true else return false end
-                    --return M28Conditions.CanBuildStorageAtLocation(tArray[iEntry])
                 end
 
                 local iRevisedIndex = 1
