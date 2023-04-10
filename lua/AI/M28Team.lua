@@ -148,7 +148,7 @@ tAirSubteamData = {}
     subrefiAirAAThreat = 'M28ASTOurAirAA' --Our AirAA threat
     reftAirSubRallyPoint = 'M28ASTRally' --Contains the location of the air subteam's rally point
     reftAirSubSupportPoint = 'M28ASTSuppR' --Contains the location for airaa units to go to support a priority unit
-
+    reftiTorpedoDefenceWaterZones = 'M28ASTTorpDef' --Contains water zones that want torpedo bombers to consider defending
 
 
 --Land subteam data varaibles (used for factory production logic)

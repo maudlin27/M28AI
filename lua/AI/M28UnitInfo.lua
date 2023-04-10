@@ -50,6 +50,7 @@ refiMissileDefenceRange = 'M28UMDefR' --For SMD and TMD
 refiAARange = 'M28UAAR'
 refiBomberRange = 'M28UBR'
 refbWeaponUnpacks = 'M28WUP'
+refiStrikeDamage = 'M28USD'
 refbCanKite = 'M28CanKite' --true unless weapon unpacks or experimental with a weapon fixed to body (GC and megalith)
 
 refbPaused = 'M28UnitPaused' --true if unit is paused
@@ -1022,9 +1023,76 @@ function GetBlueprintMaxGroundRange(oBP)
     return iMaxRange
 end
 
+function GetBomberAOEAndStrikeDamage(oUnit)
+    local oBP = oUnit:GetBlueprint()
+    local iAOE = 0
+    local iStrikeDamage = 0
+    local iFiringRandomness
+    for sWeaponRef, tWeapon in oBP.Weapon do
+        if tWeapon.WeaponCategory == 'Bomb' or tWeapon.WeaponCategory == 'Direct Fire' then
+            if (tWeapon.DamageRadius or 0) > iAOE then
+                iAOE = tWeapon.DamageRadius
+                iStrikeDamage = tWeapon.Damage * tWeapon.MuzzleSalvoSize
+                if tWeapon.MuzzleSalvoSize > 2 then iStrikeDamage = iStrikeDamage * 0.5 end
+                iFiringRandomness = (tWeapon.FiringRandomness or 0)
+            end
+        end
+    end
+    if iStrikeDamage == 0 then
+        M28Utilities.ErrorHandler('Couldnt identify strike damage for bomber '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; will refer to predefined value instead')
+    end
+
+    --Manual floor for strike damage due to complexity of some bomber calculations
+    --Check if manual override is higher, as some weapons will fire lots of shots so above method wont be accurate
+    local tiBomberStrikeDamageByFactionAndTech =
+    {
+        --UEF, Aeon, Cybran, Sera, Nomads (are using default), Default
+        { 150, 200, 155, 250, 150, 150 }, --Tech 1
+        { 350, 300, 850, 1175, 550, 550 }, --Tech 2
+        { 2500, 2500, 2500, 2500, 2500, 2500}, --Tech 3 - the strike damage calculation above should be accurate so this is just as a backup, and set at a low level due to potential for more balance changes affecting this
+        { 11000,11000,11000,11000,11000,11000} --Tech 4 - again as a backup
+    }
+    iStrikeDamage = math.max(iStrikeDamage, tiBomberStrikeDamageByFactionAndTech[GetUnitTechLevel(oUnit)][GetFactionFromBP(oBP)])
+
+
+    return iAOE, iStrikeDamage, iFiringRandomness
+end
+
+function GetUnitStrikeDamage(oUnit)
+    --Gets strike damage of the first weapon in oUnit (longer term might want to make better so it considers other weapons)
+    --For bombers will be subject to a minimum value as some bombers will have
+    local oBP = oUnit:GetBlueprint()
+    local sBP = oUnit.UnitId
+    local iStrikeDamage = 0
+
+
+    if EntityCategoryContains(refCategoryBomber, sBP) then
+        --Doublecheck strike damage based on if it references a bomb
+        local iAOE
+        iAOE, iStrikeDamage = GetBomberAOEAndStrikeDamage(oUnit)
+    elseif EntityCategoryContains(refCategoryTorpBomber, sBP) then
+        for iCurWeapon, oCurWeapon in oBP.Weapon do
+            if oCurWeapon.Label == 'Bomb' or oCurWeapon.Label == 'Torpedo' then
+                iStrikeDamage = (oCurWeapon.DoTPulses or 1) * (oCurWeapon.MuzzleSalvoSize or 1) * oCurWeapon.Damage
+                break
+            end
+        end
+        if iStrikeDamage == 0 then
+            iStrikeDamage = 750 --Backup
+            M28Utilities.ErrorHandler('Have torp bomber with no bomb weapon so not calculated strike damage')
+        end
+    elseif EntityCategoryContains(refCategorySniperBot * categories.SERAPHIM, sBP) then
+        iStrikeDamage = GetSniperStrikeDamage(oUnit)
+    elseif oBP.Weapon and oBP.Weapon[1] then
+        iStrikeDamage = oBP.Weapon[1].Damage
+    end
+        return iStrikeDamage
+end
+
 function RecordUnitRange(oUnit)
     --Updates unit range variables - sets to nil if it has nothing with that range, otherwise records it as the highest range it has.  Factors in enhancements. Also records if unit unpacks for T3 mobile arti
     --Also updates if unit can kite
+    --Also records unit strike damage for certain air units
     local oBP = oUnit:GetBlueprint()
     local bWeaponUnpacks = false
     local bWeaponIsFixed = false
@@ -1045,7 +1113,7 @@ function RecordUnitRange(oUnit)
                     oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
                     if oCurWeapon.WeaponUnpacks then oUnit[refbWeaponUnpacks] = true end
                 elseif not(oCurWeapon.RangeCategory) or oCurWeapon.RangeCategory == 'UWRC_Undefined' then
-                    if oCurWeapon.Label == 'Bomb' or oCurWeapon.DisplayName == 'Kamikaze' then
+                    if oCurWeapon.Label == 'Bomb' or oCurWeapon.DisplayName == 'Kamikaze' or oCurWeapon.Label == 'Torpedo' then
                         oUnit[refiBomberRange] = math.max((oUnit[refiBomberRange] or 0), oCurWeapon.MaxRadius)
                     elseif oCurWeapon.WeaponCategory == 'Direct Fire' or oCurWeapon.WeaponCategory == 'Direct Fire Experimental' then
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
@@ -1076,7 +1144,7 @@ function RecordUnitRange(oUnit)
             oUnit[refbCanKite] = true
         end
     end
-
+    oUnit[refiStrikeDamage] = GetUnitStrikeDamage(oUnit)
 end
 
 function ConvertTechLevelToCategory(iTechLevel)

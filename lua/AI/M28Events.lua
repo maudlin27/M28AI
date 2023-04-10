@@ -23,6 +23,7 @@ local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 local M28Logic = import('/mods/M28AI/lua/AI/M28Logic.lua')
 local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
 local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
+local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 
 refiLastWeaponEvent = 'M28LastWep' --Gametimeseconds that last updated onweapon
 
@@ -272,6 +273,10 @@ function OnUnitDeath(oUnit)
                     -------M28 specific logic---------
                     --Is the unit owned by M28AI?
                     if oUnit:GetAIBrain().M28AI then
+                        --Air units - remove any assigned strike damage
+                        if oUnit[M28Air.refoStrikeDamageAssigned] then
+                            M28Air.RemoveAssignedAttacker(oUnit[M28Air.refoStrikeDamageAssigned], oUnit)
+                        end
                         --Logic that doesnt require the unit to ahve finished construction:
 
                         --Fixed shielding
