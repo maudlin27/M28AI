@@ -277,6 +277,10 @@ function OnUnitDeath(oUnit)
                         if oUnit[M28Air.refoStrikeDamageAssigned] then
                             M28Air.RemoveAssignedAttacker(oUnit[M28Air.refoStrikeDamageAssigned], oUnit)
                         end
+                        --Air scout death - record the target zone as dangerous
+                        if oUnit[M28Air.reftScoutAssignedPlateauAndZoneRef] then
+                            M28Air.OnAirScoutDeath(oUnit)
+                        end
                         --Logic that doesnt require the unit to ahve finished construction:
 
                         --Fixed shielding

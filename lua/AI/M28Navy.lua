@@ -1281,6 +1281,9 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
 
     ManageWaterZoneScouts(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tScouts, bWaterZoneOrAdjHasUnitsWantingScout)
 
+    --Treat omni as giving us visual
+    if tWZTeamData[M28Map.refiOmniCoverage] > 40 then tWZTeamData[M28Map.refiTimeLastHadVisual] = GetGameTimeSeconds() end
+
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, iPond='..iPond..'; iWaterZone='..iWaterZone) end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -1959,7 +1962,10 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
         end
     end
 
-
+    --Update if had visula of WZ recently
+    if M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false then
+        tWZTeamData[M28Map.refiTimeLastHadVisual] = GetGameTimeSeconds()
+    end
 
 
 

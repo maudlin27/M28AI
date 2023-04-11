@@ -227,7 +227,14 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             --Intel related values
             refbWantLandScout = 'LandScout' --True/false, used by water and land zones
             refiRadarCoverage = 'RadCov' --Radar coverage of the centre of the land zone midpoint
+            refiOmniCoverage = 'OmnCov' --Omni coverage of the centre of the land or water zone midpoint
             refoBestRadar = 'BestRad' --Radar providing the best Radar Coverage for the land zone midpoint
+            refiTimeLastHadVisual = 'LstVis' --Gametimeseconds that last had an intel unit (e.g. land or air scout) in the land or water zone
+            refiScoutingPriority = 'SctPrio' --will return the scouting priority (i.e. 1, 2 or 3 per below subrefs)
+                subrefiScoutingHighPriority = 1
+                subrefiScoutingMediumPriority = 2
+                subrefiScoutingLowPriority = 3
+            refiRecentlyFailedScoutAttempts = 'SctFail' --if a scout dies trying to reach here, this should increase the failure count
             --Enemy air
             reftLZEnemyAirUnits = 'EnAir' --All enemy air units that are currently in the land zone
             refiEnemyAirToGroundThreat = 'EnA2GT' --Air to ground threat of enemy air units in the LZ / WZ
@@ -306,7 +313,9 @@ tPondDetails = {}
             subrefWZbContainsNavalBuildLocation = 'WZNavBL' --true if contains a naval build location for a friendly M28AI
             subrefWZTValue = 'WZVal' --Value of the WZ, used to prioritise sending untis to different water zones; likely to be based on distance to core base water zone
             --refiRadarCoverage - use same ref as for land zone
+            --refiOmniCoverage - use same ref as land zone
             --refoBestRadar - use same ref as for land zone
+            --refiTimeLastHadVisual -use same ref as for land zone
             --reftClosestFriendlyBase - use same ref as for land zone
             --reftClosestEnemyBase - use same ref as for land zone
             --refiModDistancePercent - use same ref as for land zone
@@ -4388,9 +4397,12 @@ function SetupMap()
     --Send a message warning players this could take a while
     for iBrain, oBrain in ArmyBrains do
         if oBrain.M28AI then
-            M28Chat.SendForkedMessage(oBrain, 'LoadingMap', 'Analysing map, this may take a minute...', 0, 10000, false)
+            M28Chat.SendForkedMessage(oBrain, 'LoadingMap', 'Analysing map, this usually takes 1-2 minutes...', 0, 10000, false)
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    WaitTicks(1) --So chat message displays
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --Decide how accurate map related functions are to be based on the map size:
     SetupPlayableAreaAndSegmentSizes()
@@ -4409,7 +4421,7 @@ function SetupMap()
     RecordMexForPathingGroup()
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    WaitTicks(1) --want to make sure our chat message displays
+    WaitTicks(1) --want to make sure our chat message displays (redundancy as moved to earlier now)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --Create table with details on all plateaus (initially just those with mexes, although the land zone logic may add to this)
