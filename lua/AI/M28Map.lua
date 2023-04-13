@@ -74,6 +74,7 @@ iReclaimSegmentSizeZ = 0 --Updated separately
 --Plateaus - core (NOTE: Some of these variables wont work for a plateau that has no mexes)
 tPathingPlateauAndLZOverride = {} --Global, Pathing override where no plateau recognised; key is [math.floor(x)][math.floor(z)] and returns {iPlateau, iLandZone}
 tbTempConsideredLandPathingForLZ = {} --Global, used to track if we have considered land pathing for this LZ as part of the initial LZ setup
+tNearestPlateauOrZeroAndZoneSegmentOverride = {} --Global, [x] is segmentx, [y] is segmenty, returns the Plateau (0 if water zone) and land/water zone reference to use; closest is based on straight line dist
 
 tAllPlateaus = {} --[x] = AmphibiousPathingGroup, [y]: subrefs, e.g. subrefPlateauMexes;
 --aibrain variables for plateaus (not currently incorporated):
@@ -255,6 +256,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             refiModDistancePercent = 'ModDPC' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam], mod dist based on closest friendly start position to closest enemy start position
             refbIslandBeachhead = 'IslBeachd' --true if we are sending units to a closest island LZ to try and attack enemy - means will check for nearby untis vs enemy nearby units when deciding whether to attack or not
             refiTimeOfLastTorpAttack = 'TLstTorp' --Gametimeseconds that last sent torpedo bombers to attack units in this location
+            reftoTransportsWaitingForEngineers = 'TWntEng' --Table of any transports in this LZ wanting engineers
 
 --Pond and naval variables
     --General
@@ -511,6 +513,54 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
 
 
     return iPlateau, iLandZone
+end
+
+function GetNearestPlateauOrLandOrWaterZoneToLocationFORLOOKUP(tLocation)  --Only to help with lookup - use below function
+    return GetClosestPlateauOrZeroAndZoneToPosition(tPosition)
+end --Only to help with lookup - use below function
+function GetClosestPlateauOrZeroAndZoneToPosition(tPosition)
+    local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tPosition)
+    if tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX][iSegmentZ] then
+        return tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX][iSegmentZ][1], tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX][iSegmentZ][2]
+    else
+        local iPlateau = NavUtils.GetLabel(refPathingTypeHover, GetPositionFromPathingSegments(iSegmentX, iSegmentZ))
+        if (iPlateau or 0) <= 0 then
+            --Need to get an override if dont already have one
+            local iAltPlateau, iAltLZOrWZ
+            if not(tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX]) then tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX] = {} end
+            for iAdjust = 1, math.max(rMapPlayableArea[3], rMapPlayableArea[4]) do
+                for iXAdjust = -iAdjust, iAdjust, 1 do
+                    for iZAdjust = -iAdjust, iAdjust, 1 do
+                        if not(iXAdjust == 0 and iZAdjust == 0) then
+                            iAltPlateau = NavUtils.GetLabel(refPathingTypeHover, GetPositionFromPathingSegments(iSegmentX + iXAdjust, iSegmentZ + iZAdjust))
+                            if (iAltPlateau or 0) > 0 then
+                                iAltLZOrWZ = tLandZoneBySegment[iSegmentX+ iXAdjust][iSegmentZ+ iZAdjust]
+                                if (iAltLZOrWZ or 0) == 0 then
+                                    iAltLZOrWZ = tWaterZoneBySegment[iSegmentX+ iXAdjust][iSegmentZ+ iZAdjust]
+                                    iAltPlateau = 0
+                                end
+                                if (iAltLZOrWZ or 0) > 0 then
+                                    tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX][iSegmentZ] = {[1] = iAltPlateau, [2] = iAltLZOrWZ}
+                                    return iAltPlateau, iAltLZOrWZ
+                                else
+                                    M28Utilities.ErrorHandler('Have a valid plateau for SegmentX-Z='..(iSegmentX + iXAdjust)..'-'..(iSegmentZ + iZAdjust)..' but not a valid land or water zone')
+                                end
+                            end
+                        end
+                    end
+                end
+                if iAdjust >= 100 then M28Utilities.ErrorHandler('Likely error locating valid segment for iSegmentX-Z='..iSegmentX..'-'..iSegmentZ) end
+            end
+        else
+            --Have a valid plateau so should have a valid land or water zone
+            if (tLandZoneBySegment[iSegmentX][iSegmentZ] or 0) == 0 then
+                --Presume it is a water zone
+                return 0, GetWaterZoneFromPosition(tPosition)
+            else
+                return iPlateau, tLandZoneBySegment[iSegmentX][iSegmentZ]
+            end
+        end
+    end
 end
 
 ---@param tLocation table
@@ -4400,6 +4450,7 @@ function SetupMap()
             M28Chat.SendForkedMessage(oBrain, 'LoadingMap', 'Analysing map, this usually takes 1-2 minutes...', 0, 10000, false)
         end
     end
+
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     WaitTicks(1) --So chat message displays
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -4414,6 +4465,10 @@ function SetupMap()
         --NavGen.Generate()
         NavUtils.Generate()
     end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    WaitTicks(1) --Redundancy so chat message displays
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     GetMapWaterHeight()
 

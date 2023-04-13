@@ -1514,3 +1514,48 @@ end
 function GetUnitUniqueRef(oUnit)
     return oUnit:GetAIBrain():GetArmyIndex()..oUnit.UnitId..GetUnitLifetimeCount(oUnit)
 end
+
+function GetTransportMaxCapacity(oTransport, iTechLevelToLoad)
+    --https://forums.faforever.com/viewtopic.php?f=2&t=17511#:~:text=It%20can%20carry%20exactly%201,and%20more%20T2%20than%20T3.
+    local iFaction = GetUnitFaction(oTransport)
+    local tiCapacityByTechAndFaction --[TransportTechLevel][FactionNumber][UnitTechToHold]
+    if EntityCategoryContains(categories.UEF * categories.GROUNDATTACK * categories.TECH2 * categories.AIR, oTransport.UnitId) then
+        tiCapacityByTechAndFaction = {[2]={[refFactionUEF]={[1]=1,[2]=1,[3]=0,[4]=0}}}
+    else tiCapacityByTechAndFaction =
+    {[1]={ --T1 transports
+        [refFactionUEF]={[1]=6,[2]=2,[3]=1,[4]=0},
+        [refFactionAeon]={[1]=6,[2]=3,[3]=1,[4]=0},
+        [refFactionCybran]={[1]=6,[2]=2,[3]=1,[4]=0},
+        [refFactionSeraphim]={[1]=8,[2]=4,[3]=1,[4]=0},
+        [refFactionNomads]={[1]=4,[2]=2,[3]=0,[4]=0}, --Assumed
+        [refFactionUnrecognised]={[1]=2,[2]=1,[3]=0,[4]=0}, --assumed
+    },
+     [2]={
+         [refFactionUEF]={[1]=14,[2]=6,[3]=3,[4]=0},
+         [refFactionAeon]={[1]=12,[2]=6,[3]=2,[4]=0},
+         [refFactionCybran]={[1]=10,[2]=4,[3]=2,[4]=0},
+         [refFactionSeraphim]={[1]=16,[2]=8,[3]=4,[4]=0},
+         [refFactionNomads]={[1]=8,[2]=4,[3]=2,[4]=0}, --Assumed
+         [refFactionUnrecognised]={[1]=2,[2]=1,[3]=0,[4]=0}, --assumed
+     },
+     [3]={
+         [refFactionUEF]={[1]=28,[2]=12,[3]=6,[4]=0},
+         [refFactionAeon]={[1]=1,[2]=1,[3]=1,[4]=0},
+         [refFactionCybran]={[1]=1,[2]=1,[3]=1,[4]=0},
+         [refFactionSeraphim]={[1]=1,[2]=1,[3]=1,[4]=0},
+         [refFactionNomads]={[1]=1,[2]=1,[3]=1,[4]=0},
+         [refFactionUnrecognised]={[1]=1,[2]=1,[3]=1,[4]=0},
+     },
+     [4]={ --dummy values
+         [refFactionUEF]={[1]=1,[2]=1,[3]=1,[4]=0},
+         [refFactionAeon]={[1]=1,[2]=1,[3]=1,[4]=0},
+         [refFactionCybran]={[1]=1,[2]=1,[3]=1,[4]=0},
+         [refFactionSeraphim]={[1]=1,[2]=1,[3]=1,[4]=0},
+         [refFactionNomads]={[1]=1,[2]=1,[3]=1,[4]=0},
+         [refFactionUnrecognised]={[1]=1,[2]=1,[3]=1,[4]=0},
+     },
+    }
+    end
+
+    return tiCapacityByTechAndFaction[GetUnitTechLevel(oTransport)][iFaction][iTechLevelToLoad]
+end

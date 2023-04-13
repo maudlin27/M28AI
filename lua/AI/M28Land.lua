@@ -258,6 +258,7 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
     local iActualPlateau, iActualLandZone
     local UpdateUnitLastKnownPosition = M28Team.UpdateUnitLastKnownPosition
     local bUseActualPositionIfEnemy = false
+    local bUnitIsAttached
     if tLZTeamData[M28Map.refiRadarCoverage] >= 70 then bUseActualPositionIfEnemy = true end
 
     if bDebugMessages == true then LOG('Start of code at time '..GetGameTimeSeconds()..', reprs of tUnits='..reprs(tUnits)) end
@@ -267,19 +268,25 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
             tUnits[iOrigIndex] = nil
         else
             --Unit still valid, does it have the right plateau and land zone?
+            bUnitIsAttached = tUnits[iOrigIndex]:IsUnitState('Attached')
             if bUseLastKnownPosition then
                 UpdateUnitLastKnownPosition(aiBrain, tUnits[iOrigIndex], bUseActualPositionIfEnemy)
-                if bAreAirUnits then iActualPlateau, iActualLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tUnits[iOrigIndex][M28UnitInfo.reftLastKnownPositionByTeam][iTeam], false)
+                if bAreAirUnits or bUnitIsAttached then
+                    iActualPlateau, iActualLandZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition( tUnits[iOrigIndex][M28UnitInfo.reftLastKnownPositionByTeam][iTeam])
                 else
                     iActualPlateau, iActualLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tUnits[iOrigIndex][M28UnitInfo.reftLastKnownPositionByTeam][iTeam], true, tUnits[iOrigIndex])
                 end
             else
                 --Allied unit so can use actual position
-                iActualPlateau, iActualLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tUnits[iOrigIndex]:GetPosition(), true, tUnits[iOrigIndex])
+                if bUnitIsAttached then
+                    iActualPlateau, iActualLandZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition( tUnits[iOrigIndex]:GetPosition())
+                else
+                    iActualPlateau, iActualLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tUnits[iOrigIndex]:GetPosition(), true, tUnits[iOrigIndex])
+                end
                 if bDebugMessages == true then LOG(sFunctionRef..': iOrigIndex='..iOrigIndex..'; iActualPlateau='..(iActualPlateau or 'nil')..'; iActualLandZone='..(iActualLandZone or 'nil')) end
             end
             if not(iActualPlateau > 0) then
-                if not(bAreAirUnits) and not(tUnits[iOrigIndex]:IsUnitState('Attached')) then
+                if not(bAreAirUnits) and not(bUnitIsAttached) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Dont have a valid actual plateau so will use the recorded plateau and land zone') end
                     iActualPlateau = iRecordedPlateau
                     iActualLandZone = iRecordedLandZone
@@ -323,8 +330,15 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
                         M28Team.AddUnitToWaterZoneForBrain(aiBrain, oUnitToAdd, iWaterZone, bAreAirUnits)
                     else
                         if bAreAirUnits then
-                            --Add unit to table of air units without a plateau
-                            M28Air.RecordEnemyAirUnitWithNoZone(iTeam, oUnitToAdd)
+                            --Get revised plateau/LZ
+                            iActualPlateau, iActualLandZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnitToAdd:GetPosition())
+                            if iActualPlateau == 0 then
+                                --Water zone
+                                iWaterZone = iActualLandZone
+                                M28Team.AddUnitToWaterZoneForBrain(aiBrain, oUnitToAdd, iWaterZone, bAreAirUnits)
+                            else
+                                M28Team.AddUnitToLandZoneForBrain(aiBrain, oUnitToAdd, iActualPlateau, iActualLandZone, bAreAirUnits)
+                            end
                         else
                             --Not sure where to record unit so call main logic
                             M28Team.AssignUnitToLandZoneOrPond(aiBrain, oUnitToAdd, true)

@@ -281,6 +281,10 @@ function OnUnitDeath(oUnit)
                         if oUnit[M28Air.reftScoutAssignedPlateauAndZoneRef] then
                             M28Air.OnAirScoutDeath(oUnit)
                         end
+                        --Transport death - record target island as dangerous
+                        if oUnit[M28Air.refiTargetIslandForDrop] then
+                            M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiLastFailedIslandDropTime][oUnit[M28Air.refiTargetIslandForDrop]] = GetGameTimeSeconds()
+                        end
                         --Logic that doesnt require the unit to ahve finished construction:
 
                         --Fixed shielding
@@ -836,11 +840,20 @@ function OnCreateWreck(tPosition, iMass, iEnergy)
 end
 
 function OnTransportLoad(oUnit, oTransport, bone)
-
+    if M28Utilities.bM28AIInGame then
+        local aiBrain = oTransport:GetAIBrain()
+        if aiBrain.M28AI then
+            --Reduce engis wanted (in case of delay between this being updated and engineer logic running)
+            if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryTransport, oTransport.UnitId) then
+                if oTransport[M28Air.refiEngisWanted] then
+                    oTransport[M28Air.refiEngisWanted] = math.max(0, oTransport[M28Air.refiEngisWanted] - 1)
+                end
+            end
+        end
+    end
 end
 
 function OnTransportUnload(oUnit, oTransport, bone)
-
 
 end
 
