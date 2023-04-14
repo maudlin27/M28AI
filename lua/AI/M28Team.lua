@@ -134,6 +134,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiEnemyAirToGroundThreat = 'M28TeamEnemyAirToGroundThreat'
     refiEnemyTorpBombersThreat = 'M28TeamEnemyTorpBomberThreat'
     refiEnemyAirOtherThreat = 'M28TeamEnemyAirOtherThreat'
+    refiTimeOfLastAirStagingShortage = 'M28TeamTimeAirStagingShortage' --Gametimeseconds that a team member last had units that had nowhere to refuel
 
     refiTimeOfLastTransportShortlistUpdate = 'M28TeamAirTimeTransportShortlist' --Gametimeseconds that last updated the list of potential locations to do transport engi drops to
     reftTransportIslandDropShortlist = 'M28TeamAirTransportShortlist' --key is 1,2....x, returns {iPlateau, iIsland} - shortlist of plateau and island references that want to consider a transport drop for
@@ -151,7 +152,11 @@ tAirSubteamData = {}
     refbFarBehindOnAir = 'M28ASTFarBehindOnAir' --true if we are far behind on air
     refbHaveAirControl = 'M28ASTHaveAirControl'
     reftACUAndExpOnSubteam = 'M28ASTACUExp' --Friendly ACUs and experimentals
-    subrefiAirAAThreat = 'M28ASTOurAirAA' --Our AirAA threat
+    subrefiOurAirAAThreat = 'M28ASTOurAirAA' --Our AirAA threat
+    subrefiOurGunshipThreat = 'M28ASTOurGShip' --Our gunship threat
+    subrefiOurTorpBomberThreat = 'M28ASTOurTBmbT' --Our torp bomber threat
+    refbTooMuchGroundNavalAAForTorpBombers = 'M28TooMuchAAForTorps' --true if have avoided targeting a water zone with torps due to groundAA threat in a water zone
+    refbNoAvailableTorpsForEnemies = 'M28NoAvailTorps' --true if have enemy naval unit in a wz we want to defend, and we lack available torp bombers
     reftAirSubRallyPoint = 'M28ASTRally' --Contains the location of the air subteam's rally point
     reftAirSubSupportPoint = 'M28ASTSuppR' --Contains the location for airaa units to go to support a priority unit
     reftiTorpedoDefenceWaterZones = 'M28ASTTorpDef' --Contains water zones that want torpedo bombers to consider defending
@@ -1225,8 +1230,20 @@ function ConsiderPriorityAirFactoryUpgrades(iM28Team)
 
     if tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech] > 0 and tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech] < 3 then
         local bWantUpgrade = false
-        --Prioritise air factory if we dont have T2 air and enemy has navy - TODO
-        if tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech] < 2 and tTeamData[iM28Team][subrefiHighestEnemyNavyTech] > 0 then
+        --Prioritise air factory if we dont have T2 air and enemy has navy
+        local bAirSubteamNeedsTorps = false
+        local tiAirSubteams = {}
+        for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
+            tiAirSubteams[oBrain.M28AirSubteam] = true
+        end
+        for iAirSubteam, bTrue in tiAirSubteams do
+            if tAirSubteamData[iAirSubteam][refbNoAvailableTorpsForEnemies] then
+                bAirSubteamNeedsTorps = true
+                break
+            end
+        end
+
+        if tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech] < 2 and (bAirSubteamNeedsTorps or tTeamData[iM28Team][subrefiHighestEnemyNavyTech] > 0) then
             for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
                 if oBrain[M28Economy.refiOurHighestAirFactoryTech] > 0 and oBrain[M28Economy.refiOurHighestAirFactoryTech] < 2 then
                     bWantUpgrade = true

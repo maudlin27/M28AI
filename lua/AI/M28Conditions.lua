@@ -630,3 +630,73 @@ function HaveEnoughThreatToAttack(tLZTeamData, iOurCombatThreat, iEnemyCombatThr
     end
     return false
 end
+
+function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
+    local iOurIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefLZMidpoint])
+    if tLZTeamData[M28Map.subrefLZbCoreBase] or iOurIsland == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase]) then
+        --If are low on power and can path to enemy with land then get land factory
+        local iEnemyIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase])
+        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] <= 0.8 and iOurIsland == iEnemyIsland then
+            return false
+        else
+            --Are in core base or we are in same island as core base
+            local iLandFactoriesWantedBeforeAir = 1
+            local iLandFactoriesHave = 0
+            local iAirFactoriesForEveryLandFactory = 1
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
+                local tLandFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                if M28Utilities.IsTableEmpty(tLandFactories) == false then
+                    iLandFactoriesHave = table.getn(tLandFactories)
+                end
+            end
+            if iLandFactoriesHave < 1 then
+                return false
+            else
+                --How many land factories do we want
+                if not(iOurIsland == iEnemyIsland) then
+                    --Cant path to enemy except potentially with amphibious, so dont want lots of land factories
+                    iLandFactoriesWantedBeforeAir = 1
+                    --Exception if low gross power
+                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 22 then
+                        iLandFactoriesWantedBeforeAir = 2
+                    end
+                    iAirFactoriesForEveryLandFactory = 5
+                else
+                    --Can path to enemy with land, base number of factories wanted on distance to enemy base
+                    local iEnemyBaseDist = M28Utilities.GetDistanceBetweenPositions(  tLZData[M28Map.subrefLZMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])
+
+                    if iEnemyBaseDist >= 500 then
+                        iLandFactoriesWantedBeforeAir = 1
+                        iAirFactoriesForEveryLandFactory = 4
+                    elseif iEnemyBaseDist >= 350 then
+                        iLandFactoriesWantedBeforeAir = 2
+                        iAirFactoriesForEveryLandFactory = 1
+                    else
+                        iLandFactoriesWantedBeforeAir = 4
+                        iAirFactoriesForEveryLandFactory = 0.25
+                    end
+                end
+
+                if iLandFactoriesHave < iLandFactoriesWantedBeforeAir then
+                    return false
+                else
+                    --Have min number of land factories, now check how many air factories we have
+                    local iAirFactoriesHave = 0
+                    local tAirFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                    if M28Utilities.IsTableEmpty(tAirFactories) == false then
+                        iAirFactoriesHave = table.getn(tAirFactories)
+                    end
+                    local iAirFactoriesWanted = math.ceil(iLandFactoriesHave * iAirFactoriesForEveryLandFactory)
+                    if iAirFactoriesWanted > iAirFactoriesHave then
+                        return true
+                    else
+                        return false
+                    end
+                end
+            end
+        end
+    else
+        --Dif island to nearest start position so presumably want land factories to take contorl of island/plateau
+        return false
+    end
+end

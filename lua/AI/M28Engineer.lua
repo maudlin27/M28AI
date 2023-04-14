@@ -61,8 +61,8 @@ refActionBuildEnergyStorage = 6
     refActionHasNearbyEnemies = 8
     refActionUpgradeBuilding = 9
     refActionBuildSecondPower = 10
-    refActionBuildAirStaging = 11
-    refActionBuildAirFactory = 12
+refActionBuildAirStaging = 11
+refActionBuildAirFactory = 12
 refActionBuildSMD = 13
 refActionBuildMassStorage = 14
 refActionBuildT1Radar = 15
@@ -125,6 +125,8 @@ tiActionCategory = {
     [refActionBuildHydro] = M28UnitInfo.refCategoryHydro,
     [refActionBuildPower] = M28UnitInfo.refCategoryPower,
     [refActionBuildLandFactory] = M28UnitInfo.refCategoryLandFactory,
+    [refActionBuildAirStaging] = M28UnitInfo.refCategoryAirStaging,
+    [refActionBuildAirFactory] = M28UnitInfo.refCategoryAirFactory,
     [refActionBuildSMD] = M28UnitInfo.refCategorySMD,
     [refActionBuildMassStorage] = M28UnitInfo.refCategoryMassStorage,
     [refActionBuildT1Radar] = M28UnitInfo.refCategoryT1Radar,
@@ -147,6 +149,8 @@ tiActionOrder = {
     [refActionBuildHydro] = M28Orders.refiOrderIssueBuild,
     [refActionBuildPower] = M28Orders.refiOrderIssueBuild,
     [refActionBuildLandFactory] = M28Orders.refiOrderIssueBuild,
+    [refActionBuildAirStaging] = M28Orders.refiOrderIssueBuild,
+    [refActionBuildAirFactory] = M28Orders.refiOrderIssueBuild,
     [refActionBuildEnergyStorage] = M28Orders.refiOrderIssueBuild,
     [refActionMoveToLandZone] = M28Orders.refiOrderIssueMove,
     [refActionRunToLandZone] = M28Orders.refiOrderIssueMove,
@@ -178,11 +182,11 @@ tiActionOrder = {
 tiActionAdjacentCategory = {
     [refActionBuildPower] = M28UnitInfo.refCategoryAirFactory + M28UnitInfo.refCategoryT3Radar + M28UnitInfo.refCategorySMD + M28UnitInfo.refCategorySML,
     [refActionBuildLandFactory] = M28UnitInfo.refCategoryMex,
+    [refActionBuildAirFactory] = M28UnitInfo.refCategoryT3Power + M28UnitInfo.refCategoryHydro,
     [refActionBuildSMD] = M28UnitInfo.refCategoryT3Power,
     [refActionBuildT1Radar] = M28UnitInfo.refCategoryT1Power,
     [refActionBuildT2Radar] = M28UnitInfo.refCategoryT2Power,
     [refActionBuildT3Radar] = M28UnitInfo.refCategoryT3Power,
-    [refActionBuildSecondLandFactory] = M28UnitInfo.refCategoryMex,
 }
 
 --Include any actions where we wont be building a category or searching for a category to assist
@@ -2620,7 +2624,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                 --Do we have a part complete unit of this category already under construction in this land zone?
                 --Building a factory - change whether to search for assistance based on mass stored %; for mass storage instead base the check on how many locations we have as we may be trying to build a second storage
                 local bShouldIgnoreUnderConstruction = tbIgnoreUnderConstructionActions[iActionToAssign]
-                if iActionToAssign == refActionBuildLandFactory then
+                if iActionToAssign == refActionBuildLandFactory or iActionToAssign == refActionBuildAirFactory then
                     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.4 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10 then bShouldIgnoreUnderConstruction = true end
                 elseif iActionToAssign == refActionBuildMassStorage and table.getn(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMassStorageLocationsAvailable]) >= 5 then bShouldIgnoreUnderConstruction = true
                 end
@@ -3426,7 +3430,16 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             if not(bHaveLowMass) then iBPWanted = iBPWanted * 2.5 end
             if not(bHaveLowPower) then iBPWanted = iBPWanted * 2.5 end
             if bDebugMessages == true then LOG(sFunctionRef..': Will try and build factory, iBPWanted='..iBPWanted) end
-            HaveActionToAssign(refActionBuildLandFactory, 1, iBPWanted)
+            local bWantAirNotLand
+            if iFactoriesInLZ == 0 then bWantAirNotLand = false
+            else bWantAirNotLand = M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
+            end
+            local iFactoryAction
+            if bWantAirNotLand then iFactoryAction = refActionBuildAirFactory
+            else iFactoryAction = refActionBuildLandFactory
+            end
+
+            HaveActionToAssign(iFactoryAction, 1, iBPWanted)
         end
     end
 
@@ -3455,9 +3468,27 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         if bDebugMessages == true then LOG(sFunctionRef..': iEngisWantedForTransports after refresh='..iEngisWantedForTransports) end
         if iEngisWantedForTransports > 0 then
             if bDebugMessages == true then LOG(sFunctionRef..': want engineers to load onto transport') end
-                                --iActionToAssign,      iMinTechLevelWanted, i  BuildPowerWanted,                                                                       vOptionalVariable,  bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting
+            --iActionToAssign,      iMinTechLevelWanted, i  BuildPowerWanted,                                                                       vOptionalVariable,  bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting
             --BP wanted - engineers already attached shouldn't be treated as available, however want BP wanted to be total not additional to avoid multiple unattached engineers being given the same order
             HaveActionToAssign(refActionLoadOntoTransport, 1, iEngisWantedForTransports * tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]], nil, false,false) --Max 5 BP to make sure we only try loading 1 engi at a time
+        end
+    end
+
+    --Units needing air staging
+    iCurPriority = iCurPriority + 1
+    if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastAirStagingShortage] or 0) <= 1.1 then
+        --Limit of 3 air staging in a LZ
+        local tExistingAirStaging = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirStaging, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+        local iExistingAirStaging = 0
+        if M28Utilities.IsTableEmpty(tExistingAirStaging) == false then
+            for iStaging, oStaging in tExistingAirStaging do
+                iExistingAirStaging = iExistingAirStaging + 1
+            end
+        end
+        if iExistingAirStaging <= 1 or (iExistingAirStaging < 3 and not(bHaveLowMass)) then
+            iBPWanted = tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]]
+            if not(bHaveLowMass) then iBPWanted = iBPWanted * 2 end
+            HaveActionToAssign(refActionBuildAirStaging, 1, iBPWanted, nil, false)
         end
     end
 
@@ -3551,7 +3582,12 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             iBPWanted = 5
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Wnat to build a factory, iBPWanted='..iBPWanted) end
-        HaveActionToAssign(refActionBuildLandFactory, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech], iBPWanted, nil)
+        local bWantAirNotLand = M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
+        local iFactoryAction
+        if bWantAirNotLand then iFactoryAction = refActionBuildAirFactory
+        else iFactoryAction = refActionBuildLandFactory
+        end
+        HaveActionToAssign(iFactoryAction, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech], iBPWanted, nil)
     end
 
 
@@ -3643,7 +3679,13 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         if bHaveLowPower then iBPWanted = tiBPByTech[3] * 3
         else iBPWanted = tiBPByTech[3] * 5
         end
-        HaveActionToAssign(refActionBuildLandFactory, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech], iBPWanted, nil)
+        local bWantAirNotLand = M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
+        local iFactoryAction
+        if bWantAirNotLand then iFactoryAction = refActionBuildAirFactory
+        else iFactoryAction = refActionBuildLandFactory
+        end
+
+        HaveActionToAssign(iFactoryAction, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech], iBPWanted, nil)
     end
 
     --Build multiple land factories if have lots of mass stored (higher priority)
@@ -3914,7 +3956,12 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         if bHaveLowMass then iFactoriesWanted = math.max(1, iFactoriesWanted * 0.5) end
         if bDebugMessages == true then LOG(sFunctionRef..': iFactoriesWanted='..iFactoriesWanted..'; iExistingLandFactory='..iExistingLandFactory) end
         if iExistingLandFactory < iFactoriesWanted then
-            HaveActionToAssign(refActionBuildLandFactory, 1, 30, nil)
+            local bWantAirNotLand = M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
+            local iFactoryAction
+            if bWantAirNotLand then iFactoryAction = refActionBuildAirFactory
+            else iFactoryAction = refActionBuildLandFactory
+            end
+            HaveActionToAssign(iFactoryAction, 1, 30, nil)
         end
     end
 

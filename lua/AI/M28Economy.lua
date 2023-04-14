@@ -299,7 +299,7 @@ function UpdateHighestFactoryTechLevelForBuiltUnit(oUnitJustBuilt)
             local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnitJustBuilt)
             local sFactoryRef
             if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnitJustBuilt.UnitId) then sFactoryRef = refiOurHighestLandFactoryTech
-            elseif EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oUnitJustBuilt.UnitId) then sFactoryRef = refiOurHighestAirFactory
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oUnitJustBuilt.UnitId) then sFactoryRef = refiOurHighestAirFactoryTech
             elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oUnitJustBuilt.UnitId) then sFactoryRef = refiOurHighestNavalFactoryTech
             else M28Utilities.ErrorHandler('Unrecognised factory type')
             end
@@ -333,7 +333,7 @@ function UpdateHighestFactoryTechLevelForDestroyedUnit(oUnitJustDestroyed)
                         end
                     end
                 end
-            elseif EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oUnitJustDestroyed.UnitId) then sFactoryRef = refiOurHighestAirFactory
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oUnitJustDestroyed.UnitId) then
                 if iUnitTechLevel >= aiBrain[refiOurHighestAirFactoryTech] then
                     aiBrain[refiOurHighestAirFactoryTech] = 0
                     for iTechLevel = 3, 1, -1 do
@@ -343,7 +343,7 @@ function UpdateHighestFactoryTechLevelForDestroyedUnit(oUnitJustDestroyed)
                         end
                     end
                 end
-            elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oUnitJustDestroyed.UnitId) then sFactoryRef = refiOurHighestNavalFactoryTech
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oUnitJustDestroyed.UnitId) then
                 if iUnitTechLevel >= aiBrain[refiOurHighestNavalFactoryTech] then
                     aiBrain[refiOurHighestNavalFactoryTech] = 0
                     for iTechLevel = 3, 1, -1 do
