@@ -14,6 +14,8 @@ local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
 local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
 local XZDist = import('/lua/utilities.lua').XZDistanceTwoVectors
 
+refbMicroResetChecker = 'M28MicChk' --True if we have an active thread checking if micro time has expired
+
 function MoveAwayFromTargetTemporarily(oUnit, iTimeToRun, tPositionToRunFrom)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'MoveAwayFromTargetTemporarily'
@@ -305,7 +307,7 @@ function ConsiderDodgingShot(oUnit, oWeapon)
 
         local tUnitsToConsiderDodgeFor = {}
         function ConsiderAddingUnitToTable(oCurUnit, bIncludeBusyUnits)
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering if we should add oCurUnit='..oCurUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oCurUnit)..'; Brain='..oCurUnit:GetAIBrain().Nickname..'; Unit state='..M28UnitInfo.GetUnitState(oCurUnit)..'; Special micro active='..tostring(oCurUnit[M28UnitInfo.refbSpecialMicroActive] or false)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering if we should add oCurUnit='..oCurUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oCurUnit)..'; Brain='..oCurUnit:GetAIBrain().Nickname..'; Unit state='..M28UnitInfo.GetUnitState(oCurUnit)..'; Special micro active='..tostring(oCurUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; Time='..GetGameTimeSeconds()..'; refiGameTimeToResetMicroActive='..(oCurUnit[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')) end
             if oCurUnit:GetAIBrain().M28AI and (bIncludeBusyUnits or (not(oCurUnit:IsUnitState('Upgrading')) and not(oCurUnit[M28UnitInfo.refbSpecialMicroActive]))) then
                 if EntityCategoryContains(categories.AIR + categories.STRUCTURE, oCurUnit.UnitId) then
                     --Do nothing
@@ -402,7 +404,7 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                                         if oWeapon.Blueprint.Damage <= 100 then
                                             bCancelDodge = true
                                         else
-                                            iMaxTimeToRun = math.min(0.7, iMaxTimeToRun)
+                                            iMaxTimeToRun = math.min(0.8, iMaxTimeToRun) --(M27 uses 0.9; if set too low then ACU may not actually move)
                                         end
                                     end
                                 elseif EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then
@@ -470,7 +472,7 @@ function DodgeShot(oTarget, oWeapon, oAttacker, iTimeToDodge)
     end
 
     local tTempDestination = M28Utilities.MoveInDirection(oTarget:GetPosition(), iCurFacingAngle + iAngleAdjust, iDistanceToRun, true, false)
-    if bDebugMessages == true then LOG(sFunctionRef..': oTarget (ie unit that is dodging)='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; clearing current orders which have a possible destination of '..repru(tCurDestination)..'; and giving an order to move to '..repru(tTempDestination)..'; Dist from our position to temp position='..M28Utilities.GetDistanceBetweenPositions(oTarget:GetPosition(), tTempDestination)..'; iAngleAdjust='..iAngleAdjust..'; Unit size='..iUnitSize) end
+    if bDebugMessages == true then LOG(sFunctionRef..': oTarget (ie unit that is dodging)='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; clearing current orders which have a possible destination of '..repru(tCurDestination)..'; and giving an order to move to '..repru(tTempDestination)..'; Dist from our position to temp position='..M28Utilities.GetDistanceBetweenPositions(oTarget:GetPosition(), tTempDestination)..'; iAngleAdjust='..iAngleAdjust..'; Unit size='..iUnitSize..'; iTimeToDodge='..iTimeToDodge) end
     M28Orders.IssueTrackedClearCommands(oTarget)
     TrackTemporaryUnitMicro(oTarget, iTimeToDodge)
     M28Orders.IssueTrackedMove(oTarget, tTempDestination, 0.25, false, 'MiDod1', true)
@@ -486,16 +488,34 @@ end
 function TrackTemporaryUnitMicro(oUnit, iTimeActiveFor, sAdditionalTrackingVar)
     --Where we are doing all actions upfront can call this to enable micro and then turn the flag off after set period of time
     --Note that air logic currently doesnt make use of this
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'TrackTemporaryUnitMicro'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     oUnit[M28UnitInfo.refbSpecialMicroActive] = true
     oUnit[M28UnitInfo.refiGameTimeMicroStarted] = GetGameTimeSeconds()
     oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] = GetGameTimeSeconds() + iTimeActiveFor
+    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oUnit[M28UnitInfo.refbSpecialMicroActive]='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; oUnit[M28UnitInfo.refiGameTimeMicroStarted]='..oUnit[M28UnitInfo.refiGameTimeMicroStarted]..'; oUnit[M28UnitInfo.refiGameTimeToResetMicroActive]='..oUnit[M28UnitInfo.refiGameTimeToResetMicroActive]..'; iTimeActiveFor='..iTimeActiveFor) end
+    ForkThread(ForkedResetMicroFlag, oUnit, iTimeActiveFor - 0.01, sAdditionalTrackingVar)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
 
-    M28Utilities.DelayChangeVariable(oUnit, M28UnitInfo.refbSpecialMicroActive, false, iTimeActiveFor - 0.01)
-
-    if sAdditionalTrackingVar then
-        oUnit[sAdditionalTrackingVar] = true
-        M28Utilities.DelayChangeVariable(oUnit, sAdditionalTrackingVar, false, iTimeActiveFor - 0.01)
+function ForkedResetMicroFlag(oUnit, iTimeToWait, sAdditionalTrackingVar)
+    oUnit[M28UnitInfo.refbSpecialMicroActive] = true --As if we are calling an action for the micro that clears commands, then that will reset the micro flag
+    WaitSeconds(iTimeToWait)
+    if M28UnitInfo.IsUnitValid(oUnit) then
+        if GetGameTimeSeconds() + 0.02 > oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] or not(oUnit[M28UnitInfo.refbSpecialMicroActive]) then
+            oUnit[refbMicroResetChecker] = nil
+            oUnit[M28UnitInfo.refbSpecialMicroActive] = false
+            if sAdditionalTrackingVar then
+                oUnit[sAdditionalTrackingVar] = false
+            end
+        else
+            if not(oUnit[refbMicroResetChecker]) then
+                oUnit[refbMicroResetChecker] = true
+                ForkThread(ForkedResetMicroFlag,oUnit, oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] - GetGameTimeSeconds() + 0.01, sAdditionalTrackingVar)
+            end
+        end
     end
 end
 

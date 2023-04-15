@@ -74,6 +74,7 @@ iReclaimSegmentSizeZ = 0 --Updated separately
 --Plateaus - core (NOTE: Some of these variables wont work for a plateau that has no mexes)
 tPathingPlateauAndLZOverride = {} --Global, Pathing override where no plateau recognised; key is [math.floor(x)][math.floor(z)] and returns {iPlateau, iLandZone}
 tbTempConsideredLandPathingForLZ = {} --Global, used to track if we have considered land pathing for this LZ as part of the initial LZ setup
+tNearestPlateauOrZeroAndZoneSegmentOverride = {} --Global, [x] is segmentx, [y] is segmenty, returns the Plateau (0 if water zone) and land/water zone reference to use; closest is based on straight line dist
 
 tAllPlateaus = {} --[x] = AmphibiousPathingGroup, [y]: subrefs, e.g. subrefPlateauMexes;
 --aibrain variables for plateaus (not currently incorporated):
@@ -106,6 +107,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         subrefLZMexCount = 'MexCount' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns number of mexes in the LZ
         subrefLZMexLocations = 'MexLoc' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of mex locations in the LZ, e.g. get with tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefLZMexLocations]
         subrefMexUnbuiltLocations = 'MexAvailLoc' --used by water and land zones; e.g. for LZ is against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of mex locations in the LZ, e.g. get with tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefLZMexLocations]
+        refiTimeOfLastMexDeath = 'MexLstDth' --Gametimeseconds that a mex died in this land zone - used to avoid sending an error message if it is rebuilt immediately (due to the mex deaht logic having a delay)
         subrefLZMidpoint = 'Midpoint' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns the midpoint of the land zone, e.g. get with tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefLZMidpoint]
         subrefLZMinSegX = 'LZMinSegX'
         subrefLZMinSegZ = 'LZMinSegZ'
@@ -140,6 +142,11 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefAWZRef = 1 --The water zone reference
             subrefAWZDistance = 2 --Distance between midpoint from LZ to the WZ
         subrefLZFurthestAdjacentLandZoneTravelDist = 'FurthestAdjLZ' --Returns the travel distance (rounded up) of the furthest immediately adjacent land zone - can combine with subrefLZPathingToOtherLandZones so can stop cycling through the prerecorded LZs once get further away than the immediately adjacent ones
+        subrefOtherLandAndWaterZonesByDistance = 'AirAdjLZWZ' --orders land and air zones by distance, contains subtable with the following info:
+            subrefiPlateauOrPond = 1
+            subrefiLandOrWaterZoneRef = 2
+            subrefbIsWaterZone = 3
+            subrefiDistance = 4 --straight line distance
         subrefLZPlayerWallSegments = 'PlWalls' --Table of wall units that aren't owned by M28AI
         --Reclaim related (same values used for water zone)
         subrefReclaimSegments = 'ReclSeg' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], table, orderd 1,2,3...; returns {iReclaimSegmentX, iReclaimSegmentZ}
@@ -164,7 +171,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefAlliedACU = 'AACU' --table of ACU units for the land zone (so can factor into decisions on support and attack)
             subrefLZTAlliedUnits = 'Allies' --USE SAME REF AS FOR WATER ZONES - table of all allied units in the land zone, tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam][subrefLZTAlliedUnits]
             subrefLZTAlliedCombatUnits = 'AllComb' --table of allied units that are to be considered for combat orders
-            subrefTEnemyUnits = 'Enemies' --table of all enemy units in the land zone
+            subrefTEnemyUnits = 'Enemies' --table of all enemy units in the land zone or water zone (same ref used for WZ)
             reftoNearestDFEnemies = 'NearestDF' --Table of enemy DF units in this LZ, plus the nearest DF unit in each adjacnet LZ, with proximity based on unit distance and unit range (i.e. the dist until the unit is in range)
             --Ground threat values for land zones (also against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam])
             subrefLZTThreatEnemyCombatTotal = 'ECTotal'
@@ -222,10 +229,18 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             --Intel related values
             refbWantLandScout = 'LandScout' --True/false, used by water and land zones
             refiRadarCoverage = 'RadCov' --Radar coverage of the centre of the land zone midpoint
+            refiOmniCoverage = 'OmnCov' --Omni coverage of the centre of the land or water zone midpoint
             refoBestRadar = 'BestRad' --Radar providing the best Radar Coverage for the land zone midpoint
+            refiTimeLastHadVisual = 'LstVis' --Gametimeseconds that last had an intel unit (e.g. land or air scout) in the land or water zone
+            refiScoutingPriority = 'SctPrio' --will return the scouting priority (i.e. 1, 2 or 3 per below subrefs)
+                subrefiScoutingHighPriority = 1
+                subrefiScoutingMediumPriority = 2
+                subrefiScoutingLowPriority = 3
+            refiRecentlyFailedScoutAttempts = 'SctFail' --if a scout dies trying to reach here, this should increase the failure count
             --Enemy air
             reftLZEnemyAirUnits = 'EnAir' --All enemy air units that are currently in the land zone
             refiEnemyAirToGroundThreat = 'EnA2GT' --Air to ground threat of enemy air units in the LZ / WZ
+            refiEnemyAirAAThreat = 'EnAAT' --AirAA threat in the LZ/WZ
             refiEnemyAirOtherThreat = 'EnAirOT' --mass value of AirAA, air scouts and transports in the LZ / WZ
             --Shield, stealth and tmd
             refbLZWantsMobileShield = 'MobSh' --true if LZ wants mobile shields
@@ -241,6 +256,8 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             reftClosestEnemyBase = 'ClosestEB' --Closest enemy start position to water zone or land zone (i.e. same variable used by both)
             refiModDistancePercent = 'ModDPC' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam], mod dist based on closest friendly start position to closest enemy start position
             refbIslandBeachhead = 'IslBeachd' --true if we are sending units to a closest island LZ to try and attack enemy - means will check for nearby untis vs enemy nearby units when deciding whether to attack or not
+            refiTimeOfLastTorpAttack = 'TLstTorp' --Gametimeseconds that last sent torpedo bombers to attack units in this location
+            reftoTransportsWaitingForEngineers = 'TWntEng' --Table of any transports in this LZ wanting engineers
 
 --Pond and naval variables
     --General
@@ -299,12 +316,15 @@ tPondDetails = {}
             subrefWZbContainsNavalBuildLocation = 'WZNavBL' --true if contains a naval build location for a friendly M28AI
             subrefWZTValue = 'WZVal' --Value of the WZ, used to prioritise sending untis to different water zones; likely to be based on distance to core base water zone
             --refiRadarCoverage - use same ref as for land zone
+            --refiOmniCoverage - use same ref as land zone
             --refoBestRadar - use same ref as for land zone
+            --refiTimeLastHadVisual -use same ref as for land zone
             --reftClosestFriendlyBase - use same ref as for land zone
             --reftClosestEnemyBase - use same ref as for land zone
             --refiModDistancePercent - use same ref as for land zone
             --refbWantLandScout - use same ref as for land zone
             --subreftPatrolPath - use same ref as for land zone
+            --subrefOtherLandAndWaterZonesByDistance - use same ref as for land zone
 
             subrefWZTAlliedUnits = 'Allies' --USE SAME REF AS FOR LAND ZONE - table of all allied units in the water zone
             subrefWZTAlliedCombatUnits = 'AllComb' --table of allied units that are to be considered for combat orders
@@ -435,7 +455,9 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
 
     if (iPlateau or 0) <= 0 or not(tAllPlateaus[iPlateau]) then
         --Check if we have previously recorded this location with a pathing override
+        --LOG('GetPlateauAndLandZoneReferenceFromPosition iPlateau='..(iPlateau or 'nil'))
         iPlateau, iLandZone = GetPathingOverridePlateauAndLandZone(tPosition, bOptionalShouldBePathable, oOptionalPathingUnit)
+        --LOG('GetPlateauAndLandZoneReferenceFromPosition iPlateau after getting override='..(iPlateau or 'nil'))
         if not(tAllPlateaus[iPlateau]) then
             --Potential error - see if there is a plateau for the preicse position if it shoudl be pathable
 
@@ -466,7 +488,7 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
         --Have a valid plateau, get the land zone reference:
         --local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tPosition)
         iLandZone = tLandZoneBySegment[iSegmentX][iSegmentZ]
-
+        --LOG('GetPlateauAndLandZoneReferenceFromPosition - iLandZOne='..(iLandZone or 'nil'))
         if not(iLandZone) then
             --Are we above water in height? If so check for override
             if tPosition[2] > iMapWaterHeight then
@@ -481,14 +503,90 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
                         --M28Utilities.DrawLocation(tPosition)
                     end
                 else
-                    iPlateau = iAltPlateau
+                    if iAltPlateau then
+                        iPlateau = iAltPlateau
+                    end
                 end
             end
         end
     end
+    --LOG('GetPlateauAndLandZoneReferenceFromPosition - end of code, iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil'))
 
 
     return iPlateau, iLandZone
+end
+
+function GetNearestPlateauOrLandOrWaterZoneToLocationFORLOOKUP(tLocation)  --Only to help with lookup - use below function
+    return GetClosestPlateauOrZeroAndZoneToPosition(tPosition)
+end --Only to help with lookup - use below function
+function GetClosestPlateauOrZeroAndZoneToPosition(tPosition)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetClosestPlateauOrZeroAndZoneToPosition'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tPosition)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': tPosition='..repru(tPosition)..'; iSegmentX='..iSegmentX..' iSegmentZ='..iSegmentZ..'; Is override for this nil='..tostring(tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX][iSegmentZ] == nil)) end
+
+    if tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX][iSegmentZ] then
+        if bDebugMessages == true then LOG(sFunctionRef..': Returning override, which is:'..repru(tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX][iSegmentZ])) end
+        return tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX][iSegmentZ][1], tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX][iSegmentZ][2]
+    else
+        local iPlateau = NavUtils.GetLabel(refPathingTypeHover, GetPositionFromPathingSegments(iSegmentX, iSegmentZ))
+        if bDebugMessages == true then LOG(sFunctionRef..': Position from segments='..repru(GetPositionFromPathingSegments(iSegmentX, iSegmentZ))..'; iPlateau for this='..(iPlateau or 'nil')) end
+        if (iPlateau or 0) <= 0 or (tLandZoneBySegment[iSegmentX][iSegmentZ] == nil and tWaterZoneBySegment[iSegmentX][iSegmentZ] == nil) then
+            --Need to get an override if dont already have one
+            local iAltPlateau, iAltLZOrWZ
+            local iFailureCount = 0
+            if not(tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX]) then tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX] = {} end
+            for iAdjust = 1, math.min(iMaxLandSegmentX, iMaxLandSegmentZ) do
+                for iXAdjust = -iAdjust, iAdjust, 1 do
+                    for iZAdjust = -iAdjust, iAdjust, 1 do
+                        if not(iXAdjust == 0 and iZAdjust == 0) then
+                            if tLandZoneBySegment[iSegmentX+ iXAdjust][iSegmentZ+ iZAdjust] or tWaterZoneBySegment[iSegmentX+ iXAdjust][iSegmentZ+ iZAdjust] then
+                                iAltPlateau = NavUtils.GetLabel(refPathingTypeHover, GetPositionFromPathingSegments(iSegmentX + iXAdjust, iSegmentZ + iZAdjust))
+                                if (iAltPlateau or 0) > 0 then
+                                    iAltLZOrWZ = tLandZoneBySegment[iSegmentX+ iXAdjust][iSegmentZ+ iZAdjust]
+                                    if (iAltLZOrWZ or 0) == 0 then
+                                        iAltLZOrWZ = tWaterZoneBySegment[iSegmentX+ iXAdjust][iSegmentZ+ iZAdjust]
+                                        iAltPlateau = 0
+                                    end
+                                    if (iAltLZOrWZ or 0) > 0 then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Have adjusted segments which have valid values, iAltLZOrWZ='..iAltLZOrWZ..'; iXAdjust='..iXAdjust..'; iZAdjust='..iZAdjust) end
+                                        tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX][iSegmentZ] = {[1] = iAltPlateau, [2] = iAltLZOrWZ}
+                                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                        return iAltPlateau, iAltLZOrWZ
+                                    else
+                                        --Redundancy
+                                        iFailureCount = iFailureCount + 1
+                                        if iFailureCount >= 20 then
+                                            M28Utilities.ErrorHandler('Have a valid plateau for SegmentX-Z='..(iSegmentX + iXAdjust)..'-'..(iSegmentZ + iZAdjust)..' but not a valid land or water zone, and have failed '..iFailureCount..' times now (will reset count after this)')
+                                            iFailureCount = 0
+                                        end
+                                    end
+                                else
+                                    if iFailureCount >= 20 then
+                                        M28Utilities.ErrorHandler('Have a valid land or WZ for SegmentX-Z='..(iSegmentX + iXAdjust)..'-'..(iSegmentZ + iZAdjust)..' but not a valid plateau, and have failed '..iFailureCount..' times now (will reset count after this)')
+                                        iFailureCount = 0
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+                if iAdjust >= 100 then M28Utilities.ErrorHandler('Likely error locating valid segment for iSegmentX-Z='..iSegmentX..'-'..iSegmentZ) end
+            end
+        else
+            --Have a valid plateau and land or water zone
+            if bDebugMessages == true then LOG(sFunctionRef..': Have a valid plateau, tLandZoneBySegment='..(tLandZoneBySegment[iSegmentX][iSegmentZ] or 'nil')..'; tWaterZoneBySegment='..(tWaterZoneBySegment[iSegmentX][iSegmentZ] or 'nil')) end
+            if (tLandZoneBySegment[iSegmentX][iSegmentZ] or 0) == 0 then
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return 0, tWaterZoneBySegment[iSegmentX][iSegmentZ]
+            else
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return iPlateau, tLandZoneBySegment[iSegmentX][iSegmentZ]
+            end
+            end
+    end
 end
 
 ---@param tLocation table
@@ -678,8 +776,8 @@ local function RecordAllPlateaus()
             --Record additional information if the plateau has mexes:
             if iCurPlateauMex > 0 then
                 --Record information on the size of the plateau:
-                    --Start from mex, and move up on map to determine top point; then move left to determine left point, and right to determine right point etc.
-                    --i.e. dont want to go through every segment on map since could take ages if lots of plateaus and may only be dealing with small area
+                --Start from mex, and move up on map to determine top point; then move left to determine left point, and right to determine right point etc.
+                --i.e. dont want to go through every segment on map since could take ages if lots of plateaus and may only be dealing with small area
                 iStartSegmentX, iStartSegmentZ = GetPathingSegmentFromPosition(tAllPlateaus[iSegmentGroup][subrefPlateauMexes][1])
 
                 --First find the smallest z (so go up)
@@ -971,10 +1069,10 @@ end
 ---@param tTempPlateauLandZoneByMexRef table
 local function AddMexToLandZone(iPlateau, iOptionalLandZone, iPlateauMexRef, tTempPlateauLandZoneByMexRef)
     --Determine the land zone if it isnt specified
-        --iPlateau is the result of NavUtils.GetLabel(refPathingTypeHover, tLocation)
-        --iOptionalLandZone - if not specified, then this will create a new land zone for iPlateau and use htis reference
-        --iPlateauMexRef - the reference key in the table tAllPlateaus[iPlateau][subrefPlateauMexes], which should return the location of the mex
-        --tTempPlateauLandZoneByMexRef - temporary table used to store information for purposes of creating the land zones
+    --iPlateau is the result of NavUtils.GetLabel(refPathingTypeHover, tLocation)
+    --iOptionalLandZone - if not specified, then this will create a new land zone for iPlateau and use htis reference
+    --iPlateauMexRef - the reference key in the table tAllPlateaus[iPlateau][subrefPlateauMexes], which should return the location of the mex
+    --tTempPlateauLandZoneByMexRef - temporary table used to store information for purposes of creating the land zones
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AddMexToLandZone'
@@ -1321,10 +1419,34 @@ local function AssignRemainingSegmentsToLandZones()
 
     --Subfunction that checks nearby segments that we can path to with a land zone already assigned, and if there are none then creates a new land zone for the base position and assigns segments near it to the same land zone
     function CheckForNearbyZonesAndCreateNewZoneIfNeeded(iBaseSegmentX, iBaseSegmentZ, iBasePositionX, iBasePositionZ, bUseRoughPathingDistance)
+
         if not(tLandZoneBySegment[iBaseSegmentX] and tLandZoneBySegment[iBaseSegmentX][iBaseSegmentZ]) then
             tBasePosition = {iBasePositionX, 0, iBasePositionZ} --GetPositionFromPathingSegments(iBaseSegmentX, iBaseSegmentZ)
             --tBasePosition[2] = GetSurfaceHeight(tBasePosition[1], tBasePosition[3]) --Dont think this is needed
             iLandPathingGroupWanted = NavUtils.GetLabel(refPathingTypeLand, tBasePosition)
+            if (iLandPathingGroupWanted or 0) == 0 then
+                --We shouldnt have got here unless plateau returned a valid pathing value; however can have cases where is pathable by one measure but not another due to imprecisions in the FAF pathfinding approach
+                --Therefore, want to check if we are on land (rather htan water which is handled separately) and if so then include still
+                iPlateauGroup = NavUtils.GetLabel(refPathingTypeHover, tBasePosition)
+                if bDebugMessages == true then LOG(sFunctionRef..': iPlateauGroup of the target location='..(iPlateauGroup or 'nil')..'; Surface height='..GetSurfaceHeight(iBasePositionX, iBasePositionZ)..'; Terrain height='..GetTerrainHeight(iBasePositionX, iBasePositionZ)..'; tBasePosition='..repru(tBasePosition)..'; iBasePositionX-Z='..iBasePositionX..'-'..iBasePositionZ) end
+                if (iPlateauGroup or 0) > 0 then
+                    --Check we arent on water
+                    if GetSurfaceHeight(iBasePositionX, iBasePositionZ) <= GetTerrainHeight(iBasePositionX, iBasePositionZ) then
+                        local tiAdjust = {{-1,0}, {-1, -1}, {-1, 1}, {0, -1}, {0, 1}, {1, -1}, {1, 0}, {1,1}, {-3,0}, {-3, -3}, {-3, 3}, {0, -3}, {0, 3}, {3, -3}, {3, 0}, {3,3}}
+                        local iPotentialLandGroup
+                        for iEntry, tXZAdjust in tiAdjust do
+
+                            iPotentialLandGroup = NavUtils.GetLabel(refPathingTypeLand, { tBasePosition[1] + tXZAdjust[1], tBasePosition[2], tBasePosition[3] + tXZAdjust[2] })
+                            if (iPotentialLandGroup or 0) > 0 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have al ocation with a plateau ref but no land ref, but adjusting for tXZAdjust='..repru(tXZAdjust)..' gives us a valid land group, iBaseSegmentX='..iBaseSegmentX..'; iBaseSegmentZ='..iBaseSegmentZ) end
+                                iLandPathingGroupWanted = iPotentialLandGroup
+                                break
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Unable to find any nearby locations with land pathing') end
+                        end
+                    end
+                end
+            end
             if (iLandPathingGroupWanted or 0) > 0 then
                 --Are we from a plateau that has mexes?
                 iPlateauGroup = (NavUtils.GetLabel(refPathingTypeHover, tBasePosition) or NavUtils.GetLabel('Amphibious', tBasePosition))
@@ -1390,6 +1512,9 @@ local function AssignRemainingSegmentsToLandZones()
                     end
 
                 end
+            elseif bDebugMessages == true then
+                LOG(sFunctionRef..': No land pathing group for base position '..repru(tBasePosition)..'; iBaseSegmentX='..iBaseSegmentX..'; iBaseSegmentZ='..iBaseSegmentZ..'; will draw base position')
+                M28Utilities.DrawLocation(tBasePosition)
             end
         end
     end
@@ -1434,7 +1559,7 @@ local function AssignRemainingSegmentsToLandZones()
 
 
     --Redundancy - cycle through any zones that dont have a segment and create new zones for them - hopefully this shouldnt be possible provided we have setup the segment search ranges correctly above
-        --Also setup initial details on water segments
+    --Also setup initial details on water segments
 
     for iBaseSegmentX = 1, iMaxLandSegmentX do
         for iBaseSegmentZ = 1, iMaxLandSegmentZ do
@@ -1451,6 +1576,20 @@ local function AssignRemainingSegmentsToLandZones()
                     else
                         --Do we have a water segment?
                         local iPond = NavUtils.GetLabel(refPathingTypeNavy, tBasePosition)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering iBaseSegmentX-Z='..iBaseSegmentX..'-'..iBaseSegmentZ..'; we have hover pathing but not water;tBasePosition='..repru(tBasePosition)..'; Surface height='..GetSurfaceHeight(tBasePosition[1], tBasePosition[3])..'; Terrain height='..GetTerrainHeight(tBasePosition[1], tBasePosition[3])..'; iPond='..(iPond or 'nil')) end
+                        if (iPond or 0) == 0 and GetSurfaceHeight(tBasePosition[1], tBasePosition[3]) > GetTerrainHeight(tBasePosition[1], tBasePosition[3]) then
+                            --We are on water, so check nearby as FAF pathfinding not 100% accurate on larger maps
+                            local tiAdjust = {{-1,0}, {-1, -1}, {-1, 1}, {0, -1}, {0, 1}, {1, -1}, {1, 0}, {1,1}, {-3,0}, {-3, -3}, {-3, 3}, {0, -3}, {0, 3}, {3, -3}, {3, 0}, {3,3}}
+                            local iPotentialPond
+                            for iEntry, tXZAdjust in tiAdjust do
+                                iPotentialPond = NavUtils.GetLabel(refPathingTypeNavy, { tBasePosition[1] + tXZAdjust[1], tBasePosition[2], tBasePosition[3] + tXZAdjust[2] })
+                                if (iPotentialPond or 0) > 0 then
+                                    iPond = iPotentialPond
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Foudn a nearby pond '..iPotentialPond..', tXZAdjust='..repru(tXZAdjust)) end
+                                    break
+                                end
+                            end
+                        end
                         if (iPond or 0) > 0 then
                             if bDebugMessages == true then LOG(sFunctionRef..': About to record a pond for iBaseSegmentX-Z='..iBaseSegmentX..'-'..iBaseSegmentZ..' for pond '..iPond..'; tBasePosition='..repru(tBasePosition)) end
                             RecordNavalSegment(iPond, iBaseSegmentX, iBaseSegmentZ, tBasePosition)
@@ -2211,53 +2350,53 @@ local function RecordPathingBetweenZones()
 
 
     --[[
-    local tiPlateauLandZoneStartPoints = {}
-    local iCurPlateau, iCurLandZone
-    for iStart, tPlayerStart in PlayerStartPoints do
-        iCurPlateau, iCurLandZone = GetPlateauAndLandZoneReferenceFromPosition(tPlayerStart)
-        if (iCurLandZone or 0) > 0 then
-            if not(tiPlateauLandZoneStartPoints[iCurPlateau]) then tiPlateauLandZoneStartPoints[iCurPlateau] = {} end
-            tiPlateauLandZoneStartPoints[iCurPlateau][iCurLandZone] = true
-            local tStartPoint = tAllPlateaus[iCurPlateau][subrefPlateauLandZones][iCurLandZone][subrefLZMidpoint]
+local tiPlateauLandZoneStartPoints = {}
+local iCurPlateau, iCurLandZone
+for iStart, tPlayerStart in PlayerStartPoints do
+    iCurPlateau, iCurLandZone = GetPlateauAndLandZoneReferenceFromPosition(tPlayerStart)
+    if (iCurLandZone or 0) > 0 then
+        if not(tiPlateauLandZoneStartPoints[iCurPlateau]) then tiPlateauLandZoneStartPoints[iCurPlateau] = {} end
+        tiPlateauLandZoneStartPoints[iCurPlateau][iCurLandZone] = true
+        local tStartPoint = tAllPlateaus[iCurPlateau][subrefPlateauLandZones][iCurLandZone][subrefLZMidpoint]
 
-            --Consider all land zones in this plateau for start positions
-            for iTargetLandZone, tTargetLandZoneInfo in tAllPlateaus[iCurPlateau][subrefPlateauLandZones] do
-                if not(iTargetLandZone == iCurLandZone) then
-                    ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iCurPlateau, iCurLandZone, iTargetLandZone, tStartPoint)
+        --Consider all land zones in this plateau for start positions
+        for iTargetLandZone, tTargetLandZoneInfo in tAllPlateaus[iCurPlateau][subrefPlateauLandZones] do
+            if not(iTargetLandZone == iCurLandZone) then
+                ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iCurPlateau, iCurLandZone, iTargetLandZone, tStartPoint)
+            end
+        end
+    end
+end
+
+--Consider adjacent locations for non-core
+for iCurPlateau, tPlateauSubtable in tAllPlateaus do
+    for iCurLandZone, tLandZoneInfo in tPlateauSubtable[subrefPlateauLandZones] do
+        if not(tiPlateauLandZoneStartPoints[iCurPlateau][iCurLandZone]) then
+            local tiAdjacentLandZonesToConsider = {}
+            if M28Utilities.IsTableEmpty(tLandZoneInfo[subrefLZAdjacentLandZones]) == false then
+                for _, iAdjLZ1 in tLandZoneInfo[subrefLZAdjacentLandZones] do
+                    if M28Utilities.IsTableEmpty(tAllPlateaus[iCurPlateau][subrefPlateauLandZones][iAdjLZ1][subrefLZAdjacentLandZones]) == false then
+                        for _, iAdjLZ2 in tAllPlateaus[iCurPlateau][subrefPlateauLandZones][iAdjLZ1][subrefLZAdjacentLandZones] do
+                            if M28Utilities.IsTableEmpty(tAllPlateaus[iCurPlateau][subrefPlateauLandZones][iAdjLZ2][subrefLZAdjacentLandZones]) == false then
+                                for _, iAdjLZ3 in tAllPlateaus[iCurPlateau][subrefPlateauLandZones][iAdjLZ2][subrefLZAdjacentLandZones] do
+                                    if not(tiAdjacentLandZonesToConsider[iAdjLZ3]) then tiAdjacentLandZonesToConsider[iAdjLZ3] = true end
+                                end
+                            end
+                            if not(tiAdjacentLandZonesToConsider[iAdjLZ2]) then tiAdjacentLandZonesToConsider[iAdjLZ2] = true end
+                        end
+                    end
+                    if not(tiAdjacentLandZonesToConsider[iAdjLZ1]) then tiAdjacentLandZonesToConsider[iAdjLZ1] = true end
+                end
+                local tStartPoint = tAllPlateaus[iCurPlateau][subrefPlateauLandZones][iCurLandZone][subrefLZMidpoint]
+                for iAdjLandZone, _ in tiAdjacentLandZonesToConsider do
+                    if not(iAdjLandZone == iCurLandZone) then
+                        ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iCurPlateau, iCurLandZone, iAdjLandZone, tStartPoint)
+                    end
                 end
             end
         end
     end
-
-    --Consider adjacent locations for non-core
-    for iCurPlateau, tPlateauSubtable in tAllPlateaus do
-        for iCurLandZone, tLandZoneInfo in tPlateauSubtable[subrefPlateauLandZones] do
-            if not(tiPlateauLandZoneStartPoints[iCurPlateau][iCurLandZone]) then
-                local tiAdjacentLandZonesToConsider = {}
-                if M28Utilities.IsTableEmpty(tLandZoneInfo[subrefLZAdjacentLandZones]) == false then
-                    for _, iAdjLZ1 in tLandZoneInfo[subrefLZAdjacentLandZones] do
-                        if M28Utilities.IsTableEmpty(tAllPlateaus[iCurPlateau][subrefPlateauLandZones][iAdjLZ1][subrefLZAdjacentLandZones]) == false then
-                            for _, iAdjLZ2 in tAllPlateaus[iCurPlateau][subrefPlateauLandZones][iAdjLZ1][subrefLZAdjacentLandZones] do
-                                if M28Utilities.IsTableEmpty(tAllPlateaus[iCurPlateau][subrefPlateauLandZones][iAdjLZ2][subrefLZAdjacentLandZones]) == false then
-                                    for _, iAdjLZ3 in tAllPlateaus[iCurPlateau][subrefPlateauLandZones][iAdjLZ2][subrefLZAdjacentLandZones] do
-                                        if not(tiAdjacentLandZonesToConsider[iAdjLZ3]) then tiAdjacentLandZonesToConsider[iAdjLZ3] = true end
-                                    end
-                                end
-                                if not(tiAdjacentLandZonesToConsider[iAdjLZ2]) then tiAdjacentLandZonesToConsider[iAdjLZ2] = true end
-                            end
-                        end
-                        if not(tiAdjacentLandZonesToConsider[iAdjLZ1]) then tiAdjacentLandZonesToConsider[iAdjLZ1] = true end
-                    end
-                    local tStartPoint = tAllPlateaus[iCurPlateau][subrefPlateauLandZones][iCurLandZone][subrefLZMidpoint]
-                    for iAdjLandZone, _ in tiAdjacentLandZonesToConsider do
-                        if not(iAdjLandZone == iCurLandZone) then
-                            ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iCurPlateau, iCurLandZone, iAdjLandZone, tStartPoint)
-                        end
-                    end
-                end
-            end
-        end
-    end--]]
+end--]]
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -3217,58 +3356,58 @@ function UpdateNewPrimaryBaseLocation(aiBrain)
             end
             --Below is from M27 - not sure if still need it; it is also based in part on how long since we last scouted the location with an air scout and whether there were any enemy buildings there, but land zone logic should give an alternative way of checking if any buildings there
             --[[if aiBrain.M28AI then
-                --Consider if we want to check for alternative locations to the actual enemy start:
-                --Have we recently checked for a base location; --Do we have at least T2 (as a basic guide that this isn't the start of the game), has at least 3m of gametime elapsed, and have scouted the enemy base location recently, and have built at least 1 air scout this game?
-                if GetGameTimeSeconds() - (aiBrain[refiLastTimeCheckedEnemyBaseLocation] or -1000) >= 10 and GetGameTimeSeconds() >= 180 then
-                    --(below includes alternative condition just in case there are strange unit restrictions)
-                    if M28Utilities.IsTableEmpty(ScenarioInfo.Options.RestrictedCategories) or (GetGameTimeSeconds() >= 600 or (aiBrain[M28Economy.refiOurHighestFactoryTechLevel] >= 2 and not(M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryAirScout) < 2))) then
-                        if not(IsEnemyStartPositionValid(aiBrain, tEnemyBase)) then
-                            aiBrain[reftPrimaryEnemyBaseLocation] = nil
-                            local iNearestEnemyBase = 10000
-                            local tNearestEnemyBase
-                            --Cycle through every valid enemy brain and pick the nearest one, if there is one
-                            if bDebugMessages == true then LOG(sFunctionRef..': Will cycle through each brain to identify nearest enemy base') end
-                            for iCurBrain, brain in ArmyBrains do
-                                if not(brain == aiBrain) and not(M28Logic.IsCivilianBrain(brain)) and IsEnemy(brain:GetArmyIndex(), aiBrain:GetArmyIndex()) and (not(brain:IsDefeated() and not(brain.M28IsDefeated)) or not(ScenarioInfo.Options.Victory == "demoralization")) then
-                                    if M28Utilities.GetDistanceBetweenPositions(PlayerStartPoints[brain:GetArmyIndex()], PlayerStartPoints[aiBrain:GetArmyIndex()]) < iNearestEnemyBase then
-                                        if IsEnemyStartPositionValid(aiBrain, PlayerStartPoints[brain:GetArmyIndex()]) then
+            --Consider if we want to check for alternative locations to the actual enemy start:
+            --Have we recently checked for a base location; --Do we have at least T2 (as a basic guide that this isn't the start of the game), has at least 3m of gametime elapsed, and have scouted the enemy base location recently, and have built at least 1 air scout this game?
+            if GetGameTimeSeconds() - (aiBrain[refiLastTimeCheckedEnemyBaseLocation] or -1000) >= 10 and GetGameTimeSeconds() >= 180 then
+                --(below includes alternative condition just in case there are strange unit restrictions)
+                if M28Utilities.IsTableEmpty(ScenarioInfo.Options.RestrictedCategories) or (GetGameTimeSeconds() >= 600 or (aiBrain[M28Economy.refiOurHighestFactoryTechLevel] >= 2 and not(M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryAirScout) < 2))) then
+                    if not(IsEnemyStartPositionValid(aiBrain, tEnemyBase)) then
+                        aiBrain[reftPrimaryEnemyBaseLocation] = nil
+                        local iNearestEnemyBase = 10000
+                        local tNearestEnemyBase
+                        --Cycle through every valid enemy brain and pick the nearest one, if there is one
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will cycle through each brain to identify nearest enemy base') end
+                        for iCurBrain, brain in ArmyBrains do
+                            if not(brain == aiBrain) and not(M28Logic.IsCivilianBrain(brain)) and IsEnemy(brain:GetArmyIndex(), aiBrain:GetArmyIndex()) and (not(brain:IsDefeated() and not(brain.M28IsDefeated)) or not(ScenarioInfo.Options.Victory == "demoralization")) then
+                                if M28Utilities.GetDistanceBetweenPositions(PlayerStartPoints[brain:GetArmyIndex()], PlayerStartPoints[aiBrain:GetArmyIndex()]) < iNearestEnemyBase then
+                                    if IsEnemyStartPositionValid(aiBrain, PlayerStartPoints[brain:GetArmyIndex()]) then
+                                        iNearestEnemyBase = M28Utilities.GetDistanceBetweenPositions(PlayerStartPoints[brain:GetArmyIndex()], PlayerStartPoints[aiBrain:GetArmyIndex()])
+                                        tNearestEnemyBase = {PlayerStartPoints[brain:GetArmyIndex()][1], PlayerStartPoints[brain:GetArmyIndex()][2], PlayerStartPoints[brain:GetArmyIndex()][3]}
+                                    end
+                                end
+                            end
+                        end
+                        aiBrain[reftPrimaryEnemyBaseLocation] = tNearestEnemyBase
+                        if not(aiBrain[reftPrimaryEnemyBaseLocation]) then
+                            local tiCategoriesToConsider = {M28UnitInfo.refCategoryExperimentalStructure + M28UnitInfo.refCategorySML + M28UnitInfo.refCategoryFixedT3Arti, M28UnitInfo.refCategoryT3Mex, M28UnitInfo.refCategoryT2Mex, M28UnitInfo.refCategoryAirFactory + M28UnitInfo.refCategoryLandFactory}
+                            local tEnemyUnits
+                            tNearestEnemyBase = nil
+                            for iRef, iCategory in tiCategoriesToConsider do
+                                tEnemyUnits = aiBrain:GetUnitsAroundPoint(iCategory, PlayerStartPoints[aiBrain:GetArmyIndex()], 10000, 'Enemy')
+                                if M28Utilities.IsTableEmpty(tEnemyUnits) == false then
+                                    tNearestEnemyBase = M28Utilities.GetNearestUnit(tEnemyUnits, PlayerStartPoints[aiBrain:GetArmyIndex()], aiBrain, nil, nil):GetPosition()
+                                    break
+                                end
+                            end
+                            if tNearestEnemyBase then aiBrain[reftPrimaryEnemyBaseLocation] = tNearestEnemyBase
+                            else
+                                --Cant find anywhere so just pick the furthest away enemy start location
+                                iNearestEnemyBase = 10000
+                                for iCurBrain, brain in ArmyBrains do
+                                    if not(brain == aiBrain) and not(M28Logic.IsCivilianBrain(brain)) and IsEnemy(brain:GetArmyIndex(), aiBrain:GetArmyIndex()) then
+                                        if M28Utilities.GetDistanceBetweenPositions(PlayerStartPoints[brain:GetArmyIndex()], PlayerStartPoints[aiBrain:GetArmyIndex()]) < iNearestEnemyBase then
                                             iNearestEnemyBase = M28Utilities.GetDistanceBetweenPositions(PlayerStartPoints[brain:GetArmyIndex()], PlayerStartPoints[aiBrain:GetArmyIndex()])
                                             tNearestEnemyBase = {PlayerStartPoints[brain:GetArmyIndex()][1], PlayerStartPoints[brain:GetArmyIndex()][2], PlayerStartPoints[brain:GetArmyIndex()][3]}
                                         end
                                     end
                                 end
-                            end
-                            aiBrain[reftPrimaryEnemyBaseLocation] = tNearestEnemyBase
-                            if not(aiBrain[reftPrimaryEnemyBaseLocation]) then
-                                local tiCategoriesToConsider = {M28UnitInfo.refCategoryExperimentalStructure + M28UnitInfo.refCategorySML + M28UnitInfo.refCategoryFixedT3Arti, M28UnitInfo.refCategoryT3Mex, M28UnitInfo.refCategoryT2Mex, M28UnitInfo.refCategoryAirFactory + M28UnitInfo.refCategoryLandFactory}
-                                local tEnemyUnits
-                                tNearestEnemyBase = nil
-                                for iRef, iCategory in tiCategoriesToConsider do
-                                    tEnemyUnits = aiBrain:GetUnitsAroundPoint(iCategory, PlayerStartPoints[aiBrain:GetArmyIndex()], 10000, 'Enemy')
-                                    if M28Utilities.IsTableEmpty(tEnemyUnits) == false then
-                                        tNearestEnemyBase = M28Utilities.GetNearestUnit(tEnemyUnits, PlayerStartPoints[aiBrain:GetArmyIndex()], aiBrain, nil, nil):GetPosition()
-                                        break
-                                    end
-                                end
-                                if tNearestEnemyBase then aiBrain[reftPrimaryEnemyBaseLocation] = tNearestEnemyBase
-                                else
-                                    --Cant find anywhere so just pick the furthest away enemy start location
-                                    iNearestEnemyBase = 10000
-                                    for iCurBrain, brain in ArmyBrains do
-                                        if not(brain == aiBrain) and not(M28Logic.IsCivilianBrain(brain)) and IsEnemy(brain:GetArmyIndex(), aiBrain:GetArmyIndex()) then
-                                            if M28Utilities.GetDistanceBetweenPositions(PlayerStartPoints[brain:GetArmyIndex()], PlayerStartPoints[aiBrain:GetArmyIndex()]) < iNearestEnemyBase then
-                                                iNearestEnemyBase = M28Utilities.GetDistanceBetweenPositions(PlayerStartPoints[brain:GetArmyIndex()], PlayerStartPoints[aiBrain:GetArmyIndex()])
-                                                tNearestEnemyBase = {PlayerStartPoints[brain:GetArmyIndex()][1], PlayerStartPoints[brain:GetArmyIndex()][2], PlayerStartPoints[brain:GetArmyIndex()][3]}
-                                            end
-                                        end
-                                    end
-                                    aiBrain[reftPrimaryEnemyBaseLocation] = tNearestEnemyBase
-                                end
+                                aiBrain[reftPrimaryEnemyBaseLocation] = tNearestEnemyBase
                             end
                         end
                     end
                 end
-            end--]]
+            end
+        end--]]
         end
         --Have we changed position and are dealing with an M28 brain?
         if aiBrain.M28AI and not(tPrevPosition[1] == aiBrain[reftPrimaryEnemyBaseLocation][1] and tPrevPosition[3] == aiBrain[reftPrimaryEnemyBaseLocation][3]) then
@@ -3970,13 +4109,13 @@ function CreateWaterZones()
                 --bRecordAsWaterZone = true
 
                 --[[if M28Utilities.IsTableEmpty(tPondDetails[iPotentialPond][subrefBuildLocationByStartPosition]) == false then
-                    for iArmyIndex, tBuildPosition in tPondDetails[iPotentialPond][subrefBuildLocationByStartPosition] do
-                        if M28Utilities.GetDistanceBetweenPositions(tSegmentPosition, tBuildPosition) <= iMinDistanceFromFactoryBuildPosition then
-                            bRecordAsWaterZone = false
-                            break
-                        end
+                for iArmyIndex, tBuildPosition in tPondDetails[iPotentialPond][subrefBuildLocationByStartPosition] do
+                    if M28Utilities.GetDistanceBetweenPositions(tSegmentPosition, tBuildPosition) <= iMinDistanceFromFactoryBuildPosition then
+                        bRecordAsWaterZone = false
+                        break
                     end
-                end--]]
+                end
+            end--]]
                 --if bRecordAsWaterZone then
                 RecordWaterZoneAtPosition(tSegmentPosition)
                 --end
@@ -4375,9 +4514,13 @@ function SetupMap()
     --Send a message warning players this could take a while
     for iBrain, oBrain in ArmyBrains do
         if oBrain.M28AI then
-            M28Chat.SendForkedMessage(oBrain, 'LoadingMap', 'Analysing map, this may take a minute...', 0, 10000, false)
+            M28Chat.SendForkedMessage(oBrain, 'LoadingMap', 'Analysing map, this usually takes 1-2 minutes...', 0, 10000, false)
         end
     end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    WaitTicks(1) --So chat message displays
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --Decide how accurate map related functions are to be based on the map size:
     SetupPlayableAreaAndSegmentSizes()
@@ -4390,13 +4533,17 @@ function SetupMap()
         NavUtils.Generate()
     end
 
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    WaitTicks(1) --Redundancy so chat message displays
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     GetMapWaterHeight()
 
     --Create table that stores details for each pathing group (e.g. land, amphibious) each mex in that group for easy reference later
     RecordMexForPathingGroup()
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    WaitTicks(1) --want to make sure our chat message displays
+    WaitTicks(1) --want to make sure our chat message displays (redundancy as moved to earlier now)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --Create table with details on all plateaus (initially just those with mexes, although the land zone logic may add to this)
@@ -4416,10 +4563,6 @@ function SetupMap()
     ForkThread(ReclaimManager)
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-end
-
-function UpdatePlateausToExpandTo(aiBrain)
-    M28Utilities.ErrorHandler('To add code')
 end
 
 --function GetDistanceFromStartAdjustedForDistanceFromMid()  end -- have replaced with GetModDistanceFromStart

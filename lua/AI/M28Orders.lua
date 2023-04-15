@@ -34,6 +34,10 @@ refiOrderIssueGroundAttack = 13
 refiOrderIssueFactoryBuild = 14
 refiOrderKill = 15 --If we want to self destruct a unit
 refiOrderEnhancement = 16 --I.e. ACU upgrades
+refiOrderRefuel = 17 --Units told to go to an air staging to refuel
+refiOrderReleaseStoredUnits = 18 --e.g. for air staging to release units; uses transport unload but done separately as expect may want different tracking when implement transports
+refiOrderUnloadTransport = 19
+refiOrderLoadOntoTransport = 20
 
 --Other tracking: Against units
 toUnitsOrderedToRepairThis = 'M28OrderRepairing' --Table of units given an order to repair the unit
@@ -117,8 +121,12 @@ function IssueTrackedClearCommands(oUnit)
         end
     end
 
-    --Clear any micro flag
-    oUnit[M28UnitInfo.refbSpecialMicroActive] = nil
+    --Clear any micro flag if it is time
+    if oUnit[M28UnitInfo.refbSpecialMicroActive] then
+        if GetGameTimeSeconds() + 0.02 > oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] then
+            oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] = nil
+        end
+    end
 
     --Clear orders:
     IssueClearCommands({oUnit})
@@ -138,7 +146,9 @@ function UpdateRecordedOrders(oUnit)
             oUnit[refiOrderCount] = table.getn(oUnit[reftiLastOrders])
         end
         local tCommandQueue
-        if oUnit.GetCommandQueue then tCommandQueue = oUnit:GetCommandQueue() end
+        if oUnit.GetCommandQueue then
+            tCommandQueue = oUnit:GetCommandQueue()
+        end
         local iCommandQueue = 0
         if tCommandQueue then iCommandQueue = table.getn(tCommandQueue) end
         if iCommandQueue < oUnit[refiOrderCount] then
@@ -603,4 +613,97 @@ function ClearAnyRepairingUnits(oUnitBeingRepaired)
         end
         oUnitBeingRepaired[toUnitsOrderedToRepairThis] = nil
     end
+end
+
+function IssueTrackedRefuel(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
+    UpdateRecordedOrders(oUnit)
+    --Issue order if we arent already trying to attack them
+    local tLastOrder
+    if oUnit[reftiLastOrders] then
+        if bAddToExistingQueue then
+            tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]]
+        else tLastOrder = oUnit[reftiLastOrders][1]
+        end
+    end
+
+
+    if not(tLastOrder[subrefiOrderType] == refiOrderRefuel and oOrderTarget == tLastOrder[subrefoOrderTarget]) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
+        if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
+        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
+        oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
+        table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderRefuel, [subrefoOrderTarget] = oOrderTarget})
+        IssueTransportLoad({oUnit}, oOrderTarget)
+    end
+    if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
+end
+
+function ReleaseStoredUnits(oUnit, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
+    --Use for air staging units
+    UpdateRecordedOrders(oUnit)
+    --Issue order if we arent already trying to attack them
+    local tLastOrder
+    if oUnit[reftiLastOrders] then
+        if bAddToExistingQueue then
+            tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]]
+        else tLastOrder = oUnit[reftiLastOrders][1]
+        end
+    end
+
+
+    if not(tLastOrder[subrefiOrderType] == refiOrderReleaseStoredUnits and oOrderTarget == tLastOrder[subrefoOrderTarget]) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
+        local tUnloadLocation = oUnit:GetPosition()
+        tUnloadLocation[1] = tUnloadLocation[1] + 5
+        tUnloadLocation[3] = tUnloadLocation[3] + 5
+        if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
+        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
+        oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
+        table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderReleaseStoredUnits, [subreftOrderPosition] = tUnloadLocation})
+        IssueTransportUnload({ oUnit }, tUnloadLocation)
+    end
+    if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
+end
+
+
+function IssueTrackedTransportUnload(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
+    UpdateRecordedOrders(oUnit)
+    --If we are close enough then issue the order again - consider the first order given if not to add to existing queue
+    local tLastOrder
+
+    if oUnit[reftiLastOrders] then
+        if bAddToExistingQueue then
+            tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]]
+        else tLastOrder = oUnit[reftiLastOrders][1]
+        end
+    end
+    if not(tLastOrder and tLastOrder[subrefiOrderType] == refiOrderUnloadTransport and iDistanceToReissueOrder and M28Utilities.GetDistanceBetweenPositions(tOrderPosition, tLastOrder[subreftOrderPosition]) < iDistanceToReissueOrder) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive]))  then
+        if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
+        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
+        oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
+        table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderUnloadTransport, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
+        IssueTransportUnload({oUnit}, tOrderPosition)
+    end
+    if M28Config.M28ShowUnitNames and tLastOrder[subrefiOrderType] then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
+
+end
+
+function IssueTrackedTransportLoad(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
+    UpdateRecordedOrders(oUnit)
+    --Issue order if we arent already trying to attack them
+    local tLastOrder
+    if oUnit[reftiLastOrders] then
+        if bAddToExistingQueue then
+            tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]]
+        else tLastOrder = oUnit[reftiLastOrders][1]
+        end
+    end
+
+
+    if not(tLastOrder[subrefiOrderType] == refiOrderLoadOntoTransport and oOrderTarget == tLastOrder[subrefoOrderTarget]) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
+        if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
+        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
+        oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
+        table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderLoadOntoTransport, [subrefoOrderTarget] = oOrderTarget})
+        IssueTransportLoad({oUnit}, oOrderTarget)
+    end
+    if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 end

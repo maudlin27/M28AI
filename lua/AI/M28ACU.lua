@@ -595,7 +595,9 @@ function DoesACUWantToReturnToCoreBase(iPlateau, iLandZone, tLZData, tLZTeamData
     local iTeam = oACU:GetAIBrain().M28Team
 
     --If big threat or ACU very low health then retreat
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for ACU '..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' owned by '..oACU:GetAIBrain().Nickname..' on team '..iTeam..'; Dangerous for ACUs='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs])..'; ACU health percent='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; Air to ground threat='..tLZTeamData[M28Map.refiEnemyAirToGroundThreat]) end
     if M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] or M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.4 or tLZTeamData[M28Map.refiEnemyAirToGroundThreat] >= 2500 then
+        if bDebugMessages == true then LOG(sFunctionRef..': Is dangerous for ACU or low health or large enemy air to ground threat so returning to base') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true
     else
@@ -756,6 +758,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                     M28Orders.IssueTrackedMove(oACU, tRallyPoint, 6, false, 'ACUKit', false)
                 else
                     --Attack-move towards enemy
+                    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Will attack-move to enemy target unless have active micro, oEnemyToTarget='..oEnemyToTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToTarget)..'; refbSpecialMicroActive='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive] or false)) end
                     M28Orders.IssueTrackedAggressiveMove(oACU, oEnemyToTarget:GetPosition(), 5, false, 'ACUAM', false)
                 end
             end
@@ -1078,7 +1081,7 @@ function GetACUOrder(aiBrain, oACU)
                 --Consider running if enemy is at T3 or has large air to ground threat, or we have built ltos of T3
                 if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 or M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat] or M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftTeamEngineersBuildingExperimentals]) == false then
                     M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] = true
-                    if bDebugMessages == true then LOG(sFunctionRef..': Dangerous for ACU due to general mass income level so will retreat with ACU if not in adjacent LZ from now on') end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Dangerous for ACU due to general mass income level so will retreat with ACU if not in adjacent LZ from now on. M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech]='..M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech]..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat]='..tostring(M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat])..'; Is table of engis building experimetnals empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftTeamEngineersBuildingExperimentals]))) end
                 end
             end
 

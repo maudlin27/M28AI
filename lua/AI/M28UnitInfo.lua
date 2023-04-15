@@ -50,7 +50,12 @@ refiMissileDefenceRange = 'M28UMDefR' --For SMD and TMD
 refiAARange = 'M28UAAR'
 refiBomberRange = 'M28UBR'
 refbWeaponUnpacks = 'M28WUP'
+refiStrikeDamage = 'M28USD'
 refbCanKite = 'M28CanKite' --true unless weapon unpacks or experimental with a weapon fixed to body (GC and megalith)
+
+--Weapon priorities
+refWeaponPriorityGunship = {'MOBILE SHIELD', 'MOBILE ANTIAIR CRUISER', 'MOBILE ANTIAIR', 'ANTIAIR', 'STRUCTURE SHIELD', 'VOLATILE', 'MASSEXTRACTION', 'GROUNDATTACK', 'TECH3 MOBILE', 'TECH2 MOBILE', 'TECH1 MOBILE', 'ALLUNITS'}
+
 
 refbPaused = 'M28UnitPaused' --true if unit is paused
 reftoUnitsAssistingThis = 'M28UnitsAssisting' --table of units given an order to guard this unit
@@ -783,6 +788,8 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                         if sCurUnitPathing == M28Map.refPathingTypeAir then
                             if bIncludeNonCombatAir == true then
                                 iMassMod = 1
+                                --Reduce to 25% for air scouts, as main concern is transports
+                                if EntityCategoryContains(refCategoryAirScout, sCurUnitBP) then iMassMod = 0.25 end
 
                             else
                                 if bIncludeAirToGround == true then
@@ -880,6 +887,8 @@ function CalculateBlueprintThreatsByType()
             ['200101'] = { true, false, true, true, true }, --Bombers and torpedo bombers
             ['210011'] = { true, false, false, true, true}, --Air excluding air to ground (but including torp bombers) - i.e. 'air excluding dangerous to land tanks on land'
             ['210010'] = { true, false, false, true, false}, --Air excluding air to ground (i.e. excluding torp bombers as well)
+            ['200011'] = { false, false, false, true, true}, --Used to get non-AA non-Air to ground (excl torp bomber) air, e.g. intended for land zones to determine 'other'/less important air
+            ['200010'] = { false, false, false, true, false}, --Used to get non-AA non-Air to ground air, e.g. intended for water zones to determine 'other'/less important air
             --['211000'] = { true, true, false, false, false} --GroundAA and AirAA combined - was thinking of using this for recording IMAP air version but decided to stick to just airaa
         }
 
@@ -1019,9 +1028,76 @@ function GetBlueprintMaxGroundRange(oBP)
     return iMaxRange
 end
 
+function GetBomberAOEAndStrikeDamage(oUnit)
+    local oBP = oUnit:GetBlueprint()
+    local iAOE = 0
+    local iStrikeDamage = 0
+    local iFiringRandomness
+    for sWeaponRef, tWeapon in oBP.Weapon do
+        if tWeapon.WeaponCategory == 'Bomb' or tWeapon.WeaponCategory == 'Direct Fire' then
+            if (tWeapon.DamageRadius or 0) > iAOE then
+                iAOE = tWeapon.DamageRadius
+                iStrikeDamage = tWeapon.Damage * tWeapon.MuzzleSalvoSize
+                if tWeapon.MuzzleSalvoSize > 2 then iStrikeDamage = iStrikeDamage * 0.5 end
+                iFiringRandomness = (tWeapon.FiringRandomness or 0)
+            end
+        end
+    end
+    if iStrikeDamage == 0 then
+        M28Utilities.ErrorHandler('Couldnt identify strike damage for bomber '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; will refer to predefined value instead')
+    end
+
+    --Manual floor for strike damage due to complexity of some bomber calculations
+    --Check if manual override is higher, as some weapons will fire lots of shots so above method wont be accurate
+    local tiBomberStrikeDamageByFactionAndTech =
+    {
+        --UEF, Aeon, Cybran, Sera, Nomads (are using default), Default
+        { 150, 200, 155, 250, 150, 150 }, --Tech 1
+        { 350, 300, 850, 1175, 550, 550 }, --Tech 2
+        { 2500, 2500, 2500, 2500, 2500, 2500}, --Tech 3 - the strike damage calculation above should be accurate so this is just as a backup, and set at a low level due to potential for more balance changes affecting this
+        { 11000,11000,11000,11000,11000,11000} --Tech 4 - again as a backup
+    }
+    iStrikeDamage = math.max(iStrikeDamage, tiBomberStrikeDamageByFactionAndTech[GetUnitTechLevel(oUnit)][GetFactionFromBP(oBP)])
+
+
+    return iAOE, iStrikeDamage, iFiringRandomness
+end
+
+function GetUnitStrikeDamage(oUnit)
+    --Gets strike damage of the first weapon in oUnit (longer term might want to make better so it considers other weapons)
+    --For bombers will be subject to a minimum value as some bombers will have
+    local oBP = oUnit:GetBlueprint()
+    local sBP = oUnit.UnitId
+    local iStrikeDamage = 0
+
+
+    if EntityCategoryContains(refCategoryBomber, sBP) then
+        --Doublecheck strike damage based on if it references a bomb
+        local iAOE
+        iAOE, iStrikeDamage = GetBomberAOEAndStrikeDamage(oUnit)
+    elseif EntityCategoryContains(refCategoryTorpBomber, sBP) then
+        for iCurWeapon, oCurWeapon in oBP.Weapon do
+            if oCurWeapon.Label == 'Bomb' or oCurWeapon.Label == 'Torpedo' then
+                iStrikeDamage = (oCurWeapon.DoTPulses or 1) * (oCurWeapon.MuzzleSalvoSize or 1) * oCurWeapon.Damage
+                break
+            end
+        end
+        if iStrikeDamage == 0 then
+            iStrikeDamage = 750 --Backup
+            M28Utilities.ErrorHandler('Have torp bomber with no bomb weapon so not calculated strike damage')
+        end
+    elseif EntityCategoryContains(refCategorySniperBot * categories.SERAPHIM, sBP) then
+        iStrikeDamage = GetSniperStrikeDamage(oUnit)
+    elseif oBP.Weapon and oBP.Weapon[1] then
+        iStrikeDamage = oBP.Weapon[1].Damage
+    end
+        return iStrikeDamage
+end
+
 function RecordUnitRange(oUnit)
     --Updates unit range variables - sets to nil if it has nothing with that range, otherwise records it as the highest range it has.  Factors in enhancements. Also records if unit unpacks for T3 mobile arti
     --Also updates if unit can kite
+    --Also records unit strike damage for certain air units
     local oBP = oUnit:GetBlueprint()
     local bWeaponUnpacks = false
     local bWeaponIsFixed = false
@@ -1042,7 +1118,7 @@ function RecordUnitRange(oUnit)
                     oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
                     if oCurWeapon.WeaponUnpacks then oUnit[refbWeaponUnpacks] = true end
                 elseif not(oCurWeapon.RangeCategory) or oCurWeapon.RangeCategory == 'UWRC_Undefined' then
-                    if oCurWeapon.Label == 'Bomb' or oCurWeapon.DisplayName == 'Kamikaze' then
+                    if oCurWeapon.Label == 'Bomb' or oCurWeapon.DisplayName == 'Kamikaze' or oCurWeapon.Label == 'Torpedo' then
                         oUnit[refiBomberRange] = math.max((oUnit[refiBomberRange] or 0), oCurWeapon.MaxRadius)
                     elseif oCurWeapon.WeaponCategory == 'Direct Fire' or oCurWeapon.WeaponCategory == 'Direct Fire Experimental' then
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
@@ -1057,7 +1133,7 @@ function RecordUnitRange(oUnit)
                     M28Utilities.ErrorHandler('Unrecognised range category '..oCurWeapon.RangeCategory..' for unit '..oUnit.UnitId)
                 end
             end
-            if oCurWeapon.WeaponUnpacks then bWeaponUnpacks = true
+            if oCurWeapon.WeaponUnpacks and oCurWeapon.WeaponUnpackLocksMotion then bWeaponUnpacks = true
             elseif oCurWeapon.SlavedToBody or oCurWeapon.SlavedToTurret then bWeaponIsFixed = true
             end
         end
@@ -1073,7 +1149,7 @@ function RecordUnitRange(oUnit)
             oUnit[refbCanKite] = true
         end
     end
-
+    oUnit[refiStrikeDamage] = GetUnitStrikeDamage(oUnit)
 end
 
 function ConvertTechLevelToCategory(iTechLevel)
@@ -1167,19 +1243,7 @@ function GetUnitUpgradeBlueprint(oUnitToUpgrade, bGetSupportFactory)
     return sUpgradeBP
 end
 
-function DoesCategoryContainCategory(iCategoryWanted, iCategoryToSearch, bOnlyContainsThisCategory)
-    --Not very efficient so consider alternative such as recording variables if going to be running lots of times
-    local tsUnitIDs = EntityCategoryGetUnitList(iCategoryToSearch)
-    if bOnlyContainsThisCategory then
-        for iRef, sRef in tsUnitIDs do
-            if not(EntityCategoryContains(iCategoryWanted, sRef)) then return false end
-        end
-        return true
-    else
-        for iRef, sRef in tsUnitIDs do
-            if EntityCategoryContains(iCategoryWanted, sRef) then return true end
-        end
-    end
+function DoesCategoryContainCategoryUSEM28UTILITIESVERSION()
 end
 
 function GetUpgradeBuildTime(oUnit, sUpgradeRef)
@@ -1442,4 +1506,49 @@ end
 
 function GetUnitUniqueRef(oUnit)
     return oUnit:GetAIBrain():GetArmyIndex()..oUnit.UnitId..GetUnitLifetimeCount(oUnit)
+end
+
+function GetTransportMaxCapacity(oTransport, iTechLevelToLoad)
+    --https://forums.faforever.com/viewtopic.php?f=2&t=17511#:~:text=It%20can%20carry%20exactly%201,and%20more%20T2%20than%20T3.
+    local iFaction = GetUnitFaction(oTransport)
+    local tiCapacityByTechAndFaction --[TransportTechLevel][FactionNumber][UnitTechToHold]
+    if EntityCategoryContains(categories.UEF * categories.GROUNDATTACK * categories.TECH2 * categories.AIR, oTransport.UnitId) then
+        tiCapacityByTechAndFaction = {[2]={[refFactionUEF]={[1]=1,[2]=1,[3]=0,[4]=0}}}
+    else tiCapacityByTechAndFaction =
+    {[1]={ --T1 transports
+        [refFactionUEF]={[1]=6,[2]=2,[3]=1,[4]=0},
+        [refFactionAeon]={[1]=6,[2]=3,[3]=1,[4]=0},
+        [refFactionCybran]={[1]=6,[2]=2,[3]=1,[4]=0},
+        [refFactionSeraphim]={[1]=8,[2]=4,[3]=1,[4]=0},
+        [refFactionNomads]={[1]=4,[2]=2,[3]=0,[4]=0}, --Assumed
+        [refFactionUnrecognised]={[1]=2,[2]=1,[3]=0,[4]=0}, --assumed
+    },
+     [2]={
+         [refFactionUEF]={[1]=14,[2]=6,[3]=3,[4]=0},
+         [refFactionAeon]={[1]=12,[2]=6,[3]=2,[4]=0},
+         [refFactionCybran]={[1]=10,[2]=4,[3]=2,[4]=0},
+         [refFactionSeraphim]={[1]=16,[2]=8,[3]=4,[4]=0},
+         [refFactionNomads]={[1]=8,[2]=4,[3]=2,[4]=0}, --Assumed
+         [refFactionUnrecognised]={[1]=2,[2]=1,[3]=0,[4]=0}, --assumed
+     },
+     [3]={
+         [refFactionUEF]={[1]=28,[2]=12,[3]=6,[4]=0},
+         [refFactionAeon]={[1]=1,[2]=1,[3]=1,[4]=0},
+         [refFactionCybran]={[1]=1,[2]=1,[3]=1,[4]=0},
+         [refFactionSeraphim]={[1]=1,[2]=1,[3]=1,[4]=0},
+         [refFactionNomads]={[1]=1,[2]=1,[3]=1,[4]=0},
+         [refFactionUnrecognised]={[1]=1,[2]=1,[3]=1,[4]=0},
+     },
+     [4]={ --dummy values
+         [refFactionUEF]={[1]=1,[2]=1,[3]=1,[4]=0},
+         [refFactionAeon]={[1]=1,[2]=1,[3]=1,[4]=0},
+         [refFactionCybran]={[1]=1,[2]=1,[3]=1,[4]=0},
+         [refFactionSeraphim]={[1]=1,[2]=1,[3]=1,[4]=0},
+         [refFactionNomads]={[1]=1,[2]=1,[3]=1,[4]=0},
+         [refFactionUnrecognised]={[1]=1,[2]=1,[3]=1,[4]=0},
+     },
+    }
+    end
+
+    return tiCapacityByTechAndFaction[GetUnitTechLevel(oTransport)][iFaction][iTechLevelToLoad]
 end

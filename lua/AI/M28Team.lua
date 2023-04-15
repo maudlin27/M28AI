@@ -88,7 +88,8 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefbTeamHasOmni = 'M28TeamHaveOmni' --True if our team has omni vision (i.e. one of our team is an AiX with omni vision)
     subrefbEnemyHasOmni = 'M28EnemyHasOmni' --true if any enemy non-civilian brains have omni vision
     subrefbEnemyBuiltOmni = 'M28EnemyBuiltOmni' --true if any enemy has built omni at any point in the game (used as basic threshold for deciding whether to build things like deceivers)
-
+    subrefiTimeOfScoutingShortlistUpdate = 'M28ScoutShortlistUpd' --Gametimeseconds that last updated the list of scouting locations to update
+    subreftLandAndWaterZoneScoutingShortlist = 'M28ScoutShortlistLWZ' --entries 1,2,... (in no particular order) - returns {PlateauOrZero, LandOrWZRef} for any land or water zones where scouting is overdue
 
     --Notable unit count and threat details
     refbDefendAgainstArti = 'M28TeamDefendAgainstArti' --true if enemy has t3 arti or equivelnt
@@ -133,6 +134,12 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiEnemyAirToGroundThreat = 'M28TeamEnemyAirToGroundThreat'
     refiEnemyTorpBombersThreat = 'M28TeamEnemyTorpBomberThreat'
     refiEnemyAirOtherThreat = 'M28TeamEnemyAirOtherThreat'
+    refiTimeOfLastAirStagingShortage = 'M28TeamTimeAirStagingShortage' --Gametimeseconds that a team member last had units that had nowhere to refuel
+
+    refiTimeOfLastTransportShortlistUpdate = 'M28TeamAirTimeTransportShortlist' --Gametimeseconds that last updated the list of potential locations to do transport engi drops to
+    reftTransportIslandDropShortlist = 'M28TeamAirTransportShortlist' --key is 1,2....x, returns {iPlateau, iIsland} - shortlist of plateau and island references that want to consider a transport drop for
+    reftiPotentialDropIslandsByPlateau = 'M28TeamAirPotentialDropIslands' --List of islands by plateau that have mexes in them and no enemy start position
+    refiLastFailedIslandDropTime = 'M28TeamAirLastFailedDrop' --Gametimeseconds where we last had a transport die while trying to drop this plateau
 
     --Misc details
     reftiTeamMessages = 'M28TeamMessages' --against tTeamData[aiBrain.M28Team], [x] is the message type string, returns the gametime that last sent a message of this type to the team
@@ -144,6 +151,17 @@ tAirSubteamData = {}
     subrefiMaxScoutRadius = 'M28ASTMaxScoutRadius' --Search range for scouts for this AirSubteam
     refbFarBehindOnAir = 'M28ASTFarBehindOnAir' --true if we are far behind on air
     refbHaveAirControl = 'M28ASTHaveAirControl'
+    reftACUAndExpOnSubteam = 'M28ASTACUExp' --Friendly ACUs and experimentals
+    subrefiOurAirAAThreat = 'M28ASTOurAirAA' --Our AirAA threat
+    subrefiOurGunshipThreat = 'M28ASTOurGShip' --Our gunship threat
+    subrefiOurTorpBomberThreat = 'M28ASTOurTBmbT' --Our torp bomber threat
+    refbTooMuchGroundNavalAAForTorpBombers = 'M28TooMuchAAForTorps' --true if have avoided targeting a water zone with torps due to groundAA threat in a water zone
+    refbNoAvailableTorpsForEnemies = 'M28NoAvailTorps' --true if have enemy naval unit in a wz we want to defend, and we lack available torp bombers
+    reftAirSubRallyPoint = 'M28ASTRally' --Contains the location of the air subteam's rally point
+    reftAirSubSupportPoint = 'M28ASTSuppR' --Contains the location for airaa units to go to support a priority unit
+    reftiTorpedoDefenceWaterZones = 'M28ASTTorpDef' --Contains water zones that want torpedo bombers to consider defending
+    refoFrontGunship = 'M28ASTFrntGshp' --Front available gunship
+
 
 
 --Land subteam data varaibles (used for factory production logic)
@@ -209,7 +227,7 @@ function CreateNewAirSubteam(aiBrain)
     aiBrain.M28AirSubteam = iTotalAirSubteamCount
     tAirSubteamData[aiBrain.M28AirSubteam] = {}
     tAirSubteamData[aiBrain.M28AirSubteam][subreftoFriendlyM28Brains] = {}
-
+    tAirSubteamData[aiBrain.M28AirSubteam][reftACUAndExpOnSubteam] = {}
 
     table.insert(tAirSubteamData[aiBrain.M28AirSubteam][subreftoFriendlyM28Brains], aiBrain)
     local tNearestEnemyBase = M28Map.GetPrimaryEnemyBaseLocation(aiBrain)
@@ -256,7 +274,7 @@ function CreateNewAirSubteam(aiBrain)
         end
     end
 
-    M28Air.AirSubteamInitialisation(aiBrain.M28AirSubteam) --Dont fork thread
+    M28Air.AirSubteamInitialisation(aiBrain.M28Team, aiBrain.M28AirSubteam) --Dont fork thread
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -421,6 +439,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][reftEnemyNukeLaunchers] = {}
     tTeamData[iTotalTeamCount][reftEnemySMD] = {}
     tTeamData[iTotalTeamCount][subreftTeamEngineersBuildingExperimentals] = {}
+    tTeamData[iTotalTeamCount][refiLastFailedIslandDropTime] = {}
 
 
 
@@ -801,11 +820,14 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                 --Record if we are at the stage of the game where experimentals/similar high threats for ACU are present
                 if not(tTeamData[aiBrain.M28Team][refbDangerousForACUs]) then
                     if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy experimental level unit detected, dangerous for ACU') end
                         tTeamData[aiBrain.M28Team][refbDangerousForACUs] = true
 
                     elseif EntityCategoryContains(M28UnitInfo.refCategorySniperBot, oUnit.UnitId) and IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy sniper bot detected, dangerous for ACU') end
                         tTeamData[aiBrain.M28Team][refbDangerousForACUs] = true
-                    elseif EntityCategoryContains(M28UnitInfo.refCategoryAllAir * categories.TECH3, oUnit.UnitId) then
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryAllAir * categories.TECH3, oUnit.UnitId) and IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy T3 air detected, enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..', owned by '..oUnit:GetAIBrain().Nickname..' dangerous for ACU') end
                         tTeamData[aiBrain.M28Team][refbDangerousForACUs] = true
                     end
                 end
@@ -844,9 +866,25 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                         M28Air.RecordNewAirUnitForTeam(aiBrain.M28Team, oUnit)
                     end
                     if bAlreadyUpdatedPosition then
-                        --Presumably air unit has fallen out of a land zone - add to table of enemy air without a LZ
-                        if not(aiBrain.M28Team == oUnit:GetAIBrain().M28Team) then --redundancy, - hopefully shouldnt get to this point if this isnt the case
-                            M28Air.RecordEnemyAirUnitWithNoZone(aiBrain.M28Team, oUnit)
+                        --Re-check the plateau and land/water zone
+                        local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                        local bIsEnemyAirUnit
+                        if aiBrain.M28Team == oUnit:GetAIBrain().M28Team then bIsEnemyAirUnit = false else bIsEnemyAirUnit = true end
+                        if  (iLandOrWaterZone or 0) > 0 then
+                            if iPlateauOrZero == 0 then
+                                --Water zone
+                                AddUnitToWaterZoneForBrain(aiBrain, oUnit, iLandOrWaterZone, bIsEnemyAirUnit)
+                            else
+                                AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateauOrZero, iLandOrWaterZone, bIsEnemyAirUnit)
+                            end
+
+                            --Presumably air unit has fallen out of a land zone - add to table of enemy air without a LZ
+                        else
+                            if bDebugMessages == true then LOG(sFunctionRef..': Failed to find a plateau or zone to position '..repru(oUnit:GetPosition())..' for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                            if not(aiBrain.M28Team == oUnit:GetAIBrain().M28Team) then --redundancy, - hopefully shouldnt get to this point if this isnt the case
+                                M28Utilities.ErrorHandler('Obsolete code, wasnt expecting it to be used')
+                                M28Air.RecordEnemyAirUnitWithNoZone(aiBrain.M28Team, oUnit)
+                            end
                         end
                     end
                 else
@@ -1208,8 +1246,20 @@ function ConsiderPriorityAirFactoryUpgrades(iM28Team)
 
     if tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech] > 0 and tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech] < 3 then
         local bWantUpgrade = false
-        --Prioritise air factory if we dont have T2 air and enemy has navy - TODO
-        if tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech] < 2 and tTeamData[iM28Team][subrefiHighestEnemyNavyTech] > 0 then
+        --Prioritise air factory if we dont have T2 air and enemy has navy
+        local bAirSubteamNeedsTorps = false
+        local tiAirSubteams = {}
+        for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
+            tiAirSubteams[oBrain.M28AirSubteam] = true
+        end
+        for iAirSubteam, bTrue in tiAirSubteams do
+            if tAirSubteamData[iAirSubteam][refbNoAvailableTorpsForEnemies] then
+                bAirSubteamNeedsTorps = true
+                break
+            end
+        end
+
+        if tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech] < 2 and (bAirSubteamNeedsTorps or tTeamData[iM28Team][subrefiHighestEnemyNavyTech] > 0) then
             for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
                 if oBrain[M28Economy.refiOurHighestAirFactoryTech] > 0 and oBrain[M28Economy.refiOurHighestAirFactoryTech] < 2 then
                     bWantUpgrade = true
@@ -1759,6 +1809,8 @@ function TeamInitialisation(iM28Team)
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZIndirectThreatWanted] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZDFThreatWanted] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiRadarCoverage] = 0
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiOmniCoverage] = 0
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiRecentlyFailedScoutAttempts] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefQueuedBuildings] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatEnemyMobileDFTotal] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatEnemyMobileIndirectTotal] = 0
@@ -1767,6 +1819,7 @@ function TeamInitialisation(iM28Team)
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatAllyGroundAA] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftLZEnemyAirUnits] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiEnemyAirToGroundThreat] = 0
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiEnemyAirAAThreat] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiEnemyAirOtherThreat] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZMAAThreatWanted] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftoLZUnitsWantingMobileShield] = {}
@@ -1775,6 +1828,7 @@ function TeamInitialisation(iM28Team)
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftoLZUnitsWantingMobileStealth] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subreftEnemyFirebasesInRange] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftUnitsWantingTMD] = {}
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftoTransportsWaitingForEngineers] = {}
         end
     end
     --NOTE: Water zone data is handled via RecordClosestAllyAndEnemyBaseForEachWaterZone, to ensure it is run after water zones are created
@@ -1802,6 +1856,8 @@ function WaterZoneTeamInitialisation(iTeam)
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZbContainsNavalBuildLocation] = false --true if contains a naval build location for a friendly M28AI
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTValue] = 0 --Value of the WZ, used to prioritise sending untis to different water zones; likely to be based on distance to core base water zone
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiRadarCoverage] = 0
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiOmniCoverage] = 0
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiRecentlyFailedScoutAttempts] = 0
             --tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refoBestRadar] --nil by default
             --tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.reftClosestFriendlyBase] --Updated separately
             --tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.reftClosestEnemyBase] --Updated separately
@@ -1845,6 +1901,7 @@ function WaterZoneTeamInitialisation(iTeam)
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTScoutsTravelingHere] = {}
 
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiEnemyAirToGroundThreat] = 0
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiEnemyAirAAThreat] = 0
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiEnemyAirOtherThreat] = 0
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefAlliedACU] = {}
 
