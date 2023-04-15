@@ -3162,10 +3162,11 @@ function GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, bCoreZone, bHave
     local iBPWanted = 0
     local iTechLevelWanted = 2
     local oUnitToShield
+    local iHighestMassValue = 0
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; Is table of units wanting fixed shields empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitWantingFixedShield]))) end
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitWantingFixedShield]) == false then
         --Shield the highest value unit in this LZ that wants a shield
-        local iHighestMassValue = 0
+
         local iCurMass
         for iUnit, oUnit in tLZTeamData[M28Map.reftoLZUnitWantingFixedShield] do
             iCurMass = oUnit:GetBlueprint().Economy.BuildCostMass
@@ -3178,8 +3179,10 @@ function GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, bCoreZone, bHave
             end
         end
         if oUnitToShield then
-            if iHighestMassValue >= 14000 or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]  then
+            if iHighestMassValue >= 15000 or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]  then
                 iTechLevelWanted = 3
+                --Think have logic elsewhere which will make a T3 shield be built if nowhere for T2 shield that will cover it
+
             end
             iBPWanted = 210
             if bCoreZone or iHighestMassValue >= 25000 then iBPWanted = iBPWanted + 60 end
@@ -3187,7 +3190,7 @@ function GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, bCoreZone, bHave
             if bHaveLowMass then iBPWanted = iBPWanted * 0.75 end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': oUnitToShield='..(oUnitToShield.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitToShield) or 'nil')..'; iBPWanted='..iBPWanted..'; iTechLevelWanted='..iTechLevelWanted) end
+    if bDebugMessages == true then LOG(sFunctionRef..': oUnitToShield='..(oUnitToShield.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitToShield) or 'nil')..'; iBPWanted='..iBPWanted..'; iTechLevelWanted='..iTechLevelWanted..'; iHighestMassValue='..iHighestMassValue) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return iBPWanted, iTechLevelWanted, oUnitToShield
 end
