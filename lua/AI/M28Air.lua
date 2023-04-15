@@ -774,7 +774,7 @@ function RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartMidpoint
 end
 
 function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateAirRallyAndSupportPoints'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -1250,7 +1250,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageAirAAUnits'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if GetGameTimeSeconds() >= 1440 then bDebugMessages = true end
+
 
     --Get available airAA units (owned by M28 brains in our subteam):
     local tAvailableAirAA, tAirForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, M28UnitInfo.refCategoryAirAA)
@@ -1291,7 +1291,6 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
 
         function AddEnemyAirInLandZoneIfNoAA(iPlateau, iLandZone, bAddAdjacentZones, refiAASearchType)
             --See above for refiAASearchTypes, i.e. refiAvoidAllAA, refiAvoidOnlyGroundAA, refiIgnoreAllAA
-            bDebugMessages = true
             if bDebugMessages == true then LOG(sFunctionRef..': refiAASearchType='..(refiAASearchType or 'nil')..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
             if not(tbAdjacentPlateauAndLandZonesConsidered[refiAASearchType][iPlateau][iLandZone]) and (bAddAdjacentZones or not(tbPlateauAndLandZonesConsidered[refiAASearchType][iPlateau][iLandZone])) then
                 if not(tbPlateauAndLandZonesConsidered[refiAASearchType][iPlateau]) then
@@ -1862,7 +1861,6 @@ function ManageGunships(iTeam, iAirSubteam)
     local sFunctionRef = 'ManageGunships'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 1440 then bDebugMessages = true end
 
     local tAvailableGunships, tGunshipsForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, M28UnitInfo.refCategoryGunship)
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; Is tAvailableGunships empty='..tostring(M28Utilities.IsTableEmpty(tAvailableGunships))) end
