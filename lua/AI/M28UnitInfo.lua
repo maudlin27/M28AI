@@ -53,6 +53,10 @@ refbWeaponUnpacks = 'M28WUP'
 refiStrikeDamage = 'M28USD'
 refbCanKite = 'M28CanKite' --true unless weapon unpacks or experimental with a weapon fixed to body (GC and megalith)
 
+--Weapon priorities
+refWeaponPriorityGunship = {'MOBILE SHIELD', 'MOBILE ANTIAIR CRUISER', 'MOBILE ANTIAIR', 'ANTIAIR', 'STRUCTURE SHIELD', 'VOLATILE', 'MASSEXTRACTION', 'GROUNDATTACK', 'TECH3 MOBILE', 'TECH2 MOBILE', 'TECH1 MOBILE', 'ALLUNITS'}
+
+
 refbPaused = 'M28UnitPaused' --true if unit is paused
 reftoUnitsAssistingThis = 'M28UnitsAssisting' --table of units given an order to guard this unit
 
@@ -884,6 +888,7 @@ function CalculateBlueprintThreatsByType()
             ['210011'] = { true, false, false, true, true}, --Air excluding air to ground (but including torp bombers) - i.e. 'air excluding dangerous to land tanks on land'
             ['210010'] = { true, false, false, true, false}, --Air excluding air to ground (i.e. excluding torp bombers as well)
             ['200011'] = { false, false, false, true, true}, --Used to get non-AA non-Air to ground (excl torp bomber) air, e.g. intended for land zones to determine 'other'/less important air
+            ['200010'] = { false, false, false, true, false}, --Used to get non-AA non-Air to ground air, e.g. intended for water zones to determine 'other'/less important air
             --['211000'] = { true, true, false, false, false} --GroundAA and AirAA combined - was thinking of using this for recording IMAP air version but decided to stick to just airaa
         }
 
@@ -1128,7 +1133,7 @@ function RecordUnitRange(oUnit)
                     M28Utilities.ErrorHandler('Unrecognised range category '..oCurWeapon.RangeCategory..' for unit '..oUnit.UnitId)
                 end
             end
-            if oCurWeapon.WeaponUnpacks then bWeaponUnpacks = true
+            if oCurWeapon.WeaponUnpacks and oCurWeapon.WeaponUnpackLocksMotion then bWeaponUnpacks = true
             elseif oCurWeapon.SlavedToBody or oCurWeapon.SlavedToTurret then bWeaponIsFixed = true
             end
         end
@@ -1238,19 +1243,7 @@ function GetUnitUpgradeBlueprint(oUnitToUpgrade, bGetSupportFactory)
     return sUpgradeBP
 end
 
-function DoesCategoryContainCategory(iCategoryWanted, iCategoryToSearch, bOnlyContainsThisCategory)
-    --Not very efficient so consider alternative such as recording variables if going to be running lots of times
-    local tsUnitIDs = EntityCategoryGetUnitList(iCategoryToSearch)
-    if bOnlyContainsThisCategory then
-        for iRef, sRef in tsUnitIDs do
-            if not(EntityCategoryContains(iCategoryWanted, sRef)) then return false end
-        end
-        return true
-    else
-        for iRef, sRef in tsUnitIDs do
-            if EntityCategoryContains(iCategoryWanted, sRef) then return true end
-        end
-    end
+function DoesCategoryContainCategoryUSEM28UTILITIESVERSION()
 end
 
 function GetUpgradeBuildTime(oUnit, sUpgradeRef)

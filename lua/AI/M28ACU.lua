@@ -758,6 +758,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                     M28Orders.IssueTrackedMove(oACU, tRallyPoint, 6, false, 'ACUKit', false)
                 else
                     --Attack-move towards enemy
+                    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Will attack-move to enemy target unless have active micro, oEnemyToTarget='..oEnemyToTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToTarget)..'; refbSpecialMicroActive='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive] or false)) end
                     M28Orders.IssueTrackedAggressiveMove(oACU, oEnemyToTarget:GetPosition(), 5, false, 'ACUAM', false)
                 end
             end

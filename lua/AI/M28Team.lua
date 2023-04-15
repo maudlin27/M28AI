@@ -160,6 +160,7 @@ tAirSubteamData = {}
     reftAirSubRallyPoint = 'M28ASTRally' --Contains the location of the air subteam's rally point
     reftAirSubSupportPoint = 'M28ASTSuppR' --Contains the location for airaa units to go to support a priority unit
     reftiTorpedoDefenceWaterZones = 'M28ASTTorpDef' --Contains water zones that want torpedo bombers to consider defending
+    refoFrontGunship = 'M28ASTFrntGshp' --Front available gunship
 
 
 
@@ -865,10 +866,25 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                         M28Air.RecordNewAirUnitForTeam(aiBrain.M28Team, oUnit)
                     end
                     if bAlreadyUpdatedPosition then
-                        --Presumably air unit has fallen out of a land zone - add to table of enemy air without a LZ
-                        if not(aiBrain.M28Team == oUnit:GetAIBrain().M28Team) then --redundancy, - hopefully shouldnt get to this point if this isnt the case
-                            M28Utilities.ErrorHandler('Obsolete code, wasnt expecting it to be used')
-                            M28Air.RecordEnemyAirUnitWithNoZone(aiBrain.M28Team, oUnit)
+                        --Re-check the plateau and land/water zone
+                        local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                        local bIsEnemyAirUnit
+                        if aiBrain.M28Team == oUnit:GetAIBrain().M28Team then bIsEnemyAirUnit = false else bIsEnemyAirUnit = true end
+                        if  (iLandOrWaterZone or 0) > 0 then
+                            if iPlateauOrZero == 0 then
+                                --Water zone
+                                AddUnitToWaterZoneForBrain(aiBrain, oUnit, iLandOrWaterZone, bIsEnemyAirUnit)
+                            else
+                                AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateauOrZero, iLandOrWaterZone, bIsEnemyAirUnit)
+                            end
+
+                            --Presumably air unit has fallen out of a land zone - add to table of enemy air without a LZ
+                        else
+                            if bDebugMessages == true then LOG(sFunctionRef..': Failed to find a plateau or zone to position '..repru(oUnit:GetPosition())..' for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                            if not(aiBrain.M28Team == oUnit:GetAIBrain().M28Team) then --redundancy, - hopefully shouldnt get to this point if this isnt the case
+                                M28Utilities.ErrorHandler('Obsolete code, wasnt expecting it to be used')
+                                M28Air.RecordEnemyAirUnitWithNoZone(aiBrain.M28Team, oUnit)
+                            end
                         end
                     end
                 else

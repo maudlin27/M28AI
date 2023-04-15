@@ -80,9 +80,11 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
 
             --Air factory upgrades - if we are upgrading from T1 to T2 and havent build a transport, and have plateaus, then want to get a transport first
             if EntityCategoryContains(M28UnitInfo.refCategoryAirFactory * categories.TECH1, oUnitToUpgrade.UnitId) and aiBrain[refiOurHighestAirFactoryTech] == 1 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory * categories.TECH1) == 1 then
-                M28Map.UpdatePlateausToExpandTo(aiBrain)
-                if M28Utilities.IsTableEmpty(aiBrain[M28Map.reftPlateausOfInterest]) == false and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryTransport) == 0 then
+                --Do we have locations for transports to drop?
+
+                if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportIslandDropShortlist]) == false and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryTransport) == 0 then
                     if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have already queued up transport for this unit='..tostring(oUnitToUpgrade[refsQueuedTransport] or false)) end
+                    local refsQueuedTransport = 'M28QueuedTransport'
                     if not(oUnitToUpgrade[refsQueuedTransport]) then
                         --Havent built any transports yet so build a T1 transport before we upgrade to T2 air
 
@@ -563,7 +565,7 @@ function CheckForUnitsToReclaimOfCategory(iTeam, iCategory, sTeamSubrefFlag)
 
     M28Team.tTeamData[iTeam][sTeamSubrefFlag] = true
     local bDontCheckForPower = true
-    if M28UnitInfo.DoesCategoryContainCategory(M28UnitInfo.refCategoryPower, iCategory, false) then bDontCheckForPower = false end
+    if M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryPower, iCategory, false) then bDontCheckForPower = false end
     if bDebugMessages == true then LOG(sFunctionRef..': Checking to see if we have any units to reclaim for the specified category.  bDontCheckForPower='..tostring(bDontCheckForPower)) end
     while M28Team.GetCurrentUnitsOfCategory(iTeam, iCategory) > 0 do
         --Are we low on mass and not low on power?
@@ -788,7 +790,7 @@ function ManageMassStalls(iTeam)
                                 local oLowestProgress
                                 local bAlreadyIncluded
                                 for iUnit, oUnit in M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingMexes] do
-                                    if oUnit:GetWorkProgress() < iLowestProgress then
+                                    if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetWorkProgress() < iLowestProgress then
                                         bAlreadyIncluded = false
                                         --Is the unit already in the table of relevant units?
                                         if M28Utilities.IsTableEmpty(tRelevantUnits) == false then
@@ -1275,7 +1277,7 @@ function ManageEnergyStalls(iTeam)
                                 local oLowestProgress
                                 local bAlreadyIncluded
                                 for iUnit, oUnit in M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingMexes] do
-                                    if oUnit:GetWorkProgress() < iLowestProgress then
+                                    if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetWorkProgress() < iLowestProgress then
                                         bAlreadyIncluded = false
                                         --Is the unit already in the table of relevant units?
                                         if M28Utilities.IsTableEmpty(tRelevantUnits) == false then
@@ -1795,6 +1797,19 @@ function AllocateTeamEnergyAndMassResources(iTeam)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 WaitTicks(1)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            end
+        end
+    end
+
+    function UpdateTableOfUpgradingMexesForTeam(iTeam)
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) == false then
+            local tUpgradingMexes = M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]
+            local iEntries = table.getn(tUpgradingMexes)
+
+            for iCurEntry = iEntries, 1, -1 do
+                if not(M28UnitInfo.IsUnitValid(tUpgradingMexes[iCurEntry])) then
+                    table.remove(tUpgradingMexes, iCurEntry)
+                end
             end
         end
     end

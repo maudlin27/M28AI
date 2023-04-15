@@ -615,7 +615,11 @@ function OnMexDeath(tUnitPosition)
 
     if bDebugMessages == true then LOG(sFunctionRef..': is table of mex locations empty='..tostring( M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]))..'; iLandZone='..(iLandZone or 'nil')) end
     if M28Utilities.IsTableEmpty(tMexLocations) == false then
-        WaitSeconds(2) --dont treat mex as available for a few seconds (this is also to ensure that if a mex has 'died' due to being upgraded, the new building will be here)
+        --Record time of last mex death against LZ data to help with error messages
+        tLZOrWZData[M28Map.refiTimeOfLastMexDeath] = GetGameTimeSeconds()
+
+
+        WaitSeconds(1) --dont treat mex as available for a second (this is to help cover scenarios where if a mex has 'died' due to being upgraded, the new building will be here) - was a 2s delay, are trying 1s delay now to see if causes an issue
         for iMexLocation, tMexLocation in tMexLocations do
             --Prev line - redid at same time as changing approach for removing an unbuilt location to try and be more accurate
             --if M28Utilities.GetDistanceBetweenPositions(tMexLocation, oUnit:GetPosition()) <= 0.9 then
@@ -698,7 +702,7 @@ function OnMexConstructionStarted(oUnit)
         tMexLocations = tLZOrWZData[M28Map.subrefLZMexLocations]
     end
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Have just started construction for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Is M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]))..'; Unit position='..repru(oUnit:GetPosition())) end
+    if bDebugMessages == true then LOG(sFunctionRef..': The time is '..GetGameTimeSeconds()..'; Have just started construction for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Is M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]))..'; Unit position='..repru(oUnit:GetPosition())) end
     local bFoundMexLocation = false
     if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false then
         local iSizeBefore = table.getn(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])
@@ -753,8 +757,11 @@ function OnMexConstructionStarted(oUnit)
         end--]]
     end
     if not(bFoundMexLocation) then
-        M28Utilities.ErrorHandler('OnCreate triggered for a mex but no unbuilt locations near it, iPlateau='..iPlateau..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil'), true)
-        if bDebugMessages == true then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations]='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit position='..repru(oUnit:GetPosition())) end
+        --Is the reason we cant find any unbuilt locations because a mex is being upgraded? Doing a reprs of a mex being upgraded, CanTakeDamage was false and IsUpgrade was true, so use these to check
+        if oUnit.CanTakeDamage and not(oUnit.IsUpgrade) and (GetGameTimeSeconds() - (tLZOrWZData[M28Map.refiTimeOfLastMexDeath] or 0)) > 2.1 then
+            M28Utilities.ErrorHandler('OnCreate triggered for a mex but no unbuilt locations near it, iPlateau='..iPlateau..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil'), true)
+            if bDebugMessages == true then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations]='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit position='..repru(oUnit:GetPosition())..'; reprs of unit='..reprs(oUnit)) end
+        end
     end
 
     --Add mex to enemy unit table if underwater, due to flaw with current approach - i.e. to reduce overhead all AI regardless of team use the same table for if a mex has been built; engineers are meant to either build on unbuilt mexes, or try and reclaim if the enemy is there; however without this step they effectively end up thinking a teammate has the mex so they never tyr sending an engineer to build or capture.  For land it's not an issue as would expect land scouts or other land units to reveal the mexes anyway

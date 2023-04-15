@@ -121,8 +121,12 @@ function IssueTrackedClearCommands(oUnit)
         end
     end
 
-    --Clear any micro flag
-    oUnit[M28UnitInfo.refbSpecialMicroActive] = nil
+    --Clear any micro flag if it is time
+    if oUnit[M28UnitInfo.refbSpecialMicroActive] then
+        if GetGameTimeSeconds() + 0.02 > oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] then
+            oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] = nil
+        end
+    end
 
     --Clear orders:
     IssueClearCommands({oUnit})

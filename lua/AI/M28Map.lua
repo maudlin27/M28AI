@@ -107,6 +107,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         subrefLZMexCount = 'MexCount' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns number of mexes in the LZ
         subrefLZMexLocations = 'MexLoc' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of mex locations in the LZ, e.g. get with tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefLZMexLocations]
         subrefMexUnbuiltLocations = 'MexAvailLoc' --used by water and land zones; e.g. for LZ is against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of mex locations in the LZ, e.g. get with tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefLZMexLocations]
+        refiTimeOfLastMexDeath = 'MexLstDth' --Gametimeseconds that a mex died in this land zone - used to avoid sending an error message if it is rebuilt immediately (due to the mex deaht logic having a delay)
         subrefLZMidpoint = 'Midpoint' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns the midpoint of the land zone, e.g. get with tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefLZMidpoint]
         subrefLZMinSegX = 'LZMinSegX'
         subrefLZMinSegZ = 'LZMinSegZ'
@@ -532,28 +533,41 @@ function GetClosestPlateauOrZeroAndZoneToPosition(tPosition)
     else
         local iPlateau = NavUtils.GetLabel(refPathingTypeHover, GetPositionFromPathingSegments(iSegmentX, iSegmentZ))
         if bDebugMessages == true then LOG(sFunctionRef..': Position from segments='..repru(GetPositionFromPathingSegments(iSegmentX, iSegmentZ))..'; iPlateau for this='..(iPlateau or 'nil')) end
-        if (iPlateau or 0) <= 0 then
+        if (iPlateau or 0) <= 0 or (tLandZoneBySegment[iSegmentX][iSegmentZ] == nil and tWaterZoneBySegment[iSegmentX][iSegmentZ] == nil) then
             --Need to get an override if dont already have one
             local iAltPlateau, iAltLZOrWZ
+            local iFailureCount = 0
             if not(tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX]) then tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX] = {} end
-            for iAdjust = 1, math.max(rMapPlayableArea[3], rMapPlayableArea[4]) do
+            for iAdjust = 1, math.min(iMaxLandSegmentX, iMaxLandSegmentZ) do
                 for iXAdjust = -iAdjust, iAdjust, 1 do
                     for iZAdjust = -iAdjust, iAdjust, 1 do
                         if not(iXAdjust == 0 and iZAdjust == 0) then
-                            iAltPlateau = NavUtils.GetLabel(refPathingTypeHover, GetPositionFromPathingSegments(iSegmentX + iXAdjust, iSegmentZ + iZAdjust))
-                            if (iAltPlateau or 0) > 0 then
-                                iAltLZOrWZ = tLandZoneBySegment[iSegmentX+ iXAdjust][iSegmentZ+ iZAdjust]
-                                if (iAltLZOrWZ or 0) == 0 then
-                                    iAltLZOrWZ = tWaterZoneBySegment[iSegmentX+ iXAdjust][iSegmentZ+ iZAdjust]
-                                    iAltPlateau = 0
-                                end
-                                if (iAltLZOrWZ or 0) > 0 then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Have adjusted segments which have valid values, iAltLZOrWZ='..iAltLZOrWZ..'; iXAdjust='..iXAdjust..'; iZAdjust='..iZAdjust) end
-                                    tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX][iSegmentZ] = {[1] = iAltPlateau, [2] = iAltLZOrWZ}
-                                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                                    return iAltPlateau, iAltLZOrWZ
+                            if tLandZoneBySegment[iSegmentX+ iXAdjust][iSegmentZ+ iZAdjust] or tWaterZoneBySegment[iSegmentX+ iXAdjust][iSegmentZ+ iZAdjust] then
+                                iAltPlateau = NavUtils.GetLabel(refPathingTypeHover, GetPositionFromPathingSegments(iSegmentX + iXAdjust, iSegmentZ + iZAdjust))
+                                if (iAltPlateau or 0) > 0 then
+                                    iAltLZOrWZ = tLandZoneBySegment[iSegmentX+ iXAdjust][iSegmentZ+ iZAdjust]
+                                    if (iAltLZOrWZ or 0) == 0 then
+                                        iAltLZOrWZ = tWaterZoneBySegment[iSegmentX+ iXAdjust][iSegmentZ+ iZAdjust]
+                                        iAltPlateau = 0
+                                    end
+                                    if (iAltLZOrWZ or 0) > 0 then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Have adjusted segments which have valid values, iAltLZOrWZ='..iAltLZOrWZ..'; iXAdjust='..iXAdjust..'; iZAdjust='..iZAdjust) end
+                                        tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX][iSegmentZ] = {[1] = iAltPlateau, [2] = iAltLZOrWZ}
+                                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                        return iAltPlateau, iAltLZOrWZ
+                                    else
+                                        --Redundancy
+                                        iFailureCount = iFailureCount + 1
+                                        if iFailureCount >= 20 then
+                                            M28Utilities.ErrorHandler('Have a valid plateau for SegmentX-Z='..(iSegmentX + iXAdjust)..'-'..(iSegmentZ + iZAdjust)..' but not a valid land or water zone, and have failed '..iFailureCount..' times now (will reset count after this)')
+                                            iFailureCount = 0
+                                        end
+                                    end
                                 else
-                                    M28Utilities.ErrorHandler('Have a valid plateau for SegmentX-Z='..(iSegmentX + iXAdjust)..'-'..(iSegmentZ + iZAdjust)..' but not a valid land or water zone')
+                                    if iFailureCount >= 20 then
+                                        M28Utilities.ErrorHandler('Have a valid land or WZ for SegmentX-Z='..(iSegmentX + iXAdjust)..'-'..(iSegmentZ + iZAdjust)..' but not a valid plateau, and have failed '..iFailureCount..' times now (will reset count after this)')
+                                        iFailureCount = 0
+                                    end
                                 end
                             end
                         end
@@ -562,17 +576,16 @@ function GetClosestPlateauOrZeroAndZoneToPosition(tPosition)
                 if iAdjust >= 100 then M28Utilities.ErrorHandler('Likely error locating valid segment for iSegmentX-Z='..iSegmentX..'-'..iSegmentZ) end
             end
         else
-            --Have a valid plateau so should have a valid land or water zone
+            --Have a valid plateau and land or water zone
             if bDebugMessages == true then LOG(sFunctionRef..': Have a valid plateau, tLandZoneBySegment='..(tLandZoneBySegment[iSegmentX][iSegmentZ] or 'nil')..'; tWaterZoneBySegment='..(tWaterZoneBySegment[iSegmentX][iSegmentZ] or 'nil')) end
             if (tLandZoneBySegment[iSegmentX][iSegmentZ] or 0) == 0 then
-                --Presume it is a water zone
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return 0, tWaterZoneBySegment[iSegmentX][iSegmentZ]
             else
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return iPlateau, tLandZoneBySegment[iSegmentX][iSegmentZ]
             end
-        end
+            end
     end
 end
 
@@ -4550,10 +4563,6 @@ function SetupMap()
     ForkThread(ReclaimManager)
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-end
-
-function UpdatePlateausToExpandTo(aiBrain)
-    M28Utilities.ErrorHandler('To add code')
 end
 
 --function GetDistanceFromStartAdjustedForDistanceFromMid()  end -- have replaced with GetModDistanceFromStart

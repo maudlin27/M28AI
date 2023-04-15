@@ -484,6 +484,7 @@ function RemoveEntriesFromArrayBasedOnCondition(tArray, fnKeepCurEntry)
     return tArray;
 end
 
+
 function DoesCategoryContainCategory(iCategoryWanted, iCategoryToSearch, bOnlyContainsThisCategory)
     --Not very efficient so consider alternative such as recording variables if going to be running lots of times
     local tsUnitIDs = EntityCategoryGetUnitList(iCategoryToSearch)

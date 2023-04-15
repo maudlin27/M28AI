@@ -225,11 +225,13 @@ function OnUnitDeath(oUnit)
                             end
                         end
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
-                        --Record mex position first as it is a forked thread so may lose position if the unit dies
-                        local tMexPosition = {oUnit:GetPosition()[1], oUnit:GetPosition()[2], oUnit:GetPosition()[3]}
-                        if bDebugMessages == true then LOG(sFunctionRef..': About to call OnMexDeath via fork, tMexPosition='..repru(tMexPosition)) end
-                        if tMexPosition[1] == 0 and tMexPosition[2] == 0 then M28Utilities.ErrorHandler('Dont have a valid mex position - mex is showing as 0,0,0') end
-                        ForkThread(M28Building.OnMexDeath, tMexPosition)
+                        --Record mex position first as it is a forked thread so may lose position if the unit dies; however ignore if looks like an upgrading mex unit
+                        if not(oUnit.CanTakeDamage == false and oUnit.IsUpgrade == true) then
+                            local tMexPosition = {oUnit:GetPosition()[1], oUnit:GetPosition()[2], oUnit:GetPosition()[3]}
+                            if bDebugMessages == true then LOG(sFunctionRef..': About to call OnMexDeath via fork, tMexPosition='..repru(tMexPosition)) end
+                            if tMexPosition[1] == 0 and tMexPosition[2] == 0 then M28Utilities.ErrorHandler('Dont have a valid mex position - mex is showing as 0,0,0') end
+                            ForkThread(M28Building.OnMexDeath, tMexPosition) --Need to fork thread or else get an error when try to wait in the building logic
+                        end
                         --[[local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
                         if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]) == false then
                             for iMexLocation, tMexLocation in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations] do
@@ -315,7 +317,11 @@ function OnUnitDeath(oUnit)
                                 --Upgrade tracking (even if have run this already)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will check if upgrade tracking needs updating, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                                 M28Team.UpdateUpgradeTrackingOfUnit(oUnit, true)
-                                if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then M28Economy.UpdateLandZoneM28MexByTechCount(oUnit, true) end
+                                if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
+                                    M28Economy.UpdateLandZoneM28MexByTechCount(oUnit, true)
+                                    --Update upgrading mexes
+                                    M28Economy.UpdateTableOfUpgradingMexesForTeam(oUnit:GetAIBrain().M28Team)
+                                end
                                 M28Economy.UpdateHighestFactoryTechLevelForDestroyedUnit(oUnit) --checks if it was a factory as part of this function
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileLand, oUnit.UnitId) then
                                 --If unit was traveling to another land zone, then update that land zone so it no longer things the unit is traveling here
@@ -931,7 +937,7 @@ function OnCreate(oUnit)
                     end
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
                     --Treat location as having buildings on it (if we were treating it as unbuilt previously)
-                    M28Building.OnMexConstructionStarted(oUnit)
+                    ForkThread(M28Building.OnMexConstructionStarted, oUnit)
                 end
             end
 
@@ -943,6 +949,9 @@ function OnCreate(oUnit)
                     ForkThread(M28Economy.UpdateLandZoneM28MexByTechCount, oUnit)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId) then
                     M28Air.AddPriorityAirDefenceTarget(oUnit)
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) then
+                    --Weapon priorities
+                    M28UnitInfo.SetUnitTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityGunship)
                 end
             end
         end

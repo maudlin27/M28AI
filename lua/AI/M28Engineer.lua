@@ -764,10 +764,10 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iCategoryToBuild, iM
     local sBlueprintToBuild = M28Factory.GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oEngineer, false, false, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure)
 
     if sBlueprintToBuild == nil then
-        M28Utilities.ErrorHandler('sBlueprintToBuild is nil, could happen e.g. if try and get sparky to build sxomething it cant - refer to log for more details')
+        M28Utilities.ErrorHandler('sBlueprintToBuild is nil, could happen e.g. if try and get sparky to build sxomething it cant or try to build support factory without the HQ - refer to log for more details')
         if not(iCategoryToBuild) then LOG(sFunctionRef..': No category to build. oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; UC='..GetEngineerUniqueCount(oEngineer))
         else
-            LOG(sFunctionRef..': Had category to build. oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; UC='..GetEngineerUniqueCount(oEngineer)..'; All blueprints that satisfy the category='..repru(EntityCategoryGetUnitList(iCategoryToBuild)))
+            LOG(sFunctionRef..': Had category to build. oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; UC='..GetEngineerUniqueCount(oEngineer)..'; All blueprints that satisfy the category='..repru(EntityCategoryGetUnitList(iCategoryToBuild))..'; Engineer highest land factory tech='..oEngineer:GetAIBrain()[M28Economy.refiOurHighestLandFactoryTech])
         end
     else
 
@@ -2566,7 +2566,6 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
-
     if iTotalBuildPowerWanted < 0 then M28Utilities.ErrorHandler('Have negative BP wanted') end
 
     --Reduce the build power wanted by the existing build power assigned to that action for the LZ, unless bBPIsInAdditionToExisting is true
@@ -2598,7 +2597,16 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
             local iCurEngiTechLevel
             local iCurEngiBuildPower
             local aiBrain = tEngineersOfTechWanted[1]:GetAIBrain()
-            local iCategoryWanted = GetCategoryToBuildOrAssistFromAction(iActionToAssign, iMinTechWanted, aiBrain)
+            local iMinCategoryTechLevel = iMinTechWanted
+            --Override tech level if we lack the relevant factory HQ
+            if iActionToAssign == refActionBuildLandFactory or iActionToAssign == refActionBuildSecondLandFactory then
+                iMinCategoryTechLevel = math.max(1, math.min(iMinTechWanted, (aiBrain[M28Economy.refiOurHighestLandFactoryTech] or 1)))
+            elseif iActionToAssign == refActionBuildAirFactory then
+                iMinCategoryTechLevel = math.max(1, math.min(iMinTechWanted, (aiBrain[M28Economy.refiOurHighestAirFactoryTech] or 1)))
+            elseif iActionToAssign == refActionBuildNavalFactory then
+                iMinCategoryTechLevel = math.max(1, math.min(iMinTechWanted, (aiBrain[M28Economy.refiOurHighestNavalFactoryTech] or 1)))
+            end
+            local iCategoryWanted = GetCategoryToBuildOrAssistFromAction(iActionToAssign, iMinCategoryTechLevel, aiBrain)
 
             function UpdateBPTracking()
                 iCurEngiTechLevel = M28UnitInfo.GetUnitTechLevel(tEngineersOfTechWanted[iEngiCount])

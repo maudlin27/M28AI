@@ -402,8 +402,8 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
 
         for iUnit, oUnit in tWZTeamData[M28Map.subrefWZTAlliedUnits] do
             if bDebugMessages == true then LOG(sFunctionRef..': Considering Allied unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; Combat threat rating='..M28UnitInfo.GetCombatThreatRating({ oUnit }, true)) end
-            --Simplification to approach taken for land zone logic - will ignore threat (since only relevant for aeon land scout)
-            if oUnit[M28UnitInfo.refiDFRange] >  tWZTeamData[M28Map.subrefWZBestAlliedDFRange] then  tWZTeamData[M28Map.subrefWZBestAlliedDFRange] = oUnit[M28UnitInfo.refiDFRange] end
+
+            if oUnit[M28UnitInfo.refiDFRange] >  tWZTeamData[M28Map.subrefWZBestAlliedDFRange] and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout, oUnit.UnitId)) and EntityCategoryContains(M28UnitInfo.refCategoryNavalSurface + categories.HOVER + M28UnitInfo.refCategorySeraphimDestroyer, oUnit.UnitId) then  tWZTeamData[M28Map.subrefWZBestAlliedDFRange] = oUnit[M28UnitInfo.refiDFRange] end
             if oUnit[M28UnitInfo.refiAntiNavyRange] >  tWZTeamData[M28Map.subrefWZBestAlliedSubmersibleRange] and EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId) then  tWZTeamData[M28Map.subrefWZBestAlliedSubmersibleRange] = oUnit[M28UnitInfo.refiAntiNavyRange] end
         end
     end
@@ -1255,7 +1255,15 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
         end
 
         if M28Utilities.IsTableEmpty(tTempOtherUnits) == false then
-            M28Utilities.ErrorHandler('To add logic to handle non engineers in a WZ')
+            --Likely have had land units that are on a location thought to be water due to flaws in the navigational mesh/pathfinding approach - only issue new orders if they have none
+            local tRallyPoint = tWZTeamData[M28Map.reftClosestFriendlyBase]
+            for iUnit, oUnit in tTempOtherUnits do
+                M28Orders.UpdateRecordedOrders(oUnit)
+                if oUnit[M28Orders.refiOrderCount] == 0 then
+                    --Move to nearest allied base
+                    M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 30, false, 'BckLRP')
+                end
+            end
         end
 
         --Decide where to send any unassigned land pathable units
@@ -1829,7 +1837,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
         end
 
 
-        local iEnemyBestRange = math.max(tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange], tWZTeamData[M28Map.subrefWZBestEnemyDFRange])
+        local iEnemyBestRange = math.max(tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange], tWZTeamData[M28Map.subrefWZBestEnemyDFRange], iEnemyBestAntiNavyRange, iEnemyBestCombatRange)
 
         if tWZTeamData[M28Map.subrefWZBestAlliedDFRange] > iEnemyBestRange then
             --Scenario 1 - our ships outrange enemy
@@ -1924,6 +1932,14 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                         end
                     else
                         M28Utilities.ErrorHandler('We somehow think we outrange the enemy with surface units, but have no units with a long range')
+
+                        if bDebugMessages == true then
+                            --List out every unit
+                            LOG(sFunctionRef..': Will list out every unit in combat units of use, tWZTeamData[M28Map.subrefWZBestAlliedDFRange]='..(tWZTeamData[M28Map.subrefWZBestAlliedDFRange] or 'nil')..'; iEnemyBestAntiNavyRange='..(iEnemyBestAntiNavyRange or 'nil')..'; tWZTeamData[M28Map.subrefWZBestEnemyDFRange]='..(tWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 'nil')..'; iEnemyBestRange='..iEnemyBestRange)
+                            for iUnit, oUnit in tCombatUnitsOfUse do
+                                LOG(sFunctionRef..': iUnit='..iUnit..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; AntiNavy range='..(oUnit[M28UnitInfo.refiAntiNavyRange] or 0)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 0))
+                            end
+                        end
                     end
                 end
             end
