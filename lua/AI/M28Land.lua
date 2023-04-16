@@ -2885,8 +2885,8 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
             elseif EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) then
                 --Structure logic - handled separately e.g. via M28Factory for factories
             else
+                --Unexpected unit type - could e.g. be a naval unit on a location thought to be a land zone; only flag as error if unit has no orders
                 table.insert(tTempOtherUnits, oUnit)
-                LOG('Adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to table of temp other units - need to add logic to handle such a unit')
                 bLandZoneOrAdjHasUnitsWantingScout = true
             end
         end
@@ -3030,7 +3030,50 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
         end
 
         if M28Utilities.IsTableEmpty(tTempOtherUnits) == false then
-            M28Utilities.ErrorHandler('To add logic to handle non engineers in a LZ')
+            --If have temp other units then manage these
+            local tNearestWZ
+            if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false then
+                for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
+                    local iNearestWZRef = tSubtable[M28Map.subrefAWZRef]
+                    tNearestWZ = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iNearestWZRef]][M28Map.subrefPondWaterZones][iNearestWZRef][M28Map.subrefWZMidpoint]
+                    break
+                end
+            end
+            for iUnit, oUnit in tTempOtherUnits do
+                M28Orders.UpdateRecordedOrders(oUnit)
+                if oUnit[M28Orders.refiOrderCount] == 0 then
+                    --Is this a naval unit?
+                    if EntityCategoryContains(M28UnitInfo.refCategoryAllNavy, oUnit.UnitId) then
+                        if not(tNearestWZ) then
+                            M28Utilities.ErrorHandler('Have naval unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' in land zone with no orders and no adjacent WZ, will move randomly')
+
+                            local tRandomTarget = oUnit:GetPosition()
+                            local iRandX = math.random(10, 30)
+                            if math.random(0,1) == 0 then iRandX = iRandX * -1 end
+                            local iRandZ = math.random(10, 30)
+                            if math.random(0,1) == 0 then iRandZ = iRandZ * -1 end
+                            tRandomTarget[1] = tRandomTarget[1] + iRandX
+                            tRandomTarget[3] = tRandomTarget[3] + iRandZ
+                            tRandomTarget[2] = GetSurfaceHeight(tRandomTarget[1], tRandomTarget[3])
+
+                            M28Orders.IssueTrackedMove(oUnit, tRandomTarget, 5, false, 'RandNM', false)
+                        else
+                            M28Orders.IssueTrackedMove(oUnit, tNearestWZ, 5, false, 'NavInLZBckup', false)
+                        end
+                    else
+                        M28Utilities.ErrorHandler('Have non naval unit with no orders that is of an unrecognised category in LZ, Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; will move randomly')
+                        local tRandomTarget = oUnit:GetPosition()
+                        local iRandX = math.random(10, 30)
+                        if math.random(0,1) == 0 then iRandX = iRandX * -1 end
+                        local iRandZ = math.random(10, 30)
+                        if math.random(0,1) == 0 then iRandZ = iRandZ * -1 end
+                        tRandomTarget[1] = tRandomTarget[1] + iRandX
+                        tRandomTarget[3] = tRandomTarget[3] + iRandZ
+                        tRandomTarget[2] = GetSurfaceHeight(tRandomTarget[1], tRandomTarget[3])
+                        M28Orders.IssueTrackedMove(oUnit, tRandomTarget, 5, false, 'RandLM', false)
+                    end
+                end
+            end
         end
     else
         --No allied units - if this was flagged as an expansion LZ then clear the flag
@@ -3065,6 +3108,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
     M28Engineer.ConsiderLandOrWaterZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, iLandZone, tEngineers) --Should update the land zone engineer requirements, even if tEngineers itself is empty
 
     ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tScouts, bLandZoneOrAdjHasUnitsWantingScout)
+
 
     --Update visual based on omni
     if tLZTeamData[M28Map.refiOmniCoverage] > 30 then tLZTeamData[M28Map.refiTimeLastHadVisual] = GetGameTimeSeconds() end

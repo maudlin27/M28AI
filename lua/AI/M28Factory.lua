@@ -208,7 +208,7 @@ function GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFacto
 end
 
 function AdjustBlueprintForOverrides(aiBrain, sBPIDToBuild, tLZTeamData, iFactoryTechLevel)
-    --Blacklisted units
+    --Blacklisted units (done on land subteam basis - in theory should work ok if use naval units or air units here as well)
     if M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subrefBlueprintBlacklist][sBPIDToBuild] then
         sBPIDToBuild = nil
     else
@@ -1011,8 +1011,10 @@ function DetermineWhatToBuild(aiBrain, oFactory)
         sBPIDToBuild = GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     elseif EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oFactory.UnitId) then
         sBPIDToBuild = GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
+    elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oFactory.UnitId) then
+        sBPIDToBuild = GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     else
-        M28Utilities.ErrorHandler('Need to add code')
+        M28Utilities.ErrorHandler('Need to add code - unexpected factory type')
     end
 
         return sBPIDToBuild
@@ -1360,5 +1362,218 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
+    local sFunctionRef = 'GetBlueprintToBuildForNavalFactory'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+    local iCategoryToBuild
+    local iWaterZone = M28Map.GetWaterZoneFromPosition(oFactory:GetPosition())
+    local iPond = M28Map.tiPondByWaterZone[iWaterZone]
+    local tWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone]
+    local iTeam = aiBrain.M28Team
+    local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
+    local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)
+
+    local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
+    local bHaveLowPower = M28Conditions.HaveLowPower(iTeam)
+    local bConsiderBuildingShieldOrStealthBoats = true
+    --Shield boat needs 10 energy per tick; same for stealth boat; dont want this to account for more than 20% of gross energy; so want 50 gross energy per tick per shield boat for it to be <20%
+    if bHaveLowPower or iFactoryTechLevel == 1 then
+        bConsiderBuildingShieldOrStealthBoats = false
+    else
+        local iCurShieldAndStealthBoats = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryShieldBoat + M28UnitInfo.refCategoryStealthBoat)
+        if aiBrain[M28Economy.refiGrossEnergyBaseIncome] < (1 + iCurShieldAndStealthBoats) * 50 then bConsiderBuildingShieldOrStealthBoats = false
+        elseif iCurShieldAndStealthBoats >= 10 then
+            --Want to be a T3 factory and have at least 5 T3 naval units before building more shield boats
+            bConsiderBuildingShieldOrStealthBoats = false
+            if iFactoryTechLevel >= 3 and iCurShieldAndStealthBoats <= 22 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH3) >= 10 then
+                bConsiderBuildingShieldOrStealthBoats = true
+            end
+        end
+    end
+
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel='..iFactoryTechLevel..'; Highest friendly factory tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
+
+    iCategoryToBuild = M28UnitInfo.refCategoryEngineer --Placeholder
+    local sBPIDToBuild
+    local iCurrentConditionToTry = 0
+
+    --subfunctions to mean we can do away with the 'current condition == 1, == 2.....==999 type approach making it much easier to add to
+    function ConsiderBuildingCategory(iCategoryToBuild)
+        sBPIDToBuild = GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oFactory, nil, nil, nil, nil, false)
+        if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..' Factory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; WZ='..iWaterZone..'; iCurrentConditionToTry='..iCurrentConditionToTry..'; sBPIDToBuild before adjusting for override='..(sBPIDToBuild or 'nil')) end
+        if sBPIDToBuild then
+            sBPIDToBuild = AdjustBlueprintForOverrides(aiBrain, sBPIDToBuild, tWZTeamData, iFactoryTechLevel)
+        end
+        if sBPIDToBuild then
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) --Assumes we will end code if we get to this point
+            return sBPIDToBuild
+        end
+    end
+
+    function ConsiderUpgrading()
+        sBPIDToBuild = M28UnitInfo.GetUnitUpgradeBlueprint(oFactory, true)
+        return sBPIDToBuild
+    end
+
+
+    --MAIN BUILDER LOGIC:
+    --Cycle through each naval zone and decide what units to get
+    local iCombatCategory
+    if iFactoryTechLevel <= 1 then iCombatCategory = M28UnitInfo.refCategoryFrigate
+    elseif iFactoryTechLevel <= 2 then
+        if math.random(0,1) == 1 then  iCombatCategory = M28UnitInfo.refCategoryFrigate else iCombatCategory = M28UnitInfo.refCategoryDestroyer end
+    else
+        --T3+
+        local iCurDestroyerAndBattlecruiser = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryDestroyer + M28UnitInfo.refCategoryBattlecruiser)
+        local iCurFrigates = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFrigate)
+        local iCurBattleships = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBattleship)
+        if iCurFrigates == 0 or iCurFrigates <= iCurDestroyerAndBattlecruiser then
+            iCombatCategory = M28UnitInfo.refCategoryFrigate
+        elseif iCurDestroyerAndBattlecruiser == 0 or iCurDestroyerAndBattlecruiser < iCurBattleships then
+            iCombatCategory = M28UnitInfo.refCategoryDestroyer + M28UnitInfo.refCategoryBattlecruiser
+        else
+            iCombatCategory = M28UnitInfo.refCategoryBattleship
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished getting combat category, iCurDestroyerAndBattlecruiser='..iCurDestroyerAndBattlecruiser..'; iCurFrigates='..iCurFrigates..'; iCurBattleships='..iCurBattleships) end
+    end
+
+    --First consider zone we are in
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] > 0 then
+        if ConsiderBuildingCategory(M28UnitInfo.refCategoryAntiNavy) then return sBPIDToBuild end
+    end
+
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if tWZTeamData[M28Map.subrefWZThreatEnemySurface] > 0 then
+        if ConsiderBuildingCategory(M28UnitInfo.refCategoryFrigate) then return sBPIDToBuild end --Want frigate as enemy is close
+    end
+
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 then
+        if ConsiderBuildingCategory(M28UnitInfo.refCategoryNavalAA) then return sBPIDToBuild end
+    end
+
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if bConsiderBuildingShieldOrStealthBoats and tWZTeamData[M28Map.refbWZWantsMobileShield] then
+        if ConsiderBuildingCategory(M28UnitInfo.refCategoryShieldBoat) then return sBPIDToBuild end
+    end
+
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if bConsiderBuildingShieldOrStealthBoats and tWZTeamData[M28Map.refbWZWantsMobileStealth] then
+        if ConsiderBuildingCategory(M28UnitInfo.refCategoryStealthBoat) then return sBPIDToBuild end
+    end
+
+   --Have at least 1 of the current combat category unit
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if aiBrain:GetCurrentUnits(iCombatCategory) == 0 then
+        if ConsiderBuildingCategory(iCombatCategory) then return sBPIDToBuild end
+    end
+
+    --Upgrade naval fac as priority if enemy has better navy tech than us or we ahve lots of naval units
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': iCurrentConditionToTry='..iCurrentConditionToTry..'; About ot check if want to upgrade factory, iFactoryTechLevel='..iFactoryTechLevel..'; Is table of active upgrades for WZ empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefActiveUpgrades]))) end
+    if iFactoryTechLevel < 3 and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefActiveUpgrades]) then
+        local iUpgradeThreatThreshold
+        local iGrossMassThreshold
+        if iFactoryTechLevel == 1 then
+            iUpgradeThreatThreshold = 1000
+            iGrossMassThreshold = 4
+        else
+            iUpgradeThreatThreshold = 6000
+            iGrossMassThreshold = 10
+        end
+        if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech] > iFactoryTechLevel then iUpgradeThreatThreshold = iUpgradeThreatThreshold * 0.75 end
+        if bDebugMessages == true then LOG(sFunctionRef..': tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]='..tostring(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] or false)..'; tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]='..tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]..'; iUpgradeThreatThreshold='..iUpgradeThreatThreshold) end
+        if not(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]) or tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] >= iUpgradeThreatThreshold or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 20 then
+            --Do we have enough mass income to justify upgrading?
+            if bHaveLowMass then iGrossMassThreshold = iGrossMassThreshold * 1.25 end
+            --Lower threshold if enemy has better tech
+            if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech] then iGrossMassThreshold = iGrossMassThreshold * 0.75 end
+            if bDebugMessages == true then LOG(sFunctionRef..': Gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; iGrossMassThreshold='..iGrossMassThreshold) end
+            if aiBrain[M28Economy.refiGrossMassBaseIncome] >= iGrossMassThreshold then
+                if ConsiderUpgrading() then return sBPIDToBuild end
+            else
+                --Lower threshold if we have built lots of T2 units
+                if bDebugMessages == true then LOG(sFunctionRef..': Lifetime build amount of naval units='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryNavalSurface * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))) end
+                if M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryNavalSurface * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) >= 14 then
+                    iGrossMassThreshold = iGrossMassThreshold * 0.75
+                    if aiBrain[M28Economy.refiGrossMassBaseIncome] >= iGrossMassThreshold then
+                        if ConsiderUpgrading() then return sBPIDToBuild end
+                    end
+                end
+            end
+        end
+    end
+
+    --Cycle through each adjacent water zone
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
+        local iOtherWZ
+        local iOtherPond
+
+        for iEntry, tSubtable in tWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+            if tSubtable[M28Map.subrefbIsWaterZone] then
+                iOtherPond = tSubtable[M28Map.subrefiPlateauOrPond]
+                if iOtherPond == iPond then
+                    iOtherWZ = tSubtable[M28Map.subrefiLandOrWaterZoneRef]
+                    local tOtherWZTeamData = M28Map.tPondDetails[iOtherPond][M28Map.subrefPondWaterZones][iOtherWZ][M28Map.subrefWZTeamData][iTeam]
+                    if tOtherWZTeamData[M28Map.subrefbWZWantsSupport] then
+                        if tOtherWZTeamData[M28Map.subrefWZThreatEnemySubmersible] > tOtherWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy] * 0.75 then
+                            if ConsiderBuildingCategory(M28UnitInfo.refCategoryAntiNavy) then return sBPIDToBuild end
+                        end
+                        if tOtherWZTeamData[M28Map.subrefWZThreatEnemySurface] > tOtherWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] * 0.75 then
+                            if ConsiderBuildingCategory(iCombatCategory) then return sBPIDToBuild end
+                        end
+                    end
+                    if tOtherWZTeamData[M28Map.subrefWZMAAThreatWanted] > 0 then
+                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryNavalAA) then return sBPIDToBuild end
+                    end
+                    if tOtherWZTeamData[M28Map.refbWZWantsMobileShield] then
+                        if bConsiderBuildingShieldOrStealthBoats and ConsiderBuildingCategory(M28UnitInfo.refCategoryShieldBoat) then return sBPIDToBuild end
+                    end
+                    if bConsiderBuildingShieldOrStealthBoats and tOtherWZTeamData[M28Map.refbWZWantsMobileStealth] then
+                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryStealthBoat) then return sBPIDToBuild end
+                    end
+                end
+            end
+        end
+    end
+
+    --Engis if high mass
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if not(bHaveLowMass) and tWZTeamData[M28Map.subrefTbWantBP] then
+        if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+    end
+
+    --Bombardment units
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if iFactoryTechLevel >= 3 then
+        if not(bHaveLowMass) or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBattleship) <= 1 then
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryBattleship) then return sBPIDToBuild end
+        end
+    elseif iFactoryTechLevel == 2 then
+
+        if EntityCategoryContains(categories.UEF + categories.SERAPHIM, oFactory.UnitId) then
+            if not(bHaveLowMass) or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryCruiser) <= 4 then
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryCruiser) then return sBPIDToBuild end
+            end
+        else
+            if not(bHaveLowMass) or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryCruiser) <= 4 then
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryDestroyer) then return sBPIDToBuild end
+            end
+        end
+    else
+        if not(bHaveLowMass) or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFrigate) <= 10 then
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryFrigate) then return sBPIDToBuild end
+        end
+    end
+
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

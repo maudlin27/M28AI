@@ -113,10 +113,10 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         subrefLZMinSegZ = 'LZMinSegZ'
         subrefLZMaxSegX = 'LZMaxSegX'
         subrefLZMaxSegZ = 'LZMaxSegX'
-        subrefLZHydroLocations = 'HydroLoc' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of hydro locations in the LZ
-        subrefLZHydroUnbuiltLocations = 'HydroAvailLoc' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of hydro locations in the LZ that dont have buildings on them
-        subrefLZBuildLocationsBySize = 'BuildLoc' --contains a table, with the index being the unit's highest footprint size, which returns a location that should be buildable in this zone;  only populated on demand (i.e. if we want to try and build something there by references to the predefined location), e.g. tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZBuildLocationsBySize][iSize]
-        subrefLZBuildLocationSegmentCountBySize = 'BuildSegment' --[x] is the building size considered, returns Number of segments that we have considered when identifying segment build locations for the land zone for that particular size
+        subrefHydroLocations = 'HydroLoc' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of hydro locations in the LZ
+        subrefHydroUnbuiltLocations = 'HydroAvailLoc' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of hydro locations in the LZ that dont have buildings on them
+        subrefBuildLocationsBySize = 'BuildLoc' --contains a table, with the index being the unit's highest footprint size, which returns a location that should be buildable in this zone;  only populated on demand (i.e. if we want to try and build something there by references to the predefined location), e.g. tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefBuildLocationsBySize][iSize]
+        subrefBuildLocationSegmentCountBySize = 'BuildSegment' --[x] is the building size considered, returns Number of segments that we have considered when identifying segment build locations for the land zone for that particular size
         subrefBuildLocationBlacklist = 'Blacklst' --[x] is the entry, returns a subtable
             subrefBlacklistLocation = 1
             subrefBlacklistSize = 2 --radius of the square, i.e. if do a square around the location where eaech side is this * 2 in length, then will cover the blacklist location
@@ -350,6 +350,8 @@ tPondDetails = {}
             subrefWZThreatAlliedAA = 'AlAA'
             subrefWZBestAlliedDFRange = 'AlDFRnge'
             subrefWZBestAlliedSubmersibleRange = 'AlANavRng'
+            refiLastBombardmentSearchRange = 'WZBmbRng' --Last range used for searching for bmobardment targets
+            refbLastBombardmentSearchRangeSuccess = 'WZBmbSuc' --true if last time searched for enemies aroudn a location it found results
 
             subrefWZCombatThreatWanted = 'CombWant'
             subrefWZMAAThreatWanted = 'MAAWant'
@@ -962,12 +964,12 @@ local function AddNewLandZoneReferenceToPlateau(iPlateau)
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexCount] = 0
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexLocations] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefMexUnbuiltLocations] = {}
-    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZHydroLocations] = {}
-    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZHydroUnbuiltLocations] = {}
+    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefHydroLocations] = {}
+    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefHydroUnbuiltLocations] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefTotalMassReclaim] = 0
-    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZBuildLocationsBySize] = {}
+    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefBuildLocationsBySize] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefBuildLocationBlacklist] = {}
-    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZBuildLocationSegmentCountBySize] = {}
+    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefBuildLocationSegmentCountBySize] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZSegments] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTotalSegmentCount] = 0
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefTotalMassReclaim] = 0
@@ -2065,9 +2067,35 @@ local function RecordHydroInLandZones()
             if bDebugMessages == true then LOG(sFunctionRef..': Considering iHydro='..iHydro..'; tHydro='..repru(tHydro)..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
             if iLandZone > 0 then
                 if bDebugMessages == true then LOG(sFunctionRef..': Have a hydro location, CanBuildOnHydro='..tostring(M28Conditions.CanBuildOnHydroLocation(tHydro))) end
-                table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZHydroLocations], tHydro)
+                table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefHydroLocations], tHydro)
                 if M28Conditions.CanBuildOnHydroLocation(tHydro) then
-                    table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZHydroUnbuiltLocations], tHydro)
+                    table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefHydroUnbuiltLocations], tHydro)
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+local function RecordHydroInWaterZones()
+    --Updates land zone data to include details of any hydro locations in the land zone
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordHydroInWaterZones'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if M28Utilities.IsTableEmpty(tHydroPoints) == false then
+        local iWaterZone
+
+        for iHydro, tHydro in tHydroPoints do
+            iWaterZone = GetWaterZoneFromPosition(tHydro)
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering iHydro='..iHydro..'; tHydro='..repru(tHydro)..'; iWaterZone='..(iWaterZone or 'nil')) end
+            if iWaterZone > 0 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Have a hydro location, CanBuildOnHydro='..tostring(M28Conditions.CanBuildOnHydroLocation(tHydro))) end
+                if not(tPondDetails[tiPondByWaterZone[iWaterZone]][subrefPondWaterZones][iWaterZone][subrefHydroLocations]) then tPondDetails[tiPondByWaterZone[iWaterZone]][subrefPondWaterZones][iWaterZone][subrefHydroLocations] = {} end
+                table.insert(tPondDetails[tiPondByWaterZone[iWaterZone]][subrefPondWaterZones][iWaterZone][subrefHydroLocations], tHydro)
+                if M28Conditions.CanBuildOnHydroLocation(tHydro) then
+                    if not(tPondDetails[tiPondByWaterZone[iWaterZone]][subrefPondWaterZones][iWaterZone][subrefHydroUnbuiltLocations]) then tPondDetails[tiPondByWaterZone[iWaterZone]][subrefPondWaterZones][iWaterZone][subrefHydroUnbuiltLocations] = {} end
+                    table.insert(tPondDetails[tiPondByWaterZone[iWaterZone]][subrefPondWaterZones][iWaterZone][subrefHydroUnbuiltLocations], tHydro)
                 end
             end
         end
@@ -4196,6 +4224,7 @@ function SetupWaterZones()
 
         RecordWaterZoneMidpointAndMinMaxPositions()
         if bDebugMessages == true then LOG(sFunctionRef..': Finished recording water zone midpoint etc., system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
+        RecordHydroInWaterZones()
         RecordWaterZoneAdjacentLandZones()
         RecordAdjacentWaterZones()
         if bDebugMessages == true then LOG(sFunctionRef..': Finished recording adjacency for land zones vs water zones, system time='..GetSystemTimeSecondsOnlyForProfileUse()) end

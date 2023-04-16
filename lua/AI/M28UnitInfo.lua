@@ -99,6 +99,7 @@ refCategoryLandHQ =refCategoryLandFactory - categories.SUPPORTFACTORY
 refCategoryAirFactory = categories.AIR * categories.FACTORY * categories.STRUCTURE - categories.ORBITALSYSTEM --Novax is an air factory, so excluded from being treated as an air factory by my logic
 refCategoryAirHQ = refCategoryAirFactory - categories.SUPPORTFACTORY
 refCategoryNavalFactory = categories.NAVAL * categories.FACTORY * categories.STRUCTURE
+refCategoryNavalHQ = refCategoryNavalFactory - categories.SUPPORTFACTORY
 refCategoryFactory = refCategoryLandFactory + refCategoryAirFactory + refCategoryNavalFactory
 refCategoryAllHQFactories = refCategoryFactory - categories.SUPPORTFACTORY
 refCategoryQuantumGateway = categories.STRUCTURE * categories.GATE * categories.TECH3 * categories.FACTORY
