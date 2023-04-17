@@ -1396,6 +1396,8 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
             end
         end
     end
+    local bUseFrigatesAsScouts = M28Team.tTeamData[iTeam][M28Team.subrefbUseFrigatesAsScoutsByPond][iPond]
+
 
 
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel='..iFactoryTechLevel..'; Highest friendly factory tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
@@ -1540,6 +1542,9 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                     end
                     if bConsiderBuildingShieldOrStealthBoats and tOtherWZTeamData[M28Map.refbWZWantsMobileStealth] then
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryStealthBoat) then return sBPIDToBuild end
+                    end
+                    if bUseFrigatesAsScouts and tOtherWZTeamData[M28Map.refbWantLandScout] then
+                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryFrigate) then return sBPIDToBuild end
                     end
                 end
             end

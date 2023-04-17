@@ -90,6 +90,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefbEnemyBuiltOmni = 'M28EnemyBuiltOmni' --true if any enemy has built omni at any point in the game (used as basic threshold for deciding whether to build things like deceivers)
     subrefiTimeOfScoutingShortlistUpdate = 'M28ScoutShortlistUpd' --Gametimeseconds that last updated the list of scouting locations to update
     subreftLandAndWaterZoneScoutingShortlist = 'M28ScoutShortlistLWZ' --entries 1,2,... (in no particular order) - returns {PlateauOrZero, LandOrWZRef} for any land or water zones where scouting is overdue
+    subrefbUseFrigatesAsScoutsByPond = 'M28UseFrgAsScout' --[x] is the pond ref, returns true if frigates should be used as scouts
 
     --Notable unit count and threat details
     refbDefendAgainstArti = 'M28TeamDefendAgainstArti' --true if enemy has t3 arti or equivelnt
@@ -449,6 +450,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][reftEnemySMD] = {}
     tTeamData[iTotalTeamCount][subreftTeamEngineersBuildingExperimentals] = {}
     tTeamData[iTotalTeamCount][refiLastFailedIslandDropTime] = {}
+    tTeamData[iTotalTeamCount][subrefbUseFrigatesAsScoutsByPond] = {}
 
 
 
@@ -1890,6 +1892,7 @@ function WaterZoneTeamInitialisation(iTeam)
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZbContainsNavalBuildLocation] = false --true if contains a naval build location for a friendly M28AI
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTValue] = 0 --Value of the WZ, used to prioritise sending untis to different water zones; likely to be based on distance to core base water zone
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiRadarCoverage] = 0
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiSonarCoverage] = 0
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiOmniCoverage] = 0
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiRecentlyFailedScoutAttempts] = 0
             --tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refoBestRadar] --nil by default

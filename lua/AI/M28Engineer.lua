@@ -78,8 +78,8 @@ refActionReclaimFriendlyUnit = 22
     refActionBuildT3MexOverT2 = 23
     refActionUpgradeHQ = 24 --Assists an HQ with its upgrade
     refActionReclaimTrees = 25
-    refActionBuildT1Sonar = 26
-    refActionBuildT2Sonar = 27
+refActionBuildT1Sonar = 26
+refActionBuildT2Sonar = 27
     refActionAssistNuke = 28
 refActionBuildShield = 29
     refActionBuildT3ArtiPower = 30
@@ -135,6 +135,8 @@ tiActionCategory = {
     [refActionBuildT3Radar] = M28UnitInfo.refCategoryT3Radar,
     [refActionAssistSMD] = M28UnitInfo.refCategorySMD,
     [refActionBuildEnergyStorage] = M28UnitInfo.refCategoryEnergyStorage,
+    [refActionBuildT1Sonar] = M28UnitInfo.refCategoryT1Sonar,
+    [refActionBuildT2Sonar] = M28UnitInfo.refCategoryT2Sonar,
     [refActionBuildShield] = M28UnitInfo.refCategoryFixedShield,
     [refActionBuildNavalFactory] = M28UnitInfo.refCategoryNavalFactory,
     [refActionAssistNavalFactory] = M28UnitInfo.refCategoryNavalFactory,
@@ -168,6 +170,8 @@ tiActionOrder = {
     [refActionAssistSMD] = M28Orders.refiOrderIssueGuard,
     [refActionBuildExperimental] = M28Orders.refiOrderIssueBuild,
     [refActionReclaimArea] = M28Orders.refiOrderIssueReclaim,--will actually have a move order followed by reclaim order
+    [refActionBuildT1Sonar] = M28Orders.refiOrderIssueBuild,
+    [refActionBuildT2Sonar] = M28Orders.refiOrderIssueBuild,
     [refActionBuildShield] = M28Orders.refiOrderIssueBuild,
     [refActionBuildNavalFactory] = M28Orders.refiOrderIssueBuild,
     [refActionAssistNavalFactory] = M28Orders.refiOrderIssueGuard,
@@ -4636,6 +4640,40 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
         elseif bHaveLowMass and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] then iBPWanted = iBPWanted * 0.7
         end
         HaveActionToAssign(refActionAssistNavalFactory, 1, iBPWanted, false, false)
+    end
+
+    --Build sonar if no nearby enemies and lack decent coverage and have decent eco
+    iCurPriority = iCurPriority + 1
+    --Coverage set at 100, as can have large water zones, with sonar built on edge, meaning T2 sonar doesnt even give 100 coverage of its own midpoint
+    if tWZTeamData[M28Map.refiSonarCoverage] <= 100 and not(bHaveLowMass) and not(bHaveLowPower) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 and tWZTeamData[M28Map.subrefWZTThreatEnemyCombatTotal] == 0 and not (M28Team.tTeamData[iTeam][M28Team.subrefbTeamHasOmni]) then
+        local iGrossMassWanted = 6
+        local iGrossEnergyWanted = 125
+        iBPWanted = 15
+        if not(tWZTeamData[M28Map.subrefWZbCoreBase]) then
+            iGrossMassWanted = iGrossMassWanted * 2
+            iGrossEnergyWanted = iGrossEnergyWanted * 2
+        else
+            iBPWanted = 40
+        end
+        if tWZTeamData[M28Map.refiSonarCoverage] == 0 then
+            iGrossMassWanted = iGrossMassWanted * 0.8
+            iGrossEnergyWanted = iGrossEnergyWanted * 0.8
+        end
+        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= iGrossMassWanted and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= iGrossEnergyWanted then
+            --Check we dont have any T2+ sonar in this WZ as sometimes water zones are so big that they dont get great coverage from sonar
+            local tFriendlySonar
+            if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefWZTAlliedUnits]) == false then
+                tFriendlySonar = EntityCategoryFilterDown(M28UnitInfo.refCategorySonar, tWZTeamData[M28Map.subrefWZTAlliedUnits])
+            end
+            if M28Utilities.IsTableEmpty(tFriendlySonar) then
+                --Build t1 sonar if enemy has enemies in adjacent WZ or we have reached 400 gross mass income, T2 if no enemies in this or adjacent
+                if  not(tWZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 40 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 750) then
+                    HaveActionToAssign(refActionBuildT2Sonar, 2, iBPWanted, false, false)
+                elseif tWZTeamData[M28Map.refiSonarCoverage] <= 10 then
+                    HaveActionToAssign(refActionBuildT1Sonar, 1, 5, false, false)
+                end
+            end
+        end
     end
 
     --Send engineer to a land zone adjacent to this that wants support

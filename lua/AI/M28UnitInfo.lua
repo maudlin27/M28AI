@@ -43,6 +43,7 @@ refiGameTimeToResetMicroActive = 'M28UnitTimeToResetMicro' --Gametimeseconds
 
     --Ranges and weapon details
 refiDFRange = 'M28UDFR'
+refiDFAOE = 'M28AOEDF' --aoe of a df weapon of a unit
 refiIndirectRange = 'M28UIR' --for non-manual fire weapons
 refiAntiNavyRange = 'M28UANR'
 refiManualRange = 'M28UManR' --for manual fire weapons (e.g. TML)
@@ -493,6 +494,9 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                     if bDebugMessages == true then LOG(sFunctionRef..': Will rerun the blueprint logic as it seems to have missed this unit '..oUnit.UnitId..'; iBaseThreat after this='..(iBaseThreat or 'nil')) end
                     if not(tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef]) then tUnitThreatByIDAndType[oUnit.UnitId][iThreatRef] = (iBaseThreat or 0) end
 
+                end
+                if iBaseThreat == 0 and bSubmersibleOnly and bEnemyUnits and EntityCategoryContains(categories.AMPHIBIOUS, oUnit.UnitId) and IsUnitUnderwater(oUnit) then
+                    iBaseThreat = oUnit:GetBlueprint().Economy.BuildCostMass * 0.35
                 end
                 if iBaseThreat > 0 then
                     --Have got the base threat for this type of unit, now adjust threat for unit health if want to calculate actual threat
@@ -1111,6 +1115,7 @@ function RecordUnitRange(oUnit)
                     oUnit[refiMissileDefenceRange] = math.max((oUnit[refiMissileDefenceRange] or 0), oCurWeapon.MaxRadius)
                 elseif oCurWeapon.RangeCategory == 'UWRC_DirectFire' then
                     oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                    if (oCurWeapon.DamageRadius or 0) > 0 then oUnit[refiDFAOE] = math.max((oUnit[refiDFAOE] or 0), oCurWeapon.DamageRadius) end
                 elseif oCurWeapon.RangeCategory == 'UWRC_AntiNavy' then
                     oUnit[refiAntiNavyRange] = math.max((oUnit[refiAntiNavyRange] or 0), oCurWeapon.MaxRadius)
                 elseif oCurWeapon.RangeCategory == 'UWRC_AntiAir' then
@@ -1123,6 +1128,7 @@ function RecordUnitRange(oUnit)
                         oUnit[refiBomberRange] = math.max((oUnit[refiBomberRange] or 0), oCurWeapon.MaxRadius)
                     elseif oCurWeapon.WeaponCategory == 'Direct Fire' or oCurWeapon.WeaponCategory == 'Direct Fire Experimental' then
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                        if (oCurWeapon.DamageRadius or 0) > 0 then oUnit[refiDFAOE] = math.max((oUnit[refiDFAOE] or 0), oCurWeapon.DamageRadius) end
                     elseif (oCurWeapon.Damage or 0) == 0 or (oCurWeapon.MaxRadius or 0) <= 1 then
                         --Ignore
                     elseif oUnit.UnitId == 'uab4201' then

@@ -24,6 +24,7 @@ local M28Logic = import('/mods/M28AI/lua/AI/M28Logic.lua')
 local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
 local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
+local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
 
 refiLastWeaponEvent = 'M28LastWep' --Gametimeseconds that last updated onweapon
 
@@ -247,6 +248,8 @@ function OnUnitDeath(oUnit)
                         --Radar intel coverage update
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryRadar, oUnit.UnitId) then
                         ForkThread(M28Land.UpdateRadarCoverageForDestroyedRadar, oUnit)
+                    elseif EntityCategoryContains(M28UnitInfo.refCategorySonar, oUnit.UnitId) then
+                        ForkThread(M28Navy.UpdateSonarCoverageForDestroyedRadar, oUnit)
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryWall, oUnit.UnitId) and not(oUnit:GetAIBrain().M28AI) then
                         M28Land.TrackWallSegment(oUnit, false)
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) then
@@ -263,10 +266,10 @@ function OnUnitDeath(oUnit)
                     --Note -seraphimunits.lua contains SEnergyBallUnit which looks like it is for when the death ball is spawned; ID is XSL0402; SpawnElectroStorm is in the ythotha script
                     --Sandbox test - have c.36s from ythotha dying to energy ball dying, so want to run away for half of this (18s) plus extra time based on how far away we already were
                     if EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental * categories.SERAPHIM, oUnit.UnitId) then
-                        OnYthothaDeath(oUnit)
+                    OnYthothaDeath(oUnit)
                     end
                     if EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oUnit.UnitId) and (EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) or oUnit:GetFractionComplete() < 1) then
-                        M28Engineer.SearchForBuildableLocationsNearDestroyedBuilding(oUnit)
+                    M28Engineer.SearchForBuildableLocationsNearDestroyedBuilding(oUnit)
                     end
 
 
@@ -275,68 +278,68 @@ function OnUnitDeath(oUnit)
                     -------M28 specific logic---------
                     --Is the unit owned by M28AI?
                     if oUnit:GetAIBrain().M28AI then
-                        --Air units - remove any assigned strike damage
-                        if oUnit[M28Air.refoStrikeDamageAssigned] then
-                            M28Air.RemoveAssignedAttacker(oUnit[M28Air.refoStrikeDamageAssigned], oUnit)
-                        end
-                        --Air scout death - record the target zone as dangerous
-                        if oUnit[M28Air.reftScoutAssignedPlateauAndZoneRef] then
-                            M28Air.OnAirScoutDeath(oUnit)
-                        end
-                        --Transport death - record target island as dangerous
-                        if oUnit[M28Air.refiTargetIslandForDrop] then
-                            M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiLastFailedIslandDropTime][oUnit[M28Air.refiTargetIslandForDrop]] = GetGameTimeSeconds()
-                        end
-                        --Logic that doesnt require the unit to ahve finished construction:
-
-                        --Fixed shielding
-                        if oUnit[M28Building.refbUnitWantsShielding] or oUnit[M28Building.reftoUnitsCoveredByShield] or oUnit[M28Building.reftoShieldsProvidingCoverage] then
-                            if oUnit[M28Building.reftoUnitsCoveredByShield] then
-                                M28Building.UpdateShieldCoverageOfUnits(oUnit, true)
-                            else
-                                M28Building.CheckIfUnitWantsFixedShield(oUnit)
-                            end
-                        end
-
-                        --Run unit type specific on death logic where the unit is completed
-                        if oUnit:GetFractionComplete() == 1 then
-                            M28Economy.UpdateGrossIncomeForUnit(oUnit, true)
-                            if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
-                                M28Engineer.ClearEngineerTracking(oUnit)
-                            elseif EntityCategoryContains(M28UnitInfo.refCategoryScathis, oUnit.UnitId) then
-                                if M28Utilities.IsTableEmpty(M28Engineer.tAllScathis) == false then
-                                    for iScathis, oScathis in M28Engineer.tAllScathis do
-                                        if oScathis == oUnit then
-                                            table.remove(M28Engineer.tAllScathis, iScathis) --Only doing this once so can get away with using table.remove, otherwise would want to use M28Utilities.ArrayRemove
-                                            break
-                                        end
-                                    end
-                                end
-                            elseif EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) then
-                                --Check for upgrades
-                                --Upgrade tracking (even if have run this already)
-                                if bDebugMessages == true then LOG(sFunctionRef..': Will check if upgrade tracking needs updating, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
-                                M28Team.UpdateUpgradeTrackingOfUnit(oUnit, true)
-                                if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
-                                    M28Economy.UpdateLandZoneM28MexByTechCount(oUnit, true)
-                                    --Update upgrading mexes
-                                    M28Economy.UpdateTableOfUpgradingMexesForTeam(oUnit:GetAIBrain().M28Team)
-                                end
-                                M28Economy.UpdateHighestFactoryTechLevelForDestroyedUnit(oUnit) --checks if it was a factory as part of this function
-                            elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileLand, oUnit.UnitId) then
-                                --If unit was traveling to another land zone, then update that land zone so it no longer things the unit is traveling here
-                                M28Land.RemoveUnitFromListOfUnitsTravelingToLandZone(oUnit) --(this will check if it was or not)
-                            end
-
-                            --Mobile shield update
-                            if oUnit[M28Land.refoAssignedMobileShield] then
-                                oUnit[M28Land.refoAssignedMobileShield][M28Land.refoMobileShieldTarget] = nil
-                            end
-                            if oUnit[M28Land.refoMobileShieldTarget] then
-                                oUnit[M28Land.refoMobileShieldTarget][M28Land.refoAssignedMobileShield] = nil
-                            end
-                        end
+                    --Air units - remove any assigned strike damage
+                    if oUnit[M28Air.refoStrikeDamageAssigned] then
+                    M28Air.RemoveAssignedAttacker(oUnit[M28Air.refoStrikeDamageAssigned], oUnit)
                     end
+                    --Air scout death - record the target zone as dangerous
+                    if oUnit[M28Air.reftScoutAssignedPlateauAndZoneRef] then
+                    M28Air.OnAirScoutDeath(oUnit)
+                    end
+                    --Transport death - record target island as dangerous
+                    if oUnit[M28Air.refiTargetIslandForDrop] then
+                    M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiLastFailedIslandDropTime][oUnit[M28Air.refiTargetIslandForDrop]] = GetGameTimeSeconds()
+                    end
+                    --Logic that doesnt require the unit to ahve finished construction:
+
+                    --Fixed shielding
+                    if oUnit[M28Building.refbUnitWantsShielding] or oUnit[M28Building.reftoUnitsCoveredByShield] or oUnit[M28Building.reftoShieldsProvidingCoverage] then
+                    if oUnit[M28Building.reftoUnitsCoveredByShield] then
+                    M28Building.UpdateShieldCoverageOfUnits(oUnit, true)
+                    else
+                    M28Building.CheckIfUnitWantsFixedShield(oUnit)
+                    end
+                    end
+
+                    --Run unit type specific on death logic where the unit is completed
+                    if oUnit:GetFractionComplete() == 1 then
+                    M28Economy.UpdateGrossIncomeForUnit(oUnit, true)
+                    if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
+                    M28Engineer.ClearEngineerTracking(oUnit)
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryScathis, oUnit.UnitId) then
+                    if M28Utilities.IsTableEmpty(M28Engineer.tAllScathis) == false then
+                    for iScathis, oScathis in M28Engineer.tAllScathis do
+                    if oScathis == oUnit then
+                    table.remove(M28Engineer.tAllScathis, iScathis) --Only doing this once so can get away with using table.remove, otherwise would want to use M28Utilities.ArrayRemove
+                    break
+                    end
+                    end
+                    end
+                    elseif EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) then
+                    --Check for upgrades
+                    --Upgrade tracking (even if have run this already)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will check if upgrade tracking needs updating, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                    M28Team.UpdateUpgradeTrackingOfUnit(oUnit, true)
+                    if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
+                    M28Economy.UpdateLandZoneM28MexByTechCount(oUnit, true)
+                    --Update upgrading mexes
+                    M28Economy.UpdateTableOfUpgradingMexesForTeam(oUnit:GetAIBrain().M28Team)
+                    end
+                    M28Economy.UpdateHighestFactoryTechLevelForDestroyedUnit(oUnit) --checks if it was a factory as part of this function
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileLand, oUnit.UnitId) then
+                    --If unit was traveling to another land zone, then update that land zone so it no longer things the unit is traveling here
+                    M28Land.RemoveUnitFromListOfUnitsTravelingToLandZone(oUnit) --(this will check if it was or not)
+                    end
+
+                    --Mobile shield update
+                    if oUnit[M28Land.refoAssignedMobileShield] then
+                    oUnit[M28Land.refoAssignedMobileShield][M28Land.refoMobileShieldTarget] = nil
+                    end
+                    if oUnit[M28Land.refoMobileShieldTarget] then
+                    oUnit[M28Land.refoMobileShieldTarget][M28Land.refoAssignedMobileShield] = nil
+                    end
+                    end
+                        end
                 end
             end
         end
@@ -630,6 +633,8 @@ function OnConstructed(oEngineer, oJustBuilt)
             --If we have just built a radar then update radar logic
             if EntityCategoryContains(M28UnitInfo.refCategoryRadar, oJustBuilt.UnitId) then
                 ForkThread(M28Land.UpdateZoneIntelForRadar, oJustBuilt)
+            elseif EntityCategoryContains(M28UnitInfo.refCategorySonar, oJustBuilt.UnitId) then
+                ForkThread(M28Navy.UpdateZoneIntelForSonar, oJustBuilt)
             end
 
             --Track non-M28AI wall segments
