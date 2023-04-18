@@ -216,6 +216,36 @@ function UpdateIfWaterZoneWantsSupport(tWZTeamData, bWantCombatSupport)
     tWZTeamData[M28Map.subrefbWZOnlySubmersibleEnemies] = bOnlySubmersible
 end
 
+function RemoveUnitFromAnyExistingLandOrWaterZoneItWasPreviouslyTravelingTo(oUnit, sRefForTableOfTravelingUnits)
+    local iExistingWZ = oUnit[refiWZToMoveTo]
+    local tiExistingPlateauAndLZ = oUnit[M28Land.reftiPlateauAndLZToMoveTo]
+    local iTeam = oUnit:GetAIBrain().M28Team
+    if iExistingWZ then
+        local tExistingWZTeamData = M28Map.tPondDetails[iExistingWZ][M28Map.subrefPondWaterZones][iExistingWZ][M28Map.subrefWZTeamData][iTeam]
+        if M28Utilities.IsTableEmpty(tExistingWZTeamData[sRefForTableOfTravelingUnits]) == false then
+            for iExistingUnit, oExistingUnit in tExistingWZTeamData[sRefForTableOfTravelingUnits] do
+                if oExistingUnit == oUnit then
+                    table.remove(tExistingWZTeamData[sRefForTableOfTravelingUnits], iExistingUnit)
+                    break
+                end
+            end
+        end
+    end
+    if M28Utilities.IsTableEmpty(tiExistingPlateauAndLZ) == false then
+        local iExistingPlateau = tiExistingPlateauAndLZ[1]
+        local iExistingLZ = tiExistingPlateauAndLZ[2]
+        local tExistingLZTeamData = M28Map.tAllPlateaus[iExistingPlateau][M28Map.subrefPlateauLandZones][iExistingLZ][M28Map.subrefLZTeamData][iTeam]
+        if M28Utilities.IsTableEmpty(tExistingLZTeamData[sRefForTableOfTravelingUnits]) == false then
+            for iExistingUnit, oExistingUnit in tExistingLZTeamData[sRefForTableOfTravelingUnits] do
+                if oExistingUnit == oUnit then
+                    table.remove(tExistingLZTeamData[sRefForTableOfTravelingUnits], iExistingUnit)
+                    break
+                end
+            end
+        end
+    end
+end
+
 function GetUnitToTravelToWaterZone(oUnit, iTargetPond, iTargetWaterZone, subrefWZTUnitTypeTravelingHere)
     --Intended for non-engineer units (engineers are handled separately)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -223,11 +253,16 @@ function GetUnitToTravelToWaterZone(oUnit, iTargetPond, iTargetWaterZone, subref
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; refiWZToMoveTo='..refiWZToMoveTo) end
+    RemoveUnitFromAnyExistingLandOrWaterZoneItWasPreviouslyTravelingTo(oUnit, subrefWZTUnitTypeTravelingHere)
+
     oUnit[refiWZToMoveTo] = iTargetWaterZone
+    oUnit[M28Land.reftiPlateauAndLZToMoveTo] = nil
+    local iTeam = oUnit:GetAIBrain().M28Team
+
     local tWZData = M28Map.tPondDetails[iTargetPond][M28Map.subrefPondWaterZones][iTargetWaterZone]
-    local tTeamData = tWZData[M28Map.subrefWZTeamData][oUnit:GetAIBrain().M28Team]
-    if not(tTeamData[subrefWZTUnitTypeTravelingHere]) then tTeamData[subrefWZTUnitTypeTravelingHere] = {} end
-    table.insert(tTeamData[subrefWZTUnitTypeTravelingHere], oUnit)
+    local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
+    if not(tWZTeamData[subrefWZTUnitTypeTravelingHere]) then tWZTeamData[subrefWZTUnitTypeTravelingHere] = {} end
+    table.insert(tWZTeamData[subrefWZTUnitTypeTravelingHere], oUnit)
     if bDebugMessages == true then LOG(sFunctionRef..': About to tell unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to iTargetPond='..iTargetPond..'; iTargetWaterZone='..iTargetWaterZone..'; midpoint of WZ='..repru(tWZData[M28Map.subrefWZMidpoint])) end
     local iOrderReissueDistToUse
 
@@ -245,10 +280,11 @@ function RemoveUnitFromListOfUnitsTravelingToWaterZone(oUnit)
     if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oUnit[refiWZToMoveTo]='..repru(oUnit[refiWZToMoveTo])) end
     if oUnit[refiWZToMoveTo] then
         local sUnitTableRef
-        if EntityCategoryContains(M28UnitInfo.refCategoryLandScout, oUnit.UnitId) then
-            sUnitTableRef = M28Map.subrefWZTScoutsTravelingHere
+        if EntityCategoryContains(M28UnitInfo.refCategoryLandScout + M28UnitInfo.refCategoryFrigate, oUnit.UnitId) then
+            sUnitTableRef = M28Map.subrefTScoutsTravelingHere
         else
-            M28Utilities.ErrorHandler('Need to add code for this unit category')
+            M28Utilities.ErrorHandler('Need to add code for this unit category, will send unit info to log')
+            LOG(sFunctionRef..': oUnit='..(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)))
         end
         if sUnitTableRef then
 
@@ -733,11 +769,12 @@ function ManageMobileShieldsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
                         ShieldUnitsInWaterZone(tTeamTargetWZData, tShieldsToAssign, true)
                     end
                     if M28Utilities.IsTableEmpty(tShieldsToAssign) == false then
-                        M28Utilities.ErrorHandler('couldnt find any water zones with friendly combat units so have nowhere to assign mobile shields; will send them all to the nearest rally point instead')
+                        if bDebugMessages == true then LOG(sFunctionRef..': couldnt find any water zones with friendly combat units of a high enough value so have nowhere to assign mobile shields/shield boats; will send them all to the nearest rally point instead') end
                         local tRallyPoint = GetNearestWaterRallyPoint(tWZData, iTeam, iPond, iWaterZone)
                         for iUnit, oUnit in tShieldsToAssign do
                             M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'WSBckup'..iWaterZone)
                         end
+                        M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoShieldBoatTargetsByPond][iPond] = GetGameTimeSeconds()
 
                     end
 
@@ -1304,6 +1341,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
     --Handle engineers and even if no engineers still decide what engineers we would want for hte WZ
     M28Engineer.ConsiderLandOrWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZone, tEngineers, true) --Should update the water zone engineer requirements, even if tEngineers itself is empty
 
+    --Manage any scouts and flag if we need scouts (i.e. want to run this function even if we have no scouts)
     ManageWaterZoneScouts(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tScouts, bWaterZoneOrAdjHasUnitsWantingScout)
 
     --Treat omni as giving us visual
@@ -2219,7 +2257,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
         local tCombatUnitsOfUse
         local tCombatUnitsNeedingAOEForSubs
         local bConsiderUsingAOE = false
-        if oNearestEnemyNonHoverToMidpoint and (EntityCategoryContains(categories.SUBMERSIBLE, oNearestEnemyNonHoverToMidpoint.UnitId) or M28Map.IsUnderwater({oNearestEnemyNonHoverToMidpoint:GetPosition()[1], oNearestEnemyNonHoverToMidpoint:GetPosition()[2] + (oNearestEnemyNonHoverToMidpoint:GetBlueprint().SizeY or 0) + 1.3, oNearestEnemyNonHoverToMidpoint:GetPosition()[3]}, false)) then
+        if oNearestEnemyNonHoverToMidpoint and (EntityCategoryContains(categories.SUBMERSIBLE, oNearestEnemyNonHoverToMidpoint.UnitId) or (M28Map.IsUnderwater({oNearestEnemyNonHoverToMidpoint:GetPosition()[1], oNearestEnemyNonHoverToMidpoint:GetPosition()[2] + (oNearestEnemyNonHoverToMidpoint:GetBlueprint().SizeY or 0) + 1.3, oNearestEnemyNonHoverToMidpoint:GetPosition()[3]}, false)) and not(M28Map.IsUnderwater({oNearestEnemyNonHoverToMidpoint:GetPosition()[1], oNearestEnemyNonHoverToMidpoint:GetPosition()[2] + 1.2 + (oNearestEnemyNonHoverToMidpoint:GetBlueprint().SizeY or 0) + 1.3, oNearestEnemyNonHoverToMidpoint:GetPosition()[3]}, false))) then
             bConsiderUsingAOE = true
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Finished considering if we want to use aoe to ground fire subs, bConsiderUsingAOE='..tostring(bConsiderUsingAOE)..'; oNearestEnemyNonHoverToMidpoint='..(oNearestEnemyNonHoverToMidpoint.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyNonHoverToMidpoint) or 'nil')) end
@@ -2631,11 +2669,27 @@ function ManageWaterZoneScouts(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, t
 
 
     tWZTeamData[M28Map.refbWantLandScout] = false
-    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want a land scout for iPond '..iPond..'; iWaterZone='..iWaterZone..'; bLandZoneContainsNonScouts='..tostring(bLandZoneContainsNonScouts or false)..'; Enemy combat threat='..tWZTeamData[M28Map.subrefWZTThreatEnemyCombatTotal]..'; Is table of land scouts traveling here empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefWZTScoutsTravelingHere]))..'; Is table of scouts currently in this WZ empty='..tostring(M28Utilities.IsTableEmpty(tScouts))) end
-    if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefWZTScoutsTravelingHere]) then
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want a land scout at time='..GetGameTimeSeconds()..' for iPond '..iPond..'; iWaterZone='..iWaterZone..'; nemy combat threat='..tWZTeamData[M28Map.subrefWZTThreatEnemyCombatTotal]..'; Is table of land scouts traveling here empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTScoutsTravelingHere]))..'; Is table of scouts currently in this WZ empty='..tostring(M28Utilities.IsTableEmpty(tScouts))) end
+
+    --Refresh list of scouts traveling here
+    if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTScoutsTravelingHere]) == false then
+        local iTableSize = table.getn(tWZTeamData[M28Map.subrefTScoutsTravelingHere])
+        for iCurEntry = iTableSize, 1, -1 do
+            if not(M28UnitInfo.IsUnitValid(tWZTeamData[M28Map.subrefTScoutsTravelingHere][iCurEntry])) then
+                table.remove(tWZTeamData[M28Map.subrefTScoutsTravelingHere], iCurEntry)
+            end
+        end
+    end
+    
+    if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTScoutsTravelingHere]) then
         --Want a land scout for htis land zone, unless we already have one traveling here; if we have available land scouts then will change this flag back to false
         tWZTeamData[M28Map.refbWantLandScout] = true
-        if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; We want to get a scout for this WZ '..(iWaterZone or 'nil')..' on pond '..(iPond or 'nil')..' with island '..(tWZData[M28Map.subrefWZIslandRef] or 'nil')) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; We want to get a scout for this WZ '..(iWaterZone or 'nil')..' on pond '..(iPond or 'nil')) end
+    elseif bDebugMessages == true then
+        LOG(sFunctionRef..': We have scouts traveling to this WZ so wont flag it needs more scouts. Will list out traveling scouts')
+        for iUnit, oUnit in tWZTeamData[M28Map.subrefTScoutsTravelingHere] do
+            LOG(sFunctionRef..': iUnit='..iUnit..'; oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit)))
+        end
     end
 
     --Do we have any land scouts that are available? if so then assign to an adjacent land zone if the adjacent zone wants scouts
@@ -2736,12 +2790,12 @@ function ManageWaterZoneScouts(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, t
                 for _, tWZSubtable in tWZData[M28Map.subrefWZOtherWaterZones] do
                     iAdjWZ = tWZSubtable[M28Map.subrefWZAWZRef]
                     local tWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
-                    if bDebugMessages == true then LOG(sFunctionRef..': Consideri niAdjWZ='..iAdjWZ..'; Does this WZ want land scout='..tostring(tWZTeamData[M28Map.refbWantLandScout] or false)..'; Is table of traveling scouts here empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefWZTScoutsTravelingHere]))) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Consideri niAdjWZ='..iAdjWZ..'; Does this WZ want land scout='..tostring(tWZTeamData[M28Map.refbWantLandScout] or false)..'; Is table of traveling scouts here empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTScoutsTravelingHere]))) end
                     if tWZTeamData[M28Map.refbWantLandScout] then
                         if bDebugMessages == true then LOG(sFunctionRef..': Will send land scout '..tAvailableScouts[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(tAvailableScouts[1])..' to go to adjacent water zone '..iAdjWZ) end
 
 
-                        GetUnitToTravelToWaterZone(tAvailableScouts[1], iPond, iAdjWZ, M28Map.subrefWZTScoutsTravelingHere)
+                        GetUnitToTravelToWaterZone(tAvailableScouts[1], iPond, iAdjWZ, M28Map.subrefTScoutsTravelingHere)
                         tWZTeamData[M28Map.refbWantLandScout] = false
                         table.remove(tAvailableScouts, 1)
                         if M28Utilities.IsTableEmpty(tAvailableScouts) then break end
@@ -2754,8 +2808,8 @@ function ManageWaterZoneScouts(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, t
                 --If we are here then we still have available land scouts; if we have ap atrol path then patrol; if we have a mex then go here, if we have an adjcent zone go here, otherwise move randomly if we have no orders
                 for iScout, oScout in tAvailableScouts do
                     if M28Utilities.IsTableEmpty(tWZData[M28Map.subreftPatrolPath]) == false then
-                        --Patrol the land zone
-                        M28Orders.PatrolPath(oScout, tWZData[M28Map.subreftPatrolPath], false, 'NSP')
+                        --Patrol the water zone
+                        M28Orders.PatrolPath(oScout, tWZData[M28Map.subreftPatrolPath], false, 'NSP'..iWaterZone)
                     else
                         --Do nothing if scout is moving as maybe it landed on a segment just out of the zone it shoudl have been in
                         if not(oScout:IsUnitState('Moving')) then
@@ -2764,7 +2818,7 @@ function ManageWaterZoneScouts(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, t
                                 --Want ot get somewhere to move to as a backup
                                 --Do we have an adjacent WZ? If so move here
                                 if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZOtherWaterZones]) == false then
-                                    GetUnitToTravelToWaterZone(tAvailableScouts[1], iPond, tWZData[M28Map.subrefWZOtherWaterZones][1], M28Map.subrefWZTScoutsTravelingHere)
+                                    GetUnitToTravelToWaterZone(tAvailableScouts[1], iPond, tWZData[M28Map.subrefWZOtherWaterZones][1], M28Map.subrefTScoutsTravelingHere)
                                 else
                                     --No adjacent WZs, and no mexes in this WZ, so just move randomly
                                     M28Orders.IssueTrackedMove(oScout, M28Utilities.MoveInDirection(oScout:GetPosition(), math.random(1, 360), math.random(10, 30), true, false), 10, false, 'NBackupRnd')

@@ -191,7 +191,7 @@ function UpdateLandZoneM28AllMexByTech(aiBrain, iPlateau, iLandZone, oOptionalUn
             if (iOptionalWait or 0) >= 10 then
                 M28Utilities.ErrorHandler('Somehow we have more mexes than we should even after waiting '..iOptionalWait..' first, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iMexCount='..iMexCount..'; tLZTeamData[M28Map.subrefMexCountByTech]='..reprs(tLZTeamData[M28Map.subrefMexCountByTech]))
             end
-            ForkThread(UpdateLandZoneM28AllMexByTech, aiBrain, iPlateau, iLandZone, oOptionalUnitThatDied, 10)
+            ForkThread(UpdateLandZoneM28AllMexByTech, aiBrain, iPlateau, iLandZone, oOptionalUnitThatDied, 15)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

@@ -4071,6 +4071,14 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
+    --Spare engi - assist any upgrading unit
+    iCurPriority = iCurPriority + 1
+    if iHighestTechEngiAvailable > 0 then
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]) == false then
+            HaveActionToAssign(refActionAssistUpgrade, 1, 1000, false, true)
+        end
+    end
+
     iCurPriority = iCurPriority + 1 --do this after each action
     M28Profiler.FunctionProfiler(sFunctionRef..'PreTravel', M28Profiler.refProfilerEnd)
 
@@ -4510,6 +4518,15 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 if bDebugMessages == true then LOG(sFunctionRef..': Lower priority reclaim, Total mass in Plateau '..iPlateau..' LZ '..iLandZone..'='..tLZData[M28Map.subrefTotalMassReclaim]) end
                 HaveActionToAssign(refActionReclaimArea, 1, 100, false, true)
             end
+        end
+    end
+
+    --Spare engi - assist any upgrading unit
+    iCurPriority = iCurPriority + 1
+    iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
+    if iHighestTechEngiAvailable > 0 then
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]) == false then
+            HaveActionToAssign(refActionAssistUpgrade, 1, 1000, false, true)
         end
     end
 

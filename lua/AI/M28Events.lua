@@ -249,7 +249,7 @@ function OnUnitDeath(oUnit)
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryRadar, oUnit.UnitId) then
                         ForkThread(M28Land.UpdateRadarCoverageForDestroyedRadar, oUnit)
                     elseif EntityCategoryContains(M28UnitInfo.refCategorySonar, oUnit.UnitId) then
-                        ForkThread(M28Navy.UpdateSonarCoverageForDestroyedRadar, oUnit)
+                        ForkThread(M28Navy.UpdateSonarCoverageForDestroyedSonar, oUnit)
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryWall, oUnit.UnitId) and not(oUnit:GetAIBrain().M28AI) then
                         M28Land.TrackWallSegment(oUnit, false)
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) then
@@ -411,11 +411,12 @@ function OnWeaponFired(oWeapon)
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         local sFunctionRef = 'OnWeaponFired'
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code; does the weapon have a valid unit='..tostring(M28UnitInfo.IsUnitValid(oWeapon.unit))..'; Weapon unitID='..(oWeapon.unit.UnitId or 'nil')) end
 
         local oUnit = oWeapon.unit
         if oUnit and oUnit.GetUnitId and oUnit.GetAIBrain then
+
+            if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' has just fired a shot, Time='..GetGameTimeSeconds()..'; oWeapon[refiLastWeaponEvent]='..(oWeapon[refiLastWeaponEvent] or 'nil')) end
             if not(oWeapon[refiLastWeaponEvent]) or GetGameTimeSeconds() - (oWeapon[refiLastWeaponEvent] or -1) >= 0.5 then
                 oWeapon[refiLastWeaponEvent] = GetGameTimeSeconds()
                 --Update unit last known position/record it
@@ -715,6 +716,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryEnergyStorage, oJustBuilt.UnitId) then
                     M28Team.TeamEconomyRefresh(oJustBuilt:GetAIBrain().M28Team)
                     M28Team.ConsiderGiftingStorageToTeammate(oJustBuilt)
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oJustBuilt.UnitId) then
+                    --Clear the desire to build land facs by mexes - i.e. only want hte first one to be built as such
+                    M28Engineer.tiActionAdjacentCategory[M28Engineer.refActionBuildLandFactory] = nil
                 end
             elseif EntityCategoryContains(M28UnitInfo.refCategoryLandCombat * categories.TECH3 + M28UnitInfo.refCategoryIndirectT3, oJustBuilt.UnitId) then
                 if not(M28Team.tTeamData[oJustBuilt:GetAIBrain().M28Team][M28Team.refbBuiltLotsOfT3Combat]) then

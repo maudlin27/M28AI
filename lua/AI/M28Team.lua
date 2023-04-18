@@ -119,6 +119,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefiRallyPointLandZonesByPlateau = 'M28TeamLZRallyPoint' --[x] is the plateau ref, then returns a table orderd 1, 2... of land zones that are rally points
     refiTimeOfLastRallyPointRefresh = 'M28TeamRallyPointRefreshTime' --Game time in seconds that last refreshed rally points
     refiLastTimeNoShieldTargetsByPlateau = 'M28TeamLastTimeNoShieldTargets' --[x] is the plateau ref, returns gametime seconds
+    refiLastTimeNoShieldBoatTargetsByPond = 'M28TeamLastTimeNoShieldBoatTargets' --[x] is the pond ref, returns gametimeseconds
     refiLastTimeNoStealthTargetsByPlateau = 'M28TeamLastTimeNoStealthTargets' --[x] is the plateau ref, returns gametime seconds
     refiLastTimeNoMAATargetsByIsland = 'M28TeamLastTimeNoMAATargets' --[x] is the plateau ref, returns gametimeseconds
     --Water related
@@ -355,8 +356,8 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
                     local iBuildCost = oNewUnitBP.Economy.BuildTime
                     if iBuildCost > 0 and iOurBuildPower > 0 then
                         local iResourceFactor = 0.1 * iOurBuildPower / iBuildCost
-                        tTeamData[iTeam][subrefiEnergyUpgradesStartedThisCycle] = tTeamData[iTeam][subrefiEnergyUpgradesStartedThisCycle] + oNewUnitBP.Economy.BuildCostEnergy * iResourceFactor
-                        tTeamData[iTeam][subrefiMassUpgradesStartedThisCycle] = tTeamData[iTeam][subrefiMassUpgradesStartedThisCycle] + oNewUnitBP.Economy.BuildCostMass * iResourceFactor
+                        tTeamData[iTeam][subrefiEnergyUpgradesStartedThisCycle] = (tTeamData[iTeam][subrefiEnergyUpgradesStartedThisCycle] or 0) + (oNewUnitBP.Economy.BuildCostEnergy or 0) * iResourceFactor
+                        tTeamData[iTeam][subrefiMassUpgradesStartedThisCycle] = (tTeamData[iTeam][subrefiMassUpgradesStartedThisCycle] or 0) + (oNewUnitBP.Economy.BuildCostMass or 0) * iResourceFactor
                     end
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Updated this cycle check, tTeamData[iTeam][subrefiMassUpgradesStartedThisCycle]='..tTeamData[iTeam][subrefiMassUpgradesStartedThisCycle]) end
@@ -439,6 +440,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][subrefiAlliedIndirectThreat] = 0
     tTeamData[iTotalTeamCount][subrefiAlliedGroundAAThreat] = 0
     tTeamData[iTotalTeamCount][refiLastTimeNoShieldTargetsByPlateau] = {}
+    tTeamData[iTotalTeamCount][refiLastTimeNoShieldBoatTargetsByPond] = {}
     tTeamData[iTotalTeamCount][refiLastTimeNoStealthTargetsByPlateau] = {}
     tTeamData[iTotalTeamCount][refiLastTimeNoMAATargetsByIsland] = {}
     tTeamData[iTotalTeamCount][refiEnemyHighestMobileLandHealth] = 300
@@ -1935,7 +1937,7 @@ function WaterZoneTeamInitialisation(iTeam)
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.reftoWZUnitsWantingMobileStealth] = {}
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refbWZWantsMobileStealth] = false
 
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTScoutsTravelingHere] = {}
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefTScoutsTravelingHere] = {}
 
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiEnemyAirToGroundThreat] = 0
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiEnemyAirAAThreat] = 0

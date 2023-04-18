@@ -112,7 +112,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         subrefLZMinSegX = 'LZMinSegX'
         subrefLZMinSegZ = 'LZMinSegZ'
         subrefLZMaxSegX = 'LZMaxSegX'
-        subrefLZMaxSegZ = 'LZMaxSegX'
+        subrefLZMaxSegZ = 'LZMaxSegZ'
         subrefHydroLocations = 'HydroLoc' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of hydro locations in the LZ
         subrefHydroUnbuiltLocations = 'HydroAvailLoc' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of hydro locations in the LZ that dont have buildings on them
         subrefBuildLocationsBySize = 'BuildLoc' --contains a table, with the index being the unit's highest footprint size, which returns a location that should be buildable in this zone;  only populated on demand (i.e. if we want to try and build something there by references to the predefined location), e.g. tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefBuildLocationsBySize][iSize]
@@ -212,7 +212,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefTbWantBP = 'WantBP' --true if we want BP at any tech level
             subrefTBuildPowerByTechWanted = 'BPByTechW' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power wanted wanted
             subrefTEngineersTravelingHere = 'EUnitsTrav' --Table of any engineer units in another LZ/WZ that have been told to move to this LZ/WZ
-            subrefLZTScoutsTravelingHere = 'SUnitsTrav' --Table of any land scout units in another LZ that have been told to move to this LZ
+            subrefTScoutsTravelingHere = 'SUnitsTrav' --Table of any land scout units in another LZ/WZ that have been told to move to this LZ/WZ
             subrefSpareBPByTech = 'SpareBPByTech' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power of that tech level that we have spare
             subrefReclaimAreaAssignmentsBySegment = 'RecSegAss' --[ReclaimSegX][ReclaimZegY], returns count of how many engineers have been assigned
             subrefQueuedBuildings = 'QBByBP' --Queued buildings for a land zone
@@ -366,7 +366,7 @@ tPondDetails = {}
             reftoWZUnitsWantingMobileStealth = 'MStUnit'
             refbWZWantsMobileStealth = 'bWntMSt'
 
-            subrefWZTScoutsTravelingHere = 'WZScTrav'
+            --subrefTScoutsTravelingHere - uses same variable as land zone
             --subrefAlliedACU --Uses same variable as land zone
             --refiEnemyAirToGroundThreat --Uses same variable as land zone
             --refiEnemyAirOtherThreat --Uses same variable as land zone

@@ -1207,6 +1207,15 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA) then return sBPIDToBuild end
         end
 
+        --Initial engineers
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering high priority engineers, iFactoryTechLevel='..iFactoryTechLevel..'; Team highest factory tech level='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Lifetime build count='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))..'; Current units='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))) end
+        if iFactoryTechLevel >= M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] and tLZTeamData[M28Map.subrefLZbCoreBase] then
+            if M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) <= 4 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) <= 2 then
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+            end
+        end
+
         --Nearby enemy air
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
@@ -1386,13 +1395,17 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     if bHaveLowPower or iFactoryTechLevel == 1 then
         bConsiderBuildingShieldOrStealthBoats = false
     else
-        local iCurShieldAndStealthBoats = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryShieldBoat + M28UnitInfo.refCategoryStealthBoat)
-        if aiBrain[M28Economy.refiGrossEnergyBaseIncome] < (1 + iCurShieldAndStealthBoats) * 50 then bConsiderBuildingShieldOrStealthBoats = false
-        elseif iCurShieldAndStealthBoats >= 10 then
-            --Want to be a T3 factory and have at least 5 T3 naval units before building more shield boats
-            bConsiderBuildingShieldOrStealthBoats = false
-            if iFactoryTechLevel >= 3 and iCurShieldAndStealthBoats <= 22 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH3) >= 10 then
-                bConsiderBuildingShieldOrStealthBoats = true
+        if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoShieldBoatTargetsByPond][iPond] or -100) <= 5 and EntityCategoryContains(categories.UEF, oFactory.UnitId) then
+            bConsiderBuildingShieldOrStealthBoats = true
+        else
+            local iCurShieldAndStealthBoats = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryShieldBoat + M28UnitInfo.refCategoryStealthBoat)
+            if aiBrain[M28Economy.refiGrossEnergyBaseIncome] < (1 + iCurShieldAndStealthBoats) * 50 then bConsiderBuildingShieldOrStealthBoats = false
+            elseif iCurShieldAndStealthBoats >= 10 then
+                --Want to be a T3 factory and have at least 5 T3 naval units before building more shield boats
+                bConsiderBuildingShieldOrStealthBoats = false
+                if iFactoryTechLevel >= 3 and iCurShieldAndStealthBoats <= 22 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH3) >= 10 then
+                    bConsiderBuildingShieldOrStealthBoats = true
+                end
             end
         end
     end
@@ -1472,7 +1485,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         if ConsiderBuildingCategory(M28UnitInfo.refCategoryStealthBoat) then return sBPIDToBuild end
     end
 
-   --Have at least 1 of the current combat category unit
+    --Have at least 1 of the current combat category unit
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if aiBrain:GetCurrentUnits(iCombatCategory) == 0 then
         if ConsiderBuildingCategory(iCombatCategory) then return sBPIDToBuild end
