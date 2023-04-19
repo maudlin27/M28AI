@@ -210,7 +210,7 @@ refCategoryBattleship = categories.BATTLESHIP - refCategoryBattlecruiser - refCa
 
 --Multi-category:
 --Antinavy mobile units (can include land units - e.g for land factories to build antisub units)
-refCategoryAntiNavy = categories.ANTINAVY * categories.STRUCTURE + categories.ANTINAVY * categories.MOBILE --for some reason get error message if just use antinavy, so need to be more restrictive
+refCategoryAntiNavy = categories.ANTINAVY * categories.STRUCTURE + categories.ANTINAVY * categories.MOBILE - categories.DESTROYER * categories.UEF --for some reason get error message if just use antinavy, so need to be more restrictive
 --Dangerous to land units, e.g. engieners look for these when deciding reclaim area
 refCategoryDangerousToLand = refCategoryLandCombat + refCategoryIndirect + refCategoryAllNavy + refCategoryBomber + refCategoryGunship + refCategoryPD + refCategoryFixedT2Arti
 refCategoryAllNonAirScoutUnits = categories.MOBILE + refCategoryStructure + refCategoryAirNonScout

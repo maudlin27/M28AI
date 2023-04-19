@@ -408,6 +408,7 @@ function GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, iCategory)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
+
     local tAvailableUnits = {}
     local tUnitsForRefueling = {}
     local tInUseUnits = {}
@@ -555,6 +556,8 @@ function CalculateAirTravelPath(iStartPlateauOrZero, iStartLandOrWaterZone, iEnd
     local sFunctionRef = 'CalculateAirTravelPath'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; iStartPlateauOrZero='..(iStartPlateauOrZero or 'nil')..'; iStartLandOrWaterZone='..(iStartLandOrWaterZone or 'nil')..'; iEndPlateauOrZero='..(iEndPlateauOrZero or 'nil')..'; iEndLandOrWaterZone='..(iEndLandOrWaterZone or 'nil')) end
 
     if not(tAirZonePathingFromZoneToZone[iStartPlateauOrZero][iStartLandOrWaterZone][iEndPlateauOrZero][iEndLandOrWaterZone]) then
@@ -671,6 +674,7 @@ function CalculateAirTravelPath(iStartPlateauOrZero, iStartLandOrWaterZone, iEnd
                                 if M28Utilities.IsTableEmpty(tBaseWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
                                     for iEntry, iAdjWZ in tBaseWZData[M28Map.subrefWZAdjacentWaterZones] do
                                         local tAdjWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ]
+                                        if bDebugMessages == true then LOG(sFunctionRef..': iAdjWZ='..(iAdjWZ or 'nil')..'; iCurSegmentX='..iCurSegmentX..'; iCurSegmentZ='..iCurSegmentZ..'; tAdjWZData[M28Map.subrefWZMinSegX]='..tAdjWZData[M28Map.subrefWZMinSegX]..'; tAdjWZData[M28Map.subrefWZMaxSegX]='..tAdjWZData[M28Map.subrefWZMaxSegX]..'; tAdjWZData[M28Map.subrefWZMinSegZ]='..tAdjWZData[M28Map.subrefWZMinSegZ]..'; tAdjWZData[M28Map.subrefWZMaxSegZ]='..tAdjWZData[M28Map.subrefWZMaxSegZ]) end
                                         if iCurSegmentX >= tAdjWZData[M28Map.subrefWZMinSegX] - iSidewaysSegmentDistance and iCurSegmentX <= tAdjWZData[M28Map.subrefWZMaxSegX] + iSidewaysSegmentDistance
                                                 and iCurSegmentZ >= tAdjWZData[M28Map.subrefWZMinSegZ] - iSidewaysSegmentDistance and iCurSegmentZ <= tAdjWZData[M28Map.subrefWZMaxSegZ] + iSidewaysSegmentDistance then
                                             --Are near enough, so include this WZ
@@ -1264,7 +1268,7 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
     --Cycle through every relevant land and water zone along this path and calculate the threat
     --First do land zones
     local tBasePathingTable = tAirZonePathingFromZoneToZone[iStartPlateauOrZero][iStartLandOrWaterZone][iEndPlateauOrZero][iEndLandOrWaterZone]
-    if bDebugMessages == true then LOG(sFunctionRef..': Near start, iStartPlateauOrZero='..iStartPlateauOrZero..'; iStartLandOrWaterZone='..iStartLandOrWaterZone..'; iEndPlateauOrZero='..iEndPlateauOrZero..'; iEndLandOrWaterZone='..iEndLandOrWaterZone..'; bIgnoreAirAAThreat='..tostring(bIgnoreAirAAThreat or false)..'; iGroundAAThreatThreshold='..(iGroundAAThreatThreshold or 'nil')..'; Is table of land azones in path empty='..tostring(M28Utilities.IsTableEmpty(tBasePathingTable[subreftPlateauAndLandZonesInPath]) or false)..'; Is table of water zones in path empty='..tostring(M28Utilities.IsTableEmpty(tBasePathingTable[subreftWaterZonesInPath]) or false)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start at time '..GetGameTimeSeconds()..', iStartPlateauOrZero='..iStartPlateauOrZero..'; iStartLandOrWaterZone='..iStartLandOrWaterZone..'; iEndPlateauOrZero='..iEndPlateauOrZero..'; iEndLandOrWaterZone='..iEndLandOrWaterZone..'; bIgnoreAirAAThreat='..tostring(bIgnoreAirAAThreat or false)..'; iGroundAAThreatThreshold='..(iGroundAAThreatThreshold or 'nil')..'; Is table of land azones in path empty='..tostring(M28Utilities.IsTableEmpty(tBasePathingTable[subreftPlateauAndLandZonesInPath]) or false)..'; Is table of water zones in path empty='..tostring(M28Utilities.IsTableEmpty(tBasePathingTable[subreftWaterZonesInPath]) or false)) end
     if M28Utilities.IsTableEmpty(tBasePathingTable[subreftPlateauAndLandZonesInPath]) == false then
         for iEntry, tPlateauAndLandZone in tBasePathingTable[subreftPlateauAndLandZonesInPath] do
             local tLZTeamData = M28Map.tAllPlateaus[tPlateauAndLandZone[1]][M28Map.subrefPlateauLandZones][tPlateauAndLandZone[2]][M28Map.subrefLZTeamData][iTeam]
@@ -1278,7 +1282,10 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
     if M28Utilities.IsTableEmpty(tBasePathingTable[subreftWaterZonesInPath]) == false then
         for iEntry, iWaterZone in tBasePathingTable[subreftWaterZonesInPath] do
             local tWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][iTeam]
-            if bDebugMessages == true then LOG(sFunctionRef..': Checking along water zone path, iEntry='..iEntry..'; iWaterZone='..iWaterZone..'; IsThereAAInWaterZone='..tostring(IsThereAAInWaterZone(tWZTeamData, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold))..'; tWZTeamData groundAA='..tWZTeamData[M28Map.subrefWZThreatEnemyAA]..'; AirAA threat in WZ='..tWZTeamData[M28Map.refiEnemyAirAAThreat]) end
+            if bDebugMessages == true then
+                LOG(sFunctionRef..': Checking along water zone path, iEntry='..iEntry..'; iWaterZone='..iWaterZone..'; IsThereAAInWaterZone='..tostring(IsThereAAInWaterZone(tWZTeamData, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold))..'; tWZTeamData groundAA='..tWZTeamData[M28Map.subrefWZThreatEnemyAA]..'; AirAA threat in WZ='..tWZTeamData[M28Map.refiEnemyAirAAThreat])
+                M28Map.DrawSpecificWaterZone(iWaterZone)
+            end
             if IsThereAAInWaterZone(tWZTeamData, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold) then
                 --If using torp bombers check if reason for failure is due to enemy groundAA threat
                 if bUsingTorpBombers and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchGroundNavalAAForTorpBombers]) and not(tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies]) and not(IsThereAAInWaterZone(tWZTeamData, true, 100000000, iAirAAThreatThreshold)) then
@@ -1609,11 +1616,12 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
             end
             --Cycle through in order of distance
             local iTorpBomberThreat = M28UnitInfo.GetAirThreatLevel(tAvailableBombers, false, false, false, true, false, true, false) + M28UnitInfo.GetAirThreatLevel(tUnavailableUnits, false, false, false, true, false, true, false)
+
             local iAAThreatThreshold
             if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through water zones, iTorpBomberThreat='..iTorpBomberThreat) end
             for iWaterZone, iDistance in M28Utilities.SortTableByValue(tiWaterZoneByDistance, false) do
                 local tWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][iTeam]
-                if iTorpBomberThreat >= 8000 or (iTorpBomberThreat >= 6000 and GetGameTimeSeconds() - (tWZTeamData[M28Map.refiTimeOfLastTorpAttack] or -100) >= 3) then --Have so many torp bombers that dont want to worry about enemy groundAA threat unless massively more than us
+                if iTorpBomberThreat >= 6000 or (iTorpBomberThreat >= 4000 and GetGameTimeSeconds() - (tWZTeamData[M28Map.refiTimeOfLastTorpAttack] or -100) >= 3) then --Have so many torp bombers that dont want to worry about enemy groundAA threat unless massively more than us
                     iAAThreatThreshold = iTorpBomberThreat * 5
                 elseif GetGameTimeSeconds() - (tWZTeamData[M28Map.refiTimeOfLastTorpAttack] or -100) >= 5 then
                     --Havnet attacked for a while, so want more threat than enemy
@@ -1622,7 +1630,9 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                     --Recently chose to attack here
                     iAAThreatThreshold = iTorpBomberThreat
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering if enemies in iWaterZone='..iWaterZone..'; iDistance='..iDistance..'; Is table of enemy units in this WZ empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]))) end
+                if tWZTeamData[M28Map.subrefWZbCoreBase] or iDistance <= 150 then iAAThreatThreshold = iAAThreatThreshold * 0.8 end
+
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering if enemies in iWaterZone='..iWaterZone..'; iDistance='..iDistance..'; Is table of enemy units in this WZ empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]))..'; tWZTeamData[M28Map.subrefWZbCoreBase]='..tostring(tWZTeamData[M28Map.subrefWZbCoreBase] or false)) end
                 if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
                     if bDebugMessages == true then LOG(sFunctionRef..': Want to attack, enemy AA threat threshold='..iAAThreatThreshold..'; DoesEnemyHaveAAThreatAlongPath='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, false, iAAThreatThreshold, 0))) end
                     if not(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, false, iAAThreatThreshold, 0, true, iAirSubteam)) then
@@ -1919,6 +1929,7 @@ function ManageGunships(iTeam, iAirSubteam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
+
     local tAvailableGunships, tGunshipsForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, M28UnitInfo.refCategoryGunship)
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; Is tAvailableGunships empty='..tostring(M28Utilities.IsTableEmpty(tAvailableGunships))) end
     M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] = M28UnitInfo.GetAirThreatLevel(tAvailableGunships, false, false, false, true, false, false) + M28UnitInfo.GetAirThreatLevel(tGunshipsForRefueling, false, false, false, true, false, false) + M28UnitInfo.GetAirThreatLevel(tUnavailableUnits, false, false, false, true, false, false)
@@ -2056,7 +2067,7 @@ function ManageGunships(iTeam, iAirSubteam)
                                 else
                                     AddEnemyGroundUnitsToTargetsSubjectToAA(tSubtable[M28Map.subrefiPlateauOrPond], tSubtable[M28Map.subrefiLandOrWaterZoneRef], iGunshipThreatFactorWanted, true)
                                 end
-                                if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy targets empty='..tostring(M28Utilities.IsTableEmpty(tEnemyGroundTargets))..'; tSubtable='..repru(tSubtable)..'; iGunshipThreatFactorWanted='..iGunshipThreatFactorWanted) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have just finished calling AddEnemyGroundUnitsToTargetsSubjectToAA for zone '..tSubtable[M28Map.subrefiLandOrWaterZoneRef]..', Is table of enemy targets empty='..tostring(M28Utilities.IsTableEmpty(tEnemyGroundTargets))..'; tSubtable='..repru(tSubtable)..'; iGunshipThreatFactorWanted='..iGunshipThreatFactorWanted) end
                                 if M28Utilities.IsTableEmpty(tEnemyGroundTargets) == false then break end
                             end
                         end
@@ -2520,35 +2531,40 @@ function ManageTransports(iTeam, iAirSubteam)
                     --Want to wait for more engineers unless have some already and arent on a core LZ
                     local iCurPlateauOrZero, iCurLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
 
-                    local tCurLZTeamData
+                    local tCurLZOrWZTeamData
                     if iCurPlateauOrZero > 0 then
                         --Dealing with a land zone so it might have a land factory
-                        tCurLZTeamData = M28Map.tAllPlateaus[iCurPlateauOrZero][M28Map.subrefPlateauLandZones][iCurLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
+                        tCurLZOrWZTeamData = M28Map.tAllPlateaus[iCurPlateauOrZero][M28Map.subrefPlateauLandZones][iCurLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
+                    else
+                        tCurLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iCurLandOrWaterZone]][M28Map.subrefPondWaterZones][iCurLandOrWaterZone][M28Map.subrefWZTeamData][iTeam]
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurLandOrWaterZone='..(iCurLandOrWaterZone or 'nil')..'; Is this a core base='..tostring(tCurLZTeamData[M28Map.subrefLZbCoreBase] or false)) end
-                    if tCurLZTeamData[M28Map.subrefLZbCoreBase] or iEngisHave == 0 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurLandOrWaterZone='..(iCurLandOrWaterZone or 'nil')..'; Is this a core base='..tostring(tCurLZOrWZTeamData[M28Map.subrefLZbCoreBase] or false)) end
+                    if tCurLZOrWZTeamData[M28Map.subrefLZbCoreBase] or iEngisHave == 0 then
                         bGetMoreEngis = true
                         oUnit[refiEngisWanted] = iExtraEngisWanted
                         --Get more engis
-                        if tCurLZTeamData[M28Map.subrefLZbCoreBase] then
+                        if tCurLZOrWZTeamData[M28Map.subrefLZbCoreBase] then
                             --Do nothing re orders - dont want to override transport orders incase engineers are trying to load onto it
                             --However, want to record that we are waiting for an engineer if not already recorded
                             local bRecordAgainstLZ = true
-                            if M28Utilities.IsTableEmpty(tCurLZTeamData[M28Map.reftoTransportsWaitingForEngineers]) == false then
-                                for iRecordedTransport, oRecordedTransport in tCurLZTeamData[M28Map.reftoTransportsWaitingForEngineers] do
+                            if M28Utilities.IsTableEmpty(tCurLZOrWZTeamData[M28Map.reftoTransportsWaitingForEngineers]) == false then
+                                for iRecordedTransport, oRecordedTransport in tCurLZOrWZTeamData[M28Map.reftoTransportsWaitingForEngineers] do
                                     if oRecordedTransport == oUnit then
                                         bRecordAgainstLZ = false
                                     end
                                 end
                             end
                             if bRecordAgainstLZ then
-                                table.insert(tCurLZTeamData[M28Map.reftoTransportsWaitingForEngineers], oUnit)
+                                table.insert(tCurLZOrWZTeamData[M28Map.reftoTransportsWaitingForEngineers], oUnit)
                             end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Transport is in core base iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurLandOrWaterZone='..(iCurLandOrWaterZone or 'nil')..'; is table of transports waiting for engineers empty='..tostring(M28Utilities.IsTableEmpty(tCurLZTeamData[M28Map.reftoTransportsWaitingForEngineers]))) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Transport is in core base iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurLandOrWaterZone='..(iCurLandOrWaterZone or 'nil')..'; is table of transports waiting for engineers empty='..tostring(M28Utilities.IsTableEmpty(tCurLZOrWZTeamData[M28Map.reftoTransportsWaitingForEngineers]))) end
                         else
                             --Want engineers, but not on core base, so move to core base
-                            M28Orders.IssueTrackedMove(oUnit, tCurLZTeamData[M28Map.reftClosestFriendlyBase], 10, false, 'TWntE', false)
-                            if bDebugMessages == true then LOG(sFunctionRef..': Transport wants engineers but not in core base so will move there') end
+                            if M28Utilities.IsTableEmpty(tCurLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) then M28Utilities.ErrorHandler('Dont have a closest friendly base for iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurLandOrWaterZone='..(iCurLandOrWaterZone or 'nil')) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Transport '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' wants engineers but not in core base so will move there iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurLandOrWaterZone='..(iCurLandOrWaterZone or 'nil')..'; Is transport valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; tCurLZOrWZTeamData[M28Map.reftClosestFriendlyBase]='..repru(tCurLZOrWZTeamData[M28Map.reftClosestFriendlyBase])..'; Unit last order position='..repru(oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition])) end
+                                    --IssueTrackedMove(oUnit, tOrderPosition,                           iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
+                            M28Orders.IssueTrackedMove(oUnit, tCurLZOrWZTeamData[M28Map.reftClosestFriendlyBase], 10,                   false,              'TWntE',            false)
+
                         end
                     end
 

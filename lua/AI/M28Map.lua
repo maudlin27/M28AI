@@ -244,6 +244,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             refiEnemyAirToGroundThreat = 'EnA2GT' --Air to ground threat of enemy air units in the LZ / WZ
             refiEnemyAirAAThreat = 'EnAAT' --AirAA threat in the LZ/WZ
             refiEnemyAirOtherThreat = 'EnAirOT' --mass value of AirAA, air scouts and transports in the LZ / WZ
+            refiTimeOfLastAirUpdate = 'EnAirTim' --Gametimeseconds that last refreshed the positiosn of air units (done given high mobility of air to approximate a human player realising the air force is no longer there)
             --Shield, stealth and tmd
             refbLZWantsMobileShield = 'MobSh' --true if LZ wants mobile shields
             reftoLZUnitsWantingMobileShield = 'UMobSh' --table of units in the LZ that want mobile shield
@@ -295,6 +296,7 @@ tPondDetails = {}
         --subrefMexUnbuiltLocations Uses same ref as LZ
 
         subrefWZMidpoint = 'Midpoint' --Uses same ref as land zone incase we mistyped/forgot to update copy of the code
+        refiMidpointAmphibiousLabel = 'MPAmphbL' --Navutils label for the midpoint of the water zone; same ref is used for land zones
         subrefWZSegments = 'PWZSeg' --e.g. tPondDetails[iPond][subrefPondWaterZones][iWaterZone][subrefWZSegments]
         subrefWZMinSegX = 'PWZMinSX'
         subrefWZMinSegZ = 'PWZMinSZ'
@@ -1830,13 +1832,19 @@ function DrawSpecificLandZone(iPlateau, iLandZone, iColour)
     end
 end
 
-function DrawSpecificWaterZone(iWaterZone, iColour)
+function DrawSpecificWaterZone(iWaterZone, iOptionalColour)
     local tLocation
     local iPond = tiPondByWaterZone[iWaterZone]
     local tWZData = tPondDetails[iPond][subrefPondWaterZones][iWaterZone]
+    if iOptionalColour == nil then
+        iOptionalColour = iWaterZone
+        while iOptionalColour > 8 do
+            iOptionalColour = iOptionalColour - 8
+        end
+    end
     for iSegmentRef, tSegmentXZ in tWZData[subrefWZSegments] do
         tLocation = GetPositionFromPathingSegments(tSegmentXZ[1], tSegmentXZ[2])
-        M28Utilities.DrawLocation(tLocation, iColour, nil, iLandZoneSegmentSize - 0.1)
+        M28Utilities.DrawLocation(tLocation, iOptionalColour, nil, iLandZoneSegmentSize - 0.1)
     end
 end
 
@@ -2037,6 +2045,7 @@ local function RecordLandZoneMidpointAndUnbuiltMexes()
                 --We have mexes so will just use one of these as the midpoint as a basic backup
                 tLZData[subrefLZMidpoint] = {tLZData[subrefLZMexLocations][1][1], tLZData[subrefLZMexLocations][1][2], tLZData[subrefLZMexLocations][1][3]}
             end
+            tLZData[refiMidpointAmphibiousLabel] = (NavUtils.GetLabel(refPathingTypeAmphibious, tLZData[subrefLZMidpoint]) or 0)
 
             if bDebugMessages == true then
                 local iColour = iPlateau
@@ -2574,6 +2583,7 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam)
             end
 
             tWZTeamData[reftClosestFriendlyBase] = {PlayerStartPoints[iClosestBrainRef][1], PlayerStartPoints[iClosestBrainRef][2], PlayerStartPoints[iClosestBrainRef][3]}
+            if bDebugMessages == true then LOG(sFunctionRef..': Recorded closest friendly base '..repru(tWZTeamData[reftClosestFriendlyBase])..' for iWaterZone='..iWaterZone..'; iPond='..iPond) end
             tWZTeamData[reftClosestEnemyBase] = GetPrimaryEnemyBaseLocation(tBrainsByIndex[iClosestBrainRef])
             tWZTeamData[refiModDistancePercent] = GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tWZData[subrefWZMidpoint], false)
 
@@ -4072,7 +4082,7 @@ function CreateWaterZones()
 
     local iSystemTimeStart = GetSystemTimeSecondsOnlyForProfileUse()
     local iMapSize = math.max(rMapPlayableArea[3] - rMapPlayableArea[1], rMapPlayableArea[4] - rMapPlayableArea[2])
-    local iWaterZoneInterval = 130 + 30 * math.floor(iMapSize / 512) --i.e. 130 for 5km, 160 for 10km, 190 for 20km, 370 for 80km
+    local iWaterZoneInterval = math.min(200, 115 + 20 * math.floor(iMapSize / 512)) --i.e. 125 for 5km, 135 for 10km, 155 for 20km, 200 for 80km (previously tried 130 + 30 * floor(size/512) but WZ were too big and caused unexpected results with air logic
 
 
     --local iMinDistanceFromFactoryBuildPosition = 100
@@ -4224,6 +4234,7 @@ function SetupWaterZones()
         end
 
 
+
         RecordWaterZoneMidpointAndMinMaxPositions()
         if bDebugMessages == true then LOG(sFunctionRef..': Finished recording water zone midpoint etc., system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
         RecordHydroInWaterZones()
@@ -4239,6 +4250,8 @@ function SetupWaterZones()
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
+
+
 
 function RecordWaterZoneMidpointAndMinMaxPositions()
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -4371,6 +4384,7 @@ function RecordWaterZoneMidpointAndMinMaxPositions()
                 tWZData[subrefWZMidpoint] = GetPositionFromPathingSegments(tWZData[subrefWZSegments][1][1], tWZData[subrefWZSegments][1][2])
                 if bDebugMessages == true then LOG(sFunctionRef..': WIll use the first recorded segment as the midpoint, tWZData[subrefWZMidpoint]='..repru(tWZData[subrefWZMidpoint])) end
             end
+            tWZData[refiMidpointAmphibiousLabel] = (NavUtils.GetLabel(refPathingTypeAmphibious, tWZData[subrefWZMidpoint]) or 0)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

@@ -16,6 +16,7 @@ local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 local M28Chat = import('/mods/M28AI/lua/AI/M28Chat.lua')
 local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
+local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 
 
 bInitialSetup = false
@@ -167,9 +168,13 @@ function Test2()
 end
 
 function TestCustom(aiBrain)
-    M28Utilities.DrawLocation({10,GetTerrainHeight(10,10),10}, 3)
+    local tWZTeamData = M28Map.tPondDetails[552][M28Map.subrefPondWaterZones][25][M28Map.subrefWZTeamData][aiBrain.M28Team]
+    LOG('WZ25 pond 552 closest friendly base='..repru(tWZTeamData[M28Map.reftClosestFriendlyBase]))
+    --WaitSeconds(5)
+    --M28Air.CalculateAirTravelPath(0, 18, 0, 22)
+    --[[M28Utilities.DrawLocation({10,GetTerrainHeight(10,10),10}, 3)
     M28Utilities.DrawLocation({12,GetTerrainHeight(12,12),10}, 4)
-    M28Utilities.DrawLocation({14,GetTerrainHeight(14,14),14}, 5)
+    M28Utilities.DrawLocation({14,GetTerrainHeight(14,14),14}, 5)--]]
 
 
     --Destroy a T3 fixed shield to see if we rebuild it
@@ -243,7 +248,7 @@ function Initialisation(aiBrain)
 end
 
 function OverseerManager(aiBrain)
-    --TestCustom(aiBrain)
+    --ForkThread(TestCustom, aiBrain)
 
     --Make sure map setup will be done
     WaitTicks(1)
