@@ -112,11 +112,11 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         subrefLZMinSegX = 'LZMinSegX'
         subrefLZMinSegZ = 'LZMinSegZ'
         subrefLZMaxSegX = 'LZMaxSegX'
-        subrefLZMaxSegZ = 'LZMaxSegX'
-        subrefLZHydroLocations = 'HydroLoc' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of hydro locations in the LZ
-        subrefLZHydroUnbuiltLocations = 'HydroAvailLoc' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of hydro locations in the LZ that dont have buildings on them
-        subrefLZBuildLocationsBySize = 'BuildLoc' --contains a table, with the index being the unit's highest footprint size, which returns a location that should be buildable in this zone;  only populated on demand (i.e. if we want to try and build something there by references to the predefined location), e.g. tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZBuildLocationsBySize][iSize]
-        subrefLZBuildLocationSegmentCountBySize = 'BuildSegment' --[x] is the building size considered, returns Number of segments that we have considered when identifying segment build locations for the land zone for that particular size
+        subrefLZMaxSegZ = 'LZMaxSegZ'
+        subrefHydroLocations = 'HydroLoc' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of hydro locations in the LZ
+        subrefHydroUnbuiltLocations = 'HydroAvailLoc' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of hydro locations in the LZ that dont have buildings on them
+        subrefBuildLocationsBySize = 'BuildLoc' --contains a table, with the index being the unit's highest footprint size, which returns a location that should be buildable in this zone;  only populated on demand (i.e. if we want to try and build something there by references to the predefined location), e.g. tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefBuildLocationsBySize][iSize]
+        subrefBuildLocationSegmentCountBySize = 'BuildSegment' --[x] is the building size considered, returns Number of segments that we have considered when identifying segment build locations for the land zone for that particular size
         subrefBuildLocationBlacklist = 'Blacklst' --[x] is the entry, returns a subtable
             subrefBlacklistLocation = 1
             subrefBlacklistSize = 2 --radius of the square, i.e. if do a square around the location where eaech side is this * 2 in length, then will cover the blacklist location
@@ -212,7 +212,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefTbWantBP = 'WantBP' --true if we want BP at any tech level
             subrefTBuildPowerByTechWanted = 'BPByTechW' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power wanted wanted
             subrefTEngineersTravelingHere = 'EUnitsTrav' --Table of any engineer units in another LZ/WZ that have been told to move to this LZ/WZ
-            subrefLZTScoutsTravelingHere = 'SUnitsTrav' --Table of any land scout units in another LZ that have been told to move to this LZ
+            subrefTScoutsTravelingHere = 'SUnitsTrav' --Table of any land scout units in another LZ/WZ that have been told to move to this LZ/WZ
             subrefSpareBPByTech = 'SpareBPByTech' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power of that tech level that we have spare
             subrefReclaimAreaAssignmentsBySegment = 'RecSegAss' --[ReclaimSegX][ReclaimZegY], returns count of how many engineers have been assigned
             subrefQueuedBuildings = 'QBByBP' --Queued buildings for a land zone
@@ -230,7 +230,9 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             refbWantLandScout = 'LandScout' --True/false, used by water and land zones
             refiRadarCoverage = 'RadCov' --Radar coverage of the centre of the land zone midpoint
             refiOmniCoverage = 'OmnCov' --Omni coverage of the centre of the land or water zone midpoint
+            refiSonarCoverage = 'SonCov' --Sonar coverage of the centre of the land or water zone midpoint (intended for water zones)
             refoBestRadar = 'BestRad' --Radar providing the best Radar Coverage for the land zone midpoint
+            refoBestSonar = 'BestSon' --Sonar providing the best sonar coverage for the water zone midpoint
             refiTimeLastHadVisual = 'LstVis' --Gametimeseconds that last had an intel unit (e.g. land or air scout) in the land or water zone
             refiScoutingPriority = 'SctPrio' --will return the scouting priority (i.e. 1, 2 or 3 per below subrefs)
                 subrefiScoutingHighPriority = 1
@@ -242,6 +244,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             refiEnemyAirToGroundThreat = 'EnA2GT' --Air to ground threat of enemy air units in the LZ / WZ
             refiEnemyAirAAThreat = 'EnAAT' --AirAA threat in the LZ/WZ
             refiEnemyAirOtherThreat = 'EnAirOT' --mass value of AirAA, air scouts and transports in the LZ / WZ
+            refiTimeOfLastAirUpdate = 'EnAirTim' --Gametimeseconds that last refreshed the positiosn of air units (done given high mobility of air to approximate a human player realising the air force is no longer there)
             --Shield, stealth and tmd
             refbLZWantsMobileShield = 'MobSh' --true if LZ wants mobile shields
             reftoLZUnitsWantingMobileShield = 'UMobSh' --table of units in the LZ that want mobile shield
@@ -293,6 +296,7 @@ tPondDetails = {}
         --subrefMexUnbuiltLocations Uses same ref as LZ
 
         subrefWZMidpoint = 'Midpoint' --Uses same ref as land zone incase we mistyped/forgot to update copy of the code
+        refiMidpointAmphibiousLabel = 'MPAmphbL' --Navutils label for the midpoint of the water zone; same ref is used for land zones
         subrefWZSegments = 'PWZSeg' --e.g. tPondDetails[iPond][subrefPondWaterZones][iWaterZone][subrefWZSegments]
         subrefWZMinSegX = 'PWZMinSX'
         subrefWZMinSegZ = 'PWZMinSZ'
@@ -350,6 +354,8 @@ tPondDetails = {}
             subrefWZThreatAlliedAA = 'AlAA'
             subrefWZBestAlliedDFRange = 'AlDFRnge'
             subrefWZBestAlliedSubmersibleRange = 'AlANavRng'
+            refiLastBombardmentSearchRange = 'WZBmbRng' --Last range used for searching for bmobardment targets
+            refbLastBombardmentSearchRangeSuccess = 'WZBmbSuc' --true if last time searched for enemies aroudn a location it found results
 
             subrefWZCombatThreatWanted = 'CombWant'
             subrefWZMAAThreatWanted = 'MAAWant'
@@ -362,7 +368,7 @@ tPondDetails = {}
             reftoWZUnitsWantingMobileStealth = 'MStUnit'
             refbWZWantsMobileStealth = 'bWntMSt'
 
-            subrefWZTScoutsTravelingHere = 'WZScTrav'
+            --subrefTScoutsTravelingHere - uses same variable as land zone
             --subrefAlliedACU --Uses same variable as land zone
             --refiEnemyAirToGroundThreat --Uses same variable as land zone
             --refiEnemyAirOtherThreat --Uses same variable as land zone
@@ -962,12 +968,12 @@ local function AddNewLandZoneReferenceToPlateau(iPlateau)
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexCount] = 0
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexLocations] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefMexUnbuiltLocations] = {}
-    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZHydroLocations] = {}
-    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZHydroUnbuiltLocations] = {}
+    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefHydroLocations] = {}
+    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefHydroUnbuiltLocations] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefTotalMassReclaim] = 0
-    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZBuildLocationsBySize] = {}
+    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefBuildLocationsBySize] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefBuildLocationBlacklist] = {}
-    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZBuildLocationSegmentCountBySize] = {}
+    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefBuildLocationSegmentCountBySize] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZSegments] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTotalSegmentCount] = 0
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefTotalMassReclaim] = 0
@@ -1826,13 +1832,19 @@ function DrawSpecificLandZone(iPlateau, iLandZone, iColour)
     end
 end
 
-function DrawSpecificWaterZone(iWaterZone, iColour)
+function DrawSpecificWaterZone(iWaterZone, iOptionalColour)
     local tLocation
     local iPond = tiPondByWaterZone[iWaterZone]
     local tWZData = tPondDetails[iPond][subrefPondWaterZones][iWaterZone]
+    if iOptionalColour == nil then
+        iOptionalColour = iWaterZone
+        while iOptionalColour > 8 do
+            iOptionalColour = iOptionalColour - 8
+        end
+    end
     for iSegmentRef, tSegmentXZ in tWZData[subrefWZSegments] do
         tLocation = GetPositionFromPathingSegments(tSegmentXZ[1], tSegmentXZ[2])
-        M28Utilities.DrawLocation(tLocation, iColour, nil, iLandZoneSegmentSize - 0.1)
+        M28Utilities.DrawLocation(tLocation, iOptionalColour, nil, iLandZoneSegmentSize - 0.1)
     end
 end
 
@@ -2033,6 +2045,7 @@ local function RecordLandZoneMidpointAndUnbuiltMexes()
                 --We have mexes so will just use one of these as the midpoint as a basic backup
                 tLZData[subrefLZMidpoint] = {tLZData[subrefLZMexLocations][1][1], tLZData[subrefLZMexLocations][1][2], tLZData[subrefLZMexLocations][1][3]}
             end
+            tLZData[refiMidpointAmphibiousLabel] = (NavUtils.GetLabel(refPathingTypeAmphibious, tLZData[subrefLZMidpoint]) or 0)
 
             if bDebugMessages == true then
                 local iColour = iPlateau
@@ -2065,9 +2078,35 @@ local function RecordHydroInLandZones()
             if bDebugMessages == true then LOG(sFunctionRef..': Considering iHydro='..iHydro..'; tHydro='..repru(tHydro)..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
             if iLandZone > 0 then
                 if bDebugMessages == true then LOG(sFunctionRef..': Have a hydro location, CanBuildOnHydro='..tostring(M28Conditions.CanBuildOnHydroLocation(tHydro))) end
-                table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZHydroLocations], tHydro)
+                table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefHydroLocations], tHydro)
                 if M28Conditions.CanBuildOnHydroLocation(tHydro) then
-                    table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZHydroUnbuiltLocations], tHydro)
+                    table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefHydroUnbuiltLocations], tHydro)
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+local function RecordHydroInWaterZones()
+    --Updates land zone data to include details of any hydro locations in the land zone
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordHydroInWaterZones'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if M28Utilities.IsTableEmpty(tHydroPoints) == false then
+        local iWaterZone
+
+        for iHydro, tHydro in tHydroPoints do
+            iWaterZone = GetWaterZoneFromPosition(tHydro)
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering iHydro='..iHydro..'; tHydro='..repru(tHydro)..'; iWaterZone='..(iWaterZone or 'nil')) end
+            if iWaterZone > 0 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Have a hydro location, CanBuildOnHydro='..tostring(M28Conditions.CanBuildOnHydroLocation(tHydro))) end
+                if not(tPondDetails[tiPondByWaterZone[iWaterZone]][subrefPondWaterZones][iWaterZone][subrefHydroLocations]) then tPondDetails[tiPondByWaterZone[iWaterZone]][subrefPondWaterZones][iWaterZone][subrefHydroLocations] = {} end
+                table.insert(tPondDetails[tiPondByWaterZone[iWaterZone]][subrefPondWaterZones][iWaterZone][subrefHydroLocations], tHydro)
+                if M28Conditions.CanBuildOnHydroLocation(tHydro) then
+                    if not(tPondDetails[tiPondByWaterZone[iWaterZone]][subrefPondWaterZones][iWaterZone][subrefHydroUnbuiltLocations]) then tPondDetails[tiPondByWaterZone[iWaterZone]][subrefPondWaterZones][iWaterZone][subrefHydroUnbuiltLocations] = {} end
+                    table.insert(tPondDetails[tiPondByWaterZone[iWaterZone]][subrefPondWaterZones][iWaterZone][subrefHydroUnbuiltLocations], tHydro)
                 end
             end
         end
@@ -2544,6 +2583,7 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam)
             end
 
             tWZTeamData[reftClosestFriendlyBase] = {PlayerStartPoints[iClosestBrainRef][1], PlayerStartPoints[iClosestBrainRef][2], PlayerStartPoints[iClosestBrainRef][3]}
+            if bDebugMessages == true then LOG(sFunctionRef..': Recorded closest friendly base '..repru(tWZTeamData[reftClosestFriendlyBase])..' for iWaterZone='..iWaterZone..'; iPond='..iPond) end
             tWZTeamData[reftClosestEnemyBase] = GetPrimaryEnemyBaseLocation(tBrainsByIndex[iClosestBrainRef])
             tWZTeamData[refiModDistancePercent] = GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tWZData[subrefWZMidpoint], false)
 
@@ -4042,7 +4082,7 @@ function CreateWaterZones()
 
     local iSystemTimeStart = GetSystemTimeSecondsOnlyForProfileUse()
     local iMapSize = math.max(rMapPlayableArea[3] - rMapPlayableArea[1], rMapPlayableArea[4] - rMapPlayableArea[2])
-    local iWaterZoneInterval = 130 + 30 * math.floor(iMapSize / 512) --i.e. 130 for 5km, 160 for 10km, 190 for 20km, 370 for 80km
+    local iWaterZoneInterval = math.min(200, 115 + 20 * math.floor(iMapSize / 512)) --i.e. 125 for 5km, 135 for 10km, 155 for 20km, 200 for 80km (previously tried 130 + 30 * floor(size/512) but WZ were too big and caused unexpected results with air logic
 
 
     --local iMinDistanceFromFactoryBuildPosition = 100
@@ -4194,8 +4234,10 @@ function SetupWaterZones()
         end
 
 
+
         RecordWaterZoneMidpointAndMinMaxPositions()
         if bDebugMessages == true then LOG(sFunctionRef..': Finished recording water zone midpoint etc., system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
+        RecordHydroInWaterZones()
         RecordWaterZoneAdjacentLandZones()
         RecordAdjacentWaterZones()
         if bDebugMessages == true then LOG(sFunctionRef..': Finished recording adjacency for land zones vs water zones, system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
@@ -4208,6 +4250,8 @@ function SetupWaterZones()
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
+
+
 
 function RecordWaterZoneMidpointAndMinMaxPositions()
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -4340,6 +4384,7 @@ function RecordWaterZoneMidpointAndMinMaxPositions()
                 tWZData[subrefWZMidpoint] = GetPositionFromPathingSegments(tWZData[subrefWZSegments][1][1], tWZData[subrefWZSegments][1][2])
                 if bDebugMessages == true then LOG(sFunctionRef..': WIll use the first recorded segment as the midpoint, tWZData[subrefWZMidpoint]='..repru(tWZData[subrefWZMidpoint])) end
             end
+            tWZData[refiMidpointAmphibiousLabel] = (NavUtils.GetLabel(refPathingTypeAmphibious, tWZData[subrefWZMidpoint]) or 0)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

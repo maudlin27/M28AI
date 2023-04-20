@@ -61,8 +61,8 @@ function UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc)
     if sOptionalOrderDesc then sExtraOrder = ' '..sOptionalOrderDesc end
     local sPlateauAndZoneDesc = ''
     if EntityCategoryContains(categories.LAND + categories.NAVAL, oUnit.UnitId) then
-        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), false)
-        sPlateauAndZoneDesc = ':P='..(iPlateau or 0)..'LZ='..(iLandZone or 0)
+        local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+        sPlateauAndZoneDesc = ':P='..(iPlateauOrZero or 0)..'Z='..(iLandOrWaterZone or 0)
     end
     oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..sPlateauAndZoneDesc..':'..sBaseOrder..sExtraOrder)
 end
@@ -630,6 +630,14 @@ function IssueTrackedRefuel(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalO
     if not(tLastOrder[subrefiOrderType] == refiOrderRefuel and oOrderTarget == tLastOrder[subrefoOrderTarget]) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
+        --Moven ear the air staging first if are far away
+        if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oOrderTarget:GetPosition()) >= 125 then
+            oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
+            local tOrderPosition = oOrderTarget:GetPosition()
+            table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueMove, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
+            IssueMove({oUnit}, tOrderPosition)
+        end
+
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderRefuel, [subrefoOrderTarget] = oOrderTarget})
         IssueTransportLoad({oUnit}, oOrderTarget)
@@ -658,7 +666,16 @@ function ReleaseStoredUnits(oUnit, bAddToExistingQueue, sOptionalOrderDesc, bOve
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderReleaseStoredUnits, [subreftOrderPosition] = tUnloadLocation})
+        --Clear the cargo's orders
+        local tCargo
+        if oUnit.GetCargo then tCargo = oUnit:GetCargo() end
         IssueTransportUnload({ oUnit }, tUnloadLocation)
+        if M28Utilities.IsTableEmpty(tCargo) == false then
+            for iCargo, oCargo in tCargo do
+                IssueTrackedClearCommands(oCargo)
+            end
+        end
+
     end
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 end

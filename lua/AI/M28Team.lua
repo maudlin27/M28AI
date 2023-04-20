@@ -80,7 +80,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefiHighestFriendlyAirFactoryTech = 'M28TeamHighestFriendlyAir' --Returns the Highest M28Brain's highest tech of this type, i.e. if an M28 brain has a T1 and T2 air factory, and another has a T3 air factory, then this would return 3.
     subrefiHighestFriendlyNavalFactoryTech = 'M28TeamHighestFriendlyNaval'
     subrefiHighestEnemyMexTech = 'M28TeamHighestEnemyMex' --I.e. 1, 2 or 3
-    subrefiTotalFactoryCountByType = 'M28TeamFactoryByType' --[x] is the factory type, returns the number that our team has
+    subrefiTotalFactoryCountByType = 'M28TeamFactoryByType' --[x] is the factory type, returns the number that our team has; factory type per M28Factory.refiFactoryType..., e.g. M28Factory.refiFactoryTypeLand
     refbBuiltLotsOfT3Combat = 'M28TeamBuiltLotsOfT3Combat' --true once we have reached a certain lifetime count of T3 combat units (used e.g. to decide if we want to build an experimental)
 
 
@@ -90,6 +90,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefbEnemyBuiltOmni = 'M28EnemyBuiltOmni' --true if any enemy has built omni at any point in the game (used as basic threshold for deciding whether to build things like deceivers)
     subrefiTimeOfScoutingShortlistUpdate = 'M28ScoutShortlistUpd' --Gametimeseconds that last updated the list of scouting locations to update
     subreftLandAndWaterZoneScoutingShortlist = 'M28ScoutShortlistLWZ' --entries 1,2,... (in no particular order) - returns {PlateauOrZero, LandOrWZRef} for any land or water zones where scouting is overdue
+    subrefbUseFrigatesAsScoutsByPond = 'M28UseFrgAsScout' --[x] is the pond ref, returns true if frigates should be used as scouts
 
     --Notable unit count and threat details
     refbDefendAgainstArti = 'M28TeamDefendAgainstArti' --true if enemy has t3 arti or equivelnt
@@ -118,6 +119,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefiRallyPointLandZonesByPlateau = 'M28TeamLZRallyPoint' --[x] is the plateau ref, then returns a table orderd 1, 2... of land zones that are rally points
     refiTimeOfLastRallyPointRefresh = 'M28TeamRallyPointRefreshTime' --Game time in seconds that last refreshed rally points
     refiLastTimeNoShieldTargetsByPlateau = 'M28TeamLastTimeNoShieldTargets' --[x] is the plateau ref, returns gametime seconds
+    refiLastTimeNoShieldBoatTargetsByPond = 'M28TeamLastTimeNoShieldBoatTargets' --[x] is the pond ref, returns gametimeseconds
     refiLastTimeNoStealthTargetsByPlateau = 'M28TeamLastTimeNoStealthTargets' --[x] is the plateau ref, returns gametime seconds
     refiLastTimeNoMAATargetsByIsland = 'M28TeamLastTimeNoMAATargets' --[x] is the plateau ref, returns gametimeseconds
     --Water related
@@ -312,7 +314,16 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
             local iTeam = oUnitDoingUpgrade:GetAIBrain().M28Team
             table.remove(tTeamData[iTeam][sUpgradeTableRef], iTableRefOfUnit)
             local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnitDoingUpgrade:GetPosition(), true, oUnitDoingUpgrade)
-            local tTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
+            local iWaterZone, iPond
+            local tLZOrWZTeamData
+            if (iLandZone or 0) > 0 then tLZOrWZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
+            else
+                iWaterZone = M28Map.GetWaterZoneFromPosition(oUnitDoingUpgrade:GetPosition())
+                iPond = M28Map.tiPondByWaterZone[iWaterZone]
+                if iWaterZone > 0 and iPond > 0 then
+                    tLZOrWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][iTeam]
+                end
+            end
             if M28Utilities.IsTableEmpty(tTeamData[iTeam][M28Map.subrefActiveUpgrades]) == false then
                 for iUnit, oUnit in tTeamData[iTeam][M28Map.subrefActiveUpgrades] do
                     if oUnit == oUnitDoingUpgrade then
@@ -323,11 +334,11 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
                 end
             end
             --Remove from land zone list of upgrades
-            if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefActiveUpgrades]) == false then
-                for iUnit, oUnit in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefActiveUpgrades] do
+            if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefActiveUpgrades]) == false then
+                for iUnit, oUnit in tLZOrWZTeamData[M28Map.subrefActiveUpgrades] do
                     if oUnit == oUnitDoingUpgrade then
-                        if bDebugMessages == true then LOG(sFunctionRef..': About to remove unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' from the table of upgrades for iPlateau '..iPlateau..'; iLZ='..iLandZone) end
-                        table.remove(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefActiveUpgrades], iUnit)
+                        if bDebugMessages == true then LOG(sFunctionRef..': About to remove unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' from the table of upgrades for iPlateau '..iPlateau..'; iLZ='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')) end
+                        table.remove(tLZOrWZTeamData[M28Map.subrefActiveUpgrades], iUnit)
                     end
                 end
             end
@@ -345,8 +356,8 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
                     local iBuildCost = oNewUnitBP.Economy.BuildTime
                     if iBuildCost > 0 and iOurBuildPower > 0 then
                         local iResourceFactor = 0.1 * iOurBuildPower / iBuildCost
-                        tTeamData[iTeam][subrefiEnergyUpgradesStartedThisCycle] = tTeamData[iTeam][subrefiEnergyUpgradesStartedThisCycle] + oNewUnitBP.Economy.BuildCostEnergy * iResourceFactor
-                        tTeamData[iTeam][subrefiMassUpgradesStartedThisCycle] = tTeamData[iTeam][subrefiMassUpgradesStartedThisCycle] + oNewUnitBP.Economy.BuildCostMass * iResourceFactor
+                        tTeamData[iTeam][subrefiEnergyUpgradesStartedThisCycle] = (tTeamData[iTeam][subrefiEnergyUpgradesStartedThisCycle] or 0) + (oNewUnitBP.Economy.BuildCostEnergy or 0) * iResourceFactor
+                        tTeamData[iTeam][subrefiMassUpgradesStartedThisCycle] = (tTeamData[iTeam][subrefiMassUpgradesStartedThisCycle] or 0) + (oNewUnitBP.Economy.BuildCostMass or 0) * iResourceFactor
                     end
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Updated this cycle check, tTeamData[iTeam][subrefiMassUpgradesStartedThisCycle]='..tTeamData[iTeam][subrefiMassUpgradesStartedThisCycle]) end
@@ -369,7 +380,7 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
                 if bDebugMessages == true then LOG(sFunctionRef..': LZ Upgrade was nil so making it a table, reprs='..reprs(tLZOrWZTeamData[M28Map.subrefActiveUpgrades])) end
             end
             table.insert(tLZOrWZTeamData[M28Map.subrefActiveUpgrades], oUnitDoingUpgrade)
-            if bDebugMessages == true then LOG(sFunctionRef..': Just added unit to the upgrade table for the team '..iTeam..'; Plateau '..iPlateau..'; LZ='..iLandZone..'; Is table of active upgrades empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefActiveUpgrades]))..'; Reprs of tLZOrWZTeamData[activeupgrades]='..reprs(tLZOrWZTeamData[M28Map.subrefActiveUpgrades])) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Just added unit to the upgrade table for the team '..iTeam..'; Plateau '..iPlateau..'; LZ='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Is table of active upgrades empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefActiveUpgrades]))..'; Reprs of tLZOrWZTeamData[activeupgrades]='..reprs(tLZOrWZTeamData[M28Map.subrefActiveUpgrades])) end
         elseif bDebugMessages == true then LOG(sFunctionRef..': Unit dead or compelted, but not in the table so no need to remove it')
         end
     end
@@ -429,6 +440,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][subrefiAlliedIndirectThreat] = 0
     tTeamData[iTotalTeamCount][subrefiAlliedGroundAAThreat] = 0
     tTeamData[iTotalTeamCount][refiLastTimeNoShieldTargetsByPlateau] = {}
+    tTeamData[iTotalTeamCount][refiLastTimeNoShieldBoatTargetsByPond] = {}
     tTeamData[iTotalTeamCount][refiLastTimeNoStealthTargetsByPlateau] = {}
     tTeamData[iTotalTeamCount][refiLastTimeNoMAATargetsByIsland] = {}
     tTeamData[iTotalTeamCount][refiEnemyHighestMobileLandHealth] = 300
@@ -440,6 +452,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][reftEnemySMD] = {}
     tTeamData[iTotalTeamCount][subreftTeamEngineersBuildingExperimentals] = {}
     tTeamData[iTotalTeamCount][refiLastFailedIslandDropTime] = {}
+    tTeamData[iTotalTeamCount][subrefbUseFrigatesAsScoutsByPond] = {}
 
 
 
@@ -1185,7 +1198,7 @@ function UpdateTeamHighestAndLowestFactories(iM28Team)
         tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech] = math.max(tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech], oBrain[M28Economy.refiOurHighestNavalFactoryTech])
         if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..oBrain.Nickname..'; tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech]='..tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech]..'; oBrain[M28Economy.refiOurHighestLandFactoryTech]='..oBrain[M28Economy.refiOurHighestLandFactoryTech]) end
     end
-    tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] = math.max(tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech], tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech], tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech])
+    tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] = math.max(1, tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech], tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech], (tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech] or 0))
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -1277,6 +1290,29 @@ function ConsiderPriorityAirFactoryUpgrades(iM28Team)
                     if bWantUpgrade then
                         M28Economy.FindAndUpgradeUnitOfCategory(oBrain, M28UnitInfo.refCategoryAirHQ * M28UnitInfo.ConvertTechLevelToCategory(oBrain[M28Economy.refiOurHighestAirFactoryTech]))
                     end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ConsiderPriorityNavalFactoryUpgrades(iM28Team)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderPriorityNavalFactoryUpgrades'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech]='..tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech]) end
+
+    if tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech] > 0 and tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech] < math.min(3, tTeamData[iM28Team][subrefiHighestEnemyNavyTech]) then
+        local bWantUpgrade = false
+        for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
+            if oBrain[M28Economy.refiOurHighestNavalFactoryTech] > 0 and oBrain[M28Economy.refiOurHighestAirFactoryTech] < math.min(3, tTeamData[iM28Team][subrefiHighestEnemyNavyTech]) then
+                --Do we have any active air factory upgrades?
+                bWantUpgrade = not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryNavalHQ))
+
+                if bWantUpgrade then
+                    M28Economy.FindAndUpgradeUnitOfCategory(oBrain, M28UnitInfo.refCategoryNavalHQ * M28UnitInfo.ConvertTechLevelToCategory(oBrain[M28Economy.refiOurHighestNavalFactoryTech]))
                 end
             end
         end
@@ -1706,6 +1742,8 @@ function ConsiderGettingUpgrades(iM28Team)
 
         ConsiderPriorityAirFactoryUpgrades(iM28Team)
 
+        ConsiderPriorityNavalFactoryUpgrades(iM28Team)
+
         --Consider priority mex upgrades (e.g. we are falling far behind enemy on eco)
         ConsiderPriorityMexUpgrades(iM28Team)
 
@@ -1856,6 +1894,7 @@ function WaterZoneTeamInitialisation(iTeam)
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZbContainsNavalBuildLocation] = false --true if contains a naval build location for a friendly M28AI
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTValue] = 0 --Value of the WZ, used to prioritise sending untis to different water zones; likely to be based on distance to core base water zone
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiRadarCoverage] = 0
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiSonarCoverage] = 0
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiOmniCoverage] = 0
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiRecentlyFailedScoutAttempts] = 0
             --tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refoBestRadar] --nil by default
@@ -1898,7 +1937,7 @@ function WaterZoneTeamInitialisation(iTeam)
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.reftoWZUnitsWantingMobileStealth] = {}
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refbWZWantsMobileStealth] = false
 
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTScoutsTravelingHere] = {}
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefTScoutsTravelingHere] = {}
 
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiEnemyAirToGroundThreat] = 0
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiEnemyAirAAThreat] = 0
