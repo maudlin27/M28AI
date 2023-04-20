@@ -222,6 +222,9 @@ tbIgnoreEngineerAssistance = { --Any actions where we dont want to assist an eng
     [refActionAssistShield] = true,
     [refActionLoadOntoTransport] = true,
 }
+tbActionsWithFactionSpecificLogic = { --Any actions where it is important to know what factions we have available when deciding what to build
+    [refActionBuildExperimental] = true,
+}
 
 
 function GetEngineerUniqueCount(oEngineer)
@@ -1846,9 +1849,58 @@ function SlowlyRefreshBuildableLandZoneLocations(oOrigBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function DecideOnExperimentalToBuild(iActionToAssign, aiBrain)
-    --Placeholder:
-    return M28UnitInfo.refCategoryLandExperimental
+function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFactionOrNilIfAlreadyAssigned)
+    if not(tbEngineersOfFactionOrNilIfAlreadyAssigned) then
+        return M28UnitInfo.refCategoryExperimentalLevel --Already have the unit under construction
+    else
+        --Land subteam - use aiBrain.M28LandSubteam
+        local iSubteamSize =  table.getn(M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subreftoFriendlyM28Brains])
+        local iEnemyLandExperimentalCount = table.getn(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftEnemyLandExperimentals])
+        local iTeam = aiBrain.M28Team
+        if tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionUEF] then
+            --Decide between fatboy and novax, or (with v.high eco) mavor
+            local iCurFatboyCount = 0
+            local iCurNovaxCount = 0
+            --How many fatboys do we have on the subteam already?
+            for iBrain, oBrain in M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subreftoFriendlyM28Brains] do
+                iCurFatboyCount = iCurFatboyCount + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryFatboy)
+                iCurNovaxCount = iCurNovaxCount + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryNovaxCentre)
+            end
+
+            if aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] then
+                if iCurFatboyCount == 0 then
+                    return M28UnitInfo.refCategoryLandExperimental
+                elseif iCurNovaxCount == 0 then
+                    return M28UnitInfo.refCategoryNovaxCentre
+                elseif iCurFatboyCount < math.min(4, 2 + iSubteamSize, 1 + iEnemyLandExperimentalCount) then
+                    return M28UnitInfo.refCategoryLandExperimental
+                else
+                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 90 then
+                        --Long term want to build mavor
+                        --return M28UnitInfo.refCategoryExperimentalArti
+                        return M28UnitInfo.refCategoryNovaxCentre
+                    else
+                        return M28UnitInfo.refCategoryNovaxCentre
+                    end
+                end
+            else
+                if iCurFatboyCount == 0 and iEnemyLandExperimentalCount > 0 then
+                    return M28UnitInfo.refCategoryLandExperimental
+                else
+                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 90 then
+                        --Long term want to build mavor
+                        --return M28UnitInfo.refCategoryExperimentalArti
+                        return M28UnitInfo.refCategoryNovaxCentre
+                    else
+                        return M28UnitInfo.refCategoryNovaxCentre
+                    end
+                end
+            end
+        else
+            return M28UnitInfo.refCategoryLandExperimental
+        end
+    end
+    return M28UnitInfo.refCategoryLandExperimental --redundancy
 end
 
 function CheckForNearbyEnemies()  end --This is incorporated into available engineers by tech - added to make it easier to locate logic
@@ -2040,9 +2092,12 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
     end
 end
 
-function GetCategoryToBuildOrAssistFromAction(iActionToAssign, iMinTechLevel, aiBrain)
+function GetCategoryToBuildOrAssistFromAction(iActionToAssign, iMinTechLevel, aiBrain, tbEngineersOfFactionOrNilIfAlreadyAssigned)
     --Returns the building category type based on the action; iMinTechLevel is optional; aiBrain is required if dealing with construction of experimental
+    --tbEngineersOfFaction is true for each faction that we have an engineer of iMinTechLevel available for, but is nil if we don't need to worry about factions, either due to category or because the unit/building is under construciton already
+
     local iCategoryToBuild = tiActionCategory[iActionToAssign]
+    local tiOptionalFactionsRequired --Used for certain categories where chocie of category depended on the faction available
     if not(iCategoryToBuild) and not(tbActionsThatDontHaveCategory[iActionToAssign]) then
         if iActionToAssign == refActionBuildEmergencyPD then
             if aiBrain[M28Overseer.refbCloseToUnitCap] then iCategoryToBuild = M28UnitInfo.refCategoryT2PlusPD
@@ -2072,7 +2127,7 @@ function GetCategoryToBuildOrAssistFromAction(iActionToAssign, iMinTechLevel, ai
                 iCategoryToBuild = M28UnitInfo.refCategoryT2PlusPD
             end
         elseif iActionToAssign == refActionBuildExperimental or iActionToAssign == refActionBuildSecondExperimental then
-            iCategoryToBuild = DecideOnExperimentalToBuild(iActionToAssign, aiBrain)
+            iCategoryToBuild = DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFactionOrNilIfAlreadyAssigned)
         elseif iActionToAssign == refActionBuildShield or iActionToAssign == refActionBuildSecondShield then
             --NOTE: Separately this gets changed to tech3 if need increased range
             if aiBrain[M28Overseer.refbDefendAgainstArti] or aiBrain[M28Overseer.refbCloseToUnitCap] then
@@ -2774,7 +2829,16 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
             elseif iActionToAssign == refActionBuildNavalFactory then
                 iMinCategoryTechLevel = math.max(1, math.min(iMinTechWanted, (aiBrain[M28Economy.refiOurHighestNavalFactoryTech] or 1)))
             end
-            local iCategoryWanted = GetCategoryToBuildOrAssistFromAction(iActionToAssign, iMinCategoryTechLevel, aiBrain)
+            --Check faction available
+            local tbEngineersOfFaction
+            if tbActionsWithFactionSpecificLogic[iActionToAssign] and not(bAlreadyHaveTechLevelWanted) then
+                tbEngineersOfFaction = {}
+                for iUnit, oUnit in tEngineersOfTechWanted do
+                    tbEngineersOfFaction[M28UnitInfo.GetUnitFaction(oUnit)] = true
+                end
+            end
+
+            local iCategoryWanted, tiOptionalFactionsRequired = GetCategoryToBuildOrAssistFromAction(iActionToAssign, iMinCategoryTechLevel, aiBrain, tbEngineersOfFaction)
 
             function UpdateBPTracking()
                 iCurEngiTechLevel = M28UnitInfo.GetUnitTechLevel(tEngineersOfTechWanted[iEngiCount])
@@ -2890,7 +2954,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                             iCurBPAssisting = 0
                                             if M28Utilities.IsTableEmpty(oShield[M28UnitInfo.reftoUnitsAssistingThis]) == false then
                                                 for iAssisting, oAssisting in oShield[M28UnitInfo.reftoUnitsAssistingThis] do
-                                                    iCurBPAssisting = iCurBPAssisting + oAssisting:GetBlueprint().Economy.BuildRate
+                                                    iCurBPAssisting = iCurBPAssisting + (oAssisting:GetBlueprint().Economy.BuildRate or 0)
                                                 end
                                             end
                                             if iCurBPAssisting < iLowestBPAssisting then
