@@ -137,7 +137,7 @@ function RefreshWaterRallyPoints(iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function UpdateUnitPositionsAndWaterZone(aiBrain, tUnits, iTeam, iRecordedWaterZone, bUseLastKnownPosition, bAreAirUnits, tWZTeamData)
+function UpdateUnitPositionsAndWaterZone(aiBrain, tUnits, iTeam, iRecordedWaterZone, bUseLastKnownPosition, bAreAirUnits, tWZTeamData, bUpdateTimeOfLastEnemyPositionCheck)
     --Similar to UpdateUnitPositionsAndLandZone
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateUnitPositionsAndWaterZone'
@@ -151,6 +151,7 @@ function UpdateUnitPositionsAndWaterZone(aiBrain, tUnits, iTeam, iRecordedWaterZ
     local UpdateUnitLastKnownPosition = M28Team.UpdateUnitLastKnownPosition
     local bUseActualPositionIfEnemy = false
     if tWZTeamData[M28Map.refiRadarCoverage] >= 100 then bUseActualPositionIfEnemy = true end
+    if bUpdateTimeOfLastEnemyPositionCheck and not(bUseLastKnownPosition) then tWZTeamData[M28Map.subrefiTimeOfLastEnemyUnitPosUpdate] = GetGameTimeSeconds() end
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; iRecordedWaterZone='..iRecordedWaterZone..'; iTableSize='..iTableSize) end
     for iOrigIndex=1, iTableSize do
         if not(tUnits[iOrigIndex]) or tUnits[iOrigIndex].Dead then

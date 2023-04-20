@@ -1559,3 +1559,60 @@ function GetTransportMaxCapacity(oTransport, iTechLevelToLoad)
 
     return tiCapacityByTechAndFaction[GetUnitTechLevel(oTransport)][iFaction][iTechLevelToLoad]
 end
+
+function GetACUShieldRegenRate(oUnit)
+    --Cycles through every possible enhancement, sees if the unit has it, and if so what its shield regen rate is, and returns the max value
+    local iRegenRate = 0
+    if oUnit.HasEnhancement then
+        local oBP = oUnit:GetBlueprint()
+        if M28Utilities.IsTableEmpty(oBP.Enhancements) == false then
+            for sEnhancement, tEnhancement in oBP.Enhancements do
+                if oUnit:HasEnhancement(sEnhancement) and tEnhancement.ShieldRegenRate then
+                    iRegenRate = math.max(iRegenRate, tEnhancement.ShieldRegenRate)
+                end
+            end
+        end
+    end
+    return iRegenRate
+end
+
+function GetACUHealthRegenRate(oUnit)
+    --Cycles through every ACU enhancement and factors it into its health regen, along with veterancy
+    local oBP = oUnit:GetBlueprint()
+    local iRegenRate = (oBP.Defense.RegenRate or 0)
+
+    --Adjust for veterancy:
+    local iVetLevel = (oUnit.VetLevel or oUnit.Sync.VeteranLevel or 0)
+    if iVetLevel > 0 and oBP.Buffs.Regen then
+        local iCurVet = 0
+        for iVet, iRegenMod in oBP.Buffs.Regen do
+            iCurVet = iCurVet + 1
+            if iCurVet == iVetLevel then
+                iRegenRate = iRegenRate + iRegenMod
+                break
+            end
+        end
+    end
+
+    --Adjust for enhancements
+    if M28Utilities.IsTableEmpty(oBP.Enhancements) == false then
+        for iEnhancement, tEnhancement in oBP.Enhancements do
+            if tEnhancement.NewRegenRate and oUnit:HasEnhancement(iEnhancement) then
+                iRegenRate = iRegenRate + tEnhancement.NewRegenRate
+            end
+        end
+    end
+
+    return iRegenRate
+
+end
+
+function SetUnitTargetPriorities(oUnit, tPriorityTable)
+    if IsUnitValid(oUnit) then
+        if EntityCategoryContains(refCategoryMAA, oUnit) then M28Utilities.ErrorHandler('Changing weapon priority for MAA') end
+        for i =1, oUnit:GetWeaponCount() do
+            local wep = oUnit:GetWeapon(i)
+            wep:SetWeaponPriorities(tPriorityTable)
+        end
+    end
+end

@@ -122,6 +122,9 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                         --M28 specific killer logic
                         local oKillerBrain = instigator:GetAIBrain()
                         if oKillerBrain.M28AI then
+                            if EntityCategoryContains(M28UnitInfo.refCategorySatellite, instigator.UnitId) then
+                                ForkThread(M28Air.NovaxCoreTargetLoop, oKillerBrain, instigator, true)
+                            end
                             --TODO - consider adding in logic e.g. chat messages and tracking
                         end
                     end

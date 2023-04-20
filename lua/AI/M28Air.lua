@@ -13,6 +13,8 @@ local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 local NavUtils = import("/lua/sim/navutils.lua")
+local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
+local M28Logic = import('/mods/M28AI/lua/AI/M28Logic.lua')
 
 --Global
 tAirZonePathingFromZoneToZone = {} --[x]: 1 if land zone start, 0 if water; [y]: Plateau (if land) or 0 if water; [z]: Land/Water zone; [a]: 1 if land zone end, 0 if water; [b]: Plateau (if land) end, 0 if water; [c]: Land/water zone; returns table that contains subreftPlateauAndLandZonesInPath and subreftWaterZonesInPath, each of which will list out in no order the land and water zones that will come across or near
@@ -27,6 +29,9 @@ tAirZonePathingFromZoneToZone = {} --[x]: 1 if land zone start, 0 if water; [y]:
     reftScoutAssignedPlateauAndZoneRef = 'M28SPlLZRef' --against scout, returns {iPlateauOrZero, iLZOrWZRef} that the scout is assigned to,  iPlateauOrZero is 0 for water zone
     refiEngisWanted = 'M28TrnEWnt' --Number of engineers a transport wants
     refiTargetIslandForDrop = 'M28TrnTgIsl' --Target island for a transport to drop
+    refoPriorityTargetOverride = 'M28NvxTOvrd' --e.g. used against novax satellite, for if want to add logic similar to M27 where attacks on high value targets are coordinated
+    refiTimeOfLastOverride = 'M28TimLastOvrd' --e.g. could be used against novax satellite in combination with above - see M27 logic
+    refoNovaxLastTarget = 'M28NovLastTarget' --needed in addition to order tracking since we only track if doing an issueattack
 
 function RecordNewAirUnitForTeam(iTeam, oUnit)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -271,7 +276,9 @@ function AirSubteamOverseer(iTeam, iAirSubteam)
         ForkThread(ManageAirScouts, iTeam, iAirSubteam)
         WaitTicks(1)
         ForkThread(ManageTransports, iTeam, iAirSubteam)
-        WaitTicks(4)
+        WaitTicks(1)
+        ForkThread(ManageNovax, iTeam, iAirSubteam)
+        WaitTicks(3)
     end
 end
 
@@ -2595,4 +2602,486 @@ function ManageTransports(iTeam, iAirSubteam)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ManageNovax(iTeam, iAirSubteam)
+    --Wont bother with normal air availability since arent interested in fuel or health
+    local tNovax = {}
+    local iPlateauOrZero, iLandOrWaterZone
+    for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
+        if oBrain.M28AI then
+            local tCurUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategorySatellite, false, true)
+            for iUnit, oUnit in tCurUnits do
+                if oUnit:GetFractionComplete() >= 1 then
+                    --Refresh positions of enemies in the zone the novax is in
+                    iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                    local tLZOrWZTeamData
+                    if iLandOrWaterZone > 0 then
+                        if iPlateauOrZero == 0 then
+                            --Water zone
+                            tLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone][M28Map.subrefWZTeamData][iTeam]
+                            if GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.subrefiTimeOfLastEnemyUnitPosUpdate] or -100) >= 2 then
+                                M28Navy.UpdateUnitPositionsAndWaterZone(oBrain, tLZOrWZTeamData[M28Map.subrefTEnemyUnits], iTeam, iLandOrWaterZone, false, false, tLZOrWZTeamData, true)
+                            end
+                        else
+                            tLZOrWZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
+                            if GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.subrefiTimeOfLastEnemyUnitPosUpdate] or -100) >= 2 then
+                                M28Land.UpdateUnitPositionsAndLandZone(oBrain, tLZOrWZTeamData[M28Map.subrefTEnemyUnits], iTeam, iPlateauOrZero, iLandOrWaterZone, false, false, tLZOrWZTeamData, true)
+                            end
+                        end
+                    end
+                    ForkThread(NovaxCoreTargetLoop, oBrain, oUnit)
+                end
+            end
+        end
+    end
+    if M28Utilities.IsTableEmpty(tNovax) == false then
+        for iNovax, oNovax in tNovax do
+            M28Utilities.ErrorHandler('To add code for novax')
+        end
+    end
+end
+
+function NovaxCoreTargetLoop(aiBrain, oNovax, bCalledFromUnitDeath)
+    --Used so can do forkthread of this in case come across errors
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'NovaxCoreTargetLoop'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --If called from a unit dying only get a new target if the novax has an attack order on a unit
+    local bGetNewTarget = true
+    if bCalledFromUnitDeath and oNovax[M28Orders.refiOrderCount] > 0 then
+        bGetNewTarget = false
+        local tLastOrder = oNovax[M28Orders.reftiLastOrders][oNovax[M28Orders.refiOrderCount]]
+        if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAttack then
+            bGetNewTarget = true
+        end
+    end
+    if bGetNewTarget then
+
+        local iEffectiveRange = math.max(20, oNovax:GetBlueprint().Weapon[1].MaxRadius) + 10
+        local oTarget
+
+        local iOrderType
+        local refiLastIssuedOrderType = 'M27NovaxLastOrderType'
+        local refoLastIssuedOrderUnit = 'M27NovaxLastOrderUnit'
+        local reftLastIssuedOrderLocation = 'M27NovaxLastOrderLocation'
+        local refOrderAttack = 1
+        local refOrderMove = 2
+        oTarget = GetNovaxTarget(aiBrain, oNovax)
+        oNovax[refoNovaxLastTarget] = oTarget
+        if oTarget then
+            if bDebugMessages == true then
+                LOG(sFunctionRef .. ': GameTime='..GetGameTimeSeconds()..'; Have a target ' .. oTarget.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oTarget) .. '; will decide whether to attack or move to it; Distance to target=' .. M28Utilities.GetDistanceBetweenPositions(oTarget:GetPosition(), oNovax:GetPosition()))
+            end
+            if M28Utilities.GetDistanceBetweenPositions(oTarget:GetPosition(), oNovax:GetPosition()) > iEffectiveRange then
+                iOrderType = refOrderMove
+            else
+                iOrderType = refOrderAttack
+            end
+
+            if iOrderType == refOrderMove then
+                M28Orders.IssueTrackedMove(oNovax, oTarget:GetPosition(), 8, false, 'NVMv', false)
+            else
+                M28Orders.IssueTrackedAttack(oNovax, oTarget, false, 'NVAtc', false)
+            end
+        else
+            if bDebugMessages == true then LOG(sFunctionRef .. ': No target so move to enemy base') end
+
+            --No target so move towards enemy base
+            M28Orders.IssueTrackedMove(oNovax, M28Map.GetPrimaryEnemyBaseLocation(aiBrain), 8, false, 'NVBsMv', false)
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function GetEnemyUnitsInCurrentAndAdjacentZonesOfCategory(iStartPlateauOrZero, tStartLZOrWZData, tStartLZOrWZTeamData, iTeam, iOptionalCategory)
+    --iOptionalCategoyr - if nil will just return all units
+    local tUnitsOfCategory = {}
+    function AddUnitsFromZoneTeamData(tLZOrWZTeamData)
+        if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+            local tZoneUnitsOfCategory
+            if iOptionalCategory then tZoneUnitsOfCategory = EntityCategoryFilterDown(iOptionalCategory, tLZOrWZTeamData[M28Map.subrefTEnemyUnits])
+            else tZoneUnitsOfCategory = tLZOrWZTeamData[M28Map.subrefTEnemyUnits]
+            end
+            if M28Utilities.IsTableEmpty(tZoneUnitsOfCategory) == false then
+                for iUnit, oUnit in tZoneUnitsOfCategory do
+                    if M28UnitInfo.IsUnitValid(oUnit) then
+                        table.insert(tUnitsOfCategory, oUnit)
+                    end
+                end
+            end
+        end
+    end
+    AddUnitsFromZoneTeamData(tStartLZOrWZTeamData)
+    if iStartPlateauOrZero == 0 then
+        if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefAdjacentLandZones]) == false then
+            for iEntry, tSubtable in tStartLZOrWZData[M28Map.subrefAdjacentLandZones] do
+                AddUnitsFromZoneTeamData(M28Map.tAllPlateaus[tSubtable[M28Map.subrefWPlatAndLZNumber][1]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefWPlatAndLZNumber][2]][M28Map.subrefLZTeamData][iTeam])
+            end
+        end
+        if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
+            for iEntry, iWaterZone in tStartLZOrWZData[M28Map.subrefWZAdjacentWaterZones] do
+                AddUnitsFromZoneTeamData(M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][iTeam])
+            end
+        end
+    else
+        --Dealing with land zone
+        if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefLZAdjacentLandZones]) == false then
+            for iEntry, iLandZone in tStartLZOrWZData[M28Map.subrefLZAdjacentLandZones] do
+                AddUnitsFromZoneTeamData(M28Map.tAllPlateaus[iStartPlateauOrZero][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam])
+            end
+        end
+        if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefAdjacentWaterZones]) == false then
+            for iEntry, tSubtable in tStartLZOrWZData[M28Map.subrefAdjacentWaterZones] do
+                AddUnitsFromZoneTeamData(M28Map.tPondDetails[M28Map.tiPondByWaterZone[tSubtable[M28Map.subrefAWZRef]]][M28Map.subrefPondWaterZones][tSubtable[M28Map.subrefAWZRef]][M28Map.subrefWZTeamData][iTeam])
+            end
+        end
+    end
+    return tUnitsOfCategory
+end
+
+function GetNovaxTarget(aiBrain, oNovax)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetNovaxTarget'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local oTarget
+    local iTeam = aiBrain.M28Team
+    local iStartPlateauOrZero, iStartLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oNovax:GetPosition())
+    local tStartLZOrWZData
+    local tStartLZOrWZTeamData
+    if iStartPlateauOrZero == 0 then
+        tStartLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iStartLandOrWaterZone]][M28Map.subrefPondWaterZones][iStartLandOrWaterZone]
+        tStartLZOrWZTeamData = tStartLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+    else
+        tStartLZOrWZData =  M28Map.tAllPlateaus[iStartPlateauOrZero][M28Map.subrefPlateauLandZones][iStartLandOrWaterZone]
+        tStartLZOrWZTeamData = tStartLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+    end
+
+    --Get list of significant enemy shielding (will ignore targets under these shields)
+    local tNearbyEnemyShields = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryShieldBoat + M28UnitInfo.refCategoryMobileLandShield * categories.TECH3, oNovax:GetPosition(), 60, 'Enemy')
+    --tNearbyEnemyShields = GetEnemyUnitsInCurrentAndAdjacentZonesOfCategory(iStartPlateauOrZero, tStartLZOrWZData, tStartLZOrWZTeamData, iTeam, M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryShieldBoat + M28UnitInfo.refCategoryMobileLandShield * categories.TECH3)
+    local tNotLowHealthNearbyShields = {}
+    local tNearbyNovax = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategorySatellite, oNovax:GetPosition(), 30, 'Ally')
+    local iNearbyNovax = table.getn(tNearbyNovax)
+    local iShieldHealthThreshold = 3000 * iNearbyNovax
+    if M28Utilities.IsTableEmpty(tNearbyEnemyShields) == false then
+        local iCurShield, iMaxShield
+        for iUnit, oUnit in tNearbyEnemyShields do
+            iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, false)
+            if iCurShield >= iShieldHealthThreshold then table.insert(tNotLowHealthNearbyShields, oUnit) end
+        end
+    end
+
+    function DoShieldsCoverPosition(tShieldsToCheck, tPosition, oOptionalShieldToIgnore)
+        if M28Utilities.IsTableEmpty(tShieldsToCheck) == false then
+            for iUnit, oUnit in tShieldsToCheck do
+                if not(oUnit == oOptionalShieldToIgnore) then
+                    if M28Utilities.GetDistanceBetweenPositions(tPosition, oUnit:GetPosition()) <= oUnit:GetBlueprint().Defense.Shield.ShieldSize * 0.5 then
+                        return true
+                    end
+                end
+            end
+        end
+        return false
+    end
+
+    --Check for priority override (but still consider shields and ACU even if have a priority target)
+    if bDebugMessages == true then LOG(sFunctionRef .. ': Time='..GetGameTimeSeconds()..'; Is there a valid target override set=' .. tostring(oNovax[refoPriorityTargetOverride]) .. '; Time since last override=' .. GetGameTimeSeconds() - (oNovax[refiTimeOfLastOverride] or -100)) end
+    if M28UnitInfo.IsUnitValid(oNovax[refoPriorityTargetOverride]) and (GetGameTimeSeconds() - oNovax[refiTimeOfLastOverride]) <= 11 then
+
+        --Are there any near-exposed shields nearby? Then target them instead
+
+        if bDebugMessages == true then LOG(sFunctionRef .. ': is table of nearby shields empty=' .. tostring(M28Utilities.IsTableEmpty(tNearbyEnemyShields)) .. '; target subject to this=' .. oNovax[refoPriorityTargetOverride].UnitId .. M28UnitInfo.GetUnitLifetimeCount(oNovax[refoPriorityTargetOverride])) end
+        if M28Utilities.IsTableEmpty(tNearbyEnemyShields) == false then
+            local iCurShield, iMaxShield
+            local iLowestShield = 5000
+            for iUnit, oUnit in tNearbyEnemyShields do
+                iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit)
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to target enemy near-exposed shield, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurShield='..iCurShield..'; iMaxShield='..iMaxShield) end
+                if iCurShield <= iLowestShield and iCurShield <= iMaxShield * 0.3 then
+                    if not (M28Logic.IsTargetUnderShield(aiBrain, oUnit, iLowestShield + 1,                     false,                      false,                  false)) then
+                        oTarget = oUnit
+                        iLowestShield = iCurShield
+                        if bDebugMessages == true then LOG(sFunctionRef .. ': Nearby shield with low health, setting oTarget=' .. oTarget.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oTarget)) end
+                    end
+                end
+            end
+        end
+        if not(oTarget) then
+            --Is there an expoesd enemy ACU that we can kill instead?
+            if ScenarioInfo.Options.Victory == "demoralization" then
+                local iRange = math.max(20, oNovax:GetBlueprint().Weapon[1].MaxRadius)
+                local tNearbyACUs = GetEnemyUnitsInCurrentAndAdjacentZonesOfCategory(iStartPlateauOrZero, tStartLZOrWZData, tStartLZOrWZTeamData, iTeam, categories.COMMAND)
+                local iDPS = 243
+
+                if M28Utilities.IsTableEmpty(tNearbyACUs) == false then
+                    local iShortestTimeToKillTarget = 60 --Wont consider ACUs where will take more than this time to kill them
+                    local oACUForShortestTime
+                    local iTimeToKillTarget
+                    local iCurDPSMod = 0
+                    for iACU, oACU in tNearbyACUs do
+                        iTimeToKillTarget = 10000
+                        if not(oACU:IsUnitState('Attached')) and not(M28MapInfo.IsUnderwater(oACU:GetPosition())) then --Even if ACU slightly above water watn to ignore since it could probably easily get underwater
+                            local iACUCurShield, iACUMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oACU)
+                            iCurDPSMod = -M28UnitInfo.GetACUShieldRegenRate(oACU) - M28UnitInfo.GetACUHealthRegenRate(oACU)
+                            local iACUHealth = oACU:GetHealth() + iACUCurShield
+                            if -iCurDPSMod < iCurDPSMod then
+                                iTimeToKillTarget = iACUHealth / (iDPS + iCurDPSMod)
+                                if iTimeToKillTarget > 0 and  iTimeToKillTarget < iShortestTimeToKillTarget then
+                                    --Are there nearby shields?
+                                    local iDistToTravel = (oACU:GetBlueprint().Physics.MaxSpeed or 1.7) * iTimeToKillTarget
+                                    local bHaveCloseShields = false
+                                    if not(DoShieldsCoverPosition(tNotLowHealthNearbyShields, oACU:GetPosition())) then
+                                        iShortestTimeToKillTarget = iTimeToKillTarget
+                                        oTarget = oACU
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iShortestTimeToKillTarget='..iShortestTimeToKillTarget..'; is oTarget valid='..tostring(M28UnitInfo.IsUnitValid(oTarget))) end
+                end
+            end
+
+            if not(oTarget) then
+                --Target the priority override
+                oTarget = oNovax[refoPriorityTargetOverride]
+            end
+        end
+    end
+
+    if not (oTarget) then
+        --Normal targeting logic - see M28 devlog and xls for logic behind some of this
+        local iRange = math.max(20, oNovax:GetBlueprint().Weapon[1].MaxRadius)
+        local iSpeed = oNovax:GetBlueprint().Physics.MaxSpeed
+        local iTimeToTarget
+        local iTimeToKillTarget
+        local iDPS = 243
+        local iCurDPSMod
+        local iBestTargetValue = 105
+        local iBestValueWithNoThreshold = 0
+        local oBestTargetWithNoThreshold
+        local iCurValue
+        local iCategoriesToSearch
+        local iMassFactor
+        local iCurShield, iMaxShield
+        local tPositionToSearchFrom = oNovax:GetPosition()
+        local iNearestShield, iCurShieldDistance, iNearestWater, tPossiblePosition, tPossibleShields, iACUSpeed, iCurAmphibiousGroup
+
+        local tEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryNavalSurface + M28UnitInfo.refCategoryStructure, tPositionToSearchFrom, 53, 'Enemy')
+        --GetEnemyUnitsInCurrentAndAdjacentZonesOfCategory(iStartPlateauOrZero, tStartLZOrWZData, tStartLZOrWZTeamData, iTeam, nil)
+        local bIncreaseMAAWeighting = false
+        if M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.subrefiOurGunshipThreat] >= 5000 and not(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbFarBehindOnAir]) then bIncreaseMAAWeighting = true end
+        function GetUnitTypeMassWeighting(oUnit)
+            if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryMobileLandShield + M28UnitInfo.refCategoryShieldBoat, oUnit.UnitId) then
+                return 4
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oUnit.UnitId) then
+                return 5
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryT2Mex, oUnit.UnitId) then
+                return 2
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryT3Mex, oUnit.UnitId) then
+                return 1.5
+            elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and ScenarioInfo.Options.Victory == "demoralization" then
+                return 3
+            elseif  EntityCategoryContains(categories.VOLATILE * categories.STRUCTURE + categories.VOLATILE * categories.LAND, oUnit.UnitId) then
+                return 2
+                --Adjustments for certain categories to just bring them above iBestTargetValue starting threshold
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
+                return 1.35
+            elseif bIncreaseMAAWeighting and EntityCategoryContains(M28UnitInfo.refCategoryGroundAA, oUnit.UnitId) then
+                return 1.5
+            else
+                return 1
+            end
+        end
+        local oUnitBP
+        --Add current target to enemy units to be considered if it's still valid (wont worry about duplication); originally was essential when doing the 'include adjacent zone units' approach, but now is more of a redundancy for if the novax moves just too far away while circling a target
+        if M28UnitInfo.IsUnitValid(oNovax[refoNovaxLastTarget]) then table.insert(tEnemyUnits, oNovax[refoNovaxLastTarget]) end
+
+
+        for iUnit, oUnit in tEnemyUnits do
+            --Ignore units that are mobile and attached, or underwater
+            if bDebugMessages == true then LOG(sFunctionRef .. ': Considering enemy unit ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. '; Unit state=' .. M28UnitInfo.GetUnitState(oUnit) .. '; Does it contain mobile category=' .. tostring(EntityCategoryContains(categories.MOBILE, oUnit.UnitId)) .. '; is it underwater=' .. tostring(M28UnitInfo.IsUnitUnderwater(oUnit)) .. '; Is it under shield=' .. tostring(DoShieldsCoverPosition(tNotLowHealthNearbyShields, oUnit:GetPosition(), oUnit))) end
+            if not (oUnit:IsUnitState('Attached') and EntityCategoryContains(categories.MOBILE, oUnit.UnitId)) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
+                --Ignore units that are shielded
+                if not (DoShieldsCoverPosition(tNotLowHealthNearbyShields, oUnit:GetPosition(), oUnit)) then
+                    iMassFactor = GetUnitTypeMassWeighting(oUnit)
+                    oUnitBP = oUnit:GetBlueprint()
+                    iCurDPSMod = 0
+                    iCurValue = oUnitBP.Economy.BuildCostMass * iMassFactor
+                    if oUnitBP.Defense.Shield and M28UnitInfo.IsUnitShieldEnabled(oUnit) then
+                        if oUnit.MyShield.GetHealth and oUnit.MyShield:GetHealth() > 0 then
+                            iCurDPSMod = oUnitBP.Defense.Shield.ShieldRegenRate
+                            if not (iCurDPSMod) then
+                                if EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then
+                                    iCurDPSMod = M28UnitInfo.GetACUShieldRegenRate(oUnit)
+                                    if (iCurDPSMod or 0) == 0 then
+                                        M28Utilities.ErrorHandler('For some reason the unit has a shield with health but no regen rate; oUnit=' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit), nil, true)
+                                        iCurDPSMod = 0
+                                    end
+                                else
+                                    M28Utilities.ErrorHandler('For some reason the unit has a shield with health but no regen rate; oUnit=' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit), nil, true)
+                                    iCurDPSMod = 0
+                                end
+                            end
+                        else
+                            iCurDPSMod = 0
+                        end
+                    else
+                        iCurDPSMod = 0
+                    end
+                    iCurDPSMod = iCurDPSMod + (oUnitBP.Defense.RegenRate or 0)
+                    iTimeToTarget = math.max(0, M28Utilities.GetDistanceBetweenPositions(oNovax:GetPosition(), oUnit:GetPosition()) - iRange) / iSpeed
+                    iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit)
+
+                    iTimeToKillTarget = (oUnit:GetHealth() + iCurShield + math.min(iMaxShield - iCurShield, iTimeToTarget * iCurDPSMod)) / math.max(0.001, iDPS - iCurDPSMod)
+                    if iMaxShield == 0 and not (EntityCategoryContains(categories.COMMAND, oUnit.UnitId)) then
+                        --If target is already in firing range then prioritise low health units; if its outside firing range then instead prioritise higher health units (that are worth a detour to kill)
+                        if iTimeToTarget > 0 then
+                            iCurValue = iCurValue * math.max(M28UnitInfo.GetUnitHealthPercent(oUnit), 0.25)
+                        elseif oUnit:GetMaxHealth() >= 600 then
+                            iCurValue = iCurValue * (1 + 0.2 * (1-M28UnitInfo.GetUnitHealthPercent(oUnit)))
+                        end
+                    end
+                    iCurValue = iCurValue / math.max(1.5, iTimeToTarget * 0.9 + iTimeToKillTarget)
+
+
+                    --Massively adjust mass factor if dealing with nearby ACU that can kill before it gets to safety
+                    if iCategoriesToSearch == categories.COMMAND and (iTimeToTarget + iTimeToKillTarget) < 60 and (iMaxShield + oUnit:GetMaxHealth()) <= 25000 then
+                        iACUSpeed = oUnitBP.Physics.MaxSpeed
+                        --Get nearest shield
+                        iNearestShield = 10000
+                        tPossibleShields = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedShield, oUnit:GetPosition(), 102, 'Enemy')
+                        --Dont do mobile shields since risk thinking no mobile shields, then revealing them and aborting attack, then losing intle on the mobile shield and repeating attack; so better to just attack if there's a mobile shield
+                        if M28Utilities.IsTableEmpty(tPossibleShields) == false then
+                            for iShield, oShield in tPossibleShields do
+                                iCurShieldDistance = M28Utilities.GetDistanceBetweenPositions(oShield:GetPosition(), oUnit:GetPosition()) - oShield:GetBlueprint().Defense.Shield.ShieldSize * 0.5
+                                if iCurShieldDistance < iNearestShield then
+                                    iNearestShield = iCurShieldDistance
+                                end
+                            end
+                        end
+                        --Could the ACU get under a shield before it dies?
+                        if bDebugMessages == true then LOG(sFunctionRef .. ': Have a nearby ACU target, will consider if we can kill it before it gets to safety; iNearestShield=' .. iNearestShield .. '; iACUSpeed=' .. iACUSpeed) end
+                        if iNearestShield / iACUSpeed > iTimeToKillTarget then
+
+                            iNearestWater = nil
+                            if iStartPlateauOrZero > 0 and M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefAdjacentWaterZones]) then
+                                iNearestWater = 10000
+                            else
+                                --Where is the nearest water to the ACU
+                                iCurAmphibiousGroup = NavUtils.GetLabel(M28Map.refPathingTypeAmphibious, oUnit:GetPosition())
+                                for iDistance = 20, 100, 20 do
+                                    for iAngle = 0, 315, 45 do
+                                        tPossiblePosition = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngle, iDistance, true)
+                                        tPossiblePosition[2] = GetTerrainHeight(tPossiblePosition[1], tPossiblePosition[3])
+                                        if M28Map.IsUnderwater(tPossiblePosition) then
+                                            --Can the enemy ACU path here?
+                                            if NavUtils.GetLabel(M28Map.refPathingTypeAmphibious, tPossiblePosition) == iCurAmphibiousGroup then
+                                                iNearestWater = iDistance
+                                                break
+                                            end
+                                        end
+                                    end
+                                    if iNearestWater then
+                                        break
+                                    end
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef .. ': iNearestWater=' .. (iNearestWater or 'nil')) end
+                            if (iNearestWater or 10000) / iACUSpeed > iTimeToKillTarget then
+                                iCurValue = iCurValue * 30
+                                if bDebugMessages == true then LOG(sFunctionRef .. ': Think we can kill the ACU so massively increasing the curvalue to ' .. iCurValue) end
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef .. ' Unit ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. ' iCurValue=' .. iCurValue .. '; iTimeToTarget=' .. iTimeToTarget .. '; iTimeToKillTarget=' .. iTimeToKillTarget .. '; iCurShield=' .. iCurShield .. '; iMaxShield=' .. iMaxShield .. '; iCurDPSMod=' .. iCurDPSMod) end
+                    if iCurValue > iBestTargetValue then
+                        if bDebugMessages == true then LOG(sFunctionRef .. ': Have a new best target, iBestTargetValue=' .. iBestTargetValue .. '; Target=' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                        iBestTargetValue = iCurValue
+                        oTarget = oUnit
+                    elseif not(oTarget) and iCurValue > iBestValueWithNoThreshold then
+                        iBestValueWithNoThreshold = iCurValue
+                        oBestTargetWithNoThreshold = oUnit
+                    end
+                elseif bDebugMessages == true then
+                    LOG(sFunctionRef .. ': Target unit ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. ' is underwater or under a shield')
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished considering all units at time '..GetGameTimeSeconds()..' in cur and adjacent zones, iStartPlateauOrZero='..(iStartPlateauOrZero)..'; iStartLandOrWaterZone='..iStartLandOrWaterZone..'; oTarget='..(oTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTarget) or 'nil')..'; iBestTargetValue='..iBestTargetValue) end
+
+        if not (oTarget) then
+            --Get low priority target (i.e. further away target) - for now have done a copy of M27 approach
+            tEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryT2Mex + M28UnitInfo.refCategoryT3Mex, oNovax:GetPosition(), 200, 'Enemy')
+            if M28Utilities.IsTableEmpty(tEnemyUnits) == false then
+                local iClosestTarget = 10000
+                local iCurDist
+                for iUnit, oUnit in tEnemyUnits do
+                    if oUnit:GetFractionComplete() == 1 and not (M28Logic.IsTargetUnderShield(aiBrain, oUnit, 0, false, false, true, false)) then
+                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNovax:GetPosition())
+                        if iCurDist < iClosestTarget then
+                            iClosestTarget = iCurDist
+                            oTarget = oUnit
+                        end
+                    end
+                end
+            end
+
+            if not (oTarget) then
+                --Nearest surface naval unit
+                tEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryNavalSurface, tPositionToSearchFrom, 1000, 'Enemy')
+                if bDebugMessages == true then LOG(sFunctionRef .. ': No high priority targets, will search for lower priority, first with surface naval units. Is table empty=' .. tostring(M28Utilities.IsTableEmpty(tEnemyUnits))) end
+                if M28Utilities.IsTableEmpty(tEnemyUnits) == false then
+                    oTarget = M28Utilities.GetNearestUnit(tEnemyUnits, tPositionToSearchFrom, false, M28Map.refPathingTypeAir)
+                else
+                    --Target nearest unshielded T3+ mobile land unit or T2 structure; if are none, then just get the nearest mobile land unit:
+                    tEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryStructure, tPositionToSearchFrom, 1000, 'Enemy')
+                    if M28Utilities.IsTableEmpty(tEnemyUnits) == false then
+                        local iCurDist
+                        local iClosestUnshieldedDist = 10000
+                        local iClosestShieldedDist = 10000
+                        local oClosestShieldedUnit
+                        local oClosestUnshieldedUnit
+                        local oClosestHighValueUnit
+                        local iClosestHighValueUnit = 10000
+                        local tNovaxPosition = oNovax:GetPosition()
+                        for iUnit, oUnit in tEnemyUnits do
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tNovaxPosition)
+                            if iCurDist < math.max(iClosestUnshieldedDist, iClosestShieldedDist, iClosestHighValueUnit) then
+                                if iCurDist < iClosestShieldedDist then
+                                    oClosestShieldedUnit = oUnit
+                                    iClosestShieldedDist = iCurDist
+                                end
+                                if iCurDist < iClosestUnshieldedDist and iCurDist <= math.max(250, iClosestShieldedDist) then
+                                    if not (M28Logic.IsTargetUnderShield(aiBrain, oUnit, 10000, false, true, true, false)) then
+                                        oClosestUnshieldedUnit = oUnit
+                                        iClosestUnshieldedDist = iCurDist
+                                    end
+                                end
+                                if iCurDist < iClosestHighValueUnit then
+                                    oClosestHighValueUnit = oUnit
+                                end
+                            end
+                        end
+
+                        if oClosestUnshieldedUnit and iClosestUnshieldedDist <= math.max(250, iClosestShieldedDist + 60) then
+                            oTarget = oClosestUnshieldedUnit
+                        elseif oClosestShieldedUnit then
+                            oTarget = oClosestShieldedUnit
+                        else
+                            oTarget = oClosestHighValueUnit --If nil then will just be ttargeting enemy base/start position
+                        end
+                    end
+                end
+            end
+        end
+        if not(oTarget) and iBestValueWithNoThreshold >= iBestTargetValue * 0.5 then --i.e. we didnt find anything with iBestTargetValue, so will now consider units with up to half of it
+            oTarget = oBestTargetWithNoThreshold
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return oTarget
 end
