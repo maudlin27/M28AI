@@ -4850,7 +4850,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
 
     function HaveActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting)
         --Done as subfunction for convenience so can just note the key values for the action in question and add on the others that wont change
-        ConsiderActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iCurPriority, tLZData, tWZTeamData, iTeam, iPond, iWaterZone, toAvailableEngineersByTech, toAssignedEngineers, true)
+        ConsiderActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iCurPriority, tWZData, tWZTeamData, iTeam, iPond, iWaterZone, toAvailableEngineersByTech, toAssignedEngineers, true)
     end
 
 

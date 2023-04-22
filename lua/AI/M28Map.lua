@@ -3513,7 +3513,7 @@ function RecordNavalSegment(iPond, iBaseSegmentX, iBaseSegmentZ, tSegmentPositio
     local sFunctionRef = 'RecordNavalSegment'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iPond == 87 then bDebugMessages = true end
+
 
     if not(tPondDetails[iPond]) then
         CreateNewPond(iPond)
@@ -4186,7 +4186,6 @@ function CreateWaterZones()
     if bDebugMessages == true then LOG(sFunctionRef..': Finished recording the first segment for each water zone, will now check for any ponds that lack a water zone') end
     --Now go through any ponds that dont have a water zone and create one
     for iPond, tPondSubtable in tPondDetails do
-        bDebugMessages = true
         if bDebugMessages == true then LOG(sFunctionRef..': Considering if pond '..iPond..' has any water zones, is table of water zones empty='..tostring(M28Utilities.IsTableEmpty(tPondSubtable[subrefPondWaterZones]))..'; tPondSubtable[subrefiSegmentCount]='..(tPondSubtable[subrefiSegmentCount] or 'nil')) end
         if M28Utilities.IsTableEmpty(tPondSubtable[subrefPondWaterZones]) and tPondSubtable[subrefiSegmentCount] > 0 then
             iPotentialZoneStartSegmentX = tPondSubtable[subreftiWaterSegmentXZ][1][1]
