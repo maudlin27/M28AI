@@ -10,6 +10,7 @@ local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
 local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
+local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 
 
 refiNearestEnemyIndex = 'M28NearestEnemyIndex'
@@ -384,4 +385,254 @@ function GetDamageFromOvercharge(aiBrain, oTargetUnit, iAOE, iDamage, bTargetWal
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return iTotalDamage, iKillsExpected
+end
+
+
+function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor)
+    --Below is largely a copy of M27 logic
+    --iFriendlyUnitDamageReductionFactor - optional, assumed to be 0 if not specified; will reduce the damage from the bomb by any friendly units in the aoe
+    --iFriendlyUnitAOEFactor - e.g. if 2, then will search for friendly units in 2x the aoe
+    --bCumulativeShieldHealthCheck - if true, then will treat a unit as unshielded if its cumulative shield health check is below the damage
+    --iOptionalSizeAdjust - Defaults to 1, % of value to assign to a normal (mex sized) target; if this isn't 1 then will adjust values accordingly, with T3 power given a value of 1, larger buildings given a greater value, and T1 PD sized buildings given half of iOptionalSizeAdjust
+    --iOptionalModIfNeedMultipleShots - Defaults to 0.1; % of value to assign if we wont kill the target with a single shot (experimentals will always give at least 0.5 value)
+    --bT3ArtiShotReduction - if true then will reduce value of targets where we have fired lots of shots at them
+    --iOptionalShieldReductionFactor - if shields exceed iDamage, then this will be used in place of 0 (the default)
+
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetDamageFromBomb'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+    local bIgnoreT3ArtiShotReduction = not(bT3ArtiShotReduction or false)
+
+    local iTotalDamage = 0
+    local tEnemiesInRange = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryAllNavy + M28UnitInfo.refCategoryAllAir * categories.EXPERIMENTAL, tBaseLocation, iAOE + 4, 'Enemy')
+    local oCurBP
+    local iMassFactor
+    local iCurHealth, iMaxHealth, iCurShield, iMaxShield
+    local tFriendlyUnits
+    local iSizeAdjustFactor = iOptionalSizeAdjust or 1
+    local iDifBetweenSize8And2 = 0
+
+    local tiSizeAdjustFactors
+    local iFactorIfWontKill = iOptionalModIfNeedMultipleShots or 0.1
+    if not(iSizeAdjustFactor == 1) then
+        iDifBetweenSize8And2 = iSizeAdjustFactor - 1
+        --Key values are 1, 2 (Mex), 6 (T2 pgen), 8 (T3 PGen), 10 (rapidfire arti); could potentially go up to 20 (czar)
+        tiSizeAdjustFactors = {[1] = 2, [2] = 1, [3] = 0.9, [4] = 0.75, [5] = 0.6, [6] = 0.5, [7] = 0.3, [8] = 0, [9] = -0.1, [10] = -0.25}
+
+    end
+
+    function GetBuildingSizeFactor(sBlueprint)
+        if iSizeAdjustFactor == 1 then
+            return 1
+        else
+            local tSize = M28UnitInfo.GetBuildingSize(sBlueprint)
+            local iCurSize = math.floor(tSize[1], tSize[2])
+            if bDebugMessages == true then LOG(sFunctionRef..': iCurSize='..iCurSize..'; tiSizeAdjustFactors[iCurSize]='..(tiSizeAdjustFactors[iCurSize] or 'nil')..'; expected factor='..1 + (tiSizeAdjustFactors[iCurSize] or -0.35) * iDifBetweenSize8And2) end
+
+            return 1 + (tiSizeAdjustFactors[iCurSize] or -0.35) * iDifBetweenSize8And2
+        end
+    end
+
+    if iFriendlyUnitDamageReductionFactor then
+        --Reduce damage dealt based on nearby friendly units
+
+        tFriendlyUnits = aiBrain:GetUnitsAroundPoint(categories.ALLUNITS - categories.BENIGN - M28UnitInfo.refCategorySatellite, tBaseLocation, iAOE * (iFriendlyUnitAOEFactor or 1), 'Ally')
+        if M28Utilities.IsTableEmpty(tFriendlyUnits) == false then
+            for iUnit, oUnit in tFriendlyUnits do
+                if oUnit.GetBlueprint and not(oUnit.Dead) then
+                    if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+                        if ScenarioInfo.Options.Victory == "demoralization" then
+                            iTotalDamage = iTotalDamage - 100000
+                        else
+                            iTotalDamage = iTotalDamage - 15000 * iFriendlyUnitDamageReductionFactor
+                        end
+                    else
+                        iTotalDamage = iTotalDamage - oUnit:GetBlueprint().Economy.BuildCostMass * oUnit:GetFractionComplete() * iFriendlyUnitDamageReductionFactor
+                    end
+                end
+            end
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemies in range empty='..tostring(M28Utilities.IsTableEmpty(tEnemiesInRange))) end
+    if M28Utilities.IsTableEmpty(tEnemiesInRange) == false then
+        local iShieldThreshold = math.max(iDamage * 0.9, iDamage - 500)
+        local iCurDist
+        local iMobileDamageDistThreshold = iAOE * 0.75
+        local iMobileDamageFactorWithinThreshold
+        local iMobileDamageFactorOutsideThreshold = 0.2
+        local iMobileDamageNotMovingWithinThreshold
+        local iMobileDamageFactorOutsideThresholdMoving
+        if iMobileValueOverrideFactorWithin75Percent then
+            iMobileDamageFactorWithinThreshold = math.max(iMobileDamageFactorOutsideThreshold, iMobileValueOverrideFactorWithin75Percent)
+        else
+            if iAOE >= 3.5 then iMobileDamageFactorWithinThreshold = iMobileDamageFactorOutsideThreshold * 1.25
+            else
+                iMobileDamageFactorWithinThreshold = iMobileDamageFactorOutsideThreshold
+            end
+        end
+        iMobileDamageNotMovingWithinThreshold = math.min(iMobileDamageFactorWithinThreshold + 0.1, iMobileDamageFactorWithinThreshold * 1.5, 1)
+        iMobileDamageFactorWithinThreshold = math.max(iMobileDamageFactorWithinThreshold - 0.1, iMobileDamageFactorWithinThreshold * 0.5) --value for if we are moving
+        iMobileDamageFactorOutsideThresholdMoving = math.max(iMobileDamageFactorOutsideThreshold - 0.1, iMobileDamageFactorOutsideThreshold * 0.5)
+
+        for iUnit, oUnit in tEnemiesInRange do
+            if oUnit.GetBlueprint and not(oUnit.Dead) and oUnit:GetFractionComplete() == 1 or not(EntityCategoryContains(categories.AIR * categories.MOBILE, oUnit.UnitId)) then
+                iMassFactor = 1
+                oCurBP = oUnit:GetBlueprint()
+                --Is the unit within range of the aoe?
+                iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBaseLocation)
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Distance to base location='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBaseLocation)..'; iAOE='..iAOE) end
+                if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBaseLocation) <= iAOE then
+                    --Is the unit shielded by more than 90% of our damage?
+                    --IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisHealth, bReturnShieldHealthInstead, bIgnoreMobileShields, bTreatPartCompleteAsComplete, bCumulativeShieldHealth)
+                    if IsTargetUnderShield(aiBrain, oUnit, iShieldThreshold, false, false, nil, bCumulativeShieldHealthCheck) then iMassFactor = (iOptionalShieldReductionFactor or 0) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Mass factor after considering if under shield='..iMassFactor) end
+                    if iMassFactor > 0 then
+                        iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit)
+                        iCurHealth = iCurShield + oUnit:GetHealth()
+                        iMaxHealth = iMaxShield + oUnit:GetMaxHealth()
+                        --Set base mass value based on health
+                        if not(iFactorIfWontKill == 1) then
+                            if iDamage >= iMaxHealth or iDamage >= math.min(iCurHealth * 3, iCurHealth + 1000) then
+                                --Do nothing - stick with default mass factor of 1
+                            else
+                                --Still some value in damaging a unit (as might get a second strike), but far less than killing it
+
+                                if EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then
+                                    iMassFactor = iMassFactor * math.max(0.5, iFactorIfWontKill)
+                                else
+                                    iMassFactor = iMassFactor * iFactorIfWontKill
+                                end
+                            end
+                        end
+                        --Adjust for building size if specified (e.g. useful for if firing from unit with randomness factor)
+                        iMassFactor = iMassFactor * GetBuildingSizeFactor(oUnit.UnitId)
+                        if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iMassFactor after considering if will kill it and how large it is='..iMassFactor..'; iFactorIfWontKill='..iFactorIfWontKill..'; Building size factor='..GetBuildingSizeFactor(oUnit.UnitId)) end
+                        --Is the target mobile and not under construction? Then reduce to 20% as unit might dodge or not be there when bomb lands
+                        if oUnit:GetFractionComplete() == 1 then
+                            if EntityCategoryContains(categories.MOBILE, oUnit.UnitId) then
+                                if iCurDist <= iMobileDamageDistThreshold then
+                                    if oUnit:IsUnitState('Moving') then
+                                        iMassFactor = iMassFactor * iMobileDamageFactorWithinThreshold
+                                    else
+                                        iMassFactor = iMassFactor * iMobileDamageNotMovingWithinThreshold
+                                    end
+                                else
+                                    if oUnit:IsUnitState('Moving') then
+                                        iMassFactor = iMassFactor * iMobileDamageFactorOutsideThresholdMoving
+                                    else
+                                        iMassFactor = iMassFactor * iMobileDamageFactorOutsideThreshold
+                                    end
+                                end
+                                --Is it a mex that will be killed outright and/or a volatile structure? Then increase the value of killing it
+                            elseif iMassFactor >= 1 and EntityCategoryContains(categories.MASSEXTRACTION + categories.VOLATILE, oUnit.UnitId) then iMassFactor = iMassFactor * 2
+                            end
+                        end
+                        if bT3ArtiShotReduction then
+                            if (oUnit[refiT3ArtiShotCount] >= iT3ArtiShotThreshold) then
+                                iMassFactor = iMassFactor * 0.1
+                            elseif (oUnit[refiT3ArtiLifetimeShotCount] or 0) >= iT3ArtiShotLifetimeThreshold then
+                                iMassFactor = iMassFactor * math.max(0.1, 0.4 * oUnit[refiT3ArtiLifetimeShotCount] / iT3ArtiShotLifetimeThreshold)
+                            end
+                        end
+                        iTotalDamage = iTotalDamage + oCurBP.Economy.BuildCostMass * oUnit:GetFractionComplete() * iMassFactor
+                        --Increase further for SML and SMD that might have a missile
+                        if EntityCategoryContains(M28UnitInfo.refCategorySML - M28UnitInfo.refCategoryBattleship, oUnit.UnitId) then
+                            if oUnit:GetFractionComplete() == 1 then
+                                iTotalDamage = iTotalDamage + 12000 * math.min(iMassFactor, 1)
+                            end
+                        elseif EntityCategoryContains(M28UnitInfo.refCategorySMD, oUnit.UnitId) then
+                            if oUnit:GetFractionComplete() == 1 then
+                                iTotalDamage = iTotalDamage + 3600 * math.min(iMassFactor, 1)
+                                --Also increase if we have a nuke launcher more than 35% complete
+
+                                function HaveSML(oBrain)
+                                    local tFriendlyNukes = aiBrain:GetListOfUnits(M28UnitInfo.refCategorySML, false, true)
+                                    if M28Utilities.IsTableEmpty(tFriendlyNukes) == false then
+                                        for iUnit, oUnit in tFriendlyNukes do
+                                            if oUnit:GetFractionComplete() == 1 then
+                                                if oUnit:GetWorkProgress() >= 0.35 then
+                                                    return true
+                                                elseif oUnit.GetNukeSiloAmmoCount and oUnit:GetNukeSiloAmmoCount() >= 1 then
+                                                    return true
+                                                end
+                                            end
+                                        end
+                                    end
+                                    return false
+                                end
+                                local bHaveFriendlySMLNearlyLoaded = false
+                                if not(bHaveFriendlySMLNearlyLoaded) then
+                                    for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveM28Brains] do
+                                        if not(oBrain == aiBrain) then
+                                            if HaveSML(oBrain) then
+                                                bHaveFriendlySMLNearlyLoaded = true
+                                                break
+                                            end
+                                        end
+                                    end
+                                end
+                                if bHaveFriendlySMLNearlyLoaded then
+                                    iTotalDamage = iTotalDamage + 10000
+                                end
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Finished considering the unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTotalDamage='..iTotalDamage..'; oCurBP.Economy.BuildCostMass='..oCurBP.Economy.BuildCostMass..'; oUnit:GetFractionComplete()='..oUnit:GetFractionComplete()..'; iMassFactor after considering if unit is mobile='..iMassFactor..'; distance between unit and target='..M28Utilities.GetDistanceBetweenPositions(tBaseLocation, oUnit:GetPosition())) end
+                    end
+                end
+            end
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished going through units in the aoe, iTotalDamage in mass='..iTotalDamage..'; tBaseLocation='..repru(tBaseLocation)..'; iAOE='..iAOE..'; iDamage='..iDamage) end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return iTotalDamage
+end
+
+function GetBestAOETarget(aiBrain, tBaseLocation, iAOE, iDamage, bOptionalCheckForSMD, tSMLLocationForSMDCheck, iOptionalTimeSMDNeedsToHaveBeenBuiltFor, iSMDRangeAdjust, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, iOptionalMaxDistanceCheckOptions, iMobileValueOverrideFactorWithin75Percent, iOptionalShieldReductionFactor)
+    --Calcualtes the most damaging location for an aoe target; also returns the damage dealt
+    --if bOptionalCheckForSMD is true then will ignore targest that are near an SMD
+    --iOptionalMaxDistanceCheckOptions - can use to limit hte nubmer of distance options that will choose
+    --iFriendlyUnitAOEFactor - e.g. if 2, then will search for friendly units in 2x the aoe
+    --iOptionalShieldReductionFactor - instead of igivng shielded targets 0 value this assigns this % of value
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetBestAOETarget'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': About to find the best target for bomb, tBaseLocation='..repru(tBaseLocation)..'; iAOE='..(iAOE or 'nil')..'; iDamage='..(iDamage or 'nil')) end
+
+    local tBestTarget = {tBaseLocation[1], tBaseLocation[2], tBaseLocation[3]}
+    --GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage)
+    --GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor)
+    local iCurTargetDamage = GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, nil, nil, nil, iMobileValueOverrideFactorWithin75Percent, nil, iOptionalShieldReductionFactor)
+    local iMaxTargetDamage = iCurTargetDamage
+    local iMaxDistanceChecks = math.min(4, math.ceil(iAOE / 2))
+    if iOptionalMaxDistanceCheckOptions then iMaxDistanceChecks = math.min(iOptionalMaxDistanceCheckOptions, iMaxDistanceChecks) end
+    local iDistanceFromBase = 0
+    local tPossibleTarget
+    if bOptionalCheckForSMD and M28Building.IsSMDBlockingTarget(aiBrain, tBaseLocation, tSMLLocationForSMDCheck, (iOptionalTimeSMDNeedsToHaveBeenBuiltFor or 200), iSMDRangeAdjust) then iMaxTargetDamage = math.min(4000, iMaxTargetDamage) end
+
+    for iCurDistanceCheck = iMaxDistanceChecks, 1, -1 do
+        iDistanceFromBase = iAOE / iCurDistanceCheck
+        for iAngle = 0, 360, 45 do
+            tPossibleTarget = M28Utilities.MoveInDirection(tBaseLocation, iAngle, iDistanceFromBase)
+            --GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor)
+            iCurTargetDamage = GetDamageFromBomb(aiBrain, tPossibleTarget, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, nil, nil, nil, iMobileValueOverrideFactorWithin75Percent, nil, iOptionalShieldReductionFactor)
+            if iCurTargetDamage > iMaxTargetDamage then
+                if bOptionalCheckForSMD and M28Building.IsSMDBlockingTarget(aiBrain, tPossibleTarget, tSMLLocationForSMDCheck, (iOptionalTimeSMDNeedsToHaveBeenBuiltFor or 200), iSMDRangeAdjust) then iCurTargetDamage = math.min(4000, iCurTargetDamage) end
+                if iCurTargetDamage > iMaxTargetDamage then
+                    tBestTarget = tPossibleTarget
+                    iMaxTargetDamage = iCurTargetDamage
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished checking every angle for iDistanceFromBase='..iDistanceFromBase..'; iMaxTargetDamage='..iMaxTargetDamage..'; tBestTarget='..repru(tBestTarget)) end
+    end
+    if bDebugMessages == true then
+        LOG(sFunctionRef..': Best target for bomb='..repru(tBestTarget)..'; iMaxTargetDamage='..iMaxTargetDamage)
+        M28Utilities.DrawLocation(tBestTarget)
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return tBestTarget, iMaxTargetDamage
 end

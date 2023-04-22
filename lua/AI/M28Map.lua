@@ -190,6 +190,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZThreatEnemyBestMobileDFRange = 'EBDFR'
             subrefLZThreatEnemyBestStructureDFRange = 'EBSDFR'
             subrefLZThreatEnemyBestMobileIndirectRange = 'EBIR'
+            subrefThreatEnemyStructureTotalMass = 'ESTM' --Used for LZ and WZ, returns total mass in buildings
 
 
             subrefLZThreatEnemyStructureDFByRange = 'ESDFByRange'
@@ -207,6 +208,8 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefbLZWantsIndirectSupport = 'LZWantsIndirectSupport' --true if want indirect units for the LZ
 
             subreftEnemyFirebasesInRange = 'LZEnemyFirebasesInRange' --[x] is just a count (1,2,3), returns {iPlateau, iLandZone} of the firebase
+            subreftoEnemyTMD = 'LZEnemyTMD' --TMD owned by the enemy in the LZ
+            subreftoEnemyPotentialTMLTargets = 'LZPotentialTMLTargets' --potential targets for TML in the LZ (ignoring TMD)
 
             --Engineer related values
             subreftoPartBuiltMexes = 'PBMex' --If we are building a mex and the builder gets its orders cleared or dies, and it was building a mex, then the mex should be recorded in a table so it can be rebuilt
@@ -222,6 +225,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
                 subrefBuildingLocation = 3 --Location the building is to be built at
                 subrefBuildingRadius = 4 --Size (radius) of the building
                 subrefPrimaryBuilder = 5 --Engineer given the build order
+            subreftiPotentialNukeTargetZones = 'NkTrgtZ' --contains subtables, ordered 1,2,...x returning {iPlateauOrZero, iLandOrWaterZone} for each zone that can probably be hit by a nuke from this zone
             --subrefLZTAdjacentBPByTechWanted = 'AdjBPByTechW' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power wanted wanted
             --Economy related values
             subrefActiveUpgrades = 'ActiveUpgrades' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam]
@@ -338,6 +342,7 @@ tPondDetails = {}
             --Threat values
             subrefbEnemiesInThisOrAdjacentWZ = 'EnInAdjWZ' --true if enemy in this or adjacent WZ
 
+            --subrefThreatEnemyStructureTotalMass - uses same ref as for LZ
             subrefWZTThreatEnemyCombatTotal = 'EnCom'
             subrefWZThreatEnemyAntiNavy = 'EnANav'
             subrefWZThreatEnemySubmersible = 'EnSub'
@@ -3504,10 +3509,16 @@ end
 
 function RecordNavalSegment(iPond, iBaseSegmentX, iBaseSegmentZ, tSegmentPosition)
     --Called from logic for land creation that cycles through every segment on the map
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end --set to true for certain positions where want logs to print
+    local sFunctionRef = 'RecordNavalSegment'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if iPond == 87 then bDebugMessages = true end
+
     if not(tPondDetails[iPond]) then
         CreateNewPond(iPond)
     end
-    table.insert(tPondDetails[iPond][subreftiWaterSegmentXZ], iBaseSegmentX, iBaseSegmentZ)
+    table.insert(tPondDetails[iPond][subreftiWaterSegmentXZ], {iBaseSegmentX, iBaseSegmentZ})
     if not(tPondBySegment[iBaseSegmentX]) then tPondBySegment[iBaseSegmentX] = {} end
     tPondBySegment[iBaseSegmentX][iBaseSegmentZ] = iPond
     iTotalSegmentsInPonds = iTotalSegmentsInPonds + 1
@@ -3517,7 +3528,8 @@ function RecordNavalSegment(iPond, iBaseSegmentX, iBaseSegmentZ, tSegmentPositio
     tPondDetails[iPond][subrefPondMinZ] = math.min(tPondDetails[iPond][subrefPondMinZ], tSegmentPosition[3])
     tPondDetails[iPond][subrefPondMaxX] = math.max(tPondDetails[iPond][subrefPondMaxX], tSegmentPosition[1])
     tPondDetails[iPond][subrefPondMaxZ] = math.max(tPondDetails[iPond][subrefPondMaxZ], tSegmentPosition[3])
-
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished recording naval segment for pond '..iPond..'; Segment count for this point='..tPondDetails[iPond][subrefiSegmentCount]..'; Size of tPondDetails[iPond][subreftiWaterSegmentXZ]='..table.getn(tPondDetails[iPond][subreftiWaterSegmentXZ])..'; iBaseSegmentX='..(iBaseSegmentX or 'nil')..'; iBaseSegmentZ='..(iBaseSegmentZ or 'nil')) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function RecordPondDetails()
@@ -4025,7 +4037,15 @@ end
 function RecordWaterZoneAtPosition(tSegmentPosition)
     iTotalWaterZoneCount = iTotalWaterZoneCount + 1
     local iPond = NavUtils.GetLabel(refPathingTypeNavy, tSegmentPosition)
-    if not(iPond) then M28Utilities.ErrorHandler('Dont have a valid pond')
+    if not(iPond) then
+        local tAlternative
+        local tiAdjust = {{-1,0}, {-1, -1}, {-1, 1}, {0, -1}, {0, 1}, {1, -1}, {1, 0}, {1,1}, {-3,0}, {-3, -3}, {-3, 3}, {0, -3}, {0, 3}, {3, -3}, {3, 0}, {3,3}, {-5,0}, {-5, -5}, {-5, 5}, {0, -5}, {0, 5}, {5, -5}, {5, 0}, {5,5}}
+        for iEntry, tXZAdjust in tiAdjust do
+            iPond = NavUtils.GetLabel(refPathingTypeNavy, { tSegmentPosition[1] + tXZAdjust[1], tSegmentPosition[2], tSegmentPosition[3] + tXZAdjust[2] })
+            if iPond then break end
+        end
+    end
+    if not(iPond) then M28Utilities.ErrorHandler('Dont have a valid pond even after searching nearby')
     else
         if not(tPondDetails[iPond][subrefPondWaterZones]) then tPondDetails[iPond][subrefPondWaterZones] = {} end
         tPondDetails[iPond][subrefPondWaterZones][iTotalWaterZoneCount] = {}
@@ -4166,11 +4186,12 @@ function CreateWaterZones()
     if bDebugMessages == true then LOG(sFunctionRef..': Finished recording the first segment for each water zone, will now check for any ponds that lack a water zone') end
     --Now go through any ponds that dont have a water zone and create one
     for iPond, tPondSubtable in tPondDetails do
+        bDebugMessages = true
         if bDebugMessages == true then LOG(sFunctionRef..': Considering if pond '..iPond..' has any water zones, is table of water zones empty='..tostring(M28Utilities.IsTableEmpty(tPondSubtable[subrefPondWaterZones]))..'; tPondSubtable[subrefiSegmentCount]='..(tPondSubtable[subrefiSegmentCount] or 'nil')) end
         if M28Utilities.IsTableEmpty(tPondSubtable[subrefPondWaterZones]) and tPondSubtable[subrefiSegmentCount] > 0 then
-            iPotentialZoneStartSegmentX = tPondSubtable[subreftiWaterSegmentXZ][1]
-            iPotentialZoneStartSegmentZ = tPondSubtable[subreftiWaterSegmentXZ][2]
-            if bDebugMessages == true then LOG(sFunctionRef..': About to record a water zone using iPotentialZoneStartSegmentX-Z='..iPotentialZoneStartSegmentX..'-'..iPotentialZoneStartSegmentZ..'; water zone for this (hopefully shoudl be nil)='..(tWaterZoneBySegment[iPotentialZoneStartSegmentX][iPotentialZoneStartSegmentZ] or 'nil')) end
+            iPotentialZoneStartSegmentX = tPondSubtable[subreftiWaterSegmentXZ][1][1]
+            iPotentialZoneStartSegmentZ = tPondSubtable[subreftiWaterSegmentXZ][1][2]
+            if bDebugMessages == true then LOG(sFunctionRef..': About to record a water zone using iPotentialZoneStartSegmentX-Z='..(iPotentialZoneStartSegmentX or 'nil')..'-'..(iPotentialZoneStartSegmentZ or 'nil')..'; water zone for this (hopefully shoudl be nil)='..(tWaterZoneBySegment[iPotentialZoneStartSegmentX][iPotentialZoneStartSegmentZ] or 'nil')) end
             RecordWaterZoneAtPosition(GetPositionFromPathingSegments(iPotentialZoneStartSegmentX, iPotentialZoneStartSegmentZ))
         end
     end

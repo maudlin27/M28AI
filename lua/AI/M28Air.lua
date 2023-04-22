@@ -774,6 +774,11 @@ end
 
 function RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartMidpoint)
     --Records all other land and water zones in order of straight line distance to tStartLZOrWZData, if not already recorded
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'CalculateAirTravelPath'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start time='..GetGameTimeSeconds()..'; Is table of other land and water zones empty='..tostring(M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]))) end
     if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) then
         tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] = {}
         local tTableToSort = {}
@@ -786,16 +791,19 @@ function RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartMidpoint
                 end
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': Size of tTableToSort after adding all land zones='..table.getn(tTableToSort)) end
         --Add all water zones in the map
         for iPond, tPondSubtable in M28Map.tPondDetails do
             for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
                 table.insert(tTableToSort, { [M28Map.subrefiPlateauOrPond] = iPond, [M28Map.subrefiLandOrWaterZoneRef] = iWaterZone, [M28Map.subrefbIsWaterZone] = true, [M28Map.subrefiDistance] = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefWZMidpoint], tStartMidpoint)})
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': Size of tTableToSort after adding all water zones='..table.getn(tTableToSort)) end
         --Sort the table from low to high
         for iEntry, tValue in M28Utilities.SortTableBySubtable(tTableToSort, M28Map.subrefiDistance, true) do
             table.insert(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance], tValue)
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': reprs of table after sorting='..reprs(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance])) end
     end
 end
 

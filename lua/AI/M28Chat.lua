@@ -80,8 +80,8 @@ function SendForkedGloatingMessage(aiBrain, iOptionalDelay, iOptionalTimeBetween
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function SendGloatingMessage(aiBrain, iOptionalDelay, iOptionalTimeBetweenTaunts)
-    ForkThread(SendForkedGloatingMessage, aiBrain, iOptionalDelay, iOptionalTimeBetweenTaunts)
+function SendGloatingMessage(aiBrain, iOptionalDelayInSeconds, iOptionalTimeBetweenTaunts)
+    ForkThread(SendForkedGloatingMessage, aiBrain, iOptionalDelayInSeconds, iOptionalTimeBetweenTaunts)
 end
 
 function SendForkedMessage(aiBrain, sMessageType, sMessage, iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam)

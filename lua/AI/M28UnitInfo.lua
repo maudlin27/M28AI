@@ -44,6 +44,7 @@ refiGameTimeToResetMicroActive = 'M28UnitTimeToResetMicro' --Gametimeseconds
     --Ranges and weapon details
 refiDFRange = 'M28UDFR'
 refiDFAOE = 'M28AOEDF' --aoe of a df weapon of a unit
+refiIndirectAOE = 'M28AOEIn' --aoe of an indirect weapon of a unit; includes manual ranges
 refiIndirectRange = 'M28UIR' --for non-manual fire weapons
 refiAntiNavyRange = 'M28UANR'
 refiManualRange = 'M28UManR' --for manual fire weapons (e.g. TML)
@@ -1111,10 +1112,11 @@ function RecordUnitRange(oUnit)
             if not(oCurWeapon.EnabledByEnhancement) or (oCurWeapon.EnabledByEnhancement and oUnit:HasEnhancement(oCurWeapon.EnabledByEnhancement)) then
                 if oCurWeapon.ManualFire then
                     oUnit[refiManualRange] = math.max((oUnit[refiManualRange] or 0), oCurWeapon.MaxRadius)
+                    oUnit[refiIndirectAOE] = math.max((oUnit[refiIndirectAOE] or 0), oCurWeapon.MaxRadius or 0)
                 elseif oCurWeapon.RangeCategory == 'UWRC_Countermeasure' then
                     oUnit[refiMissileDefenceRange] = math.max((oUnit[refiMissileDefenceRange] or 0), oCurWeapon.MaxRadius)
                 elseif oCurWeapon.RangeCategory == 'UWRC_DirectFire' then
-                    oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                    oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius or 0)
                     if (oCurWeapon.DamageRadius or 0) > 0 then oUnit[refiDFAOE] = math.max((oUnit[refiDFAOE] or 0), oCurWeapon.DamageRadius) end
                 elseif oCurWeapon.RangeCategory == 'UWRC_AntiNavy' then
                     oUnit[refiAntiNavyRange] = math.max((oUnit[refiAntiNavyRange] or 0), oCurWeapon.MaxRadius)
@@ -1123,6 +1125,7 @@ function RecordUnitRange(oUnit)
                 elseif oCurWeapon.RangeCategory == 'UWRC_IndirectFire' then
                     oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
                     if oCurWeapon.WeaponUnpacks then oUnit[refbWeaponUnpacks] = true end
+                    oUnit[refiIndirectAOE] = math.max((oUnit[refiIndirectAOE] or 0), oCurWeapon.MaxRadius or 0)
                 elseif not(oCurWeapon.RangeCategory) or oCurWeapon.RangeCategory == 'UWRC_Undefined' then
                     if oCurWeapon.Label == 'Bomb' or oCurWeapon.DisplayName == 'Kamikaze' or oCurWeapon.Label == 'Torpedo' then
                         oUnit[refiBomberRange] = math.max((oUnit[refiBomberRange] or 0), oCurWeapon.MaxRadius)
@@ -1615,4 +1618,26 @@ function SetUnitTargetPriorities(oUnit, tPriorityTable)
             wep:SetWeaponPriorities(tPriorityTable)
         end
     end
+end
+
+function GetLauncherAOEStrikeDamageMinAndMaxRange(oUnit)
+    local oBP = oUnit:GetBlueprint()
+    local iAOE = 0
+    local iStrikeDamage
+    local iMinRange = 0
+    local iMaxRange = 0
+    for sWeaponRef, tWeapon in oBP.Weapon do
+        if not(tWeapon.WeaponCategory == 'Death') then
+            if (tWeapon.DamageRadius or 0) > iAOE then
+                iAOE = tWeapon.DamageRadius
+                iStrikeDamage = tWeapon.Damage * tWeapon.MuzzleSalvoSize
+            elseif (tWeapon.NukeInnerRingRadius or 0) > iAOE then
+                iAOE = tWeapon.NukeInnerRingRadius
+                iStrikeDamage = tWeapon.NukeInnerRingDamage
+            end
+            if (tWeapon.MinRadius or 0) > iMinRange then iMinRange = tWeapon.MinRadius end
+            if (tWeapon.MaxRadius or 0) > iMaxRange then iMaxRange = tWeapon.MaxRadius end
+        end
+    end
+    return iAOE, iStrikeDamage, iMinRange, iMaxRange
 end
