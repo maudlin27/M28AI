@@ -44,6 +44,7 @@ refiGameTimeToResetMicroActive = 'M28UnitTimeToResetMicro' --Gametimeseconds
     --Ranges and weapon details
 refiDFRange = 'M28UDFR'
 refiDFAOE = 'M28AOEDF' --aoe of a df weapon of a unit
+refiIndirectAOE = 'M28AOEIn' --aoe of an indirect weapon of a unit; includes manual ranges
 refiIndirectRange = 'M28UIR' --for non-manual fire weapons
 refiAntiNavyRange = 'M28UANR'
 refiManualRange = 'M28UManR' --for manual fire weapons (e.g. TML)
@@ -53,6 +54,8 @@ refiBomberRange = 'M28UBR'
 refbWeaponUnpacks = 'M28WUP'
 refiStrikeDamage = 'M28USD'
 refbCanKite = 'M28CanKite' --true unless weapon unpacks or experimental with a weapon fixed to body (GC and megalith)
+
+refbSniperRifleEnabled = 'M27UnitSniperRifleEnabled' --True if seraphim sniperbot has its long range sniperrifle enabled
 
 --Weapon priorities
 refWeaponPriorityGunship = {'MOBILE SHIELD', 'MOBILE ANTIAIR CRUISER', 'MOBILE ANTIAIR', 'ANTIAIR', 'STRUCTURE SHIELD', 'VOLATILE', 'MASSEXTRACTION', 'GROUNDATTACK', 'TECH3 MOBILE', 'TECH2 MOBILE', 'TECH1 MOBILE', 'ALLUNITS'}
@@ -1111,10 +1114,11 @@ function RecordUnitRange(oUnit)
             if not(oCurWeapon.EnabledByEnhancement) or (oCurWeapon.EnabledByEnhancement and oUnit:HasEnhancement(oCurWeapon.EnabledByEnhancement)) then
                 if oCurWeapon.ManualFire then
                     oUnit[refiManualRange] = math.max((oUnit[refiManualRange] or 0), oCurWeapon.MaxRadius)
+                    oUnit[refiIndirectAOE] = math.max((oUnit[refiIndirectAOE] or 0), oCurWeapon.MaxRadius or 0)
                 elseif oCurWeapon.RangeCategory == 'UWRC_Countermeasure' then
                     oUnit[refiMissileDefenceRange] = math.max((oUnit[refiMissileDefenceRange] or 0), oCurWeapon.MaxRadius)
                 elseif oCurWeapon.RangeCategory == 'UWRC_DirectFire' then
-                    oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                    oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius or 0)
                     if (oCurWeapon.DamageRadius or 0) > 0 then oUnit[refiDFAOE] = math.max((oUnit[refiDFAOE] or 0), oCurWeapon.DamageRadius) end
                 elseif oCurWeapon.RangeCategory == 'UWRC_AntiNavy' then
                     oUnit[refiAntiNavyRange] = math.max((oUnit[refiAntiNavyRange] or 0), oCurWeapon.MaxRadius)
@@ -1123,6 +1127,7 @@ function RecordUnitRange(oUnit)
                 elseif oCurWeapon.RangeCategory == 'UWRC_IndirectFire' then
                     oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
                     if oCurWeapon.WeaponUnpacks then oUnit[refbWeaponUnpacks] = true end
+                    oUnit[refiIndirectAOE] = math.max((oUnit[refiIndirectAOE] or 0), oCurWeapon.MaxRadius or 0)
                 elseif not(oCurWeapon.RangeCategory) or oCurWeapon.RangeCategory == 'UWRC_Undefined' then
                     if oCurWeapon.Label == 'Bomb' or oCurWeapon.DisplayName == 'Kamikaze' or oCurWeapon.Label == 'Torpedo' then
                         oUnit[refiBomberRange] = math.max((oUnit[refiBomberRange] or 0), oCurWeapon.MaxRadius)
@@ -1155,8 +1160,14 @@ function RecordUnitRange(oUnit)
         if not(bWeaponUnpacks or (bWeaponIsFixed and EntityCategoryContains(categories.EXPERIMENTAL - refCategoryFatboy, oUnit.UnitId))) then
             oUnit[refbCanKite] = true
         end
+        --LOG('Considering unitID '..(oUnit.UnitId or 'nil')..'; is unit valid='..tostring(IsUnitValid(oUnit)))
+        if oUnit.GetAIBrain and oUnit:GetAIBrain().M28AI and EntityCategoryContains(refCategorySniperBot * categories.SERAPHIM, oUnit.UnitId) then
+            EnableLongRangeSniper(oUnit)
+            --LOG('Enabled long range on sniper, DFRange='..oUnit[refiDFRange]..'; Strike damage='..GetUnitStrikeDamage(oUnit))
+        end
     end
     oUnit[refiStrikeDamage] = GetUnitStrikeDamage(oUnit)
+
 end
 
 function ConvertTechLevelToCategory(iTechLevel)
@@ -1558,4 +1569,149 @@ function GetTransportMaxCapacity(oTransport, iTechLevelToLoad)
     end
 
     return tiCapacityByTechAndFaction[GetUnitTechLevel(oTransport)][iFaction][iTechLevelToLoad]
+end
+
+function GetACUShieldRegenRate(oUnit)
+    --Cycles through every possible enhancement, sees if the unit has it, and if so what its shield regen rate is, and returns the max value
+    local iRegenRate = 0
+    if oUnit.HasEnhancement then
+        local oBP = oUnit:GetBlueprint()
+        if M28Utilities.IsTableEmpty(oBP.Enhancements) == false then
+            for sEnhancement, tEnhancement in oBP.Enhancements do
+                if oUnit:HasEnhancement(sEnhancement) and tEnhancement.ShieldRegenRate then
+                    iRegenRate = math.max(iRegenRate, tEnhancement.ShieldRegenRate)
+                end
+            end
+        end
+    end
+    return iRegenRate
+end
+
+function GetACUHealthRegenRate(oUnit)
+    --Cycles through every ACU enhancement and factors it into its health regen, along with veterancy
+    local oBP = oUnit:GetBlueprint()
+    local iRegenRate = (oBP.Defense.RegenRate or 0)
+
+    --Adjust for veterancy:
+    local iVetLevel = (oUnit.VetLevel or oUnit.Sync.VeteranLevel or 0)
+    if iVetLevel > 0 and oBP.Buffs.Regen then
+        local iCurVet = 0
+        for iVet, iRegenMod in oBP.Buffs.Regen do
+            iCurVet = iCurVet + 1
+            if iCurVet == iVetLevel then
+                iRegenRate = iRegenRate + iRegenMod
+                break
+            end
+        end
+    end
+
+    --Adjust for enhancements
+    if M28Utilities.IsTableEmpty(oBP.Enhancements) == false then
+        for iEnhancement, tEnhancement in oBP.Enhancements do
+            if tEnhancement.NewRegenRate and oUnit:HasEnhancement(iEnhancement) then
+                iRegenRate = iRegenRate + tEnhancement.NewRegenRate
+            end
+        end
+    end
+
+    return iRegenRate
+
+end
+
+function SetUnitTargetPriorities(oUnit, tPriorityTable)
+    if IsUnitValid(oUnit) then
+        if EntityCategoryContains(refCategoryMAA, oUnit) then M28Utilities.ErrorHandler('Changing weapon priority for MAA') end
+        for i =1, oUnit:GetWeaponCount() do
+            local wep = oUnit:GetWeapon(i)
+            wep:SetWeaponPriorities(tPriorityTable)
+        end
+    end
+end
+
+function GetLauncherAOEStrikeDamageMinAndMaxRange(oUnit)
+    local oBP = oUnit:GetBlueprint()
+    local iAOE = 0
+    local iStrikeDamage
+    local iMinRange = 0
+    local iMaxRange = 0
+    for sWeaponRef, tWeapon in oBP.Weapon do
+        if not(tWeapon.WeaponCategory == 'Death') then
+            if (tWeapon.DamageRadius or 0) > iAOE then
+                iAOE = tWeapon.DamageRadius
+                iStrikeDamage = tWeapon.Damage * tWeapon.MuzzleSalvoSize
+            elseif (tWeapon.NukeInnerRingRadius or 0) > iAOE then
+                iAOE = tWeapon.NukeInnerRingRadius
+                iStrikeDamage = tWeapon.NukeInnerRingDamage
+            end
+            if (tWeapon.MinRadius or 0) > iMinRange then iMinRange = tWeapon.MinRadius end
+            if (tWeapon.MaxRadius or 0) > iMaxRange then iMaxRange = tWeapon.MaxRadius end
+        end
+    end
+    return iAOE, iStrikeDamage, iMinRange, iMaxRange
+end
+
+function GetSniperStrikeDamage(oUnit)
+    local iStrikeDamage
+    local oBP = oUnit:GetBlueprint()
+    local sWeaponTypeRequired
+    if EntityCategoryContains(refCategorySniperBot * categories.SERAPHIM, oUnit.UnitId) then
+        if oUnit[refbSniperRifleEnabled] and table.getn(oBP.Weapon) > 1 then sWeaponTypeRequired = 'SniperGun' end
+    end
+
+    if oBP.Weapon then
+        for iWeapon, tWeapon in oBP.Weapon do
+            if tWeapon.WeaponCategory == 'Direct Fire' then
+                if not(sWeaponTypeRequired) or tWeapon.Label == sWeaponTypeRequired then
+                    if iStrikeDamage then iStrikeDamage = math.min(iStrikeDamage, tWeapon.Damage)
+                    else iStrikeDamage = tWeapon.Damage
+                    end
+                end
+            end
+        end
+    end
+    if not(iStrikeDamage) then iStrikeDamage = 100 end
+    return iStrikeDamage
+end
+
+function EnableLongRangeSniper(oUnit)
+    --If unit has a sniper weapon, then toggle it
+    if oUnit.SetWeaponEnabledByLabel and not(oUnit[refbSniperRifleEnabled]) then
+        local oBP = oUnit:GetBlueprint()
+        local bHaveSniperWeapon = false
+        if oBP.Weapon then
+            for iWeapon, tWeapon in oBP.Weapon do
+                if tWeapon.Label == 'SniperGun' then
+                    bHaveSniperWeapon = true
+                    break
+                end
+            end
+        end
+
+        if bHaveSniperWeapon then
+            oUnit:OnScriptBitSet(1)
+            oUnit[refbSniperRifleEnabled] = true
+            --LOG('Enabled sniperrifle on unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit))
+        end
+    end
+end
+
+
+function DisableLongRangeSniper(oUnit)
+    if oUnit.SetWeaponEnabledByLabel and oUnit[refbSniperRifleEnabled] then
+        local bHaveSniperWeapon = true
+        local oBP = oUnit:GetBlueprint()
+        if oBP.Weapon then
+            for iWeapon, tWeapon in oBP.Weapon do
+                if tWeapon.Label == 'SniperGun' then
+                    bHaveSniperWeapon = true
+                    break
+                end
+            end
+        end
+        if bHaveSniperWeapon then
+            oUnit:OnScriptBitClear(1)
+            oUnit[refbSniperRifleEnabled] = false
+            --LOG('Disabled long range sniper on unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit))
+        end
+    end
 end

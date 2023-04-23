@@ -137,7 +137,7 @@ function RefreshWaterRallyPoints(iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function UpdateUnitPositionsAndWaterZone(aiBrain, tUnits, iTeam, iRecordedWaterZone, bUseLastKnownPosition, bAreAirUnits, tWZTeamData)
+function UpdateUnitPositionsAndWaterZone(aiBrain, tUnits, iTeam, iRecordedWaterZone, bUseLastKnownPosition, bAreAirUnits, tWZTeamData, bUpdateTimeOfLastEnemyPositionCheck)
     --Similar to UpdateUnitPositionsAndLandZone
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateUnitPositionsAndWaterZone'
@@ -151,6 +151,7 @@ function UpdateUnitPositionsAndWaterZone(aiBrain, tUnits, iTeam, iRecordedWaterZ
     local UpdateUnitLastKnownPosition = M28Team.UpdateUnitLastKnownPosition
     local bUseActualPositionIfEnemy = false
     if tWZTeamData[M28Map.refiRadarCoverage] >= 100 then bUseActualPositionIfEnemy = true end
+    if bUpdateTimeOfLastEnemyPositionCheck and not(bUseLastKnownPosition) then tWZTeamData[M28Map.subrefiTimeOfLastEnemyUnitPosUpdate] = GetGameTimeSeconds() end
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; iRecordedWaterZone='..iRecordedWaterZone..'; iTableSize='..iTableSize) end
     for iOrigIndex=1, iTableSize do
         if not(tUnits[iOrigIndex]) or tUnits[iOrigIndex].Dead then
@@ -419,6 +420,7 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
         tWZTeamData[M28Map.subrefWZThreatEnemyAA] = 0
         tWZTeamData[M28Map.subrefWZBestEnemyDFRange] = 0
         tWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] = 0
+        tWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] = 0
     else
         --function GetCombatThreatRating(tUnits,                                                                                    bEnemyUnits, bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly, bBlueprintThreat)
         tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] = M28UnitInfo.GetCombatThreatRating(tWZTeamData[M28Map.subrefTEnemyUnits],  true,       false,              false,                      true,       false)
@@ -426,6 +428,7 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
         tWZTeamData[M28Map.subrefWZThreatEnemySurface] = M28UnitInfo.GetCombatThreatRating(tWZTeamData[M28Map.subrefTEnemyUnits],   true,       false,              false,                      false,      true,           false)
         --GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo, bBlueprintThreat)
         tWZTeamData[M28Map.subrefWZThreatEnemyAA] = M28UnitInfo.GetAirThreatLevel(tWZTeamData[M28Map.subrefTEnemyUnits], true, false, true, false, false, false, false)
+        tWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] = M28UnitInfo.GetCombatThreatRating(EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tWZTeamData[M28Map.subrefTEnemyUnits]), true, true)
 
         for iUnit, oUnit in tWZTeamData[M28Map.subrefTEnemyUnits] do
             if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; Combat threat rating='..M28UnitInfo.GetCombatThreatRating({ oUnit }, true)) end

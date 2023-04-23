@@ -100,6 +100,8 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     reftEnemyArtiAndExpStructure = 'M28TeamEArtiExp'
     reftEnemyNukeLaunchers = 'M28TeamENuke'
     reftEnemySMD = 'M28TeamESMD'
+    refbEnemySMDBuiltSinceLastNukeCheck = 'M28TeamESMDBuilt' --True when enemy SMD is detected, used to decide to rerun logic for identifying nuke land zone targets for deciding whether to build nuke
+    refbEnemySMDDiedSinceLastNukeCheck = 'M28TeamESMDDied' --True when enemy SMD is dies, used to decide to rerun logic for identifying nuke land zone targets for deciding whether to build nuke
     refbEnemyHasSub = 'M28EnemyHasSub' --true if enemy has sub - used to be more cautious with ACU
 
     subrefiAlliedDFThreat = 'M28TeamDFThreat' --Total DF threat
@@ -145,6 +147,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
 
     --Misc details
     reftiTeamMessages = 'M28TeamMessages' --against tTeamData[aiBrain.M28Team], [x] is the message type string, returns the gametime that last sent a message of this type to the team
+    subrefNukeLaunchLocations = 'M28NukeLocations' --locations that we have nuked recently
 
 --AirSubteam data variables
 iTotalAirSubteamCount = 0
@@ -587,9 +590,6 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
                 --T2 arti tracking - consider firebase
                 if EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) then
                     M28Land.ConsiderIfHaveEnemyFirebase(aiBrain.M28Team, oUnit)
-                elseif EntityCategoryContains(M28UnitInfo.refCategoryTML, oUnit.UnitId) then
-                    M28Building.EnemyTMLFirstRecorded(aiBrain.M28Team, oUnit)
-
                 end
             end
         elseif IsAlly(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
@@ -722,6 +722,8 @@ end
 function RemoveUnitFromBigThreatTable(oDeadUnit)
     --Removes all dead units from each team's listings, assuming oDeadUnit is a big threat
     local sTableRef
+    local bIsSMD = false
+    if EntityCategoryContains(M28UnitInfo.refCategorySMD, oDeadUnit.UnitId) then bIsSMD = true end
     for sReferenceTable, iCategory in tEnemyBigThreatCategories do
         if EntityCategoryContains(iCategory, oDeadUnit.UnitId) then
             sTableRef = sReferenceTable
@@ -742,6 +744,7 @@ function RemoveUnitFromBigThreatTable(oDeadUnit)
                     end
                     iRevisedIndex = iRevisedIndex + 1; --i.e. this will be the position of where the next value that we keep will be located
                 else
+                    if bIsSMD then tTeamData[iTeam][refbEnemySMDDiedSinceLastNukeCheck] = true end --used to refresh nuke target zone logic
                     tTeamData[iTeam][sTableRef][iOrigIndex] = nil;
                 end
             end
@@ -775,12 +778,24 @@ function AddUnitToBigThreatTable(iTeam, oUnit)
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': bAlreadyInTable='..tostring(bAlreadyInTable)) end
                 if not(bAlreadyInTable) then
+
                     if bDebugMessages == true then LOG(sFunctionRef..': About to add unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to reference table. Is table empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iTeam][sReferenceTable]))..'; Unit fraction complete='..oUnit:GetFractionComplete()..'; T3 resource generation units held by owner='..oUnit:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryT3Mex + M28UnitInfo.refCategoryRASSACU + M28UnitInfo.refCategoryParagon)) end
                     table.insert(tTeamData[iTeam][sReferenceTable], oUnit)
                     if not(oUnit[M28UnitInfo.reftbInArmyIndexBigThreatTable]) then oUnit[M28UnitInfo.reftbInArmyIndexBigThreatTable] = {} end
                     oUnit[M28UnitInfo.reftbInArmyIndexBigThreatTable][iTeam] = true
                     if bDebugMessages == true then
                         LOG(sFunctionRef .. ': Have some units for experimental threat category sReferenceTable=' .. sReferenceTable .. '; is tReferenceTableEmpty after considering if civilian or pathable to us='..tostring(M28Utilities.IsTableEmpty(tTeamData[iTeam][sReferenceTable]))..'; tTeamData[iTeam][refbDefendAgainstArti]='..tostring(tTeamData[iTeam][refbDefendAgainstArti] or false)..'; iTeam='..iTeam..'; Is this a T3 arti or novax='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre + M28UnitInfo.refCategoryExperimentalArti, oUnit.UnitId)))
+                    end
+
+                    --Flag if SMD built so can update nuke targeting
+                    if EntityCategoryContains(M28UnitInfo.refCategorySMD, oUnit.UnitId) then
+                        tTeamData[iTeam][refbEnemySMDBuiltSinceLastNukeCheck] = true
+                        local iTimeAssumedConstructed
+                        if oUnit:GetNukeSiloAmmoCount() >= 1 or oUnit:GetWorkProgress() >= 0.75 then oUnit[M28UnitInfo.refiTimeOfLastCheck] = oUnit[M28UnitInfo.refiTimeOfLastCheck] - 240
+                        elseif oUnit:GetFractionComplete() == 1 then oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - 180 - 60 * oUnit:GetWorkProgress()
+                        else oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - 60 * oUnit:GetFractionComplete()
+                        end
+
                     end
 
                     --Track T3 arti
@@ -830,30 +845,50 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
         else
             if not(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][aiBrain.M28Team]) then
                 oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][aiBrain.M28Team] = true
+
+                --First time considering the unit for this team
                 --Record if we are at the stage of the game where experimentals/similar high threats for ACU are present
                 if not(tTeamData[aiBrain.M28Team][refbDangerousForACUs]) then
                     if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Enemy experimental level unit detected, dangerous for ACU') end
                         tTeamData[aiBrain.M28Team][refbDangerousForACUs] = true
-
-                    elseif EntityCategoryContains(M28UnitInfo.refCategorySniperBot, oUnit.UnitId) and IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
+                    end
+                end
+                --Enemy based logic
+                if IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
+                    if EntityCategoryContains(M28UnitInfo.refCategorySniperBot, oUnit.UnitId) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Enemy sniper bot detected, dangerous for ACU') end
                         tTeamData[aiBrain.M28Team][refbDangerousForACUs] = true
-                    elseif EntityCategoryContains(M28UnitInfo.refCategoryAllAir * categories.TECH3, oUnit.UnitId) and IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryAllAir * categories.TECH3, oUnit.UnitId) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Enemy T3 air detected, enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..', owned by '..oUnit:GetAIBrain().Nickname..' dangerous for ACU') end
                         tTeamData[aiBrain.M28Team][refbDangerousForACUs] = true
                     end
-                end
 
-                --If enemy hasnt built omni yet check whether this is omni
-                if not(tTeamData[aiBrain.M28Team][subrefbEnemyBuiltOmni]) and EntityCategoryContains(M28UnitInfo.refCategoryT3Radar, oUnit.UnitId) and not(oUnit:GetAIBrain().M28Team == aiBrain.M28Team) then
-                    tTeamData[aiBrain.M28Team][subrefbEnemyBuiltOmni] = true
-                end
+                    --If enemy hasnt built omni yet check whether this is omni
+                    if not(tTeamData[aiBrain.M28Team][subrefbEnemyBuiltOmni]) and EntityCategoryContains(M28UnitInfo.refCategoryT3Radar, oUnit.UnitId) and not(oUnit:GetAIBrain().M28Team == aiBrain.M28Team) then
+                        tTeamData[aiBrain.M28Team][subrefbEnemyBuiltOmni] = true
+                    end
 
-                --Track enemy big threats
-                if bDebugMessages == true then LOG(sFunctionRef..': Is unit a big threat category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryBigThreatCategories, oUnit.UnitId))) end
-                if EntityCategoryContains(M28UnitInfo.refCategoryBigThreatCategories, oUnit.UnitId) then
-                    AddUnitToBigThreatTable(aiBrain.M28Team, oUnit)
+                    --Track enemy big threats
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is unit a big threat category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryBigThreatCategories, oUnit.UnitId))) end
+                    if EntityCategoryContains(M28UnitInfo.refCategoryBigThreatCategories, oUnit.UnitId) then
+                        AddUnitToBigThreatTable(aiBrain.M28Team, oUnit)
+                    end
+
+                    --Track potential TML targets and TMD for decision on whether to build TML (TML target selection uses more precise approach
+                    if EntityCategoryContains(M28UnitInfo.refCategoryTMD * categories.STRUCTURE, oUnit.UnitId) then
+                        local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                        if iPlateauOrZero > 0 and iLandOrWaterZone > 0 then
+                            local tLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][aiBrain.M28Team]
+                            table.insert(tLZTeamData[M28Map.subreftoEnemyTMD], oUnit)
+                        end
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryProtectFromTML * categories.STRUCTURE, oUnit.UnitId) then
+                        local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                        if iPlateauOrZero > 0 and iLandOrWaterZone > 0 then
+                            local tLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][aiBrain.M28Team]
+                            table.insert(tLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets], oUnit)
+                        end
+                    end
                 end
             elseif bDebugMessages == true then
                 LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has already been considered (considered='..tostring(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][aiBrain.M28Team] or false)..')')
@@ -1855,6 +1890,7 @@ function TeamInitialisation(iM28Team)
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatAllyMobileDFTotal] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatAllyMobileIndirectTotal] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatAllyGroundAA] = 0
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefThreatEnemyStructureTotalMass] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftLZEnemyAirUnits] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiEnemyAirToGroundThreat] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiEnemyAirAAThreat] = 0
@@ -1867,6 +1903,8 @@ function TeamInitialisation(iM28Team)
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subreftEnemyFirebasesInRange] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftUnitsWantingTMD] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.reftoTransportsWaitingForEngineers] = {}
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subreftoEnemyTMD] = {}
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subreftoEnemyPotentialTMLTargets] = {}
         end
     end
     --NOTE: Water zone data is handled via RecordClosestAllyAndEnemyBaseForEachWaterZone, to ensure it is run after water zones are created
@@ -1920,6 +1958,7 @@ function WaterZoneTeamInitialisation(iTeam)
 
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.reftoNearestCombatEnemies] = {}
 
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefThreatEnemyStructureTotalMass] = 0
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTThreatAllyCombatTotal] = 0
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatAlliedAntiNavy] = 0
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatAlliedSubmersible] = 0

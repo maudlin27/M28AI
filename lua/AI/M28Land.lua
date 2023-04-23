@@ -250,8 +250,9 @@ function GetUnitToTravelToLandZone(oUnit, iTargetPlateau, iTargetLandZone, subre
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau, iRecordedLandZone, bUseLastKnownPosition, bAreAirUnits, tLZTeamData)
+function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau, iRecordedLandZone, bUseLastKnownPosition, bAreAirUnits, tLZTeamData, bUpdateTimeOfLastEnemyPositionCheck)
     --Similar to UpdateUnitPositionsAndWaterZone; Based on RemoveEntriesFromArrayAndAddToNewTableBasedOnCondition, but more complex as dont always want to add unit to a table
+    --bUpdateTimeOfLastEnemyPositionCheck - if bUseLastKnownPosition is false and this is true, then updates subrefiTimeOfLastEnemyUnitPosUpdate
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateUnitPositionsAndLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -262,6 +263,7 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
     local UpdateUnitLastKnownPosition = M28Team.UpdateUnitLastKnownPosition
     local bUseActualPositionIfEnemy = false
     local bUnitIsAttached
+    if bUpdateTimeOfLastEnemyPositionCheck and not(bUseLastKnownPosition) then tLZTeamData[M28Map.subrefiTimeOfLastEnemyUnitPosUpdate] = GetGameTimeSeconds() end
     if tLZTeamData[M28Map.refiRadarCoverage] >= 70 then bUseActualPositionIfEnemy = true end
 
     if bDebugMessages == true then LOG('Start of code at time '..GetGameTimeSeconds()..', reprs of tUnits='..reprs(tUnits)) end
@@ -280,7 +282,7 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
                     iActualPlateau, iActualLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tUnits[iOrigIndex][M28UnitInfo.reftLastKnownPositionByTeam][iTeam], true, tUnits[iOrigIndex])
                 end
             else
-                --Allied unit so can use actual position
+                --Allied unit (or special use cases where a human will likely infer an enemy unit has moved) so can use actual position
                 if bUnitIsAttached then
                     iActualPlateau, iActualLandZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition( tUnits[iOrigIndex]:GetPosition())
                 else
@@ -399,6 +401,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] = 0
         tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] = 0
         tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] = false
+        tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] = 0
     else
         local tMobileUnits = EntityCategoryFilterDown(categories.MOBILE, tLZTeamData[M28Map.subrefTEnemyUnits])
         local tStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tLZTeamData[M28Map.subrefTEnemyUnits])
@@ -411,6 +414,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         tLZTeamData[M28Map.subrefLZThreatEnemyStructureDFByRange] = nil
         tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange] = nil
         tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] = 0
+        tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] = M28UnitInfo.GetCombatThreatRating(tStructures, true, true)
         if bDebugMessages == true then LOG(sFunctionRef..': Plateau '..iPlateau..' LZ '..iLandZone..' has enemy units, Enemy combat total='..tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal]..'; Is table of enemy structures empty='..tostring(M28Utilities.IsTableEmpty(tStructures))) end
         local iCurThreat
         if M28Utilities.IsTableEmpty(tMobileUnits) == false then
