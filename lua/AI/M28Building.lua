@@ -1412,13 +1412,13 @@ function GetHighestNukeTargetValue(tLZOrWZData, tLZOrWZTeamData, iTeam)
                 local iCurLZOrWZRef = tSubtable[M28Map.subrefiLandOrWaterZoneRef]
                 if tSubtable[M28Map.subrefbIsWaterZone] then
                     sMidpointRef = M28Map.subrefWZMidpoint
-                    sCombatThreatRef = M28Map.subrefWZTThreatEnemyCombatTotal
+                    sCombatThreatRef = M28Map.subrefTThreatEnemyCombatTotal
                     tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iCurLZOrWZRef]][M28Map.subrefPondWaterZones][iCurLZOrWZRef]
                     iCurPlateauOrPond = 0
                     tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
                 else
                     sMidpointRef = M28Map.subrefLZMidpoint
-                    sCombatThreatRef = M28Map.subrefLZTThreatEnemyCombatTotal
+                    sCombatThreatRef = M28Map.subrefTThreatEnemyCombatTotal
                     iCurPlateauOrPond = tSubtable[M28Map.subrefiPlateauOrPond]
                     tAltLZOrWZData = M28Map.tAllPlateaus[iCurPlateauOrPond][M28Map.subrefPlateauLandZones][iCurLZOrWZRef]
                     tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
@@ -1446,12 +1446,12 @@ function GetHighestNukeTargetValue(tLZOrWZData, tLZOrWZTeamData, iTeam)
 
             if iCurPlateauOrPond == 0 then
                 sMidpointRef = M28Map.subrefWZMidpoint
-                sCombatThreatRef = M28Map.subrefWZTThreatEnemyCombatTotal
+                sCombatThreatRef = M28Map.subrefTThreatEnemyCombatTotal
                 tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iCurLZOrWZRef]][M28Map.subrefPondWaterZones][iCurLZOrWZRef]
                 tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
             else
                 sMidpointRef = M28Map.subrefLZMidpoint
-                sCombatThreatRef = M28Map.subrefLZTThreatEnemyCombatTotal
+                sCombatThreatRef = M28Map.subrefTThreatEnemyCombatTotal
                 tAltLZOrWZData = M28Map.tAllPlateaus[iCurPlateauOrPond][M28Map.subrefPlateauLandZones][iCurLZOrWZRef]
                 tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
             end

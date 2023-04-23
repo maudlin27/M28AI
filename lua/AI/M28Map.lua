@@ -175,7 +175,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefTEnemyUnits = 'Enemies' --table of all enemy units in the land zone or water zone (same ref used for WZ)
             reftoNearestDFEnemies = 'NearestDF' --Table of enemy DF units in this LZ, plus the nearest DF unit in each adjacnet LZ, with proximity based on unit distance and unit range (i.e. the dist until the unit is in range)
             --Ground threat values for land zones (also against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam])
-            subrefLZTThreatEnemyCombatTotal = 'ECTotal'
+            subrefTThreatEnemyCombatTotal = 'ECTotal'
             subrefLZTThreatAllyCombatTotal = 'ACTotal'
             subrefLZDFThreatWanted = 'DFWanted'
             subrefLZMAAThreatWanted = 'MAAThreatWanted'
@@ -343,7 +343,7 @@ tPondDetails = {}
             subrefbEnemiesInThisOrAdjacentWZ = 'EnInAdjWZ' --true if enemy in this or adjacent WZ
 
             --subrefThreatEnemyStructureTotalMass - uses same ref as for LZ
-            subrefWZTThreatEnemyCombatTotal = 'EnCom'
+            subrefTThreatEnemyCombatTotal = 'ECCom' --Uses same ref as for LZ
             subrefWZThreatEnemyAntiNavy = 'EnANav'
             subrefWZThreatEnemySubmersible = 'EnSub'
             subrefWZThreatEnemySurface = 'EnSurf'

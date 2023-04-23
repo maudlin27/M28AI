@@ -26,6 +26,7 @@ tAllAIBrainsByArmyIndex = {} --[x] is the brain army index, returns the aibrain
 --aiBrain variables
 refiDistanceToNearestEnemyBase = 'M28OverseerDistToNearestEnemyBase'
 refoNearestEnemyBrain = 'M28OverseerNearestEnemyBrain'
+refbCloseToUnitCap = 'M28OverseerCloseToUnitCap'
 
 function GetNearestEnemyBrain(aiBrain)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end

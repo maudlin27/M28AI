@@ -396,7 +396,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
     --iOptionalSizeAdjust - Defaults to 1, % of value to assign to a normal (mex sized) target; if this isn't 1 then will adjust values accordingly, with T3 power given a value of 1, larger buildings given a greater value, and T1 PD sized buildings given half of iOptionalSizeAdjust
     --iOptionalModIfNeedMultipleShots - Defaults to 0.1; % of value to assign if we wont kill the target with a single shot (experimentals will always give at least 0.5 value)
     --bT3ArtiShotReduction - if true then will reduce value of targets where we have fired lots of shots at them
-    --iOptionalShieldReductionFactor - if shields exceed iDamage, then this will be used in place of 0 (the default)
+    --iOptionalShieldReductionFactor - if shields exceed iDamage, then this will be used in place of 0 (the default), i.e. what % of the mass damage should be used if the shield means 0 damage will be dealt
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetDamageFromBomb'

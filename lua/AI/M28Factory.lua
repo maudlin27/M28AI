@@ -707,8 +707,8 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
     --Engineers if we have few engineers in the current land zone and want more
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if bDebugMessages == true then LOG(sFunctionRef..': iCurrentConditionToTry='..iCurrentConditionToTry..'; Will consider if we want more engis due to only having a few in the land zone, bNeedCurTech='..tostring(bNeedCurTech)..'; tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal]='..tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal]) end
-    if bNeedCurTech and not(tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] > 10) then
+    if bDebugMessages == true then LOG(sFunctionRef..': iCurrentConditionToTry='..iCurrentConditionToTry..'; Will consider if we want more engis due to only having a few in the land zone, bNeedCurTech='..tostring(bNeedCurTech)..'; tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]) end
+    if bNeedCurTech and not(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 10) then
         local tLZEngineers = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subrefLZTAlliedUnits])
         local iEngisInLZ = 0
         if M28Utilities.IsTableEmpty(tLZEngineers) == false then
@@ -872,11 +872,11 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                     if not(iPond) then LOG('iPond nil') end
                     if not(iAdjWZ) then LOG('iAdjWZ nil') end
                     if not(tWZTeamData[M28Map.subrefWZMAAThreatWanted]) then LOG('tWZTeamData[M28Map.subrefWZMAAThreatWanted] nil') end
-                    if not(tWZTeamData[M28Map.subrefWZTThreatEnemyCombatTotal]) then LOG('tWZTeamData[M28Map.subrefWZTThreatEnemyCombatTotal] nil') end
+                    if not(tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]) then LOG('tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] nil') end
                     if not(tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]) then LOG('tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] nil') end
-                    LOG(sFunctionRef..': Considering if want MAA for iPond='..iPond..'; iAdjWZ='..iAdjWZ..'; tWZTeamData[M28Map.subrefWZMAAThreatWanted]='..tWZTeamData[M28Map.subrefWZMAAThreatWanted]..'; tWZTeamData[M28Map.subrefWZTThreatEnemyCombatTotal]='..tWZTeamData[M28Map.subrefWZTThreatEnemyCombatTotal]..'; tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]='..tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal])
+                    LOG(sFunctionRef..': Considering if want MAA for iPond='..iPond..'; iAdjWZ='..iAdjWZ..'; tWZTeamData[M28Map.subrefWZMAAThreatWanted]='..tWZTeamData[M28Map.subrefWZMAAThreatWanted]..'; tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]='..tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal])
                 end
-                if tWZTeamData[M28Map.subrefWZMAAThreatWanted] > 0 and (tWZTeamData[M28Map.subrefWZTThreatEnemyCombatTotal] < 10 or tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] > 10) then
+                if tWZTeamData[M28Map.subrefWZMAAThreatWanted] > 0 and (tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < 10 or tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] > 10) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Will try and build hover flak to support adjacent water zone') end
                     if ConsiderBuildingCategory(iCategoryWanted) then return sBPIDToBuild end
                 end
@@ -1239,6 +1239,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
     --Low power - only consider building engineers (if have lots of mass)
     if bDebugMessages == true then LOG(sFunctionRef..': If low power then will only consider building engineers, bHaveLowPower='..tostring(bHaveLowPower)) end
     if bHaveLowPower then
+        M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir] = M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if not(bHaveLowMass) then
             if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.4 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.25 and iFactoryTechLevel >= M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) then
@@ -1277,8 +1278,8 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
 
         --Nearby enemy ground (gunship)
         iCurrentConditionToTry = iCurrentConditionToTry + 1
-        if bDebugMessages == true then LOG(sFunctionRef..': Will get gunship if have enemy ground threat in this LZ, tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal]='..tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal]) end
-        if tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] > 0 then
+        if bDebugMessages == true then LOG(sFunctionRef..': Will get gunship if have enemy ground threat in this LZ, tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]) end
+        if tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 0 then
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end
         end
 
@@ -1287,12 +1288,12 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
             for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                 local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering adjacent land zone '..iAdjLZ..'; Is table of enemy air untis empty='..tostring(M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.reftLZEnemyAirUnits]))..'; tAdjLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal]='..tAdjLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal]) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering adjacent land zone '..iAdjLZ..'; Is table of enemy air untis empty='..tostring(M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.reftLZEnemyAirUnits]))..'; tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]) end
                 if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.reftLZEnemyAirUnits]) == false and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) then
                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA) then return sBPIDToBuild end
                     break
                 end
-                if tAdjLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] > 0 then
+                if tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 0 then
                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end
                 end
             end
@@ -1357,8 +1358,8 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
                     iAdjWZ = tSubtable[M28Map.subrefAWZRef]
                     local tAdjWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjWZ='..iAdjWZ..'; tAdjWZTeamData[M28Map.subrefbWZOnlyHoverEnemies]='..tostring(tAdjWZTeamData[M28Map.subrefbWZOnlyHoverEnemies] or false)..'; tAdjWZTeamData[M28Map.subrefWZTThreatEnemyCombatTotal]='..tAdjWZTeamData[M28Map.subrefWZTThreatEnemyCombatTotal]) end
-                    if not(tAdjWZTeamData[M28Map.subrefbWZOnlyHoverEnemies]) then iNearbyEnemyNavalThreat = iNearbyEnemyNavalThreat + tAdjWZTeamData[M28Map.subrefWZTThreatEnemyCombatTotal] end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjWZ='..iAdjWZ..'; tAdjWZTeamData[M28Map.subrefbWZOnlyHoverEnemies]='..tostring(tAdjWZTeamData[M28Map.subrefbWZOnlyHoverEnemies] or false)..'; tAdjWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..tAdjWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]) end
+                    if not(tAdjWZTeamData[M28Map.subrefbWZOnlyHoverEnemies]) then iNearbyEnemyNavalThreat = iNearbyEnemyNavalThreat + tAdjWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] end
                 end
                 if iNearbyEnemyNavalThreat > 0 then
                     --Do we have enough torp bombers? want basic level ourselves, and then more for large threats

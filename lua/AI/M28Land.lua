@@ -392,7 +392,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code for iTeam='..iTeam..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]))) end
     --local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) then
-        tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] = 0
+        tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] = 0
         tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange] = nil
         tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] = 0
         tLZTeamData[M28Map.subrefLZThreatEnemyStructureDFByRange] = nil
@@ -406,7 +406,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         local tMobileUnits = EntityCategoryFilterDown(categories.MOBILE, tLZTeamData[M28Map.subrefTEnemyUnits])
         local tStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tLZTeamData[M28Map.subrefTEnemyUnits])
         local bHaveDangerousEnemies = false
-        tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] = M28UnitInfo.GetCombatThreatRating(tLZTeamData[M28Map.subrefTEnemyUnits], true)
+        tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] = M28UnitInfo.GetCombatThreatRating(tLZTeamData[M28Map.subrefTEnemyUnits], true)
         tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] = M28UnitInfo.GetCombatThreatRating(tStructures, true, false, true)
         tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] = M28UnitInfo.GetAirThreatLevel(tLZTeamData[M28Map.subrefTEnemyUnits], true, false, true, false, false, false)
         tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange] = nil
@@ -415,7 +415,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange] = nil
         tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] = 0
         tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] = M28UnitInfo.GetCombatThreatRating(tStructures, true, true)
-        if bDebugMessages == true then LOG(sFunctionRef..': Plateau '..iPlateau..' LZ '..iLandZone..' has enemy units, Enemy combat total='..tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal]..'; Is table of enemy structures empty='..tostring(M28Utilities.IsTableEmpty(tStructures))) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Plateau '..iPlateau..' LZ '..iLandZone..' has enemy units, Enemy combat total='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Is table of enemy structures empty='..tostring(M28Utilities.IsTableEmpty(tStructures))) end
         local iCurThreat
         if M28Utilities.IsTableEmpty(tMobileUnits) == false then
             for iUnit, oUnit in tMobileUnits do
@@ -533,7 +533,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones]) == false then
             for _, iAdjLZ in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones] do
                 --NEED to flag as nearby enemies if any enemy units in the LZ, or else can cause problems where we try to attack a unit in an adjacent land zone, and then think there is no such unit due to this flag if it is only based on combat threat
-                if bDebugMessages == true then LOG(sFunctionRef..': Enemy combat threat for adjacent LZ iAdjLZ='..iAdjLZ..'; threat='..M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTThreatEnemyCombatTotal]) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Enemy combat threat for adjacent LZ iAdjLZ='..iAdjLZ..'; threat='..M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTThreatEnemyCombatTotal]) end
                 if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTEnemyUnits]) == false then
                     bNearbyEnemies = true
                     break
@@ -551,15 +551,15 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
             end
         end
         tLZTeamData[M28Map.subrefLZIndirectThreatWanted] = iEnemyStructureThreat * 2 + tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] * 2
-        tLZTeamData[M28Map.subrefLZDFThreatWanted] = math.max(200, tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] * 2)
+        tLZTeamData[M28Map.subrefLZDFThreatWanted] = math.max(200, tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 2)
     else
         tLZTeamData[M28Map.subrefLZDFThreatWanted] = 0
         tLZTeamData[M28Map.subrefLZIndirectThreatWanted] = 0
     end
 
     --If we have no friendly combat units and enemy has combat threat, then request less MAA, or none if we have no non-MAA/scout units
-    if bDebugMessages == true then LOG(sFunctionRef..': Setting the MAA level wanted for iLandZone='..iLandZone..'; tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal]='..tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal]..'; tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]='..tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]..'; tLZTeamData[M28Map.refiEnemyAirToGroundThreat]='..tLZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; tLZTeamData[M28Map.refiEnemyAirOtherThreat]='..tLZTeamData[M28Map.refiEnemyAirOtherThreat]..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]))) end
-    if tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] < 11 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= math.min(1500, tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] * 0.9) or tLZTeamData[M28Map.subrefLZbCoreBase] then
+    if bDebugMessages == true then LOG(sFunctionRef..': Setting the MAA level wanted for iLandZone='..iLandZone..'; tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]='..tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]..'; tLZTeamData[M28Map.refiEnemyAirToGroundThreat]='..tLZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; tLZTeamData[M28Map.refiEnemyAirOtherThreat]='..tLZTeamData[M28Map.refiEnemyAirOtherThreat]..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]))) end
+    if tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < 11 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= math.min(1500, tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 0.9) or tLZTeamData[M28Map.subrefLZbCoreBase] then
         tLZTeamData[M28Map.subrefLZMAAThreatWanted] = math.max(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] * 0.65 + tLZTeamData[M28Map.refiEnemyAirAAThreat] * 0.15 + tLZTeamData[M28Map.refiEnemyAirOtherThreat] * 0.15, tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] * 0.1)
     elseif M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
         local bHaveAlliedNonMAAOrScout = false
@@ -605,7 +605,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
             iAdjWZ = tSubtable[M28Map.subrefAWZRef]
             iPond = M28Map.tiPondByWaterZone[iAdjWZ]
             local tWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
-            if (tWZTeamData[M28Map.subrefWZTThreatEnemyCombatTotal] or 0) >= 20 and tWZTeamData[M28Map.subrefWZBestEnemyDFRange] > 0 then
+            if (tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) >= 20 and tWZTeamData[M28Map.subrefWZBestEnemyDFRange] > 0 then
                 tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] = true
                 break
             end
@@ -656,7 +656,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
 
 
     tLZTeamData[M28Map.refbWantLandScout] = false
-    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want a land scout for iPlateau '..iPlateau..'; iLandZone='..iLandZone..'; bLandZoneContainsNonScouts='..tostring(bLandZoneContainsNonScouts or false)..'; Enemy combat threat='..tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal]..'; Is table of land scouts traveling here empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTScoutsTravelingHere]))..'; Is table of scouts currently in this LZ empty='..tostring(M28Utilities.IsTableEmpty(tScouts))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want a land scout for iPlateau '..iPlateau..'; iLandZone='..iLandZone..'; bLandZoneContainsNonScouts='..tostring(bLandZoneContainsNonScouts or false)..'; Enemy combat threat='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Is table of land scouts traveling here empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTScoutsTravelingHere]))..'; Is table of scouts currently in this LZ empty='..tostring(M28Utilities.IsTableEmpty(tScouts))) end
 
     --Refresh list of scouts traveling here
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTScoutsTravelingHere]) == false then
@@ -668,7 +668,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
         end
     end
 
-    if (bLandZoneContainsNonScouts or tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] <= 2) and (tLZData[M28Map.subrefLZMexCount] > 0 or tLZData[M28Map.subrefLZTotalSegmentCount] > 30) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTScoutsTravelingHere]) then
+    if (bLandZoneContainsNonScouts or tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] <= 2) and (tLZData[M28Map.subrefLZMexCount] > 0 or tLZData[M28Map.subrefLZTotalSegmentCount] > 30) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTScoutsTravelingHere]) then
         --Want a land scout for htis land zone, unless we already have one traveling here; if we have available land scouts then will change this flag back to false
         tLZTeamData[M28Map.refbWantLandScout] = true
         if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; We want to get a scout for this LZ '..(iLandZone or 'nil')..' on plateau '..(iPlateau or 'nil')..' with island '..(tLZData[M28Map.subrefLZIslandRef] or 'nil')) end
@@ -682,13 +682,13 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
         local tEnemyUnitTablesToConsider = {}
         --Check for neemies if there are any in this or adjacent land zone
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
-            --if tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] > 0 then
+            --if tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 0 then
             table.insert(tEnemyUnitTablesToConsider, tLZTeamData[M28Map.subrefTEnemyUnits])
         end
         if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones]) == false then
             for _, iAdjLZ in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones] do
-                if bDebugMessages == true then LOG(sFunctionRef..': Checking if enemies in iAdjLZ='..iAdjLZ..'; enemy combat total='..M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTThreatEnemyCombatTotal]) end
-                if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTThreatEnemyCombatTotal] > 0 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Checking if enemies in iAdjLZ='..iAdjLZ..'; enemy combat total='..M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTThreatEnemyCombatTotal]) end
+                if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTThreatEnemyCombatTotal] > 0 then
                     table.insert(tEnemyUnitTablesToConsider, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTEnemyUnits])
                 end
             end
@@ -699,7 +699,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
         local oPrevEnemyToRunFrom
         local iRunThreshold = 15 --If get this close to being in range of an enemy should try to run
         local iAttackThreshold = 35
-        if bDebugMessages == true then LOG(sFunctionRef..': About to consider orders for scouts in this LZ, size of tScouts='..table.getn(tScouts)..'; bCheckForEnemies='..tostring(bCheckForEnemies)..'; Enemy combat total='..tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal]) end
+        if bDebugMessages == true then LOG(sFunctionRef..': About to consider orders for scouts in this LZ, size of tScouts='..table.getn(tScouts)..'; bCheckForEnemies='..tostring(bCheckForEnemies)..'; Enemy combat total='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]) end
         local oEnemyToConsiderAttacking
         local iEnemyToConsiderAttackingDist
         local bConsiderAttacking = false
@@ -707,7 +707,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
         for iScout, oScout in tScouts do
             if bCheckForEnemies then
                 oEnemyToRunFrom = nil
-                if tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] <= 12 and EntityCategoryContains(M28UnitInfo.refCategoryCombatScout, oScout.UnitId) and (oScout[M28UnitInfo.refiDFRange] or 0) >= 12 then
+                if tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] <= 12 and EntityCategoryContains(M28UnitInfo.refCategoryCombatScout, oScout.UnitId) and (oScout[M28UnitInfo.refiDFRange] or 0) >= 12 then
                     bConsiderAttacking = true
                     iEnemyToConsiderAttackingDist = 100000
                 end
@@ -757,7 +757,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                 oPrevEnemyToRunFrom = nil --DOnt want to bypass checking enemy units incase there is a threatening one nearby
             elseif oEnemyToRunFrom then
                 tLZTeamData[M28Map.refbWantLandScout] = false
-                if bDebugMessages == true then LOG(sFunctionRef..': Want scout '..oScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout)..' to run from oEnemyToRunFrom '..oEnemyToRunFrom.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToRunFrom)..' unless iti s a combat scout vs an engineer/mex in a low threat LZ in which case want it to attack the unit; LZ combat total='..tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal]..'; Scout DF range='..(oScout[M28UnitInfo.refiDFRange] or 'nil')..'; Do we have a combat scout='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryCombatScout, oScout.UnitId))..'; Distance to nearest enemy='..M28Utilities.GetDistanceBetweenPositions(oEnemyToRunFrom:GetPosition(), oScout:GetPosition())) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Want scout '..oScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout)..' to run from oEnemyToRunFrom '..oEnemyToRunFrom.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToRunFrom)..' unless iti s a combat scout vs an engineer/mex in a low threat LZ in which case want it to attack the unit; LZ combat total='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Scout DF range='..(oScout[M28UnitInfo.refiDFRange] or 'nil')..'; Do we have a combat scout='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryCombatScout, oScout.UnitId))..'; Distance to nearest enemy='..M28Utilities.GetDistanceBetweenPositions(oEnemyToRunFrom:GetPosition(), oScout:GetPosition())) end
                 oPrevEnemyToRunFrom = oEnemyToRunFrom
                 RunFromEnemy(oScout, oEnemyToRunFrom, iTeam, iPlateau, 16)
             else
@@ -943,7 +943,7 @@ function RecordClosestAdjacentEnemiesAndGetBestEnemyRange(tLZData, tLZTeamData, 
                 iEnemyBestStructureDFRange = math.max(iEnemyBestStructureDFRange, tAltLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange])
                 iEnemyBestMobileIndirectRange = math.max(iEnemyBestMobileIndirectRange, tAltLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange])
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering adjacent LZ '..iAdjLandZone..'; Enemy mobile DF for this LZ='..tAltLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange]..'; Mobile structure range='..tAltLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange]..'; Mobile indirect='..tAltLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange]) end
-                if M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subrefTEnemyUnits]) == false and tAltLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] >= 10 then
+                if M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subrefTEnemyUnits]) == false and tAltLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 10 then
                     for iUnit, oUnit in tAltLZTeamData[M28Map.subrefTEnemyUnits] do
                         if oUnit[M28UnitInfo.refiDFRange] > 0 and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout - categories.SERAPHIM, oUnit.UnitId)) then
                             iCurDistUntilInRange = M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], tMidpoint) - oUnit[M28UnitInfo.refiDFRange]
@@ -968,8 +968,8 @@ function RecordClosestAdjacentEnemiesAndGetBestEnemyRange(tLZData, tLZTeamData, 
                 iAdjWZ = tSubtable[M28Map.subrefAWZRef]
                 iPond = M28Map.tiPondByWaterZone[iAdjWZ]
                 local tWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjWZ='..iAdjWZ..' for iPond='..iPond..'; Enemy Combat total='..(tWZTeamData[M28Map.subrefWZTThreatEnemyCombatTotal] or 0)..'; Is Nearest combat enemies empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftoNearestCombatEnemies]))) end
-                if (tWZTeamData[M28Map.subrefWZTThreatEnemyCombatTotal] or 0) >= 20 and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftoNearestCombatEnemies]) == false then
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjWZ='..iAdjWZ..' for iPond='..iPond..'; Enemy Combat total='..(tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)..'; Is Nearest combat enemies empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftoNearestCombatEnemies]))) end
+                if (tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) >= 20 and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftoNearestCombatEnemies]) == false then
                     iEnemyBestMobileDFRange = math.max(iEnemyBestMobileDFRange, (tWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0))
                     iLowestDistUntilInRange = 10000
                     oLowestDFDistUntilInRange = nil
@@ -993,7 +993,7 @@ function RecordClosestAdjacentEnemiesAndGetBestEnemyRange(tLZData, tLZTeamData, 
         end
 
         --Add all units from this zone into reftoNearestDFEnemies
-        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false and tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] then
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] then
             for iUnit, oUnit in tLZTeamData[M28Map.subrefTEnemyUnits] do
                 if oUnit[M28UnitInfo.refiDFRange] > 0 and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout - categories.SERAPHIM, oUnit.UnitId)) then
                     table.insert(tLZTeamData[M28Map.reftoNearestDFEnemies], oUnit)
@@ -1537,7 +1537,7 @@ function ManageMobileShieldsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
             for iEntry, tPathingDetails in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
                 local tTeamTargetLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tPathingDetails[M28Map.subrefLZNumber]][M28Map.subrefLZTeamData][iTeam]
                 if tTeamTargetLZData[M28Map.refbLZWantsMobileShield] then
-                    if tTeamTargetLZData[M28Map.refiEnemyAirToGroundThreat] > 0 or tTeamTargetLZData[M28Map.subrefLZTThreatEnemyCombatTotal] >= 40 then
+                    if tTeamTargetLZData[M28Map.refiEnemyAirToGroundThreat] > 0 or tTeamTargetLZData[M28Map.subrefTThreatEnemyCombatTotal] >= 40 then
                         ShieldUnitsInLandZone(tTeamTargetLZData, tShieldsToAssign)
                         if M28Utilities.IsTableEmpty(tShieldsToAssign) then break end
                     elseif M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.subrefTEnemyUnits]) == false or tTeamTargetLZData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
@@ -1640,7 +1640,7 @@ function ManageMobileStealthsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, i
             for iEntry, tPathingDetails in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
                 local tTeamTargetLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tPathingDetails[M28Map.subrefLZNumber]][M28Map.subrefLZTeamData][iTeam]
                 if tTeamTargetLZData[M28Map.refbLZWantsMobileStealth] then
-                    if tTeamTargetLZData[M28Map.refiEnemyAirToGroundThreat] > 0 or tTeamTargetLZData[M28Map.subrefLZTThreatEnemyCombatTotal] >= 40 then
+                    if tTeamTargetLZData[M28Map.refiEnemyAirToGroundThreat] > 0 or tTeamTargetLZData[M28Map.subrefTThreatEnemyCombatTotal] >= 40 then
                         StealthUnitsInLandZone(tTeamTargetLZData, tStealthsToAssign)
                         if M28Utilities.IsTableEmpty(tStealthsToAssign) then break end
                     elseif M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.subrefTEnemyUnits]) == false or tTeamTargetLZData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
@@ -1785,14 +1785,14 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
                         elseif (tAltTeamLZData[M28Map.refiEnemyAirOtherThreat] + tLZTeamData[M28Map.refiEnemyAirAAThreat]) > 45 then iCurModDist = iCurModDist - 100
                         end
                         if M28Utilities.IsTableEmpty(tAltTeamLZData[M28Map.subrefLZTAlliedUnits]) then iCurModDist = iCurModDist + 100 end
-                        if tAltTeamLZData[M28Map.subrefLZTThreatEnemyCombatTotal] > 6 then
+                        if tAltTeamLZData[M28Map.subrefTThreatEnemyCombatTotal] > 6 then
                             iCurModDist = iCurModDist + 50
                             if tAltTeamLZData[M28Map.subrefLZTThreatAllyCombatTotal] == 0 then
                                 iCurModDist = iCurModDist + 150
-                            elseif tAltTeamLZData[M28Map.subrefLZTThreatEnemyCombatTotal] > tAltTeamLZData[M28Map.subrefLZTThreatAllyCombatTotal] then
+                            elseif tAltTeamLZData[M28Map.subrefTThreatEnemyCombatTotal] > tAltTeamLZData[M28Map.subrefLZTThreatAllyCombatTotal] then
                                 iCurModDist = iCurModDist + 75
                             end
-                            --tAltTeamLZData[M28Map.subrefLZTThreatEnemyCombatTotal] > subrefLZTThreatAllyCombatTotal
+                            --tAltTeamLZData[M28Map.subrefTThreatEnemyCombatTotal] > subrefLZTThreatAllyCombatTotal
                         end
                         tLZToReinforceModDistance[tPathDetails[M28Map.subrefLZNumber]] = iCurModDist
                     end
@@ -1837,8 +1837,8 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjWZ='..iAdjWZ..'; iPond='..iPond..'; MAA threat wanted='..tAltWZTeamData[M28Map.subrefWZMAAThreatWanted]) end
                             if tAltWZTeamData[M28Map.subrefWZMAAThreatWanted] > math.max(50, tAltWZTeamData[M28Map.subrefWZThreatAlliedAA]) then
                                 --Only consider if either no enemy threat, or we have an allied combat threat
-                                if bDebugMessages == true then LOG(sFunctionRef..': Enemy combat total='..tAltWZTeamData[M28Map.subrefWZTThreatEnemyCombatTotal]..'; Ally combat total='..tAltWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]) end
-                                if tAltWZTeamData[M28Map.subrefWZTThreatEnemyCombatTotal] < 10 or tAltWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] > 10 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Enemy combat total='..tAltWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Ally combat total='..tAltWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]) end
+                                if tAltWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < 10 or tAltWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] > 10 then
                                     SendMAAToSupportLandZone(tMAAToAdvance, iPlateau, iTeam, iAdjWZ, nil, true, tHoverMAA)
                                     if M28Utilities.IsTableEmpty(tHoverMAA) then break end
                                 end
@@ -2142,8 +2142,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     iCurWZ = tSubtable[M28Map.subrefAWZRef]
                     iCurPond = M28Map.tiPondByWaterZone[iCurWZ]
                     local tWZTeamData = M28Map.tPondDetails[iCurPond][M28Map.subrefPondWaterZones][iCurWZ][M28Map.subrefWZTeamData][iTeam]
-                    if bDebugMessages == true then LOG(sFunctionRef..': iCurWZ='..(iCurWZ or 'nil')..'; iCurPond='..(iCurPond or 'nil')..'; tWZTeamData[M28Map.subrefWZTThreatEnemyCombatTotal]='..(tWZTeamData[M28Map.subrefWZTThreatEnemyCombatTotal] or 'nil')) end
-                    if tWZTeamData[M28Map.subrefWZTThreatEnemyCombatTotal] > 0 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': iCurWZ='..(iCurWZ or 'nil')..'; iCurPond='..(iCurPond or 'nil')..'; tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..(tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')) end
+                    if tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 0 then
                         for iUnit, oUnit in tWZTeamData[M28Map.subrefTEnemyUnits] do
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to add oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; to nearest enemy to midpoint; Is it valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; Is it underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; iClosestDist='..iClosestDist) end
                             if M28UnitInfo.IsUnitValid(oUnit) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
@@ -2171,12 +2171,12 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
             --Do we have shot blocked on non-skirmisher units, no indirect fire units, and have signficantly more threat than the enemy or are on an island beachhead? If so then move instead of attakc-moving when attacking
             local bMoveBlockedNotAttackMove = false
-            if (iFriendlyBestMobileIndirectRange == 0 or tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] * 3) and (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] * 1.75 or tLZTeamData[M28Map.refbIslandBeachhead]) then
+            if (iFriendlyBestMobileIndirectRange == 0 or tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 3) and (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 1.75 or tLZTeamData[M28Map.refbIslandBeachhead]) then
                 bMoveBlockedNotAttackMove = true
             end
 
 
-            if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if should move blocked units, bMoveBlockedNotAttackMove='..tostring(bMoveBlockedNotAttackMove)..'; iFriendlyBestMobileIndirectRange='..iFriendlyBestMobileIndirectRange..';  tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal]='..tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal]..'; tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]='..tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]..'; iFriendlyBestMobileDFRange='..iFriendlyBestMobileDFRange..'; Enemy best DF range='..iEnemyBestDFRange..'; iFriendlyBestMobileIndirectRange='..iFriendlyBestMobileIndirectRange..'; iEnemyBestStructureDFRange='..iEnemyBestStructureDFRange..'; Enemy structure threat indirect='..tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect]..'; bEnemyHasNoDFUnits='..tostring(bEnemyHasNoDFUnits)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if should move blocked units, bMoveBlockedNotAttackMove='..tostring(bMoveBlockedNotAttackMove)..'; iFriendlyBestMobileIndirectRange='..iFriendlyBestMobileIndirectRange..';  tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]='..tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]..'; iFriendlyBestMobileDFRange='..iFriendlyBestMobileDFRange..'; Enemy best DF range='..iEnemyBestDFRange..'; iFriendlyBestMobileIndirectRange='..iFriendlyBestMobileIndirectRange..'; iEnemyBestStructureDFRange='..iEnemyBestStructureDFRange..'; Enemy structure threat indirect='..tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect]..'; bEnemyHasNoDFUnits='..tostring(bEnemyHasNoDFUnits)) end
 
             --SCENARIO 1 - We outrange enemy DF units (mobile and fix)
             if iFriendlyBestMobileDFRange > iEnemyBestDFRange or (iFriendlyBestMobileIndirectRange > iEnemyBestDFRange and (iEnemyBestStructureDFRange > 0 or tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] > 0)) and iFirebaseThreatAdjust == 0 then
@@ -2184,7 +2184,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 local tUnitsToSupport = {}
                 local bAttackWithOutrangedDFUnits = false
                 if tLZTeamData[M28Map.subrefLZbCoreBase] then bAttackWithOutrangedDFUnits = true
-                elseif tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] > tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] then bAttackWithOutrangedDFUnits = true
+                elseif tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] > tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] then bAttackWithOutrangedDFUnits = true
                 end
 
                 local bUpdateNearestUnit = false
@@ -2365,9 +2365,9 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     end
                 end
 
-                if tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] * 1.5 > M28UnitInfo.GetCombatThreatRating(tAvailableCombatUnits, false, true) then
+                if tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 1.5 > M28UnitInfo.GetCombatThreatRating(tAvailableCombatUnits, false, true) then
                     bWantReinforcements = true
-                    if bDebugMessages == true then LOG(sFunctionRef..': Want reinforcements as enemy combat DF exceeds our combat rating, tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal]='..tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal]..'; Our combat units rating='..M28UnitInfo.GetCombatThreatRating(tAvailableCombatUnits, false, true)) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Want reinforcements as enemy combat DF exceeds our combat rating, tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Our combat units rating='..M28UnitInfo.GetCombatThreatRating(tAvailableCombatUnits, false, true)) end
                 end
 
                 if bUpdateNearestUnit then
@@ -2395,7 +2395,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     end
 
                     --Check the threat of our available combat units vs threat of enemy combat units
-                    local iEnemyCombatThreat = tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] + iFirebaseThreatAdjust
+                    local iEnemyCombatThreat = tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] + iFirebaseThreatAdjust
                     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                         if iFirebaseThreatAdjust == 0 then
                             local tNearbyAdjacentEnemies = {}
@@ -2409,7 +2409,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 end
                                 iAdjacentDistThreshold = iAdjacentDistThreshold + 10
                                 --Only include units in the threat calculation if they are close enough to this LZ, or we have a firebase threat adjust
-                                if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTThreatEnemyCombatTotal] > 10 then
+                                if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTThreatEnemyCombatTotal] > 10 then
                                     local tPotentialEnemyUnits = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryPD, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTEnemyUnits])
                                     if M28Utilities.IsTableEmpty(tPotentialEnemyUnits) == false then
                                         for iUnit, oUnit in tPotentialEnemyUnits do
@@ -2423,7 +2423,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             iEnemyCombatThreat = iEnemyCombatThreat + M28UnitInfo.GetCombatThreatRating(tNearbyAdjacentEnemies, false)
                         else
                             for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
-                                iEnemyCombatThreat = iEnemyCombatThreat + M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTThreatEnemyCombatTotal]
+                                iEnemyCombatThreat = iEnemyCombatThreat + M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTThreatEnemyCombatTotal]
                             end
                         end
                     end
@@ -2463,10 +2463,10 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             end
                         end
                         local iNearbyCombatThreat = math.max(iOurCombatThreat, M28UnitInfo.GetCombatThreatRating(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains][1]:GetUnitsAroundPoint(M28UnitInfo.refCategoryLandCombat, oClosestFriendlyToEnemy:GetPosition(), iSearchRange, 'Ally'), false))
-                        if iNearbyCombatThreat > iEnemyCombatThreat or iNearbyCombatThreat > 1.2 * tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] then
+                        if iNearbyCombatThreat > iEnemyCombatThreat or iNearbyCombatThreat > 1.2 * tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] then
                             bAttackWithEverything = true
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Island beachhead Nearby combat threat='..iNearbyCombatThreat..'; iEnemyCombatThreat='..iEnemyCombatThreat..'; tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal]='..tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal]..'; bAttackWithEverythign='..tostring(bAttackWithEverything)) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Island beachhead Nearby combat threat='..iNearbyCombatThreat..'; iEnemyCombatThreat='..iEnemyCombatThreat..'; tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; bAttackWithEverythign='..tostring(bAttackWithEverything)) end
                     end
 
                     if iOurCombatThreat < iEnemyCombatThreat * 1.4 or not(bAttackWithEverything) then
@@ -3376,7 +3376,7 @@ function GetLandZoneToRunTo(iTeam, iPlateau, iCurLandZone, sPathing, tOptionalSt
     --See if we have any adjacent LZs with no enemy combat units in them - if so, then run here
     if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iCurLandZone][M28Map.subrefLZAdjacentLandZones]) == false then
         for _, iAdjacentLZ in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iCurLandZone][M28Map.subrefLZAdjacentLandZones] do
-            if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjacentLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTThreatEnemyCombatTotal] == 0 then
+            if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjacentLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTThreatEnemyCombatTotal] == 0 then
                 table.insert(tLZShortlist, iAdjacentLZ)
             end
         end

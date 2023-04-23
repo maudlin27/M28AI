@@ -400,6 +400,11 @@ function OnBombFired(oWeapon, projectile)
                 if not(EntityCategoryContains(categories.EXPERIMENTAL, sUnitID)) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Will try and dodge the bomb fired by unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                     M28Micro.DodgeBomb(oUnit, oWeapon, projectile)
+                else
+                    --Experimental bomber - micro to turn around and go to rally point
+                    if oUnit:GetAIBrain().M28AI then
+                        ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit:GetAIBrain(), oUnit, M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint], 15)
+                    end
                 end
             end
         end

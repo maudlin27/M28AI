@@ -244,7 +244,7 @@ function DodgeBomb(oBomber, oWeapon, projectile)
                                 if not(bDontTryAndDodge) then
                                     --Is there a significant enemy land threat and we are against a T1 bomber?
                                     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
-                                    if iLandZone > 0 and EntityCategoryContains(categories.TECH1, oBomber.UnitId) and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTThreatEnemyCombatTotal] * 1.2 > math.min(300, M28UnitInfo.GetCombatThreatRating({ oUnit }, false, false, false, false, false, false, false)) then
+                                    if iLandZone > 0 and EntityCategoryContains(categories.TECH1, oBomber.UnitId) and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefTThreatEnemyCombatTotal] * 1.2 > math.min(300, M28UnitInfo.GetCombatThreatRating({ oUnit }, false, false, false, false, false, false, false)) then
                                         bDontTryAndDodge = true
                                     end
                                 end
@@ -399,7 +399,7 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                                 if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and M28Conditions.CanUnitUseOvercharge(oUnit:GetAIBrain(), oUnit) and (GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastOverchargeShot] or 0)) > 5 then
                                     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
                                     local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team]
-                                    if tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] >= 200 then
+                                    if tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 200 then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Reducing dodge time drastically as have ACU that can overcharge enemies in range but it also wants to dodge a shot; will cancel if damage is very low that are dodging. oWeapon.Blueprint.Damage='..oWeapon.Blueprint.Damage) end
                                         if oWeapon.Blueprint.Damage <= 100 then
                                             bCancelDodge = true
@@ -832,4 +832,102 @@ function GetOverchargeTarget(tLZData, aiBrain, oUnitWithOvercharge)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return oOverchargeTarget
+end
+
+function TurnAirUnitAndMoveToTarget(aiBrain, oBomber, tDirectionToMoveTo, iMaxAcceptableAngleDif)
+    --Based on hoverbomb logic - may give unexpected results if not using with T3 bombers
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'TurnAirUnitAndMoveToTarget'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; GameTime='..GetGameTimeSeconds()) end
+
+
+    local iStartTime = GetGameTimeSeconds()
+    --local iAngleToTarget
+
+    --Config:
+    local iTicksBetweenOrders = 5
+    local iDistanceAwayToMove = 10
+    local iAngleAdjust = 50
+
+
+    --Other variables:
+    local iActualAngleToUse
+    local iCurAngleDif
+    local iAngleAdjustToUse
+    local iFacingDirection
+    local iAngleToTarget
+
+    local iCurTick = 0
+    local bTriedMovingForwardsAndTurning = false
+    local iDistToTarget
+    local tTempTarget
+
+    local iMaxMicroTime = 5 --will micro for up to 5 seconds
+    if EntityCategoryContains(categories.EXPERIMENTAL, oBomber.UnitId) then iMaxMicroTime = 10 end
+
+
+    local iFacingAngleWanted = M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), tDirectionToMoveTo)
+
+    --Clear trackers so we dont think we're targeting anything - commented out as this is called via the clearairunitassignmenttracker so causes issues
+    --M27AirOverseer.ClearAirUnitAssignmentTrackers(aiBrain, oBomber, true)
+    oBomber[M28UnitInfo.refbSpecialMicroActive] = true
+
+
+
+    while GetGameTimeSeconds() - iStartTime < iMaxMicroTime do
+        iCurTick = iCurTick + 1
+
+        iFacingDirection = M28UnitInfo.GetUnitFacingAngle(oBomber)
+        iAngleToTarget = M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), tDirectionToMoveTo)
+        iCurAngleDif = iFacingDirection - iAngleToTarget
+        iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), tDirectionToMoveTo)
+        --e.g. if bomber is facing 350 degrees, and the target is at 10 degrees, then it means there's only a dif of 20 degrees, but we want the bomber to go 350+50, rather than 350-50.  Facing - Angle would result in a positive value
+        --if instead bomber was facing 10 degrees, and the target was 30 degrees, then would get -20 as the result, and so want to also increase
+        --the effect of the below is that when bomber is facing 350 degrees and target 10 degrees, it will treat the difference as being 350 - 10 - 360 = -20, and want the bomber to go 350+50; if insteadbomber 10 and target 30, then dif = -20 and no adjustment made
+        if math.abs(iCurAngleDif) > 180 then
+            if iCurAngleDif > 180 then
+                --iFacingDirection is too high so decrease the angle difference
+                iCurAngleDif = iCurAngleDif - 360
+            else --Curangledif must be < -180, so angletotarget is too high
+                iCurAngleDif = iCurAngleDif + 360
+            end
+        end
+
+
+        if iCurAngleDif < 0 then
+            iAngleAdjustToUse = iAngleAdjust
+        else iAngleAdjustToUse = -iAngleAdjust
+        end
+
+        --Are we close enough to the direction wanted?
+        iCurAngleDif = math.abs(iCurAngleDif)
+        if iCurAngleDif <= (iMaxAcceptableAngleDif or 15) then
+            --Are close enough in angle so can stop the micro
+            break
+        else
+            if iCurTick == 1 then
+                iActualAngleToUse = iFacingDirection + iAngleAdjustToUse
+                tTempTarget = M28Utilities.MoveInDirection(oBomber:GetPosition(), iActualAngleToUse, iDistanceAwayToMove, true)
+                M28Orders.IssueTrackedMove(oBomber, tTempTarget, 0, false, 'BMicrM', true)
+                if bDebugMessages == true then LOG(sFunctionRef..': Just issued move order, iFacingDirection='..iFacingDirection..'; iCurANgleDif='..iCurAngleDif..'; iAngleAdjustToUse='..iAngleAdjustToUse..'; iActualAngleToUse='..iActualAngleToUse..'; angle from bomber to target='..M28Utilities.GetAngleFromAToB(oBomber:GetPosition(), tDirectionToMoveTo)) end
+            elseif iCurTick >= iTicksBetweenOrders then iCurTick = 0
+            end
+
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitTicks(1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            if not(M28UnitInfo.IsUnitValid(oBomber)) then
+                break
+            end
+        end
+    end
+
+    if M28UnitInfo.IsUnitValid(oBomber) then
+        M28Orders.IssueTrackedMove(oBomber, tDirectionToMoveTo, 5, false, 'BMicMTR', true)
+        if bDebugMessages == true then LOG(sFunctionRef..': Just cleared bomber '..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..' commands and told it to move to '..repru(tDirectionToMoveTo)..'; GameTime='..GetGameTimeSeconds()) end
+        oBomber[M28UnitInfo.refbSpecialMicroActive] = false
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
