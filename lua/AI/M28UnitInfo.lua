@@ -55,6 +55,8 @@ refbWeaponUnpacks = 'M28WUP'
 refiStrikeDamage = 'M28USD'
 refbCanKite = 'M28CanKite' --true unless weapon unpacks or experimental with a weapon fixed to body (GC and megalith)
 
+refbSniperRifleEnabled = 'M27UnitSniperRifleEnabled' --True if seraphim sniperbot has its long range sniperrifle enabled
+
 --Weapon priorities
 refWeaponPriorityGunship = {'MOBILE SHIELD', 'MOBILE ANTIAIR CRUISER', 'MOBILE ANTIAIR', 'ANTIAIR', 'STRUCTURE SHIELD', 'VOLATILE', 'MASSEXTRACTION', 'GROUNDATTACK', 'TECH3 MOBILE', 'TECH2 MOBILE', 'TECH1 MOBILE', 'ALLUNITS'}
 
@@ -1158,8 +1160,14 @@ function RecordUnitRange(oUnit)
         if not(bWeaponUnpacks or (bWeaponIsFixed and EntityCategoryContains(categories.EXPERIMENTAL - refCategoryFatboy, oUnit.UnitId))) then
             oUnit[refbCanKite] = true
         end
+        --LOG('Considering unitID '..(oUnit.UnitId or 'nil')..'; is unit valid='..tostring(IsUnitValid(oUnit)))
+        if oUnit.GetAIBrain and oUnit:GetAIBrain().M28AI and EntityCategoryContains(refCategorySniperBot * categories.SERAPHIM, oUnit.UnitId) then
+            EnableLongRangeSniper(oUnit)
+            --LOG('Enabled long range on sniper, DFRange='..oUnit[refiDFRange]..'; Strike damage='..GetUnitStrikeDamage(oUnit))
+        end
     end
     oUnit[refiStrikeDamage] = GetUnitStrikeDamage(oUnit)
+
 end
 
 function ConvertTechLevelToCategory(iTechLevel)
@@ -1640,4 +1648,70 @@ function GetLauncherAOEStrikeDamageMinAndMaxRange(oUnit)
         end
     end
     return iAOE, iStrikeDamage, iMinRange, iMaxRange
+end
+
+function GetSniperStrikeDamage(oUnit)
+    local iStrikeDamage
+    local oBP = oUnit:GetBlueprint()
+    local sWeaponTypeRequired
+    if EntityCategoryContains(refCategorySniperBot * categories.SERAPHIM, oUnit.UnitId) then
+        if oUnit[refbSniperRifleEnabled] and table.getn(oBP.Weapon) > 1 then sWeaponTypeRequired = 'SniperGun' end
+    end
+
+    if oBP.Weapon then
+        for iWeapon, tWeapon in oBP.Weapon do
+            if tWeapon.WeaponCategory == 'Direct Fire' then
+                if not(sWeaponTypeRequired) or tWeapon.Label == sWeaponTypeRequired then
+                    if iStrikeDamage then iStrikeDamage = math.min(iStrikeDamage, tWeapon.Damage)
+                    else iStrikeDamage = tWeapon.Damage
+                    end
+                end
+            end
+        end
+    end
+    if not(iStrikeDamage) then iStrikeDamage = 100 end
+    return iStrikeDamage
+end
+
+function EnableLongRangeSniper(oUnit)
+    --If unit has a sniper weapon, then toggle it
+    if oUnit.SetWeaponEnabledByLabel and not(oUnit[refbSniperRifleEnabled]) then
+        local oBP = oUnit:GetBlueprint()
+        local bHaveSniperWeapon = false
+        if oBP.Weapon then
+            for iWeapon, tWeapon in oBP.Weapon do
+                if tWeapon.Label == 'SniperGun' then
+                    bHaveSniperWeapon = true
+                    break
+                end
+            end
+        end
+
+        if bHaveSniperWeapon then
+            oUnit:OnScriptBitSet(1)
+            oUnit[refbSniperRifleEnabled] = true
+            --LOG('Enabled sniperrifle on unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit))
+        end
+    end
+end
+
+
+function DisableLongRangeSniper(oUnit)
+    if oUnit.SetWeaponEnabledByLabel and oUnit[refbSniperRifleEnabled] then
+        local bHaveSniperWeapon = true
+        local oBP = oUnit:GetBlueprint()
+        if oBP.Weapon then
+            for iWeapon, tWeapon in oBP.Weapon do
+                if tWeapon.Label == 'SniperGun' then
+                    bHaveSniperWeapon = true
+                    break
+                end
+            end
+        end
+        if bHaveSniperWeapon then
+            oUnit:OnScriptBitClear(1)
+            oUnit[refbSniperRifleEnabled] = false
+            --LOG('Disabled long range sniper on unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit))
+        end
+    end
 end

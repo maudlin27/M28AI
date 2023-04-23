@@ -262,20 +262,26 @@ function RecordUnitsInRangeOfTMLAndAnyTMDProtection(oTML, tOptionalUnitsToConsid
     for iTMDTeam = 1, M28Team.iTotalTeamCount do
         --Get all TMD that could stop this TML, and all units it could threaten
         if not(iTMDTeam == iTMLTeam) then
-            local oTMDBrain = M28Team.tTeamData[iTMDTeam][M28Team.subreftoFriendlyActiveBrains][1]
-            local tTeamNearbyTMD = oTMDBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryTMD, oTML:GetPosition(), iTMLRange + 13, 'Ally')
-            if M28Utilities.IsTableEmpty(tTeamNearbyTMD) == false then
-                for iUnit, oUnit in tTeamNearbyTMD do
-                    table.insert(tNearbyTMD, oUnit)
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTMDTeam][M28Team.subreftoFriendlyActiveBrains]) == false then
+                local oTMDBrain
+                for iBrain, oBrain in M28Team.tTeamData[iTMDTeam][M28Team.subreftoFriendlyActiveBrains] do
+                    oTMDBrain = oBrain
+                    break
                 end
-            end
-            if not(tOptionalUnitsToConsider) then
-                --i.e. this is the first time we are considering the TML
-                table.insert(M28Team.tTeamData[iTMDTeam][M28Team.reftEnemyTML], oTML)
-                local tTeamUnitsToProtect = oTMDBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryProtectFromTML, oTML:GetPosition(), iTMLRange, 'Ally')
-                if M28Utilities.IsTableEmpty(tTeamUnitsToProtect) == false then
-                    for iUnit, oUnit in tTeamUnitsToProtect do
-                        table.insert(tUnitsToProtect, oUnit)
+                local tTeamNearbyTMD = oTMDBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryTMD, oTML:GetPosition(), iTMLRange + 13, 'Ally')
+                if M28Utilities.IsTableEmpty(tTeamNearbyTMD) == false then
+                    for iUnit, oUnit in tTeamNearbyTMD do
+                        table.insert(tNearbyTMD, oUnit)
+                    end
+                end
+                if not(tOptionalUnitsToConsider) then
+                    --i.e. this is the first time we are considering the TML
+                    table.insert(M28Team.tTeamData[iTMDTeam][M28Team.reftEnemyTML], oTML)
+                    local tTeamUnitsToProtect = oTMDBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryProtectFromTML, oTML:GetPosition(), iTMLRange, 'Ally')
+                    if M28Utilities.IsTableEmpty(tTeamUnitsToProtect) == false then
+                        for iUnit, oUnit in tTeamUnitsToProtect do
+                            table.insert(tUnitsToProtect, oUnit)
+                        end
                     end
                 end
             end
@@ -313,14 +319,20 @@ function TMDJustBuilt(oTMD)
     for iTMLTeam = 1, M28Team.iTotalTeamCount do
         --Get all TML in range of this TMD
         if not(iTMDTeam == iTMLTeam) then
-            local oTMLBrain = M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyActiveBrains][1]
-            local tTeamNearbyTML = oTMLBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryTML, oTMD:GetPosition(), iTMLMissileRange + iTMDRange - 3, 'Ally')
-            if M28Utilities.IsTableEmpty(tTeamNearbyTML) == false then
-                for iTML, oTML in tTeamNearbyTML do
-                    local tFriendlyUnitsInRangeOfTML = oTMDBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryProtectFromTML, oTML:GetPosition(), iTMLMissileRange + 2, 'Ally')
-                    if M28Utilities.IsTableEmpty(tFriendlyUnitsInRangeOfTML) == false then
-                        for iUnit, oUnit in tFriendlyUnitsInRangeOfTML do
-                            RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, { oTMD }) --This will do a distance check from the unit to the TMD
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyActiveBrains]) == false then
+                local oTMLBrain
+                for iBrain, oBrain in M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyActiveBrains] do
+                    oTMLBrain = oBrain
+                    break
+                end
+                local tTeamNearbyTML = oTMLBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryTML, oTMD:GetPosition(), iTMLMissileRange + iTMDRange - 3, 'Ally')
+                if M28Utilities.IsTableEmpty(tTeamNearbyTML) == false then
+                    for iTML, oTML in tTeamNearbyTML do
+                        local tFriendlyUnitsInRangeOfTML = oTMDBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryProtectFromTML, oTML:GetPosition(), iTMLMissileRange + 2, 'Ally')
+                        if M28Utilities.IsTableEmpty(tFriendlyUnitsInRangeOfTML) == false then
+                            for iUnit, oUnit in tFriendlyUnitsInRangeOfTML do
+                                RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, { oTMD }) --This will do a distance check from the unit to the TMD
+                            end
                         end
                     end
                 end
@@ -336,11 +348,17 @@ function RecordTMLAndTMDForUnitJustBuilt(oUnit)
     for iTMLTeam = 1, M28Team.iTotalTeamCount do
         --Get all TML in range of this TMD
         if not(iTMDTeam == iTMLTeam) then
-            local oTMLBrain = M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyActiveBrains][1]
-            local tTeamNearbyTML = oTMLBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryTML, oUnit:GetPosition(), iTMLMissileRange + 2, 'Ally')
-            if M28Utilities.IsTableEmpty(tTeamNearbyTML) == false then
-                for iTML, oTML in tTeamNearbyTML do
-                    RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tNearbyTMD) --This will do a distance check from the unit to the TMD
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyActiveBrains]) == false then
+                local oTMLBrain
+                for iBrain, oBrain in M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyActiveBrains] do
+                    oTMLBrain = oBrain
+                    break
+                end
+                local tTeamNearbyTML = oTMLBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryTML, oUnit:GetPosition(), iTMLMissileRange + 2, 'Ally')
+                if M28Utilities.IsTableEmpty(tTeamNearbyTML) == false then
+                    for iTML, oTML in tTeamNearbyTML do
+                        RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tNearbyTMD) --This will do a distance check from the unit to the TMD
+                    end
                 end
             end
         end
@@ -460,17 +478,23 @@ function AlliedTMDFirstRecorded(iTeam, oTMD)
     if bDebugMessages == true then LOG(sFunctionRef..': oTMD '..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)..' has been identified, will reecord if are any enemy TML, is table of enemy TML empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyTML]))) end
 
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyTML]) == false then
-        local aiBrain = M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains][1]
-        local tUnitsToProtect = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryProtectFromTML, oTMD:GetPosition(), iTMLMissileRange + 20, 'Ally')
-        if M28Utilities.IsTableEmpty(tUnitsToProtect) == false then
-            local tOnLandUnits = {}
-            for iUnit, oUnit in tUnitsToProtect do
-                if not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
-                    table.insert(tOnLandUnits, oUnit)
-                end
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+            local aiBrain
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                aiBrain = oBrain
+                break
             end
-            if M28Utilities.IsTableEmpty(tOnLandUnits) == false then
-                UpdateTMDCoverageOfUnits(iTeam,{ oTMD }, tOnLandUnits)
+            local tUnitsToProtect = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryProtectFromTML, oTMD:GetPosition(), iTMLMissileRange + 20, 'Ally')
+            if M28Utilities.IsTableEmpty(tUnitsToProtect) == false then
+                local tOnLandUnits = {}
+                for iUnit, oUnit in tUnitsToProtect do
+                    if not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
+                        table.insert(tOnLandUnits, oUnit)
+                    end
+                end
+                if M28Utilities.IsTableEmpty(tOnLandUnits) == false then
+                    UpdateTMDCoverageOfUnits(iTeam,{ oTMD }, tOnLandUnits)
+                end
             end
         end
     end
