@@ -466,7 +466,7 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
 
     --Dont run if in core base unless low health or close to the rally point
     if bDebugMessages == true then LOG(sFunctionRef..': Is ACU in core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])..' iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; oACU='..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.refbDangerousForACUs]='..tostring(M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.refbDangerousForACUs] or false)..'; Does enemy have sub='..tostring(M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.refbEnemyHasSub] or false)) end
-    if tLZTeamData[M28Map.subrefLZbCoreBase] and (M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.4 or M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefLZMidpoint]) <= 15) then
+    if tLZTeamData[M28Map.subrefLZbCoreBase] and (M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.4 or M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= 15) then
         if bDebugMessages == true then LOG(sFunctionRef..': Are in core base with some health so dont want to run') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return false
@@ -657,7 +657,7 @@ function DoesACUWantToReturnToCoreBase(iPlateau, iLandZone, tLZData, tLZTeamData
             end
             if bWantACUToRun and oACU[refiUpgradeCount] >= 3 and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.95 then
                 local tLastOrder = oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]]
-                if bDebugMessages == true then LOG(sFunctionRef..': repru(tLZData[M28Map.subrefLZMidpoint])='..repru(tLZData[M28Map.subrefLZMidpoint])..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'Is ACU underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oACU))..'; tLastOrder='..reprs(tLastOrder)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': repru(tLZData[M28Map.subrefMidpoint])='..repru(tLZData[M28Map.subrefMidpoint])..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'Is ACU underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oACU))..'; tLastOrder='..reprs(tLastOrder)) end
                 local iDistToBase
                 --Get nearest base to us
                 local tNearestFriendlyBase
@@ -959,7 +959,7 @@ function MoveToOtherLandZone(iPlateau, tLZData, oACU)
         end
     end
     if iLZToMoveTo then
-        M28Orders.IssueTrackedMove(oACU, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLZToMoveTo][M28Map.subrefLZMidpoint], 6, false, 'ACMLZ'..iLZToMoveTo, false)
+        M28Orders.IssueTrackedMove(oACU, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLZToMoveTo][M28Map.subrefMidpoint], 6, false, 'ACMLZ'..iLZToMoveTo, false)
     end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -1133,7 +1133,7 @@ function GetACUOrder(aiBrain, oACU)
                             for iEntry, tSubtable in tWZData[M28Map.subrefAdjacentLandZones] do
                                 local tAltLZ = M28Map.tAllPlateaus[tSubtable[M28Map.subrefWPlatAndLZNumber][1]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefWPlatAndLZNumber][2]]
                                 if tAltLZ[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsSupport] then
-                                    tLZMidpointToMoveTo = tAltLZ[M28Map.subrefLZMidpoint]
+                                    tLZMidpointToMoveTo = tAltLZ[M28Map.subrefMidpoint]
                                     break
                                 end
                             end

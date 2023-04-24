@@ -249,7 +249,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iTargetLand
 
     local iBaseCategoryWanted
     local bInSameIsland = false
-    if NavUtils.GetLabel(M28Map.refPathingTypeLand, oFactory:GetPosition()) == NavUtils.GetLabel(M28Map.refPathingTypeLand, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone][M28Map.subrefLZMidpoint]) then
+    if NavUtils.GetLabel(M28Map.refPathingTypeLand, oFactory:GetPosition()) == NavUtils.GetLabel(M28Map.refPathingTypeLand, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone][M28Map.subrefMidpoint]) then
         bInSameIsland = true
     end
     local tLZTargetTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone][M28Map.subrefLZTeamData][iTeam]
@@ -604,7 +604,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
     --Early game - more engineers if are on a large map where unlikely to have enemies nearby for a while
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if iFactoryTechLevel == 1 and GetGameTimeSeconds() <= 480 and tLZTeamData[M28Map.subrefLZbCoreBase] and (not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) or M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefLZMidpoint]) >= 450) then
+    if iFactoryTechLevel == 1 and GetGameTimeSeconds() <= 480 and tLZTeamData[M28Map.subrefLZbCoreBase] and (not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) or M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefMidpoint]) >= 450) then
         --Do we have a low lifetime engineer build count?
         local iLifetimeEngiCount = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer)
         if iLifetimeEngiCount <= 12 then
@@ -624,10 +624,10 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             if GetGameTimeSeconds() <= 360 and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherIslands]) == false then
                 local iDistanceThreshold
                 if bHaveLowMass then
-                    iDistanceThreshold = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefLZMidpoint], M28Map.GetPrimaryEnemyBaseLocation(aiBrain)) * 0.5
+                    iDistanceThreshold = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], M28Map.GetPrimaryEnemyBaseLocation(aiBrain)) * 0.5
                     --If have t2 naval fac then greatly reduce distance threshold
                     if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] >= 2 then iDistanceThreshold = iDistanceThreshold * 0.4 end
-                else iDistanceThreshold = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefLZMidpoint], M28Map.GetPrimaryEnemyBaseLocation(aiBrain)) * 0.75
+                else iDistanceThreshold = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], M28Map.GetPrimaryEnemyBaseLocation(aiBrain)) * 0.75
                 end
                 iDistanceThreshold = math.min(300, iDistanceThreshold)
 
@@ -667,7 +667,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if iFactoryTechLevel >= 2 and bHaveHighestLZTech and tLZTeamData[M28Map.subrefLZbCoreBase] then
         --Can we path to enemy base from this land zone?
-        local iCurIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefLZMidpoint])
+        local iCurIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])
         local iEnemyIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase])
         if bDebugMessages == true then LOG(sFunctionRef..': iCurrentConditionToTry='..iCurrentConditionToTry..'; iCurIsland='..iCurIsland..'; iEnemyIsland='..iEnemyIsland..'; iFactoryTechLevel='..iFactoryTechLevel..'; Cur engineers of this tech level='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))..'; Cur DF units of this tech level='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMobileLand * categories.DIRECTFIRE * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))) end
         if iCurIsland == iEnemyIsland and math.min(8, aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))) > math.max(1, aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMobileLand * categories.DIRECTFIRE * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))) then
@@ -739,7 +739,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
         --Upgrade factory if this LZ is lagging behind tech wise (but not if low mass if this isn't a core LZ
         iCurrentConditionToTry = iCurrentConditionToTry + 1
-        if iFactoryTechLevel == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 2 and (iLandFactoriesInLZ >= 4 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] == 3) and (tLZTeamData[M28Map.subrefLZbCoreBase] or (tLZTeamData[M28Map.subrefLZCoreExpansion] and (not(bHaveLowMass) or M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefLZMidpoint])] >= 7))) then
+        if iFactoryTechLevel == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 2 and (iLandFactoriesInLZ >= 4 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] == 3) and (tLZTeamData[M28Map.subrefLZbCoreBase] or (tLZTeamData[M28Map.subrefLZCoreExpansion] and (not(bHaveLowMass) or M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])] >= 7))) then
             local bUpgradingLandFactory = false
             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]) == false then
                 for iUnit, oUnit in tLZTeamData[M28Map.subrefActiveUpgrades] do
@@ -825,7 +825,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         if iEnemyPlateau == iPlateau then
             local iDistToEnemyBaseToConsider
             --Is enemy in same island?
-            local iIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefLZMidpoint])
+            local iIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])
 
             if NavUtils.GetLabel(M28Map.refPathingTypeLand, M28Map.GetPrimaryEnemyBaseLocation(aiBrain)) == iIsland then
                 if not(bHaveLowMass) then iDistToEnemyBaseToConsider = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iEnemyLandZone) * 0.75
@@ -833,7 +833,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 end
             else
                 --enemy base is a dif island to ours, so want to control all of our island (within reason)
-                iDistToEnemyBaseToConsider = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefLZMidpoint], M28Map.GetPrimaryEnemyBaseLocation(aiBrain))
+                iDistToEnemyBaseToConsider = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], M28Map.GetPrimaryEnemyBaseLocation(aiBrain))
             end
             if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
                 for iEntry, tLZPathing in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
@@ -888,10 +888,10 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherIslands]) == false then
             local iDistanceThreshold
             if bHaveLowMass then
-                iDistanceThreshold = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefLZMidpoint], M28Map.GetPrimaryEnemyBaseLocation(aiBrain)) * 0.5
+                iDistanceThreshold = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], M28Map.GetPrimaryEnemyBaseLocation(aiBrain)) * 0.5
                 --If have t2 naval fac then greatly reduce distance threshold
                 if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] >= 2 then iDistanceThreshold = iDistanceThreshold * 0.4 end
-            else iDistanceThreshold = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefLZMidpoint], M28Map.GetPrimaryEnemyBaseLocation(aiBrain)) * 0.75
+            else iDistanceThreshold = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], M28Map.GetPrimaryEnemyBaseLocation(aiBrain)) * 0.75
             end
 
 
@@ -925,7 +925,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             end
             if bDebugMessages == true then LOG(sFunctionRef..': bUpgradingLandFactory='..tostring(bUpgradingLandFactory)..'; bHaveLowMass='..tostring(bHaveLowMass)..'; Lowest mass % stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]) end
             if not(bUpgradingLandFactory) or (not(bHaveLowMass) and aiBrain[M28Economy.refiOurHighestLandFactoryTech] == 3 and (iFactoryTechLevel == 1 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5)) then
-                if (tLZTeamData[M28Map.subrefLZbCoreBase] or (tLZTeamData[M28Map.subrefLZCoreExpansion] and (not(bHaveLowMass) or M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefLZMidpoint])] >= 7))) then
+                if (tLZTeamData[M28Map.subrefLZbCoreBase] or (tLZTeamData[M28Map.subrefLZCoreExpansion] and (not(bHaveLowMass) or M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])] >= 7))) then
                     if not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] > 0.3 and M28Conditions.GetLifetimeBuildCount(aiBrain, categories.LAND * categories.MOBILE * M28UnitInfo.ConvertTechLevelToCategory(aiBrain[M28Economy.refiOurHighestLandFactoryTech])) >= 3 then
                         if ConsiderUpgrading() then return sBPIDToBuild end
                     elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.02 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.15 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0) and M28Conditions.GetLifetimeBuildCount(aiBrain, categories.LAND * categories.MOBILE * M28UnitInfo.ConvertTechLevelToCategory(aiBrain[M28Economy.refiOurHighestLandFactoryTech])) >= 6 then
@@ -1016,7 +1016,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if iFactoryTechLevel == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 20 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastMassStall] or -5) >= 3 then
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]) == false and table.getn(tLZTeamData[M28Map.subrefActiveUpgrades]) >= 3 then
-            if (tLZTeamData[M28Map.subrefLZbCoreBase] or (tLZTeamData[M28Map.subrefLZCoreExpansion] and (not(bHaveLowMass) or M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefLZMidpoint])] >= 7))) then
+            if (tLZTeamData[M28Map.subrefLZbCoreBase] or (tLZTeamData[M28Map.subrefLZCoreExpansion] and (not(bHaveLowMass) or M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])] >= 7))) then
                 local iCurMexUpgrades = 0
                 local iCurT1FactoryUpgrades = 0
                 for iUnit, oUnit in tLZTeamData[M28Map.subrefActiveUpgrades] do

@@ -454,6 +454,7 @@ end
 
 function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly, bBlueprintThreat)
     --Determines threat rating for tUnits, which in most cases will be the mass cost of the unit and adjusted for unit health; by default assumes are referring to main combat threat (e.g. tank), but the flags for indirect and naval threat can be used to adjust this
+    --bJustGetMassValue - if thisi s true, will ignore things like health and just return the mass value (so none of the other values should matter if this is true - i.e. assumes tUnits is already filtered to those of interest)
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetCombatThreatRating'
@@ -502,42 +503,45 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                     iBaseThreat = oUnit:GetBlueprint().Economy.BuildCostMass * 0.35
                 end
                 if iBaseThreat > 0 then
-                    --Have got the base threat for this type of unit, now adjust threat for unit health if want to calculate actual threat
-                    iCurShield, iMaxShield = GetCurrentAndMaximumShield(oUnit)
-                    iMaxHealth = oUnit:GetMaxHealth() + iMaxShield
-                    if iMaxHealth and iMaxHealth > 0 then
-                        --Increase threat for veterancy level
-                        if oUnit.Sync.VeteranLevel > 0 then iBaseThreat = iBaseThreat * (1 + oUnit.Sync.VeteranLevel * 0.1) end
+                    if bJustGetMassValue then iCurThreat = iBaseThreat
+                    else
+                        --Have got the base threat for this type of unit, now adjust threat for unit health if want to calculate actual threat
+                        iCurShield, iMaxShield = GetCurrentAndMaximumShield(oUnit)
+                        iMaxHealth = oUnit:GetMaxHealth() + iMaxShield
+                        if iMaxHealth and iMaxHealth > 0 then
+                            --Increase threat for veterancy level
+                            if oUnit.Sync.VeteranLevel > 0 then iBaseThreat = iBaseThreat * (1 + oUnit.Sync.VeteranLevel * 0.1) end
 
-                        --Adjust threat for cur health %
-                        iOtherAdjustFactor = 1
-                        iHealthPercentage = (oUnit:GetHealth() + iCurShield) / (iMaxHealth + iMaxShield)
+                            --Adjust threat for cur health %
+                            iOtherAdjustFactor = 1
+                            iHealthPercentage = (oUnit:GetHealth() + iCurShield) / (iMaxHealth + iMaxShield)
 
-                        --Reduce threat by health, with the amount depending on if its an ACU and if its an enemy
-                        if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
-                            iHealthFactor = iHealthPercentage --threat will be mass * iHealthFactor
-                            --iMassCost = GetACUCombatMassRating(oUnit) --have already calculated this earlier
-                            if bEnemyUnits then
-                                iOtherAdjustFactor = 1.10 --Want to allow for enemy ACU to be 10% higher threat due to potential of veterancy
-                            else
-                                if iHealthPercentage < 0.5 then iHealthFactor = iHealthPercentage * iHealthPercentage
-                                elseif iHealthPercentage < 0.9 then iHealthFactor = iHealthPercentage * (iHealthPercentage + 0.1) end
-                            end
-                        else
-                            if bEnemyUnits then
-                                --For enemy damaged units treat them as still ahving high threat, since enemy likely could use them effectively still
-                                if iHealthPercentage >= 1 then iHealthFactor = iHealthPercentage
+                            --Reduce threat by health, with the amount depending on if its an ACU and if its an enemy
+                            if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+                                iHealthFactor = iHealthPercentage --threat will be mass * iHealthFactor
+                                --iMassCost = GetACUCombatMassRating(oUnit) --have already calculated this earlier
+                                if bEnemyUnits then
+                                    iOtherAdjustFactor = 1.10 --Want to allow for enemy ACU to be 10% higher threat due to potential of veterancy
                                 else
-                                    iHealthFactor = math.max(0.25, iHealthPercentage * (1 + (1 - iHealthPercentage)))
+                                    if iHealthPercentage < 0.5 then iHealthFactor = iHealthPercentage * iHealthPercentage
+                                    elseif iHealthPercentage < 0.9 then iHealthFactor = iHealthPercentage * (iHealthPercentage + 0.1) end
                                 end
                             else
-                                iHealthFactor = iHealthPercentage
+                                if bEnemyUnits then
+                                    --For enemy damaged units treat them as still ahving high threat, since enemy likely could use them effectively still
+                                    if iHealthPercentage >= 1 then iHealthFactor = iHealthPercentage
+                                    else
+                                        iHealthFactor = math.max(0.25, iHealthPercentage * (1 + (1 - iHealthPercentage)))
+                                    end
+                                else
+                                    iHealthFactor = iHealthPercentage
+                                end
                             end
+                            if oUnit:GetFractionComplete() <= 0.75 then iOtherAdjustFactor = iOtherAdjustFactor * 0.1 end
                         end
-                        if oUnit:GetFractionComplete() <= 0.75 then iOtherAdjustFactor = iOtherAdjustFactor * 0.1 end
+                        iCurThreat = iBaseThreat * iOtherAdjustFactor * iHealthFactor
+                        if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' iCurThreat='..iCurThreat..'; iBaseThreat='..iBaseThreat..'; iOtherAdjustFactor='..iOtherAdjustFactor..'; iHealthFactor='..iHealthFactor) end
                     end
-                    iCurThreat = iBaseThreat * iOtherAdjustFactor * iHealthFactor
-                    if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' iCurThreat='..iCurThreat..'; iBaseThreat='..iBaseThreat..'; iOtherAdjustFactor='..iOtherAdjustFactor..'; iHealthFactor='..iHealthFactor) end
                 end
             else
                 --Are we calculating blueprint threat (per code at start of game)?
@@ -1639,6 +1643,9 @@ function GetLauncherAOEStrikeDamageMinAndMaxRange(oUnit)
             if (tWeapon.DamageRadius or 0) > iAOE then
                 iAOE = tWeapon.DamageRadius
                 iStrikeDamage = tWeapon.Damage * tWeapon.MuzzleSalvoSize
+                if (tWeapon.FixedSpreadRadius or 0) >= 20 then --e.g. scathis
+                    iStrikeDamage = math.min(iStrikeDamage, tWeapon.Damage * math.min(3, tWeapon.MuzzleSalvoSize * 0.5))
+                end
             elseif (tWeapon.NukeInnerRingRadius or 0) > iAOE then
                 iAOE = tWeapon.NukeInnerRingRadius
                 iStrikeDamage = tWeapon.NukeInnerRingDamage

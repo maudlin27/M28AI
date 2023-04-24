@@ -592,23 +592,23 @@ function CalculateAirTravelPath(iStartPlateauOrZero, iStartLandOrWaterZone, iEnd
             local tStart
             if iStartPlateauOrZero > 0 then
                 --Dealing with land zone
-                tStart = M28Map.tAllPlateaus[iStartPlateauOrZero][M28Map.subrefPlateauLandZones][iStartLandOrWaterZone][M28Map.subrefLZMidpoint]
+                tStart = M28Map.tAllPlateaus[iStartPlateauOrZero][M28Map.subrefPlateauLandZones][iStartLandOrWaterZone][M28Map.subrefMidpoint]
                 tiLandZonesByPlateau[iStartPlateauOrZero] = {}
                 tiLandZonesByPlateau[iStartPlateauOrZero][iStartLandOrWaterZone] = true
             else
                 --Dealing with water zone
-                tStart = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iStartLandOrWaterZone]][M28Map.subrefPondWaterZones][iStartLandOrWaterZone][M28Map.subrefWZMidpoint]
+                tStart = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iStartLandOrWaterZone]][M28Map.subrefPondWaterZones][iStartLandOrWaterZone][M28Map.subrefMidpoint]
                 tiWaterZones[iStartLandOrWaterZone] = true
             end
             local tEnd
             if iEndPlateauOrZero > 0 then
                 --Dealing with land zone
-                tEnd = M28Map.tAllPlateaus[iEndPlateauOrZero][M28Map.subrefPlateauLandZones][iEndLandOrWaterZone][M28Map.subrefLZMidpoint]
+                tEnd = M28Map.tAllPlateaus[iEndPlateauOrZero][M28Map.subrefPlateauLandZones][iEndLandOrWaterZone][M28Map.subrefMidpoint]
                 tiLandZonesByPlateau[iEndPlateauOrZero] = {}
                 tiLandZonesByPlateau[iEndPlateauOrZero][iEndLandOrWaterZone] = true
             else
                 --Dealing with water zone
-                tEnd = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iEndLandOrWaterZone]][M28Map.subrefPondWaterZones][iEndLandOrWaterZone][M28Map.subrefWZMidpoint]
+                tEnd = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iEndLandOrWaterZone]][M28Map.subrefPondWaterZones][iEndLandOrWaterZone][M28Map.subrefMidpoint]
                 tiWaterZones[iEndLandOrWaterZone] = true
             end
             local iAngleStartToEnd = M28Utilities.GetAngleFromAToB(tStart, tEnd)
@@ -794,7 +794,7 @@ function RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartMidpoint
             if M28Utilities.IsTableEmpty(tPlateauData[M28Map.subrefPlateauLandZones]) == false then
                 --tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
                 for iLandZone, tLZData in tPlateauData[M28Map.subrefPlateauLandZones] do
-                    table.insert(tTableToSort, { [M28Map.subrefiPlateauOrPond] = iPlateau, [M28Map.subrefiLandOrWaterZoneRef] = iLandZone, [M28Map.subrefbIsWaterZone] = false, [M28Map.subrefiDistance] = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefLZMidpoint], tStartMidpoint)})
+                    table.insert(tTableToSort, { [M28Map.subrefiPlateauOrPond] = iPlateau, [M28Map.subrefiLandOrWaterZoneRef] = iLandZone, [M28Map.subrefbIsWaterZone] = false, [M28Map.subrefiDistance] = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tStartMidpoint)})
                 end
             end
         end
@@ -802,7 +802,7 @@ function RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartMidpoint
         --Add all water zones in the map
         for iPond, tPondSubtable in M28Map.tPondDetails do
             for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
-                table.insert(tTableToSort, { [M28Map.subrefiPlateauOrPond] = iPond, [M28Map.subrefiLandOrWaterZoneRef] = iWaterZone, [M28Map.subrefbIsWaterZone] = true, [M28Map.subrefiDistance] = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefWZMidpoint], tStartMidpoint)})
+                table.insert(tTableToSort, { [M28Map.subrefiPlateauOrPond] = iPond, [M28Map.subrefiLandOrWaterZoneRef] = iWaterZone, [M28Map.subrefbIsWaterZone] = true, [M28Map.subrefiDistance] = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], tStartMidpoint)})
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Size of tTableToSort after adding all water zones='..table.getn(tTableToSort)) end
@@ -842,7 +842,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                 iCurRallyValue = GetRallyPointValueOfWaterZone(iTeam, tWZData, tWZTeamData)
                 if iCurRallyValue > iBestRallyValue then
                     iBestRallyValue = iCurRallyValue
-                    tPreferredRallyPoint = {tWZData[M28Map.subrefWZMidpoint][1], tWZData[M28Map.subrefWZMidpoint][2], tWZData[M28Map.subrefWZMidpoint][3]}
+                    tPreferredRallyPoint = {tWZData[M28Map.subrefMidpoint][1], tWZData[M28Map.subrefMidpoint][2], tWZData[M28Map.subrefMidpoint][3]}
                 end
             end
         else
@@ -852,7 +852,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
             iCurRallyValue = GetRallyPointValueOfLandZone(oBrain.M28Team, tLZData, tLZTeamData, iPlateau)
             if iCurRallyValue > iBestRallyValue then
                 iBestRallyValue = iCurRallyValue
-                tPreferredRallyPoint = {tLZData[M28Map.subrefLZMidpoint][1], tLZData[M28Map.subrefLZMidpoint][2], tLZData[M28Map.subrefLZMidpoint][3]}
+                tPreferredRallyPoint = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
             end
         end
     end
@@ -883,10 +883,10 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                 if (iCurLZOrWZ or 0) > 0 then
                     local tWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iCurLZOrWZ]][M28Map.subrefPondWaterZones][iCurLZOrWZ]
                     local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
-                    iCurDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefWZMidpoint], tWZTeamData[M28Map.reftClosestEnemyBase])
+                    iCurDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], tWZTeamData[M28Map.reftClosestEnemyBase])
                     if iCurDistToEnemyBase <   iClosestDistToEnemyBase then
                         iClosestDistToEnemyBase = iCurDistToEnemyBase
-                        tClosestMidpoint = {tWZData[M28Map.subrefWZMidpoint][1], tWZData[M28Map.subrefWZMidpoint][2], tWZData[M28Map.subrefWZMidpoint][3]}
+                        tClosestMidpoint = {tWZData[M28Map.subrefMidpoint][1], tWZData[M28Map.subrefMidpoint][2], tWZData[M28Map.subrefMidpoint][3]}
                         tClosestBase = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
                     end
                 end
@@ -894,11 +894,11 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                 --Have a valid land zone
                 local tLZData = M28Map.tAllPlateaus[iCurPlateauOrZero][M28Map.subrefPlateauLandZones][iCurLZOrWZ]
                 local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
-                if bDebugMessages == true then LOG(sFunctionRef..': Have a valid land zone, iCurLZ='..(iCurLZOrWZ or 'nil')..'; iCurPlateau='..(iCurPlateauOrZero or 'nil')..'; LZ midpoint='..repru(tLZData[M28Map.subrefLZMidpoint])..'; Closest enemy base='..repru(tLZTeamData[M28Map.reftClosestEnemyBase])..'; iTeam='..(iTeam or 'nil')) end
-                iCurDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefLZMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])
+                if bDebugMessages == true then LOG(sFunctionRef..': Have a valid land zone, iCurLZ='..(iCurLZOrWZ or 'nil')..'; iCurPlateau='..(iCurPlateauOrZero or 'nil')..'; LZ midpoint='..repru(tLZData[M28Map.subrefMidpoint])..'; Closest enemy base='..repru(tLZTeamData[M28Map.reftClosestEnemyBase])..'; iTeam='..(iTeam or 'nil')) end
+                iCurDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])
                 if iCurDistToEnemyBase <   iClosestDistToEnemyBase then
                     iClosestDistToEnemyBase = iCurDistToEnemyBase
-                    tClosestMidpoint = {tLZData[M28Map.subrefLZMidpoint][1], tLZData[M28Map.subrefLZMidpoint][2], tLZData[M28Map.subrefLZMidpoint][3]}
+                    tClosestMidpoint = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
                     tClosestBase = {tLZTeamData[M28Map.reftClosestFriendlyBase][1], tLZTeamData[M28Map.reftClosestFriendlyBase][2], tLZTeamData[M28Map.reftClosestFriendlyBase][3]}
                 end
             end
@@ -998,9 +998,9 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                 else
                     --We have a valid support zone
                     if iPrevLandZone then
-                        tSupportRallyPoint = M28Map.tAllPlateaus[iPrevPlateau][M28Map.subrefPlateauLandZones][iPrevLandZone][M28Map.subrefLZMidpoint]
+                        tSupportRallyPoint = M28Map.tAllPlateaus[iPrevPlateau][M28Map.subrefPlateauLandZones][iPrevLandZone][M28Map.subrefMidpoint]
                     else
-                        tSupportRallyPoint = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iPrevWaterZone]][M28Map.subrefPondWaterZones][iPrevWaterZone][M28Map.subrefWZMidpoint]
+                        tSupportRallyPoint = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iPrevWaterZone]][M28Map.subrefPondWaterZones][iPrevWaterZone][M28Map.subrefMidpoint]
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': tSupportRallyPoint after updating for zones closer to a unit to support and having a vlocation closer than the nearest friendly base='..repru(tSupportRallyPoint)) end
                 end
@@ -1022,10 +1022,10 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
     local iStartPlateau, iStartLZOrWZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tStartMidpoint)
     if (iStartPlateau or 0) > 0 and (iStartLZOrWZ or 0) == 0 then
         iStartLZOrWZ = M28Map.GetWaterZoneFromPosition(tStartMidpoint)
-        tSupportRallyPoint = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iStartLZOrWZ]][M28Map.subrefPondWaterZones][iStartLZOrWZ][M28Map.subrefWZMidpoint]
+        tSupportRallyPoint = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iStartLZOrWZ]][M28Map.subrefPondWaterZones][iStartLZOrWZ][M28Map.subrefMidpoint]
         tStartLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iStartLZOrWZ]][M28Map.subrefPondWaterZones][iStartLZOrWZ]
     else
-        tSupportRallyPoint = M28Map.tAllPlateaus[iStartPlateau][M28Map.subrefPlateauLandZones][iStartLZOrWZ][M28Map.subrefLZMidpoint]
+        tSupportRallyPoint = M28Map.tAllPlateaus[iStartPlateau][M28Map.subrefPlateauLandZones][iStartLZOrWZ][M28Map.subrefMidpoint]
         tStartLZOrWZData = M28Map.tAllPlateaus[iStartPlateau][M28Map.subrefPlateauLandZones][iStartLZOrWZ]
     end
     if bDebugMessages == true then LOG(sFunctionRef..': About to record the land and water zones by order of distance to iStartPlateau '..(iStartPlateau or 'nil')..'; iStartLZOrWZ='..(iStartLZOrWZ or 'nil')) end
@@ -1636,7 +1636,7 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
 
             for iEntry, iWaterZone in M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTorpedoDefenceWaterZones] do
                 local tWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone]
-                tiWaterZoneByDistance[iWaterZone] = M28Utilities.GetDistanceBetweenPositions(tRallyPoint, tWZData[M28Map.subrefWZMidpoint])
+                tiWaterZoneByDistance[iWaterZone] = M28Utilities.GetDistanceBetweenPositions(tRallyPoint, tWZData[M28Map.subrefMidpoint])
             end
             --Cycle through in order of distance
             local iTorpBomberThreat = M28UnitInfo.GetAirThreatLevel(tAvailableBombers, false, false, false, true, false, true, false) + M28UnitInfo.GetAirThreatLevel(tUnavailableUnits, false, false, false, true, false, true, false)
@@ -1970,12 +1970,12 @@ function ManageGunships(iTeam, iAirSubteam)
             --iGunshipLandOrWaterZone = M28Map.GetWaterZoneFromPosition(oFrontGunship:GetPosition())
             tGunshipLandOrWaterZoneData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iGunshipLandOrWaterZone]][M28Map.subrefPondWaterZones][iGunshipLandOrWaterZone]
             tGunshipLandOrWaterZoneTeamData = tGunshipLandOrWaterZoneData[M28Map.subrefWZTeamData][iTeam]
-            tGunshipMidpoint = tGunshipLandOrWaterZoneData[M28Map.subrefWZMidpoint]
+            tGunshipMidpoint = tGunshipLandOrWaterZoneData[M28Map.subrefMidpoint]
             if bDebugMessages == true then LOG(sFunctionRef..': Have a water zone, iGunshipLandOrWaterZone='..(iGunshipLandOrWaterZone or 'nil')) end
         else
             tGunshipLandOrWaterZoneData = M28Map.tAllPlateaus[iGunshipPlateauOrZero][M28Map.subrefPlateauLandZones][iGunshipLandOrWaterZone]
             tGunshipLandOrWaterZoneTeamData = tGunshipLandOrWaterZoneData[M28Map.subrefLZTeamData][iTeam]
-            tGunshipMidpoint = tGunshipLandOrWaterZoneData[M28Map.subrefLZMidpoint]
+            tGunshipMidpoint = tGunshipLandOrWaterZoneData[M28Map.subrefMidpoint]
         end
         if bDebugMessages == true then LOG(sFunctionRef..': oFrontGunship='..oFrontGunship.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFrontGunship)..'; Position='..repru(oFrontGunship:GetPosition())..'; iGunshipPlateauOrZero='..(iGunshipPlateauOrZero or 'nil')..'; iGunshipLandOrWaterZone='..(iGunshipLandOrWaterZone or 'nil')..'; tGunshipMidpoint='..repru(tGunshipMidpoint)..'; WZ from position='..(M28Map.GetWaterZoneFromPosition(oFrontGunship:GetPosition()) or 'nil')) end
 
@@ -2253,9 +2253,9 @@ function ManageAirScouts(iTeam, iAirSubteam)
                         local tMidpoint
                         if tPlateauAndZoneRef[1] == 0 then
                             --Waterzone
-                            tMidpoint = M28Map.tPondDetails[M28Map.tiPondByWaterZone[tPlateauAndZoneRef[2]]][M28Map.subrefPondWaterZones][tPlateauAndZoneRef[2]][M28Map.subrefWZMidpoint]
+                            tMidpoint = M28Map.tPondDetails[M28Map.tiPondByWaterZone[tPlateauAndZoneRef[2]]][M28Map.subrefPondWaterZones][tPlateauAndZoneRef[2]][M28Map.subrefMidpoint]
                         else
-                            tMidpoint = M28Map.tAllPlateaus[tPlateauAndZoneRef[1]][M28Map.subrefPlateauLandZones][tPlateauAndZoneRef[2]][M28Map.subrefLZMidpoint]
+                            tMidpoint = M28Map.tAllPlateaus[tPlateauAndZoneRef[1]][M28Map.subrefPlateauLandZones][tPlateauAndZoneRef[2]][M28Map.subrefMidpoint]
                         end
                         iCurDist = M28Utilities.GetDistanceBetweenPositions(tMidpoint, tAvailableScouts[iUnit]:GetPosition())
                         if iCurDist < iClosestDist then
@@ -2376,7 +2376,7 @@ function UpdateTransportLocationShortlist(iTeam)
                                         if not(iClosestBasePlateau) then break
                                         end
                                     end
-                                    iCurDistToFriendlyBase = (M28Utilities.GetApproxTravelDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestFriendlyBase], tLZTeamData[M28Map.subrefLZMidpoint]) or 100000)
+                                    iCurDistToFriendlyBase = (M28Utilities.GetApproxTravelDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestFriendlyBase], tLZTeamData[M28Map.subrefMidpoint]) or 100000)
                                     if iCurDistToFriendlyBase < iClosestLZToBase then
                                         iClosestLZToBase = iCurDistToFriendlyBase
                                     end
@@ -2473,7 +2473,7 @@ function GetIslandPlateauAndLandZoneForTransportToTravelTo(iTeam, oUnit)
                 local tLZData = M28Map.tAllPlateaus[tiPlateauAndIsland[1]][M28Map.subrefPlateauLandZones][iLandZone]
                 --Only consider LZs with mexes so we land close to where we likely want to be
                 if tLZData[M28Map.subrefLZMexCount] > 0 then
-                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefLZMidpoint])
+                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])
                     if iCurDist < iClosestDist then
                         iClosestDist = iCurDist
                         iClosestLZ = iLandZone
@@ -2595,7 +2595,7 @@ function ManageTransports(iTeam, iAirSubteam)
                 end
                 if not(bGetMoreEngis) then
                     --Have enough engineers (or arent on core lZ so dont want to delay by going back for more) - unload at the target land zone
-                    M28Orders.IssueTrackedTransportUnload(oUnit, tLZData[M28Map.subrefLZMidpoint], 10, false, 'TRLZUnl', false)
+                    M28Orders.IssueTrackedTransportUnload(oUnit, tLZData[M28Map.subrefMidpoint], 10, false, 'TRLZUnl', false)
                     oUnit[refiTargetIslandForDrop] = iIslandToTravelTo
                     --Remove this location from the shortlist
                     for iEntry, tiPlateauAndIsland in M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist] do
@@ -3123,12 +3123,12 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
             if iBomberPlateauOrZero == 0 then
                 tBomberLandOrWaterZoneData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iBomberLandOrWaterZone]][M28Map.subrefPondWaterZones][iBomberLandOrWaterZone]
                 tBomberLandOrWaterZoneTeamData = tBomberLandOrWaterZoneData[M28Map.subrefWZTeamData][iTeam]
-                tBomberZoneMidpoint =    tBomberLandOrWaterZoneData[M28Map.subrefWZMidpoint]
+                tBomberZoneMidpoint =    tBomberLandOrWaterZoneData[M28Map.subrefMidpoint]
                 if bDebugMessages == true then LOG(sFunctionRef..': Have a water zone, iBomberLandOrWaterZone='..(iBomberLandOrWaterZone or 'nil')) end
             else
                 tBomberLandOrWaterZoneData = M28Map.tAllPlateaus[iBomberPlateauOrZero][M28Map.subrefPlateauLandZones][iBomberLandOrWaterZone]
                 tBomberLandOrWaterZoneTeamData = tBomberLandOrWaterZoneData[M28Map.subrefLZTeamData][iTeam]
-                tBomberZoneMidpoint =    tBomberLandOrWaterZoneData[M28Map.subrefLZMidpoint]
+                tBomberZoneMidpoint =    tBomberLandOrWaterZoneData[M28Map.subrefMidpoint]
             end
             if bDebugMessages == true then LOG(sFunctionRef..': oExpBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; Position='..repru(oBomber:GetPosition())..'; iBomberPlateauOrZero='..(iBomberPlateauOrZero or 'nil')..'; iBomberLandOrWaterZone='..(iBomberLandOrWaterZone or 'nil')..'; tGunshipMidpoint='..repru(tBomberZoneMidpoint)..'; WZ from position='..(M28Map.GetWaterZoneFromPosition(oBomber:GetPosition()) or 'nil')) end
 

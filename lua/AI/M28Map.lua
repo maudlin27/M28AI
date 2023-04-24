@@ -108,7 +108,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         subrefLZMexLocations = 'MexLoc' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of mex locations in the LZ, e.g. get with tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefLZMexLocations]
         subrefMexUnbuiltLocations = 'MexAvailLoc' --used by water and land zones; e.g. for LZ is against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of mex locations in the LZ, e.g. get with tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefLZMexLocations]
         refiTimeOfLastMexDeath = 'MexLstDth' --Gametimeseconds that a mex died in this land zone - used to avoid sending an error message if it is rebuilt immediately (due to the mex deaht logic having a delay)
-        subrefLZMidpoint = 'Midpoint' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns the midpoint of the land zone, e.g. get with tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefLZMidpoint]
+        subrefMidpoint = 'Midpoint' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns the midpoint of the land zone, e.g. get with tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone][subrefMidpoint]
         subrefLZMinSegX = 'LZMinSegX'
         subrefLZMinSegZ = 'LZMinSegZ'
         subrefLZMaxSegX = 'LZMaxSegX'
@@ -300,7 +300,7 @@ tPondDetails = {}
         subrefWZMexLocations = 'MexLoc' --(same ref as for land zones)
         --subrefMexUnbuiltLocations Uses same ref as LZ
 
-        subrefWZMidpoint = 'Midpoint' --Uses same ref as land zone incase we mistyped/forgot to update copy of the code
+        --subrefMidpoint = 'Midpoint' --Uses same ref as land zone
         refiMidpointAmphibiousLabel = 'MPAmphbL' --Navutils label for the midpoint of the water zone; same ref is used for land zones
         subrefWZSegments = 'PWZSeg' --e.g. tPondDetails[iPond][subrefPondWaterZones][iWaterZone][subrefWZSegments]
         subrefWZMinSegX = 'PWZMinSX'
@@ -347,7 +347,7 @@ tPondDetails = {}
             subrefWZThreatEnemyAntiNavy = 'EnANav'
             subrefWZThreatEnemySubmersible = 'EnSub'
             subrefWZThreatEnemySurface = 'EnSurf'
-            subrefWZThreatEnemyAA = 'EnEAA'
+            subrefWZThreatEnemyAA = 'EnEAA' --Think this is just the ground based AA not airaa
             subrefWZBestEnemyDFRange = 'EnDFRnge'
             subrefWZBestEnemyAntiNavyRange = 'EnANavRng'
 
@@ -373,6 +373,9 @@ tPondDetails = {}
             refbWZWantsMobileShield = 'bWntMSh'
             reftoWZUnitsWantingMobileStealth = 'MStUnit'
             refbWZWantsMobileStealth = 'bWntMSt'
+
+            --T3 arti (same ref used for LZ and WZ):
+            subrefiIneffectiveArtiShotCount = 'T3ArtC' --Every time t3 arti fires a shot at a zone this increases, when it does notable damage this decreases
 
             --subrefTScoutsTravelingHere - uses same variable as land zone
             --subrefAlliedACU --Uses same variable as land zone
@@ -532,6 +535,17 @@ function GetNearestPlateauOrLandOrWaterZoneToLocationFORLOOKUP(tLocation)  --Onl
     return GetClosestPlateauOrZeroAndZoneToPosition(tPosition)
 end --Only to help with lookup - use below function
 function GetClosestPlateauOrZeroAndZoneToPosition(tPosition)
+
+--e.g.:
+--                                  iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tEnemyStartPosition)
+    --                             if iPlateauOrZero > 0 then
+    --                                    tLZOrWZTeamData  = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][aiBrain.M28Team]
+    --                                else
+    --                                    --Water zone
+        --                                tLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone][M28Map.subrefWZTeamData][aiBrain.M28Team]
+        --                            end
+
+
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetClosestPlateauOrZeroAndZoneToPosition'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -1031,8 +1045,8 @@ local function ReorderLandZoneSegmentsForEachPlateau()
         for iLandZone, tLZSubtable in tPlateauSubtable[subrefPlateauLandZones] do
             tiSegmentsByDistance = {}
             tiSortedSegmentsByDistance = {}
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Midpoint='..repru(tLZSubtable[subrefLZMidpoint])) end
-            iMidSegmentX, iMidSegmentZ = GetPathingSegmentFromPosition(tLZSubtable[subrefLZMidpoint])
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Midpoint='..repru(tLZSubtable[subrefMidpoint])) end
+            iMidSegmentX, iMidSegmentZ = GetPathingSegmentFromPosition(tLZSubtable[subrefMidpoint])
             if bDebugMessages == true then LOG(sFunctionRef..': About to reorder the segments in iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Segments before sorting='..repru(tLZSubtable[subrefLZSegments])) end
             for iSegmentRef, tSegmentXZ in tLZSubtable[subrefLZSegments] do
                 table.insert(tiSegmentsByDistance, {['Segments']={tSegmentXZ[1], tSegmentXZ[2]}, ['Distance']=(math.abs(tSegmentXZ[1] - iMidSegmentX) + math.abs(tSegmentXZ[2] - iMidSegmentZ))})
@@ -2046,12 +2060,12 @@ local function RecordLandZoneMidpointAndUnbuiltMexes()
             end
             if (iAveragePlateau == iPlateau and iAverageLandZone == iZone) or M28Utilities.IsTableEmpty(tLZData[subrefLZMexLocations]) then
                 --Either we have a valid location (in which case fine), or we have no mexes to use as a backup so will just use the midpoint (will cause some issues down the line though e.g. with the LZ not registering as being pathable to other land zones)
-                tLZData[subrefLZMidpoint] = {tAverage[1], GetSurfaceHeight(tAverage[1], tAverage[3]), tAverage[3]}
+                tLZData[subrefMidpoint] = {tAverage[1], GetSurfaceHeight(tAverage[1], tAverage[3]), tAverage[3]}
             else
                 --We have mexes so will just use one of these as the midpoint as a basic backup
-                tLZData[subrefLZMidpoint] = {tLZData[subrefLZMexLocations][1][1], tLZData[subrefLZMexLocations][1][2], tLZData[subrefLZMexLocations][1][3]}
+                tLZData[subrefMidpoint] = {tLZData[subrefLZMexLocations][1][1], tLZData[subrefLZMexLocations][1][2], tLZData[subrefLZMexLocations][1][3]}
             end
-            tLZData[refiMidpointAmphibiousLabel] = (NavUtils.GetLabel(refPathingTypeAmphibious, tLZData[subrefLZMidpoint]) or 0)
+            tLZData[refiMidpointAmphibiousLabel] = (NavUtils.GetLabel(refPathingTypeAmphibious, tLZData[subrefMidpoint]) or 0)
 
             if bDebugMessages == true then
                 local iColour = iPlateau
@@ -2060,8 +2074,8 @@ local function RecordLandZoneMidpointAndUnbuiltMexes()
                 end
                 M28Utilities.DrawRectangle(Rect(iMinX, iMinZ, iMaxX, iMaxZ), iColour, 1000, 10)
                 if iColour <= 1 then iColour = 8 end
-                M28Utilities.DrawLocation(tLZData[subrefLZMidpoint], iColour, 1000)
-                if bDebugMessages == true then LOG(sFunctionRef..': Midpoint after adjustment for iPlateau='..iPlateau..' and zone='..iZone..' = '..repru(tLZData[subrefLZMidpoint])..'; iBaseIslandWanted='..(iBaseIslandWanted or 'nil')) end
+                M28Utilities.DrawLocation(tLZData[subrefMidpoint], iColour, 1000)
+                if bDebugMessages == true then LOG(sFunctionRef..': Midpoint after adjustment for iPlateau='..iPlateau..' and zone='..iZone..' = '..repru(tLZData[subrefMidpoint])..'; iBaseIslandWanted='..(iBaseIslandWanted or 'nil')) end
             end
         end
     end
@@ -2223,10 +2237,10 @@ function ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iPlateau, iStartLan
     --Have we not already considered this?
     if not(tbTempConsideredLandPathingForLZ[iPlateau][iStartLandZone][iTargetLandZone]) then
 
-        local tEnd = tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZMidpoint]
+        local tEnd = tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefMidpoint]
         local tFullPath, iPathSize, iDistance = NavUtils.PathTo(refPathingTypeLand, tStart, tEnd, nil)
         if bDebugMessages == true then LOG(sFunctionRef..': Have just tried to get land path from tStart='..repru(tStart)..' to tEnd='..repru(tEnd)..'; iStartLandZone='..iStartLandZone..'; iTargetLandZone='..iTargetLandZone..'; tFullPath='..repru(tFullPath)..'; iPathSize='..iPathSize..'; will draw midpoint of the target LZ, and draw the start point, in blue')
-            M28Utilities.DrawLocation(tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZMidpoint])
+            M28Utilities.DrawLocation(tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefMidpoint])
             M28Utilities.DrawLocation(tStart)
         end
 
@@ -2376,7 +2390,7 @@ local function RecordPathingBetweenZones()
     for iCurPlateau, tPlateauSubtable in tAllPlateaus do
         for iCurLandZone, tLandZoneInfo in tPlateauSubtable[subrefPlateauLandZones] do
             if bDebugMessages == true then LOG(sFunctionRef..': Considering iCurLandZone='..iCurLandZone..' for plateau '..iCurPlateau..'; will go through every other LZ in the plateau and consider adding to the table of other land zones near this') end
-            local tStartPoint = tAllPlateaus[iCurPlateau][subrefPlateauLandZones][iCurLandZone][subrefLZMidpoint]
+            local tStartPoint = tAllPlateaus[iCurPlateau][subrefPlateauLandZones][iCurLandZone][subrefMidpoint]
             for iTargetLandZone, tTargetLZInfo in tPlateauSubtable[subrefPlateauLandZones] do
                 if bDebugMessages == true then LOG(sFunctionRef..': Will consider iTargetLandZone='..iTargetLandZone..' for starting LZ '..iCurLandZone) end
                 if not(iTargetLandZone == iCurLandZone) then
@@ -2402,7 +2416,7 @@ for iStart, tPlayerStart in PlayerStartPoints do
     if (iCurLandZone or 0) > 0 then
         if not(tiPlateauLandZoneStartPoints[iCurPlateau]) then tiPlateauLandZoneStartPoints[iCurPlateau] = {} end
         tiPlateauLandZoneStartPoints[iCurPlateau][iCurLandZone] = true
-        local tStartPoint = tAllPlateaus[iCurPlateau][subrefPlateauLandZones][iCurLandZone][subrefLZMidpoint]
+        local tStartPoint = tAllPlateaus[iCurPlateau][subrefPlateauLandZones][iCurLandZone][subrefMidpoint]
 
         --Consider all land zones in this plateau for start positions
         for iTargetLandZone, tTargetLandZoneInfo in tAllPlateaus[iCurPlateau][subrefPlateauLandZones] do
@@ -2432,7 +2446,7 @@ for iCurPlateau, tPlateauSubtable in tAllPlateaus do
                     end
                     if not(tiAdjacentLandZonesToConsider[iAdjLZ1]) then tiAdjacentLandZonesToConsider[iAdjLZ1] = true end
                 end
-                local tStartPoint = tAllPlateaus[iCurPlateau][subrefPlateauLandZones][iCurLandZone][subrefLZMidpoint]
+                local tStartPoint = tAllPlateaus[iCurPlateau][subrefPlateauLandZones][iCurLandZone][subrefMidpoint]
                 for iAdjLandZone, _ in tiAdjacentLandZonesToConsider do
                     if not(iAdjLandZone == iCurLandZone) then
                         ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iCurPlateau, iCurLandZone, iAdjLandZone, tStartPoint)
@@ -2515,7 +2529,7 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
         for iLandZone, tLZData in tPlateauSubtable[subrefPlateauLandZones] do
             iClosestBrainDist = 100000
             for iBrain, tStartPoint in tAllyBases do
-                iCurBrainDist = M28Utilities.GetDistanceBetweenPositions(tLZData[subrefLZMidpoint], tStartPoint)
+                iCurBrainDist = M28Utilities.GetDistanceBetweenPositions(tLZData[subrefMidpoint], tStartPoint)
                 if iCurBrainDist < iClosestBrainDist then
                     iClosestBrainRef = iBrain
                     iClosestBrainDist = iCurBrainDist
@@ -2524,7 +2538,7 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
             local tLZTeamData = tLZData[subrefLZTeamData][iTeam]
             tLZTeamData[reftClosestFriendlyBase] = {PlayerStartPoints[iClosestBrainRef][1], PlayerStartPoints[iClosestBrainRef][2], PlayerStartPoints[iClosestBrainRef][3]}
             tLZTeamData[reftClosestEnemyBase] = GetPrimaryEnemyBaseLocation(tBrainsByIndex[iClosestBrainRef])
-            tLZTeamData[refiModDistancePercent] = GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tLZData[subrefLZMidpoint], false)
+            tLZTeamData[refiModDistancePercent] = GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tLZData[subrefMidpoint], false)
             if bDebugMessages == true then LOG(sFunctionRef..': Have recorded closest enemy base for iPlateau '..iPlateau..'; iLandZone='..iLandZone..'; iTeam='..iTeam..'; tLZTeamData[reftClosestFriendlyBase]='..repru(tLZTeamData[reftClosestFriendlyBase])..'; repru(tLZTeamData[reftClosestEnemyBase])='..repru(tLZTeamData[reftClosestEnemyBase])..'; iClosestBrainRef='..iClosestBrainRef..'; tBrainsByIndex[iClosestBrainRef].Nickname='..tBrainsByIndex[iClosestBrainRef].Nickname..'; aiBrain[reftPrimaryEnemyBaseLocation] for this brain='..repru(tBrainsByIndex[iClosestBrainRef][reftPrimaryEnemyBaseLocation])) end
         end
     end
@@ -2581,7 +2595,7 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam)
 
             iClosestBrainDist = 100000
             for iBrain, tStartPoint in tAllyBases do
-                iCurBrainDist = M28Utilities.GetDistanceBetweenPositions(tWZData[subrefWZMidpoint], tStartPoint)
+                iCurBrainDist = M28Utilities.GetDistanceBetweenPositions(tWZData[subrefMidpoint], tStartPoint)
                 if iCurBrainDist < iClosestBrainDist then
                     iClosestBrainRef = iBrain
                     iClosestBrainDist = iCurBrainDist
@@ -2591,7 +2605,7 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam)
             tWZTeamData[reftClosestFriendlyBase] = {PlayerStartPoints[iClosestBrainRef][1], PlayerStartPoints[iClosestBrainRef][2], PlayerStartPoints[iClosestBrainRef][3]}
             if bDebugMessages == true then LOG(sFunctionRef..': Recorded closest friendly base '..repru(tWZTeamData[reftClosestFriendlyBase])..' for iWaterZone='..iWaterZone..'; iPond='..iPond) end
             tWZTeamData[reftClosestEnemyBase] = GetPrimaryEnemyBaseLocation(tBrainsByIndex[iClosestBrainRef])
-            tWZTeamData[refiModDistancePercent] = GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tWZData[subrefWZMidpoint], false)
+            tWZTeamData[refiModDistancePercent] = GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tWZData[subrefMidpoint], false)
 
         end
     end
@@ -2603,14 +2617,14 @@ function ReturnNthValidLocationInSameLandZoneClosestToTarget(iPlateau, iLandZone
     local iSearchDistance = 0
     local tValidLocations = {}
     local iValidLocationCount = 0
-    local iAngleToTarget = M28Utilities.GetAngleFromAToB(tStartLZData[subrefLZMidpoint], tTargetDestination)
+    local iAngleToTarget = M28Utilities.GetAngleFromAToB(tStartLZData[subrefMidpoint], tTargetDestination)
     local iFailureCount = 0 --After 5 failures in a row will abort
     local iCurPlateau, iCurLandZone
     if iDistanceInterval < 0 then M28Utilities.ErrorHandler('Likely infinite loop as have negative distance interval') end
 
     while iSearchDistance <= (iMaxDistance or 150) do
         iSearchDistance = iSearchDistance + iDistanceInterval
-        local tPotentialLocation = M28Utilities.MoveInDirection(tStartLZData[subrefLZMidpoint], iAngleToTarget, iSearchDistance, true, false)
+        local tPotentialLocation = M28Utilities.MoveInDirection(tStartLZData[subrefMidpoint], iAngleToTarget, iSearchDistance, true, false)
         iCurPlateau, iCurLandZone = GetPlateauAndLandZoneReferenceFromPosition(tPotentialLocation)
         if iCurPlateau == iPlateau and iCurLandZone == iLandZoneWanted then
             iValidLocationCount = iValidLocationCount + 1
@@ -2634,14 +2648,14 @@ function ReturnNthValidLocationInSameWaterZoneClosestToTarget(iPond, iWaterZoneW
     local iSearchDistance = 0
     local tValidLocations = {}
     local iValidLocationCount = 0
-    local iAngleToTarget = M28Utilities.GetAngleFromAToB(tStartWZData[subrefWZMidpoint], tTargetDestination)
+    local iAngleToTarget = M28Utilities.GetAngleFromAToB(tStartWZData[subrefMidpoint], tTargetDestination)
     local iFailureCount = 0 --After 5 failures in a row will abort
     local iCurPond, iCurWaterZone
     if iDistanceInterval < 0 then M28Utilities.ErrorHandler('Likely infinite loop as have negative distance interval') end
 
     while iSearchDistance <= (iMaxDistance or 150) do
         iSearchDistance = iSearchDistance + iDistanceInterval
-        local tPotentialLocation = M28Utilities.MoveInDirection(tStartWZData[subrefWZMidpoint], iAngleToTarget, iSearchDistance, true, false)
+        local tPotentialLocation = M28Utilities.MoveInDirection(tStartWZData[subrefMidpoint], iAngleToTarget, iSearchDistance, true, false)
         iCurWaterZone = GetWaterZoneFromPosition(tPotentialLocation)
         iCurPond = tiPondByWaterZone[iCurWaterZone]
         if iCurPond == iPond and iCurWaterZone == iWaterZoneWanted then
@@ -2781,33 +2795,33 @@ function RecordLandZonePatrolPaths()
 
                 if M28Utilities.IsTableEmpty(tLZSubtable[subrefLZAdjacentLandZones]) == false then
                     for _, iAdjLZ in tLZSubtable[subrefLZAdjacentLandZones] do
-                        local tPotentialLocation = ReturnNthValidLocationInSameLandZoneClosestToTarget(iPlateau, iLandZone, tLZSubtable, tAllPlateaus[iPlateau][subrefPlateauLandZones][iAdjLZ][subrefLZMidpoint], 4, 3, 100)
+                        local tPotentialLocation = ReturnNthValidLocationInSameLandZoneClosestToTarget(iPlateau, iLandZone, tLZSubtable, tAllPlateaus[iPlateau][subrefPlateauLandZones][iAdjLZ][subrefMidpoint], 4, 3, 100)
                         if tPotentialLocation then
                             table.insert(tUnorderedPatrolPaths, tPotentialLocation)
-                            table.insert(tAnglesCovered, M28Utilities.GetAngleFromAToB(tLZSubtable[subrefLZMidpoint], tPotentialLocation))
+                            table.insert(tAnglesCovered, M28Utilities.GetAngleFromAToB(tLZSubtable[subrefMidpoint], tPotentialLocation))
                         end
                     end
                 end
                 --Identify any gaps in the path if we arent near the edge of the map
                 local tbBaseAngleCovered = {}
                 local iDistThreshold = 90
-                if tLZSubtable[subrefLZMidpoint][3] >= rMapPlayableArea[2] + iDistThreshold then
+                if tLZSubtable[subrefMidpoint][3] >= rMapPlayableArea[2] + iDistThreshold then
                     --Arent close to the top of the map so can look north
                     tbBaseAngleCovered[0] = false
                 end
-                if tLZSubtable[subrefLZMidpoint][1] <= rMapPlayableArea[3] - iDistThreshold then
+                if tLZSubtable[subrefMidpoint][1] <= rMapPlayableArea[3] - iDistThreshold then
                     --Arent close to the rh of the map so can look east
                     tbBaseAngleCovered[90] = false
                 end
-                if tLZSubtable[subrefLZMidpoint][3] <= rMapPlayableArea[4] - iDistThreshold then
+                if tLZSubtable[subrefMidpoint][3] <= rMapPlayableArea[4] - iDistThreshold then
                     --Arent close to the bottom of the map so can look south
                     tbBaseAngleCovered[180] = false
                 end
-                if tLZSubtable[subrefLZMidpoint][1] >= rMapPlayableArea[1] + iDistThreshold then
+                if tLZSubtable[subrefMidpoint][1] >= rMapPlayableArea[1] + iDistThreshold then
                     --Aren't close to left hand part of map so can look west
                     tbBaseAngleCovered[270] = false
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLZ='..iLandZone..'; tAnglesCovered='..repru(tAnglesCovered)..'; Midpoint='..repru(tLZSubtable[subrefLZMidpoint])..'; playable area='..repru(rMapPlayableArea)..'; iDistThreshold='..iDistThreshold..'; tbBaseAngleCovered before factoring in angles covered='..repru(tbBaseAngleCovered)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLZ='..iLandZone..'; tAnglesCovered='..repru(tAnglesCovered)..'; Midpoint='..repru(tLZSubtable[subrefMidpoint])..'; playable area='..repru(rMapPlayableArea)..'; iDistThreshold='..iDistThreshold..'; tbBaseAngleCovered before factoring in angles covered='..repru(tbBaseAngleCovered)) end
 
                 if M28Utilities.IsTableEmpty(tAnglesCovered) == false then
 
@@ -2824,7 +2838,7 @@ function RecordLandZonePatrolPaths()
                 if bDebugMessages == true then LOG(sFunctionRef..': tbBaseAngleCovered='..repru(tbBaseAngleCovered)) end
                 for iBaseAngle, bCovered in tbBaseAngleCovered do
                     if not(bCovered) then
-                        local tPotentialLocation = ReturnNthValidLocationInSameLandZoneClosestToTarget(iPlateau, iLandZone, tLZSubtable, M28Utilities.MoveInDirection(tLZSubtable[subrefLZMidpoint], iBaseAngle, iDistThreshold, false, false), 4, 3, 70)
+                        local tPotentialLocation = ReturnNthValidLocationInSameLandZoneClosestToTarget(iPlateau, iLandZone, tLZSubtable, M28Utilities.MoveInDirection(tLZSubtable[subrefMidpoint], iBaseAngle, iDistThreshold, false, false), 4, 3, 70)
                         if tPotentialLocation then
                             table.insert(tUnorderedPatrolPaths, tPotentialLocation)
                         end
@@ -2834,12 +2848,12 @@ function RecordLandZonePatrolPaths()
 
                 --Order the path based on distance, and add the midpoint of the land zone
                 --Originally did based on distance, but based on angle looks slightly better
-                --tLZSubtable[subreftPatrolPath] = ReorderPathBasedOnDistanceToFirstEntry(tUnorderedPatrolPaths, {tLZSubtable[subrefLZMidpoint][1] + 3, tLZSubtable[subrefLZMidpoint][2], tLZSubtable[subrefLZMidpoint][3] + 3}, true)
-                tLZSubtable[subreftPatrolPath] = ReorderPathBasedOnAngleToFirstEntry(tUnorderedPatrolPaths, {tLZSubtable[subrefLZMidpoint][1] + 3, tLZSubtable[subrefLZMidpoint][2], tLZSubtable[subrefLZMidpoint][3] + 3}, true)
+                --tLZSubtable[subreftPatrolPath] = ReorderPathBasedOnDistanceToFirstEntry(tUnorderedPatrolPaths, {tLZSubtable[subrefMidpoint][1] + 3, tLZSubtable[subrefMidpoint][2], tLZSubtable[subrefMidpoint][3] + 3}, true)
+                tLZSubtable[subreftPatrolPath] = ReorderPathBasedOnAngleToFirstEntry(tUnorderedPatrolPaths, {tLZSubtable[subrefMidpoint][1] + 3, tLZSubtable[subrefMidpoint][2], tLZSubtable[subrefMidpoint][3] + 3}, true)
 
                 if bDebugMessages == true then
                     LOG(sFunctionRef..': Finished recording patrol path for plateau '..iPlateau..'; Land zone ='..iLandZone..'; Patrol path='..repru(tLZSubtable[subreftPatrolPath]))
-                    M28Utilities.DrawLocation(tLZSubtable[subrefLZMidpoint])
+                    M28Utilities.DrawLocation(tLZSubtable[subrefMidpoint])
                     if M28Utilities.IsTableEmpty(tLZSubtable[subreftPatrolPath]) == false then
                         M28Utilities.DrawPath(tLZSubtable[subreftPatrolPath], 5, nil)
                     end
@@ -2868,38 +2882,38 @@ function RecordWaterZonePatrolPaths()
                 if M28Utilities.IsTableEmpty(tWZData[subrefWZOtherWaterZones]) == false then
                     for iEntry, iAltWZ in tWZData[subrefWZAdjacentWaterZones] do
                         if bDebugMessages == true then
-                            LOG(sFunctionRef..': Will draw midpoint of the current water zone in gold and the target in light blue; this waterzone midpoint='..repru(tWZData[subrefWZMidpoint])..'; Target WZ iAltWZ '..iAltWZ..'='..repru(tPondDetails[iPond][subrefPondWaterZones][iAltWZ][subrefWZMidpoint]))
-                            M28Utilities.DrawLocation(tWZData[subrefWZMidpoint], 4)
-                            M28Utilities.DrawLocation(tPondDetails[iPond][subrefPondWaterZones][iAltWZ][subrefWZMidpoint], 5)
+                            LOG(sFunctionRef..': Will draw midpoint of the current water zone in gold and the target in light blue; this waterzone midpoint='..repru(tWZData[subrefMidpoint])..'; Target WZ iAltWZ '..iAltWZ..'='..repru(tPondDetails[iPond][subrefPondWaterZones][iAltWZ][subrefMidpoint]))
+                            M28Utilities.DrawLocation(tWZData[subrefMidpoint], 4)
+                            M28Utilities.DrawLocation(tPondDetails[iPond][subrefPondWaterZones][iAltWZ][subrefMidpoint], 5)
                         end
-                        local tPotentialLocation = ReturnNthValidLocationInSameWaterZoneClosestToTarget(iPond, iWaterZone, tWZData, tPondDetails[iPond][subrefPondWaterZones][iAltWZ][subrefWZMidpoint], 4, 3, 150)
+                        local tPotentialLocation = ReturnNthValidLocationInSameWaterZoneClosestToTarget(iPond, iWaterZone, tWZData, tPondDetails[iPond][subrefPondWaterZones][iAltWZ][subrefMidpoint], 4, 3, 150)
                         if bDebugMessages == true then LOG(sFunctionRef..': Start WZ='..iWaterZone..'; iAltWZ='..iAltWZ..'; tPotentialLocation='..repru(tPotentialLocation)) end
                         if tPotentialLocation then
                             table.insert(tUnorderedPatrolPaths, tPotentialLocation)
-                            table.insert(tAnglesCovered, M28Utilities.GetAngleFromAToB(tWZData[subrefWZMidpoint], tPotentialLocation))
+                            table.insert(tAnglesCovered, M28Utilities.GetAngleFromAToB(tWZData[subrefMidpoint], tPotentialLocation))
                         end
                     end
                 end
                 --Identify any gaps in the path if we arent near the edge of the map
                 local tbBaseAngleCovered = {}
                 local iDistThreshold = 90
-                if tWZData[subrefWZMidpoint][3] >= rMapPlayableArea[2] + iDistThreshold then
+                if tWZData[subrefMidpoint][3] >= rMapPlayableArea[2] + iDistThreshold then
                     --Arent close to the top of the map so can look north
                     tbBaseAngleCovered[0] = false
                 end
-                if tWZData[subrefWZMidpoint][1] <= rMapPlayableArea[3] - iDistThreshold then
+                if tWZData[subrefMidpoint][1] <= rMapPlayableArea[3] - iDistThreshold then
                     --Arent close to the rh of the map so can look east
                     tbBaseAngleCovered[90] = false
                 end
-                if tWZData[subrefWZMidpoint][3] <= rMapPlayableArea[4] - iDistThreshold then
+                if tWZData[subrefMidpoint][3] <= rMapPlayableArea[4] - iDistThreshold then
                     --Arent close to the bottom of the map so can look south
                     tbBaseAngleCovered[180] = false
                 end
-                if tWZData[subrefWZMidpoint][1] >= rMapPlayableArea[1] + iDistThreshold then
+                if tWZData[subrefMidpoint][1] >= rMapPlayableArea[1] + iDistThreshold then
                     --Aren't close to left hand part of map so can look west
                     tbBaseAngleCovered[270] = false
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': iPond='..iPond..'; iWZ='..iWaterZone..'; tAnglesCovered='..repru(tAnglesCovered)..'; Midpoint='..repru(tWZData[subrefWZMidpoint])..'; playable area='..repru(rMapPlayableArea)..'; iDistThreshold='..iDistThreshold..'; tbBaseAngleCovered before factoring in angles covered='..repru(tbBaseAngleCovered)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': iPond='..iPond..'; iWZ='..iWaterZone..'; tAnglesCovered='..repru(tAnglesCovered)..'; Midpoint='..repru(tWZData[subrefMidpoint])..'; playable area='..repru(rMapPlayableArea)..'; iDistThreshold='..iDistThreshold..'; tbBaseAngleCovered before factoring in angles covered='..repru(tbBaseAngleCovered)) end
 
                 if M28Utilities.IsTableEmpty(tAnglesCovered) == false then
 
@@ -2916,7 +2930,7 @@ function RecordWaterZonePatrolPaths()
                 if bDebugMessages == true then LOG(sFunctionRef..': iWaterZone='..iWaterZone..'; tbBaseAngleCovered='..repru(tbBaseAngleCovered)) end
                 for iBaseAngle, bCovered in tbBaseAngleCovered do
                     if not(bCovered) then
-                        local tPotentialLocation = ReturnNthValidLocationInSameWaterZoneClosestToTarget(iPond, iWaterZone, tWZData, M28Utilities.MoveInDirection(tWZData[subrefWZMidpoint], iBaseAngle, iDistThreshold, false, false), 4, 3, 100)
+                        local tPotentialLocation = ReturnNthValidLocationInSameWaterZoneClosestToTarget(iPond, iWaterZone, tWZData, M28Utilities.MoveInDirection(tWZData[subrefMidpoint], iBaseAngle, iDistThreshold, false, false), 4, 3, 100)
                         if bDebugMessages == true then LOG(sFunctionRef..': tPotentialLocation for iBaseAngle='..iBaseAngle..'='..repru(tPotentialLocation)) end
                         if tPotentialLocation then
                             table.insert(tUnorderedPatrolPaths, tPotentialLocation)
@@ -2927,12 +2941,12 @@ function RecordWaterZonePatrolPaths()
 
                 --Order the path based on distance, and add the midpoint of the land zone
                 --Originally did based on distance, but based on angle looks slightly better
-                --tWZData[subreftPatrolPath] = ReorderPathBasedOnDistanceToFirstEntry(tUnorderedPatrolPaths, {tWZData[subrefLZMidpoint][1] + 3, tWZData[subrefLZMidpoint][2], tWZData[subrefLZMidpoint][3] + 3}, true)
-                tWZData[subreftPatrolPath] = ReorderPathBasedOnAngleToFirstEntry(tUnorderedPatrolPaths, {tWZData[subrefWZMidpoint][1] + 3, tWZData[subrefWZMidpoint][2], tWZData[subrefWZMidpoint][3] + 3}, true)
+                --tWZData[subreftPatrolPath] = ReorderPathBasedOnDistanceToFirstEntry(tUnorderedPatrolPaths, {tWZData[subrefMidpoint][1] + 3, tWZData[subrefMidpoint][2], tWZData[subrefMidpoint][3] + 3}, true)
+                tWZData[subreftPatrolPath] = ReorderPathBasedOnAngleToFirstEntry(tUnorderedPatrolPaths, {tWZData[subrefMidpoint][1] + 3, tWZData[subrefMidpoint][2], tWZData[subrefMidpoint][3] + 3}, true)
 
                 if bDebugMessages == true then
                     LOG(sFunctionRef..': Finished recording patrol path for pond '..iPond..'; Water zone ='..iWaterZone..'; Patrol path='..repru(tWZData[subreftPatrolPath]))
-                    M28Utilities.DrawLocation(tWZData[subrefWZMidpoint])
+                    M28Utilities.DrawLocation(tWZData[subrefMidpoint])
                     if M28Utilities.IsTableEmpty(tWZData[subreftPatrolPath]) == false then
                         M28Utilities.DrawPath(tWZData[subreftPatrolPath], 5, nil)
                     end
@@ -3023,8 +3037,8 @@ function RecordIslands()
             tPlateauSubtable[subrefPlateauIslandMexCount] = { }
             local tLandZonesWithoutIslands = {}
             for iLandZone, tLZData in tPlateauSubtable[subrefPlateauLandZones] do
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering iLandZone='..iLandZone..'; in Plateau '..iPlateau..'; Amphibious label='..(NavUtils.GetLabel(refPathingTypeLand, tLZData[subrefLZMidpoint]) or 'nil')) end
-                tLZData[subrefLZIslandRef] = NavUtils.GetLabel(refPathingTypeLand, tLZData[subrefLZMidpoint])
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering iLandZone='..iLandZone..'; in Plateau '..iPlateau..'; Amphibious label='..(NavUtils.GetLabel(refPathingTypeLand, tLZData[subrefMidpoint]) or 'nil')) end
+                tLZData[subrefLZIslandRef] = NavUtils.GetLabel(refPathingTypeLand, tLZData[subrefMidpoint])
                 if tLZData[subrefLZIslandRef] > 0 then
                     if not(tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]]) then tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]] = {} end
                     table.insert(tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]], iLandZone)
@@ -3058,7 +3072,7 @@ function RecordIslands()
                         for iAdjust = 1, 50 do
                             for iXMod = -1, 1, 1 do
                                 for iZMod = -1, 1, 1 do
-                                    tAltMidpoint = {tLZData[subrefLZMidpoint][1] + iAdjust * iXMod, 0, tLZData[subrefLZMidpoint][3] + iAdjust * iZMod}
+                                    tAltMidpoint = {tLZData[subrefMidpoint][1] + iAdjust * iXMod, 0, tLZData[subrefMidpoint][3] + iAdjust * iZMod}
                                     tAltMidpoint[2] = GetTerrainHeight(tAltMidpoint[1], tAltMidpoint[3])
                                     tLZData[subrefLZIslandRef] = NavUtils.GetLabel(refPathingTypeLand, tAltMidpoint)
                                     if (tLZData[subrefLZIslandRef] or 0) > 0 then
@@ -3090,7 +3104,7 @@ function RecordIslands()
 
 
                         for iEntry, iIslandLZ in tLandZonesInIsland do
-                            iCurTravelDistance = M28Utilities.GetTravelDistanceBetweenPositions(tLZData[subrefLZMidpoint], tPlateauSubtable[subrefPlateauLandZones][iIslandLZ][subrefLZMidpoint], refPathingTypeHover)
+                            iCurTravelDistance = M28Utilities.GetTravelDistanceBetweenPositions(tLZData[subrefMidpoint], tPlateauSubtable[subrefPlateauLandZones][iIslandLZ][subrefMidpoint], refPathingTypeHover)
                             if bDebugMessages == true then LOG(sFunctionRef..': iCurTravelDistance='..repru(iCurTravelDistance)..'; iClosestTravelDist='..repru(iClosestTravelDist)) end
                             if iCurTravelDistance and iCurTravelDistance < iClosestTravelDist then
                                 iClosestTravelDist = iCurTravelDistance
@@ -3112,7 +3126,7 @@ function RecordIslands()
                                 end
                             end
                         end
-                        local tFullPath, iPathSize, iDistance = NavUtils.PathTo(refPathingTypeHover, tLZData[subrefLZMidpoint], tPlateauSubtable[subrefPlateauLandZones][iClosestLZRef][subrefLZMidpoint], nil)
+                        local tFullPath, iPathSize, iDistance = NavUtils.PathTo(refPathingTypeHover, tLZData[subrefMidpoint], tPlateauSubtable[subrefPlateauLandZones][iClosestLZRef][subrefMidpoint], nil)
 
                         --Reduce tFullPath to a table of land zones
                         if tFullPath then
@@ -3122,8 +3136,8 @@ function RecordIslands()
 
 
                             local iTravelDistance = 0
-                            local tStart = {tLZData[subrefLZMidpoint][1], tLZData[subrefLZMidpoint][2], tLZData[subrefLZMidpoint][3]}
-                            local tEnd = {tPlateauSubtable[subrefPlateauLandZones][iClosestLZRef][subrefLZMidpoint][1], tPlateauSubtable[subrefPlateauLandZones][iClosestLZRef][subrefLZMidpoint][2], tPlateauSubtable[subrefPlateauLandZones][iClosestLZRef][subrefLZMidpoint][3]}
+                            local tStart = {tLZData[subrefMidpoint][1], tLZData[subrefMidpoint][2], tLZData[subrefMidpoint][3]}
+                            local tEnd = {tPlateauSubtable[subrefPlateauLandZones][iClosestLZRef][subrefMidpoint][1], tPlateauSubtable[subrefPlateauLandZones][iClosestLZRef][subrefMidpoint][2], tPlateauSubtable[subrefPlateauLandZones][iClosestLZRef][subrefMidpoint][3]}
                             tFullPath[0] = tStart
                             tFullPath[iPathSize + 1] = tEnd
                             for iPath = 1, iPathSize + 1 do
@@ -4398,14 +4412,14 @@ function RecordWaterZoneMidpointAndMinMaxPositions()
             end
             if bDebugMessages == true then LOG(sFunctionRef..': iAveragePond='..(iAveragePond or 'nil')..'; iPond='..(iPond or 'nil')..'; iAverageWaterZone='..(iAverageWaterZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; tAverage='..repru(tAverage)) end
             if (iAveragePond == iPond and iAverageWaterZone == iWaterZone) then
-                tWZData[subrefWZMidpoint] = {tAverage[1], tAverage[2], tAverage[3]}
+                tWZData[subrefMidpoint] = {tAverage[1], tAverage[2], tAverage[3]}
                 if bDebugMessages == true then LOG(sFunctionRef..': Will use the average position as the midpoint') end
             else
                 --Just use the first recorded segment of the water zone as the midpoint
-                tWZData[subrefWZMidpoint] = GetPositionFromPathingSegments(tWZData[subrefWZSegments][1][1], tWZData[subrefWZSegments][1][2])
-                if bDebugMessages == true then LOG(sFunctionRef..': WIll use the first recorded segment as the midpoint, tWZData[subrefWZMidpoint]='..repru(tWZData[subrefWZMidpoint])) end
+                tWZData[subrefMidpoint] = GetPositionFromPathingSegments(tWZData[subrefWZSegments][1][1], tWZData[subrefWZSegments][1][2])
+                if bDebugMessages == true then LOG(sFunctionRef..': WIll use the first recorded segment as the midpoint, tWZData[subrefMidpoint]='..repru(tWZData[subrefMidpoint])) end
             end
-            tWZData[refiMidpointAmphibiousLabel] = (NavUtils.GetLabel(refPathingTypeAmphibious, tWZData[subrefWZMidpoint]) or 0)
+            tWZData[refiMidpointAmphibiousLabel] = (NavUtils.GetLabel(refPathingTypeAmphibious, tWZData[subrefMidpoint]) or 0)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -4427,7 +4441,7 @@ function RecordWaterZoneAdjacentLandZones()
 
     for iPond, tPondSubtable in tPondDetails do
         for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
-            iPlateau = NavUtils.GetLabel(refPathingTypeHover, tWZData[subrefWZMidpoint])
+            iPlateau = NavUtils.GetLabel(refPathingTypeHover, tWZData[subrefMidpoint])
             if iPlateau > 0 and M28Utilities.IsTableEmpty(tAllPlateaus[iPlateau]) == false then
                 --Cycle through every land zone on the map, and check if it is near this
                 for iLandZone, tLZData in tAllPlateaus[iPlateau][subrefPlateauLandZones] do
@@ -4439,11 +4453,11 @@ function RecordWaterZoneAdjacentLandZones()
                             and (tLZData[subrefLZMinSegZ] + iSegmentGapAllowed >= tWZData[subrefWZMinSegZ] and tLZData[subrefLZMinSegZ] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegZ]) or (tLZData[subrefLZMaxSegZ] + iSegmentGapAllowed >= tWZData[subrefWZMinSegZ] and tLZData[subrefLZMaxSegZ] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegZ]) then
                         --It looks like we might overlap, do a more precise calculation drawing a line from the two midpoints to see if we come across other land zones
                         bIsAdjacent = false
-                        iDistBetweenMidpoints = M28Utilities.GetDistanceBetweenPositions(tWZData[subrefWZMidpoint], tLZData[subrefLZMidpoint])
+                        iDistBetweenMidpoints = M28Utilities.GetDistanceBetweenPositions(tWZData[subrefMidpoint], tLZData[subrefMidpoint])
                         iMaxLineInterval = math.floor(iDistBetweenMidpoints / iLineInterval) * iLineInterval
-                        iLineAngle = M28Utilities.GetAngleFromAToB(tWZData[subrefWZMidpoint], tLZData[subrefLZMidpoint])
+                        iLineAngle = M28Utilities.GetAngleFromAToB(tWZData[subrefMidpoint], tLZData[subrefMidpoint])
                         for iDistAlongLine = iLineInterval, iMaxLineInterval, iLineInterval do
-                            tLinePosition = M28Utilities.MoveInDirection(tWZData[subrefWZMidpoint], iLineAngle, iDistAlongLine, false, false)
+                            tLinePosition = M28Utilities.MoveInDirection(tWZData[subrefMidpoint], iLineAngle, iDistAlongLine, false, false)
                             iCurLineSegmentX, iCurLineSegmentZ = GetPathingSegmentFromPosition(tLinePosition)
                             if tLandZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ] then
                                 if tLandZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ] == iLandZone then
@@ -4528,7 +4542,7 @@ function RecordWaterZonePathingToOtherWaterZones()
                     end
                     if not(tiWaterZonePairsConsideredByLowestWZ[iLowestWZ][iHighestWZ]) then
                         if not(tiWaterZonePairsConsideredByLowestWZ[iLowestWZ]) then tiWaterZonePairsConsideredByLowestWZ[iLowestWZ] = {} end
-                        iNavalTravelDistance = M28Utilities.GetTravelDistanceBetweenPositions(tWZData[subrefWZMidpoint], tOtherWZData[subrefWZMidpoint], refPathingTypeNavy)
+                        iNavalTravelDistance = M28Utilities.GetTravelDistanceBetweenPositions(tWZData[subrefMidpoint], tOtherWZData[subrefMidpoint], refPathingTypeNavy)
                         if iNavalTravelDistance then
                             iStartWZAdjacencyTablePosition = 1
                             if M28Utilities.IsTableEmpty(tWZData[subrefWZOtherWaterZones]) then
@@ -5100,7 +5114,7 @@ function GetTravelDistanceBetweenLandZones(iPlateau, iStartLZ, iEndLZ)
     local tStartLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLZ]
     if not(tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ]) then
         if not(tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau]) then tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau] = {} end
-        tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ] = M28Utilities.GetTravelDistanceBetweenPositions(tStartLZData[subrefLZMidpoint], tAllPlateaus[iPlateau][subrefPlateauLandZones][iEndLZ][subrefLZMidpoint], refPathingTypeLand)
+        tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ] = M28Utilities.GetTravelDistanceBetweenPositions(tStartLZData[subrefMidpoint], tAllPlateaus[iPlateau][subrefPlateauLandZones][iEndLZ][subrefMidpoint], refPathingTypeLand)
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Travel distance from iStartLZ='..iStartLZ..' to iEndLZ='..iEndLZ..' is '..(tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ] or 'nil')) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

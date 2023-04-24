@@ -522,7 +522,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
     --Adjust factory T1 ratios if we cant path to enemy by land
     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
     local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
-    local iCurIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefLZMidpoint])
+    local iCurIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])
     local iEnemyIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase])
     if iCurIsland ~= iEnemyIsland and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.35 then
         tiFactoryToMassByTechRatioWanted = {[1]=3.2, [2] = 3, [3] = 6}
@@ -637,7 +637,7 @@ function HaveEnoughThreatToAttack(tLZTeamData, iOurCombatThreat, iEnemyCombatThr
 end
 
 function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
-    local iOurIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefLZMidpoint])
+    local iOurIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])
     if tLZTeamData[M28Map.subrefLZbCoreBase] or iOurIsland == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase]) then
         --If are low on power and can path to enemy with land then get land factory; also get land if air facs arent able to build air units and we have lots of mass
         local iEnemyIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase])
@@ -668,7 +668,7 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                     iAirFactoriesForEveryLandFactory = 5
                 else
                     --Can path to enemy with land, base number of factories wanted on distance to enemy base
-                    local iEnemyBaseDist = M28Utilities.GetDistanceBetweenPositions(  tLZData[M28Map.subrefLZMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])
+                    local iEnemyBaseDist = M28Utilities.GetDistanceBetweenPositions(  tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])
 
                     if iEnemyBaseDist >= 500 then
                         iLandFactoriesWantedBeforeAir = 1
@@ -715,7 +715,7 @@ function GetThreatOfApproachingEnemyACUs(tLZData, tLZTeamData, iPlateau, iLandZo
     local iTotalACUThreat = 0
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Is table of enemy ACUs empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]))) end
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) == false then
-        local tMidpoint = tLZData[M28Map.subrefLZMidpoint]
+        local tMidpoint = tLZData[M28Map.subrefMidpoint]
         local iDistanceThreshold = math.max(math.min(M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tMidpoint) * 0.75, 250), 175)
         local tACUsInRange = {}
         for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do

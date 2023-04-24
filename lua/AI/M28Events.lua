@@ -381,7 +381,71 @@ function OnShieldBubbleDamaged(self, instigator)
 end
 
 function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble is damaged - see OnShieldBubbleDamaged for this
-    
+    if M28Utilities.bM28AIInGame then
+        local sFunctionRef = 'OnDamaged'
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        if self.IsWreckage then
+            --Will only update when props and wrecks are destroyed for performance reasons
+        else
+            if bDebugMessages == true then LOG(sFunctionRef..': Non-wreck damaged') end
+            if self.GetUnitId then
+                local oUnitCausingDamage
+                if instigator and not(instigator:BeenDestroyed()) then
+                    if instigator.GetLauncher and instigator:GetLauncher() then
+                        oUnitCausingDamage = instigator:GetLauncher()
+                    elseif instigator.DamageData and not(instigator.unit) and not(instigator.UnitId) then
+                        --Can get errors for artillery shells when running IsProjectile
+                    elseif IsProjectile(instigator) or IsCollisionBeam(instigator) then
+                        if instigator.unit then
+                            oUnitCausingDamage = instigator.unit
+                        end
+                    elseif IsUnit(instigator) then
+                        oUnitCausingDamage = instigator
+                    end
+                    if bDebugMessages == true then
+                        if not(oUnitCausingDamage) then LOG(sFunctionRef..': Dont ahve a valid unit as instigator')
+                        else LOG(sFunctionRef..': Have a unit causing damage='..oUnitCausingDamage.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitCausingDamage)) end
+                    end
+                end
+
+                --Logic specific to M28 units dealing damage
+                if M28UnitInfo.IsUnitValid(oUnitCausingDamage) and oUnitCausingDamage:GetAIBrain().M28AI then
+                    --T3/experimental arti specific
+                    if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oUnitCausingDamage.UnitId) then
+                        --Reset the arti shot count if damaged a high value unit
+                        if M28UnitInfo.IsUnitValid(self) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': T3/Exp arti owned by M28 brain '..oUnitCausingDamage:GetAIBrain().Nickname..', arti unit='..oUnitCausingDamage.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitCausingDamage)..' has just damaged unit '..self.UnitId..M28UnitInfo.GetUnitLifetimeCount(self)..' which is valid') end
+                            local iUnitDamagedMassValue = self:GetBlueprint().Economy.BuildCostMass * self:GetFractionComplete()
+                            if iUnitDamagedMassValue >= 700 then
+                                --Reduce the ineffective arti shot count
+                                local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(self:GetPosition())
+                                local tLZOrWZTeamData
+                                if iPlateauOrZero > 0 then
+                                    tLZOrWZTeamData  = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][oUnitCausingDamage:GetAIBrain().M28Team]
+                                else
+                                    --Water zone
+                                    tLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone][M28Map.subrefWZTeamData][oUnitCausingDamage:GetAIBrain().M28Team]
+                                end
+                                local iReductionValue
+                                if iUnitDamagedMassValue >= 10000 then
+                                    iReductionValue = 50
+                                elseif iUnitDamagedMassValue >= 3000 then
+                                    iReductionValue = 12
+                                else
+                                    iReductionValue = 6
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Changing ineffective shot count, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWateZone='..iLandOrWaterZone..'; tLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount]='..(tLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] or 'nil')..'; iReductionValue='..iReductionValue) end
+                                tLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] = math.max(0, (tLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] or 0) - iReductionValue)
+                            end
+                        end
+                    end
+                end
+            end
+
+        end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    end
 end
 
 function OnBombFired(oWeapon, projectile)
@@ -484,6 +548,10 @@ function OnWeaponFired(oWeapon)
                                 M28Utilities.DelayChangeVariable(oUnit, M28UnitInfo.refbLastShotBlocked, false, 20, M28UnitInfo.refiTimeOfLastCheck, GetGameTimeSeconds() + 0.01)
                             end
                         end
+                    end
+                    --T3 arti targeting logic
+                    if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oUnit.UnitId) then
+                        ForkThread(M28Building.GetT3ArtiTarget, oUnit)
                     end
                 end
             end

@@ -1002,7 +1002,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                             local iNearestDist = 100000
                                             local iCurDist
                                             for iLandZone, tLZData in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones] do
-                                                iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefLZMidpoint])
+                                                iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])
                                                 if iCurDist < iNearestDist then
                                                     iNearestDist = iCurDist
                                                     iNearestLandZone = iLandZone
@@ -1010,7 +1010,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                             end
                                             if bDebugMessages == true then LOG(sFunctionRef..': Tried looking for a nearby LZ, nearest LZ='..(iNearestLandZone or 'nil')) end
                                             if iNearestLandZone then
-                                                M28Orders.IssueTrackedMove(oUnit, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iNearestLandZone][M28Map.subrefLZMidpoint], 1, true, 'StuckMLZ'..iNearestLandZone)
+                                                M28Orders.IssueTrackedMove(oUnit, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iNearestLandZone][M28Map.subrefMidpoint], 1, true, 'StuckMLZ'..iNearestLandZone)
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Told unit to move to the midpoint of the nearest LZ after any current orders, will assign to that land zone as well') end
                                                 AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iNearestLandZone)
                                             else
@@ -1940,7 +1940,7 @@ function WaterZoneTeamInitialisation(iTeam)
     tTeamData[iTeam][subrefiWaterZonesWantingSignificantMAAByPlateau] = {}
     for iPond, tPondSubtable in M28Map.tPondDetails do
         for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
-            iCurPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tWZData[M28Map.subrefWZMidpoint])
+            iCurPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tWZData[M28Map.subrefMidpoint])
             if bDebugMessages == true then LOG(sFunctionRef..': Setting starting values for iPond='..iPond..'; iWaterZone='..iWaterZone) end
             if not(tWZData[M28Map.subrefWZTeamData]) then tWZData[M28Map.subrefWZTeamData] = {} end
             if not(tWZData[M28Map.subrefWZTeamData][iTeam]) then tWZData[M28Map.subrefWZTeamData][iTeam] = {} end

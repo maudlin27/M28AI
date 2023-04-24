@@ -413,9 +413,11 @@ function CheckIfBuildableLocationsNearPositionStillValid(aiBrain, tLocation, bCh
                 iTotalSegmentCount = tLZOrWZData[M28Map.subrefLZTotalSegmentCount]
                 sBlueprintSizeRef = tsBlueprintsBySize
             end
-            for iSize, tOldBuildableLocations in tLZOrWZData[M28Map.subrefBuildLocationsBySize] do
-                if iPlateauOrZero > (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] or 0) then
-                    SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, iSize, sBlueprintSizeRef[iSize], nil, (iPlateauOrZero == 0))
+            if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefBuildLocationsBySize]) == false then
+                for iSize, tOldBuildableLocations in tLZOrWZData[M28Map.subrefBuildLocationsBySize] do
+                    if iPlateauOrZero > (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] or 0) then
+                        SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, iSize, sBlueprintSizeRef[iSize], nil, (iPlateauOrZero == 0))
+                    end
                 end
             end
 
@@ -2072,7 +2074,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                             iLZOrWZToRunTo =  M28Land.GetLandZoneToRunTo(iTeam, iPlateauOrPond, iLandZone, M28Map.refPathingTypeHover, oEngineer:GetPosition(), tPositionToRunFrom)
                                             if not(iLZOrWZToRunTo == iLandZone) then --If LZ to run to is same as cur LZ might as well use engineer normally (e.g. might have defences to build)
                                                 --Run to the LZ
-                                                M28Orders.IssueTrackedMove(oEngineer, M28Map.tAllPlateaus[iPlateauOrPond][M28Map.subrefPlateauLandZones][iLZOrWZToRunTo][M28Map.subrefLZMidpoint], 8, false, 'RunTo'..iLZOrWZToRunTo)
+                                                M28Orders.IssueTrackedMove(oEngineer, M28Map.tAllPlateaus[iPlateauOrPond][M28Map.subrefPlateauLandZones][iLZOrWZToRunTo][M28Map.subrefMidpoint], 8, false, 'RunTo'..iLZOrWZToRunTo)
                                                 bEngiIsUnavailable = true
                                                 TrackEngineerAction(oEngineer, refActionRunToLandZone, false, {iPlateauOrPond, iLZOrWZToRunTo})
                                             end
@@ -2092,7 +2094,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                                     for iEntry, tLZSubtable in tLZData[M28Map.subrefAdjacentLandZones] do
                                                         local tCurRallyPoint = M28Land.GetNearestLandRallyPoint(tLZData, iTeam, tLZSubtable[M28Map.subrefWPlatAndLZNumber][1], tLZSubtable[M28Map.subrefWPlatAndLZNumber][2], nil)
                                                         if tCurRallyPoint then
-                                                            iCurRallyPointDist = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefWZMidpoint], tCurRallyPoint)
+                                                            iCurRallyPointDist = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tCurRallyPoint)
                                                             if iCurRallyPointDist < iClosestRallyPointDist then
                                                                 tClosestRallyPoint = {tCurRallyPoint[1], tCurRallyPoint[2], tCurRallyPoint[3]}
                                                                 iClosestRallyPointDist = iCurRallyPointDist
@@ -2101,7 +2103,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                                     end
                                                     if tClosestRallyPoint then
                                                         local iPlateau, iLZToRunTo = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tClosestRallyPoint)
-                                                        M28Orders.IssueTrackedMove(oEngineer, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLZToRunTo][M28Map.subrefLZMidpoint], 8, false, 'WLRunTo'..iLZOrWZToRunTo)
+                                                        M28Orders.IssueTrackedMove(oEngineer, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLZToRunTo][M28Map.subrefMidpoint], 8, false, 'WLRunTo'..iLZOrWZToRunTo)
                                                         bEngiIsUnavailable = true
                                                         TrackEngineerAction(oEngineer, refActionRunToLandZone, false, {iPlateau, iLZToRunTo})
                                                     end
@@ -3104,7 +3106,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                         M28Utilities.ErrorHandler('Invalid LZ  for moving to, iPlateauOrPond='..iPlateauOrPond..'; will do reprs of iTargetLZ in log')
                         LOG(sFunctionRef..': iTargetLZ='..reprs(iTargetLZ))
                     else
-                        local tMoveLocation = tTargetLZ[M28Map.subrefLZMidpoint]
+                        local tMoveLocation = tTargetLZ[M28Map.subrefMidpoint]
                         while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
                             if bDebugMessages == true then
                                 LOG(sFunctionRef..': About to tell engineer '..tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount])..' to move to iPlateauOrPond '..iPlateauOrPond..'; iTargetLZ='..iTargetLZ)
@@ -3123,7 +3125,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                         M28Utilities.ErrorHandler('Invalid WZ  for moving to, iPlateauOrPond='..iPlateauOrPond..'; will do reprs of iTargetWZ in log')
                         LOG(sFunctionRef..': iTargetWZ='..reprs(iTargetWZ))
                     else
-                        local tMoveLocation = tTargetWZ[M28Map.subrefWZMidpoint]
+                        local tMoveLocation = tTargetWZ[M28Map.subrefMidpoint]
                         while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
                             if bDebugMessages == true then
                                 LOG(sFunctionRef..': About to tell engineer '..tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount])..' to move to iPlateauOrPond '..iPlateauOrPond..'; iTargetWZ='..iTargetWZ..'; iPond='..iPond)
@@ -4011,7 +4013,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     if iHighestTechEngiAvailable > 0 and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) then
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of pathing to other islands empty='..tostring(tLZData[M28Map.subrefLZPathingToOtherIslands])) end
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherIslands]) == false then
-            local iDistanceThreshold = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefLZMidpoint]) * 0.502
+            local iDistanceThreshold = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefMidpoint]) * 0.502
             if bDebugMessages == true then LOG(sFunctionRef..': iDistanceThreshold='..iDistanceThreshold) end
 
             for iEntry, tPathingData in tLZData[M28Map.subrefLZPathingToOtherIslands] do
@@ -4230,8 +4232,8 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
         --T3 radar
         iCurPriority = iCurPriority + 1
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to build T3 radar, tLZTeamData[M28Map.refiRadarCoverage]='..tLZTeamData[M28Map.refiRadarCoverage]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Closest enemy base dist to midpoint='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefLZMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])) end
-        if tLZTeamData[M28Map.refiRadarCoverage] <= 300 and ((M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 500 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 200) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 350 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 100 and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryMobileLand * categories.TECH3 - M28UnitInfo.refCategoryEngineer) >= 40) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10 and (M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefLZMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]) > tLZTeamData[M28Map.refiRadarCoverage] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 20) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to build T3 radar, tLZTeamData[M28Map.refiRadarCoverage]='..tLZTeamData[M28Map.refiRadarCoverage]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Closest enemy base dist to midpoint='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])) end
+        if tLZTeamData[M28Map.refiRadarCoverage] <= 300 and ((M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 500 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 200) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 350 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 100 and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryMobileLand * categories.TECH3 - M28UnitInfo.refCategoryEngineer) >= 40) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10 and (M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]) > tLZTeamData[M28Map.refiRadarCoverage] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 20) then
             iBPWanted = 30
             if not(bHaveLowMass) then iBPWanted = 100 end
             if bDebugMessages == true then LOG(sFunctionRef..': Will build T3 radar, iBPWanted='..iBPWanted..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]) end
@@ -4321,7 +4323,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     if iHighestTechEngiAvailable > 0 and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) then
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of pathing to other islands empty='..tostring(tLZData[M28Map.subrefLZPathingToOtherIslands])) end
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherIslands]) == false then
-            local iDistanceThreshold = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefLZMidpoint]) * 0.6
+            local iDistanceThreshold = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefMidpoint]) * 0.6
             if bDebugMessages == true then LOG(sFunctionRef..': iDistanceThreshold='..iDistanceThreshold) end
 
             for iEntry, tPathingData in tLZData[M28Map.subrefLZPathingToOtherIslands] do
@@ -4678,7 +4680,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     if iHighestTechEngiAvailable > 0 and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) then
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of pathing to other islands empty='..tostring(tLZData[M28Map.subrefLZPathingToOtherIslands])) end
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherIslands]) == false then
-            local iDistanceThreshold = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefLZMidpoint]) * 0.502
+            local iDistanceThreshold = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefMidpoint]) * 0.502
             if bDebugMessages == true then LOG(sFunctionRef..': iDistanceThreshold='..iDistanceThreshold) end
 
             for iEntry, tPathingData in tLZData[M28Map.subrefLZPathingToOtherIslands] do
@@ -4805,8 +4807,8 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     if iHighestTechEngiAvailable > 0 and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) then
         if bDebugMessages == true then LOG(sFunctionRef..': is pathing to other islands empty='..tostring( M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherIslands]))) end
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherIslands]) == false then
-            if bDebugMessages == true then LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; tLZTeamData[M28Map.reftClosestEnemyBase]='..repru(tLZTeamData[M28Map.reftClosestEnemyBase])..'; tLZData[M28Map.subrefLZMidpoint]='..repru(tLZData[M28Map.subrefLZMidpoint])) end
-            local iDistanceThreshold = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefLZMidpoint]) * 0.6
+            if bDebugMessages == true then LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; tLZTeamData[M28Map.reftClosestEnemyBase]='..repru(tLZTeamData[M28Map.reftClosestEnemyBase])..'; tLZData[M28Map.subrefMidpoint]='..repru(tLZData[M28Map.subrefMidpoint])) end
+            local iDistanceThreshold = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefMidpoint]) * 0.6
             if bDebugMessages == true then LOG(sFunctionRef..': Will search for islands, iDistanceThreshold='..iDistanceThreshold) end
 
             for iEntry, tPathingData in tLZData[M28Map.subrefLZPathingToOtherIslands] do
@@ -5327,7 +5329,7 @@ function GetBPToAssignToBuildingTML(tLZData, tLZTeamData, iPlateau, iLandZone, i
     if bDebugMessages == true then LOG(sFunctionRef..': TIme='..GetGameTimeSeconds()..' iPlateau='..iPlateau..'; bHaveLowMass='..tostring(bHaveLowMass)..'; Is core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])..'; is core expansion='..tostring(tLZTeamData[M28Map.subrefLZCoreExpansion])..'; iLandZone='..iLandZone) end
     if tLZTeamData[M28Map.subrefLZbCoreBase] or (tLZTeamData[M28Map.subrefLZCoreExpansion] and not(bHaveLowMass)) then
         --Make sure we have recorded pathing in a straight line for this zone (will only run if table is empty)
-        M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefLZMidpoint])
+        M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefMidpoint])
 
         if bDebugMessages == true then LOG(sFunctionRef..': M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]..'; Is table of pathing to other LZ and WZ empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]))) end
         --Decided to remove the check about max enemy tech, as they may have T2 mexes but T1 units, and performance isn't as big a concern early-game anyway
