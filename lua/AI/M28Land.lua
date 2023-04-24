@@ -1679,7 +1679,8 @@ function ManageMobileStealthsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, i
                         StealthUnitsInLandZone(tTeamTargetLZData, tStealthsToAssign, true)
                     end
                     if M28Utilities.IsTableEmpty(tStealthsToAssign) == false then
-                        M28Utilities.ErrorHandler('couldnt find any land zones with friendly combat units so have nowhere to assign mobile Stealths; will send them all to the nearest rally point instead')
+                        --No targets for mobile stealth
+                        if bDebugMessages == true then LOG(sFunctionRef..': couldnt find any land zones with friendly combat units so have nowhere to assign mobile Stealths; will send them all to the nearest rally point instead') end
                         local tRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2)
                         for iUnit, oUnit in tStealthsToAssign do
                             M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'SBckup'..iLandZone)

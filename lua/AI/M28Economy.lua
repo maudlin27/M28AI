@@ -907,7 +907,7 @@ function ManageMassStalls(iTeam)
                                                         iCurPlateau, iCurLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
                                                         if (iCurPlateau or 0) > 0 and (iCurLandZone or 0) > 0 then
                                                             if M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLandZone][M28Map.subrefTotalMassReclaim] > 30 then
-                                                                M28Engineer.GetEngineerToReclaimNearbyArea(oUnit, M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLandZone][M28Map.subrefLZTeamData][iTeam], iCurPlateau, iCurLandZone, false, true)
+                                                                M28Engineer.GetEngineerToReclaimNearbyArea(oUnit, 1, M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLandZone][M28Map.subrefLZTeamData][iTeam], iCurPlateau, iCurLandZone, false, true)
                                                                 --Kill engineers if htey are in a core LZ
                                                             elseif M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] then
                                                                 KillEngineer(oUnit)
@@ -1744,72 +1744,105 @@ function AllocateTeamEnergyAndMassResources(iTeam)
         if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..oBrain.Nickname..': iCurEnergySpare='..iCurEnergySpare..'; iCurMassSpare='..iCurMassSpare) end
     end
 
-        --Allocate resources:
-        local tBrainsNeedingResource, tBrainsWithResource
-        local iResourceToGive
-        for iResourceType = 1, 2, 1 do
-            if iResourceType == refiResourceEnergy then
-                tBrainsNeedingResource = tDetailsOfBrainsNeedingEnergy
-                tBrainsWithResource = tDetailsOfBrainsWithEnergy
-            else
-                tBrainsNeedingResource = tDetailsOfBrainsNeedingMass
-                tBrainsWithResource = tDetailsOfBrainsWithMass
-            end
+    --Allocate resources:
+    local tBrainsNeedingResource, tBrainsWithResource
+    local iResourceToGive
+    for iResourceType = 1, 2, 1 do
+        if iResourceType == refiResourceEnergy then
+            tBrainsNeedingResource = tDetailsOfBrainsNeedingEnergy
+            tBrainsWithResource = tDetailsOfBrainsWithEnergy
+        else
+            tBrainsNeedingResource = tDetailsOfBrainsNeedingMass
+            tBrainsWithResource = tDetailsOfBrainsWithMass
+        end
 
-            if M28Utilities.IsTableEmpty(tBrainsNeedingResource) == false and M28Utilities.IsTableEmpty(tBrainsWithResource) == false then
-                for iBrainWithResource, tBrainWithResourceSubtable in tBrainsWithResource do
-                    for iBrainNeedingResource, tBrainNeedingResourceSubtable in tBrainsNeedingResource do
-                        iResourceToGive = math.min(-tBrainNeedingResourceSubtable[subrefiRemainingResourceNeeded], tBrainWithResourceSubtable[subrefiResourceToGive])
-                        if iResourceToGive > 0 then
-                            if iResourceType == refiResourceEnergy then
-                                GiveResourcesToPlayer(tBrainWithResourceSubtable[subrefoBrain], tBrainNeedingResourceSubtable[subrefoBrain], 0, iResourceToGive)
-                            else
-                                if bDebugMessages == true then LOG(sFunctionRef..': About to give '..iResourceToGive..' mass from player '..tBrainWithResourceSubtable[subrefoBrain].Nickname..' to player '..tBrainNeedingResourceSubtable[subrefoBrain].Nickname) end
-                                GiveResourcesToPlayer(tBrainWithResourceSubtable[subrefoBrain], tBrainNeedingResourceSubtable[subrefoBrain], iResourceToGive, 0)
-                            end
-                            tBrainNeedingResourceSubtable[subrefiRemainingResourceNeeded] = tBrainNeedingResourceSubtable[subrefiRemainingResourceNeeded] + iResourceToGive
-                            tBrainWithResourceSubtable[subrefiRemainingResourceNeeded] = tBrainNeedingResourceSubtable[subrefiRemainingResourceNeeded] - iResourceToGive
-                            if tBrainWithResourceSubtable[subrefiRemainingResourceNeeded] <= 0 then
-                                break
-                            end
+        if M28Utilities.IsTableEmpty(tBrainsNeedingResource) == false and M28Utilities.IsTableEmpty(tBrainsWithResource) == false then
+            for iBrainWithResource, tBrainWithResourceSubtable in tBrainsWithResource do
+                for iBrainNeedingResource, tBrainNeedingResourceSubtable in tBrainsNeedingResource do
+                    iResourceToGive = math.min(-tBrainNeedingResourceSubtable[subrefiRemainingResourceNeeded], tBrainWithResourceSubtable[subrefiResourceToGive])
+                    if iResourceToGive > 0 then
+                        if iResourceType == refiResourceEnergy then
+                            GiveResourcesToPlayer(tBrainWithResourceSubtable[subrefoBrain], tBrainNeedingResourceSubtable[subrefoBrain], 0, iResourceToGive)
+                        else
+                            if bDebugMessages == true then LOG(sFunctionRef..': About to give '..iResourceToGive..' mass from player '..tBrainWithResourceSubtable[subrefoBrain].Nickname..' to player '..tBrainNeedingResourceSubtable[subrefoBrain].Nickname) end
+                            GiveResourcesToPlayer(tBrainWithResourceSubtable[subrefoBrain], tBrainNeedingResourceSubtable[subrefoBrain], iResourceToGive, 0)
+                        end
+                        tBrainNeedingResourceSubtable[subrefiRemainingResourceNeeded] = tBrainNeedingResourceSubtable[subrefiRemainingResourceNeeded] + iResourceToGive
+                        tBrainWithResourceSubtable[subrefiRemainingResourceNeeded] = tBrainNeedingResourceSubtable[subrefiRemainingResourceNeeded] - iResourceToGive
+                        if tBrainWithResourceSubtable[subrefiRemainingResourceNeeded] <= 0 then
+                            break
                         end
                     end
                 end
             end
         end
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
 
-    function TeamResourceSharingMonitor(iTeam)
-        --Monitors resources for AI in the team and shares resources
-        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-        local sFunctionRef = 'TeamResourceSharingMonitor'
+function TeamResourceSharingMonitor(iTeam)
+    --Monitors resources for AI in the team and shares resources
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'TeamResourceSharingMonitor'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, checking if already running a monitor for iTeam='..iTeam..': Is table of friendl yM28 brains for this team empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))) end
+    if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(120) --Dont want to share in the first 2m
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-        if bDebugMessages == true then LOG(sFunctionRef..': Start of code, checking if already running a monitor for iTeam='..iTeam..': Is table of friendl yM28 brains for this team empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))) end
-        if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
+        while M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 do
+            ForkThread(AllocateTeamEnergyAndMassResources, iTeam)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-            WaitSeconds(120) --Dont want to share in the first 2m
+            WaitTicks(1)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        end
+    end
+end
 
-            while M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 do
-                ForkThread(AllocateTeamEnergyAndMassResources, iTeam)
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                WaitTicks(1)
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+function UpdateTableOfUpgradingMexesForTeam(iTeam)
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) == false then
+        local tUpgradingMexes = M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]
+        local iEntries = table.getn(tUpgradingMexes)
+
+        for iCurEntry = iEntries, 1, -1 do
+            if not(M28UnitInfo.IsUnitValid(tUpgradingMexes[iCurEntry])) then
+                table.remove(tUpgradingMexes, iCurEntry)
             end
         end
     end
+end
 
-    function UpdateTableOfUpgradingMexesForTeam(iTeam)
-        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) == false then
-            local tUpgradingMexes = M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]
-            local iEntries = table.getn(tUpgradingMexes)
+function ManageMassOverflow(iTeam)
+    --Stop any engineers that have a reclaim area order
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ManageMassOverflow'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-            for iCurEntry = iEntries, 1, -1 do
-                if not(M28UnitInfo.IsUnitValid(tUpgradingMexes[iCurEntry])) then
-                    table.remove(tUpgradingMexes, iCurEntry)
+    if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastOverflowEngiCheck] or -100) >= 1 then --Only do this every couple of seconds
+        M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastOverflowEngiCheck] = GetGameTimeSeconds()
+        local iEngiCycleCount = 0
+        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+
+            local tEngineers = oBrain:GetListOfUnits(M28UnitInfo.refCategoryEngineer, false, true)
+            if M28Utilities.IsTableEmpty(tEngineers) == false then
+                for iUnit, oUnit in tEngineers do
+                    iEngiCycleCount = iEngiCycleCount + 1
+                    if M28UnitInfo.IsUnitValid(oUnit) and (oUnit[M28Engineer.refiAssignedAction] == M28Engineer.refActionReclaimArea or oUnit[M28Engineer.refiAssignedAction] == M28Engineer.refActionReclaimFriendlyUnit) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': About to stop engineer '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' from reclaiming as have lots of mass now') end
+                        M28Orders.IssueTrackedClearCommands(oUnit)
+                    end
+                    if iEngiCycleCount >= 30 then
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        WaitTicks(1)
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                        M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastOverflowEngiCheck] = GetGameTimeSeconds()
+                        iEngiCycleCount = 0
+                    end
                 end
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end

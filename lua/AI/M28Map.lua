@@ -483,7 +483,7 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
                 if not(tAllPlateaus[iPlateau]) then
                     if bOptionalShouldBePathable then
                         --If get this error, then refer to GetUnitPlateauAndLandZoneOverride
-                        M28Utilities.ErrorHandler('No plateau group for iSegmentX='..iSegmentX..'; iSegmentZ='..iSegmentZ..'; Plateau group of segment midpoint='..(NavUtils.GetLabel(refPathingTypeHover, GetPositionFromPathingSegments(iSegmentX, iSegmentZ)) or 'nil')..'; Plateau Group of tPosition='..(NavUtils.GetLabel(refPathingTypeHover, tPosition) or 'nil')..'; Pathing unit='..(oOptionalPathingUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oOptionalPathingUnit) or 'nil')..'; Enable logs in the function GetUnitPlateauAndLandZoneOverride for more details')
+                        M28Utilities.ErrorHandler('No plateau group for iSegmentX='..iSegmentX..'; iSegmentZ='..iSegmentZ..'; Plateau group of segment midpoint='..(NavUtils.GetLabel(refPathingTypeHover, GetPositionFromPathingSegments(iSegmentX, iSegmentZ)) or 'nil')..'; Plateau Group of tPosition='..(NavUtils.GetLabel(refPathingTypeHover, tPosition) or 'nil')..'; This can happen on larger maps with long cliffs with narrow paths that small units can travel partially along. Enable logs in the function GetUnitPlateauAndLandZoneOverride for more details', true)
                     end
                     return nil
                 else
@@ -514,7 +514,7 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
                     if EntityCategoryContains(categories.HOVER + categories.AMPHIBIOUS, oOptionalPathingUnit.UnitId) then
                         --Do nothing - hopefully unit has orders that it will follow that will resolve this on its own; however update the plateau
                     else
-                        M28Utilities.ErrorHandler('Unable to find valid land zone, tPosition[1-3]='..tPosition[1]..'-'..tPosition[2]..'-'..tPosition[3]..'; oOptionalPathingUnit='..(oOptionalPathingUnit.UnitId or 'nil')..' with LC='.. M28UnitInfo.GetUnitLifetimeCount(oOptionalPathingUnit))
+                        M28Utilities.ErrorHandler('Unable to find valid land zone, iSegmentX='..(iSegmentX or 'nil')..'; iSegmentZ='..(iSegmentZ or 'nil')..'; Optional pathing unit ID='..(oOptionalPathingUnit.UnitId or 'nil'))
                         --M28Utilities.DrawLocation(tPosition)
                     end
                 else

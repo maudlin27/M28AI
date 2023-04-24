@@ -568,6 +568,8 @@ function ForkedMoveInCircle(oUnit, iTimeToRun, bDontTreatAsMicroAction, bDontCle
         if not(bDontTreatAsMicroAction) then
             TrackTemporaryUnitMicro(oUnit, iTimeToRun, refbActiveCircleMicro)
             if bDebugMessages == true then LOG(sFunctionRef..': Will temporarily track the unit micro. iTimeToRun='..(iTimeToRun or 'nil')) end
+        else
+            TrackTemporaryUnitMicro(oUnit, iTimeToRun)
         end
 
         local iTempAngleDirectionToMove = iCurFacingDirection + iInitialAngleAdj * iAngleAdjFactor
@@ -872,7 +874,7 @@ function TurnAirUnitAndMoveToTarget(aiBrain, oBomber, tDirectionToMoveTo, iMaxAc
 
     --Clear trackers so we dont think we're targeting anything - commented out as this is called via the clearairunitassignmenttracker so causes issues
     --M27AirOverseer.ClearAirUnitAssignmentTrackers(aiBrain, oBomber, true)
-    oBomber[M28UnitInfo.refbSpecialMicroActive] = true
+    TrackTemporaryUnitMicro(oBomber, 60) --60s is redundancy
 
 
 
@@ -928,6 +930,7 @@ function TurnAirUnitAndMoveToTarget(aiBrain, oBomber, tDirectionToMoveTo, iMaxAc
         M28Orders.IssueTrackedMove(oBomber, tDirectionToMoveTo, 5, false, 'BMicMTR', true)
         if bDebugMessages == true then LOG(sFunctionRef..': Just cleared bomber '..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..' commands and told it to move to '..repru(tDirectionToMoveTo)..'; GameTime='..GetGameTimeSeconds()) end
         oBomber[M28UnitInfo.refbSpecialMicroActive] = false
+        oBomber[M28UnitInfo.refiGameTimeToResetMicroActive] = GetGameTimeSeconds()
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

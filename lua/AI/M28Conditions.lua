@@ -659,13 +659,20 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
             else
                 --How many land factories do we want
                 if not(iOurIsland == iEnemyIsland) then
-                    --Cant path to enemy except potentially with amphibious, so dont want lots of land factories
-                    iLandFactoriesWantedBeforeAir = 1
-                    --Exception if low gross power
-                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 22 then
-                        iLandFactoriesWantedBeforeAir = 2
+                    local iOurPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tLZData[M28Map.subrefMidpoint])
+                    local iEnemyPlateau = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase])
+                    if not(iOurPlateau == iEnemyPlateau) and iLandFactoriesHave >= 2 then
+                        --cant path to enemy even with amphibious so land facs are only for engis, so want max of 2
+                        return true
+                    else
+                        --Cant path to enemy except with amphibious, so dont want lots of land factories
+                        iLandFactoriesWantedBeforeAir = 1
+                        --Exception if low gross power
+                        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 22 then
+                            iLandFactoriesWantedBeforeAir = 2
+                        end
+                        iAirFactoriesForEveryLandFactory = 5
                     end
-                    iAirFactoriesForEveryLandFactory = 5
                 else
                     --Can path to enemy with land, base number of factories wanted on distance to enemy base
                     local iEnemyBaseDist = M28Utilities.GetDistanceBetweenPositions(  tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])

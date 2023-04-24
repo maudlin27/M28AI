@@ -611,11 +611,10 @@ function OnMissileBuilt(self, weapon)
                 end
             end
 
-            --Start logic to periodically check for targets to fire the missile at (in case there are no targets initially) - changed to remove loop from consider launching missile and instead just recall the function
-            --if not(self[M28Building.refbActiveMissileChecker]) and not(EntityCategoryContains(M28UnitInfo.refCategorySMD, self.UnitId)) then
+            if not(EntityCategoryContains(M28UnitInfo.refCategorySMD, self.UnitId)) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Calling logic to consider launching a missile') end
                 ForkThread(M28Building.ConsiderLaunchingMissile, self, weapon)
-            --end
+            end
         end
 
     end
@@ -830,6 +829,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                 if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oJustBuilt.UnitId) then
                     oJustBuilt:GetAIBrain()[M28Economy.refiOurHighestFactoryTechLevel] = math.max(M28UnitInfo.GetUnitTechLevel(oJustBuilt), oJustBuilt:GetAIBrain()[M28Economy.refiOurHighestFactoryTechLevel])
                 end
+            elseif EntityCategoryContains(categories.STEALTH, oJustBuilt.UnitId) then
+                --Make sure stealth is enabled
+                M28UnitInfo.EnableUnitStealth(oJustBuilt)
             end
 
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -856,8 +858,10 @@ function OnConstructed(oEngineer, oJustBuilt)
 
         end
         --Upgrade tracking (even if have run this already)
-        if oEngineer.GetAIBrain and oEngineer:GetAIBrain().M28AI and EntityCategoryContains(categories.STRUCTURE, oEngineer.UnitId) and EntityCategoryContains(categories.STRUCTURE, oJustBuilt.UnitId) then
-            M28Team.UpdateUpgradeTrackingOfUnit(oJustBuilt, true)
+        if oEngineer.GetAIBrain and EntityCategoryContains(categories.STRUCTURE, oEngineer.UnitId) and EntityCategoryContains(categories.STRUCTURE, oJustBuilt.UnitId) then
+            if oJustBuilt:GetAIBrain().M28AI or (M28UnitInfo.IsUnitValid(oEngineer) and oEngineer:GetAIBrain().M28AI) then
+                M28Team.UpdateUpgradeTrackingOfUnit(oJustBuilt, true)
+            end
         end
     end
 end
@@ -891,11 +895,14 @@ function OnReclaimFinished(oEngineer, oReclaim)
 
         --Was the engineer reclaiming an area? if so check if still nearby reclaim
         if oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionReclaimArea then
-            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
-            if (iLandZone or 0) > 0 then
-                local iTeam =  oEngineer:GetAIBrain().M28Team
-                local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
-                M28Engineer.GetEngineerToReclaimNearbyArea(oEngineer, tLZTeamData, iPlateau, iLandZone, M28Conditions.WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone), false)
+            --Only keep reclaiming if we dont have lots of mass
+            if M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subrefiTeamLowestMassPercentStored] <= 0.7 then
+                local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
+                if (iLandZone or 0) > 0 then
+                    local iTeam =  oEngineer:GetAIBrain().M28Team
+                    local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
+                    M28Engineer.GetEngineerToReclaimNearbyArea(oEngineer, nil, tLZTeamData, iPlateau, iLandZone, M28Conditions.WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone), false)
+                end
             end
         elseif M28Utilities.IsTableEmpty(oReclaim[M28Engineer.reftUnitsReclaimingUs]) == false then
             local tEngineersToClear = {}

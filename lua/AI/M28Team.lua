@@ -59,6 +59,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiEnergyWhenAirFactoryLastUnableToBuildAir = 'M28TeamEnergyAirFacUnableToBuildAir' --Team Gross energy when air factory didnt consider building air units due to lack of energy
     refiTimeOfLastEngiSelfDestruct = 'M28TeamTimeOfLastEnegiSelfDestruct'
     refbNeedResourcesForMissile = 'M28TeamNeedResourcesForMissile' --true if are building nuke or smd that needs a missile
+    refiTimeOfLastOverflowEngiCheck = 'M28TeamOverflowCheck' --gametimeseconds that we last cleared engineers from recliaming
 
     subreftTeamUpgradingHQs = 'M28TeamUpgradingHQs'
     subreftTeamUpgradingMexes = 'M28TeamUpgradingMexes'
@@ -292,7 +293,7 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
     local sFunctionRef = 'UpdateUpgradeTrackingOfUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnitDoingUpgrade rerps='..reprs(oUnitDoingUpgrade)..'; bUnitDeadOrCompletedUpgrade='..tostring(bUnitDeadOrCompletedUpgrade)..'; sUnitUpgradingRef='..(sUnitUpgradingRef or 'nil')) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnitDoingUpgrade reprs='..reprs(oUnitDoingUpgrade)..'; bUnitDeadOrCompletedUpgrade='..tostring(bUnitDeadOrCompletedUpgrade)..'; sUnitUpgradingRef='..(sUnitUpgradingRef or 'nil')) end
 
     local sUpgradeTableRef
     if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnitDoingUpgrade.UnitId) then
@@ -957,7 +958,12 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                         ForkThread(DelayedUnitPlateauAssignment, aiBrain, oUnit, 5, bAlreadyUpdatedPosition, true)
                     else
                         local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname..' has iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; Will draw unit position if it has no plateau or zone. Unit state='..M28UnitInfo.GetUnitState(oUnit))
+                            if not(iPlateau) then
+                                M28Utilities.DrawLocation(oUnit:GetPosition())
+                            end
+                        end
                         if iLandZone > 0 then
                             --Unit is in a land zone so assign it to a land zone instead of a pond
                             if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to iLandZone '..iLandZone..' for plateau '..iPlateau) end
@@ -1852,6 +1858,10 @@ function TeamEconomyRefresh(iM28Team)
     ForkThread(ConsiderGettingUpgrades, iM28Team)
 
     ForkThread(M28Economy.ManageEnergyStalls, iM28Team)
+
+    if tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.9 then
+        ForkThread(M28Economy.ManageMassOverflow, iM28Team)
+    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 

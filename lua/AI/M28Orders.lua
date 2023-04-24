@@ -138,6 +138,8 @@ end
 function RefreshUnitOrderTracking()  end --Just used to easily find UpdateRecordedOrders
 function UpdateRecordedOrders(oUnit)
     --Checks a unit's command queue and removes items if we have fewer items than we recorded
+    --Also acts as a bcakup for special micro not resetting
+    if oUnit[M28UnitInfo.refbSpecialMicroActive] and GetGameTimeSeconds() > oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] then oUnit[M28UnitInfo.refbSpecialMicroActive] = false end
     if not(oUnit[reftiLastOrders]) then
         oUnit[reftiLastOrders] = nil
         oUnit[refiOrderCount] = 0
