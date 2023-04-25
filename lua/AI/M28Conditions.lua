@@ -142,6 +142,18 @@ function GetLifetimeBuildCount(aiBrain, category)
     return iTotalBuilt
 end
 
+function GetFactoryLifetimeCount(oFactory, iCategory)
+    local iTotalCount = 0
+    if oFactory[M28Factory.refiBuildCountByBlueprint] then
+        for sBPID, iCurCount in oFactory[M28Factory.refiBuildCountByBlueprint] do
+            if EntityCategoryContains(iCategory, sBPID) then
+                iTotalCount = iTotalCount + iCurCount
+            end
+        end
+    end
+    return iTotalCount
+end
+
 function IsEngineerAvailable(oEngineer)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'IsEngineerAvailable'
@@ -201,14 +213,14 @@ function IsEngineerAvailable(oEngineer)
                                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                     return true
                                 else
-                                    if tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] >= 10 then
+                                    if tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 10 then
                                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                         return false
                                     else
-                                        local iTotalEnemyThreatNearby = tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal]
+                                        local iTotalEnemyThreatNearby = tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]
                                         if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLZ][M28Map.subrefLZAdjacentLandZones]) == false then
                                             for _, iAdjLZ in M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLZ][M28Map.subrefLZAdjacentLandZones] do
-                                                iTotalEnemyThreatNearby = iTotalEnemyThreatNearby + M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][oEngineer:GetAIBrain().M28Team][M28Map.subrefLZTThreatEnemyCombatTotal]
+                                                iTotalEnemyThreatNearby = iTotalEnemyThreatNearby + M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][oEngineer:GetAIBrain().M28Team][M28Map.subrefTThreatEnemyCombatTotal]
                                             end
                                         end
                                         if bDebugMessages == true then LOG(sFunctionRef..': iTotalEnemyThreatNearby='..iTotalEnemyThreatNearby..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]='..tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]) end
@@ -238,15 +250,15 @@ function IsEngineerAvailable(oEngineer)
                                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                     return true
                                 else
-                                    if tWZTeamData[M28Map.subrefWZTThreatEnemyCombatTotal] >= 10 then
+                                    if tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 10 then
                                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                         return false
                                     else
-                                        local iTotalEnemyThreatNearby = tWZTeamData[M28Map.subrefWZTThreatEnemyCombatTotal]
+                                        local iTotalEnemyThreatNearby = tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]
                                         if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
                                             for iEntry, tSubtable in tWZData[M28Map.subrefWZAdjacentWaterZones] do
                                                 local iAdjWZ = tSubtable[M28Map.subrefAWZRef]
-                                                iTotalEnemyThreatNearby = iTotalEnemyThreatNearby + M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefWZTThreatEnemyCombatTotal]
+                                                iTotalEnemyThreatNearby = iTotalEnemyThreatNearby + M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTThreatEnemyCombatTotal]
                                             end
                                         end
                                         if bDebugMessages == true then LOG(sFunctionRef..': iTotalEnemyThreatNearby='..iTotalEnemyThreatNearby..'; tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]='..tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]) end
@@ -354,7 +366,7 @@ function SafeToUpgradeUnit(oUnit)
         local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team]
         if not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) then
             return true
-        elseif tLZTeamData[M28Map.subrefLZbCoreBase] and tLZTeamData[M28Map.subrefLZTThreatEnemyCombatTotal] < 150 then
+        elseif tLZTeamData[M28Map.subrefLZbCoreBase] and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < 150 then
             return true
         end
     else
@@ -432,7 +444,9 @@ function WantMorePower(iTeam)
     local sFunctionRef = 'WantMorePower'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     local bWantMorePower = false
-    if M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower] then
+    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 1.25 * (M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir] or 0) then
+        return true
+    elseif M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower] then
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return false
     else
@@ -520,7 +534,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
     --Adjust factory T1 ratios if we cant path to enemy by land
     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
     local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
-    local iCurIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefLZMidpoint])
+    local iCurIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])
     local iEnemyIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase])
     if iCurIsland ~= iEnemyIsland and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.35 then
         tiFactoryToMassByTechRatioWanted = {[1]=3.2, [2] = 3, [3] = 6}
@@ -635,11 +649,22 @@ function HaveEnoughThreatToAttack(tLZTeamData, iOurCombatThreat, iEnemyCombatThr
 end
 
 function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
-    local iOurIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefLZMidpoint])
+    --Returns true if want an air factory - to be used where we want more production, so we can decide whether to get +1 air fac or +1 land fac
+
+    local sFunctionRef = 'DoWeWantAirFactoryInsteadOfLandFactory'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iOurIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])
+    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Is this core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false)..'; iOurIsland='..iOurIsland..'; Closest friendly base island='..NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase])) end
     if tLZTeamData[M28Map.subrefLZbCoreBase] or iOurIsland == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase]) then
-        --If are low on power and can path to enemy with land then get land factory
+        --If are low on power and can path to enemy with land then get land factory; also get land if air facs arent able to build air units and we have lots of mass
         local iEnemyIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase])
-        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] <= 0.8 and iOurIsland == iEnemyIsland then
+        local iOurPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tLZData[M28Map.subrefMidpoint])
+        local iEnemyPlateau = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase])
+        if bDebugMessages == true then LOG(sFunctionRef..': iOurIsland='..iOurIsland..'; iEnemyIsland='..iEnemyIsland..'; iOurPlateau='..iOurPlateau..'; iEnemyPlateau='..iEnemyPlateau) end
+        if (iOurIsland == iEnemyIsland and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] <= 0.8) or (iOurPlateau == iEnemyPlateau and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= (M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir] or 0) * 1.1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.4)) then
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return false
         else
             --Are in core base or we are in same island as core base
@@ -652,21 +677,29 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                     iLandFactoriesHave = table.getn(tLandFactories)
                 end
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': iLandFactoriesHave='..iLandFactoriesHave) end
             if iLandFactoriesHave < 1 then
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return false
             else
                 --How many land factories do we want
                 if not(iOurIsland == iEnemyIsland) then
-                    --Cant path to enemy except potentially with amphibious, so dont want lots of land factories
-                    iLandFactoriesWantedBeforeAir = 1
-                    --Exception if low gross power
-                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 22 then
-                        iLandFactoriesWantedBeforeAir = 2
+                    if not(iOurPlateau == iEnemyPlateau) and iLandFactoriesHave >= 2 then
+                        --cant path to enemy even with amphibious so land facs are only for engis, so want max of 2
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        return true
+                    else
+                        --Cant path to enemy except with amphibious, so dont want lots of land factories
+                        iLandFactoriesWantedBeforeAir = 1
+                        --Exception if low gross power
+                        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 22 then
+                            iLandFactoriesWantedBeforeAir = 2
+                        end
+                        iAirFactoriesForEveryLandFactory = 5
                     end
-                    iAirFactoriesForEveryLandFactory = 5
                 else
                     --Can path to enemy with land, base number of factories wanted on distance to enemy base
-                    local iEnemyBaseDist = M28Utilities.GetDistanceBetweenPositions(  tLZData[M28Map.subrefLZMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])
+                    local iEnemyBaseDist = M28Utilities.GetDistanceBetweenPositions(  tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])
 
                     if iEnemyBaseDist >= 500 then
                         iLandFactoriesWantedBeforeAir = 1
@@ -679,8 +712,9 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                         iAirFactoriesForEveryLandFactory = 0.25
                     end
                 end
-
+                if bDebugMessages == true then LOG(sFunctionRef..': iAirFactoriesForEveryLandFactory='..iAirFactoriesForEveryLandFactory..'; iLandFactoriesWantedBeforeAir='..iLandFactoriesWantedBeforeAir..'; iLandFactoriesHave='..iLandFactoriesHave) end
                 if iLandFactoriesHave < iLandFactoriesWantedBeforeAir then
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     return false
                 else
                     --Have min number of land factories, now check how many air factories we have
@@ -690,9 +724,12 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                         iAirFactoriesHave = table.getn(tAirFactories)
                     end
                     local iAirFactoriesWanted = math.ceil(iLandFactoriesHave * iAirFactoriesForEveryLandFactory)
+                    if bDebugMessages == true then LOG(sFunctionRef..': iAirFactoriesWanted='..iAirFactoriesWanted..'; iAirFactoriesHave='..iAirFactoriesHave) end
                     if iAirFactoriesWanted > iAirFactoriesHave then
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         return true
                     else
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         return false
                     end
                 end
@@ -700,6 +737,43 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
         end
     else
         --Dif island to nearest start position so presumably want land factories to take contorl of island/plateau
+        if bDebugMessages == true then LOG(sFunctionRef..': Different island to start position so want land factories to take control of the island') end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return false
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function GetThreatOfApproachingEnemyACUs(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam)
+    --Will return the combat threat of any approaching enemy ACUs, and also updates the time of hte appraoching threat
+    local sFunctionRef = 'GetThreatOfApproachingEnemyACUs'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+
+    local iTotalACUThreat = 0
+    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Is table of enemy ACUs empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]))) end
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) == false then
+        local tMidpoint = tLZData[M28Map.subrefMidpoint]
+        local iDistanceThreshold = math.max(math.min(M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tMidpoint) * 0.75, 250), 175)
+        local tACUsInRange = {}
+        for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs] do
+            if M28UnitInfo.IsUnitValid(oACU) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy ACU '..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' owned by '..oACU:GetAIBrain().Nickname..'; Distance to midpoint='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tMidpoint)..'; iDistanceThreshold='..iDistanceThreshold) end
+                if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tMidpoint) <= iDistanceThreshold then
+                    table.insert(tACUsInRange, oACU)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Adding ACU as an in range enemy unit') end
+                end
+            end
+        end
+        iTotalACUThreat = M28UnitInfo.GetCombatThreatRating(tACUsInRange, true)
+        if bDebugMessages == true then LOG(sFunctionRef..': iTotalACUThreat='..iTotalACUThreat) end
+        if iTotalACUThreat > 0 and tLZTeamData[M28Map.subrefLZbCoreBase] then
+            if not(M28Team.tTeamData[iTeam][M28Team.reftCoreLZsTimeOfApproachingACUByPlateauAndZone]) then M28Team.tTeamData[iTeam][M28Team.reftCoreLZsTimeOfApproachingACUByPlateauAndZone] = {} end
+            if not(M28Team.tTeamData[iTeam][M28Team.reftCoreLZsTimeOfApproachingACUByPlateauAndZone][iPlateau]) then M28Team.tTeamData[iTeam][M28Team.reftCoreLZsTimeOfApproachingACUByPlateauAndZone][iPlateau] = {} end
+            M28Team.tTeamData[iTeam][M28Team.reftCoreLZsTimeOfApproachingACUByPlateauAndZone][iPlateau][iLandZone] = GetGameTimeSeconds()
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return iTotalACUThreat
+
 end

@@ -21,21 +21,31 @@ function ErrorHandler(sErrorMessage, bWarningNotError)
     tErrorCountByMessage[sErrorMessage] = iCount
     local iInterval = 1
     local bShowError = true
-    if iCount > 3 then
+    if iCount >= 3 then
         bShowError = false
-        if iCount > 2187 then iInterval = 2187
-        elseif iCount > 729 then iInterval = 729
-        elseif iCount > 243 then iInterval = 243
-        elseif iCount >= 81 then iInterval = 81
-        elseif iCount >= 27 then iInterval = 27
-        elseif iCount >= 9 then iInterval = 9
-        else iInterval = 3
+        if bWarningNotError then
+            if iCount > 1024 then iInterval = 4096
+            elseif iCount > 256 then iInterval = 1024
+            elseif iCount > 64 then iInterval = 256
+            elseif iCount > 16 then iInterval = 64
+            elseif iCount > 2 then iInterval = 16
+            else iInterval = 2
+            end
+        else
+            if iCount > 2187 then iInterval = 2187
+            elseif iCount > 729 then iInterval = 729
+            elseif iCount > 243 then iInterval = 243
+            elseif iCount >= 81 then iInterval = 81
+            elseif iCount >= 27 then iInterval = 27
+            elseif iCount >= 9 then iInterval = 9
+            else iInterval = 3
+            end
         end
         if math.floor(iCount / iInterval) == iCount/iInterval then bShowError = true end
     end
     if bShowError then
         local sErrorBase = 'M28ERROR '
-        if bWarningNotError then sErrorBase = 'M28WARNING: ' end
+        if bWarningNotError then sErrorBase = 'M28Warning: ' end
         sErrorBase = sErrorBase..'Count='..iCount..': GameTime '..math.floor(GetGameTimeSeconds())..': '
         sErrorMessage = sErrorBase..sErrorMessage
         local a, s = pcall(assert, false, sErrorMessage)
@@ -281,9 +291,6 @@ function GetNearestUnit(tUnits, tCurPos, bUseActualTravelDistance, sPathingToUse
     local iMinDist = 1000000
     local iCurDist
     local iNearestUnit
-    local bValidUnit = false
-    local iPlayerArmyIndex
-    local iUnitArmyIndex
     if bDebugMessages == true then LOG('GetNearestUnit: tUnits table size='..table.getn(tUnits)) end
     for iUnit, oUnit in tUnits do
         if not(oUnit.Dead) then
@@ -291,7 +298,7 @@ function GetNearestUnit(tUnits, tCurPos, bUseActualTravelDistance, sPathingToUse
             else iCurDist = GetDistanceBetweenPositions(oUnit:GetPosition(), tCurPos)
             end
             if bDebugMessages == true then LOG('GetNearestUnit: iUnit='..iUnit..'; iCurDist='..iCurDist..'; iMinDist='..iMinDist) end
-            if iCurDist < iMinDist then
+            if (iCurDist or iMinDist) < iMinDist then
                 iMinDist = iCurDist
                 iNearestUnit = iUnit
             end

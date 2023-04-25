@@ -138,6 +138,8 @@ end
 function RefreshUnitOrderTracking()  end --Just used to easily find UpdateRecordedOrders
 function UpdateRecordedOrders(oUnit)
     --Checks a unit's command queue and removes items if we have fewer items than we recorded
+    --Also acts as a bcakup for special micro not resetting
+    if oUnit[M28UnitInfo.refbSpecialMicroActive] and GetGameTimeSeconds() > oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] then oUnit[M28UnitInfo.refbSpecialMicroActive] = false end
     if not(oUnit[reftiLastOrders]) then
         oUnit[reftiLastOrders] = nil
         oUnit[refiOrderCount] = 0
@@ -405,6 +407,9 @@ function IssueTrackedFactoryBuild(oUnit, sOrderBlueprint, bAddToExistingQueue, s
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueFactoryBuild, [subrefsOrderBlueprint] = sOrderBlueprint})
         IssueBuildFactory({ oUnit }, sOrderBlueprint, 1)
+        local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
+        if not(oUnit[M28Factory.refiBuildCountByBlueprint]) then oUnit[M28Factory.refiBuildCountByBlueprint] = {} end
+        oUnit[M28Factory.refiBuildCountByBlueprint][sOrderBlueprint] = (oUnit[M28Factory.refiBuildCountByBlueprint][sOrderBlueprint] or 0) + 1
     end
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 end

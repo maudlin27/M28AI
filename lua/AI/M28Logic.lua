@@ -396,7 +396,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
     --iOptionalSizeAdjust - Defaults to 1, % of value to assign to a normal (mex sized) target; if this isn't 1 then will adjust values accordingly, with T3 power given a value of 1, larger buildings given a greater value, and T1 PD sized buildings given half of iOptionalSizeAdjust
     --iOptionalModIfNeedMultipleShots - Defaults to 0.1; % of value to assign if we wont kill the target with a single shot (experimentals will always give at least 0.5 value)
     --bT3ArtiShotReduction - if true then will reduce value of targets where we have fired lots of shots at them
-    --iOptionalShieldReductionFactor - if shields exceed iDamage, then this will be used in place of 0 (the default)
+    --iOptionalShieldReductionFactor - if shields exceed iDamage, then this will be used in place of 0 (the default), i.e. what % of the mass damage should be used if the shield means 0 damage will be dealt
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetDamageFromBomb'
@@ -427,8 +427,10 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
         if iSizeAdjustFactor == 1 then
             return 1
         else
-            local tSize = M28UnitInfo.GetBuildingSize(sBlueprint)
-            local iCurSize = math.floor(tSize[1], tSize[2])
+
+            local oBlueprint = M28UnitInfo.GetBlueprintFromID(sBlueprint)
+            local iCurSize = math.min(oBlueprint.Physics.SkirtSizeX, oBlueprint.Physics.SkirtSizeZ)
+            local iCurSize = math.floor(iCurSize)
             if bDebugMessages == true then LOG(sFunctionRef..': iCurSize='..iCurSize..'; tiSizeAdjustFactors[iCurSize]='..(tiSizeAdjustFactors[iCurSize] or 'nil')..'; expected factor='..1 + (tiSizeAdjustFactors[iCurSize] or -0.35) * iDifBetweenSize8And2) end
 
             return 1 + (tiSizeAdjustFactors[iCurSize] or -0.35) * iDifBetweenSize8And2
@@ -475,6 +477,20 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
         iMobileDamageNotMovingWithinThreshold = math.min(iMobileDamageFactorWithinThreshold + 0.1, iMobileDamageFactorWithinThreshold * 1.5, 1)
         iMobileDamageFactorWithinThreshold = math.max(iMobileDamageFactorWithinThreshold - 0.1, iMobileDamageFactorWithinThreshold * 0.5) --value for if we are moving
         iMobileDamageFactorOutsideThresholdMoving = math.max(iMobileDamageFactorOutsideThreshold - 0.1, iMobileDamageFactorOutsideThreshold * 0.5)
+
+        local iPlateauOrZero, iLandOrWaterZone
+        local tLZOrWZTeamData
+        local iT3ArtiMissedShotFactor
+        if bT3ArtiShotReduction then
+            iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tBaseLocation)
+            if iPlateauOrZero > 0 then
+                tLZOrWZTeamData  = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][aiBrain.M28Team]
+            else
+                --Water zone
+                tLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone][M28Map.subrefWZTeamData][aiBrain.M28Team]
+            end
+            iT3ArtiMissedShotFactor = M28Building.GetArtiValueFactorForShotFailures((tLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] or 0))
+        end
 
         for iUnit, oUnit in tEnemiesInRange do
             if oUnit.GetBlueprint and not(oUnit.Dead) and oUnit:GetFractionComplete() == 1 or not(EntityCategoryContains(categories.AIR * categories.MOBILE, oUnit.UnitId)) then
@@ -530,11 +546,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
                             end
                         end
                         if bT3ArtiShotReduction then
-                            if (oUnit[refiT3ArtiShotCount] >= iT3ArtiShotThreshold) then
-                                iMassFactor = iMassFactor * 0.1
-                            elseif (oUnit[refiT3ArtiLifetimeShotCount] or 0) >= iT3ArtiShotLifetimeThreshold then
-                                iMassFactor = iMassFactor * math.max(0.1, 0.4 * oUnit[refiT3ArtiLifetimeShotCount] / iT3ArtiShotLifetimeThreshold)
-                            end
+                            iMassFactor = iMassFactor * iT3ArtiMissedShotFactor
                         end
                         iTotalDamage = iTotalDamage + oCurBP.Economy.BuildCostMass * oUnit:GetFractionComplete() * iMassFactor
                         --Increase further for SML and SMD that might have a missile

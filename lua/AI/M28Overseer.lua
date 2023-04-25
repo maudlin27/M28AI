@@ -26,6 +26,7 @@ tAllAIBrainsByArmyIndex = {} --[x] is the brain army index, returns the aibrain
 --aiBrain variables
 refiDistanceToNearestEnemyBase = 'M28OverseerDistToNearestEnemyBase'
 refoNearestEnemyBrain = 'M28OverseerNearestEnemyBrain'
+refbCloseToUnitCap = 'M28OverseerCloseToUnitCap'
 
 function GetNearestEnemyBrain(aiBrain)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -195,7 +196,7 @@ function TestCustom(aiBrain)
     LOG('NavUtils for tPosition='..(NavUtils.GetLabel('Land', tPosition) or 'nil'))--]]
 
     --[[local tLZData = M28Map.tAllPlateaus[27][M28Map.subrefPlateauLandZones][20]
-    local tStartMidpoint = tLZData[M28Map.subrefLZMidpoint]
+    local tStartMidpoint = tLZData[M28Map.subrefMidpoint]
     local tRallyPoint = M28Land.GetNearestLandRallyPoint(tLZData, 1, 27, 20, 3)--]]
     --LOG('tStartMidpoint='..repru(tStartMidpoint)..'; tRallyPoint='..repru(tRallyPoint)..'; Path from LZ20 to LZ5='..repru(tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][5]]))
 

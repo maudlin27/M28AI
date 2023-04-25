@@ -381,7 +381,71 @@ function OnShieldBubbleDamaged(self, instigator)
 end
 
 function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble is damaged - see OnShieldBubbleDamaged for this
-    
+    if M28Utilities.bM28AIInGame then
+        local sFunctionRef = 'OnDamaged'
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        if self.IsWreckage then
+            --Will only update when props and wrecks are destroyed for performance reasons
+        else
+            if bDebugMessages == true then LOG(sFunctionRef..': Non-wreck damaged') end
+            if self.GetUnitId then
+                local oUnitCausingDamage
+                if instigator and not(instigator:BeenDestroyed()) then
+                    if instigator.GetLauncher and instigator:GetLauncher() then
+                        oUnitCausingDamage = instigator:GetLauncher()
+                    elseif instigator.DamageData and not(instigator.unit) and not(instigator.UnitId) then
+                        --Can get errors for artillery shells when running IsProjectile
+                    elseif IsProjectile(instigator) or IsCollisionBeam(instigator) then
+                        if instigator.unit then
+                            oUnitCausingDamage = instigator.unit
+                        end
+                    elseif IsUnit(instigator) then
+                        oUnitCausingDamage = instigator
+                    end
+                    if bDebugMessages == true then
+                        if not(oUnitCausingDamage) then LOG(sFunctionRef..': Dont ahve a valid unit as instigator')
+                        else LOG(sFunctionRef..': Have a unit causing damage='..oUnitCausingDamage.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitCausingDamage)) end
+                    end
+                end
+
+                --Logic specific to M28 units dealing damage
+                if M28UnitInfo.IsUnitValid(oUnitCausingDamage) and oUnitCausingDamage:GetAIBrain().M28AI then
+                    --T3/experimental arti specific
+                    if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oUnitCausingDamage.UnitId) then
+                        --Reset the arti shot count if damaged a high value unit
+                        if M28UnitInfo.IsUnitValid(self) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': T3/Exp arti owned by M28 brain '..oUnitCausingDamage:GetAIBrain().Nickname..', arti unit='..oUnitCausingDamage.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitCausingDamage)..' has just damaged unit '..self.UnitId..M28UnitInfo.GetUnitLifetimeCount(self)..' which is valid') end
+                            local iUnitDamagedMassValue = self:GetBlueprint().Economy.BuildCostMass * self:GetFractionComplete()
+                            if iUnitDamagedMassValue >= 700 then
+                                --Reduce the ineffective arti shot count
+                                local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(self:GetPosition())
+                                local tLZOrWZTeamData
+                                if iPlateauOrZero > 0 then
+                                    tLZOrWZTeamData  = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][oUnitCausingDamage:GetAIBrain().M28Team]
+                                else
+                                    --Water zone
+                                    tLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone][M28Map.subrefWZTeamData][oUnitCausingDamage:GetAIBrain().M28Team]
+                                end
+                                local iReductionValue
+                                if iUnitDamagedMassValue >= 10000 then
+                                    iReductionValue = 50
+                                elseif iUnitDamagedMassValue >= 3000 then
+                                    iReductionValue = 12
+                                else
+                                    iReductionValue = 6
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Changing ineffective shot count, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWateZone='..iLandOrWaterZone..'; tLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount]='..(tLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] or 'nil')..'; iReductionValue='..iReductionValue) end
+                                tLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] = math.max(0, (tLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] or 0) - iReductionValue)
+                            end
+                        end
+                    end
+                end
+            end
+
+        end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    end
 end
 
 function OnBombFired(oWeapon, projectile)
@@ -400,6 +464,11 @@ function OnBombFired(oWeapon, projectile)
                 if not(EntityCategoryContains(categories.EXPERIMENTAL, sUnitID)) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Will try and dodge the bomb fired by unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                     M28Micro.DodgeBomb(oUnit, oWeapon, projectile)
+                else
+                    --Experimental bomber - micro to turn around and go to rally point
+                    if oUnit:GetAIBrain().M28AI then
+                        ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit:GetAIBrain(), oUnit, M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint], 15)
+                    end
                 end
             end
         end
@@ -480,6 +549,15 @@ function OnWeaponFired(oWeapon)
                             end
                         end
                     end
+                    --T3 arti targeting logic; TML missile tracking
+                    if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oUnit.UnitId) then
+                        ForkThread(M28Building.GetT3ArtiTarget, oUnit)
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryTML, oUnit.UnitId) then
+                        if M28UnitInfo.IsUnitValid(oUnit[M28Building.refoLastTMLTarget]) then
+                            oUnit[M28Building.refoLastTMLTarget][M28Building.refiTimeOfLastLaunch] = GetGameTimeSeconds()
+                            if bDebugMessages == true then LOG(sFunctionRef..': have set time of last launch to '..oUnit[M28Building.refoLastTMLTarget][M28Building.refiTimeOfLastLaunch]..' for target '..oUnit[M28Building.refoLastTMLTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit[M28Building.refoLastTMLTarget])) end
+                        end
+                    end
                 end
             end
         end
@@ -530,7 +608,8 @@ function OnMissileBuilt(self, weapon)
 
                 --If 2+ missiles then pause, and consider unpausing later
                 if iMissiles >= 2 and not(EntityCategoryContains(categories.EXPERIMENTAL, self.UnitId)) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Have at least 2 missiles so will set paused to true') end
+
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have at least 2 missiles so will set paused to true on unit '..self.UnitId..M28UnitInfo.GetUnitLifetimeCount(self)) end
                     self:SetPaused(true)
 
                     --Recheck every minute
@@ -538,11 +617,10 @@ function OnMissileBuilt(self, weapon)
                 end
             end
 
-            --Start logic to periodically check for targets to fire the missile at (in case there are no targets initially) - changed to remove loop from consider launching missile and instead just recall the function
-            --if not(self[M28Building.refbActiveMissileChecker]) and not(EntityCategoryContains(M28UnitInfo.refCategorySMD, self.UnitId)) then
+            if not(EntityCategoryContains(M28UnitInfo.refCategorySMD, self.UnitId)) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Calling logic to consider launching a missile') end
                 ForkThread(M28Building.ConsiderLaunchingMissile, self, weapon)
-            --end
+            end
         end
 
     end
@@ -757,6 +835,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                 if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oJustBuilt.UnitId) then
                     oJustBuilt:GetAIBrain()[M28Economy.refiOurHighestFactoryTechLevel] = math.max(M28UnitInfo.GetUnitTechLevel(oJustBuilt), oJustBuilt:GetAIBrain()[M28Economy.refiOurHighestFactoryTechLevel])
                 end
+            elseif EntityCategoryContains(categories.STEALTH, oJustBuilt.UnitId) then
+                --Make sure stealth is enabled
+                M28UnitInfo.EnableUnitStealth(oJustBuilt)
             end
 
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -783,8 +864,10 @@ function OnConstructed(oEngineer, oJustBuilt)
 
         end
         --Upgrade tracking (even if have run this already)
-        if oEngineer.GetAIBrain and oEngineer:GetAIBrain().M28AI and EntityCategoryContains(categories.STRUCTURE, oEngineer.UnitId) and EntityCategoryContains(categories.STRUCTURE, oJustBuilt.UnitId) then
-            M28Team.UpdateUpgradeTrackingOfUnit(oJustBuilt, true)
+        if oEngineer.GetAIBrain and EntityCategoryContains(categories.STRUCTURE, oEngineer.UnitId) and EntityCategoryContains(categories.STRUCTURE, oJustBuilt.UnitId) then
+            if oJustBuilt:GetAIBrain().M28AI or (M28UnitInfo.IsUnitValid(oEngineer) and oEngineer:GetAIBrain().M28AI) then
+                M28Team.UpdateUpgradeTrackingOfUnit(oJustBuilt, true)
+            end
         end
     end
 end
@@ -818,11 +901,14 @@ function OnReclaimFinished(oEngineer, oReclaim)
 
         --Was the engineer reclaiming an area? if so check if still nearby reclaim
         if oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionReclaimArea then
-            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
-            if (iLandZone or 0) > 0 then
-                local iTeam =  oEngineer:GetAIBrain().M28Team
-                local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
-                M28Engineer.GetEngineerToReclaimNearbyArea(oEngineer, tLZTeamData, iPlateau, iLandZone, M28Conditions.WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone), false)
+            --Only keep reclaiming if we dont have lots of mass
+            if M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subrefiTeamLowestMassPercentStored] <= 0.7 then
+                local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
+                if (iLandZone or 0) > 0 then
+                    local iTeam =  oEngineer:GetAIBrain().M28Team
+                    local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
+                    M28Engineer.GetEngineerToReclaimNearbyArea(oEngineer, nil, tLZTeamData, iPlateau, iLandZone, M28Conditions.WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone), false)
+                end
             end
         elseif M28Utilities.IsTableEmpty(oReclaim[M28Engineer.reftUnitsReclaimingUs]) == false then
             local tEngineersToClear = {}
