@@ -1206,9 +1206,12 @@ function GetACUOrder(aiBrain, oACU)
                                                         --Backup - assist nearest factory
                                                         if bDebugMessages == true then LOG(sFunctionRef..': ACU no longer doing iniitial BO; Will give backup assist factory order if not building or guarding, ACU unit state='..M28UnitInfo.GetUnitState(oACU)) end
                                                         if not(oACU:IsUnitState('Building')) and not(oACU:IsUnitState('Guarding')) then
-                                                            local oNearestFactory = M28Utilities.GetNearestUnit(aiBrain:GetListOfUnits(M28UnitInfo.refCategoryFactory, false, true), oACU:GetPosition(), true, M28Map.refPathingTypeHover)
-                                                            if M28UnitInfo.IsUnitValid(oNearestFactory) then
-                                                                M28Orders.IssueTrackedGuard(oACU, oNearestFactory, false)
+                                                            local tAllFactories = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryFactory, false, true)
+                                                            if M28Utilities.IsTableEmpty(tAllFactories) == false then
+                                                                local oNearestFactory = M28Utilities.GetNearestUnit(tAllFactories, oACU:GetPosition(), true, M28Map.refPathingTypeHover)
+                                                                if M28UnitInfo.IsUnitValid(oNearestFactory) then
+                                                                    M28Orders.IssueTrackedGuard(oACU, oNearestFactory, false)
+                                                                end
                                                             end
                                                         end
                                                     end

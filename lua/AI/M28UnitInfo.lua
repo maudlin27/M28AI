@@ -1323,6 +1323,7 @@ function AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause)
             if M28Utilities.IsTableEmpty(aiBrain[M28Economy.reftPausedUnits]) == false then
                 for iPausedUnit, oPausedUnit in aiBrain[M28Economy.reftPausedUnits] do
                     if oPausedUnit == oUnit then
+                        --LOG('AddOrRemoveUnitFromListOfPausedUnits: Removing unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' from table of paused units')
                         table.remove(aiBrain[M28Economy.reftPausedUnits], iPausedUnit)
                         break
                     end
@@ -1344,6 +1345,7 @@ function AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause)
                 end
             end
             if bRecordUnit then
+                --LOG('AddOrRemoveUnitFromListOfPausedUnits: Adding unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' to table of paused units')
                 table.insert(aiBrain[M28Economy.reftPausedUnits], oUnit)
             end
         end
@@ -1358,16 +1360,17 @@ function PauseOrUnpauseMassUsage(oUnit, bPauseNotUnpause)
 
     if bDebugMessages == true then
         local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
-        LOG(sFunctionRef..': Start of code, oUnit='..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; Unit state='..GetUnitState(oUnit)..'; Engineer action (if have one)='..(oUnit[M28Engineer.refiAssignedAction] or 'nil'))
+        LOG(sFunctionRef..': Start of code time='..GetGameTimeSeconds()..', oUnit='..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; Unit state='..GetUnitState(oUnit)..'; Engineer action (if have one)='..(oUnit[M28Engineer.refiAssignedAction] or 'nil')..'; oUnit:IsPaused='..tostring(oUnit:IsPaused()))
         if oUnit.GetWorkProgress then LOG(sFunctionRef..': Unit work progress='..oUnit:GetWorkProgress()) end
     end
-    if IsUnitValid(oUnit, true) and oUnit.SetPaused then
-        AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause)
 
+    if IsUnitValid(oUnit) and oUnit:GetFractionComplete() == 1 and oUnit.SetPaused then
+        AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause)
 
         --Want to pause unit, check for any special logic for pausing
         --Normal logic - just pause unit - exception if are dealing with a factory whose workcomplete is 100% and want to pause it
-        if oUnit.SetPaused and (not(bPauseNotUnpause) or not(oUnit:IsPaused())) and oUnit:GetFractionComplete() == 1 and (not(EntityCategoryContains(refCategoryFactory, oUnit.UnitId)) or (oUnit.GetWorkProgress and oUnit:GetWorkProgress() > 0 and oUnit:GetWorkProgress() < 1) or (oUnit:IsPaused() and not(bPauseNotUnpause))) then
+        if (not(bPauseNotUnpause) or not(oUnit:IsPaused())) and (not(EntityCategoryContains(refCategoryFactory, oUnit.UnitId)) or (oUnit.GetWorkProgress and oUnit:GetWorkProgress() > 0 and oUnit:GetWorkProgress() < 1) or (oUnit:IsPaused() and not(bPauseNotUnpause))) then
+
             if oUnit.UnitId == 'xsb2401' then M28Utilities.ErrorHandler('Pausing Yolona') end
             if bDebugMessages == true then LOG(sFunctionRef..': About to set paused to '..tostring(bPauseNotUnpause)..' for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' Unit state='..GetUnitState(oUnit))
                 if oUnit.GetWorkProgress then LOG(sFunctionRef..': Unit work progress='..oUnit:GetWorkProgress()) end
@@ -1399,12 +1402,14 @@ function PauseOrUnpauseEnergyUsage(oUnit, bPauseNotUnpause)
     local sFunctionRef = 'PauseOrUnpauseEnergyUsage'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     if bDebugMessages == true then
-        LOG(sFunctionRef..': Start of code, oUnit='..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; Unit state='..GetUnitState(oUnit))
+        LOG(sFunctionRef..': Start of code time='..GetGameTimeSeconds()..', oUnit='..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; Unit state='..GetUnitState(oUnit)..'; Unit is paused='..tostring(oUnit:IsPaused()))
         if oUnit.GetFocusUnit and oUnit:GetFocusUnit() then LOG(sFunctionRef..': Focus unit='..oUnit:GetFocusUnit().UnitId..GetUnitLifetimeCount(oUnit:GetFocusUnit())) end
         if oUnit.GetWorkProgress then LOG(sFunctionRef..': Unit work progress='..oUnit:GetWorkProgress()..'; Unit fraction complete='..oUnit:GetFractionComplete()) end
     end
-    if IsUnitValid(oUnit, true) and oUnit.SetPaused then
+    if IsUnitValid(oUnit) and oUnit:GetFractionComplete() == 1 and oUnit.SetPaused then
         AddOrRemoveUnitFromListOfPausedUnits(oUnit, bPauseNotUnpause)
 
         --Jamming - check via blueprint since no reliable category
@@ -1435,7 +1440,7 @@ function PauseOrUnpauseEnergyUsage(oUnit, bPauseNotUnpause)
             oUnit[refbPaused] = bPauseNotUnpause
         end
         --Normal logic - just pause unit - exception if are dealing with a factory whose workcomplete is 100%
-        if oUnit.SetPaused and (not(bPauseNotUnpause) or not(oUnit:IsPaused())) and oUnit:GetFractionComplete() == 1 and (not(EntityCategoryContains(refCategoryFactory, oUnit.UnitId)) or (oUnit.GetWorkProgress and oUnit:GetWorkProgress() > 0 and oUnit:GetWorkProgress() < 1)) then
+        if oUnit.SetPaused and (not(bPauseNotUnpause) or not(oUnit:IsPaused())) and (not(EntityCategoryContains(refCategoryFactory, oUnit.UnitId)) or (oUnit.GetWorkProgress and oUnit:GetWorkProgress() > 0 and oUnit:GetWorkProgress() < 1)) then
             if oUnit.UnitId == 'xsb2401' then M28Utilities.ErrorHandler('Pausing Yolona') end
             if bDebugMessages == true then LOG(sFunctionRef..': About to set paused to '..tostring(bPauseNotUnpause)..' for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; Unit state='..GetUnitState(oUnit))
                 if oUnit.GetWorkProgress then LOG(sFunctionRef..': Unit work progress='..oUnit:GetWorkProgress()) end
@@ -1721,4 +1726,11 @@ function DisableLongRangeSniper(oUnit)
             --LOG('Disabled long range sniper on unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit))
         end
     end
+end
+
+function GetMissileCount(oUnit)
+    local iMissiles = 0 --NOTE: If this is called at the moment a missile is loaded, then this should be set to 1; only use this function for general checks
+    if oUnit.GetTacticalSiloAmmoCount then iMissiles = iMissiles + oUnit:GetTacticalSiloAmmoCount() end
+    if oUnit.GetNukeSiloAmmoCount then iMissiles = iMissiles + oUnit:GetNukeSiloAmmoCount() end
+    return iMissiles
 end

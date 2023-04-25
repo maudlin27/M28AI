@@ -34,6 +34,8 @@ iTMLHighPriorityCategories = M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.re
 tbExpectMissileBlockedByCliff = 'M28BuildMisBlck' --true if missile firing at this has hit a cliff
 refiTMLShotsFired = 'M28BuildTMLShtFird'
 refoLastTMLTarget = 'M28BuildTMLLstTrg'
+refoLastTMLLauncher = 'M28BuildTMLLastLnch' --When a TML targets a unit, this is recorded against that unit, so if we have 2 TML they shouldn't target the same unit at the same time
+refiTimeOfLastLaunch = 'M28BuildTMLTimLstLnch' --Gametimeseconds that we last fired a missile at the unit, i.e. this is against the target, not the launcher
 refiLastTMLMassKills = 'M28BuildTMLMssKil'
 refbPausedAsNoTargets = 'M28BuildPausNoT' --e.g. for SML use this to flag if we have paused it due to lack of targets
 
@@ -988,6 +990,8 @@ function ConsiderLaunchingMissile(oLauncher, oWeapon)
     local sFunctionRef = 'ConsiderLaunchingMissile'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code for oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)) end
     if M28UnitInfo.IsUnitValid(oLauncher) then
         --oLauncher[refbActiveMissileChecker] = true
@@ -1047,7 +1051,7 @@ function ConsiderLaunchingMissile(oLauncher, oWeapon)
                                 iCurDist = M28Utilities.GetDistanceBetweenPositions(tPotentialTargets[iCurEntry]:GetPosition(), tStartPos)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering entry '..iCurEntry..'; Unit='..tPotentialTargets[iCurEntry].UnitId..M28UnitInfo.GetUnitLifetimeCount(tPotentialTargets[iCurEntry])..'; iCurDist='..iCurDist..'; iPotentialInRangeDistance='..iPotentialInRangeDistance..'; iTMLRange='..iTMLRange..'; iTMLAOE='..iTMLAOE) end
                                 if iCurDist <= iPotentialInRangeDistance then
-                                    if iCurDist <= iTMLRange or iCurDist <= iTMLRange + math.max(iTMLAOE, 0.5 * math.min(tPotentialTargets[iCurEntry]:GetBlueprint().Physics.SkirtSizeX, tPotentialTargets[iCurEntry]:GetBluepritn().Physics.SkirtSizeZ)) then
+                                    if iCurDist <= iTMLRange or iCurDist <= iTMLRange + math.max(iTMLAOE, 0.5 * math.min(tPotentialTargets[iCurEntry]:GetBlueprint().Physics.SkirtSizeX, tPotentialTargets[iCurEntry]:GetBlueprint().Physics.SkirtSizeZ)) then
                                         table.insert(tValidTargets, tPotentialTargets[iCurEntry])
                                         iValidTargets = iValidTargets + 1
                                     end
@@ -1115,7 +1119,7 @@ function ConsiderLaunchingMissile(oLauncher, oWeapon)
                                 -- {oLauncher:GetPosition()[1], oLauncher:GetPosition()[2] + 65, oLauncher:GetPosition()[3]}
                                 oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef] = M28Logic.IsLineBlocked(aiBrain, tExpectedMissileVertical, oUnit:GetPosition(), iAOE, false)
                             end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Potential TML target '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurTargetValue before adj for blocked='..iCurTargetValue..'; oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef]='..tostring(oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef])..'; oUnit[refiTMLShotsFired]='..(oUnit[refiTMLShotsFired] or 0)) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Potential TML target '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurTargetValue before adj for blocked='..iCurTargetValue..'; oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef]='..tostring(oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef])..'; oUnit[refiTMLShotsFired]='..(oUnit[refiTMLShotsFired] or 0)..'; refiTimeOfLastLaunch='..(oUnit[refiTimeOfLastLaunch] or 'nil')) end
                             if oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef] then iCurTargetValue = iCurTargetValue * 0.2 end
                             if (oUnit[refiTMLShotsFired] or 0) > 0 then
                                 --Reduce shots fired if we dealt damage with our last missile (as may have e.g. hit mass storage blocking us from reaching the target mex)
@@ -1124,18 +1128,24 @@ function ConsiderLaunchingMissile(oLauncher, oWeapon)
                                     oLauncher[refiLastTMLMassKills] = (oLauncher.VetExperience or oLauncher.Sync.totalMassKilled or 0)
                                     oUnit[refiTMLShotsFired] = oUnit[refiTMLShotsFired] - 1
                                 end
-                                if oUnit[refiTMLShotsFired] > 0 then
+                                if oUnit[refiTMLShotsFired] > 0 or oUnit[refiTimeOfLastLaunch] then
                                     local iUnitMaxHealth = oUnit:GetMaxHealth()
                                     local iUnitCurShield, iUnitMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit)
-                                    local iExpectedShots = math.ceil((iUnitMaxHealth + iUnitMaxShield) / iDamage)
-                                    if oUnit[refiTMLShotsFired] > iExpectedShots then
-                                        --Reduce by 50% for each time are over
-                                        iCurTargetValue = iCurTargetValue * 0.5^(oUnit[refiTMLShotsFired] - iExpectedShots)
-                                        if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) and oUnit[refiTMLShotsFired] - iExpectedShots >= 3 then
-                                            iCurTargetValue = 0
+                                    if (iUnitMaxHealth + iUnitMaxShield <= iDamage and M28UnitInfo.IsUnitValid(oUnit[refoLastTMLLauncher])) and (not(oUnit[refoLastTMLLauncher] == oLauncher) or GetGameTimeSeconds() - (oUnit[refiTimeOfLastLaunch] or -100) <= 35) then
+                                        iCurTargetValue = 0
+                                    else
+
+                                        local iExpectedShots = math.ceil((iUnitMaxHealth + iUnitMaxShield) / iDamage)
+                                        if oUnit[refiTMLShotsFired] > iExpectedShots then
+                                            --Reduce by 50% for each time are over
+                                            iCurTargetValue = iCurTargetValue * 0.5^(oUnit[refiTMLShotsFired] - iExpectedShots)
+                                            if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) and oUnit[refiTMLShotsFired] - iExpectedShots >= 3 then
+                                                iCurTargetValue = 0
+                                            end
                                         end
                                     end
-                                    if bDebugMessages == true then LOG(sFunctionRef..': iExpectedShots='..iExpectedShots..'; oUnit[refiTMLShotsFired]='..oUnit[refiTMLShotsFired]..'; iCurTargetValue after adjusting for excess='..iCurTargetValue) end
+
+                                    if bDebugMessages == true then LOG(sFunctionRef..': iUnitMaxHealth='..iUnitMaxHealth..'; iUnitMaxShield='..iUnitMaxShield..'; oUnit[refiTMLShotsFired]='..oUnit[refiTMLShotsFired]..'; oUnit[refiTimeOfLastLaunch]='..(oUnit[refiTimeOfLastLaunch] or 'nil')..'; iCurTargetValue after adjusting for excess='..iCurTargetValue) end
                                 end
                             end
                             if iBestTargetValue < iCurTargetValue then
@@ -1148,6 +1158,8 @@ function ConsiderLaunchingMissile(oLauncher, oWeapon)
                             oBestTarget[refiTMLShotsFired] = (oBestTarget[refiTMLShotsFired] or 0) + 1
                             oLauncher[refoLastTMLTarget] = oBestTarget
                             oLauncher[refiLastTMLMassKills] = (oLauncher.VetExperience or oLauncher.Sync.totalMassKilled or 0)
+                            oBestTarget[refoLastTMLLauncher] = oLauncher
+                            oBestTarget[refiTimeOfLastLaunch] = GetGameTimeSeconds()
                             if bDebugMessages == true then LOG(sFunctionRef..': oBestTarget='..oBestTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBestTarget)..'; iBestTargetValue='..iBestTargetValue..'; SHots fired afteri ncluding this one='..oBestTarget[refiTMLShotsFired]..'; Mass killed prior to missile impacting='..oLauncher[refiLastTMLMassKills]) end
                         end
                     end
@@ -1320,10 +1332,12 @@ function ConsiderLaunchingMissile(oLauncher, oWeapon)
                 else
                     --Disable autobuild and pause
                     if not(oLauncher[refbPausedAsNoTargets]) then
+
                         oLauncher[refbPausedAsNoTargets] = true
                         oLauncher:SetAutoMode(false)
                         oLauncher:SetPaused(true)
                         if oLauncher.UnitId == 'xsb2401' then M28Utilities.ErrorHandler('Pausing Yolona') end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Pausing unit '..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..' as have no targets') end
                     end
                     WaitSeconds(10)
                     ForkThread(ConsiderLaunchingMissile, oLauncher, oWeapon)

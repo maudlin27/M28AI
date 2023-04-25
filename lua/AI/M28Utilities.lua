@@ -291,9 +291,6 @@ function GetNearestUnit(tUnits, tCurPos, bUseActualTravelDistance, sPathingToUse
     local iMinDist = 1000000
     local iCurDist
     local iNearestUnit
-    local bValidUnit = false
-    local iPlayerArmyIndex
-    local iUnitArmyIndex
     if bDebugMessages == true then LOG('GetNearestUnit: tUnits table size='..table.getn(tUnits)) end
     for iUnit, oUnit in tUnits do
         if not(oUnit.Dead) then
@@ -301,7 +298,7 @@ function GetNearestUnit(tUnits, tCurPos, bUseActualTravelDistance, sPathingToUse
             else iCurDist = GetDistanceBetweenPositions(oUnit:GetPosition(), tCurPos)
             end
             if bDebugMessages == true then LOG('GetNearestUnit: iUnit='..iUnit..'; iCurDist='..iCurDist..'; iMinDist='..iMinDist) end
-            if iCurDist < iMinDist then
+            if (iCurDist or iMinDist) < iMinDist then
                 iMinDist = iCurDist
                 iNearestUnit = iUnit
             end

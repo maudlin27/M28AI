@@ -407,6 +407,9 @@ function IssueTrackedFactoryBuild(oUnit, sOrderBlueprint, bAddToExistingQueue, s
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueFactoryBuild, [subrefsOrderBlueprint] = sOrderBlueprint})
         IssueBuildFactory({ oUnit }, sOrderBlueprint, 1)
+        local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
+        if not(oUnit[M28Factory.refiBuildCountByBlueprint]) then oUnit[M28Factory.refiBuildCountByBlueprint] = {} end
+        oUnit[M28Factory.refiBuildCountByBlueprint][sOrderBlueprint] = (oUnit[M28Factory.refiBuildCountByBlueprint][sOrderBlueprint] or 0) + 1
     end
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 end

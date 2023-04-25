@@ -549,9 +549,14 @@ function OnWeaponFired(oWeapon)
                             end
                         end
                     end
-                    --T3 arti targeting logic
+                    --T3 arti targeting logic; TML missile tracking
                     if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oUnit.UnitId) then
                         ForkThread(M28Building.GetT3ArtiTarget, oUnit)
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryTML, oUnit.UnitId) then
+                        if M28UnitInfo.IsUnitValid(oUnit[M28Building.refoLastTMLTarget]) then
+                            oUnit[M28Building.refoLastTMLTarget][M28Building.refiTimeOfLastLaunch] = GetGameTimeSeconds()
+                            if bDebugMessages == true then LOG(sFunctionRef..': have set time of last launch to '..oUnit[M28Building.refoLastTMLTarget][M28Building.refiTimeOfLastLaunch]..' for target '..oUnit[M28Building.refoLastTMLTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit[M28Building.refoLastTMLTarget])) end
+                        end
                     end
                 end
             end
@@ -603,7 +608,8 @@ function OnMissileBuilt(self, weapon)
 
                 --If 2+ missiles then pause, and consider unpausing later
                 if iMissiles >= 2 and not(EntityCategoryContains(categories.EXPERIMENTAL, self.UnitId)) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Have at least 2 missiles so will set paused to true') end
+
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have at least 2 missiles so will set paused to true on unit '..self.UnitId..M28UnitInfo.GetUnitLifetimeCount(self)) end
                     self:SetPaused(true)
 
                     --Recheck every minute

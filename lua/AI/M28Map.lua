@@ -1003,7 +1003,6 @@ local function AddNewLandZoneReferenceToPlateau(iPlateau)
 
     if bDebugMessages == true then
         LOG('Time='..GetGameTimeSeconds()..'; Finished setting up variables for iPlateau='..iPlateau..'; iLandZone='..iLandZone)
-        M28Utilities.ErrorHandler('Audit trail')
     end
 
 

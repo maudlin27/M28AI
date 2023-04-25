@@ -630,12 +630,6 @@ function GetCategoriesAndActionsToPause(iTeam, bStallingMass)
 end
 
 function ManageMassStalls(iTeam)
-    M28Utilities.ErrorHandler('To add code')
-
-    M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] = false --placeholder
-end
-
-function ManageMassStalls(iTeam)
     --For now focus is on if we are trying to build a missile for an SML, or we are massively mass stalling
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageMassStalls'
@@ -659,13 +653,13 @@ function ManageMassStalls(iTeam)
             LOG(sFunctionRef .. ': If we have flagged that we are stalling mass then will check if we have enough to start unpausing things')
         end
 
-        if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] > (0.005 + iMassStallPercentAdjust) then
+        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] > (0.005 + iMassStallPercentAdjust) then
             --aiBrain[refbStallingEnergy] = false
             if bDebugMessages == true then
                 LOG(sFunctionRef .. ': Have enough mass stored or income to start unpausing things')
             end
-            bChangeRequired = true
             bPauseNotUnpause = false
+            if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] then bChangeRequired = true end
         end
         if bDebugMessages == true then LOG(sFunctionRef .. ': Checking if we shoudl flag that we are mass stalling. bChangeRequired='..tostring(bChangeRequired)..'; Mass stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; Need resources for missile='..tostring((M28Team.tTeamData[iTeam][M28Team.refbNeedResourcesForMissile] or false))..'; Gross mass income='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]) end
         --Check if should manage mass stall
@@ -778,7 +772,6 @@ function ManageMassStalls(iTeam)
                 local oFocusUnitBP
                 local bFirstEngiCategoryRefBrain = true
 
-
                 for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
                     if iCategoryRef == iSpecialSurplusUpgradeCategory then
                         --Pause all but 1 upgrade per brain, pausing the lowest progress first, if we have multiple upgrades
@@ -821,7 +814,7 @@ function ManageMassStalls(iTeam)
                         end
                     end
 
-                    --for iBrain, oBrain in M28Team.tTeamData[iTeam][
+
                     if M28Utilities.IsTableEmpty(tRelevantUnits) == false then
                         bNoRelevantUnits = false
                         iTotalUnits = table.getn(tRelevantUnits)
@@ -840,7 +833,7 @@ function ManageMassStalls(iTeam)
                             --for iUnit, oUnit in tRelevantUnits do
                             bApplyActionToUnit = false
                             iCurUnitMassUsage = 0
-                            if M28UnitInfo.IsUnitValid(oUnit, true) then --Only consider unit if it has been constructed
+                            if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() == 1 then --Only consider unit if it has been constructed
                                 if bDebugMessages == true then
                                     LOG(sFunctionRef .. ': About to consider pausing/unpausingunit ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. '; will first check category specific logic for if we want to go ahead with pausing4')
                                 end
@@ -1125,15 +1118,11 @@ function ManageEnergyStalls(iTeam)
     local bChangeRequired = false
     local iUnitsAdjusted = 0
     local bHaveWeCappedUnpauseAmount = false
-    if (GetGameTimeSeconds() >= 120 or (GetGameTimeSeconds() >= 40 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 15)) then
+    if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or (GetGameTimeSeconds() >= 120 or (GetGameTimeSeconds() >= 40 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 15)) then
         --Only consider power stall management after 2m, otherwise risk pausing things such as early microbots when we would probably be ok after a couple of seconds; lower time limit put in as a theroetical possibility due to AIX
-        if bDebugMessages == true then
-            LOG(sFunctionRef .. ': About to consider if we have an energy stall or not. Lowest energy % stored=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] .. '; M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] .. '; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]))
-        end
+        if bDebugMessages == true then LOG(sFunctionRef .. ': About to consider if we have an energy stall or not. Lowest energy % stored=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] .. '; M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] .. '; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) end
         --First consider unpausing
-        if bDebugMessages == true then
-            LOG(sFunctionRef .. ': If we have flagged that we are stalling energy then will check if we have enough to start unpausing things')
-        end
+        if bDebugMessages == true then LOG(sFunctionRef .. ': If we have flagged that we are stalling energy then will check if we have enough to start unpausing things') end
         local iT3Arti = 0
         if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoT3Arti]) == false then
             iT3Arti = table.getn(M28Team.tTeamData[iTeam][M28Team.subreftoT3Arti])
@@ -1160,16 +1149,43 @@ function ManageEnergyStalls(iTeam)
             iPercentMod = iPercentMod -0.3
         end
 
-        if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 100000 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] > math.min(0.95, (0.8 + iPercentMod)) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] > (0.7 + iPercentMod) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > (1 + iNetMod)) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] > (0.5 + iPercentMod) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > (4 + iNetMod)) or (GetGameTimeSeconds() <= 180 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] >= 0.3))) then
+        if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 100000 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] > math.min(0.95, (0.8 + iPercentMod)) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] > (0.7 + iPercentMod) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > (1 + iNetMod)) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] > (0.5 + iPercentMod) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > (4 + iNetMod)) or (GetGameTimeSeconds() <= 180 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] >= 0.3))) then
             --M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] = false
             if bDebugMessages == true then
-                LOG(sFunctionRef .. ': Have enough energy stored or income to start unpausing things')
+                LOG(sFunctionRef .. ': Have enough energy stored or income to start unpausing things if any are paused')
             end
-            bChangeRequired = true
             bPauseNotUnpause = false
+            if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] then bChangeRequired = true end
         end
         if bDebugMessages == true then
-            LOG(sFunctionRef .. ': Checking if we shoudl flag that we are energy stalling')
+            LOG(sFunctionRef .. ': Checking if we shoudl flag that we are energy stalling; bChangeRequired='..tostring(bChangeRequired)..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]))
+        end
+
+        if not(bChangeRequired) and not(bPauseNotUnpause) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then
+            --We arent stalling so shouldnt have any units that are paused; Cycle thorugh each brain and check that the only units that are paused are missile launchers with loaded missiles
+            local bHaveUnexpectedlyPausedUnits = false
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do --This section is a redundancy as came across scenario where had paused factories and launchers when not stalling, and logs indicated we didnt think we were stalling
+                if M28Utilities.IsTableEmpty(oBrain[reftPausedUnits]) == false then
+                    for iUnit, oUnit in oBrain[reftPausedUnits] do
+                        if M28UnitInfo.IsUnitValid(oUnit) then
+                            if not(EntityCategoryContains(categories.SILO * categories.NUKE + M28UnitInfo.refCategorySMD + M28UnitInfo.refCategoryTML, oUnit.UnitId)) then
+                                bHaveUnexpectedlyPausedUnits = true
+                                break
+                            else
+                                if M28UnitInfo.GetMissileCount(oUnit) == 0 then
+                                    bHaveUnexpectedlyPausedUnits = true
+                                    break
+                                end
+                            end
+                        end
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Is table of paused units for brain '..oBrain.Nickname..' empty='..tostring(M28Utilities.IsTableEmpty(oBrain[reftPausedUnits]))..'; bHaveUnexpectedlyPausedUnits='..tostring(bHaveUnexpectedlyPausedUnits)) end
+                if bHaveUnexpectedlyPausedUnits then break end
+            end
+            if bHaveUnexpectedlyPausedUnits then
+                bChangeRequired = true
+            end
         end
         --Check if should manage energy stall
         if bChangeRequired == false and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] <= (0.08 + iPercentMod) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] <= (0.6 + iPercentMod) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < (2 + iNetMod)) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] <= (0.4 + iPercentMod) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < (0.5 + (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] - 1) * 5 + iNetMod))) then
@@ -1191,7 +1207,7 @@ function ManageEnergyStalls(iTeam)
                 M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] = true
                 if not(M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower]) then M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] = M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] end
             end --redundancy
-            M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] = GetGameTimeSeconds()
+            M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] = GetGameTimeSeconds() --Have even if unpausing, since we may only unpause some of the units
             --Decide on order to pause/unpause
 
             local tCategoriesByPriority, tEngineerActionsByPriority = GetCategoriesAndActionsToPause(iTeam)
@@ -1238,9 +1254,7 @@ function ManageEnergyStalls(iTeam)
             local bConsideringTeamWideUnits = false
             local bNoRelevantUnits = true
 
-            if bDebugMessages == true then
-                LOG(sFunctionRef .. ': About to cycle through every category, bPauseNotUnpause=' .. tostring(bPauseNotUnpause) .. '; iCategoryStartPoint=' .. iCategoryStartPoint .. '; iCategoryEndPoint=' .. iCategoryEndPoint)
-            end
+            if bDebugMessages == true then LOG(sFunctionRef .. ': About to cycle through every category, bPauseNotUnpause=' .. tostring(bPauseNotUnpause) .. '; iCategoryStartPoint=' .. iCategoryStartPoint .. '; iCategoryEndPoint=' .. iCategoryEndPoint) end
 
             local bPausedUnitsTableIsEmptyForAllBrains = true
             for iCategoryCount = iCategoryStartPoint, iCategoryEndPoint, iIntervalChange do
@@ -1327,7 +1341,7 @@ function ManageEnergyStalls(iTeam)
                             --for iUnit, oUnit in tRelevantUnits do
                             bApplyActionToUnit = false
                             iCurUnitEnergyUsage = 0
-                            if M28UnitInfo.IsUnitValid(oUnit, true) then --Only consider unit if it has been constructed
+                            if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() == 1 then --Only consider unit if it has been constructed
                                 if bDebugMessages == true then
                                     LOG(sFunctionRef .. ': About to consider pausing/unpausingunit ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. '; will first check category specific logic for if we want to go ahead with pausing4')
                                 end
@@ -1562,24 +1576,17 @@ function ManageEnergyStalls(iTeam)
                     break
                 end
             end
-            if bDebugMessages == true then
-                LOG(sFunctionRef .. 'If we have no paused units then will set us as not having an energy stall; bPausedUnitsTableIsEmptyForAllBrains='..tostring(bPausedUnitsTableIsEmptyForAllBrains)..'; subrefbTeamIsStallingMass ='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])..'; bPauseNotUnpause='..tostring(bPauseNotUnpause))
-            end
+
+            if bDebugMessages == true then LOG(sFunctionRef .. 'If we have no paused units then will set us as not having an energy stall; bPausedUnitsTableIsEmptyForAllBrains='..tostring(bPausedUnitsTableIsEmptyForAllBrains)..'; subrefbTeamIsStallingMass ='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)) end
             if bPausedUnitsTableIsEmptyForAllBrains or (M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] and not(bPauseNotUnpause) and not(bHaveWeCappedUnpauseAmount)) then
                 M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] = false
-                if bDebugMessages == true then
-                    LOG(sFunctionRef .. ': We are no longer stalling energy')
-                end
+                if bDebugMessages == true then LOG(sFunctionRef .. ': We are no longer stalling energy') end
             else
-                if bDebugMessages == true then
-                    LOG(sFunctionRef .. ': About to check if we wanted to unpause units but havent unpaused anything; iUnitsAdjusted=' .. iUnitsAdjusted .. '; bNoRelevantUnits=' .. tostring(bNoRelevantUnits) .. '; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]))
-                end
+                if bDebugMessages == true then LOG(sFunctionRef .. ': About to check if we wanted to unpause units but havent unpaused anything; iUnitsAdjusted=' .. iUnitsAdjusted .. '; bNoRelevantUnits=' .. tostring(bNoRelevantUnits) .. '; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) end
                 --Backup - sometimes we still have units in the table listed as being paused (e.g. if an engineer changes action to one that isnt listed as needing pausing) - unpause them if we couldnt find via category search
                 if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] and not (bPauseNotUnpause) and (iEnergySavingManaged > iEnergyPerTickSavingNeeded or iUnitsAdjusted == 0 or bNoRelevantUnits) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] >= 0.95 then
                     --Have a decent amount of power, are flagged as stalling energy, but couldnt find any categories to unpause
-                    if bDebugMessages == true then
-                        LOG(sFunctionRef .. ': werent able to find any units to unpause with normal approach so will unpause all remaining units for all M28 brains in the team')
-                    end
+                    if bDebugMessages == true then LOG(sFunctionRef .. ': werent able to find any units to unpause with normal approach so will unpause all remaining units for all M28 brains in the team') end
                     for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
                         local iLoopCountCheck = 0
                         local iMaxLoop = math.max(20, table.getn(oBrain[reftPausedUnits]) + 1)
@@ -1613,15 +1620,11 @@ function ManageEnergyStalls(iTeam)
                             end
                         end
                     end
-                    if bDebugMessages == true then
-                        LOG(sFunctionRef .. ': FInished unpausing units')
-                    end
+                    if bDebugMessages == true then LOG(sFunctionRef .. ': FInished unpausing units') end
                 end
             end
         end
-        if bDebugMessages == true then
-            LOG(sFunctionRef .. ': End of code, M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) .. '; bPauseNotUnpause=' .. tostring(bPauseNotUnpause) .. '; iUnitsAdjusted=' .. iUnitsAdjusted .. '; Game time=' .. GetGameTimeSeconds() .. '; Energy stored %=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] .. '; Net energy income=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] .. '; gross energy income=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy])
-        end
+        if bDebugMessages == true then LOG(sFunctionRef .. ': End of code, M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) .. '; bPauseNotUnpause=' .. tostring(bPauseNotUnpause) .. '; iUnitsAdjusted=' .. iUnitsAdjusted .. '; Game time=' .. GetGameTimeSeconds() .. '; Energy stored %=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] .. '; Net energy income=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] .. '; gross energy income=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]) end
         if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] then
             M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] = GetGameTimeSeconds()
         end

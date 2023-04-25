@@ -429,7 +429,7 @@ function GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, iCategory)
             local iTeam = oBrain.M28Team
             if M28Utilities.IsTableEmpty(tCurUnits) == false then
                 for iUnit, oUnit in tCurUnits do
-                    if EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then bDebugMessages = true else bDebugMessages = false end
+
                     if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() >= 1 then --Needed as sometimes an invalid unit is included from getlistofunits; also because underproduction units are included with getlistofunits
                         if oUnit[M28UnitInfo.refbSpecialMicroActive] then
                             table.insert(tInUseUnits, oUnit)
@@ -478,6 +478,10 @@ function GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, iCategory)
                                         if EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) or not(IsAirUnitInCombat(oUnit, iTeam)) then
                                             bSendUnitForRefueling = true
                                         end
+                                    end
+                                else
+                                    if EntityCategoryContains(M28UnitInfo.refCategoryTransport, oUnit.UnitId) and oUnit:GetFuelRatio() < 0.25 and (oUnit:GetFuelRatio() < 0.05 or M28Utilities.IsTableEmpty(oUnit:GetCargo())) then
+                                        bSendUnitForRefueling = true --will unload and ctrl-K transports that are low on fuel
                                     end
                                 end
                                 if bDebugMessages == true then LOG(sFunctionRef..': bSendUnitForRefueling='..tostring(bSendUnitForRefueling or false)) end
@@ -1282,7 +1286,7 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
     local sFunctionRef = 'DoesEnemyHaveAAThreatAlongPath'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iStartLandOrWaterZone == 4 and iEndLandOrWaterZone == 22 and iEndPlateauOrZero > 0 then bDebugMessages = true end
+
 
     --Calculate air travel path
     CalculateAirTravelPath(iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone)
@@ -2538,14 +2542,14 @@ function ManageTransports(iTeam, iAirSubteam)
                 local tLZData = M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauLandZones][iLandZoneToTravelTo]
                 --Decide how many engineers we want to drop on this LZ
                 iEngisHave, iEngiRemainingCapacity = GetTransportEngiCargoAndRemainingCapacity(oUnit, iTechLevel)
-                if iEngiRemainingCapacity < 2 and iEngisHave > 0 then
+                if iEngisHave >= 4 or (iEngiRemainingCapacity < 2 and iEngisHave > 0) then
                     iExtraEngisWanted = 0
                 else
                     --First calculate how many we want (ignoring ones we already have):
                     iExtraEngisWanted = M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauIslandMexCount][iIslandToTravelTo]
                     if iExtraEngisWanted == 2 then iExtraEngisWanted = 1 end --Only want 1 engi for 1-2 mex plateaus (as wont be building land fac)
                     --Cap engis at 4 (fewer if likely T2 or T3 engis), and also reduce for the number of engineers we already have
-                    iExtraEngisWanted = math.min(5 - iTechLevel, math.max(0, iExtraEngisWanted - iEngisHave), iEngiRemainingCapacity)
+                    iExtraEngisWanted = math.min(5 - iTechLevel, 4 - iEngisHave, math.max(0, iExtraEngisWanted - iEngisHave), iEngiRemainingCapacity)
                 end
                 local bGetMoreEngis = false
                 if bDebugMessages == true then LOG(sFunctionRef..': iExtraEngisWanted='..iExtraEngisWanted..'; iEngisHave='..iEngisHave..'; iTechLevel='..iTechLevel..'; Mex count of target island='..M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauIslandMexCount][iIslandToTravelTo]..'; iEngiRemainingCapacity='..iEngiRemainingCapacity) end
@@ -2586,7 +2590,7 @@ function ManageTransports(iTeam, iAirSubteam)
                             --Want engineers, but not on core base, so move to core base
                             if M28Utilities.IsTableEmpty(tCurLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) then M28Utilities.ErrorHandler('Dont have a closest friendly base for iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurLandOrWaterZone='..(iCurLandOrWaterZone or 'nil')) end
                             if bDebugMessages == true then LOG(sFunctionRef..': Transport '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' wants engineers but not in core base so will move there iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurLandOrWaterZone='..(iCurLandOrWaterZone or 'nil')..'; Is transport valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; tCurLZOrWZTeamData[M28Map.reftClosestFriendlyBase]='..repru(tCurLZOrWZTeamData[M28Map.reftClosestFriendlyBase])..'; Unit last order position='..repru(oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition])) end
-                                    --IssueTrackedMove(oUnit, tOrderPosition,                           iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
+                            --IssueTrackedMove(oUnit, tOrderPosition,                           iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
                             M28Orders.IssueTrackedMove(oUnit, tCurLZOrWZTeamData[M28Map.reftClosestFriendlyBase], 10,                   false,              'TWntE',            false)
 
                         end
@@ -2611,6 +2615,22 @@ function ManageTransports(iTeam, iAirSubteam)
                 local tCargo = oUnit:GetCargo()
                 if M28Utilities.IsTableEmpty(tCargo) == false then
                     M28Orders.IssueTrackedTransportUnload(oUnit, tRallyPoint, 10, false, 'TRalUnl', false)
+                else
+                    --Go to rally point
+                    M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 10, false, 'TIdle', false)
+                end
+            end
+        end
+    end
+    if M28Utilities.IsTableEmpty(tTransportsForRefueling) == false then
+        for iUnit, oUnit in tTransportsForRefueling do
+            --confirm no cargo
+            local tCargo = oUnit:GetCargo()
+            if M28Utilities.IsTableEmpty(tCargo) == false then
+                M28Orders.IssueTrackedTransportUnload(oUnit, tRallyPoint, 10, false, 'TRalUnl', false)
+            else
+                if M28Utilities.GetDistanceBetweenPositions(tRallyPoint, oUnit:GetPosition()) <= 30 then
+                    M28Orders.IssueTrackedKillUnit(oUnit)
                 else
                     --Go to rally point
                     M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 10, false, 'TIdle', false)
