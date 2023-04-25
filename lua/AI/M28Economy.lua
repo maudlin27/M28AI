@@ -915,6 +915,9 @@ function ManageMassStalls(iTeam)
                                 elseif iCategoryRef == M28UnitInfo.refCategoryPersonalShield or iCategoryRef == M28UnitInfo.refCategoryFixedShield or iCategoryRef == M28UnitInfo.refCategoryMobileLandShield then
                                     --Mass stalling so pausing shield not expected to do anything
                                     if bPauseNotUnpause then bApplyActionToUnit = false end
+                                elseif not(bPauseNotUnpause) and (oUnit.GetTacticalSiloAmmoCount or oUnit.GetTacticalSiloAmmoCount) and M28UnitInfo.GetMissileCount(oUnit) >= 2 then
+                                    --Dont unpause TML, SML and SMD that have 2+ missiles loaded already
+                                    bApplyActionToUnit = false
                                 end
 
 
@@ -1353,7 +1356,7 @@ function ManageEnergyStalls(iTeam)
                                     LOG(sFunctionRef .. ': UnitState=' .. M28UnitInfo.GetUnitState(oUnit) .. '; Is ActiveHQUpgrades Empty=' .. tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs])))
                                 end
                                 --SMD LOGIC - Check if already have 1 missile loaded before pausing
-                                if iCategoryRef == M28UnitInfo.refCategorySMD and oUnit.GetTacticalSiloAmmoCount and oUnit:GetTacticalSiloAmmoCount() >= 1 then
+                                if bPauseNotUnpause and iCategoryRef == M28UnitInfo.refCategorySMD and oUnit.GetTacticalSiloAmmoCount and oUnit:GetTacticalSiloAmmoCount() >= 1 then
                                     if bDebugMessages == true then
                                         LOG(sFunctionRef .. ': Have SMD with at least 1 missile so will pause it')
                                     end
@@ -1412,6 +1415,9 @@ function ManageEnergyStalls(iTeam)
                                             bApplyActionToUnit = false
                                         end
                                     end
+                                elseif not(bPauseNotUnpause) and (oUnit.GetTacticalSiloAmmoCount or oUnit.GetTacticalSiloAmmoCount) and M28UnitInfo.GetMissileCount(oUnit) >= 2 then
+                                    --Dont unpause TML, SML and SMD that have 2+ missiles loaded already
+                                    bApplyActionToUnit = false
                                 end
 
                                 if iCategoryRef == categories.COMMAND then
