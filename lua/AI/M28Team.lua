@@ -152,6 +152,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     --Misc details
     reftiTeamMessages = 'M28TeamMessages' --against tTeamData[aiBrain.M28Team], [x] is the message type string, returns the gametime that last sent a message of this type to the team
     subrefNukeLaunchLocations = 'M28NukeLocations' --locations that we have nuked recently
+    refiTimeLastNearUnitCap = 'M28TimeLastNearUnitCap'
 
 --AirSubteam data variables
 iTotalAirSubteamCount = 0

@@ -840,6 +840,11 @@ function OnConstructed(oEngineer, oJustBuilt)
                 M28UnitInfo.EnableUnitStealth(oJustBuilt)
             end
 
+            --Unit cap - refresh if are within 25 of the cap since it isnt accurate if have current units
+            if oJustBuilt:GetAIBrain()[M28Overseer.refbCloseToUnitCap] and oJustBuilt:GetAIBrain()[M28Overseer.refiExpectedRemainingCap] <= 25 then
+                M28Overseer.CheckUnitCap(oJustBuilt:GetAIBrain())
+            end
+
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         elseif not(oJustBuilt:GetAIBrain().M28AI) then
             --If build an M28 unit then will record its plateau and LZ; so for non-M28 AI also want to do this so we have a backup for pathfinding if dont already have something
@@ -1051,17 +1056,31 @@ function OnCreate(oUnit)
                 end
             end
 
-            --M28 specific: Cover units transferred to us or cheated in or presumably that we have captured - will leave outside the OnCreate flag above in case the oncreate variable transfers over when a unit is captured/gifted
-            if oUnit:GetAIBrain().M28AI and oUnit:GetFractionComplete() == 1 then
-                M28Economy.UpdateHighestFactoryTechLevelForBuiltUnit(oUnit) --this includes a check to see if are dealing with a factory HQ
-                M28Economy.UpdateGrossIncomeForUnit(oUnit, false) --This both includes a check of the unit type, and cehcks we havent already recorded
-                if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) and not(oUnit.M28OnConstructedCalled) then
-                    ForkThread(M28Economy.UpdateLandZoneM28MexByTechCount, oUnit)
-                elseif EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId) then
+            --M28 specific:
+
+
+            if oUnit:GetAIBrain().M28AI then
+                --Cover units transferred to us or cheated in or presumably that we have captured - will leave outside the OnCreate flag above in case the oncreate variable transfers over when a unit is captured/gifted
+                if oUnit:GetFractionComplete() == 1 then
+                    M28Economy.UpdateHighestFactoryTechLevelForBuiltUnit(oUnit) --this includes a check to see if are dealing with a factory HQ
+                    M28Economy.UpdateGrossIncomeForUnit(oUnit, false) --This both includes a check of the unit type, and cehcks we havent already recorded
+                    if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) and not(oUnit.M28OnConstructedCalled) then
+                        ForkThread(M28Economy.UpdateLandZoneM28MexByTechCount, oUnit) --we run the same logic via onconstructed
+                    end
+                end
+                --General logic that want to make sure runs on M28 units even if theyre not constructed yet:
+                local aiBrain = oUnit:GetAIBrain()
+                if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId) then
                     M28Air.AddPriorityAirDefenceTarget(oUnit)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) then
                     --Weapon priorities
                     M28UnitInfo.SetUnitTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityGunship)
+                end
+                --Check unit cap
+                if (oUnit[M28Overseer.refiExpectedRemainingCap] or 0) <= 100 then
+                    M28Overseer.CheckUnitCap(aiBrain)
+                else
+                    oUnit[M28Overseer.refiExpectedRemainingCap] = oUnit[M28Overseer.refiExpectedRemainingCap] - 1
                 end
             end
         end

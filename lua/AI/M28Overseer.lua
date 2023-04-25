@@ -17,6 +17,7 @@ local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 local M28Chat = import('/mods/M28AI/lua/AI/M28Chat.lua')
 local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
+local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 
 
 bInitialSetup = false
@@ -27,6 +28,8 @@ tAllAIBrainsByArmyIndex = {} --[x] is the brain army index, returns the aibrain
 refiDistanceToNearestEnemyBase = 'M28OverseerDistToNearestEnemyBase'
 refoNearestEnemyBrain = 'M28OverseerNearestEnemyBrain'
 refbCloseToUnitCap = 'M28OverseerCloseToUnitCap'
+refiExpectedRemainingCap = 'M28OverseerUnitCap' --number of units to be built before we potentially hit the unit cap, i.e. used as a rough guide for when shoudl call the code to check the unit cap
+refiUnitCapCategoriesDestroyed = 'M28OverseerLstCatDest' --Last category destroyed by unit cap logic
 
 function GetNearestEnemyBrain(aiBrain)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -270,4 +273,81 @@ function OverseerManager(aiBrain)
         ForkThread(M28Economy.RefreshEconomyData, aiBrain)
         WaitSeconds(1)
     end
+end
+
+function CheckUnitCap(aiBrain)
+    local sFunctionRef = 'CheckUnitCap'
+    local bDebugMessages = false
+    if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iUnitCap = tonumber(ScenarioInfo.Options.UnitCap)
+    local iCurUnits = aiBrain:GetCurrentUnits(categories.ALLUNITS - M28UnitInfo.refCategoryWall) + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryWall) * 0.25
+    local iThreshold = math.max(math.ceil(iUnitCap * 0.02), 10)
+    local iCurUnitsDestroyed = 0
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; iCurUnits='..iCurUnits..'; iUnitCap='..iUnitCap..'; iThreshold='..iThreshold) end
+    if iCurUnits > (iUnitCap - iThreshold * 5) then
+        aiBrain[refbCloseToUnitCap] = true
+        M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeLastNearUnitCap] = GetGameTimeSeconds()
+        local iMaxToDestroy = math.max(5, math.ceil(iUnitCap * 0.01), 20 - (iUnitCap - iCurUnits))
+        if iUnitCap - iCurUnits < 10 then iMaxToDestroy = math.max(10, iMaxToDestroy) end
+        local tUnitsToDestroy
+        local tiCategoryToDestroy = {
+            [0] = categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryT1Mex + M28UnitInfo.refCategoryAllAir * categories.TECH2,
+            [1] = M28UnitInfo.refCategoryAllAir * categories.TECH1 + categories.NAVAL * categories.MOBILE * categories.TECH1,
+            [2] = M28UnitInfo.refCategoryMobileLand * categories.TECH2 - categories.COMMAND - M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryAirScout + M28UnitInfo.refCategoryAirAA * categories.TECH1,
+            [3] = M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND,
+            [4] = M28UnitInfo.refCategoryWall + M28UnitInfo.refCategoryEngineer - categories.TECH3,
+        }
+        if bDebugMessages == true then LOG(sFunctionRef..': We are over the threshold for ctrlking units') end
+        if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) > iUnitCap * 0.35 then tiCategoryToDestroy[0] = tiCategoryToDestroy[0] + M28UnitInfo.refCategoryEngineer end
+        local iCumulativeCategory = tiCategoryToDestroy[4]
+        for iAdjustmentLevel = 4, 0, -1 do
+            if iAdjustmentLevel < 4 then
+                iCumulativeCategory = iCumulativeCategory + tiCategoryToDestroy[iAdjustmentLevel]
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitsDestroyed so far='..iCurUnitsDestroyed..'; iMaxToDestroy='..iMaxToDestroy..'; iAdjustmentLevel='..iAdjustmentLevel..'; iCurUnits='..iCurUnits..'; Unit cap='..iUnitCap..'; iThreshold='..iThreshold) end
+            if iCurUnits > (iUnitCap - iThreshold * iAdjustmentLevel) or iCurUnitsDestroyed == 0 then
+                tUnitsToDestroy = aiBrain:GetListOfUnits(tiCategoryToDestroy[iAdjustmentLevel], false, false)
+                if M28Utilities.IsTableEmpty(tUnitsToDestroy) == false then
+                    for iUnit, oUnit in tUnitsToDestroy do
+                        if oUnit.Kill then
+                            if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitsDestroyed so far='..iCurUnitsDestroyed..'; Will destroy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to avoid going over unit cap') end
+                            M28Orders.IssueTrackedKillUnit(oUnit)
+                            if EntityCategoryContains(M28UnitInfo.refCategoryWall, oUnit.UnitId) then
+                                iCurUnitsDestroyed = iCurUnitsDestroyed + 0.25
+                            else
+                                iCurUnitsDestroyed = iCurUnitsDestroyed + 1
+                            end
+                            if iCurUnitsDestroyed >= iMaxToDestroy then break end
+                        end
+                    end
+                end
+                if iCurUnitsDestroyed >= iMaxToDestroy then break end
+            else
+                break
+            end
+        end
+        aiBrain[refiUnitCapCategoriesDestroyed] = iCumulativeCategory
+        if bDebugMessages == true then LOG(sFunctionRef..': FInished destroying units, iCurUnitsDestroyed='..iCurUnitsDestroyed) end
+    else
+        if aiBrain[refbCloseToUnitCap] then
+            --Only reset cap if we have a bit of leeway
+            if iCurUnits < 10 + (iUnitCap - iThreshold * 5) then
+                aiBrain[refbCloseToUnitCap] = false
+            end
+        end
+    end
+    aiBrain[refiExpectedRemainingCap] = iUnitCap - iCurUnits + iCurUnitsDestroyed
+    if aiBrain[refbCloseToUnitCap] and aiBrain[refiExpectedRemainingCap] <= 25 then
+        --Recheck in 30s
+        ForkThread(DelayedUnitCapCheck, aiBrain)
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, expected remaining cap='..aiBrain[refiExpectedRemainingCap]) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function DelayedUnitCapCheck(aiBrain)
+    WaitSeconds(30)
+    CheckUnitCap(aiBrain)
 end

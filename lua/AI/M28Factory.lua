@@ -241,6 +241,19 @@ function AdjustBlueprintForOverrides(aiBrain, sBPIDToBuild, tLZTeamData, iFactor
             end
         end
     end
+    if sBPIDToBuild and aiBrain[M28Overseer.refbCloseToUnitCap] then
+        if aiBrain[M28Overseer.refiExpectedRemainingCap] <= 20 or EntityCategoryContains(categories.TECH1 + M28UnitInfo.refCategoryMobileLand * categories.TECH2, sBPIDToBuild) or (aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed] and EntityCategoryContains(aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed], sBPIDToBuild)) then
+            --Exception - build T2 engineers if we dont have many T3 engineers and have at least 10 leeway and havent been destroying these units
+            if aiBrain[M28Overseer.refiExpectedRemainingCap] >= 20 and EntityCategoryContains(M28UnitInfo.refCategoryEngineer * categories.TECH2, sBPIDToBuild) and aiBrain[M28Overseer.refiExpectedRemainingCap] >= 25 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * categories.TECH3) <= 2 and (not(aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed]) or not(EntityCategoryContains(aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed], sBPIDToBuild))) then
+                --Are trying to build a T2 engi and havent been destroying any yet, so still build it
+                --i.e. do nothing
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer * categories.TECH3, sBPIDToBuild) and aiBrain[M28Overseer.refiExpectedRemainingCap] >= 5 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * categories.TECH3) <= 3 then
+                --Do nothing - want some t3 engineers so can build t3 and experimental units
+            else
+                sBPIDToBuild = nil
+            end
+        end
+    end
     return sBPIDToBuild
 end
 
@@ -1583,7 +1596,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         local iCurDestroyerAndBattlecruiser = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryDestroyer + M28UnitInfo.refCategoryBattlecruiser)
         local iCurFrigates = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFrigate)
         local iCurBattleships = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBattleship)
-        if iCurFrigates == 0 or iCurFrigates <= iCurDestroyerAndBattlecruiser then
+        if iCurFrigates == 0 or iCurFrigates <= iCurDestroyerAndBattlecruiser and not(aiBrain[M28Overseer.refbCloseToUnitCap]) then
             iCombatCategory = M28UnitInfo.refCategoryFrigate
         elseif iCurDestroyerAndBattlecruiser == 0 or iCurDestroyerAndBattlecruiser < iCurBattleships then
             iCombatCategory = M28UnitInfo.refCategoryDestroyer + M28UnitInfo.refCategoryBattlecruiser
