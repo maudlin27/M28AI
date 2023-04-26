@@ -1605,6 +1605,14 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         if bDebugMessages == true then LOG(sFunctionRef..': Finished getting combat category, iCurDestroyerAndBattlecruiser='..iCurDestroyerAndBattlecruiser..'; iCurFrigates='..iCurFrigates..'; iCurBattleships='..iCurBattleships) end
     end
 
+    --High priority engineer if we started in water
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] then
+        if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) < 3 then
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+        end
+    end
+
     --First consider zone we are in
     if bDebugMessages == true then LOG(sFunctionRef..': Considering immediate needs for cur WZ that are in, tWZTeamData[M28Map.subrefWZThreatEnemySubmersible]='..tWZTeamData[M28Map.subrefWZThreatEnemySubmersible]..'; tWZTeamData[M28Map.subrefWZThreatEnemySurface]='..tWZTeamData[M28Map.subrefWZThreatEnemySurface]..'; tWZTeamData[M28Map.refiEnemyAirToGroundThreat]='..tWZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; tWZTeamData[M28Map.refbWZWantsMobileShield]='..tostring(tWZTeamData[M28Map.refbWZWantsMobileShield])..'; tWZTeamData[M28Map.refbWZWantsMobileStealth]='..tostring(tWZTeamData[M28Map.refbWZWantsMobileStealth])) end
     iCurrentConditionToTry = iCurrentConditionToTry + 1
@@ -1650,6 +1658,14 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     if bDebugMessages == true then LOG(sFunctionRef..': Number of combat category units we have='..aiBrain:GetCurrentUnits(iCombatCategory)) end
     if aiBrain:GetCurrentUnits(iCombatCategory) == 0 then
         if ConsiderBuildingCategory(iCombatCategory) then return sBPIDToBuild end
+    end
+
+    --Medium priority engineer if no immediate threats in this zone, are in a water start position, and want more engineers due to having mass but not needing power
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] then
+        if tWZTeamData[M28Map.subrefTbWantBP] and (not(bHaveLowPower) or (not(bHaveLowMass) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) <= 6)) then
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+        end
     end
 
     --Upgrade naval fac as priority if enemy has better navy tech than us or we ahve lots of naval units

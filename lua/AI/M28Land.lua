@@ -3181,7 +3181,9 @@ function AssignValuesToLandZones(iTeam)
             local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
             if bDebugMessages == true then LOG(sFunctionRef..': Considering iBrain='..iBrain..'; oBrain='..oBrain.Nickname..'; Army index='..oBrain:GetArmyIndex()..'; Player start point='..repru(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])..'; Plateau and LZ of this start point='..iPlateau..'-'..iLandZone) end
             if not(tiPlateauAndLZWithFriendlyStartPosition[iPlateau]) then tiPlateauAndLZWithFriendlyStartPosition[iPlateau] = {} end
-            tiPlateauAndLZWithFriendlyStartPosition[iPlateau][iLandZone] = true
+            if (iLandZone or 0) > 0 then
+                tiPlateauAndLZWithFriendlyStartPosition[iPlateau][iLandZone] = true
+            end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Finished recording the friendly start positions for each brain, tiPlateauAndLZWithFriendlyStartPosition='..repru(tiPlateauAndLZWithFriendlyStartPosition)) end
         if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 then iBaseCategory = categories.TECH3 * M28UnitInfo.refCategoryFactory

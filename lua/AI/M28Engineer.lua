@@ -732,7 +732,7 @@ function GetPotentialAdjacencyLocations(aiBrain, sBlueprintToBuild, tTargetLocat
     --Returns a table of all locations that are valid buildable locations for sBlueprintToBuild where it will benefit from an adjacencybonus with iCatToBuildBy or oUnitToBuildBy
     --bStopWhenHaveValidLocation - if we are happy to get the first result then this will abort as soon as a valid location is found
     --Returns {} if no valid locations can be found
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetPotentialAdjacencyLocations'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -750,7 +750,6 @@ function GetPotentialAdjacencyLocations(aiBrain, sBlueprintToBuild, tTargetLocat
 
     if iCatToBuildBy then
         --sBlueprintBuildBy = M28FactoryOverseer.GetBlueprintsThatCanBuildOfCategory(aiBrain, iCatToBuildBy, oEngineer)--, false, false)
-
         iPlateauOrZero, iLandOrWaterZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
         if (iLandOrWaterZone or 0) == 0 then
             iWaterZone = M28Map.GetWaterZoneFromPosition(tTargetLocation)
@@ -760,15 +759,17 @@ function GetPotentialAdjacencyLocations(aiBrain, sBlueprintToBuild, tTargetLocat
                 tLZOrWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone]
                 tLZOrWZTeamData = tLZOrWZData[M28Map.subrefWZTeamData][aiBrain.M28Team]
                 sAlliedUnitRef = M28Map.subrefWZTAlliedUnits
+                iLandOrWaterZone = iWaterZone
             end
         else
             tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
             tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][aiBrain.M28Team]
             sAlliedUnitRef = M28Map.subrefLZTAlliedUnits
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Have a cat to build by, tTargetLocation='..repru(tTargetLocation)..'; iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; Is table of allied units in this LZ empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[sAlliedUnitRef]))) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Have a cat to build by, tTargetLocation='..repru(tTargetLocation)..'; iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; Is table of allied units in this LZ empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[sAlliedUnitRef]))) end
 
         if M28Utilities.IsTableEmpty(tLZOrWZTeamData[sAlliedUnitRef]) == false then --Note - LZ and WZ refs use the same reference
+            if bDebugMessages == true then LOG(sFunctionRef..': Size of tLZOrWZTeamData[sAlliedUnitRef]='..table.getn(tLZOrWZTeamData[sAlliedUnitRef])..'; iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone) end
             local tRelevantBuildingsInSameLandZone = EntityCategoryFilterDown(iCatToBuildBy, tLZOrWZTeamData[sAlliedUnitRef])
             if bDebugMessages == true then LOG(sFunctionRef..': Is table of releevant buildings empty='..tostring(M28Utilities.IsTableEmpty(tRelevantBuildingsInSameLandZone))) end
             if M28Utilities.IsTableEmpty(tRelevantBuildingsInSameLandZone) == false then
@@ -878,7 +879,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iCategoryToBuild, iM
     --Returns blueprint and location for oEngineer to build at and returns these or nil if no suitable locations can be found
     --iCatToBuildBy: Optional, specify if want to look for adjacency locations; Note to factor in 50% of the builder's size and 50% of the likely adjacency building size
 
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetBlueprintAndLocationToBuild'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -963,7 +964,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iCategoryToBuild, iM
             local iWaterZone, iPond
             local iPlateauOrZero, iLandOrWaterZone
             local tLZOrWZData
-            if bDebugMessages == true then LOG(sFunctionRef..': oEngineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' has just started building oMex='..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
+            if bDebugMessages == true then LOG(sFunctionRef..': oEngineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' is considerinb building mex or hydro '..sBlueprintToBuild..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
             if (iLandZone or 0) == 0 then
                 iWaterZone = M28Map.GetWaterZoneFromPosition(tTargetLocation)
                 iPond = M28Map.tiPondByWaterZone[iWaterZone]
@@ -1013,6 +1014,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iCategoryToBuild, iM
         else
             --Get adjacency location if we want adjacency
             if iCatToBuildBy or oUnitToBuildBy then
+                if bDebugMessages == true then LOG(sFunctionRef..': About to get potential adjacency locations, sBlueprintToBuild='..(sBlueprintToBuild or 'nil')..'; is iCatToBuildBy empty='..tostring(iCatToBuildBy == nil)) end
                 tPotentialBuildLocations = GetPotentialAdjacencyLocations(aiBrain, sBlueprintToBuild, tTargetLocation, iMaxAreaToSearch, iCatToBuildBy, oUnitToBuildBy)
                 if bDebugMessages == true then LOG(sFunctionRef..': Finished getting potential adjacency locations, sBlueprintToBuild='..sBlueprintToBuild..'; tPotentialBuildLocations='..repru(tPotentialBuildLocations)) end
             end
@@ -1030,7 +1032,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iCategoryToBuild, iM
                 end
                 local iSize = M28UnitInfo.GetBuildingSize(sBlueprintToBuild)
 
-                if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have searched all segments in the land zone before, tLocation='..repru(tTargetLocation)..'; sBlueprintToBuild='..sBlueprintToBuild..'; iSize='..iSize..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; tLZOrWZData[M28Map.subrefBuildLocationsBySize][iSize]='..repru(tLZOrWZData[M28Map.subrefBuildLocationsBySize][iSize])..'; Segments considered for build locations='..repru(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize])..'; Total segments in LZ (nil if wZ)='..(tLZOrWZData[M28Map.subrefLZTotalSegmentCount] or 'nil')..'; Is table of build locations empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefBuildLocationsBySize][iSize]))) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have searched all segments in the land zone before, tLocation='..repru(tTargetLocation)..'; sBlueprintToBuild='..sBlueprintToBuild..'; iSize='..iSize..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; tLZOrWZData[M28Map.subrefBuildLocationsBySize][iSize]='..repru(tLZOrWZData[M28Map.subrefBuildLocationsBySize][iSize])..'; Segments considered for build locations='..repru(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize])..'; Total segments in LZ (nil if wZ)='..(tLZOrWZData[M28Map.subrefLZTotalSegmentCount] or 'nil')..'; Is table of build locations empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefBuildLocationsBySize][iSize]))) end
                 if (iWaterZone or 0) > 0 then
                     if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefBuildLocationsBySize][iSize]) or (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] or 0) < table.getn(tLZOrWZData[M28Map.subrefWZSegments]) then
                         GetAvailableLandOrWaterZoneBuildLocations(aiBrain, tTargetLocation, sBlueprintToBuild, true)
@@ -1057,9 +1059,11 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iCategoryToBuild, iM
                         if bDebugMessages == true then LOG(sFunctionRef..': have made alt LZ'..tLZOrWZData[M28Map.subrefLZPathingToOtherLandZones][1][M28Map.subrefLZNumber]..' a core base now') end
                     end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': No adjacency locations or not looking for adjacency; tPotentialBuildLocations based on land zone build locations for iSize='..M28UnitInfo.GetBuildingSize(sBlueprintToBuild)..'='..repru(tPotentialBuildLocations)..'; will draw each location in light blue')
-                    for iEntry, tEntry in tPotentialBuildLocations do
-                        M28Utilities.DrawLocation(tEntry, 5)
+                if bDebugMessages == true then LOG(sFunctionRef..': No adjacency locations or not looking for adjacency; tPotentialBuildLocations based on land zone build locations for iSize='..M28UnitInfo.GetBuildingSize(sBlueprintToBuild)..'='..repru(tPotentialBuildLocations)..'; will draw each location in light blue; Is tPotentialBuildLocations empty='..tostring(M28Utilities.IsTableEmpty(tPotentialBuildLocations)))
+                    if M28Utilities.IsTableEmpty(tPotentialBuildLocations) == false then
+                        for iEntry, tEntry in tPotentialBuildLocations do
+                            M28Utilities.DrawLocation(tEntry, 5)
+                        end
                     end
                 end
             end
@@ -1790,13 +1794,15 @@ function SlowlyRefreshBuildableLandZoneLocations(oOrigBrain)
     for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
         if bDebugMessages == true then LOG(sFunctionRef..': About to start recording buildable locations for the starting land zone for oBrain='..oBrain.Nickname..'; Index='..oBrain:GetArmyIndex()..'; Start pos='..repru(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])) end
         local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
-        local tiRelevantSizes = {1,2,6,8}
-        for iRef, iSize in tiRelevantSizes do
-            SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateau, iLandZone, iSize, tsBlueprintsBySize[iSize], iSegmentsBeforeWaiting * 10)
+        if (iLandZone or 0) > 0 then
+            local tiRelevantSizes = {1,2,6,8}
+            for iRef, iSize in tiRelevantSizes do
+                SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateau, iLandZone, iSize, tsBlueprintsBySize[iSize], iSegmentsBeforeWaiting * 10)
+            end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitTicks(1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         end
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        WaitTicks(1)
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
 
     while true do
@@ -5195,12 +5201,27 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
         ConsiderActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iCurPriority, tWZData, tWZTeamData, iTeam, iPond, iWaterZone, toAvailableEngineersByTech, toAssignedEngineers, true)
     end
 
+    --High priority hydro if we have low energy and water zone start
+    iCurPriority = iCurPriority + 1
+    if tWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation] and M28Utilities.IsTableEmpty(tWZData[M28Map.subrefHydroUnbuiltLocations]) == false then
+        if bHaveLowPower or not(bHaveLowMass) then
+            HaveActionToAssign(refActionBuildHydro, 1, 10)
+        end
+    end
+
+    --Higih priority mex if we have water zone start
+    iCurPriority = iCurPriority + 1
+    if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefMexUnbuiltLocations]) == false and tWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation] then
+        if bDebugMessages == true then LOG(sFunctionRef..': We want to build a mex asap as we have unbuilt locations and have started in water') end
+        HaveActionToAssign(refActionBuildMex, 1, math.max(5, table.getn(tWZData[M28Map.subrefMexUnbuiltLocations]) * 2.5))
+    end
+
 
     --Naval fac if this is a core WZ and we dont have any, with eco condition
     iCurPriority = iCurPriority + 1
     --Commented out as need logic for identifying build locations first
     if bDebugMessages == true then LOG(sFunctionRef..': About to see if we want to build a naval factory, is this a core WZ base='..tostring(tWZTeamData[M28Map.subrefWZbCoreBase])..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) end
-    if tWZTeamData[M28Map.subrefWZbCoreBase] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 4 then
+    if (tWZTeamData[M28Map.subrefWZbCoreBase] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 4) or tWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation] then
 
         local iFactoriesWanted = 1
         --if bHaveLowMass then iFactoriesWanted = math.max(1, iFactoriesWanted * 0.5) end
@@ -5211,6 +5232,14 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     end
 
     if bDebugMessages == true then LOG(sFunctionRef..': About to consider what actions we want to give engineers for iPond='..iPond..'; iWaterZone='..iWaterZone..'; iTeam='..iTeam..'; Is table of unbuilt mex locations empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subrefMexUnbuiltLocations]))..'; Is table of part complete mexes empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoPartBuiltMexes]))) end
+
+    --Emergency AA
+    iCurPriority = iCurPriority + 1
+    if (tWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > (tWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) * 0.25 and (tWZTeamData[M28Map.subrefWZbCoreBase] or tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) then
+        iBPWanted = 25
+        if not(bHaveLowMass) and not(bHaveLowPower) then iBPWanted = 50 end
+        HaveActionToAssign(refActionBuildAA, math.max(1, (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] or 1)), iBPWanted)
+    end
 
     --Unclaimed mex in the zone
     iCurPriority = iCurPriority + 1
@@ -5254,6 +5283,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
         end
     end
 
+
     --Lower priority mass reclaim where will request engineers to reclaim
     iCurPriority = iCurPriority + 1
     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.35 and tWZData[M28Map.subrefTotalMassReclaim] >= 5 then
@@ -5268,6 +5298,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
         if bDebugMessages == true then LOG(sFunctionRef..': Lower priority reclaim, Total mass in Pond '..iPond..' WZ '..iWaterZone..'='..tWZData[M28Map.subrefTotalMassReclaim]) end
         HaveActionToAssign(refActionReclaimArea, 1, math.min(100, math.max(5, iBPWanted)), false, false)
     end
+
 
 
     --Build sonar if no nearby enemies and lack decent coverage and have decent eco
@@ -5388,6 +5419,21 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
         elseif bHaveLowMass and M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] then iBPWanted = iBPWanted * 0.7
         end
         HaveActionToAssign(refActionAssistNavalFactory, 1, iBPWanted, false, false)
+    end
+
+    --Preemptive AA builder if we are at T3 and have decent mass income, and have friendly units in the WZ or intel coverage, and no enemy units
+    iCurPriority = iCurPriority + 1
+    if not(bHaveLowMass) and not(bHaveLowPower) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] or 1) >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10 then
+        --Build AA if we have <1.5k AA threat
+        local iAAThreatWanted = 1500
+        if tWZTeamData[M28Map.subrefWZbCoreBase] or tWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation] then iAAThreatWanted = 3000 end
+        if tWZTeamData[M28Map.subrefWZThreatAlliedAA] < iAAThreatWanted then
+            if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) and ((tWZTeamData[M28Map.refiSonarCoverage] or 0) > 20 or M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefWZTAlliedUnits]) == false) then
+                iBPWanted = 50
+                if tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] then iBPWanted = 25 end
+                HaveActionToAssign(refActionBuildAA, 3, iBPWanted)
+            end
+        end
     end
 
 

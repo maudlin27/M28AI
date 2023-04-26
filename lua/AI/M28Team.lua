@@ -515,13 +515,16 @@ function CreateNewTeam(aiBrain)
                 for iBrain, oBrain in tAirSubteamData[oBrain.M28AirSubteam][subreftoFriendlyM28Brains] do
                     iStartPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
                     iStartIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
-
-                    if not(tiIslandBrainsInSubteam[iStartIsland]) then tiIslandBrainsInSubteam[iStartIsland] = {} end
-                    table.insert(tiIslandBrainsInSubteam[iStartIsland], oBrain)
-                    tiPlateauByIslandRefs[iStartIsland] = iStartPlateau
+                    if (iStartIsland or 0) > 0 then
+                        if not(tiIslandBrainsInSubteam[iStartIsland]) then tiIslandBrainsInSubteam[iStartIsland] = {} end
+                        table.insert(tiIslandBrainsInSubteam[iStartIsland], oBrain)
+                        tiPlateauByIslandRefs[iStartIsland] = iStartPlateau
+                    end
                 end
-                for iStartIsland, tBrains in tiIslandBrainsInSubteam do
-                    CreateNewLandSubteam(tiPlateauByIslandRefs[iStartIsland], iStartIsland, tBrains)
+                if M28Utilities.IsTableEmpty(tiIslandBrainsInSubteam) == false then
+                    for iStartIsland, tBrains in tiIslandBrainsInSubteam do
+                        CreateNewLandSubteam(tiPlateauByIslandRefs[iStartIsland], iStartIsland, tBrains)
+                    end
                 end
             end
         end
@@ -2013,6 +2016,26 @@ function WaterZoneTeamInitialisation(iTeam)
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefAlliedACU] = {}
 
             if not(tTeamData[iTeam][subrefiWaterZonesWantingSignificantMAAByPlateau][iCurPlateau]) then tTeamData[iTeam][subrefiWaterZonesWantingSignificantMAAByPlateau][iCurPlateau] = {} end
+        end
+    end
+    --Record any start positions of friendly M28AI that are on water as waterstartposition for team data
+    local tUnderwaterM28StartPoints = {}
+    for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
+        local iStartPositionX, iStartPositionZ = oBrain:GetArmyStartPos()
+        local tStartPoint = {iStartPositionX, GetSurfaceHeight(iStartPositionX, iStartPositionZ), iStartPositionZ}
+        if bDebugMessages == true then LOG(sFunctionRef..': tStartPoint='..repru(tStartPoint)..'; iStartPositionX='..iStartPositionX..'; iStartPositionZ='..iStartPositionZ..'; Surface height='..GetSurfaceHeight(iStartPositionX, iStartPositionZ)..'; Terrain height='..GetTerrainHeight(iStartPositionX, iStartPositionZ)) end
+        if GetTerrainHeight(iStartPositionX, iStartPositionZ) < tStartPoint[2] then
+            table.insert(tUnderwaterM28StartPoints, tStartPoint )
+        end
+    end
+    if M28Utilities.IsTableEmpty(tUnderwaterM28StartPoints) == false then
+        for iEntry, tStartPoint in tUnderwaterM28StartPoints do
+            local iPlateauOrZero, iWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tStartPoint)
+            if iPlateauOrZero == 0 and (iWaterZone or 0) > 0 then
+                local tWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][iTeam]
+                tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] = true
+                if bDebugMessages == true then LOG(sFunctionRef..': Recording that iWaterzone'..iWaterZone..' is underwater for the M28 start position '..repru(tStartPoint)) end
+            end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

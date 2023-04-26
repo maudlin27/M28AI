@@ -533,7 +533,7 @@ function GetRallyPointValueOfWaterZone(iTeam, tWZData, tWZTeamData)
     local iCurAAValue
     local iCurFactor = 1
     if tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] then iCurFactor = 0.5 end
-    iCurAAValue = tWZTeamData[M28Map.subrefWZThreatAlliedAA] * iCurFactor - tWZTeamData[M28Map.subrefWZThreatEnemyAA] * 4 - tWZTeamData[M28Map.refiEnemyAirAAThreat]
+    iCurAAValue = (tWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) * iCurFactor - (tWZTeamData[M28Map.subrefWZThreatEnemyAA] or 0) * 4 - (tWZTeamData[M28Map.refiEnemyAirAAThreat] or 0)
     --Factor in adjacent threat
     if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefAdjacentLandZones]) == false then
         for iEntry, tSubtable in tWZData[M28Map.subrefAdjacentLandZones] do
@@ -2350,9 +2350,11 @@ function UpdateTransportLocationShortlist(iTeam)
             local tEnemyStart = M28Map.PlayerStartPoints[oBrain:GetArmyIndex()]
             iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tEnemyStart)
             iCurIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tEnemyStart)
-            if not(tiPlayerStartByPlateauAndIsland[iCurPlateau]) then tiPlayerStartByPlateauAndIsland[iCurPlateau] = {} end
-            if bDebugMessages == true then LOG(sFunctionRef..': tEnemyStart='..repru(tEnemyStart)..' for brain '..oBrain.Nickname..'; iCurPlateau='..(iCurPlateau or 'nil')..'; iCurIsland='..(iCurIsland or 'nil')) end
-            tiPlayerStartByPlateauAndIsland[iCurPlateau][iCurIsland] = true
+            if (iCurIsland or 0) > 0 then
+                if not(tiPlayerStartByPlateauAndIsland[iCurPlateau]) then tiPlayerStartByPlateauAndIsland[iCurPlateau] = {} end
+                if bDebugMessages == true then LOG(sFunctionRef..': tEnemyStart='..repru(tEnemyStart)..' for brain '..oBrain.Nickname..'; iCurPlateau='..(iCurPlateau or 'nil')..'; iCurIsland='..(iCurIsland or 'nil')) end
+                tiPlayerStartByPlateauAndIsland[iCurPlateau][iCurIsland] = true
+            end
         end
 
         --Cycle through every island, check it's not listed in the above table, and then record as a potential island to consider dropping

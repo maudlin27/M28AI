@@ -157,6 +157,9 @@ function M28BrainCreated(aiBrain)
         if bDebugMessages == true then LOG(sFunctionRef..': About to do one-off setup for all brains') end
         M28Utilities.bM28AIInGame = true
 
+        --Send a message warning players this could take a while
+        M28Chat.SendForkedMessage(aiBrain, 'LoadingMap', 'Analysing map, this usually freezes the game for 1-2 minutes (more on large maps)...', 0, 10000, false)
+
         ForkThread(M28Map.SetupMap)
 
     end
