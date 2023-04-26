@@ -1535,6 +1535,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     local tiMAAThresholdByTech = {50, 500, 1000, 1000}
 
 
+
     local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
     local bHaveLowPower = M28Conditions.HaveLowPower(iTeam)
     local bConsiderBuildingShieldOrStealthBoats = true
@@ -1557,8 +1558,6 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         end
     end
     local bUseFrigatesAsScouts = M28Team.tTeamData[iTeam][M28Team.subrefbUseFrigatesAsScoutsByPond][iPond]
-
-
 
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel='..iFactoryTechLevel..'; Highest friendly factory tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
 
@@ -1696,20 +1695,34 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         local iOtherWZ
         local iOtherPond
 
+        local iOurCumulativeAAThreat = tWZTeamData[M28Map.subrefWZThreatAlliedAA]
+        local iOurCumulativeCombatThreat = tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]
+        local bHaveWantedAA = false
+
         for iEntry, tSubtable in tWZData[M28Map.subrefWZOtherWaterZones] do
             iOtherWZ = tSubtable[M28Map.subrefWZAWZRef]
             iOtherPond = M28Map.tiPondByWaterZone[iOtherWZ]
             local tOtherWZTeamData = M28Map.tPondDetails[iOtherPond][M28Map.subrefPondWaterZones][iOtherWZ][M28Map.subrefWZTeamData][iTeam]
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering iOtherWZ='..(iOtherWZ or 'nil')..'; tOtherWZTeamData[M28Map.subrefbWZWantsSupport]='..tostring(tOtherWZTeamData[M28Map.subrefbWZWantsSupport] or false)..'; tOtherWZTeamData[M28Map.subrefWZThreatEnemySurface]='..(tOtherWZTeamData[M28Map.subrefWZThreatEnemySurface] or 'nil')..'; tOtherWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]='..(tOtherWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 'nil')..'; tOtherWZTeamData[M28Map.subrefWZMAAThreatWanted]='..(tOtherWZTeamData[M28Map.subrefWZMAAThreatWanted] or 'nil')..'; tOtherWZTeamData[M28Map.refbWZWantsMobileShield]='..tostring(tOtherWZTeamData[M28Map.refbWZWantsMobileShield] or false)..'; tOtherWZTeamData[M28Map.refbWZWantsMobileStealth]='..tostring(tOtherWZTeamData[M28Map.refbWZWantsMobileStealth] or false)..'; tOtherWZTeamData[M28Map.refbWantLandScout]='..tostring(tOtherWZTeamData[M28Map.refbWantLandScout] or false)..'; bUseFrigatesAsScouts='..tostring(bUseFrigatesAsScouts or false)..'; tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat]='..(tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')..'; tOtherWZTeamData[M28Map.subrefWZThreatAlliedAA]='..(tOtherWZTeamData[M28Map.subrefWZThreatAlliedAA] or 'nil')) end
+            iOurCumulativeAAThreat = iOurCumulativeAAThreat + tOtherWZTeamData[M28Map.subrefWZThreatAlliedAA]
+            iOurCumulativeCombatThreat = iOurCumulativeCombatThreat + tOtherWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering iOtherWZ='..(iOtherWZ or 'nil')..'; tOtherWZTeamData[M28Map.subrefbWZWantsSupport]='..tostring(tOtherWZTeamData[M28Map.subrefbWZWantsSupport] or false)..'; tOtherWZTeamData[M28Map.subrefWZThreatEnemySurface]='..(tOtherWZTeamData[M28Map.subrefWZThreatEnemySurface] or 'nil')..'; tOtherWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]='..(tOtherWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] or 'nil')..'; tOtherWZTeamData[M28Map.subrefWZMAAThreatWanted]='..(tOtherWZTeamData[M28Map.subrefWZMAAThreatWanted] or 'nil')..'; tOtherWZTeamData[M28Map.refbWZWantsMobileShield]='..tostring(tOtherWZTeamData[M28Map.refbWZWantsMobileShield] or false)..'; tOtherWZTeamData[M28Map.refbWZWantsMobileStealth]='..tostring(tOtherWZTeamData[M28Map.refbWZWantsMobileStealth] or false)..'; tOtherWZTeamData[M28Map.refbWantLandScout]='..tostring(tOtherWZTeamData[M28Map.refbWantLandScout] or false)..'; bUseFrigatesAsScouts='..tostring(bUseFrigatesAsScouts or false)..'; tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat]='..(tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')..'; tOtherWZTeamData[M28Map.subrefWZThreatAlliedAA]='..(tOtherWZTeamData[M28Map.subrefWZThreatAlliedAA] or 'nil')..'; iOurCumulativeAAThreat='..iOurCumulativeAAThreat..'; iOurCumulativeCombatThreat='..iOurCumulativeCombatThreat) end
+
             if tOtherWZTeamData[M28Map.subrefbWZWantsSupport] then
                 if tOtherWZTeamData[M28Map.subrefWZThreatEnemySubmersible] > tOtherWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy] * 0.75 then
                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryAntiNavy) then return sBPIDToBuild end
                 end
                 if tOtherWZTeamData[M28Map.subrefWZThreatEnemySurface] > tOtherWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] * 0.75 then
+                    --We want more combat, but first consider if we need more MAA
+                    if bHaveWantedAA and iOurCumulativeCombatThreat > iOurCumulativeAAThreat * 1.5 then
+                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryNavalAA) then return sBPIDToBuild end
+                    end
                     if ConsiderBuildingCategory(iCombatCategory) then return sBPIDToBuild end
                 end
             end
-            if (tOtherWZTeamData[M28Map.subrefWZMAAThreatWanted] or 0) > tiMAAThresholdByTech[iFactoryTechLevel] or (tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > (tOtherWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) * 0.3 then
+            if not(bHaveWantedAA) and (tOtherWZTeamData[M28Map.subrefWZMAAThreatWanted] or 0) > tiMAAThresholdByTech[iFactoryTechLevel] and iOurCumulativeAAThreat < iOurCumulativeCombatThreat then
+                bHaveWantedAA = true
+            end
+            if (tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > 0 and (bHaveWantedAA or ((tOtherWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > tOtherWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) * 0.3) then
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryNavalAA) then return sBPIDToBuild end
             end
             if bConsiderBuildingShieldOrStealthBoats and tOtherWZTeamData[M28Map.refbWZWantsMobileShield] then
@@ -1721,6 +1734,9 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
             if bUseFrigatesAsScouts and tOtherWZTeamData[M28Map.refbWantLandScout] then
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryFrigate) then return sBPIDToBuild end
             end
+        end
+        if bHaveWantedAA and iOurCumulativeAAThreat < iOurCumulativeCombatThreat then
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryNavalAA) then return sBPIDToBuild end
         end
     end
 

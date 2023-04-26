@@ -2358,10 +2358,11 @@ function UpdateTransportLocationShortlist(iTeam)
         --Cycle through every island, check it's not listed in the above table, and then record as a potential island to consider dropping
         local bAlreadyIncluded = false
         local iClosestLZToBase, iClosestBasePlateau, iClosestBaseLZ, iCurDistToFriendlyBase
-
         for iPlateau, tPlateauSubtable in M28Map.tAllPlateaus do
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering iPlateau='..iPlateau..'; Is table of island land zones empty='..tostring(M28Utilities.IsTableEmpty(tPlateauSubtable[M28Map.subrefPlateauIslandLandZones]))) end
             if M28Utilities.IsTableEmpty(tPlateauSubtable[M28Map.subrefPlateauIslandLandZones]) == false then
                 for iIsland, tLandZonesInIsland in tPlateauSubtable[M28Map.subrefPlateauIslandLandZones] do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iIsland='..iIsland..'; tiPlayerStartByPlateauAndIsland[iPlateau][iIsland]='..reprs(tiPlayerStartByPlateauAndIsland[iPlateau][iIsland])..'; Mex count='..(tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland] or 0)) end
                     if not(tiPlayerStartByPlateauAndIsland[iPlateau][iIsland]) then
                         --Does the island have mexes?
                         if (tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland] or 0) > 0 then
@@ -2385,7 +2386,8 @@ function UpdateTransportLocationShortlist(iTeam)
                                         iClosestLZToBase = iCurDistToFriendlyBase
                                     end
                                 end
-                                if iClosestLZToBase >= 190 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering island '..iIsland..'; iClosestLZToBase='..iClosestLZToBase..'; iClosestBasePlateau='..(iClosestBasePlateau or 'nil')..'; iClosestLZToBase='..(iClosestLZToBase or 'nil')..'; Island mex count='..tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland]) end
+                                if iClosestLZToBase >= 190 or (iClosestLZToBase >= 140 and tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland] >= 7) then
                                     bAlreadyIncluded = false
                                     if not(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau][iPlateau]) then M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau][iPlateau] = {}
                                     else
