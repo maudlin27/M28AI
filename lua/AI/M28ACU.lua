@@ -28,7 +28,7 @@ refbStartedUnderwater = 'M28ACUStartUnderwater' --true if ACU started underwater
 
 function ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearchForAdjacencyAndUnderConstruction, iMaxAreaToSearchForBuildLocation, iOptionalAdjacencyCategory, iOptionalCategoryBuiltUnitCanBuild)
     local sFunctionRef = 'ACUBuildUnit'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --Do we have a nearby unit of the type we want to build under construction?
@@ -48,7 +48,7 @@ function ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearchForAdjace
             end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Is tNearbyUnitsOfCategoryToBuild empty='..tostring(tNearbyUnitsOfCategoryToBuild)..'; Is oNearestPartComplete valid='..tostring(M28UnitInfo.IsUnitValid(oNearestPartComplete))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; brain='..aiBrain.Nickname..'; Is tNearbyUnitsOfCategoryToBuild empty='..tostring(tNearbyUnitsOfCategoryToBuild)..'; Is oNearestPartComplete valid='..tostring(M28UnitInfo.IsUnitValid(oNearestPartComplete))) end
     if oNearestPartComplete then
         if bDebugMessages == true then LOG(sFunctionRef..': Will assist part complete building='..oNearestPartComplete.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestPartComplete)) end
         M28Orders.IssueTrackedGuard(oACU, oNearestPartComplete, false)
@@ -60,6 +60,9 @@ function ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearchForAdjace
         if bDebugMessages == true then
             local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oACU:GetPosition(), true, oACU)
             LOG(sFunctionRef..': Blueprint to build='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation)..'; ACU plateau and land zone based on cur position='..iPlateau..'; iLandZone='..(iLandZone or 'nil')..'; iMaxAreaToSearchForBuildLocation='..(iMaxAreaToSearchForBuildLocation or 'nil')..'; was iOptionalAdjacencyCategory nil='..tostring(iOptionalAdjacencyCategory == nil))
+            if sBlueprint and tBuildLocation then
+                LOG(sFunctionRef..': Can build structure at target='..tostring(aiBrain:CanBuildStructureAt(sBlueprint, tBuildLocation)))
+            end
         end
         if sBlueprint and tBuildLocation then
             --Move to the target and then build on it
@@ -101,14 +104,14 @@ function ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData)
 
     --Redundancy - make sure we have hydros in this LZ:
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oACU:GetPosition(), true, oACU)
-    if bDebugMessages == true then LOG(sFunctionRef..': Do we have hydro loations in iPlateau '..iPlateau..'; iLZ='..iLandZone..': Table empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroLocations]))) end
-    if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroLocations]) == false then
+    if bDebugMessages == true then LOG(sFunctionRef..': Do we have hydro loations in iPlateau '..iPlateau..'; iLZ='..iLandZone..': Table empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefHydroLocations]))) end
+    if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefHydroLocations]) == false then
         local tNearestHydro
         local iNearestHydro = 10000
         local iCurDist
         local iBuildRange = oACU:GetBlueprint().Economy.MaxBuildDistance
         local iMinRangeToAssist = iBuildRange + 10
-        for iHydro, tHydro in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroLocations] do
+        for iHydro, tHydro in tLZOrWZData[M28Map.subrefHydroLocations] do
             iCurDist = M28Utilities.GetDistanceBetweenPositions(tHydro, oACU:GetPosition())
             if iCurDist < iNearestHydro then iNearestHydro = iCurDist tNearestHydro = tHydro end
         end
@@ -171,7 +174,7 @@ end
 
 function ACUActionBuildMex(aiBrain, oACU, iAreaToSearchOverride)
     local sFunctionRef = 'ACUActionBuildMex'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     local iMaxAreaToSearch = iAreaToSearchOverride
     --Increase search range if still doing initial build order, as this suggests we have mexes in our initial land zone that we havent built on yet
@@ -193,7 +196,7 @@ end
 
 function GetACUEarlyGameOrders(aiBrain, oACU)
     local sFunctionRef = 'GetACUEarlyGameOrders'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --Are we already building something?
@@ -370,23 +373,32 @@ function GetUpgradePathForACU(oACU)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if EntityCategoryContains(categories.UEF, oACU.UnitId) then
-        oACU[reftPreferredUpgrades] = {'HeavyAntiMatterCannon', 'DamageStabilization', 'Shield'}
-    elseif EntityCategoryContains(categories.AEON, oACU.UnitId) then
-        oACU[reftPreferredUpgrades] = {'CrysalisBeam', 'HeatSink', 'Shield'}
-    elseif EntityCategoryContains(categories.CYBRAN, oACU.UnitId) then
-        if oACU[refbStartedUnderwater] then
+    if oACU[refbStartedUnderwater] then
+
+        if EntityCategoryContains(categories.UEF, oACU.UnitId) then
+            oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'ResourceAllocation', 'Shield'}
+        elseif EntityCategoryContains(categories.AEON, oACU.UnitId) then
+            oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'ResourceAllocation', 'ResourceAllocationAdvanced'}
+        elseif EntityCategoryContains(categories.CYBRAN, oACU.UnitId) then
             oACU[reftPreferredUpgrades] = {'NaniteTorpedoTube', 'StealthGenerator'}
-        else
-            oACU[reftPreferredUpgrades] = {'CoolingUpgrade', 'StealthGenerator'}
+        elseif EntityCategoryContains(categories.SERAPHIM, oACU.UnitId) then
+            oACU[reftPreferredUpgrades] = {'AdvancedEngineering', 'ResourceAllocation', 'ResourceAllocationAdvanced'}
         end
-    elseif EntityCategoryContains(categories.SERAPHIM, oACU.UnitId) then
-        oACU[reftPreferredUpgrades] = {'RateOfFire', 'AdvancedEngineering'}
+    else
+        if EntityCategoryContains(categories.UEF, oACU.UnitId) then
+            oACU[reftPreferredUpgrades] = {'HeavyAntiMatterCannon', 'DamageStabilization', 'Shield'}
+        elseif EntityCategoryContains(categories.AEON, oACU.UnitId) then
+            oACU[reftPreferredUpgrades] = {'CrysalisBeam', 'HeatSink', 'Shield'}
+        elseif EntityCategoryContains(categories.CYBRAN, oACU.UnitId) then
+            oACU[reftPreferredUpgrades] = {'CoolingUpgrade', 'StealthGenerator'}
+        elseif EntityCategoryContains(categories.SERAPHIM, oACU.UnitId) then
+            oACU[reftPreferredUpgrades] = {'RateOfFire', 'AdvancedEngineering'}
+        end
     end
 
     --Check all of these are options (in case a mod has changed them)
+    local oBP = oACU:GetBlueprint()
     if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) == false then
-        local oBP = oACU:GetBlueprint()
         for iUpgradeWanted, sUpgradeWanted in oACU[reftPreferredUpgrades] do
             if M28Utilities.IsTableEmpty(oBP.Enhancements[sUpgradeWanted]) then
                 oACU[reftPreferredUpgrades] = {}
@@ -395,13 +407,13 @@ function GetUpgradePathForACU(oACU)
         end
     end
     if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) then
-        --Find the cheapest upgrade that boosts either rate of fire or range
+        --Find the cheapest upgrade that boosts either rate of fire or range (if didnt start underwater) or that boosts build power (if started underwater)
         oACU[reftPreferredUpgrades] = {}
         local iLowestMassCost = 1000000
         local sLowestUpgrade
         for sUpgrade, tUpgrade in oACU:GetBlueprint().Enhancements do
             if bDebugMessages == true then LOG(sFunctionRef..': Considering sUpgrade='..sUpgrade..'; tUpgrade='..reprs(tUpgrade)) end
-            if tUpgrade.NewMaxRadius or tUpgrade.NewRateOfFire then
+            if (oACU[refbStartedUnderwater] and (tUpgrade.NewBuildRate or 0) > 10) or (tUpgrade.NewMaxRadius or tUpgrade.NewRateOfFire) then
                 if tUpgrade.BuildCostMass < iLowestMassCost and not(tUpgrade.Prerequisite) then
                     sLowestUpgrade = sUpgrade
                     iLowestMassCost = tUpgrade.BuildCostMass
@@ -415,18 +427,47 @@ function GetUpgradePathForACU(oACU)
 
     --Remove any upgrades that we already have
     if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) == false then
+        local tPreRequisites = {}
+        local bCheckForPrerequisites
+        if oACU[refiUpgradeCount] > 0 then
+            for iEntry, sEnhancement in oACU[reftPreferredUpgrades] do
+                if oBP.Enhancements[sEnhancement].Prerequisite and oACU:HasEnhancement(sEnhancement) then
+                    table.insert(tPreRequisites, oBP.Enhancements[sEnhancement].Prerequisite)
+                    bCheckForPrerequisites = true
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering if sEnhancement '..sEnhancement..' has prerequisite, BP Preq val='..(oBP.Enhancements[sEnhancement].Prerequisite or 'nil')) end
+            end
+        end
+        local bHavePrerequisite
+
         local iRevisedIndex = 1
         local iTableSize = table.getn(oACU[reftPreferredUpgrades])
 
+        --First check if we have any upgrades that have prerequiites, in which case we want to remove those prerequisites first
         for iOrigIndex=1, iTableSize do
             if oACU[reftPreferredUpgrades][iOrigIndex] then
                 if not(oACU:HasEnhancement(oACU[reftPreferredUpgrades][iOrigIndex])) then --I.e. this should run the logic to decide whether we want to keep this entry of the table or remove it
-                    --We want to keep the entry; Move the original index to be the revised index number (so if e.g. a table of 1,2,3 removed 2, then this would've resulted in the revised index being 2 (i.e. it starts at 1, then icnreases by 1 for the first valid entry); this then means we change the table index for orig index 3 to be 2
-                    if (iOrigIndex ~= iRevisedIndex) then
-                        oACU[reftPreferredUpgrades][iRevisedIndex] = oACU[reftPreferredUpgrades][iOrigIndex];
-                        oACU[reftPreferredUpgrades][iOrigIndex] = nil;
+                    --Check this isnt a prerequisite of an enhancement we have
+                    bHavePrerequisite = false
+                    if bCheckForPrerequisites then
+                        for iEntry, sPreRequisite in tPreRequisites do
+                            if sPreRequisite == oACU[reftPreferredUpgrades][iOrigIndex] then
+                                bHavePrerequisite = true
+                                break
+                            end
+                        end
                     end
-                    iRevisedIndex = iRevisedIndex + 1; --i.e. this will be the position of where the next value that we keep will be located
+                    if bHavePrerequisite then
+                        oACU[reftPreferredUpgrades][iOrigIndex] = nil;
+                    else
+
+                        --We want to keep the entry; Move the original index to be the revised index number (so if e.g. a table of 1,2,3 removed 2, then this would've resulted in the revised index being 2 (i.e. it starts at 1, then icnreases by 1 for the first valid entry); this then means we change the table index for orig index 3 to be 2
+                        if (iOrigIndex ~= iRevisedIndex) then
+                            oACU[reftPreferredUpgrades][iRevisedIndex] = oACU[reftPreferredUpgrades][iOrigIndex];
+                            oACU[reftPreferredUpgrades][iOrigIndex] = nil;
+                        end
+                        iRevisedIndex = iRevisedIndex + 1; --i.e. this will be the position of where the next value that we keep will be located
+                    end
                 else
                     oACU[reftPreferredUpgrades][iOrigIndex] = nil;
                 end
@@ -471,6 +512,7 @@ function GetACUUpgradeWanted(oACU)
             else
                 iResourceFactor = 4 --Cant path to enemy except with air
             end
+            if oACU[refbStartedUnderwater] and (tEnhancement.ProductionPerSecondEnergy or 0) > 20 then iResourceFactor = 0.5 end
             local iDistToEnemyBase
             local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
             if iPlateauOrZero == 0 then
@@ -834,7 +876,7 @@ end
 function ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU)
     --Do we have unclaimed mexes in the LZ? If so then build a mex on them.  However first check we dont alreayd have engineers trying to do this
 
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderBuildingMex'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -1086,8 +1128,10 @@ end
 
 function GetACUOrder(aiBrain, oACU)
     local sFunctionRef = 'GetACUOrder'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
 
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
     local tLZOrWZData

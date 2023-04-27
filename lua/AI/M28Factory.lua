@@ -1538,28 +1538,35 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
 
     local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
     local bHaveLowPower = M28Conditions.HaveLowPower(iTeam)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel='..iFactoryTechLevel..'; Highest friendly factory tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
+
+
     local bConsiderBuildingShieldOrStealthBoats = true
     --Shield boat needs 10 energy per tick; same for stealth boat; dont want this to account for more than 20% of gross energy; so want 50 gross energy per tick per shield boat for it to be <20%
     if bHaveLowPower or iFactoryTechLevel == 1 then
         bConsiderBuildingShieldOrStealthBoats = false
     else
         if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoShieldBoatTargetsByPond][iPond] or -100) <= 5 and EntityCategoryContains(categories.UEF, oFactory.UnitId) then
-            bConsiderBuildingShieldOrStealthBoats = true
+            bConsiderBuildingShieldOrStealthBoats = false
         else
             local iCurShieldAndStealthBoats = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryShieldBoat + M28UnitInfo.refCategoryStealthBoat)
-            if aiBrain[M28Economy.refiGrossEnergyBaseIncome] < (1 + iCurShieldAndStealthBoats) * 50 then bConsiderBuildingShieldOrStealthBoats = false
-            elseif iCurShieldAndStealthBoats >= 10 then
+            local iEnergyMod = 1
+            if tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] then iEnergyMod = 2.5 end
+            if aiBrain[M28Economy.refiGrossEnergyBaseIncome] < (1 + iCurShieldAndStealthBoats) * 50 * iEnergyMod then bConsiderBuildingShieldOrStealthBoats = false
+            elseif iCurShieldAndStealthBoats >= 5 then
                 --Want to be a T3 factory and have at least 5 T3 naval units before building more shield boats
                 bConsiderBuildingShieldOrStealthBoats = false
                 if iFactoryTechLevel >= 3 and iCurShieldAndStealthBoats <= 22 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH3) >= 10 then
+                    bConsiderBuildingShieldOrStealthBoats = true
+                elseif iCurShieldAndStealthBoats <= 10 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH3 + M28UnitInfo.refCategoryDestroyer + M28UnitInfo.refCategoryCruiser) * 1.5 > iCurShieldAndStealthBoats then
                     bConsiderBuildingShieldOrStealthBoats = true
                 end
             end
         end
     end
     local bUseFrigatesAsScouts = M28Team.tTeamData[iTeam][M28Team.subrefbUseFrigatesAsScoutsByPond][iPond]
-
-    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel='..iFactoryTechLevel..'; Highest friendly factory tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if we want to consider building shield/stealth boats, bConsiderBuildingShieldOrStealthBoats='..tostring(bConsiderBuildingShieldOrStealthBoats)..'; Cur shield and stealth boats='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryShieldBoat + M28UnitInfo.refCategoryStealthBoat)..'; bHaveLowPower='..tostring(bHaveLowPower)..'; Cur T3 navy and destroyer+cruiser='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalSurface * categories.TECH3 + M28UnitInfo.refCategoryDestroyer + M28UnitInfo.refCategoryCruiser)) end
 
     iCategoryToBuild = M28UnitInfo.refCategoryEngineer --Placeholder
     local sBPIDToBuild
@@ -1608,7 +1615,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     --High priority engineer if we started in water
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] then
-        if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) < 3 then
+        if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) < 3 or (iFactoryTechLevel <= 2 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer) <= 10) then
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
         end
     end
@@ -1660,47 +1667,69 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         if ConsiderBuildingCategory(iCombatCategory) then return sBPIDToBuild end
     end
 
-    --Medium priority engineer if no immediate threats in this zone, are in a water start position, and want more engineers due to having mass but not needing power
-    iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] then
-        if tWZTeamData[M28Map.subrefTbWantBP] and (not(bHaveLowPower) or (not(bHaveLowMass) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) <= 6)) then
-            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
-        end
-    end
-
     --Upgrade naval fac as priority if enemy has better navy tech than us or we ahve lots of naval units
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if bDebugMessages == true then LOG(sFunctionRef..': iCurrentConditionToTry='..iCurrentConditionToTry..'; About ot check if want to upgrade factory, iFactoryTechLevel='..iFactoryTechLevel..'; Is table of active upgrades for WZ empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefActiveUpgrades]))) end
-    if iFactoryTechLevel < 3 and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefActiveUpgrades]) then
-        local iUpgradeThreatThreshold
-        local iGrossMassThreshold
-        if iFactoryTechLevel == 1 then
-            iUpgradeThreatThreshold = 1000
-            iGrossMassThreshold = 4
-        else
-            iUpgradeThreatThreshold = 6000
-            iGrossMassThreshold = 10
+    if iFactoryTechLevel < 3 then
+        local iActiveFactoryUpgrades = 0
+        if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefActiveUpgrades]) == false then
+            for iUnit, oUnit in tWZTeamData[M28Map.subrefActiveUpgrades] do
+                if EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oUnit.UnitId) then iActiveFactoryUpgrades = iActiveFactoryUpgrades + 1 end
+            end
         end
-        if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech] > iFactoryTechLevel then iUpgradeThreatThreshold = iUpgradeThreatThreshold * 0.75 end
-        if bDebugMessages == true then LOG(sFunctionRef..': tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]='..tostring(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] or false)..'; tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]='..tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]..'; iUpgradeThreatThreshold='..iUpgradeThreatThreshold) end
-        if not(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]) or tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] >= iUpgradeThreatThreshold or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 20 then
-            --Do we have enough mass income to justify upgrading?
-            if bHaveLowMass then iGrossMassThreshold = iGrossMassThreshold * 1.25 end
-            --Lower threshold if enemy has better tech
-            if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech] then iGrossMassThreshold = iGrossMassThreshold * 0.75 end
-            if bDebugMessages == true then LOG(sFunctionRef..': Gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; iGrossMassThreshold='..iGrossMassThreshold) end
-            if aiBrain[M28Economy.refiGrossMassBaseIncome] >= iGrossMassThreshold then
-                if ConsiderUpgrading() then return sBPIDToBuild end
+        local bConsiderUpgrading = false
+        if iActiveFactoryUpgrades == 0 then bConsiderUpgrading = true
+        else
+            local iFactoriesInWZ = 0
+            local tFactoriesInWZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tWZTeamData[M28Map.subrefLZTAlliedUnits])
+            if M28Utilities.IsTableEmpty(tFactoriesInWZ) == false then
+                iFactoriesInWZ = table.getn(tFactoriesInWZ)
+            end
+            if iActiveFactoryUpgrades < iFactoriesInWZ * 0.5 and not(bHaveLowMass) and not(bHaveLowPower) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.3 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 25) then
+                bConsiderUpgrading = true
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': bConsiderUpgrading='..tostring(bConsiderUpgrading)..'; iActiveFactoryUpgrades='..iActiveFactoryUpgrades..'; Is table of activeu pgrades empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefActiveUpgrades]))) end
+        if bConsiderUpgrading then
+            local iUpgradeThreatThreshold
+            local iGrossMassThreshold
+            if iFactoryTechLevel == 1 then
+                iUpgradeThreatThreshold = 1000
+                iGrossMassThreshold = 4
             else
-                --Lower threshold if we have built lots of T2 units
-                if bDebugMessages == true then LOG(sFunctionRef..': Lifetime build amount of naval units='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryNavalSurface * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))) end
-                if M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryNavalSurface * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) >= 14 then
-                    iGrossMassThreshold = iGrossMassThreshold * 0.75
-                    if aiBrain[M28Economy.refiGrossMassBaseIncome] >= iGrossMassThreshold then
-                        if ConsiderUpgrading() then return sBPIDToBuild end
+                iUpgradeThreatThreshold = 6000
+                iGrossMassThreshold = 10
+            end
+            if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech] > iFactoryTechLevel then iUpgradeThreatThreshold = iUpgradeThreatThreshold * 0.75 end
+            if bDebugMessages == true then LOG(sFunctionRef..': tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]='..tostring(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] or false)..'; tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]='..tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]..'; iUpgradeThreatThreshold='..iUpgradeThreatThreshold) end
+            if not(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]) or tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] >= iUpgradeThreatThreshold or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 20 then
+                --Do we have enough mass income to justify upgrading?
+                if bHaveLowMass then iGrossMassThreshold = iGrossMassThreshold * 1.25 end
+                --Lower threshold if enemy has better tech
+                if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech] then iGrossMassThreshold = iGrossMassThreshold * 0.75 end
+                if bDebugMessages == true then LOG(sFunctionRef..': Gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; iGrossMassThreshold='..iGrossMassThreshold) end
+                if aiBrain[M28Economy.refiGrossMassBaseIncome] >= iGrossMassThreshold then
+                    if ConsiderUpgrading() then return sBPIDToBuild end
+                else
+                    --Lower threshold if we have built lots of T2 units
+                    if bDebugMessages == true then LOG(sFunctionRef..': Lifetime build amount of naval units='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryNavalSurface * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))) end
+                    if M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryNavalSurface * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) >= 14 then
+                        iGrossMassThreshold = iGrossMassThreshold * 0.75
+                        if aiBrain[M28Economy.refiGrossMassBaseIncome] >= iGrossMassThreshold then
+                            if ConsiderUpgrading() then return sBPIDToBuild end
+                        end
                     end
                 end
             end
+        end
+    end
+
+    --Medium priority engineer if no immediate threats in this zone, are in a water start position, and want more engineers due to having mass but not needing power
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': Engi fi underwtaer start: tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]='..tostring(tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart])..'; tWZTeamData[M28Map.subrefTbWantBP]='..tostring(tWZTeamData[M28Map.subrefTbWantBP])..'; bHaveLowMass='..tostring(bHaveLowMass)..'; aiBrain[M28Economy.refiGrossMassBaseIncome]='..aiBrain[M28Economy.refiGrossMassBaseIncome]) end
+    if tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] then
+        if tWZTeamData[M28Map.subrefTbWantBP] and (not(bHaveLowMass) or (aiBrain[M28Economy.refiGrossMassBaseIncome] >= iFactoryTechLevel * 6)) then
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
         end
     end
 

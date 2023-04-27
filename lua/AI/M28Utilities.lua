@@ -13,7 +13,7 @@ tErrorCountByMessage = {} --WHenever we have an error, then the error message is
 bM28AIInGame = false --true if have M28 AI in the game (used to avoid considering callback logic further)
 
 
-function ErrorHandler(sErrorMessage, bWarningNotError)
+function ErrorHandler(sErrorMessage, bWarningNotError, bIgnoreCount)
     --Intended to be put in code wherever a condition isn't met that should be, so can debug it without the code crashing
     --Search for "error " in the log to find both these errors and normal lua errors, while not bringing up warnings
     if sErrorMessage == nil then sErrorMessage = 'Not specified' end
@@ -23,25 +23,28 @@ function ErrorHandler(sErrorMessage, bWarningNotError)
     local bShowError = true
     if iCount >= 3 then
         bShowError = false
-        if bWarningNotError then
-            if iCount > 1024 then iInterval = 4096
-            elseif iCount > 256 then iInterval = 1024
-            elseif iCount > 64 then iInterval = 256
-            elseif iCount > 16 then iInterval = 64
-            elseif iCount > 2 then iInterval = 16
-            else iInterval = 2
-            end
+        if bIgnoreCount then bShowError = true
         else
-            if iCount > 2187 then iInterval = 2187
-            elseif iCount > 729 then iInterval = 729
-            elseif iCount > 243 then iInterval = 243
-            elseif iCount >= 81 then iInterval = 81
-            elseif iCount >= 27 then iInterval = 27
-            elseif iCount >= 9 then iInterval = 9
-            else iInterval = 3
+            if bWarningNotError then
+                if iCount > 1024 then iInterval = 4096
+                elseif iCount > 256 then iInterval = 1024
+                elseif iCount > 64 then iInterval = 256
+                elseif iCount > 16 then iInterval = 64
+                elseif iCount > 2 then iInterval = 16
+                else iInterval = 2
+                end
+            else
+                if iCount > 2187 then iInterval = 2187
+                elseif iCount > 729 then iInterval = 729
+                elseif iCount > 243 then iInterval = 243
+                elseif iCount >= 81 then iInterval = 81
+                elseif iCount >= 27 then iInterval = 27
+                elseif iCount >= 9 then iInterval = 9
+                else iInterval = 3
+                end
             end
+            if math.floor(iCount / iInterval) == iCount/iInterval then bShowError = true end
         end
-        if math.floor(iCount / iInterval) == iCount/iInterval then bShowError = true end
     end
     if bShowError then
         local sErrorBase = 'M28ERROR '

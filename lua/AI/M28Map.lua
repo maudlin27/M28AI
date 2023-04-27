@@ -473,7 +473,7 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
         --Check if we have previously recorded this location with a pathing override
         --LOG('GetPlateauAndLandZoneReferenceFromPosition iPlateau='..(iPlateau or 'nil'))
         iPlateau, iLandZone = GetPathingOverridePlateauAndLandZone(tPosition, bOptionalShouldBePathable, oOptionalPathingUnit)
-        --LOG('GetPlateauAndLandZoneReferenceFromPosition iPlateau after getting override='..(iPlateau or 'nil'))
+        --LOG('GetPlateauAndLandZoneReferenceFromPosition iPlateau after getting override='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil'))
         if not(tAllPlateaus[iPlateau]) then
             --Potential error - see if there is a plateau for the preicse position if it shoudl be pathable
 
@@ -1066,7 +1066,7 @@ end
 
 ---@param iBaseSegmentX number
 ---@param iBaseSegmentZ number
-local function CreateNewLandZoneAtSegment(iBaseSegmentX, iBaseSegmentZ)
+local function CreateNewLandZoneAtSegment(iBaseSegmentX, iBaseSegmentZ, iOptionalPlateauBackup)
     --Creates a new land zone reference at the land segment given by iBaseSegmentX-iBaseSegmentZ (includes adding new land zone reference to the plateau group that these segments are part of)
     --iBaseSegmentX and Z are the land segment X and Z references
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -1077,10 +1077,14 @@ local function CreateNewLandZoneAtSegment(iBaseSegmentX, iBaseSegmentZ)
     if not(tLandZoneBySegment[iBaseSegmentX][iBaseSegmentZ]) then
         --PlateauGroup ref will be the amphibious pathing ref from navutils.getlabel (since that's what is used to define mexes by amphibious pathing group, and plateau recognition then uses the same reference)
         local tMidpoint = GetPositionFromPathingSegments(iBaseSegmentX, iBaseSegmentZ)
-        local iPlateau = NavUtils.GetLabel(refPathingTypeHover, tMidpoint)
-        AddNewLandZoneReferenceToPlateau(iPlateau)
-        --LOG('Have just created a new land zone reference for base segment XZ='..iBaseSegmentX..'-'..iBaseSegmentZ..' in the iPlateau='..iPlateau)
-        RecordSegmentLandZone(iBaseSegmentX, iBaseSegmentZ, iPlateau, tAllPlateaus[iPlateau][subrefLandZoneCount])
+        local iPlateau = (NavUtils.GetLabel(refPathingTypeHover, tMidpoint) or NavUtils.GetLabel('Amphibious', tMidpoint) or iOptionalPlateauBackup)
+        if (iPlateau or 0) > 0 then
+            AddNewLandZoneReferenceToPlateau(iPlateau)
+            --LOG('Have just created a new land zone reference for base segment XZ='..iBaseSegmentX..'-'..iBaseSegmentZ..' in the iPlateau='..iPlateau)
+            RecordSegmentLandZone(iBaseSegmentX, iBaseSegmentZ, iPlateau, tAllPlateaus[iPlateau][subrefLandZoneCount])
+        else
+            M28Utilities.ErrorHandler('Tried creating new zone for '..iBaseSegmentX..'-'..iBaseSegmentZ..' but dont have valid plateau iPlateau='..(iPlateau or 'nil'))
+        end
 
     else
         M28Utilities.ErrorHandler('Trying to create a new zone for base segment '..iBaseSegmentX..'-'..iBaseSegmentZ..' when it already has a land zone assigned '..tLandZoneBySegment[iBaseSegmentX][iBaseSegmentZ])
@@ -1117,6 +1121,7 @@ local function AddMexToLandZone(iPlateau, iOptionalLandZone, iPlateauMexRef, tTe
     tTempPlateauLandZoneByMexRef[iPlateau][iPlateauMexRef] = iLandZone
     local iCurSegmentX, iCurSegmentZ = GetPathingSegmentFromPosition(tAllPlateaus[iPlateau][subrefPlateauMexes][iPlateauMexRef])
     RecordSegmentLandZone(iCurSegmentX, iCurSegmentZ, iPlateau, iLandZone)
+    if bDebugMessages == true then LOG(sFunctionRef..': Hvae recorded a new land zone for segment '..iCurSegmentX..'-'..iCurSegmentZ..' for iPlateau '..iPlateau..'; iLandZone='..iLandZone) end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -1125,7 +1130,7 @@ local function AddMexToWaterZone(iPond, iWaterZone, tMex)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AddMexToWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if iWaterZone == 75 then bDebugMessages = true end
+
     --Add the mex to this water zone
     local bAlreadyRecorded = false --(expect to be the case every time, but were getting issues with the same location appearing multiple itmes in unbuilt locations so adding as redundancy)
     local tWZData = tPondDetails[iPond][subrefPondWaterZones][iWaterZone]
@@ -1505,7 +1510,7 @@ local function AssignRemainingSegmentsToLandZones()
                             LOG(sFunctionRef..': Have no temp travel distance recorded so have created a new land zone for segmentX-Z='..iBaseSegmentX..'-'..iBaseSegmentZ..'; Position from segments='..repru(GetPositionFromPathingSegments(iBaseSegmentX, iBaseSegmentZ))..'; tBasePosition (should be the same)='..repru(tBasePosition)..'; will draw midpoint in red.  iNewZoneCount before increasing by 1='..iNewZoneCount..'; Plateau group of the segment midpoint='..(NavUtils.GetLabel(refPathingTypeLand, GetPositionFromPathingSegments(iBaseSegmentX, iBaseSegmentZ)) or 'nil'))
                             M28Utilities.DrawLocation(GetPositionFromPathingSegments(iBaseSegmentX, iBaseSegmentZ))
                         end
-                        CreateNewLandZoneAtSegment(iBaseSegmentX, iBaseSegmentZ)
+                        CreateNewLandZoneAtSegment(iBaseSegmentX, iBaseSegmentZ, iPlateauGroup)
                         iNewZoneCount = iNewZoneCount + 1
 
                         --Assign very nearby segments to this
@@ -1744,25 +1749,28 @@ local function AssignMexesALandZone()
 
     for iPlateau, tPlateauSubtable in tAllPlateaus do
         for iMex, tMex in tPlateauSubtable[subrefPlateauMexes] do
-            --Find the closest start point
-            iClosestDistTravel = iTravelDistThreshold --Ignore points whose travel distance is further away than this
-            iClosestBrainIndex = nil
-            for iBrainIndex, tStartPoint in tRelevantStartPointsByIndex do
-                iCurDistStraightLine = M28Utilities.GetDistanceBetweenPositions(tMex, tStartPoint)
-                if iCurDistStraightLine <= iStraightLineThreshold then
-                    --Get the land pathing distance
-                    iCurDistTravel = M28Utilities.GetTravelDistanceBetweenPositions(tMex, tStartPoint, refPathingTypeLand)
-                    if iCurDistTravel < iClosestDistTravel then
-                        iClosestDistTravel = iCurDistTravel
-                        iClosestBrainIndex = iBrainIndex
+            --Only consider if mex isnt underwater
+            if tMex[2] >= iMapWaterHeight then
+                --Find the closest start point
+                iClosestDistTravel = iTravelDistThreshold --Ignore points whose travel distance is further away than this
+                iClosestBrainIndex = nil
+                for iBrainIndex, tStartPoint in tRelevantStartPointsByIndex do
+                    iCurDistStraightLine = M28Utilities.GetDistanceBetweenPositions(tMex, tStartPoint)
+                    if iCurDistStraightLine <= iStraightLineThreshold then
+                        --Get the land pathing distance
+                        iCurDistTravel = M28Utilities.GetTravelDistanceBetweenPositions(tMex, tStartPoint, refPathingTypeLand)
+                        if iCurDistTravel < iClosestDistTravel then
+                            iClosestDistTravel = iCurDistTravel
+                            iClosestBrainIndex = iBrainIndex
+                        end
                     end
                 end
-            end
-            if iClosestBrainIndex then
-                if not(tiStartResourcesByBrainIndex[iClosestBrainIndex]) then tiStartResourcesByBrainIndex[iClosestBrainIndex] = {} end
-                table.insert(tiStartResourcesByBrainIndex[iClosestBrainIndex], tMex)
-                AddMexToLandZone(iPlateau, tiStartIndexPlateauAndLZ[iClosestBrainIndex][2], iMex, tiPlateauLandZoneByMexRef)
-                if bDebugMessages == true then LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLandZone='..(tiStartIndexPlateauAndLZ[iClosestBrainIndex][2] or 'nil')..'; Adding iMex='..iMex..'; at position '..repru(tMex)..'; to the start position for aiBrain index='..(iClosestBrainIndex or 'nil')..' which is at '..repru(tRelevantStartPointsByIndex[iClosestBrainIndex])) end
+                if iClosestBrainIndex then
+                    if not(tiStartResourcesByBrainIndex[iClosestBrainIndex]) then tiStartResourcesByBrainIndex[iClosestBrainIndex] = {} end
+                    table.insert(tiStartResourcesByBrainIndex[iClosestBrainIndex], tMex)
+                    AddMexToLandZone(iPlateau, tiStartIndexPlateauAndLZ[iClosestBrainIndex][2], iMex, tiPlateauLandZoneByMexRef)
+                    if bDebugMessages == true then LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLandZone='..(tiStartIndexPlateauAndLZ[iClosestBrainIndex][2] or 'nil')..'; Adding iMex='..iMex..'; at position '..repru(tMex)..'; to the start position for aiBrain index='..(iClosestBrainIndex or 'nil')..' which is at '..repru(tRelevantStartPointsByIndex[iClosestBrainIndex])) end
+                end
             end
         end
     end
@@ -3742,6 +3750,10 @@ function RecordPondToExpandTo(aiBrain)
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting, time='..GetGameTimeSeconds()..'; Is table of pond details empty='..tostring(M28Utilities.IsTableEmpty(tPondDetails))..'; bHaveRecordedPonds='..tostring(bHaveRecordedPonds)) end
     if M28Utilities.IsTableEmpty(tPondDetails) == false then
+        local bStartLocationIsUnderwater = false
+        local tStartPos = PlayerStartPoints[aiBrain:GetArmyIndex()]
+        if GetTerrainHeight(tStartPos[1], tStartPos[3]) < GetSurfaceHeight(tStartPos[1], tStartPos[3]) then bStartLocationIsUnderwater = true end
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering aiBrain '..aiBrain.Nickname..' location for naval fac, bStartLocationIsUnderwater='..tostring(bStartLocationIsUnderwater)..'; tStartPos='..repru(tStartPos)..'; Terrain height='..GetTerrainHeight(tStartPos[1], tStartPos[3])..'; Surface height='..GetSurfaceHeight(tStartPos[1], tStartPos[3])) end
         local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
         aiBrain[M28Navy.reftiPondThreatToUs] = {}
         aiBrain[M28Navy.reftiPondValueToUs] = {}
@@ -3868,64 +3880,69 @@ function RecordPondToExpandTo(aiBrain)
 
                         if bDebugMessages == true then LOG(sFunctionRef..': Have a pond that is in range of our start position, value based on mexes in range pre adjust='..iCurPondValue) end
                         --Do we have sufficient value to consider?
-                        if iCurPondValue >= 4 or iCurPondDefensiveValue >= 4 then
+                        if iCurPondValue >= 4 or iCurPondDefensiveValue >= 4 or bStartLocationIsUnderwater then
                             if iCurPondValue <= 0 then iCurPondValue = 0.1 end --Pond has defensive value so greater than 0
                             --Adjust value based on how close the naval build location would be for this pond
                             if not(tPondSubtable[subrefBuildLocationByStartPosition]) then
                                 tPondSubtable[subrefBuildLocationByStartPosition] = {}
                             end
                             local tNavalBuildArea = {}
-                            local iAngleToCentre = M28Utilities.GetAngleFromAToB(PlayerStartPoints[aiBrain:GetArmyIndex()], tPondSubtable[subrefPondMidpoint])
-                            local iDistInterval = 8
-                            local iBuildingInterval = 4
-                            local tPossibleLocationBase
-                            local tPossibleBuildLocation
-                            local bHaveValidLocation = false
-                            if bDebugMessages == true then LOG(sFunctionRef..': About to search for location to build naval factory for iCurPondRef='..iCurPondRef..'; iDistInterval='..iDistInterval..'; Angle='..iAngleToCentre..'; Midpoint='..repru(tPondSubtable[subrefPondMidpoint])..'; Start position='..repru(PlayerStartPoints[aiBrain:GetArmyIndex()])) end
-                            for iDistToTravel = iDistInterval, math.max(iDistInterval, math.floor(M28Utilities.GetDistanceBetweenPositions(PlayerStartPoints[aiBrain:GetArmyIndex()], tPondSubtable[subrefPondMidpoint]) / iDistInterval) * iDistInterval), iDistInterval do
-                                for iAngleAdjust = 0, 170, 10 do
-                                    for iAngleFactor = -1, 1, 2 do
-                                        tPossibleLocationBase = M28Utilities.MoveInDirection(PlayerStartPoints[aiBrain:GetArmyIndex()], iAngleToCentre + iAngleAdjust * iAngleFactor, iDistToTravel, true, true)
-                                        if NavUtils.GetLabel(refPathingTypeNavy, tPossibleLocationBase) == iCurPondRef then
-                                            --Try and find somewhere around here to build a naval factory
-                                            for iBuildingAdjustX = 0, iBuildingInterval, 1 do
-                                                for iBuildingAdjustZ = 0, iBuildingInterval, 1 do
-                                                    for iXFactor = -1, 1, 2 do
-                                                        for iZFactor = -1, 1, 2 do
-                                                            tPossibleBuildLocation = {tPossibleLocationBase[1] + iBuildingAdjustX * iXFactor, 0, tPossibleLocationBase[3] + iBuildingAdjustZ * iZFactor}
-                                                            tPossibleBuildLocation[2] = GetSurfaceHeight(tPossibleBuildLocation[1], tPossibleBuildLocation[3])
-                                                            if aiBrain:CanBuildStructureAt('ueb0103', tPossibleBuildLocation) then
-                                                                bHaveValidLocation = true
-                                                                tNavalBuildArea = {tPossibleBuildLocation[1], tPossibleBuildLocation[2], tPossibleBuildLocation[3]}
-                                                                if bDebugMessages == true then
-                                                                    LOG(sFunctionRef..': Have valid location='..repru(tPossibleBuildLocation)..'; will draw in white')
-                                                                    M28Utilities.DrawLocation(tPossibleBuildLocation, 1, 100, 2)
-                                                                end
-                                                                break
-                                                            else
-                                                                if bDebugMessages == true then
-                                                                    LOG(sFunctionRef..': Have invalid location='..repru(tPossibleBuildLocation)..'; will draw in red')
-                                                                    M28Utilities.DrawLocation(tPossibleBuildLocation, 2, 100, 2)
+                            if not(bStartLocationIsUnderwater) then
+                                local iAngleToCentre = M28Utilities.GetAngleFromAToB(PlayerStartPoints[aiBrain:GetArmyIndex()], tPondSubtable[subrefPondMidpoint])
+                                local iDistInterval = 8
+                                local iBuildingInterval = 4
+                                local tPossibleLocationBase
+                                local tPossibleBuildLocation
+                                local bHaveValidLocation = false
+                                if bDebugMessages == true then LOG(sFunctionRef..': About to search for location to build naval factory for iCurPondRef='..iCurPondRef..'; iDistInterval='..iDistInterval..'; Angle='..iAngleToCentre..'; Midpoint='..repru(tPondSubtable[subrefPondMidpoint])..'; Start position='..repru(PlayerStartPoints[aiBrain:GetArmyIndex()])) end
+                                for iDistToTravel = iDistInterval, math.max(iDistInterval, math.floor(M28Utilities.GetDistanceBetweenPositions(PlayerStartPoints[aiBrain:GetArmyIndex()], tPondSubtable[subrefPondMidpoint]) / iDistInterval) * iDistInterval), iDistInterval do
+                                    for iAngleAdjust = 0, 170, 10 do
+                                        for iAngleFactor = -1, 1, 2 do
+                                            tPossibleLocationBase = M28Utilities.MoveInDirection(PlayerStartPoints[aiBrain:GetArmyIndex()], iAngleToCentre + iAngleAdjust * iAngleFactor, iDistToTravel, true, true)
+                                            if NavUtils.GetLabel(refPathingTypeNavy, tPossibleLocationBase) == iCurPondRef then
+                                                --Try and find somewhere around here to build a naval factory
+                                                for iBuildingAdjustX = 0, iBuildingInterval, 1 do
+                                                    for iBuildingAdjustZ = 0, iBuildingInterval, 1 do
+                                                        for iXFactor = -1, 1, 2 do
+                                                            for iZFactor = -1, 1, 2 do
+                                                                tPossibleBuildLocation = {tPossibleLocationBase[1] + iBuildingAdjustX * iXFactor, 0, tPossibleLocationBase[3] + iBuildingAdjustZ * iZFactor}
+                                                                tPossibleBuildLocation[2] = GetSurfaceHeight(tPossibleBuildLocation[1], tPossibleBuildLocation[3])
+                                                                if aiBrain:CanBuildStructureAt('ueb0103', tPossibleBuildLocation) then
+                                                                    bHaveValidLocation = true
+                                                                    tNavalBuildArea = {tPossibleBuildLocation[1], tPossibleBuildLocation[2], tPossibleBuildLocation[3]}
+                                                                    if bDebugMessages == true then
+                                                                        LOG(sFunctionRef..': Have valid location='..repru(tPossibleBuildLocation)..'; will draw in white')
+                                                                        M28Utilities.DrawLocation(tPossibleBuildLocation, 1, 100, 2)
+                                                                    end
+                                                                    break
+                                                                else
+                                                                    if bDebugMessages == true then
+                                                                        LOG(sFunctionRef..': Have invalid location='..repru(tPossibleBuildLocation)..'; will draw in red')
+                                                                        M28Utilities.DrawLocation(tPossibleBuildLocation, 2, 100, 2)
+                                                                    end
                                                                 end
                                                             end
+                                                            if bHaveValidLocation then break end
                                                         end
                                                         if bHaveValidLocation then break end
+
                                                     end
                                                     if bHaveValidLocation then break end
-
                                                 end
-                                                if bHaveValidLocation then break end
+                                                if iAngleAdjust == 0 or bHaveValidLocation then break end
+                                            elseif bDebugMessages == true then
+                                                LOG(sFunctionRef..': Failed tPossibleLocationBase pathing group, tPossibleLocationBase='..repru(tPossibleLocationBase)..'; naval label='..(NavUtils.GetLabel(refPathingTypeNavy, tPossibleLocationBase) or 'nil')..'; iCurPondRef='..iCurPondRef..'; iPathingGroupWanted='..iPathingGroupWanted..'; will draw in gold')
+                                                M28Utilities.DrawLocation(tPossibleLocationBase, 4, 100, 2)
                                             end
-                                            if iAngleAdjust == 0 or bHaveValidLocation then break end
-                                        elseif bDebugMessages == true then
-                                            LOG(sFunctionRef..': Failed tPossibleLocationBase pathing group, tPossibleLocationBase='..repru(tPossibleLocationBase)..'; naval label='..(NavUtils.GetLabel(refPathingTypeNavy, tPossibleLocationBase) or 'nil')..'; iCurPondRef='..iCurPondRef..'; iPathingGroupWanted='..iPathingGroupWanted..'; will draw in gold')
-                                            M28Utilities.DrawLocation(tPossibleLocationBase, 4, 100, 2)
+                                            if bHaveValidLocation then break end
                                         end
                                         if bHaveValidLocation then break end
                                     end
                                     if bHaveValidLocation then break end
                                 end
-                                if bHaveValidLocation then break end
+                            else
+                                local iIndex = aiBrain:GetArmyIndex()
+                                tNavalBuildArea = {PlayerStartPoints[iIndex][1], PlayerStartPoints[iIndex][2], PlayerStartPoints[iIndex][3]}
                             end
 
                             if bDebugMessages == true then LOG(sFunctionRef..': Finsihed searching for naval build area, is table empty='..tostring(M28Utilities.IsTableEmpty(tNavalBuildArea))) end
@@ -3979,7 +3996,7 @@ function RecordPondToExpandTo(aiBrain)
 
 
                                 if bDebugMessages == true then
-                                    LOG(sFunctionRef..': Have a naval build area='..repru(tNavalBuildArea)..'; will draw large square around it in blue')
+                                    LOG(sFunctionRef..': Have a naval build area='..repru(tNavalBuildArea)..'; will draw large square around it in blue, and will set this as the build area for brain '..aiBrain.Nickname)
                                     M28Utilities.DrawLocation(tNavalBuildArea, nil, 200, 10)
                                 end
                                 tPondSubtable[subrefBuildLocationByStartPosition][aiBrain:GetArmyIndex()] = tNavalBuildArea
@@ -4119,7 +4136,7 @@ end
 
 function CreateWaterZones()
     --Creates each separate water zones and assign segments to each water zone
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'CreateWaterZones'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -4146,6 +4163,7 @@ function CreateWaterZones()
 
     --First create a waterzone for any start positions that are underwater
     local iStartInterval = math.ceil(iSegmentInterval * 0.75)
+    local tWaterZonePondAndStartSegmentsByZone = {}
     for iCurBrain, oBrain in ArmyBrains do
         if not(M28Conditions.IsCivilianBrain(oBrain)) then
             local iStartPositionX, iStartPositionZ = oBrain:GetArmyStartPos()
@@ -4154,28 +4172,65 @@ function CreateWaterZones()
                 --COnfirm it is pathable by water
                 if (NavUtils.GetLabel(refPathingTypeNavy, tStartPosition) or 0) > 0 then
                     RecordWaterZoneAtPosition(tStartPosition)
+
                     --Get the segments and include an area around this in the same water zone; area needs to be more than half of the interval for the grid based approach for water zones used later
                     iBaseSegmentX, iBaseSegmentZ = GetPathingSegmentFromPosition(tStartPosition)
                     local iPond = NavUtils.GetLabel(refPathingTypeNavy, GetPositionFromPathingSegments(iBaseSegmentX, iBaseSegmentZ))
                     if (iPond or 0) > 0 then
-                        if bDebugMessages == true then LOG(sFunctionRef..': iPond='..iPond..'; About to assign all segments with adjustments iStartInterval of '..iStartInterval..' from iBaseSegmentX='..iBaseSegmentX..'; iBaseSegmentZ='..iBaseSegmentZ..' to the water zone '..iTotalWaterZoneCount) end
-                        for iAdjustX = -iStartInterval, iStartInterval, 1 do
-                            for iAdjustZ = -iStartInterval, iStartInterval, 1 do
-                                iCurSegmentX = iBaseSegmentX + iAdjustX
-                                if iCurSegmentX > 0 then
-                                    iCurSegmentZ = iBaseSegmentZ + iAdjustZ
-                                    if iCurSegmentZ > 0 and not(iAdjustX == 0 and iAdjustZ == 0) then
-                                        if iPond == NavUtils.GetLabel(refPathingTypeNavy, GetPositionFromPathingSegments(iBaseSegmentX + iAdjustX, iBaseSegmentZ + iAdjustZ)) then
-                                            AddSegmentToWaterZone(iPond, iTotalWaterZoneCount, iCurSegmentX, iCurSegmentZ)
-                                        end
-                                    end
+                        tWaterZonePondAndStartSegmentsByZone[iTotalWaterZoneCount] = {iPond, iBaseSegmentX, iBaseSegmentZ}
+                    end
+                end
+            end
+        end
+    end
+    if M28Utilities.IsTableEmpty(tWaterZonePondAndStartSegmentsByZone) == false then
+        if bDebugMessages == true then LOG(sFunctionRef..': iPond='..iPond..'; About to assign all segments with adjustments iStartInterval of '..iStartInterval..' from iBaseSegmentX='..iBaseSegmentX..'; iBaseSegmentZ='..iBaseSegmentZ..' to the water zone '..iTotalWaterZoneCount) end
+        local iPond
+        for iAdjustBase = 1, iStartInterval, 1 do --need to do the max values incase we only have 1 waterzone in say the top-right of hte map that somehow has a small path to other waterzones that were missed by the initial waterzone creation
+            for iWaterZone, tPondAndSegments in tWaterZonePondAndStartSegmentsByZone do
+                iPond = tPondAndSegments[1]
+                iBaseSegmentX = tPondAndSegments[2]
+                iBaseSegmentZ = tPondAndSegments[3]
+                --Cycle through a hollow box:
+                --First to the top row and bottom row
+                for iCurSegmentX = iBaseSegmentX - iAdjustBase, iBaseSegmentX + iAdjustBase, 1 do
+                    for iCurSegmentZ = iBaseSegmentZ - iAdjustBase, iBaseSegmentZ + iAdjustBase, iAdjustBase * 2 do
+                        if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
+                            if not(tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ]) and iPond == NavUtils.GetLabel(refPathingTypeNavy, GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)) then AddSegmentToWaterZone(iPond, iWaterZone, iCurSegmentX, iCurSegmentZ) end
+                        end
+                    end
+                end
+                --Then do the left and right row (excl corners which ahve already done per the above)
+                for iCurSegmentX = iBaseSegmentX - iAdjustBase, iBaseSegmentX + iAdjustBase, iAdjustBase * 2 do
+                    for iCurSegmentZ = iBaseSegmentZ - iAdjustBase + 1, iBaseSegmentZ + iAdjustBase - 1, 1 do
+                        if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
+                            if not(tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ]) and iPond == NavUtils.GetLabel(refPathingTypeNavy, GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)) then AddSegmentToWaterZone(iPond, iWaterZone, iCurSegmentX, iCurSegmentZ) end
+                        end
+                    end
+                end
+            end
+        end
+
+        --[[for iAdjustBase = 1, iStartInterval do
+            for iAdjustX = -iStartInterval, iStartInterval, 1 do
+                for iAdjustZ = -iStartInterval, iStartInterval, 1 do
+                    for iWaterZone, tPondAndSegments in tWaterZonePondAndStartSegmentsByZone do
+                        iPond = tPondAndSegments[1]
+                        iBaseSegmentX = tPondAndSegments[2]
+                        iBaseSegmentZ = tPondAndSegments[3]
+                        iCurSegmentX = iBaseSegmentX + iAdjustX
+                        if iCurSegmentX > 0 then
+                            iCurSegmentZ = iBaseSegmentZ + iAdjustZ
+                            if iCurSegmentZ > 0 and not(iAdjustX == 0 and iAdjustZ == 0) and not(tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ]) then
+                                if iPond == NavUtils.GetLabel(refPathingTypeNavy, GetPositionFromPathingSegments(iBaseSegmentX + iAdjustX, iBaseSegmentZ + iAdjustZ)) then
+                                    AddSegmentToWaterZone(iPond, iWaterZone, iCurSegmentX, iCurSegmentZ)
                                 end
                             end
                         end
                     end
                 end
             end
-        end
+        end--]]
     end
 
     if bDebugMessages == true then LOG(sFunctionRef..': About to divide map into grids and assign to a zone, iMaxLandSegmentX='..iMaxLandSegmentX..'; iLandZoneSegmentSize='..iLandZoneSegmentSize..'; iStartSegment='..iStartSegment..'; iWaterZoneInterval='..iWaterZoneInterval..'; iMaxXIntervals='..iMaxXIntervals..'; iMaxZIntervals='..iMaxZIntervals..'; Playablearea='..repru(rMapPlayableArea)) end
@@ -4332,7 +4387,7 @@ function CreateWaterZones()
 end
 
 function SetupWaterZones()
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SetupWaterZones'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -4374,7 +4429,7 @@ end
 
 
 function RecordWaterZoneMidpointAndMinMaxPositions()
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordWaterZoneMidpointAndMinMaxPositions'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -4394,7 +4449,6 @@ function RecordWaterZoneMidpointAndMinMaxPositions()
                 end
             end
         end
-        bDebugMessages = false
 
         for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
             --Record min and max values

@@ -161,6 +161,7 @@ function UpdateLandZoneM28AllMexByTech(aiBrain, iPlateau, iLandZone, oOptionalUn
     end
 
     tLZTeamData[M28Map.subrefMexCountByTech] = {[1]=0,[2]=0,[3]=0} --starting point
+    if bDebugMessages == true then LOG(sFunctionRef..': Time of game='..GetGameTimeSeconds()..'; Is table of allied units for iPlateau '..iPlateau..' iLandZone '..iLandZone..' empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]))) end
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
         local tAllMexes = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tLZTeamData[M28Map.subrefLZTAlliedUnits])
         --Update list of units in this LZ in case some of the mexes are dead now
@@ -185,7 +186,7 @@ function UpdateLandZoneM28AllMexByTech(aiBrain, iPlateau, iLandZone, oOptionalUn
                 end
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Finished updating mex count, tLZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZTeamData[M28Map.subrefMexCountByTech])) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished updating mex count, tLZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; iMexCount='..iMexCount..'; Table size of mex locations for this LZ='..table.getn( M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations])) end
         --If have somehow ended up with more mexes than there are locations, then redo the check in 1 second
         if iMexCount > table.getn( M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]) then
             if (iOptionalWait or 0) >= 10 then
@@ -199,11 +200,16 @@ end
 
 function UpdateLandZoneM28MexByTechCount(oMexJustBuiltOrDied, bJustDied, iOptionalWait)
     --Call via fork thread on mex creation due to potential timing issue with an upgrading mex being destroyed and replaced with the new (upgraded) mex
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'UpdateLandZoneM28MexByTechCount'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     if oMexJustBuiltOrDied.GetAIBrain then
         local aiBrain = oMexJustBuiltOrDied:GetAIBrain()
         if aiBrain.M28AI then
-            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oMexJustBuiltOrDied:GetPosition(), true, oMexJustBuiltOrDied)
+            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oMexJustBuiltOrDied:GetPosition())
             --should be called whenever a mex is created or destroyed in a land zone; ideally call via fork thread so reduced risk of it being called inbetween a mex say upgrading from one to another and being claled before both the creation and destroy events have happened
+            if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; oMexJustBuiltOrDied='..oMexJustBuiltOrDied.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMexJustBuiltOrDied)..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; Mex position='..repru(oMexJustBuiltOrDied:GetPosition())..'; iMapWaterHeight='..M28Map.iMapWaterHeight) end
             if (iLandZone or 0) > 0 then
                 if not(iOptionalWait) then
                     if bJustDied then
@@ -221,6 +227,7 @@ function UpdateLandZoneM28MexByTechCount(oMexJustBuiltOrDied, bJustDied, iOption
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function FindAndUpgradeUnitOfCategory(aiBrain, iCategoryWanted)
