@@ -24,6 +24,14 @@ bInitialSetup = false
 tAllActiveM28Brains = {} --[x] is just a unique integer starting with 1 (so table.getn works on this), not the armyindex; returns the aiBrain object
 tAllAIBrainsByArmyIndex = {} --[x] is the brain army index, returns the aibrain
 
+--Special settings - restrictions and norush
+bUnitRestrictionsArePresent = false
+bAirFactoriesCantBeBuilt = false
+bNoRushActive = false
+iNoRushRange = 0
+iNoRushTimer = 0 --Gametimeseconds that norush should end
+reftNoRushCentre = 'M28OverseerNRCtre'
+
 --aiBrain variables
 refiDistanceToNearestEnemyBase = 'M28OverseerDistToNearestEnemyBase'
 refoNearestEnemyBrain = 'M28OverseerNearestEnemyBrain'
@@ -140,6 +148,146 @@ function GetNearestEnemyBrain(aiBrain)
     return aiBrain[refoNearestEnemyBrain]
 end
 
+function GameSettingWarningsAndChecks(aiBrain)
+    --One once at start of the game if an M28 brain is present
+    local sFunctionRef = 'GameSettingWarningsAndChecks'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then
+        LOG(sFunctionRef .. ': Start of compatibility check.  Size of tAllActiveM28Brains=' .. table.getsize(tAllActiveM28Brains))
+    end
+    local sIncompatibleMessage = ''
+    local bIncompatible = false
+    local bHaveOtherAIMod = false
+    if M28Utilities.IsTableEmpty(ScenarioInfo.Options.RestrictedCategories) == false then
+        bIncompatible = true
+        bUnitRestrictionsArePresent = true
+        sIncompatibleMessage = sIncompatibleMessage .. ' Unit restrictions. '
+    end
+    --Check if we can build air factories
+    local tFriendlyACU = aiBrain:GetListOfUnits(categories.COMMAND, false, true)
+    if bDebugMessages == true then LOG(sFunctionRef..': Is table of friendly ACU empty='..tostring(M28Utilities.IsTableEmpty(tFriendlyACU))) end
+    if M28Utilities.IsTableEmpty(tFriendlyACU) == false then
+        local sBlueprint = M28Factory.GetBlueprintsThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryAirFactory, tFriendlyACU[1])
+        if bDebugMessages == true then LOG(sFunctionRef..': If ACU '..tFriendlyACU[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(tFriendlyACU[1])..' tries to build an air factory, sBLueprint is '..(sBlueprint or 'nil')) end
+        if not(sBlueprint) then
+            bAirFactoriesCantBeBuilt = true
+            if not(bUnitRestrictionsArePresent) then
+                bUnitRestrictionsArePresent = true
+                sIncompatibleMessage = sIncompatibleMessage .. ' Custom map script or mod preventing air factories'
+            end
+        end
+    end
+
+    if not (ScenarioInfo.Options.NoRushOption == "Off") then
+        bIncompatible = true
+        sIncompatibleMessage = sIncompatibleMessage .. ' No rush timer. '
+    end
+    --Check for non-AI sim-mods.  Thanks to Softles for pointing me towards the __active_mods variable
+    local tSimMods = __active_mods or {}
+    local tAIModNameWhitelist = {
+        'M27AI', 'AI-Swarm', 'AI-Uveso', 'AI: DilliDalli', 'Dalli AI', 'Dilli AI', 'M20AI', 'Marlo\'s Sorian AI edit', 'RNGAI', 'SACUAI', 'M28AI'
+    }
+
+    local tAIModNameWhereExpectAI = {
+        'AI-Swarm', 'AI-Uveso', 'AI: DilliDalli', 'Dalli AI', 'Dilli AI', 'M20AI', 'Marlo\'s Sorian AI edit', 'RNGAI', 'M28AI'
+    }
+    local tModIsOk = {}
+    local bHaveOtherAI = false
+    local sUnnecessaryAIMod
+    local iUnnecessaryAIModCount = 0
+    for iAI, sAI in tAIModNameWhitelist do
+        tModIsOk[sAI] = true
+    end
+
+    local iSimModCount = 0
+    local bFlyingEngineers
+    for iMod, tModData in tSimMods do
+        if not (tModIsOk[tModData.name]) and tModData.enabled and not (tModData.ui_only) then
+            iSimModCount = iSimModCount + 1
+            bIncompatible = true
+            if iSimModCount == 1 then
+                sIncompatibleMessage = sIncompatibleMessage .. ' SIM mods '
+            else
+                sIncompatibleMessage = sIncompatibleMessage .. '; '
+            end
+            sIncompatibleMessage = sIncompatibleMessage .. ' ' .. (tModData.name or 'UnknownName')
+            if bDebugMessages == true then
+                LOG('Whitelist of mod names=' .. repru(tModIsOk))
+                LOG(sFunctionRef .. ' About to do reprs of the tModData for mod ' .. (tModData.name or 'nil')..': '..reprs(tModData))
+            end
+
+            if string.find(tModData.name, 'Flying engineers') then
+                bFlyingEngineers = true
+                if bDebugMessages == true then LOG(sFunctionRef..': Have flying engineers mod enabled so will adjust engineer categories') end
+            end
+        elseif tModIsOk[tModData.name] then
+            if not(bHaveOtherAIMod) then
+                for iAIMod, sAIMod in tAIModNameWhereExpectAI do
+                    if sAIMod == tModData.name then
+                        bHaveOtherAIMod = true
+                        break
+                    end
+                end
+                if bHaveOtherAIMod then
+                    --Do we have non-M28 AI?
+                    for iBrain, oBrain in ArmyBrains do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have another AI mod enabled. reprs of oBrain='..reprs(oBrain)..'; is BrainType empty='..tostring(oBrain.BrainType == 'nil')..'; is brian type an empty string='..tostring(oBrain.BrainType == '')) end
+                        if ((oBrain.BrainType == 'AI' and not(oBrain.M28AI)) or oBrain.DilliDalli) and not(M28Conditions.IsCivilianBrain(oBrain)) then
+                            bHaveOtherAI = true
+                            if bDebugMessages == true then LOG('Have an AI for a brain') end
+                            break
+                        end
+                    end
+                end
+            end
+            if bHaveOtherAIMod and not(bHaveOtherAI) then
+                local bUnnecessaryMod = false
+                for iAIMod, sAIMod in tAIModNameWhereExpectAI do
+                    if sAIMod == tModData.name then
+                        bUnnecessaryMod = true
+                        break
+                    end
+                end
+                if bUnnecessaryMod then
+
+                    iUnnecessaryAIModCount = iUnnecessaryAIModCount + 1
+                    if iUnnecessaryAIModCount == 1 then
+                        sUnnecessaryAIMod = tModData.name
+                    else
+                        sUnnecessaryAIMod = sUnnecessaryAIMod..', '..tModData.name
+                    end
+                end
+            end
+        end
+    end
+
+    if iSimModCount > 0 then
+        sIncompatibleMessage = sIncompatibleMessage .. '. '
+    end
+    if bDebugMessages == true then
+        LOG(sFunctionRef .. ': Finished checking compatibility; compatibility message=' .. sIncompatibleMessage .. '; iSimModCount=' .. iSimModCount)
+    end
+
+    if iSimModCount > 0 then
+        --Basic compatibiltiy with flying engineers mod - allow air engineers to be treated as engineers; also work on mods with similar effect but different name
+        if not(bFlyingEngineers) and M28Utilities.IsTableEmpty(EntityCategoryGetUnitList(M28UnitInfo.refCategoryEngineer * categories.TECH1)) then bFlyingEngineers = true end
+        if bFlyingEngineers then
+            M28UnitInfo.refCategoryEngineer = M28UnitInfo.refCategoryEngineer + categories.ENGINEER * categories.AIR * categories.CONSTRUCTION - categories.EXPERIMENTAL
+        end
+    end
+
+    if bIncompatible then
+        M28Chat.SendMessage(aiBrain, 'SendGameCompatibilityWarning', 'Detected '..sIncompatibleMessage .. ' if you come across M28AI issues with these settings/mods let maudlin27 know via Discord', 0, 10)
+    end
+    if bHaveOtherAIMod and not(bHaveOtherAI) and sUnnecessaryAIMod then
+        M28Chat.SendMessage(aiBrain, 'UnnecessaryMods', 'No other AI detected, These AI mods can be disabled: '..sUnnecessaryAIMod, 1, 10)
+    end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function M28BrainCreated(aiBrain)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'M28BrainCreated'
@@ -159,7 +307,7 @@ function M28BrainCreated(aiBrain)
 
         --Send a message warning players this could take a while
         M28Chat.SendForkedMessage(aiBrain, 'LoadingMap', 'Analysing map, this usually freezes the game for 1-2 minutes (more on large maps)...', 0, 10000, false)
-
+        ForkThread(GameSettingWarningsAndChecks, aiBrain)
         ForkThread(M28Map.SetupMap)
 
     end
@@ -169,9 +317,55 @@ function M28BrainCreated(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 
 end
-function Test2()
-    WaitSeconds(1)
-    LOG('Test')
+
+function SetupNoRushDetails(aiBrain)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'SetupNoRushDetails'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code') end
+
+    if ScenarioInfo.Options.NoRushOption  and not(ScenarioInfo.Options.NoRushOption == 'Off') then
+        if bDebugMessages == true then LOG(sFunctionRef..': No rush isnt active, will record details') end
+        if not(bNoRushActive) then --This is the first time for any AI that this is run (redundancy)
+            if bDebugMessages == true then LOG(sFunctionRef..': Log of ScenarioInfo='..repru(ScenarioInfo)) end
+            bNoRushActive = true
+            iNoRushTimer = tonumber(ScenarioInfo.Options.NoRushOption) * 60
+            ForkThread(NoRushMonitor)
+            if bDebugMessages == true then LOG(sFunctionRef..': First time have run this so ahve set bNoRushActive='..tostring(bNoRushActive)..' and started iNoRushTimer for '..iNoRushTimer..' to change norush back to false') end
+        end
+        --Setup details of norush range for each M28AI
+        if bNoRushActive then
+            local tMapInfo = ScenarioInfo
+            aiBrain[reftNoRushCentre] = {M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()][1], 0, M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()][3]}
+            local sXRef = 'norushoffsetX_ARMY_'..aiBrain:GetArmyIndex()
+            local sZRef = 'norushoffsetY_ARMY_'..aiBrain:GetArmyIndex()
+            if bDebugMessages == true then LOG(sFunctionRef..': Checking norush adjustments, sXRef='..sXRef..'; sZRef='..sZRef..'; MapInfoX='..(tMapInfo[sXRef] or 'nil')..'; MapInfoZ='..(tMapInfo[sZRef] or 'nil')..'; aiBrain[reftNoRushCentre] before adjustment='..repru(aiBrain[reftNoRushCentre])) end
+            if tMapInfo[sXRef] then aiBrain[reftNoRushCentre][1] = aiBrain[reftNoRushCentre][1] + (tMapInfo[sXRef] or 0) end
+            if tMapInfo[sZRef] then aiBrain[reftNoRushCentre][3] = aiBrain[reftNoRushCentre][3] + (tMapInfo[sZRef] or 0) end
+            aiBrain[reftNoRushCentre][2] = GetTerrainHeight(aiBrain[reftNoRushCentre][1], aiBrain[reftNoRushCentre][3])
+            iNoRushRange = tMapInfo.norushradius
+            if bDebugMessages == true then
+                LOG(sFunctionRef..': Have recorded key norush details for the ai with index='..aiBrain:GetArmyIndex()..'; iNoRushRange='..iNoRushRange..'; aiBrain[reftNoRushCentre]='..repru(aiBrain[reftNoRushCentre])..'; will draw a circle now in white around the area')
+                M28Utilities.DrawCircleAtTarget(aiBrain[reftNoRushCentre], 7, 500, iNoRushRange)
+            end
+
+        end
+    else
+        if bDebugMessages == true then LOG(sFunctionRef..': No rush isnt active') end
+        bNoRushActive = false --(redundancy)
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function NoRushMonitor()
+    local sFunctionRef = 'NoRushMonitor'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    WaitSeconds(iNoRushTimer)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    bNoRushActive = false
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function TestCustom(aiBrain)
@@ -243,6 +437,7 @@ end
 
 function Initialisation(aiBrain)
     --Called after 1 tick has passed so all aibrains should hopefully exist now
+    ForkThread(SetupNoRushDetails, aiBrain)
     ForkThread(M28UnitInfo.CalculateBlueprintThreatsByType) --Records air and ground threat values for every blueprint
     ForkThread(M28Team.RecordAllPlayers, aiBrain)
     ForkThread(M28Economy.EconomyInitialisation, aiBrain)

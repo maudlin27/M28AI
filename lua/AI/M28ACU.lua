@@ -582,7 +582,7 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
             local tEnemyACU = EntityCategoryFilterDown(categories.COMMAND, tLZTeamData[M28Map.subrefTEnemyUnits])
             if M28Utilities.IsTableEmpty(tEnemyACU) == false then
                 if table.getn(tEnemyACU) == 1 then
-                    if tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] + iACUThreat > 1.05 * tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] then
+                    if (tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 0) + iACUThreat > 1.05 * (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) then
                         --If we are closer to enemy base then require a greater threat differential
                         if iPercentageToFriendlyBase < 0.6 or tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] + iACUThreat > 1.25 * tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] then
                             --Dont do this if enemy has air to ground threat and we dont have >= this in MAA

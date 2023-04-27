@@ -912,7 +912,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iCategoryToBuild, iM
 
     if sBlueprintToBuild == nil then
         if not(aiBrain[M28Overseer.refbCloseToUnitCap]) then
-            M28Utilities.ErrorHandler('sBlueprintToBuild is nil, could happen e.g. if try and get sparky to build sxomething it cant or try to build support factory without the HQ - refer to log for more details')
+            M28Utilities.ErrorHandler('sBlueprintToBuild is nil, could happen e.g. if try and get sparky to build sxomething it cant or try to build support factory without the HQ or if unit restrictions are present - refer to log for more details')
             if not(iCategoryToBuild) then LOG(sFunctionRef..': No category to build. oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; UC='..GetEngineerUniqueCount(oEngineer))
             else
                 LOG(sFunctionRef..': Had category to build. oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; UC='..GetEngineerUniqueCount(oEngineer)..'; All blueprints that satisfy the category='..repru(EntityCategoryGetUnitList(iCategoryToBuild))..'; Engineer highest land factory tech='..oEngineer:GetAIBrain()[M28Economy.refiOurHighestLandFactoryTech])
@@ -3946,15 +3946,25 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     iCurPriority = iCurPriority + 1
     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 10 then
         if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroLocations]) == false then
-            if bDebugMessages == true then LOG(sFunctionRef..': iCurPriority='..iCurPriority..':  Will try and build a hydro') end
-            HaveActionToAssign(refActionBuildHydro, 1, 10)
+            --Norush check
+            if M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydro(tLZTeamData) then
+                HaveActionToAssign(refActionBuildPower, 1, 10)
+            else
+
+                if bDebugMessages == true then LOG(sFunctionRef..': iCurPriority='..iCurPriority..':  Will try and build a hydro') end
+                HaveActionToAssign(refActionBuildHydro, 1, 10)
+            end
         elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 0 then
             if bDebugMessages == true then LOG(sFunctionRef..': iCurPriority='..iCurPriority..': Will try and build PGens') end
             HaveActionToAssign(refActionBuildPower, 1, 5)
         end
     else
         if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroUnbuiltLocations]) == false then
-            HaveActionToAssign(refActionBuildHydro, 1, 10)
+            if M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydro(tLZTeamData) then
+                HaveActionToAssign(refActionBuildPower, 1, 10)
+            else
+                HaveActionToAssign(refActionBuildHydro, 1, 10)
+            end
         elseif bHaveLowPower then
             HaveActionToAssign(refActionBuildPower, iMinTechLevelForPower, 10)
         end
@@ -5698,9 +5708,23 @@ function ConsiderLandOrWaterZoneEngineerAssignment(tLZOrWZTeamData, iTeam, iPlat
             break
         end
     end
+    --Clear any BP wanted if norush active and dealing with a non-core LZ outside any M28 norush raidius
+    if M28Overseer.bNoRushActive and M28Overseer.iNoRushTimer - GetGameTimeSeconds() > 30 and tLZOrWZTeamData[M28Map.subrefTbWantBP] and not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and not(tLZOrWZTeamData[M28Map.subrefWZbCoreBase])  then
+        local tLZOrWZData
+        if bIsWaterZone then
+            tLZOrWZData = M28Map.tPondDetails[iPlateauOrPond][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+        else
+            tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrPond][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+        end
+        if M28Utilities.GetDistanceBetweenPositions(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], tLZOrWZData[M28Map.subrefMidpoint]) > M28Overseer.iNoRushRange then
+            for iTech = 1, 3 do
+                tLZOrWZTeamData[M28Map.subrefTBuildPowerByTechWanted][iTech] = 0
+            end
+            tLZOrWZTeamData[M28Map.subrefTbWantBP] = false
+        end
+    end
     if bDebugMessages == true then LOG(sFunctionRef..': Finished updating the BP wanted for this LZ, tLZOrWZTeamData[M28Map.subrefTBuildPowerByTechWanted]='..repru(tLZOrWZTeamData[M28Map.subrefTBuildPowerByTechWanted])..'; tLZOrWZTeamData[M28Map.subrefTbWantBP]='..tostring(tLZOrWZTeamData[M28Map.subrefTbWantBP])) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-
 end
 
 function EngineerInitialisation(aiBrain)

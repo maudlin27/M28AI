@@ -568,7 +568,7 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
-    if EntityCategoryContains(categories.MOBILE * categories.AIR, oUnit.UnitId) and not(bIsEnemyAirUnit) then M28Utilities.ErrorHandler('Havent flagged that an air unit is an air unit') end
+    if EntityCategoryContains(categories.MOBILE * categories.AIR, oUnit.UnitId) and not(bIsEnemyAirUnit) and not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId)) then M28Utilities.ErrorHandler('Havent flagged that an air unit is an air unit') end
 
 
     local bAddToZone = true

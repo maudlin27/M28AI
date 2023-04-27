@@ -311,7 +311,9 @@ function RefreshPriorityAirDefenceTargets(iAirSubteam)
                     AddPriorityAirDefenceTarget(oACU)
                 end
             else
-                M28Utilities.ErrorHandler('oBrain '..(oBrain.Nickname or 'nil')..' has no ACUs')
+                if ScenarioInfo.Options.Victory == "demoralization" then
+                    M28Utilities.ErrorHandler('oBrain '..(oBrain.Nickname or 'nil')..' has no ACUs')
+                end
             end
         end
     else

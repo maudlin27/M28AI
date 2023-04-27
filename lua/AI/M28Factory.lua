@@ -254,6 +254,15 @@ function AdjustBlueprintForOverrides(aiBrain, sBPIDToBuild, tLZTeamData, iFactor
             end
         end
     end
+
+    --NoRush
+    if sBPIDToBuild and M28Overseer.bNoRushActive then
+        if M28Overseer.iNoRushTimer - GetGameTimeSeconds() > 30 then
+            if not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryExperimentalLevel, sBPIDToBuild)) then
+                sBPIDToBuild = nil
+            end
+        end
+    end
     return sBPIDToBuild
 end
 

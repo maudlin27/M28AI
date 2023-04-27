@@ -1116,6 +1116,10 @@ local function AddMexToLandZone(iPlateau, iOptionalLandZone, iPlateauMexRef, tTe
     end
 
     --Add the mex to this land zone
+    if not(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexCount]) then
+        M28Utilities.ErrorHandler('No mex count for iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil'))
+        tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexCount] = 0
+    end
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexCount] = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexCount] + 1
     table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexLocations], tAllPlateaus[iPlateau][subrefPlateauMexes][iPlateauMexRef])
     tTempPlateauLandZoneByMexRef[iPlateau][iPlateauMexRef] = iLandZone
@@ -1755,13 +1759,15 @@ local function AssignMexesALandZone()
                 iClosestDistTravel = iTravelDistThreshold --Ignore points whose travel distance is further away than this
                 iClosestBrainIndex = nil
                 for iBrainIndex, tStartPoint in tRelevantStartPointsByIndex do
-                    iCurDistStraightLine = M28Utilities.GetDistanceBetweenPositions(tMex, tStartPoint)
-                    if iCurDistStraightLine <= iStraightLineThreshold then
-                        --Get the land pathing distance
-                        iCurDistTravel = M28Utilities.GetTravelDistanceBetweenPositions(tMex, tStartPoint, refPathingTypeLand)
-                        if iCurDistTravel < iClosestDistTravel then
-                            iClosestDistTravel = iCurDistTravel
-                            iClosestBrainIndex = iBrainIndex
+                    if tiStartIndexPlateauAndLZ[iBrainIndex][1] == iPlateau then
+                        iCurDistStraightLine = M28Utilities.GetDistanceBetweenPositions(tMex, tStartPoint)
+                        if iCurDistStraightLine <= iStraightLineThreshold then
+                            --Get the land pathing distance
+                            iCurDistTravel = M28Utilities.GetTravelDistanceBetweenPositions(tMex, tStartPoint, refPathingTypeLand)
+                            if iCurDistTravel < iClosestDistTravel then
+                                iClosestDistTravel = iCurDistTravel
+                                iClosestBrainIndex = iBrainIndex
+                            end
                         end
                     end
                 end
@@ -1782,19 +1788,21 @@ local function AssignMexesALandZone()
             LOG(sFunctionRef..': About to draw results of land zones for iPlateau='..iPlateau..'; tiPlateauLandZoneByMexRef[iPlateau]='..repru(tiPlateauLandZoneByMexRef[iPlateau])..'; tAllPlateaus[iPlateau][subrefPlateauLandZones]='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones]))
             iColour = 3
             --Draw the mex groupings
-            for iZone, tZone in tAllPlateaus[iPlateau][subrefPlateauLandZones] do
-                local iMinX = 100000
-                local iMaxX = 0
-                local iMinZ = 100000
-                local iMaxZ = 0
+            if M28Utilities.IsTableEmpty(tAllPlateaus[iPlateau][subrefPlateauLandZones]) == false then
+                for iZone, tZone in tAllPlateaus[iPlateau][subrefPlateauLandZones] do
+                    local iMinX = 100000
+                    local iMaxX = 0
+                    local iMinZ = 100000
+                    local iMaxZ = 0
 
-                for iMex, tMex in tZone[subrefLZMexLocations] do
-                    iMinX = math.min(tMex[1], iMinX)
-                    iMaxX = math.max(tMex[1], iMaxX)
-                    iMinZ = math.min(tMex[3], iMinZ)
-                    iMaxZ = math.max(tMex[3], iMaxZ)
+                    for iMex, tMex in tZone[subrefLZMexLocations] do
+                        iMinX = math.min(tMex[1], iMinX)
+                        iMaxX = math.max(tMex[1], iMaxX)
+                        iMinZ = math.min(tMex[3], iMinZ)
+                        iMaxZ = math.max(tMex[3], iMaxZ)
+                    end
+                    M28Utilities.DrawRectangle(Rect(iMinX, iMinZ, iMaxX, iMaxZ), iColour, 1000, 10)
                 end
-                M28Utilities.DrawRectangle(Rect(iMinX, iMinZ, iMaxX, iMaxZ), iColour, 1000, 10)
             end
         end
     end

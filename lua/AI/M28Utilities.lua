@@ -606,3 +606,47 @@ function DelayChangeVariable(oVariableOwner, sVariableName, vVariableValue, iDel
     --e.g. if delay reset a variable, but are claling multiple times so want to only reset on the latest value, then this allows for that
     ForkThread(ForkedDelayedChangedVariable, oVariableOwner, sVariableName, vVariableValue, iDelayInSeconds, sOptionalOwnerConditionRef, iMustBeLessThanThisTimeValue, iMustBeMoreThanThisTimeValue, vMustNotEqualThisValue)
 end
+
+function DrawCircleAtTarget(tLocation, iColour, iDisplayCount, iCircleSize) --Dont call DrawCircle since this is a built in function
+    ForkThread(SteppingStoneForDrawCircle, tLocation, iColour, iDisplayCount, iCircleSize)
+end
+
+function SteppingStoneForDrawCircle(tLocation, iColour, iDisplayCount, iCircleSize)
+    DrawCircleAroundPoint(tLocation, iColour, iDisplayCount, iCircleSize)
+end
+
+function DrawCircleAroundPoint(tLocation, iColour, iDisplayCount, iCircleSize)
+    --Use DrawCircle which will call a forkthread to call this
+    local sFunctionRef = 'DrawCircleAroundPoint'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+
+
+    if iCircleSize == nil then iCircleSize = 2 end
+    if iDisplayCount == nil then iDisplayCount = 500
+    elseif iDisplayCount <= 0 then iDisplayCount = 1
+    elseif iDisplayCount >= 10000 then iDisplayCount = 10000
+    end
+
+    local sColour
+    if iColour == nil then sColour = 'c00000FF' --dark blue
+    elseif iColour == 1 then sColour = 'c00000FF' --dark blue
+    elseif iColour == 2 then sColour = 'ffFF4040' --Red
+    elseif iColour == 3 then sColour = 'c0000000' --Black (can be hard to see on some maps)
+    elseif iColour == 4 then sColour = 'fff4a460' --Gold
+    elseif iColour == 5 then sColour = 'ff27408b' --Light Blue
+    elseif iColour == 6 then sColour = 'ff1e90ff' --Cyan (might actually be white as well?)
+    elseif iColour == 7 then sColour = 'ffffffff' --white
+    else sColour = 'ffFF6060' --Orangy pink
+    end
+
+    local iMaxDrawCount = iDisplayCount
+    local iCurDrawCount = 0
+    if bDebugMessages == true then LOG('About to draw circle at table location ='..repru(tLocation)) end
+    while true do
+        DrawCircle(tLocation, iCircleSize, sColour)
+        iCurDrawCount = iCurDrawCount + 1
+        if iCurDrawCount > iMaxDrawCount then return end
+        if bDebugMessages == true then LOG(sFunctionRef..': Will wait 2 ticks then refresh the drawing') end
+        coroutine.yield(2) --Any more and circles will flash instead of being constant
+    end
+end
