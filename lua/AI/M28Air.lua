@@ -262,7 +262,7 @@ function AirSubteamOverseer(iTeam, iAirSubteam)
     RecordTorpedoBomberPriorityLocations(iTeam, iAirSubteam)
 
 
-    while M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 0 do
+    while M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains]) == false do
         ForkThread(UpdateAirRallyAndSupportPoints, iTeam, iAirSubteam)
         WaitTicks(1)
         ForkThread(ManageAirAAUnits, iTeam, iAirSubteam)
@@ -833,210 +833,213 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
     --If we have any air staging structures that are in a land zone with fixed AA, or a core base, with no adjacent enemy AA threat, then pick here
     --Otherwise pick the start position with the smallest number when taking adjacent enemy AA threat less current land zone friendly ground AA.
     --If no land zone start points, then pick the first water zone as a backup
-    local tPreferredRallyPoint
-    local iPlateau, iLandZone, iWaterZone
-    local iPossibleWaterZone
-    local iBestRallyValue = -100000
-    local iCurRallyValue
-    for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
-        iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
-        if (iLandZone or 0) == 0 then
-            iWaterZone = M28Map.GetWaterZoneFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
-            if (iWaterZone or 0) > 0 then
-                local tWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iPossibleWaterZone]][M28Map.subrefPondWaterZones][iPossibleWaterZone]
-                local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
-                iCurRallyValue = GetRallyPointValueOfWaterZone(iTeam, tWZData, tWZTeamData)
+
+    if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains]) == false then
+        local tPreferredRallyPoint
+        local iPlateau, iLandZone, iWaterZone
+        local iPossibleWaterZone
+        local iBestRallyValue = -100000
+        local iCurRallyValue
+        for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
+            iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+            if (iLandZone or 0) == 0 then
+                iWaterZone = M28Map.GetWaterZoneFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+                if (iWaterZone or 0) > 0 then
+                    local tWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iPossibleWaterZone]][M28Map.subrefPondWaterZones][iPossibleWaterZone]
+                    local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
+                    iCurRallyValue = GetRallyPointValueOfWaterZone(iTeam, tWZData, tWZTeamData)
+                    if iCurRallyValue > iBestRallyValue then
+                        iBestRallyValue = iCurRallyValue
+                        tPreferredRallyPoint = {tWZData[M28Map.subrefMidpoint][1], tWZData[M28Map.subrefMidpoint][2], tWZData[M28Map.subrefMidpoint][3]}
+                    end
+                end
+            else
+                --Have a land zone - check for groundAA
+                local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+                local tLZTeamData = tLZData[M28Map.subrefLZTeamData][oBrain.M28Team]
+                iCurRallyValue = GetRallyPointValueOfLandZone(oBrain.M28Team, tLZData, tLZTeamData, iPlateau)
                 if iCurRallyValue > iBestRallyValue then
                     iBestRallyValue = iCurRallyValue
-                    tPreferredRallyPoint = {tWZData[M28Map.subrefMidpoint][1], tWZData[M28Map.subrefMidpoint][2], tWZData[M28Map.subrefMidpoint][3]}
+                    tPreferredRallyPoint = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
                 end
             end
-        else
-            --Have a land zone - check for groundAA
-            local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
-            local tLZTeamData = tLZData[M28Map.subrefLZTeamData][oBrain.M28Team]
-            iCurRallyValue = GetRallyPointValueOfLandZone(oBrain.M28Team, tLZData, tLZTeamData, iPlateau)
-            if iCurRallyValue > iBestRallyValue then
-                iBestRallyValue = iCurRallyValue
-                tPreferredRallyPoint = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
+        end
+        M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint] = tPreferredRallyPoint
+
+        --Support rally point - move closer to units to support (if we have any)
+        local tSupportRallyPoint
+        local tUnitsToProtect = {}
+        if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftACUAndExpOnSubteam]) == false then
+            for iUnit, oUnit in M28Team.tAirSubteamData[iAirSubteam][M28Team.reftACUAndExpOnSubteam] do
+                table.insert(tUnitsToProtect, oUnit)
             end
         end
-    end
-    M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint] = tPreferredRallyPoint
-
-    --Support rally point - move closer to units to support (if we have any)
-    local tSupportRallyPoint
-    local tUnitsToProtect = {}
-    if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftACUAndExpOnSubteam]) == false then
-        for iUnit, oUnit in M28Team.tAirSubteamData[iAirSubteam][M28Team.reftACUAndExpOnSubteam] do
-            table.insert(tUnitsToProtect, oUnit)
+        if M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]) then
+            table.insert(tUnitsToProtect, M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship])
         end
-    end
-    if M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]) then
-        table.insert(tUnitsToProtect, M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship])
-    end
-    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; About to get support location, is table of units to protect='..tostring(M28Utilities.IsTableEmpty(tUnitsToProtect))) end
-    if M28Utilities.IsTableEmpty(tUnitsToProtect) == false then
-        local iCurLZOrWZ, iCurPlateauOrZero
-        local iClosestDistToEnemyBase = 100000
-        local iCurDistToEnemyBase
-        local tClosestMidpoint
-        local tClosestBase
-        for iUnit, oUnit in tUnitsToProtect do
-            iCurDistToEnemyBase = 100000
-            iCurPlateauOrZero, iCurLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
-            if (iCurPlateauOrZero or 0) == 0 then
-                if (iCurLZOrWZ or 0) > 0 then
-                    local tWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iCurLZOrWZ]][M28Map.subrefPondWaterZones][iCurLZOrWZ]
-                    local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
-                    iCurDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], tWZTeamData[M28Map.reftClosestEnemyBase])
+        if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; About to get support location, is table of units to protect='..tostring(M28Utilities.IsTableEmpty(tUnitsToProtect))) end
+        if M28Utilities.IsTableEmpty(tUnitsToProtect) == false then
+            local iCurLZOrWZ, iCurPlateauOrZero
+            local iClosestDistToEnemyBase = 100000
+            local iCurDistToEnemyBase
+            local tClosestMidpoint
+            local tClosestBase
+            for iUnit, oUnit in tUnitsToProtect do
+                iCurDistToEnemyBase = 100000
+                iCurPlateauOrZero, iCurLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                if (iCurPlateauOrZero or 0) == 0 then
+                    if (iCurLZOrWZ or 0) > 0 then
+                        local tWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iCurLZOrWZ]][M28Map.subrefPondWaterZones][iCurLZOrWZ]
+                        local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
+                        iCurDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], tWZTeamData[M28Map.reftClosestEnemyBase])
+                        if iCurDistToEnemyBase <   iClosestDistToEnemyBase then
+                            iClosestDistToEnemyBase = iCurDistToEnemyBase
+                            tClosestMidpoint = {tWZData[M28Map.subrefMidpoint][1], tWZData[M28Map.subrefMidpoint][2], tWZData[M28Map.subrefMidpoint][3]}
+                            tClosestBase = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
+                        end
+                    end
+                else
+                    --Have a valid land zone
+                    local tLZData = M28Map.tAllPlateaus[iCurPlateauOrZero][M28Map.subrefPlateauLandZones][iCurLZOrWZ]
+                    local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have a valid land zone, iCurLZ='..(iCurLZOrWZ or 'nil')..'; iCurPlateau='..(iCurPlateauOrZero or 'nil')..'; LZ midpoint='..repru(tLZData[M28Map.subrefMidpoint])..'; Closest enemy base='..repru(tLZTeamData[M28Map.reftClosestEnemyBase])..'; iTeam='..(iTeam or 'nil')) end
+                    iCurDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])
                     if iCurDistToEnemyBase <   iClosestDistToEnemyBase then
                         iClosestDistToEnemyBase = iCurDistToEnemyBase
-                        tClosestMidpoint = {tWZData[M28Map.subrefMidpoint][1], tWZData[M28Map.subrefMidpoint][2], tWZData[M28Map.subrefMidpoint][3]}
-                        tClosestBase = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
+                        tClosestMidpoint = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
+                        tClosestBase = {tLZTeamData[M28Map.reftClosestFriendlyBase][1], tLZTeamData[M28Map.reftClosestFriendlyBase][2], tLZTeamData[M28Map.reftClosestFriendlyBase][3]}
                     end
                 end
-            else
-                --Have a valid land zone
-                local tLZData = M28Map.tAllPlateaus[iCurPlateauOrZero][M28Map.subrefPlateauLandZones][iCurLZOrWZ]
-                local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
-                if bDebugMessages == true then LOG(sFunctionRef..': Have a valid land zone, iCurLZ='..(iCurLZOrWZ or 'nil')..'; iCurPlateau='..(iCurPlateauOrZero or 'nil')..'; LZ midpoint='..repru(tLZData[M28Map.subrefMidpoint])..'; Closest enemy base='..repru(tLZTeamData[M28Map.reftClosestEnemyBase])..'; iTeam='..(iTeam or 'nil')) end
-                iCurDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])
-                if iCurDistToEnemyBase <   iClosestDistToEnemyBase then
-                    iClosestDistToEnemyBase = iCurDistToEnemyBase
-                    tClosestMidpoint = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
-                    tClosestBase = {tLZTeamData[M28Map.reftClosestFriendlyBase][1], tLZTeamData[M28Map.reftClosestFriendlyBase][2], tLZTeamData[M28Map.reftClosestFriendlyBase][3]}
-                end
+                if bDebugMessages == true then LOG(sFunctionRef..' Finished considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit position='..repru(oUnit:GetPosition())..'; iCurPlateau='..(iCurPlateauOrZero or 'nil')..'; iCurWZ='..(iCurLZOrWZ or 'nil')..'; iCurDistToEnemyBase='..(iCurDistToEnemyBase or 'nil')..'; iClosestDistToEnemyBase='..(iClosestDistToEnemyBase or 'nil')..'; tClosestMidpoint='..repru(tClosestMidpoint)) end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..' Finished considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit position='..repru(oUnit:GetPosition())..'; iCurPlateau='..(iCurPlateauOrZero or 'nil')..'; iCurWZ='..(iCurLZOrWZ or 'nil')..'; iCurDistToEnemyBase='..(iCurDistToEnemyBase or 'nil')..'; iClosestDistToEnemyBase='..(iClosestDistToEnemyBase or 'nil')..'; tClosestMidpoint='..repru(tClosestMidpoint)) end
-        end
-        if bDebugMessages == true then LOG(sFunctionRef..': Finished going through all units to protect, tClosestMidpoint='..repru(tClosestMidpoint)) end
-        if tClosestMidpoint then
-            --Move from the closest base to the support point until no longer find a save land/water zone, and then abort
-            local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(tClosestBase, tClosestMidpoint)
-            if bDebugMessages == true then LOG(sFunctionRef..': iDistToTarget='..iDistToTarget..'; tClosestBase='..repru(tClosestBase)) end
-            if iDistToTarget <= 50 then
-                --If closest base isn't safe then use rally point
-                local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tClosestBase)
-                local iWaterZone
-                local bClosestBaseIsSafe = true
-                if iPlateau and (iLandZone or 0) == 0 then
-                    iWaterZone = M28Map.GetWaterZoneFromPosition(tClosestBase)
-                    if (iWaterZone or 0) > 0 then
-                        if IsThereAANearLandOrWaterZone(iTeam, iPlateau, iWaterZone, true) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering water zone for the closest base and it isnt safe') end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished going through all units to protect, tClosestMidpoint='..repru(tClosestMidpoint)) end
+            if tClosestMidpoint then
+                --Move from the closest base to the support point until no longer find a save land/water zone, and then abort
+                local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(tClosestBase, tClosestMidpoint)
+                if bDebugMessages == true then LOG(sFunctionRef..': iDistToTarget='..iDistToTarget..'; tClosestBase='..repru(tClosestBase)) end
+                if iDistToTarget <= 50 then
+                    --If closest base isn't safe then use rally point
+                    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tClosestBase)
+                    local iWaterZone
+                    local bClosestBaseIsSafe = true
+                    if iPlateau and (iLandZone or 0) == 0 then
+                        iWaterZone = M28Map.GetWaterZoneFromPosition(tClosestBase)
+                        if (iWaterZone or 0) > 0 then
+                            if IsThereAANearLandOrWaterZone(iTeam, iPlateau, iWaterZone, true) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering water zone for the closest base and it isnt safe') end
+                                bClosestBaseIsSafe = false
+                            end
+                        end
+                    else
+                        if IsThereAANearLandOrWaterZone(iTeam, iPlateau, iLandZone, false) then
                             bClosestBaseIsSafe = false
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering land zone for the closest base and it isnt safe') end
                         end
                     end
-                else
-                    if IsThereAANearLandOrWaterZone(iTeam, iPlateau, iLandZone, false) then
-                        bClosestBaseIsSafe = false
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering land zone for the closest base and it isnt safe') end
+                    if bClosestBaseIsSafe then
+                        tSupportRallyPoint = tClosestBase
+                    else
+                        tSupportRallyPoint = tPreferredRallyPoint
                     end
-                end
-                if bClosestBaseIsSafe then
-                    tSupportRallyPoint = tClosestBase
                 else
-                    tSupportRallyPoint = tPreferredRallyPoint
-                end
-            else
-                local iAngleToTarget = M28Utilities.GetAngleFromAToB(tClosestBase, tClosestMidpoint)
-                local iSearchInterval = 10
-                local iRoundedDist = math.floor(iDistToTarget / iSearchInterval) * iSearchInterval
-                local tCurTarget
-                local iPrevPlateau, iPrevLandZone, iPrevWaterZone
-                local bCurTargetTooDangerous
-                local tbWaterZonesConsidered = {}
-                local tbPlateauAndLandZonesConsidered = {}
-                local iCurPlateau, iCurLZ, iCurWZ
-                for iDist = iSearchInterval, iRoundedDist, iSearchInterval do
-                    bCurTargetTooDangerous = false
-                    tCurTarget = M28Utilities.MoveInDirection(tClosestBase, iAngleToTarget, iDist, true, false)
-                    iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tCurTarget)
-                    if bDebugMessages == true then LOG(sFunctionRef..': iDist='..iDist..'; tCurTarget='..repru(tCurTarget)..'; iCurPlateau='..(iCurPlateau or 'nil')..'; iCurLZ='..(iCurLZ or 'nil')) end
-                    if iCurPlateau then
-                        if (iCurLZ or 0) == 0 then
-                            iCurWZ = M28Map.GetWaterZoneFromPosition(tCurTarget)
-                            if bDebugMessages == true then LOG(sFunctionRef..': iCurWZ='..(iCurWZ or 'nil')) end
-                            if (iCurWZ or 0) > 0 and not(tbWaterZonesConsidered[iCurWZ]) then
-                                --Have a valid water zone, check if it is dangerous
-                                tbWaterZonesConsidered[iCurWZ] = true
-                                bCurTargetTooDangerous = IsThereAANearLandOrWaterZone(iTeam, iCurPlateau, iCurWZ, true)
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering iCurPlateau='..iCurPlateau..'; iCurWZ='..iCurWZ..'; bCurTargetTooDangerous='..tostring(bCurTargetTooDangerous)) end
-                                if bCurTargetTooDangerous then
-                                    break
+                    local iAngleToTarget = M28Utilities.GetAngleFromAToB(tClosestBase, tClosestMidpoint)
+                    local iSearchInterval = 10
+                    local iRoundedDist = math.floor(iDistToTarget / iSearchInterval) * iSearchInterval
+                    local tCurTarget
+                    local iPrevPlateau, iPrevLandZone, iPrevWaterZone
+                    local bCurTargetTooDangerous
+                    local tbWaterZonesConsidered = {}
+                    local tbPlateauAndLandZonesConsidered = {}
+                    local iCurPlateau, iCurLZ, iCurWZ
+                    for iDist = iSearchInterval, iRoundedDist, iSearchInterval do
+                        bCurTargetTooDangerous = false
+                        tCurTarget = M28Utilities.MoveInDirection(tClosestBase, iAngleToTarget, iDist, true, false)
+                        iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tCurTarget)
+                        if bDebugMessages == true then LOG(sFunctionRef..': iDist='..iDist..'; tCurTarget='..repru(tCurTarget)..'; iCurPlateau='..(iCurPlateau or 'nil')..'; iCurLZ='..(iCurLZ or 'nil')) end
+                        if iCurPlateau then
+                            if (iCurLZ or 0) == 0 then
+                                iCurWZ = M28Map.GetWaterZoneFromPosition(tCurTarget)
+                                if bDebugMessages == true then LOG(sFunctionRef..': iCurWZ='..(iCurWZ or 'nil')) end
+                                if (iCurWZ or 0) > 0 and not(tbWaterZonesConsidered[iCurWZ]) then
+                                    --Have a valid water zone, check if it is dangerous
+                                    tbWaterZonesConsidered[iCurWZ] = true
+                                    bCurTargetTooDangerous = IsThereAANearLandOrWaterZone(iTeam, iCurPlateau, iCurWZ, true)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iCurPlateau='..iCurPlateau..'; iCurWZ='..iCurWZ..'; bCurTargetTooDangerous='..tostring(bCurTargetTooDangerous)) end
+                                    if bCurTargetTooDangerous then
+                                        break
+                                    else
+                                        --Record this as the 'previous' entry so if we run into a dnagerous location later on we will use this
+                                        iPrevPlateau = iCurPlateau
+                                        iPrevWaterZone = iCurWZ
+                                        iPrevLandZone = nil
+                                    end
                                 else
-                                    --Record this as the 'previous' entry so if we run into a dnagerous location later on we will use this
-                                    iPrevPlateau = iCurPlateau
-                                    iPrevWaterZone = iCurWZ
-                                    iPrevLandZone = nil
+                                    --Dont have avlid LZ or WZ so ignore
                                 end
                             else
-                                --Dont have avlid LZ or WZ so ignore
-                            end
-                        else
-                            --Have a valid land zone
-                            if bDebugMessages == true then LOG(sFunctionRef..': tbPlateauAndLandZonesConsidered[iCurPlateau][iCurLZ]='..tostring(tbPlateauAndLandZonesConsidered[iCurPlateau][iCurLZ] or false)..'; iCurPlateau='..(iCurPlateau or 'nil')..'; iCurLZ='..(iCurLZ or 'nil')) end
-                            if not(tbPlateauAndLandZonesConsidered[iCurPlateau][iCurLZ]) then
-                                if not(tbPlateauAndLandZonesConsidered[iCurPlateau]) then tbPlateauAndLandZonesConsidered[iCurPlateau] = {} end
-                                tbPlateauAndLandZonesConsidered[iCurPlateau][iCurLZ] = true
-                                bCurTargetTooDangerous = IsThereAANearLandOrWaterZone(iTeam, iCurPlateau, iCurLZ, false)
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering iCurPlateau='..iCurPlateau..'; iCurLZ='..iCurLZ..'; bCurTargetTooDangerous='..tostring(bCurTargetTooDangerous)) end
-                                if bCurTargetTooDangerous then
-                                    break
-                                else
-                                    --Record this as the 'previous' entry so if we run into a dnagerous location later on we will use this
-                                    iPrevPlateau = iCurPlateau
-                                    iPrevWaterZone = nil
-                                    iPrevLandZone = iCurLZ
+                                --Have a valid land zone
+                                if bDebugMessages == true then LOG(sFunctionRef..': tbPlateauAndLandZonesConsidered[iCurPlateau][iCurLZ]='..tostring(tbPlateauAndLandZonesConsidered[iCurPlateau][iCurLZ] or false)..'; iCurPlateau='..(iCurPlateau or 'nil')..'; iCurLZ='..(iCurLZ or 'nil')) end
+                                if not(tbPlateauAndLandZonesConsidered[iCurPlateau][iCurLZ]) then
+                                    if not(tbPlateauAndLandZonesConsidered[iCurPlateau]) then tbPlateauAndLandZonesConsidered[iCurPlateau] = {} end
+                                    tbPlateauAndLandZonesConsidered[iCurPlateau][iCurLZ] = true
+                                    bCurTargetTooDangerous = IsThereAANearLandOrWaterZone(iTeam, iCurPlateau, iCurLZ, false)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iCurPlateau='..iCurPlateau..'; iCurLZ='..iCurLZ..'; bCurTargetTooDangerous='..tostring(bCurTargetTooDangerous)) end
+                                    if bCurTargetTooDangerous then
+                                        break
+                                    else
+                                        --Record this as the 'previous' entry so if we run into a dnagerous location later on we will use this
+                                        iPrevPlateau = iCurPlateau
+                                        iPrevWaterZone = nil
+                                        iPrevLandZone = iCurLZ
+                                    end
                                 end
                             end
+                        else
+                            --No valid plateau so ignore this position
                         end
-                    else
-                        --No valid plateau so ignore this position
                     end
-                end
-                if bDebugMessages == true then LOG(sFunctionRef..': Finished checking for support location, iPrevWaterZone='..(iPrevWaterZone or 'nil')..'; iPrevLandZone='..(iPrevLandZone or 'nil')) end
-                --Update the support rally point, and record pathing of other land and air zones to it if havent previously
-                if not(iPrevWaterZone) and not(iPrevLandZone) then
-                    --Use closest base
-                    tSupportRallyPoint = tClosestBase
-                else
-                    --We have a valid support zone
-                    if iPrevLandZone then
-                        tSupportRallyPoint = M28Map.tAllPlateaus[iPrevPlateau][M28Map.subrefPlateauLandZones][iPrevLandZone][M28Map.subrefMidpoint]
+                    if bDebugMessages == true then LOG(sFunctionRef..': Finished checking for support location, iPrevWaterZone='..(iPrevWaterZone or 'nil')..'; iPrevLandZone='..(iPrevLandZone or 'nil')) end
+                    --Update the support rally point, and record pathing of other land and air zones to it if havent previously
+                    if not(iPrevWaterZone) and not(iPrevLandZone) then
+                        --Use closest base
+                        tSupportRallyPoint = tClosestBase
                     else
-                        tSupportRallyPoint = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iPrevWaterZone]][M28Map.subrefPondWaterZones][iPrevWaterZone][M28Map.subrefMidpoint]
+                        --We have a valid support zone
+                        if iPrevLandZone then
+                            tSupportRallyPoint = M28Map.tAllPlateaus[iPrevPlateau][M28Map.subrefPlateauLandZones][iPrevLandZone][M28Map.subrefMidpoint]
+                        else
+                            tSupportRallyPoint = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iPrevWaterZone]][M28Map.subrefPondWaterZones][iPrevWaterZone][M28Map.subrefMidpoint]
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': tSupportRallyPoint after updating for zones closer to a unit to support and having a vlocation closer than the nearest friendly base='..repru(tSupportRallyPoint)) end
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': tSupportRallyPoint after updating for zones closer to a unit to support and having a vlocation closer than the nearest friendly base='..repru(tSupportRallyPoint)) end
-                end
 
+                end
             end
         end
+
+        if not(tSupportRallyPoint) then
+            M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint] = tPreferredRallyPoint
+        else
+            M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint] = tSupportRallyPoint
+        end
+
+
+        --Update the support rally point, and record pathing of other land and air zones to it if havent previously
+        local tStartLZOrWZData
+        local tStartMidpoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]
+        local iStartPlateau, iStartLZOrWZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tStartMidpoint)
+        if (iStartPlateau or 0) > 0 and (iStartLZOrWZ or 0) == 0 then
+            iStartLZOrWZ = M28Map.GetWaterZoneFromPosition(tStartMidpoint)
+            tSupportRallyPoint = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iStartLZOrWZ]][M28Map.subrefPondWaterZones][iStartLZOrWZ][M28Map.subrefMidpoint]
+            tStartLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iStartLZOrWZ]][M28Map.subrefPondWaterZones][iStartLZOrWZ]
+        else
+            tSupportRallyPoint = M28Map.tAllPlateaus[iStartPlateau][M28Map.subrefPlateauLandZones][iStartLZOrWZ][M28Map.subrefMidpoint]
+            tStartLZOrWZData = M28Map.tAllPlateaus[iStartPlateau][M28Map.subrefPlateauLandZones][iStartLZOrWZ]
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': About to record the land and water zones by order of distance to iStartPlateau '..(iStartPlateau or 'nil')..'; iStartLZOrWZ='..(iStartLZOrWZ or 'nil')) end
+
+        RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartMidpoint)
     end
-
-    if not(tSupportRallyPoint) then
-        M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint] = tPreferredRallyPoint
-    else
-        M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint] = tSupportRallyPoint
-    end
-
-
-    --Update the support rally point, and record pathing of other land and air zones to it if havent previously
-    local tStartLZOrWZData
-    local tStartMidpoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]
-    local iStartPlateau, iStartLZOrWZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tStartMidpoint)
-    if (iStartPlateau or 0) > 0 and (iStartLZOrWZ or 0) == 0 then
-        iStartLZOrWZ = M28Map.GetWaterZoneFromPosition(tStartMidpoint)
-        tSupportRallyPoint = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iStartLZOrWZ]][M28Map.subrefPondWaterZones][iStartLZOrWZ][M28Map.subrefMidpoint]
-        tStartLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iStartLZOrWZ]][M28Map.subrefPondWaterZones][iStartLZOrWZ]
-    else
-        tSupportRallyPoint = M28Map.tAllPlateaus[iStartPlateau][M28Map.subrefPlateauLandZones][iStartLZOrWZ][M28Map.subrefMidpoint]
-        tStartLZOrWZData = M28Map.tAllPlateaus[iStartPlateau][M28Map.subrefPlateauLandZones][iStartLZOrWZ]
-    end
-    if bDebugMessages == true then LOG(sFunctionRef..': About to record the land and water zones by order of distance to iStartPlateau '..(iStartPlateau or 'nil')..'; iStartLZOrWZ='..(iStartLZOrWZ or 'nil')) end
-
-    RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartMidpoint)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -1628,8 +1631,8 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
         end
 
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of defence water zones empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTorpedoDefenceWaterZones]))) end
+        local tiWaterZoneByDistance = {}
         if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTorpedoDefenceWaterZones]) == false then
-            local tiWaterZoneByDistance = {}
             local iStartPlateauOrZero, iStartLandOrWaterZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tRallyPoint)
             if (iStartPlateauOrZero or 0) > 0 then
                 if (iStartLandOrWaterZone or 0) == 0 then
@@ -1644,6 +1647,27 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                 local tWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone]
                 tiWaterZoneByDistance[iWaterZone] = M28Utilities.GetDistanceBetweenPositions(tRallyPoint, tWZData[M28Map.subrefMidpoint])
             end
+        else
+            --Defend all water as presumably enemy has nearby naval units
+            local tStartLZOrWZData
+            local iStartPlateauOrZero, iStartLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tRallyPoint)
+            if iStartPlateauOrZero == 0 then
+                tStartLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iStartLandOrWaterZone]][M28Map.subrefPondWaterZones][iStartLandOrWaterZone]
+            else
+                tStartLZOrWZData = M28Map.tAllPlateaus[iStartPlateauOrZero][M28Map.subrefPlateauLandZones][iStartLandOrWaterZone]
+            end
+            if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
+                for iEntry, tSubtable in tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+                    if tSubtable[M28Map.subrefbIsWaterZone] then
+                        tiWaterZoneByDistance[tSubtable[M28Map.subrefiLandOrWaterZoneRef]] = M28Map.subrefiDistance
+                    end
+                end
+            else
+                M28Utilities.ErrorHandler('Have torpedo bombers but no priority areas to defend with them', true)
+            end
+        end
+
+        if M28Utilities.IsTableEmpty(tiWaterZoneByDistance) == false then
             --Cycle through in order of distance
             local iTorpBomberThreat = M28UnitInfo.GetAirThreatLevel(tAvailableBombers, false, false, false, true, false, true, false) + M28UnitInfo.GetAirThreatLevel(tUnavailableUnits, false, false, false, true, false, true, false)
 
@@ -1702,7 +1726,7 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                 end
             end
         else
-            M28Utilities.ErrorHandler('Have torpedo bombers but no priority areas to defend with them')
+            M28Utilities.ErrorHandler('Have torpedo bombers but no areas to defend with them')
         end
         --Send remaining units to rally point (or refuel if could do with refuel)
         if M28Utilities.IsTableEmpty(tAvailableBombers) == false then

@@ -2854,7 +2854,7 @@ function ManageWaterZoneScouts(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, t
                                 --Want ot get somewhere to move to as a backup
                                 --Do we have an adjacent WZ? If so move here
                                 if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZOtherWaterZones]) == false then
-                                    GetUnitToTravelToWaterZone(tAvailableScouts[1], iPond, tWZData[M28Map.subrefWZOtherWaterZones][1], M28Map.subrefTScoutsTravelingHere)
+                                    GetUnitToTravelToWaterZone(tAvailableScouts[1], iPond, tWZData[M28Map.subrefWZOtherWaterZones][1][M28Map.subrefWZAWZRef], M28Map.subrefTScoutsTravelingHere)
                                 else
                                     --No adjacent WZs, and no mexes in this WZ, so just move randomly
                                     M28Orders.IssueTrackedMove(oScout, M28Utilities.MoveInDirection(oScout:GetPosition(), math.random(1, 360), math.random(10, 30), true, false), 10, false, 'NBackupRnd')

@@ -601,8 +601,10 @@ function OnMissileBuilt(self, weapon)
                         if bDebugMessages == true then LOG(sFunctionRef..': Want to make engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to stop assisting') end
                     end
                     for iEngineer, oEngineer in tEngineersToStop do
-                        M28Orders.IssueTrackedClearCommands(oEngineer)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Just sent a clear order to '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to stop assisting') end
+                        if M28UnitInfo.IsUnitValid(oEngineer) then
+                            M28Orders.IssueTrackedClearCommands(oEngineer)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Just sent a clear order to '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to stop assisting') end
+                        end
                     end
                 end
 

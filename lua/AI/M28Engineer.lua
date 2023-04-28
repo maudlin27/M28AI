@@ -1991,174 +1991,190 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
     if not(tbEngineersOfFactionOrNilIfAlreadyAssigned) then
         iCategoryWanted = M28UnitInfo.refCategoryExperimentalLevel --Already have the unit under construction
     else
-        --Land subteam - use aiBrain.M28LandSubteam
-        local iSubteamSize =  table.getn(M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subreftoFriendlyM28Brains])
-        local iEnemyLandExperimentalCount = table.getn(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftEnemyLandExperimentals])
-        local iTeam = aiBrain.M28Team
-        local iDistToNearestEnemyBase = M28Utilities.GetDistanceBetweenPositions(tLZOrWZTeamData[M28Map.reftClosestEnemyBase], tLZOrWZData[M28Map.subrefMidpoint])
-
-        --Non-faction specific logic:
-
-        --Initial land experimental (very high priority subject to map)
-        local iTeamLandExperimentals = 0
-        for iBrain, oBrain in M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subreftoFriendlyM28Brains] do
-            iTeamLandExperimentals = iTeamLandExperimentals + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandExperimental)
-        end
-
-        if iTeamLandExperimentals == 0 and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] then
-            iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
-        else
-            --Consider getting nukes
-            if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] then --dont want nuke built too far from base
-                --Do we already have nukes?
-                if M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategorySML, tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits])) then
-                    local iHighestNukeTargetValue = M28Building.GetHighestNukeTargetValue(tLZOrWZData, tLZOrWZTeamData, aiBrain.M28Team)
-                    if iHighestNukeTargetValue >= 20000 and (iHighestNukeTargetValue >= 30000 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 7500) then
-                        iCategoryWanted = M28UnitInfo.refCategorySML
+        --Do we have an experimental level unit under construciton in this LZ?
+        local tExperimentalsInLZ
+        if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
+            tExperimentalsInLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryExperimentalLevel, tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits])
+            if M28Utilities.IsTableEmpty(tExperimentalsInLZ) == false then
+                for iUnit, oUnit in tExperimentalsInLZ do
+                    if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() < 1 and oUnit:GetFractionComplete() > 0.001 then
+                        iCategoryWanted = M28UnitInfo.refCategoryExperimentalLevel
+                        break
                     end
                 end
             end
         end
         if not(iCategoryWanted) then
-        --FACTION SPECIFIC LOGIC
 
-        --UEF EXPERIMENTAL CHOICE
-            if tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionUEF] then
-                --Decide between fatboy and novax, or (with v.high eco) mavor
-                local iCurFatboyCount = 0
-                local iCurNovaxCount = 0
-                local iCurT3ArtiCount = 0 --mavor treated as 3 t3 arti
-                --How many fatboys do we have on the subteam already?
-                for iBrain, oBrain in M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subreftoFriendlyM28Brains] do
-                    iCurFatboyCount = iCurFatboyCount + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryFatboy)
-                    iCurNovaxCount = iCurNovaxCount + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryNovaxCentre)
-                    iCurT3ArtiCount = iCurT3ArtiCount + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryFixedT3Arti) + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryExperimentalArti) * 3
+            --Land subteam - use aiBrain.M28LandSubteam
+            local iSubteamSize =  table.getn(M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subreftoFriendlyM28Brains])
+            local iEnemyLandExperimentalCount = table.getn(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftEnemyLandExperimentals])
+            local iTeam = aiBrain.M28Team
+            local iDistToNearestEnemyBase = M28Utilities.GetDistanceBetweenPositions(tLZOrWZTeamData[M28Map.reftClosestEnemyBase], tLZOrWZData[M28Map.subrefMidpoint])
+
+            --Non-faction specific logic:
+
+            --Initial land experimental (very high priority subject to map)
+            local iTeamLandExperimentals = 0
+            for iBrain, oBrain in M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subreftoFriendlyM28Brains] do
+                iTeamLandExperimentals = iTeamLandExperimentals + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandExperimental)
+            end
+
+            if iTeamLandExperimentals == 0 and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] then
+                iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
+            else
+                --Consider getting nukes
+                if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] then --dont want nuke built too far from base
+                    --Do we already have nukes?
+                    if M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategorySML, tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits])) then
+                        local iHighestNukeTargetValue = M28Building.GetHighestNukeTargetValue(tLZOrWZData, tLZOrWZTeamData, aiBrain.M28Team)
+                        if iHighestNukeTargetValue >= 20000 and (iHighestNukeTargetValue >= 30000 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 7500) then
+                            iCategoryWanted = M28UnitInfo.refCategorySML
+                        end
+                    end
                 end
+            end
+            if not(iCategoryWanted) then
+                --FACTION SPECIFIC LOGIC
 
-                if aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] then
-                    if iCurFatboyCount == 0 then
-                        iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
-                    elseif iCurNovaxCount == 0 then
-                        iCategoryWanted = M28UnitInfo.refCategoryNovaxCentre
-                    elseif iCurFatboyCount < math.max(math.min(4, 2 + iSubteamSize, 1 + iEnemyLandExperimentalCount), iCurT3ArtiCount) then
-                        iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
-                    else
-                        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 90 then
-                            --Long term want to build mavor
-                            iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
+                --UEF EXPERIMENTAL CHOICE
+                if tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionUEF] then
+                    --Decide between fatboy and novax, or (with v.high eco) mavor
+                    local iCurFatboyCount = 0
+                    local iCurNovaxCount = 0
+                    local iCurT3ArtiCount = 0 --mavor treated as 3 t3 arti
+                    --How many fatboys do we have on the subteam already?
+                    for iBrain, oBrain in M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subreftoFriendlyM28Brains] do
+                        iCurFatboyCount = iCurFatboyCount + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryFatboy)
+                        iCurNovaxCount = iCurNovaxCount + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryNovaxCentre)
+                        iCurT3ArtiCount = iCurT3ArtiCount + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryFixedT3Arti) + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryExperimentalArti) * 3
+                    end
+
+                    if aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] then
+                        if iCurFatboyCount == 0 then
+                            iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
+                        elseif iCurNovaxCount == 0 then
+                            iCategoryWanted = M28UnitInfo.refCategoryNovaxCentre
+                        elseif iCurFatboyCount < math.max(math.min(4, 2 + iSubteamSize, 1 + iEnemyLandExperimentalCount), iCurT3ArtiCount) then
+                            iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
                         else
-                            --Novax or T3 arti
-                            if iCurNovaxCount < 3 + iCurT3ArtiCount then
-                                iCategoryWanted = M28UnitInfo.refCategoryNovaxCentre
+                            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 90 then
+                                --Long term want to build mavor
+                                iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
                             else
-                                if iDistToNearestEnemyBase <= 750 then
-                                    iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti
+                                --Novax or T3 arti
+                                if iCurNovaxCount < 3 + iCurT3ArtiCount then
+                                    iCategoryWanted = M28UnitInfo.refCategoryNovaxCentre
                                 else
-                                    iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
+                                    if iDistToNearestEnemyBase <= 750 then
+                                        iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti
+                                    else
+                                        iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
+                                    end
+                                end
+                            end
+                        end
+                    else
+                        --Cant path with land - prioritise novax more
+                        if iCurFatboyCount == 0 and iEnemyLandExperimentalCount > 0 then
+                            iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
+                        else
+                            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 90 then
+                                iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
+                            else
+                                --Novax or T3 arti
+                                if iCurNovaxCount < 3 + iCurT3ArtiCount then
+                                    iCategoryWanted = M28UnitInfo.refCategoryNovaxCentre
+                                else
+                                    if iDistToNearestEnemyBase <= 750 then
+                                        iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti
+                                    else
+                                        iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
+                                    end
                                 end
                             end
                         end
                     end
-                else
-                    --Cant path with land - prioritise novax more
-                    if iCurFatboyCount == 0 and iEnemyLandExperimentalCount > 0 then
-                        iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
-                    else
-                        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 90 then
-                            iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
+                    --SERAPHIM EXPERIMENTAL CHOICE
+                elseif tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionSeraphim] then
+                    --Build ahwassa if have air contorl or cant path to enemy with land
+                    if not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) or M28Team.tTeamData[iTeam][M28Team.refbHaveAirControl] or (not(M28Team.tTeamData[iTeam][M28Team.refbFarBehindOnAir]) and iTeamLandExperimentals >= math.max(1, iEnemyLandExperimentalCount)) or (iTeamLandExperimentals > iEnemyLandExperimentalCount + 2) then
+                        if iDistToNearestEnemyBase >= 300 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 90 then
+                            iCategoryWanted = M28UnitInfo.refCategorySML * categories.EXPERIMENTAL
                         else
-                            --Novax or T3 arti
-                            if iCurNovaxCount < 3 + iCurT3ArtiCount then
-                                iCategoryWanted = M28UnitInfo.refCategoryNovaxCentre
-                            else
-                                if iDistToNearestEnemyBase <= 750 then
+                            iCategoryWanted = M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL
+                        end
+                    else
+                        --Consider building a yolona instead of a ythotha
+                        if (iTeamLandExperimentals >= 3 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandExperimental) >= 3) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 80 then
+                            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 70 and iDistToNearestEnemyBase <= 750 then
+                                if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFixedT3Arti) < 4 then
                                     iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti
                                 else
-                                    iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
+                                    iCategoryWanted = M28UnitInfo.refCategorySML * categories.EXPERIMENTAL
                                 end
-                            end
-                        end
-                    end
-                end
-                --SERAPHIM EXPERIMENTAL CHOICE
-            elseif tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionSeraphim] then
-                --Build ahwassa if have air contorl or cant path to enemy with land
-                if not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) or M28Team.tTeamData[iTeam][M28Team.refbHaveAirControl] or (not(M28Team.tTeamData[iTeam][M28Team.refbFarBehindOnAir]) and iTeamLandExperimentals >= math.max(1, iEnemyLandExperimentalCount)) or (iTeamLandExperimentals > iEnemyLandExperimentalCount + 2) then
-                    if iDistToNearestEnemyBase >= 300 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 90 then
-                        iCategoryWanted = M28UnitInfo.refCategorySML * categories.EXPERIMENTAL
-                    else
-                        iCategoryWanted = M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL
-                    end
-                else
-                    --Consider building a yolona instead of a ythotha
-                    if (iTeamLandExperimentals >= 3 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandExperimental) >= 3) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 80 then
-                        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 70 and iDistToNearestEnemyBase <= 750 then
-                            if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFixedT3Arti) < 4 then
-                                iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti
                             else
                                 iCategoryWanted = M28UnitInfo.refCategorySML * categories.EXPERIMENTAL
                             end
                         else
-                            iCategoryWanted = M28UnitInfo.refCategorySML * categories.EXPERIMENTAL
+                            iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
                         end
-                    else
-                        iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
                     end
-                end
-            elseif tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionCybran] then
-                --If cant path to enemy with amphibious (rather than land) then consider T3 arti
-                if not(aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious]) then
-                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 80 and iDistToNearestEnemyBase <= 750 then
-                        if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFixedT3Arti) < 4 then
-                            iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti
+                elseif tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionCybran] then
+                    --If cant path to enemy with amphibious (rather than land) then consider T3 arti
+                    if not(aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious]) then
+                        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 80 and iDistToNearestEnemyBase <= 750 then
+                            if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFixedT3Arti) < 4 then
+                                iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti
+                            else
+                                iCategoryWanted = M28UnitInfo.refCategoryExperimentalStructure
+                            end
                         else
-                            iCategoryWanted = M28UnitInfo.refCategoryExperimentalStructure
+                            iCategoryWanted = M28UnitInfo.refCategoryExperimentalStructure --this includes scathis
                         end
                     else
-                        iCategoryWanted = M28UnitInfo.refCategoryExperimentalStructure --this includes scathis
-                    end
-                else
-                    if not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) then
-                        iCategoryWanted = M28UnitInfo.refCategoryMegalith --megalith has better torps
-                    else
-                        if iTeamLandExperimentals == 0 then
-                            iCategoryWanted = M28UnitInfo.refCategoryMonkeylord
+                        if not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) then
+                            iCategoryWanted = M28UnitInfo.refCategoryMegalith --megalith has better torps
                         else
-                            iCategoryWanted = M28UnitInfo.refCategoryMegalith
+                            if iTeamLandExperimentals == 0 then
+                                iCategoryWanted = M28UnitInfo.refCategoryMonkeylord
+                            else
+                                iCategoryWanted = M28UnitInfo.refCategoryMegalith
+                            end
                         end
                     end
-                end
-            elseif tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionAeon] then
-                if not(aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious]) or (not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) and iDistToNearestEnemyBase >= 350 and iEnemyLandExperimentalCount == 0) then
-                    if iDistToNearestEnemyBase <= 750 then
-                        if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFixedT3Arti) < 4 then
-                            iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti
+                elseif tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionAeon] then
+                    if not(aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious]) or (not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) and iDistToNearestEnemyBase >= 350 and iEnemyLandExperimentalCount == 0) then
+                        if iDistToNearestEnemyBase <= 750 then
+                            if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFixedT3Arti) < 4 then
+                                iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti
+                            else
+                                iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
+                            end
                         else
                             iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
                         end
                     else
-                        iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
-                    end
-                else
-                    --Build GC
-                    iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
-                end
-            else
-                --Not dealing with standard faction - basic choice between land and T3 arti/experimental structure, since unlikely to have hte logic in place for other units
-                if not(aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious]) then
-                    iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalStructure
-                else
-                    --can path to enemy with land
-                    local iBaseAdjust = 0
-                    if iDistToNearestEnemyBase >= 400 then
-                        if iDistToNearestEnemyBase >= 750 then iBaseAdjust = -2
-                        else iBaseAdjust = -1
-                        end
-                    end
-                    if iTeamLandExperimentals <= math.max(iEnemyLandExperimentalCount + 2 + iBaseAdjust, 3 + iBaseAdjust) then
+                        --Build GC
                         iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
-                    else
+                    end
+                else
+                    --Not dealing with standard faction - basic choice between land and T3 arti/experimental structure, since unlikely to have hte logic in place for other units
+                    if not(aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious]) then
                         iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalStructure
+                    else
+                        --can path to enemy with land
+                        local iBaseAdjust = 0
+                        if iDistToNearestEnemyBase >= 400 then
+                            if iDistToNearestEnemyBase >= 750 then iBaseAdjust = -2
+                            else iBaseAdjust = -1
+                            end
+                        end
+                        if iTeamLandExperimentals <= math.max(iEnemyLandExperimentalCount + 2 + iBaseAdjust, 3 + iBaseAdjust) then
+                            iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
+                        else
+                            iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalStructure
+                        end
                     end
                 end
             end
@@ -3921,7 +3937,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
 
 
-
     function HaveActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting)
         --Done as subfunction for convenience so can just note the key values for the action in question and add on the others that wont change
         --vOptionalVariable can be used for action specific information to save having to recalculate the same thing - could be a table, nil, or a value
@@ -3947,7 +3962,8 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 10 then
         if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroLocations]) == false then
             --Norush check
-            if M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydro(tLZTeamData) then
+            if bDebugMessages == true then LOG(sFunctionRef..': CHecking if hydro prevented by norush, M28Overseer.bNoRushActive='..tostring(M28Overseer.bNoRushActive or false)..'; M28Conditions.NoRushPreventingHydro(tLZTeamData)='..tostring(M28Conditions.NoRushPreventingHydro(tLZTeamData) or false)) end
+            if M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydro(tLZData) then
                 HaveActionToAssign(refActionBuildPower, 1, 10)
             else
 
@@ -3960,9 +3976,11 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     else
         if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroUnbuiltLocations]) == false then
-            if M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydro(tLZTeamData) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Have at least 10 energy income on the team, cHecking if hydro prevented by norush, M28Overseer.bNoRushActive='..tostring(M28Overseer.bNoRushActive or false)..'; M28Conditions.NoRushPreventingHydro(tLZTeamData)='..tostring(M28Conditions.NoRushPreventingHydro(tLZTeamData) or false)) end
+            if M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydro(tLZData) then
                 HaveActionToAssign(refActionBuildPower, 1, 10)
             else
+                if bDebugMessages == true then LOG(sFunctionRef..': WIll try to build hydro') end
                 HaveActionToAssign(refActionBuildHydro, 1, 10)
             end
         elseif bHaveLowPower then
@@ -4563,8 +4581,8 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; bExperimentalsBuiltInThisLZ='..tostring(bExperimentalsBuiltInThisLZ)..'; iExperimentalsBuiltInOtherLZ='..iExperimentalsBuiltInOtherLZ..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; M28Team.tTeamData[iTeam][M28Team.refbBuiltLotsOfT3Combat]='..tostring(M28Team.tTeamData[iTeam][M28Team.refbBuiltLotsOfT3Combat] or false)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]) end
     if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 and (
             (bExperimentalsBuiltInThisLZ or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] > 7) and
-            ((M28Team.tTeamData[iTeam][M28Team.refbBuiltLotsOfT3Combat] and (bExperimentalsBuiltInThisLZ or iExperimentalsBuiltInOtherLZ == 0)) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 8000 + 8000 * iExperimentalsBuiltInOtherLZ or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] > 16 + iExperimentalsBuiltInOtherLZ * 30))
-            or GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap] or -1000) <= 60) then
+                    ((M28Team.tTeamData[iTeam][M28Team.refbBuiltLotsOfT3Combat] and (bExperimentalsBuiltInThisLZ or iExperimentalsBuiltInOtherLZ == 0)) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 8000 + 8000 * iExperimentalsBuiltInOtherLZ or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] > 16 + iExperimentalsBuiltInOtherLZ * 30))
+                    or GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap] or -1000) <= 60) then
 
         iBPWanted = 100 --No point trying to build an experimental with less build power
         if not(bHaveLowPower) then

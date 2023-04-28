@@ -30,7 +30,8 @@ bAirFactoriesCantBeBuilt = false
 bNoRushActive = false
 iNoRushRange = 0
 iNoRushTimer = 0 --Gametimeseconds that norush should end
-reftNoRushCentre = 'M28OverseerNRCtre'
+reftNoRushCentre = 'M28OverseerNRCtre' --against aiBrain
+reftNoRushM28StartPoints = { } --start positions for all norush buildable locations
 
 --aiBrain variables
 refiDistanceToNearestEnemyBase = 'M28OverseerDistToNearestEnemyBase'
@@ -345,6 +346,7 @@ function SetupNoRushDetails(aiBrain)
             if tMapInfo[sZRef] then aiBrain[reftNoRushCentre][3] = aiBrain[reftNoRushCentre][3] + (tMapInfo[sZRef] or 0) end
             aiBrain[reftNoRushCentre][2] = GetTerrainHeight(aiBrain[reftNoRushCentre][1], aiBrain[reftNoRushCentre][3])
             iNoRushRange = tMapInfo.norushradius
+            table.insert(reftNoRushM28StartPoints, aiBrain[reftNoRushCentre])
             if bDebugMessages == true then
                 LOG(sFunctionRef..': Have recorded key norush details for the ai with index='..aiBrain:GetArmyIndex()..'; iNoRushRange='..iNoRushRange..'; aiBrain[reftNoRushCentre]='..repru(aiBrain[reftNoRushCentre])..'; will draw a circle now in white around the area')
                 M28Utilities.DrawCircleAtTarget(aiBrain[reftNoRushCentre], 7, 500, iNoRushRange)
