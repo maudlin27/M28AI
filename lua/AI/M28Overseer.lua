@@ -161,6 +161,8 @@ function GameSettingWarningsAndChecks(aiBrain)
     local sIncompatibleMessage = ''
     local bIncompatible = false
     local bHaveOtherAIMod = false
+
+
     if M28Utilities.IsTableEmpty(ScenarioInfo.Options.RestrictedCategories) == false then
         bIncompatible = true
         bUnitRestrictionsArePresent = true
@@ -187,13 +189,9 @@ function GameSettingWarningsAndChecks(aiBrain)
     end
     --Check for non-AI sim-mods.  Thanks to Softles for pointing me towards the __active_mods variable
     local tSimMods = __active_mods or {}
-    local tAIModNameWhitelist = {
-        'M27AI', 'AI-Swarm', 'AI-Uveso', 'AI: DilliDalli', 'Dalli AI', 'Dilli AI', 'M20AI', 'Marlo\'s Sorian AI edit', 'RNGAI', 'SACUAI', 'M28AI'
-    }
+    local tAIModNameWhitelist = { 'M27AI', 'AI-Swarm', 'AI-Uveso', 'AI: DilliDalli', 'Dalli AI', 'Dilli AI', 'M20AI', 'Marlo\'s Sorian AI edit', 'RNGAI', 'SACUAI', 'M28AI' }
 
-    local tAIModNameWhereExpectAI = {
-        'AI-Swarm', 'AI-Uveso', 'AI: DilliDalli', 'Dalli AI', 'Dilli AI', 'M20AI', 'Marlo\'s Sorian AI edit', 'RNGAI', 'M28AI'
-    }
+    local tAIModNameWhereExpectAI = { 'AI-Swarm', 'AI-Uveso', 'AI: DilliDalli', 'Dalli AI', 'Dilli AI', 'M20AI', 'Marlo\'s Sorian AI edit', 'RNGAI', 'M27AI' } --Dont include M28 in this list, i.e. it shoudl be every AI except M28
     local tModIsOk = {}
     local bHaveOtherAI = false
     local sUnnecessaryAIMod

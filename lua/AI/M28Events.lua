@@ -30,27 +30,29 @@ refiLastWeaponEvent = 'M28LastWep' --Gametimeseconds that last updated onweapon
 
 
 function OnPlayerDefeated(aiBrain)
-    aiBrain.M28IsDefeated = true
+    if M28Utilities.bM28AIInGame then
+        aiBrain.M28IsDefeated = true
 
-    --Was it an M28AI?
-    if aiBrain.M28AI then
-        --Give resources to teammates
-        local bHaveTeammates = false
-        if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveBrains]) == false then
-            for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveBrains] do
-                if not(oBrain == aiBrain) and not(oBrain.M28IsDefeated) and not(oBrain:IsDefeated()) then
-                    bHaveTeammates = true
-                    break
+        --Was it an M28AI?
+        if aiBrain.M28AI then
+            --Give resources to teammates
+            local bHaveTeammates = false
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveBrains]) == false then
+                for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoFriendlyActiveBrains] do
+                    if not(oBrain == aiBrain) and not(oBrain.M28IsDefeated) and not(oBrain:IsDefeated()) then
+                        bHaveTeammates = true
+                        break
+                    end
                 end
             end
+            if bHaveTeammates then
+                ForkThread(M28Team.GiveAllResourcesToAllies, aiBrain)
+            end
         end
-        if bHaveTeammates then
-            ForkThread(M28Team.GiveAllResourcesToAllies, aiBrain)
-        end
-    end
 
-    --Update tables tracking the various brains
-    ForkThread(M28Team.RefreshActiveBrainListForBrainDeath, aiBrain)
+        --Update tables tracking the various brains
+        ForkThread(M28Team.RefreshActiveBrainListForBrainDeath, aiBrain)
+    end
 end
 
 function OnACUKilled(oUnit)
@@ -149,35 +151,37 @@ end
 
 function OnYthothaDeath(oUnit)
     --Called when a ythotha (oUnit) is flagged as dying or being killed
-    local sFunctionRef = 'OnYthothaDeath'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if M28Utilities.bM28AIInGame then
+        local sFunctionRef = 'OnYthothaDeath'
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    local refbYthothaDeath = 'M28EventYthothaDeath'
+        local refbYthothaDeath = 'M28EventYthothaDeath'
 
-    if not(oUnit[refbYthothaDeath]) then
-        oUnit[refbYthothaDeath] = true
-        local tNearbyUnits
-        if bDebugMessages == true then LOG(sFunctionRef..': Ythotha has just died, will look for nearby units and tell them to run away') end
-        local iTimeToRun
-        local iSearchRange = 70
-        for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
-            tNearbyUnits = oBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand, oUnit:GetPosition(), 50, 'Ally')
-            if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
-                for iFriendlyUnit, oFriendlyUnit in tNearbyUnits do
-                    if bDebugMessages == true then LOG(sFunctionRef..': oFriendlyUnit='..oFriendlyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFriendlyUnit)..'; if we own it then will make it run away') end
-                    if oFriendlyUnit:GetAIBrain() == oBrain then --Only do this for M28 units
-                        if M28UnitInfo.IsUnitValid(oFriendlyUnit, true) then
-                            iTimeToRun = math.min(32, math.max(10, 18 + (50 - M28Utilities.GetDistanceBetweenPositions(oFriendlyUnit:GetPosition(), oUnit:GetPosition()) / (oFriendlyUnit:GetBlueprint().Physics.MaxSpeed or 1))))
-                            if bDebugMessages == true then LOG(sFunctionRef..': Telling friendly unit '..oFriendlyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFriendlyUnit)..' to move away for 18s via moveawayfromtarget order') end
-                            ForkThread(M28Micro.MoveAwayFromTargetTemporarily, oFriendlyUnit, iTimeToRun, oUnit:GetPosition())
+        if not(oUnit[refbYthothaDeath]) then
+            oUnit[refbYthothaDeath] = true
+            local tNearbyUnits
+            if bDebugMessages == true then LOG(sFunctionRef..': Ythotha has just died, will look for nearby units and tell them to run away') end
+            local iTimeToRun
+            local iSearchRange = 70
+            for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
+                tNearbyUnits = oBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand, oUnit:GetPosition(), 50, 'Ally')
+                if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
+                    for iFriendlyUnit, oFriendlyUnit in tNearbyUnits do
+                        if bDebugMessages == true then LOG(sFunctionRef..': oFriendlyUnit='..oFriendlyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFriendlyUnit)..'; if we own it then will make it run away') end
+                        if oFriendlyUnit:GetAIBrain() == oBrain then --Only do this for M28 units
+                            if M28UnitInfo.IsUnitValid(oFriendlyUnit, true) then
+                                iTimeToRun = math.min(32, math.max(10, 18 + (50 - M28Utilities.GetDistanceBetweenPositions(oFriendlyUnit:GetPosition(), oUnit:GetPosition()) / (oFriendlyUnit:GetBlueprint().Physics.MaxSpeed or 1))))
+                                if bDebugMessages == true then LOG(sFunctionRef..': Telling friendly unit '..oFriendlyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFriendlyUnit)..' to move away for 18s via moveawayfromtarget order') end
+                                ForkThread(M28Micro.MoveAwayFromTargetTemporarily, oFriendlyUnit, iTimeToRun, oUnit:GetPosition())
+                            end
                         end
                     end
                 end
             end
         end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 
@@ -356,24 +360,26 @@ function OnWorkEnd(self, work)
 end
 
 function OnEnhancementComplete(oUnit, sEnhancement)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'OnEnhancementComplete'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if M28Utilities.bM28AIInGame then
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'OnEnhancementComplete'
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Enhancement completed for self='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; sEnhancement='..reprs(sEnhancement)) end
-    M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit)
-    M28UnitInfo.RecordUnitRange(oUnit) --Refresh the range incase enhancement has increased anything
-    if oUnit:GetAIBrain().M28AI then
-        if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
-            oUnit[M28ACU.refiUpgradeCount] = (oUnit[M28ACU.refiUpgradeCount] or 0) + 1
-            M28ACU.GetUpgradePathForACU(oUnit)
+        if bDebugMessages == true then LOG(sFunctionRef..': Enhancement completed for self='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; sEnhancement='..reprs(sEnhancement)) end
+        M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit)
+        M28UnitInfo.RecordUnitRange(oUnit) --Refresh the range incase enhancement has increased anything
+        if oUnit:GetAIBrain().M28AI then
+            if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+                oUnit[M28ACU.refiUpgradeCount] = (oUnit[M28ACU.refiUpgradeCount] or 0) + 1
+                M28ACU.GetUpgradePathForACU(oUnit)
+            end
+            --Remove any upgrade tracking
+            M28Team.UpdateUpgradeTrackingOfUnit(oUnit, true, sEnhancement)
         end
-        --Remove any upgrade tracking
-        M28Team.UpdateUpgradeTrackingOfUnit(oUnit, true, sEnhancement)
+        M28UnitInfo.RecordUnitRange(oUnit)
+        if bDebugMessages == true then LOG(sFunctionRef..': Unit DF range after updating recorded range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')) end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
-    M28UnitInfo.RecordUnitRange(oUnit)
-    if bDebugMessages == true then LOG(sFunctionRef..': Unit DF range after updating recorded range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')) end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function OnShieldBubbleDamaged(self, instigator)
@@ -935,24 +941,25 @@ end
 
 function OnCreateWreck(tPosition, iMass, iEnergy)
     --Dont check if M28brains are in game yet as can be called at start of game before we have recorded any aiBrain
-
-    if not(M28Map.bReclaimManagerActive) then
-        if GetGameTimeSeconds() >= 20 then return nil
-        else
-            local iWaitCount = 0
-            while not(M28Map.bReclaimManagerActive) do
-                WaitTicks(1)
-                iWaitCount = iWaitCount + 1
-                if iWaitCount >= 20 then M28Utilities.ErrorHandler('Map setup not complete') break end
+    if M28Utilities.bM28AIInGame then
+        if not(M28Map.bReclaimManagerActive) then
+            if GetGameTimeSeconds() >= 20 then return nil
+            else
+                local iWaitCount = 0
+                while not(M28Map.bReclaimManagerActive) do
+                    WaitTicks(1)
+                    iWaitCount = iWaitCount + 1
+                    if iWaitCount >= 20 then M28Utilities.ErrorHandler('Map setup not complete') break end
+                end
             end
         end
+        --[[if iMass >= 35 then
+            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tPosition)
+            local iReclaimSegmentX, iReclaimSegmentZ = M28Map.GetReclaimSegmentsFromLocation(tPosition)
+            LOG('OnCreateWreck: Time='..GetGameTimeSeconds()..'; iMass='..iMass..'; tPosition='..repru(tPosition)..'; will record we want to update reclaim at this location, iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iReclaimSegmentX='..iReclaimSegmentX..'; iReclaimSegmentZ='..iReclaimSegmentZ)
+        end--]]
+        ForkThread(M28Map.RecordThatWeWantToUpdateReclaimAtLocation, tPosition, 0)
     end
-    --[[if iMass >= 35 then
-        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tPosition)
-        local iReclaimSegmentX, iReclaimSegmentZ = M28Map.GetReclaimSegmentsFromLocation(tPosition)
-        LOG('OnCreateWreck: Time='..GetGameTimeSeconds()..'; iMass='..iMass..'; tPosition='..repru(tPosition)..'; will record we want to update reclaim at this location, iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iReclaimSegmentX='..iReclaimSegmentX..'; iReclaimSegmentZ='..iReclaimSegmentZ)
-    end--]]
-    ForkThread(M28Map.RecordThatWeWantToUpdateReclaimAtLocation, tPosition, 0)
 end
 
 function OnTransportLoad(oUnit, oTransport, bone)

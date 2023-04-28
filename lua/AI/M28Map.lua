@@ -321,7 +321,7 @@ tPondDetails = {}
         --subrefLastReclaimRefresh
 
         subrefWZTeamData = 'PWZTeam' --Used to house team related data for a particular water zone
-            subrefWZbCoreBase = 'WZCoreB' --true if is a 'core' base (i.e. has a naval factory in)
+            subrefWZbCoreBase = 'LZCoreB' --true if is a 'core' base (i.e. has a naval factory in); uses same ref as LZbCoreBase
             subrefWZbContainsUnderwaterStart = 'WZUndwSt' --true if an M28brain start position is in this water zone and is underwater
             subrefWZbContainsNavalBuildLocation = 'WZNavBL' --true if contains a naval build location for a friendly M28AI
             subrefWZTValue = 'WZVal' --Value of the WZ, used to prioritise sending untis to different water zones; likely to be based on distance to core base water zone
@@ -672,26 +672,7 @@ local function SetupPlayableAreaAndSegmentSizes()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
----@param sResourceType string
----@param x number
----@param y number
----@param z number
-function RecordResourcePoint(sResourceType,x,y,z,size)
-    --called by hook into simInit, more reliable method of figuring out if have adaptive map than using markers, as not all mass markers may have mexes generated on an adaptive map
-    --Whenever a resource location is created in the map, this is called, and will record the resource location into a table of mex points (tMassPoints) and hydro points (tHydroPoints) for referencing in later code
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'RecordResourcePoint'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if bDebugMessages == true then LOG(sFunctionRef..': sResourceType='..sResourceType..'; x='..x..'; y='..y..'; z='..z..'; size='..repru(size)..'; Mass count pre update='..table.getn(tMassPoints)..'; Hydro points pre update='..table.getn(tHydroPoints)) end
 
-    if sResourceType == 'Mass' then
-        table.insert(tMassPoints, {x,y,z})
-    elseif sResourceType == 'Hydrocarbon' then
-        table.insert(tHydroPoints, {x,y,z})
-    end
-    if bDebugMessages == true then LOG(sFunctionRef..': End of hook; Mass points post update='..table.getn(tMassPoints)..'; Hydro poitns post update='..table.getn(tHydroPoints)) end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-end
 
 ---@param sPathing string
 ---@param tLocation table
@@ -1096,11 +1077,11 @@ end
 ---@param iOptionalLandZone number
 ---@param iPlateauMexRef number
 ---@param tTempPlateauLandZoneByMexRef table
-local function AddMexToLandZone(iPlateau, iOptionalLandZone, iPlateauMexRef, tTempPlateauLandZoneByMexRef)
+local function AddMexToLandZone(iPlateau, iOptionalLandZone, iPlateauMexRef, tTempPlateauLandZoneByMexRef, tOptionalMexLocationIfAddingDuringGame)
     --Determine the land zone if it isnt specified
     --iPlateau is the result of NavUtils.GetLabel(refPathingTypeHover, tLocation)
     --iOptionalLandZone - if not specified, then this will create a new land zone for iPlateau and use htis reference
-    --iPlateauMexRef - the reference key in the table tAllPlateaus[iPlateau][subrefPlateauMexes], which should return the location of the mex
+    --iPlateauMexRef - the reference key in the table tAllPlateaus[iPlateau][subrefPlateauMexes], which should return the location of the mex; if nill then will create a new ref
     --tTempPlateauLandZoneByMexRef - temporary table used to store information for purposes of creating the land zones
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -1115,6 +1096,24 @@ local function AddMexToLandZone(iPlateau, iOptionalLandZone, iPlateauMexRef, tTe
         iLandZone = tAllPlateaus[iPlateau][subrefLandZoneCount]
     end
 
+    --Add mex to the plateau if no iPlateauMexRef, and also to locations to build - i.e. assume if this triggers taht we are adding the mex part-way through
+    if not(iPlateauMexRef) or not(tAllPlateaus[iPlateau][subrefPlateauMexes][iPlateauMexRef]) then
+        if M28Utilities.IsTableEmpty(tAllPlateaus[iPlateau][subrefPlateauMexes]) or not(tOptionalMexLocationIfAddingDuringGame) then
+            M28Utilities.ErrorHandler('Dont have any mexes recorded for iPlateau '..(iPlateau or 'nil')..'; or havent specified a value for tOptionalMexLocationIfAddingDuringGame')
+        else
+            local iExistingCount = table.getn(tAllPlateaus[iPlateau][subrefPlateauMexes])
+            table.insert(tAllPlateaus[iPlateau][subrefPlateauMexes], {tOptionalMexLocationIfAddingDuringGame[1], tOptionalMexLocationIfAddingDuringGame[2], tOptionalMexLocationIfAddingDuringGame[3]})
+            iPlateauMexRef = iExistingCount + 1
+            if M28Conditions.CanBuildOnMexLocation(tOptionalMexLocationIfAddingDuringGame) then
+                local tLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
+                if not(tLZData[subrefMexUnbuiltLocations]) then tLZData[subrefMexUnbuiltLocations] = {} end
+                table.insert(tLZData[subrefMexUnbuiltLocations], { tOptionalMexLocationIfAddingDuringGame[1], tOptionalMexLocationIfAddingDuringGame[2], tOptionalMexLocationIfAddingDuringGame[3] })
+                if bDebugMessages == true then LOG(sFunctionRef..': Added mex to table of unbuilt mex locations, iExistingCount='..iExistingCount..'; iPlateauMexRef='..iPlateauMexRef) end
+            end
+        end
+
+    end
+
     --Add the mex to this land zone
     if not(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexCount]) then
         M28Utilities.ErrorHandler('No mex count for iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil'))
@@ -1122,10 +1121,13 @@ local function AddMexToLandZone(iPlateau, iOptionalLandZone, iPlateauMexRef, tTe
     end
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexCount] = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexCount] + 1
     table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexLocations], tAllPlateaus[iPlateau][subrefPlateauMexes][iPlateauMexRef])
-    tTempPlateauLandZoneByMexRef[iPlateau][iPlateauMexRef] = iLandZone
+    if tTempPlateauLandZoneByMexRef[iPlateau] then tTempPlateauLandZoneByMexRef[iPlateau][iPlateauMexRef] = iLandZone end
+    if bDebugMessages == true then LOG(sFunctionRef..': iPlateauMexRef='..(iPlateauMexRef or 'nil')..'; tAllPlateaus[iPlateau][subrefPlateauMexes][iPlateauMexRef] repru='..repru(tAllPlateaus[iPlateau][subrefPlateauMexes][iPlateauMexRef])) end
     local iCurSegmentX, iCurSegmentZ = GetPathingSegmentFromPosition(tAllPlateaus[iPlateau][subrefPlateauMexes][iPlateauMexRef])
-    RecordSegmentLandZone(iCurSegmentX, iCurSegmentZ, iPlateau, iLandZone)
-    if bDebugMessages == true then LOG(sFunctionRef..': Hvae recorded a new land zone for segment '..iCurSegmentX..'-'..iCurSegmentZ..' for iPlateau '..iPlateau..'; iLandZone='..iLandZone) end
+    if not(tLandZoneBySegment[iCurSegmentX][iCurSegmentZ] == iLandZone) then
+        RecordSegmentLandZone(iCurSegmentX, iCurSegmentZ, iPlateau, iLandZone)
+        if bDebugMessages == true then LOG(sFunctionRef..': Hvae recorded a new land zone for segment '..iCurSegmentX..'-'..iCurSegmentZ..' for iPlateau '..iPlateau..'; iLandZone='..iLandZone) end
+    end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -1178,6 +1180,39 @@ local function AddMexToWaterZone(iPond, iWaterZone, tMex)
         end
     end
 
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+---@param sResourceType string
+---@param x number
+---@param y number
+---@param z number
+function RecordResourcePoint(sResourceType,x,y,z,size)
+    --called by hook into simInit, more reliable method of figuring out if have adaptive map than using markers, as not all mass markers may have mexes generated on an adaptive map
+    --Whenever a resource location is created in the map, this is called, and will record the resource location into a table of mex points (tMassPoints) and hydro points (tHydroPoints) for referencing in later code
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordResourcePoint'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': sResourceType='..sResourceType..'; x='..x..'; y='..y..'; z='..z..'; size='..repru(size)..'; Mass count pre update='..table.getn(tMassPoints)..'; Hydro points pre update='..table.getn(tHydroPoints)) end
+
+    if sResourceType == 'Mass' then
+        table.insert(tMassPoints, {x,y,z})
+    elseif sResourceType == 'Hydrocarbon' then
+        table.insert(tHydroPoints, {x,y,z})
+    end
+    if bMapLandSetupComplete and GetGameTimeSeconds() >= 3 then
+        --E.g. crazyrush type map
+        local iPlateauOrZero, iLandOrWaterZone = GetClosestPlateauOrZeroAndZoneToPosition({ x,y,z })
+        if bDebugMessages == true then LOG(sFunctionRef..': Map setup is already complete, assumed crazyrsuh scenario, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; xyz='..x..'-'..y..'-'..z) end
+        if iLandOrWaterZone > 0 then
+            if iPlateauOrZero == 0 then
+                AddMexToWaterZone(tiPondByWaterZone[iLandOrWaterZone], iLandOrWaterZone, { x,y,z})
+            else
+                AddMexToLandZone(iPlateauOrZero, iLandOrWaterZone, nil, nil, {x,y,z})
+            end
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of hook; Mass points post update='..table.getn(tMassPoints)..'; Hydro poitns post update='..table.getn(tHydroPoints)) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 

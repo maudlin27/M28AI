@@ -280,7 +280,9 @@ function AirSubteamOverseer(iTeam, iAirSubteam)
         ForkThread(ManageNovax, iTeam, iAirSubteam)
         WaitTicks(1)
         ForkThread(ManageExperimentalBomber, iTeam, iAirSubteam)
-        WaitTicks(2)
+        WaitTicks(1)
+        ForkThread(ManageOtherAir, iTeam, iAirSubteam) --e.g. mercies
+        WaitTicks(1)
     end
 end
 
@@ -1576,7 +1578,35 @@ function ManageBombers(iTeam, iAirSubteam)
     local tAvailableBombers, tBombersForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, M28UnitInfo.refCategoryBomber - categories.EXPERIMENTAL)
 
     if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
-        M28Utilities.ErrorHandler('Need to add code to manage available T1-T3 bombers')
+        --Simple logic for now as placeholder in case we get given bombers - attack nearest enemy to rally point in up to a 300 range
+
+        local aiBrain
+        for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
+            aiBrain = oBrain
+            break
+        end
+        local tRallyPoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
+        local tNearbyEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryStructure, tRallyPoint, 300, 'Enemy')
+        if M28Utilities.IsTableEmpty(tNearbyEnemyUnits) == false then
+            local iClosestUnitDist = 10000
+            local oClosestUnit
+            local iCurDist
+
+            for iUnit, oUnit in tNearbyEnemyUnits do
+                if oUnit:GetFractionComplete() >= 0.8 and not(oUnit:IsUnitState('Attached')) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
+                    iCurDist = M28Utilities.GetDistanceBetweenPositions(tRallyPoint, oUnit:GetPosition())
+                    if iCurDist < iClosestUnitDist then
+                        iClosestUnitDist = iCurDist
+                        oClosestUnit = oUnit
+                    end
+                end
+            end
+            if oClosestUnit then
+                for iBomber, oBomber in tAvailableBombers do
+                    M28Orders.IssueTrackedAttack(oBomber, oClosestUnit, false, 'PlaceholderBA', false)
+                end
+            end
+        end
     end
 
     --Send units for refueling
@@ -1984,7 +2014,7 @@ function ManageGunships(iTeam, iAirSubteam)
 
 
 
-    local tAvailableGunships, tGunshipsForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, M28UnitInfo.refCategoryGunship)
+    local tAvailableGunships, tGunshipsForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, M28UnitInfo.refCategoryGunship + M28UnitInfo.refCategoryCzar)
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; Is tAvailableGunships empty='..tostring(M28Utilities.IsTableEmpty(tAvailableGunships))) end
     M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] = M28UnitInfo.GetAirThreatLevel(tAvailableGunships, false, false, false, true, false, false) + M28UnitInfo.GetAirThreatLevel(tGunshipsForRefueling, false, false, false, true, false, false) + M28UnitInfo.GetAirThreatLevel(tUnavailableUnits, false, false, false, true, false, false)
     local oFrontGunship
@@ -3346,5 +3376,53 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
         end
     end
 
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ManageOtherAir(iTeam, iAirSubteam)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ManageOtherAir'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    local tAvailableBombers, tBombersForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, M28UnitInfo.refCategoryMercy)
+
+    if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
+        --Simple logic for now as placeholder in case we get given bombers - attack nearest enemy to rally point in up to a 300 range
+
+        local aiBrain
+        for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
+            aiBrain = oBrain
+            break
+        end
+        local tRallyPoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
+        local tNearbyEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryStructure - categories.TECH1 + categories.COMMAND, tRallyPoint, 300, 'Enemy')
+        if M28Utilities.IsTableEmpty(tNearbyEnemyUnits) == false then
+            local iClosestUnitDist = 10000
+            local oClosestUnit
+            local iCurDist
+
+            for iUnit, oUnit in tNearbyEnemyUnits do
+                if oUnit:GetFractionComplete() >= 0.8 and not(oUnit:IsUnitState('Attached')) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
+                    iCurDist = M28Utilities.GetDistanceBetweenPositions(tRallyPoint, oUnit:GetPosition())
+                    if iCurDist < iClosestUnitDist then
+                        iClosestUnitDist = iCurDist
+                        oClosestUnit = oUnit
+                    end
+                end
+            end
+            if oClosestUnit then
+                for iBomber, oBomber in tAvailableBombers do
+                    M28Orders.IssueTrackedAttack(oBomber, oClosestUnit, false, 'PlaceholderMA', false)
+                end
+            end
+        end
+    end
+
+    --Send units for refueling
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished giving bomber orders, is table of air for refueling empty='..tostring(M28Utilities.IsTableEmpty(tBombersForRefueling))) end
+    --Run the function even if no units wanting refueling so already attached untis can be sent on their way
+    SendUnitsForRefueling(tBombersForRefueling, iTeam, iAirSubteam)
+    if bDebugMessages == true and M28Utilities.IsTableEmpty(tBombersForRefueling) == false then
+        LOG(sFunctionRef..': Will send '..table.getn(tBombersForRefueling)..' units to refuel')
+    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
