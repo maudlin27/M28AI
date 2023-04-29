@@ -1126,7 +1126,7 @@ function RecordUnitRange(oUnit)
                     if (oCurWeapon.DamageRadius or 0) > 0 then oUnit[refiDFAOE] = math.max((oUnit[refiDFAOE] or 0), oCurWeapon.DamageRadius) end
                 elseif oCurWeapon.RangeCategory == 'UWRC_AntiNavy' then
                     oUnit[refiAntiNavyRange] = math.max((oUnit[refiAntiNavyRange] or 0), oCurWeapon.MaxRadius)
-                elseif oCurWeapon.RangeCategory == 'UWRC_AntiAir' then
+                elseif oCurWeapon.RangeCategory == 'UWRC_AntiAir' or oCurWeapon.WeaponCategory == 'Anti Air' then
                     oUnit[refiAARange] = math.max((oUnit[refiAARange] or 0), oCurWeapon.MaxRadius)
                 elseif oCurWeapon.RangeCategory == 'UWRC_IndirectFire' then
                     oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
@@ -1135,7 +1135,7 @@ function RecordUnitRange(oUnit)
                 elseif not(oCurWeapon.RangeCategory) or oCurWeapon.RangeCategory == 'UWRC_Undefined' then
                     if oCurWeapon.Label == 'Bomb' or oCurWeapon.DisplayName == 'Kamikaze' or oCurWeapon.Label == 'Torpedo' then
                         oUnit[refiBomberRange] = math.max((oUnit[refiBomberRange] or 0), oCurWeapon.MaxRadius)
-                    elseif oCurWeapon.WeaponCategory == 'Direct Fire' or oCurWeapon.WeaponCategory == 'Direct Fire Experimental' then
+                    elseif oCurWeapon.WeaponCategory == 'Direct Fire' or oCurWeapon.WeaponCategory == 'Direct Fire Experimental' or oCurWeapon.WeaponCategory == 'Kamikaze' then
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                         if (oCurWeapon.DamageRadius or 0) > 0 then oUnit[refiDFAOE] = math.max((oUnit[refiDFAOE] or 0), oCurWeapon.DamageRadius) end
                     elseif (oCurWeapon.Damage or 0) == 0 or (oCurWeapon.MaxRadius or 0) <= 1 then
@@ -1143,7 +1143,8 @@ function RecordUnitRange(oUnit)
                     elseif oUnit.UnitId == 'uab4201' then
                         --Aeon TMD - ignore as it has a rangecategory for the weapon that uses the correct range so want to ignore the other waepon anyway
                     else
-                        M28Utilities.ErrorHandler('Unrecognised range category for unit '..oUnit.UnitId..'; reprs of weapon='..reprs(oCurWeapon))
+                        M28Utilities.ErrorHandler('Unrecognised range category for unit '..oUnit.UnitId)
+                        --If this triggers do a reprs of the weapon to figure out why
                     end
                 else
                     M28Utilities.ErrorHandler('Unrecognised range category '..oCurWeapon.RangeCategory..' for unit '..oUnit.UnitId)

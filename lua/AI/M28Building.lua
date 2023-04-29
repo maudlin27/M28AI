@@ -564,8 +564,8 @@ function TMDDied(oTMD)
                 for iRecordedTMD, oRecordedTMD in oUnit[reftTMDCoveringThisUnit] do
                     if oRecordedTMD == oTMD then
                         iCurTeam = oUnit:GetAIBrain().M28Team
-                        if not(tUnitsToCheckIfWantTMDCoverage[iCurTeam]) then tUnitsToCheckIfWantTMDCoverage[iCurTeam] = {} end
-                        table.insert(tUnitsToCheckIfWantTMDCoverage[iCurTeam], oUnit)
+                        if not(tUnitsToCheckIfWantTMDCoverageByTeam[iCurTeam]) then tUnitsToCheckIfWantTMDCoverageByTeam[iCurTeam] = {} end
+                        table.insert(tUnitsToCheckIfWantTMDCoverageByTeam[iCurTeam], oUnit)
                         table.remove(oUnit[reftTMDCoveringThisUnit], iRecordedTMD)
                     end
                 end

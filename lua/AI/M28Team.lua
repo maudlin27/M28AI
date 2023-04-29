@@ -152,11 +152,12 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     --Misc details
     reftiTeamMessages = 'M28TeamMessages' --against tTeamData[aiBrain.M28Team], [x] is the message type string, returns the gametime that last sent a message of this type to the team
     subrefNukeLaunchLocations = 'M28NukeLocations' --locations that we have nuked recently
+    refiTimeLastNearUnitCap = 'M28TimeLastNearUnitCap'
 
 --AirSubteam data variables
 iTotalAirSubteamCount = 0
 tAirSubteamData = {}
-    subreftoFriendlyM28Brains = 'M28ASTBrains' --table of friendly M28 brains
+    subreftoFriendlyM28Brains = 'M28Brains' --table of friendly M28 brains
     subrefiMaxScoutRadius = 'M28ASTMaxScoutRadius' --Search range for scouts for this AirSubteam
     refbFarBehindOnAir = 'M28ASTFarBehindOnAir' --true if we are far behind on air
     refbHaveAirControl = 'M28ASTHaveAirControl'
@@ -179,7 +180,7 @@ iTotalLandSubteamCount = 0
 tLandSubteamData = {} --tLandSubteamData[oBrain.M28LandSubteam] results in the below subrefs
     subrefiLandCorePlateau = 'M28LSTPlateau' --Plateau number that the land subteam is based on
     subrefiLandCoreIsland = 'M28LSTIsland' --Island number that the land subteam is based on
-    subreftoFriendlyM28Brains = 'M28LSTBrains'
+    --subreftoFriendlyM28Brains = 'M28Brains' --Uses same ref as air subteam
     subrefFactoriesByTypeFactionAndTech = 'M28LSTFactoriesByPlateau' --First value is factory type; secont value is faction (M28UnitInfo.refFactionxxxx), third is tech level
     subrefBlueprintBlacklist = 'M28LSTBlueprintBlacklist' --Check with M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subrefBlueprintBlacklist][sUnitId] - returns true if we have blacklisted the unit
 
@@ -514,13 +515,16 @@ function CreateNewTeam(aiBrain)
                 for iBrain, oBrain in tAirSubteamData[oBrain.M28AirSubteam][subreftoFriendlyM28Brains] do
                     iStartPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
                     iStartIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
-
-                    if not(tiIslandBrainsInSubteam[iStartIsland]) then tiIslandBrainsInSubteam[iStartIsland] = {} end
-                    table.insert(tiIslandBrainsInSubteam[iStartIsland], oBrain)
-                    tiPlateauByIslandRefs[iStartIsland] = iStartPlateau
+                    if (iStartIsland or 0) > 0 then
+                        if not(tiIslandBrainsInSubteam[iStartIsland]) then tiIslandBrainsInSubteam[iStartIsland] = {} end
+                        table.insert(tiIslandBrainsInSubteam[iStartIsland], oBrain)
+                        tiPlateauByIslandRefs[iStartIsland] = iStartPlateau
+                    end
                 end
-                for iStartIsland, tBrains in tiIslandBrainsInSubteam do
-                    CreateNewLandSubteam(tiPlateauByIslandRefs[iStartIsland], iStartIsland, tBrains)
+                if M28Utilities.IsTableEmpty(tiIslandBrainsInSubteam) == false then
+                    for iStartIsland, tBrains in tiIslandBrainsInSubteam do
+                        CreateNewLandSubteam(tiPlateauByIslandRefs[iStartIsland], iStartIsland, tBrains)
+                    end
                 end
             end
         end
@@ -564,7 +568,7 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
-    if EntityCategoryContains(categories.MOBILE * categories.AIR, oUnit.UnitId) and not(bIsEnemyAirUnit) then M28Utilities.ErrorHandler('Havent flagged that an air unit is an air unit') end
+    if EntityCategoryContains(categories.MOBILE * categories.AIR, oUnit.UnitId) and not(bIsEnemyAirUnit) and not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId)) then M28Utilities.ErrorHandler('Havent flagged that an air unit is an air unit') end
 
 
     local bAddToZone = true
@@ -840,7 +844,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
     if M28UnitInfo.IsUnitValid(oUnit) then
 
         local bPreviouslyConsidered = (oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][aiBrain.M28Team] or false)
-
+        local bIgnore = false
         if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname..' - are considering the unit from aiBrain perspective of '..aiBrain.Nickname..' at time '..GetGameTimeSeconds()..'; Have we already considered this unit='..tostring(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][aiBrain.M28Team] or false)..'; bIgnoreIfAssignedAlready='..tostring(bIgnoreIfAssignedAlready or false)..'; Is enemy='..tostring(IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()))) end
         if not(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam]) then oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam] = {} end
         if bIgnoreIfAssignedAlready and oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][aiBrain.M28Team] then
@@ -907,14 +911,19 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                             table.insert(tLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets], oUnit)
                         end
                     end
+                else
+                    --Allied unit - dont record if it isnt owned by M28AI brain (so we dont control allied non-M28 units)
+                    if not(oUnit:GetAIBrain().M28AI) then
+                        bIgnore = true
+                    end
                 end
             elseif bDebugMessages == true then
                 LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has already been considered (considered='..tostring(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][aiBrain.M28Team] or false)..')')
-                --M28Utilities.ErrorHandler('Audit trail')
+                --M28Utilities.ErrorHandler('Audit trail', true, true)
             end
 
 
-            if EntityCategoryContains(M28UnitInfo.refCategoryWall + categories.UNSELECTABLE + categories.UNTARGETABLE, oUnit.UnitId) then
+            if bIgnore or EntityCategoryContains(M28UnitInfo.refCategoryWall + categories.UNSELECTABLE + categories.UNTARGETABLE, oUnit.UnitId) then
                 --Do nothing
                 if bDebugMessages == true then LOG(sFunctionRef..': Unit is insignificant so will ignore, Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
             else
@@ -977,12 +986,42 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                 AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone)
                             else
                                 --Does the unit already have orders, and is a non-naval unit? If so then wait and try to reassign it in a bit, as e.g. may be a land unit that can path across water so has taken a shortcut
-                                if EntityCategoryContains(M28UnitInfo.refCategoryAllNavy, oUnit.UnitId) then
+                                if EntityCategoryContains(M28UnitInfo.refCategoryAllNavy, oUnit.UnitId) and (EntityCategoryContains(M28UnitInfo.refCategoryAllNavy - categories.AMPHIBIOUS - categories.HOVER, oUnit.UnitId) or (NavUtils.GetLabel(M28Map.refPathingTypeNavy, oUnit:GetPosition()) or 0) > 0) then
                                     local iCurPond = NavUtils.GetLabel(M28Map.refPathingTypeNavy, oUnit:GetPosition())
-                                    if iCurPond > 0 then
-                                        M28Utilities.ErrorHandler('#To add code for naval units')
+                                    if (iCurPond or 0) > 0 then
+                                        --Are in valid pond, find nearest valid water zone and add this segment to that water zone
+                                        iWaterZone = nil --redundancy
+                                        --To find nearby water zone - cycle through a hollow box
+                                        --First to the top row and bottom row
+                                        for iAdjustBase = 1, 10 do
+                                            for iCurSegmentX = iSegmentX - iAdjustBase, iSegmentX + iAdjustBase, 1 do
+                                                for iCurSegmentZ = iSegmentZ - iAdjustBase, iSegmentZ + iAdjustBase, iAdjustBase * 2 do
+                                                    if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
+                                                        if M28Map.tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] then iWaterZone = M28Map.tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] break end
+                                                    end
+                                                end
+                                                if iWaterZone then break end
+                                            end
+                                            if iWaterZone then break end
+                                            --Then do the left and right row (excl corners which ahve already done per the above)
+                                            for iCurSegmentX = iSegmentX - iAdjustBase, iSegmentX + iAdjustBase, iAdjustBase * 2 do
+                                                for iCurSegmentZ = iSegmentZ - iAdjustBase + 1, iSegmentZ + iAdjustBase - 1, 1 do
+                                                    if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
+                                                        if M28Map.tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] then iWaterZone = M28Map.tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] break end
+                                                    end
+                                                end
+                                                if iWaterZone then break end
+                                            end
+                                            if iWaterZone then break end
+                                        end
+                                        if (iWaterZone or 0) > 0 then
+                                            M28Map.AddSegmentToWaterZone(iCurPond, iWaterZone, iSegmentX, iSegmentZ)
+                                            AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone)
+                                        else
+                                            M28Utilities.ErrorHandler('Unable to find nearby water zone despite having a valid pond, unitID='..oUnit.UnitId)
+                                        end
                                     else
-                                        M28Utilities.ErrorHandler('Naval unit but not in a recognised poind')
+                                        M28Utilities.ErrorHandler('Non amphibious Naval unit but not in a recognised poind')
                                     end
                                 else
                                     --Reassign in a bit if we own it
@@ -1075,6 +1114,7 @@ function HaveGroundUnitWithNoPlateau(oTrackingBrain, oUnit)
                     if not(iPlateauToTryAndFind > 0) then iPlateauToTryAndFind = nil end
                     for iAngleAdjust = 0, 45, 360 do
                         tPotentialTempMoveLocation = M28Utilities.MoveInDirection(oUnit:GetPosition(), iBaseAngle + iAngleAdjust, iBaseDistance, true, false)
+
                         if not(iPlateauToTryAndFind) or NavUtils.GetLabel(sPathing, tPotentialTempMoveLocation) == iPlateauToTryAndFind then
                             break --Use this as the move location
                         end
@@ -1100,7 +1140,7 @@ end
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateUnitPond'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    --if bDebugMessages == true then M28Utilities.ErrorHandler('Audit trail', true) end
+    --if bDebugMessages == true then M28Utilities.ErrorHandler('Audit trail', true, true) end
 
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, bIsEnemy='..tostring((bIsEnemy or false))..'; Unit brain index='..oUnit:GetAIBrain():GetArmyIndex()..'; Unit assigned pond='..(oUnit[refiAssignedPond] or 'nil')..'; Contains fixed pond category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryPondFixedCategory, oUnit.UnitId))) end
@@ -1289,12 +1329,12 @@ function ConsiderPriorityLandFactoryUpgrades(iM28Team)
     --Enemy has better land tech than us, and we have no active land upgrades
 
     if bDebugMessages == true then LOG(sFunctionRef..': tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech]='..(tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] or 'nil')..'; tTeamData[iM28Team][subrefiHighestEnemyGroundTech]='..(tTeamData[iM28Team][subrefiHighestEnemyGroundTech] or 'nil')) end
-    if tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] > 0 and tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] < 3 and (tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] < tTeamData[iM28Team][subrefiHighestEnemyGroundTech] or (tTeamData[iM28Team][subrefiTeamGrossMass] >= 6.5 and tTeamData[iM28Team][subrefiTeamMassStored] >= 300 and M28Conditions.GetTeamLifetimeBuildCount(iM28Team, (M28UnitInfo.refCategoryLandCombat * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + M28UnitInfo.refCategoryIndirect * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech])) ) >= 20 * (2-tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + 12)) then
+    if tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] > 0 and tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] < 3 and (tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] < tTeamData[iM28Team][subrefiHighestEnemyGroundTech] or (tTeamData[iM28Team][subrefiTeamGrossMass] >= 6.5 and tTeamData[iM28Team][subrefiTeamMassStored] >= 300 and (tTeamData[iM28Team][subrefiTeamGrossMass] >= 8.5 or M28Conditions.GetTeamLifetimeBuildCount(iM28Team, (M28UnitInfo.refCategoryLandCombat * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + M28UnitInfo.refCategoryIndirect * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech])) ) >= 20 * (2-tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + 12))) then
         local bWantUpgrade = false
         for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
-            --Can we path to the nearest enemy with land, and we are behind enemy tech level with land?
+            --Can we path to the nearest enemy with land, and we are behind enemy tech level with land or have lots of mass?
             if bDebugMessages == true then LOG(sFunctionRef..': Considering oBrain '..oBrain.Nickname..'; oBrain[M28Map.refbCanPathToEnemyBaseWithLand]='..tostring(oBrain[M28Map.refbCanPathToEnemyBaseWithLand])..'; oBrain[M28Economy.refiOurHighestLandFactoryTech]='..oBrain[M28Economy.refiOurHighestLandFactoryTech]) end
-            if oBrain[M28Map.refbCanPathToEnemyBaseWithLand] and oBrain[M28Economy.refiOurHighestLandFactoryTech] > 0 and oBrain[M28Economy.refiOurHighestLandFactoryTech] < tTeamData[iM28Team][subrefiHighestEnemyGroundTech] then
+            if oBrain[M28Map.refbCanPathToEnemyBaseWithLand] and oBrain[M28Economy.refiOurHighestLandFactoryTech] > 0 and (oBrain[M28Economy.refiOurHighestLandFactoryTech] < tTeamData[iM28Team][subrefiHighestEnemyGroundTech] or tTeamData[iM28Team][subrefiTeamGrossMass] >= 6.5 and tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 50) then
                 --Do we have any active land factory upgrades?
                 bWantUpgrade = not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryLandHQ))
 
@@ -1383,12 +1423,15 @@ function ConsiderPriorityMexUpgrades(iM28Team)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderPriorityMexUpgrades'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if bDebugMessages == true then LOG(sFunctionRef..': Is table of upgrading mexes empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]))..'; tTeamData[iM28Team][subrefiTeamMassStored]='..tTeamData[iM28Team][subrefiTeamMassStored]..'; tTeamData[iM28Team][subrefiTeamNetMass]='..tTeamData[iM28Team][subrefiTeamNetMass]..'; tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]='..tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]) end
-    if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) or (tTeamData[iM28Team][subrefiTeamNetMass] - tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]) > 0 or 2 * tTeamData[iM28Team][subrefiActiveM28BrainCount] + table.getn(tTeamData[iM28Team][subreftTeamUpgradingMexes]) * 2.5 < tTeamData[iM28Team][subrefiTeamGrossMass] then
+    if bDebugMessages == true then LOG(sFunctionRef..': Is table of upgrading mexes empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]))..'; tTeamData[iM28Team][subrefiTeamMassStored]='..tTeamData[iM28Team][subrefiTeamMassStored]..'; tTeamData[iM28Team][subrefiTeamNetMass]='..tTeamData[iM28Team][subrefiTeamNetMass]..'; tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]='..tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]..'; or M28Overseer.bNoRushActive='..tostring(M28Overseer.bNoRushActive or false)) end
+    if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) or (tTeamData[iM28Team][subrefiTeamNetMass] - tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]) > 0 or 2 * tTeamData[iM28Team][subrefiActiveM28BrainCount] + table.getn(tTeamData[iM28Team][subreftTeamUpgradingMexes]) * 2.5 < tTeamData[iM28Team][subrefiTeamGrossMass] or M28Overseer.bNoRushActive then
         --Do we have enough energy?
+        if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have enough energy, tTeamData[iM28Team][subrefiTeamNetEnergy]='..tTeamData[iM28Team][subrefiTeamNetEnergy]..'; tTeamData[iM28Team][subrefiEnergyUpgradesStartedThisCycle]='..tTeamData[iM28Team][subrefiEnergyUpgradesStartedThisCycle]..'; tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored]='..tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored]) end
         if tTeamData[iM28Team][subrefiTeamNetEnergy] - tTeamData[iM28Team][subrefiEnergyUpgradesStartedThisCycle] > 0 and (tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] >= 0.75 or tTeamData[iM28Team][subrefiTeamNetEnergy] - tTeamData[iM28Team][subrefiEnergyUpgradesStartedThisCycle] >= 5) then
-            --Do we have mexes in start positions that are lower than the enemy's highest tech, or 2 lower than the highest mex in that LZ?
+            --Do we have mexes in start positions that are lower than the enemy's highest tech, or 2 lower than the highest mex in that LZ? Or are in norush mode?
             local iTechLevelToUpgrade = math.min(3, math.max(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech], (tTeamData[iM28Team][subrefiHighestEnemyMexTech] or 0))) - 1
+            if M28Overseer.bNoRushActive then iTechLevelToUpgrade = math.max(1, iTechLevelToUpgrade) end
+            if bDebugMessages == true then LOG(sFunctionRef..': iTechLevelToUpgrade='..iTechLevelToUpgrade..'; tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]='..tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]..'; tTeamData[iM28Team][subrefiHighestEnemyMexTech]='..(tTeamData[iM28Team][subrefiHighestEnemyMexTech] or 0)) end
             if iTechLevelToUpgrade >= 1 then
                 local iPlateau, iLandZone, tMexesToConsiderUpgrading
                 local bAbort = false
@@ -1407,11 +1450,22 @@ function ConsiderPriorityMexUpgrades(iM28Team)
                 for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
                     bAbort = false
                     iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+                    local tLZOrWZTeamData
+                    if (iLandZone or 0) > 0 then
+                        tLZOrWZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iM28Team]
+                    else
+                        local iWaterZone = M28Map.GetWaterZoneFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+                        if (iWaterZone or 0) > 0 then
+                            tLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][iM28Team]
+                        end
+                    end
                     --Dont do priority upgrade if this location already has an upgrade
-                    if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iM28Team][M28Map.subrefActiveUpgrades]) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Does brain '..oBrain.Nickname..' have an empty table of active upgrades in its start position LZ/WZ='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefActiveUpgrades]))) end
+                    if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefActiveUpgrades]) then
                         for iMexTech = 1, iTechLevelToUpgrade do
-                            if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iM28Team][M28Map.subrefMexCountByTech][iMexTech] > 0 then
-                                tMexesToConsiderUpgrading = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex * M28UnitInfo.ConvertTechLevelToCategory(iMexTech), M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZTAlliedUnits])
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering mexes for iMexTech='..iMexTech..'; count='..tLZOrWZTeamData[M28Map.subrefMexCountByTech][iMexTech]) end
+                            if tLZOrWZTeamData[M28Map.subrefMexCountByTech][iMexTech] > 0 then
+                                tMexesToConsiderUpgrading = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex * M28UnitInfo.ConvertTechLevelToCategory(iMexTech), tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits])
                                 if M28Utilities.IsTableEmpty(tMexesToConsiderUpgrading) == false then
                                     for iMex, oMex in tMexesToConsiderUpgrading do
                                         if not(oMex:IsUnitState('Upgrading')) and oMex:GetFractionComplete() == 1 then
@@ -1447,7 +1501,7 @@ end
 function AddPotentialUnitsToShortlist(toUnitShortlist, tPotentialUnits, bDontCheckIfSafe)
     if M28Utilities.IsTableEmpty(tPotentialUnits) == false then
         for iUnit, oUnit in tPotentialUnits do
-            if not(oUnit:IsUnitState('Upgrading')) and oUnit:GetFractionComplete() == 1 and (bDontCheckIfSafe or M28Conditions.SafeToUpgradeUnit(oUnit)) then
+            if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit:IsUnitState('Upgrading')) and oUnit:GetFractionComplete() == 1 and (bDontCheckIfSafe or M28Conditions.SafeToUpgradeUnit(oUnit)) then
                 table.insert(toUnitShortlist, oUnit)
             end
         end
@@ -2014,6 +2068,26 @@ function WaterZoneTeamInitialisation(iTeam)
             if not(tTeamData[iTeam][subrefiWaterZonesWantingSignificantMAAByPlateau][iCurPlateau]) then tTeamData[iTeam][subrefiWaterZonesWantingSignificantMAAByPlateau][iCurPlateau] = {} end
         end
     end
+    --Record any start positions of friendly M28AI that are on water as waterstartposition for team data
+    local tUnderwaterM28StartPoints = {}
+    for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
+        local iStartPositionX, iStartPositionZ = oBrain:GetArmyStartPos()
+        local tStartPoint = {iStartPositionX, GetSurfaceHeight(iStartPositionX, iStartPositionZ), iStartPositionZ}
+        if bDebugMessages == true then LOG(sFunctionRef..': tStartPoint='..repru(tStartPoint)..'; iStartPositionX='..iStartPositionX..'; iStartPositionZ='..iStartPositionZ..'; Surface height='..GetSurfaceHeight(iStartPositionX, iStartPositionZ)..'; Terrain height='..GetTerrainHeight(iStartPositionX, iStartPositionZ)) end
+        if GetTerrainHeight(iStartPositionX, iStartPositionZ) < tStartPoint[2] then
+            table.insert(tUnderwaterM28StartPoints, tStartPoint )
+        end
+    end
+    if M28Utilities.IsTableEmpty(tUnderwaterM28StartPoints) == false then
+        for iEntry, tStartPoint in tUnderwaterM28StartPoints do
+            local iPlateauOrZero, iWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tStartPoint)
+            if iPlateauOrZero == 0 and (iWaterZone or 0) > 0 then
+                local tWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][iTeam]
+                tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] = true
+                if bDebugMessages == true then LOG(sFunctionRef..': Recording that iWaterzone'..iWaterZone..' is underwater for the M28 start position '..repru(tStartPoint)) end
+            end
+        end
+    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -2104,6 +2178,24 @@ function RefreshActiveBrainListForBrainDeath(oDefeatedBrain)
             if M28Utilities.IsTableEmpty(tTeamData[iTeam][subreftoEnemyBrains]) then
                 tTeamData[iTeam][subrefbAllEnemiesDefeated] = true
             end
+        end
+    end
+
+    --Remove from air subteam
+    local iAirSubteam = oDefeatedBrain.M28AirSubteam
+    for iBrain, oBrain in tAirSubteamData[iAirSubteam][subreftoFriendlyM28Brains] do
+        if oBrain == oDefeatedBrain then
+            table.remove(tAirSubteamData[iAirSubteam][subreftoFriendlyM28Brains], iBrain)
+            break
+        end
+    end
+
+    --Remove from land subteam
+    local iLandSubteam = oDefeatedBrain.M28LandSubteam
+    for iBrain, oBrain in tLandSubteamData[iLandSubteam][subreftoFriendlyM28Brains] do
+        if oBrain == oDefeatedBrain then
+            table.remove(tLandSubteamData[iLandSubteam][subreftoFriendlyM28Brains], iBrain)
+            break
         end
     end
 

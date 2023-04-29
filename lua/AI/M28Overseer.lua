@@ -17,16 +17,30 @@ local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 local M28Chat = import('/mods/M28AI/lua/AI/M28Chat.lua')
 local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
+local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
+local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
 
 
 bInitialSetup = false
 tAllActiveM28Brains = {} --[x] is just a unique integer starting with 1 (so table.getn works on this), not the armyindex; returns the aiBrain object
 tAllAIBrainsByArmyIndex = {} --[x] is the brain army index, returns the aibrain
 
+--Special settings - restrictions and norush
+bUnitRestrictionsArePresent = false
+bAirFactoriesCantBeBuilt = false
+bNoRushActive = false
+iNoRushRange = 0
+iNoRushTimer = 0 --Gametimeseconds that norush should end
+reftNoRushCentre = 'M28OverseerNRCtre' --against aiBrain
+reftNoRushM28StartPoints = { } --start positions for all norush buildable locations
+
 --aiBrain variables
 refiDistanceToNearestEnemyBase = 'M28OverseerDistToNearestEnemyBase'
 refoNearestEnemyBrain = 'M28OverseerNearestEnemyBrain'
 refbCloseToUnitCap = 'M28OverseerCloseToUnitCap'
+refiExpectedRemainingCap = 'M28OverseerUnitCap' --number of units to be built before we potentially hit the unit cap, i.e. used as a rough guide for when shoudl call the code to check the unit cap
+refiUnitCapCategoriesDestroyed = 'M28OverseerLstCatDest' --Last category destroyed by unit cap logic
+refiTemporarilySetAsAllyForTeam = 'M28TempSetAsAlly' --against brain, e.g. a civilian brain, returns the .M28Team number that the brain has been set as an ally of temporarily (to reveal civilians at start of game)
 
 function GetNearestEnemyBrain(aiBrain)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -137,6 +151,146 @@ function GetNearestEnemyBrain(aiBrain)
     return aiBrain[refoNearestEnemyBrain]
 end
 
+function GameSettingWarningsAndChecks(aiBrain)
+    --One once at start of the game if an M28 brain is present
+    local sFunctionRef = 'GameSettingWarningsAndChecks'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then
+        LOG(sFunctionRef .. ': Start of compatibility check.  Size of tAllActiveM28Brains=' .. table.getsize(tAllActiveM28Brains))
+    end
+    local sIncompatibleMessage = ''
+    local bIncompatible = false
+    local bHaveOtherAIMod = false
+
+
+    if M28Utilities.IsTableEmpty(ScenarioInfo.Options.RestrictedCategories) == false then
+        bIncompatible = true
+        bUnitRestrictionsArePresent = true
+        sIncompatibleMessage = sIncompatibleMessage .. ' Unit restrictions. '
+    end
+    --Check if we can build air factories
+    local tFriendlyACU = aiBrain:GetListOfUnits(categories.COMMAND, false, true)
+    if bDebugMessages == true then LOG(sFunctionRef..': Is table of friendly ACU empty='..tostring(M28Utilities.IsTableEmpty(tFriendlyACU))) end
+    if M28Utilities.IsTableEmpty(tFriendlyACU) == false then
+        local sBlueprint = M28Factory.GetBlueprintsThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryAirFactory, tFriendlyACU[1])
+        if bDebugMessages == true then LOG(sFunctionRef..': If ACU '..tFriendlyACU[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(tFriendlyACU[1])..' tries to build an air factory, sBLueprint is '..(sBlueprint or 'nil')) end
+        if not(sBlueprint) then
+            bAirFactoriesCantBeBuilt = true
+            if not(bUnitRestrictionsArePresent) then
+                bUnitRestrictionsArePresent = true
+                sIncompatibleMessage = sIncompatibleMessage .. ' Custom map script or mod preventing air factories'
+            end
+        end
+    end
+
+    if not (ScenarioInfo.Options.NoRushOption == "Off") then
+        bIncompatible = true
+        sIncompatibleMessage = sIncompatibleMessage .. ' No rush timer. '
+    end
+    --Check for non-AI sim-mods.  Thanks to Softles for pointing me towards the __active_mods variable
+    local tSimMods = __active_mods or {}
+    local tAIModNameWhitelist = { 'M27AI', 'AI-Swarm', 'AI-Uveso', 'AI: DilliDalli', 'Dalli AI', 'Dilli AI', 'M20AI', 'Marlo\'s Sorian AI edit', 'RNGAI', 'SACUAI', 'M28AI' }
+
+    local tAIModNameWhereExpectAI = { 'AI-Swarm', 'AI-Uveso', 'AI: DilliDalli', 'Dalli AI', 'Dilli AI', 'M20AI', 'Marlo\'s Sorian AI edit', 'RNGAI', 'M27AI' } --Dont include M28 in this list, i.e. it shoudl be every AI except M28
+    local tModIsOk = {}
+    local bHaveOtherAI = false
+    local sUnnecessaryAIMod
+    local iUnnecessaryAIModCount = 0
+    for iAI, sAI in tAIModNameWhitelist do
+        tModIsOk[sAI] = true
+    end
+
+    local iSimModCount = 0
+    local bFlyingEngineers
+    for iMod, tModData in tSimMods do
+        if not (tModIsOk[tModData.name]) and tModData.enabled and not (tModData.ui_only) then
+            iSimModCount = iSimModCount + 1
+            bIncompatible = true
+            if iSimModCount == 1 then
+                sIncompatibleMessage = sIncompatibleMessage .. ' SIM mods '
+            else
+                sIncompatibleMessage = sIncompatibleMessage .. '; '
+            end
+            sIncompatibleMessage = sIncompatibleMessage .. ' ' .. (tModData.name or 'UnknownName')
+            if bDebugMessages == true then
+                LOG('Whitelist of mod names=' .. repru(tModIsOk))
+                LOG(sFunctionRef .. ' About to do reprs of the tModData for mod ' .. (tModData.name or 'nil')..': '..reprs(tModData))
+            end
+
+            if string.find(tModData.name, 'Flying engineers') then
+                bFlyingEngineers = true
+                if bDebugMessages == true then LOG(sFunctionRef..': Have flying engineers mod enabled so will adjust engineer categories') end
+            end
+        elseif tModIsOk[tModData.name] then
+            if not(bHaveOtherAIMod) then
+                for iAIMod, sAIMod in tAIModNameWhereExpectAI do
+                    if sAIMod == tModData.name then
+                        bHaveOtherAIMod = true
+                        break
+                    end
+                end
+                if bHaveOtherAIMod then
+                    --Do we have non-M28 AI?
+                    for iBrain, oBrain in ArmyBrains do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have another AI mod enabled. reprs of oBrain='..reprs(oBrain)..'; is BrainType empty='..tostring(oBrain.BrainType == 'nil')..'; is brian type an empty string='..tostring(oBrain.BrainType == '')) end
+                        if ((oBrain.BrainType == 'AI' and not(oBrain.M28AI)) or oBrain.DilliDalli) and not(M28Conditions.IsCivilianBrain(oBrain)) then
+                            bHaveOtherAI = true
+                            if bDebugMessages == true then LOG('Have an AI for a brain') end
+                            break
+                        end
+                    end
+                end
+            end
+            if bHaveOtherAIMod and not(bHaveOtherAI) then
+                local bUnnecessaryMod = false
+                for iAIMod, sAIMod in tAIModNameWhereExpectAI do
+                    if sAIMod == tModData.name then
+                        bUnnecessaryMod = true
+                        break
+                    end
+                end
+                if bUnnecessaryMod then
+
+                    iUnnecessaryAIModCount = iUnnecessaryAIModCount + 1
+                    if iUnnecessaryAIModCount == 1 then
+                        sUnnecessaryAIMod = tModData.name
+                    else
+                        sUnnecessaryAIMod = sUnnecessaryAIMod..', '..tModData.name
+                    end
+                end
+            end
+        end
+    end
+
+    if iSimModCount > 0 then
+        sIncompatibleMessage = sIncompatibleMessage .. '. '
+    end
+    if bDebugMessages == true then
+        LOG(sFunctionRef .. ': Finished checking compatibility; compatibility message=' .. sIncompatibleMessage .. '; iSimModCount=' .. iSimModCount)
+    end
+
+    if iSimModCount > 0 then
+        --Basic compatibiltiy with flying engineers mod - allow air engineers to be treated as engineers; also work on mods with similar effect but different name
+        if not(bFlyingEngineers) and M28Utilities.IsTableEmpty(EntityCategoryGetUnitList(M28UnitInfo.refCategoryEngineer * categories.TECH1)) then bFlyingEngineers = true end
+        if bFlyingEngineers then
+            M28UnitInfo.refCategoryEngineer = M28UnitInfo.refCategoryEngineer + categories.ENGINEER * categories.AIR * categories.CONSTRUCTION - categories.EXPERIMENTAL
+        end
+        --BREWLAN compatibility - it adds the TRANSPORTATION category to units that cant transport, leading to errors when M28 tries using them or getting their cargo
+        if categories.TORPEDOBOMBER then M28UnitInfo.refCategoryTransport = M28UnitInfo.refCategoryTransport - categories.TORPEDOBOMBER end --thanks to Balthazaar who gave this tip for checking if a custom category exists
+    end
+
+    if bIncompatible then
+        M28Chat.SendMessage(aiBrain, 'SendGameCompatibilityWarning', 'Detected '..sIncompatibleMessage .. ' if you come across M28AI issues with these settings/mods let maudlin27 know via Discord', 0, 10)
+    end
+    if bHaveOtherAIMod and not(bHaveOtherAI) and sUnnecessaryAIMod then
+        M28Chat.SendMessage(aiBrain, 'UnnecessaryMods', 'No other AI detected, These AI mods can be disabled: '..sUnnecessaryAIMod, 1, 10)
+    end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function M28BrainCreated(aiBrain)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'M28BrainCreated'
@@ -154,6 +308,9 @@ function M28BrainCreated(aiBrain)
         if bDebugMessages == true then LOG(sFunctionRef..': About to do one-off setup for all brains') end
         M28Utilities.bM28AIInGame = true
 
+        --Send a message warning players this could take a while
+        M28Chat.SendForkedMessage(aiBrain, 'LoadingMap', 'Analysing map, this usually freezes the game for 1-2 minutes (more on large maps)...', 0, 10000, false)
+        ForkThread(GameSettingWarningsAndChecks, aiBrain)
         ForkThread(M28Map.SetupMap)
 
     end
@@ -163,9 +320,56 @@ function M28BrainCreated(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 
 end
-function Test2()
-    WaitSeconds(1)
-    LOG('Test')
+
+function SetupNoRushDetails(aiBrain)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'SetupNoRushDetails'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code') end
+
+    if ScenarioInfo.Options.NoRushOption  and not(ScenarioInfo.Options.NoRushOption == 'Off') then
+        if bDebugMessages == true then LOG(sFunctionRef..': No rush isnt active, will record details') end
+        if not(bNoRushActive) then --This is the first time for any AI that this is run (redundancy)
+            if bDebugMessages == true then LOG(sFunctionRef..': Log of ScenarioInfo='..repru(ScenarioInfo)) end
+            bNoRushActive = true
+            iNoRushTimer = tonumber(ScenarioInfo.Options.NoRushOption) * 60
+            ForkThread(NoRushMonitor)
+            if bDebugMessages == true then LOG(sFunctionRef..': First time have run this so ahve set bNoRushActive='..tostring(bNoRushActive)..' and started iNoRushTimer for '..iNoRushTimer..' to change norush back to false') end
+        end
+        --Setup details of norush range for each M28AI
+        if bNoRushActive then
+            local tMapInfo = ScenarioInfo
+            aiBrain[reftNoRushCentre] = {M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()][1], 0, M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()][3]}
+            local sXRef = 'norushoffsetX_ARMY_'..aiBrain:GetArmyIndex()
+            local sZRef = 'norushoffsetY_ARMY_'..aiBrain:GetArmyIndex()
+            if bDebugMessages == true then LOG(sFunctionRef..': Checking norush adjustments, sXRef='..sXRef..'; sZRef='..sZRef..'; MapInfoX='..(tMapInfo[sXRef] or 'nil')..'; MapInfoZ='..(tMapInfo[sZRef] or 'nil')..'; aiBrain[reftNoRushCentre] before adjustment='..repru(aiBrain[reftNoRushCentre])) end
+            if tMapInfo[sXRef] then aiBrain[reftNoRushCentre][1] = aiBrain[reftNoRushCentre][1] + (tMapInfo[sXRef] or 0) end
+            if tMapInfo[sZRef] then aiBrain[reftNoRushCentre][3] = aiBrain[reftNoRushCentre][3] + (tMapInfo[sZRef] or 0) end
+            aiBrain[reftNoRushCentre][2] = GetTerrainHeight(aiBrain[reftNoRushCentre][1], aiBrain[reftNoRushCentre][3])
+            iNoRushRange = tMapInfo.norushradius
+            table.insert(reftNoRushM28StartPoints, aiBrain[reftNoRushCentre])
+            if bDebugMessages == true then
+                LOG(sFunctionRef..': Have recorded key norush details for the ai with index='..aiBrain:GetArmyIndex()..'; iNoRushRange='..iNoRushRange..'; aiBrain[reftNoRushCentre]='..repru(aiBrain[reftNoRushCentre])..'; will draw a circle now in white around the area')
+                M28Utilities.DrawCircleAtTarget(aiBrain[reftNoRushCentre], 7, 500, iNoRushRange)
+            end
+
+        end
+    else
+        if bDebugMessages == true then LOG(sFunctionRef..': No rush isnt active') end
+        bNoRushActive = false --(redundancy)
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function NoRushMonitor()
+    local sFunctionRef = 'NoRushMonitor'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    WaitSeconds(iNoRushTimer)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    bNoRushActive = false
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function TestCustom(aiBrain)
@@ -237,6 +441,7 @@ end
 
 function Initialisation(aiBrain)
     --Called after 1 tick has passed so all aibrains should hopefully exist now
+    ForkThread(SetupNoRushDetails, aiBrain)
     ForkThread(M28UnitInfo.CalculateBlueprintThreatsByType) --Records air and ground threat values for every blueprint
     ForkThread(M28Team.RecordAllPlayers, aiBrain)
     ForkThread(M28Economy.EconomyInitialisation, aiBrain)
@@ -245,6 +450,7 @@ function Initialisation(aiBrain)
     ForkThread(M28Factory.SetPreferredUnitsByCategory, aiBrain)
     ForkThread(M28Factory.IdleFactoryMonitor, aiBrain)
     ForkThread(M28Map.RecordPondToExpandTo, aiBrain)
+    ForkThread(RevealCiviliansToAI, aiBrain)
 
 end
 
@@ -263,11 +469,170 @@ function OverseerManager(aiBrain)
     while (GetGameTimeSeconds() <= 4.5) do
         WaitTicks(1)
     end
-
+    local bSetHook = false --Used for debugging
     while not(aiBrain:IsDefeated()) and not(aiBrain.M28IsDefeated) do
         --TestCustom(aiBrain)
-
+        --Enable below to help figure out infinite loops
+        --[[if GetGameTimeSeconds() >= 173 and not(bSetHook) then
+            bSetHook = true
+            M28Profiler.bFunctionCallDebugOverride = true
+            --M28Profiler.bGlobalDebugOverride = true --Only enable this if want more detail as it will make things really slow
+            debug.sethook(M28Profiler.OutputRecentFunctionCalls, "c", 200)
+            LOG('Have started the main hook of function calls')
+        end--]]
         ForkThread(M28Economy.RefreshEconomyData, aiBrain)
         WaitSeconds(1)
     end
+end
+
+function CheckUnitCap(aiBrain)
+    local sFunctionRef = 'CheckUnitCap'
+    local bDebugMessages = false
+    if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iUnitCap = tonumber(ScenarioInfo.Options.UnitCap)
+    local iCurUnits = aiBrain:GetCurrentUnits(categories.ALLUNITS - M28UnitInfo.refCategoryWall) + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryWall) * 0.25
+    local iThreshold = math.max(math.ceil(iUnitCap * 0.02), 10)
+    local iCurUnitsDestroyed = 0
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; iCurUnits='..iCurUnits..'; iUnitCap='..iUnitCap..'; iThreshold='..iThreshold) end
+    if iCurUnits > (iUnitCap - iThreshold * 5) then
+        aiBrain[refbCloseToUnitCap] = true
+        M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeLastNearUnitCap] = GetGameTimeSeconds()
+        local iMaxToDestroy = math.max(5, math.ceil(iUnitCap * 0.01), 20 - (iUnitCap - iCurUnits))
+        if iUnitCap - iCurUnits < 10 then iMaxToDestroy = math.max(10, iMaxToDestroy) end
+        local tUnitsToDestroy
+        local tiCategoryToDestroy = {
+            [0] = categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryT1Mex + M28UnitInfo.refCategoryAllAir * categories.TECH2,
+            [1] = M28UnitInfo.refCategoryAllAir * categories.TECH1 + categories.NAVAL * categories.MOBILE * categories.TECH1,
+            [2] = M28UnitInfo.refCategoryMobileLand * categories.TECH2 - categories.COMMAND - M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryAirScout + M28UnitInfo.refCategoryAirAA * categories.TECH1,
+            [3] = M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND,
+            [4] = M28UnitInfo.refCategoryWall + M28UnitInfo.refCategoryEngineer - categories.TECH3,
+        }
+        if bDebugMessages == true then LOG(sFunctionRef..': We are over the threshold for ctrlking units') end
+        if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) > iUnitCap * 0.35 then tiCategoryToDestroy[0] = tiCategoryToDestroy[0] + M28UnitInfo.refCategoryEngineer end
+        local iCumulativeCategory = tiCategoryToDestroy[4]
+        for iAdjustmentLevel = 4, 0, -1 do
+            if iAdjustmentLevel < 4 then
+                iCumulativeCategory = iCumulativeCategory + tiCategoryToDestroy[iAdjustmentLevel]
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitsDestroyed so far='..iCurUnitsDestroyed..'; iMaxToDestroy='..iMaxToDestroy..'; iAdjustmentLevel='..iAdjustmentLevel..'; iCurUnits='..iCurUnits..'; Unit cap='..iUnitCap..'; iThreshold='..iThreshold) end
+            if iCurUnits > (iUnitCap - iThreshold * iAdjustmentLevel) or iCurUnitsDestroyed == 0 then
+                tUnitsToDestroy = aiBrain:GetListOfUnits(tiCategoryToDestroy[iAdjustmentLevel], false, false)
+                if M28Utilities.IsTableEmpty(tUnitsToDestroy) == false then
+                    for iUnit, oUnit in tUnitsToDestroy do
+                        if oUnit.Kill then
+                            if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitsDestroyed so far='..iCurUnitsDestroyed..'; Will destroy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to avoid going over unit cap') end
+                            M28Orders.IssueTrackedKillUnit(oUnit)
+                            if EntityCategoryContains(M28UnitInfo.refCategoryWall, oUnit.UnitId) then
+                                iCurUnitsDestroyed = iCurUnitsDestroyed + 0.25
+                            else
+                                iCurUnitsDestroyed = iCurUnitsDestroyed + 1
+                            end
+                            if iCurUnitsDestroyed >= iMaxToDestroy then break end
+                        end
+                    end
+                end
+                if iCurUnitsDestroyed >= iMaxToDestroy then break end
+            else
+                break
+            end
+        end
+        aiBrain[refiUnitCapCategoriesDestroyed] = iCumulativeCategory
+        if bDebugMessages == true then LOG(sFunctionRef..': FInished destroying units, iCurUnitsDestroyed='..iCurUnitsDestroyed) end
+    else
+        if aiBrain[refbCloseToUnitCap] then
+            --Only reset cap if we have a bit of leeway
+            if iCurUnits < 10 + (iUnitCap - iThreshold * 5) then
+                aiBrain[refbCloseToUnitCap] = false
+            end
+        end
+    end
+    aiBrain[refiExpectedRemainingCap] = iUnitCap - iCurUnits + iCurUnitsDestroyed
+    if aiBrain[refbCloseToUnitCap] and aiBrain[refiExpectedRemainingCap] <= 25 then
+        --Recheck in 30s
+        ForkThread(DelayedUnitCapCheck, aiBrain)
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, expected remaining cap='..aiBrain[refiExpectedRemainingCap]) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function DelayedUnitCapCheck(aiBrain)
+    WaitSeconds(30)
+    CheckUnitCap(aiBrain)
+end
+
+function ResetCivilianAllianceForBrain(iOurIndex, iCivilianIndex, sRealState, oCivilianBrain)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ResetCivilianAllianceForBrain'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --Call via forkthread
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, Time='..GetGameTimeSeconds()..'; iOurIndex='..iOurIndex..'; iCivilianIndex='..iCivilianIndex..'; Is ally='..tostring(IsAlly(iOurIndex, iCivilianIndex))..'; IsEnemy='..tostring(IsEnemy(iOurIndex, iCivilianIndex))) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    WaitTicks(11)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting for some ticks, iOurIndex='..iOurIndex..'; iCivilianIndex='..iCivilianIndex..'; Is ally='..tostring(IsAlly(iOurIndex, iCivilianIndex))..'; IsEnemy='..tostring(IsEnemy(iOurIndex, iCivilianIndex))) end
+    SetAlliance(iOurIndex, iCivilianIndex, sRealState)
+    oCivilianBrain[refiTemporarilySetAsAllyForTeam] = nil
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    if bDebugMessages == true then LOG(sFunctionRef..': Have now set alliance back to real state, Time='..GetGameTimeSeconds()..' Have just set civilian brain '..oCivilianBrain.Nickname..' back to being '..sRealState..' for iOurIndex='..iOurIndex) end
+end
+
+function RevealCiviliansToAI(aiBrain)
+    --On some maps like burial mounds civilians are revealed to human players but not AI; meanwhile on other maps even if theyre not revealed to humans, the humans will likely know where the buildings are having played the map before
+    --Thanks to Relent0r for providing code that I used as a starting point to achieve this
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RevealCiviliansToAI'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    WaitTicks(75) --Waiting only 5 ticks or less resulted in a strange bug where on one map when ahd 2 ACUs on the same team, the code would run for both of htem as expected, but the civilians would only be visible for one of the AI (as though making the civilian an ally had no effect for hte other); This went away when put a delay of 50 ticks; however have compatibility issues with RNG so want to wait a bit longer; waiting 60 meant it worked for M27 but didnt look like it worked for RNG (wiating 50 meant it worked for RNG but not for M27); waiting 70 meant it worked for both; have done 75 for M28 given M27 uses 70
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    --if aiBrain:GetArmyIndex() == 3 then
+    if bDebugMessages == true then LOG(sFunctionRef..': Have finished waiting, will loop throguh all brians now to look for civilians, aiBrain='..aiBrain.Nickname..' with index ='..aiBrain:GetArmyIndex()..'; M28 team='..(aiBrain.M28Team or 'nil')) end
+    local tiCivilianBrains = {}
+    local toCivilianBrains = {}
+    local iOurIndex = aiBrain:GetArmyIndex()
+    local iBrainIndex
+    local sRealState
+    local iTotalWait = 0
+
+    for i, oBrain in ArmyBrains do
+        iBrainIndex = oBrain:GetArmyIndex()
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..(oBrain.Nickname or 'nil')..' with index '..oBrain:GetArmyIndex()..' for aiBrain '..aiBrain.Nickname..'; Is enemy='..tostring(IsEnemy(iOurIndex, iBrainIndex))..'; ArmyIsCivilian(iBrainIndex)='..tostring(ArmyIsCivilian(iBrainIndex))..'; oBrain[refiTemporarilySetAsAllyForTeam]='..(oBrain[refiTemporarilySetAsAllyForTeam] or 'nil')..'; Our team='..aiBrain.M28Team) end
+        if ArmyIsCivilian(iBrainIndex) then
+            while(oBrain[refiTemporarilySetAsAllyForTeam] and not(oBrain[refiTemporarilySetAsAllyForTeam] == aiBrain.M28Team)) do
+                WaitTicks(1)
+                iTotalWait = iTotalWait + 1
+                if iTotalWait >= 12 then
+                    break
+                end
+            end
+            if not(oBrain[refiTemporarilySetAsAllyForTeam]) then
+                oBrain[refiTemporarilySetAsAllyForTeam] = aiBrain.M28Team
+                sRealState = IsAlly(iOurIndex, iBrainIndex) and 'Ally' or IsEnemy(iOurIndex, iBrainIndex) and 'Enemy' or 'Neutral'
+                SetAlliance(iOurIndex, iBrainIndex, 'Ally')
+                if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Temporarily set the brain as an ally of team '..aiBrain.M28Team..', sRealState='..sRealState) end
+                table.insert(tiCivilianBrains, iBrainIndex)
+                table.insert(toCivilianBrains, oBrain)
+                --Prevent orders being given to these untis by M28
+                --[[local tMobileUnits = oBrain:GetListOfUnits(categories.MOBILE, false, true)
+                if M28Utilities.IsTableEmpty(tMobileUnits) == false then
+                    for iUnit, oUnit in tMobileUnits do
+                        M28Micro.TrackTemporaryUnitMicro(oUnit, 30)
+                    end
+                end--]]
+                ForkThread(ResetCivilianAllianceForBrain, iOurIndex, iBrainIndex, sRealState, oBrain)
+            elseif oBrain[refiTemporarilySetAsAllyForTeam] == aiBrain.M28Team then
+                table.insert(tiCivilianBrains, iBrainIndex)
+                table.insert(toCivilianBrains, oBrain)
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    WaitTicks(8) --When did with just 4 tick delay had issues where getunitsaroundpoint didnt work properly; increasing to 8 tick solved this
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

@@ -243,6 +243,7 @@ function GetUnitToTravelToLandZone(oUnit, iTargetPlateau, iTargetLandZone, subre
     oUnit[reftiPlateauAndLZToMoveTo] = {iTargetPlateau, iTargetLandZone}
     local tLZData = M28Map.tAllPlateaus[iTargetPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone]
     local tLZTeamData = tLZData[M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team]
+    --if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; iTargetPlateau='..iTargetPlateau..'; iTargetLandZone='..iTargetLandZone..'; Is tLZData empty='..tostring(M28Utilities.IsTableEmpty(tLZData))..'; Is tLZTeamData empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData))..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
     if not(tLZTeamData[subrefTScoutsTravelingHere]) then tLZTeamData[subrefTScoutsTravelingHere] = {} end
     table.insert(tLZTeamData[subrefTScoutsTravelingHere], oUnit)
     if bDebugMessages == true then LOG(sFunctionRef..': About to tell unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to iTargetPlateau='..iTargetPlateau..'; iTargetLandZone='..iTargetLandZone..'; midpoint of LZ='..repru(tLZData[M28Map.subrefMidpoint])) end
@@ -1054,7 +1055,7 @@ function GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, iMaxLZTow
                 break
             else
                 if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAltLZ][M28Map.subrefLZIslandRef] == iBaseIsland then
-                    iCurDist = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iAltLZ)  --M28Utilities.GetDistanceBetweenPositions(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAltLZ][M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint])
+                    iCurDist = (M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iAltLZ) or iClosestDist + 1)  --M28Utilities.GetDistanceBetweenPositions(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAltLZ][M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint])
                     if iCurDist < iClosestDist then
                         iClosestDist = iCurDist
                         iClosestLZRef = iAltLZ
@@ -2796,7 +2797,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
     --Record enemy threat
     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
     local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
-    if bDebugMessages == true then LOG(sFunctionRef..': About to update threat for iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTeam='..iTeam..'; Is LZData empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': About to update threat for iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTeam='..iTeam..'; Is LZTeamData empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData))) end
     RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone)
     RecordAirThreatForLandZone(tLZTeamData, iTeam, iPlateau, iLandZone)
 
@@ -3180,7 +3181,9 @@ function AssignValuesToLandZones(iTeam)
             local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
             if bDebugMessages == true then LOG(sFunctionRef..': Considering iBrain='..iBrain..'; oBrain='..oBrain.Nickname..'; Army index='..oBrain:GetArmyIndex()..'; Player start point='..repru(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])..'; Plateau and LZ of this start point='..iPlateau..'-'..iLandZone) end
             if not(tiPlateauAndLZWithFriendlyStartPosition[iPlateau]) then tiPlateauAndLZWithFriendlyStartPosition[iPlateau] = {} end
-            tiPlateauAndLZWithFriendlyStartPosition[iPlateau][iLandZone] = true
+            if (iLandZone or 0) > 0 then
+                tiPlateauAndLZWithFriendlyStartPosition[iPlateau][iLandZone] = true
+            end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Finished recording the friendly start positions for each brain, tiPlateauAndLZWithFriendlyStartPosition='..repru(tiPlateauAndLZWithFriendlyStartPosition)) end
         if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 then iBaseCategory = categories.TECH3 * M28UnitInfo.refCategoryFactory
@@ -3237,6 +3240,9 @@ function AssignValuesToLandZones(iTeam)
                 end
             end
         end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitTicks(1) --Needed to avoid infinite loop if are no LZs (e.g. on a water map)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -3347,6 +3353,15 @@ function LandZoneOverseer(iTeam)
 
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
         ForkThread(AssignValuesToLandZones, iTeam)
+    end
+
+    local iWaitCount = 0
+    while not(M28Map.bMapLandSetupComplete) or GetGameTimeSeconds() <= 4 do
+        iWaitCount = iWaitCount + 1
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        if iWaitCount >= 200 then M28Utilities.ErrorHandler('Have waited more than '..iWaitCount..' and map setup not complete, will proceed but likely AI wont work') break end
     end
 
     while M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false do
