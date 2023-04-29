@@ -95,6 +95,9 @@ function RecordNewAirUnitForTeam(iTeam, oUnit)
 end
 
 function RecordEnemyAirUnitWithNoZone(iTeam, oUnit)
+    local sFunctionRef = 'RecordEnemyAirUnitWithNoZone'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     M28Utilities.ErrorHandler('Obsolete code which wasnt expected to be used')
     table.insert(M28Team.tTeamData[iTeam][M28Team.reftoEnemyUnitsWithNoLZ], oUnit)
     if not(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam]) then
@@ -105,9 +108,13 @@ function RecordEnemyAirUnitWithNoZone(iTeam, oUnit)
         if not(oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam]) then oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam] = {} end
         oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] = {}
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function RefreshZonelessAir(iTeam)
+    local sFunctionRef = 'RefreshZonelessAir'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoEnemyUnitsWithNoLZ]) == false then
         local aiBrain
 
@@ -118,6 +125,7 @@ function RefreshZonelessAir(iTeam)
         --UpdateUnitPositionsAndLandZone(aiBrain, tUnits,                                                       iTeam, iRecordedPlateau, iRecordedLandZone, bUseLastKnownPosition, bAreAirUnits)
         M28Land.UpdateUnitPositionsAndLandZone(aiBrain, M28Team.tTeamData[iTeam][M28Team.reftoEnemyUnitsWithNoLZ], iTeam, nil,              nil,            true,                   true)
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function UpdateEnemyAirThreats(iTeam)
@@ -143,24 +151,42 @@ function UpdateEnemyAirThreats(iTeam)
 end
 
 function AirTeamOverseer(iTeam)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AirTeamOverseer'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     while not(M28Map.bMapLandSetupComplete) or not(M28Map.bWaterZoneInitialCreation) do
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitSeconds(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     WaitSeconds(5) --extra delay to be safe
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     AssignScoutingIntervalPriorities(iTeam)
     while M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 0 do
         ForkThread(RefreshZonelessAir, iTeam)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         ForkThread(UpdateEnemyAirThreats, iTeam)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(8)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         --NOTE: Other logic is done on air subteam basis
-
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function AssignScoutingIntervalPriorities(iTeam)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AssignScoutingIntervalPriorities'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     --Make all enemy start positions a high priority
     local iPlateauOrZero, iLandOrWaterZone
     for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
@@ -204,10 +230,14 @@ function AssignScoutingIntervalPriorities(iTeam)
             end
         end
     end
-
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function AirTeamInitialisation(iTeam)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AirTeamInitialisation'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     M28Team.tTeamData[iTeam][M28Team.reftoAllEnemyAir] = {}
     M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirAA] = {}
     M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirToGround] = {}
@@ -220,15 +250,25 @@ function AirTeamInitialisation(iTeam)
     M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat] = 0
 
     ForkThread(AirTeamOverseer, iTeam)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function AirSubteamInitialisation(iTeam, iAirSubteam)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AirSubteamInitialisation'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] = true
     M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] = false
     ForkThread(AirSubteamOverseer, iTeam, iAirSubteam)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function RecordTorpedoBomberPriorityLocations(iTeam, iAirSubteam)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordTorpedoBomberPriorityLocations'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTorpedoDefenceWaterZones] = {}
 
     local tbAddedZones = {}
@@ -250,13 +290,22 @@ function RecordTorpedoBomberPriorityLocations(iTeam, iAirSubteam)
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function AirSubteamOverseer(iTeam, iAirSubteam)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AirSubteamOverseer'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     while not(M28Map.bMapLandSetupComplete) or not(M28Map.bWaterZoneInitialCreation) do
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitSeconds(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     WaitSeconds(5) --extra delay to be safe
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --Record torpedo bomber locations to defend
     RecordTorpedoBomberPriorityLocations(iTeam, iAirSubteam)
@@ -264,29 +313,54 @@ function AirSubteamOverseer(iTeam, iAirSubteam)
 
     while M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains]) == false do
         ForkThread(UpdateAirRallyAndSupportPoints, iTeam, iAirSubteam)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         ForkThread(ManageAirAAUnits, iTeam, iAirSubteam)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         ForkThread(ManageBombers, iTeam, iAirSubteam)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         ForkThread(ManageGunships, iTeam, iAirSubteam)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         ForkThread(ManageTorpedoBombers, iTeam, iAirSubteam)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         ForkThread(ManageAirScouts, iTeam, iAirSubteam)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         ForkThread(ManageTransports, iTeam, iAirSubteam)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         ForkThread(ManageNovax, iTeam, iAirSubteam)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         ForkThread(ManageExperimentalBomber, iTeam, iAirSubteam)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         ForkThread(ManageOtherAir, iTeam, iAirSubteam) --e.g. mercies
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function AddPriorityAirDefenceTarget(oUnit)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AddPriorityAirDefenceTarget'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local iAirSubteam = oUnit:GetAIBrain().M28AirSubteam
     --Check not already in table
     local bInTableAlready = false
@@ -301,9 +375,14 @@ function AddPriorityAirDefenceTarget(oUnit)
     if not(bInTableAlready) then
         table.insert(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftACUAndExpOnSubteam], oUnit)
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function RefreshPriorityAirDefenceTargets(iAirSubteam)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RefreshPriorityAirDefenceTargets'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftACUAndExpOnSubteam]) then
         --Presumably first time we have run this as should ahve ACUs - add ACUs
         for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
@@ -328,12 +407,18 @@ function RefreshPriorityAirDefenceTargets(iAirSubteam)
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function IsAirUnitInCombat(oUnit, iTeam)
     --Intended for deciding if a low health unit belonging to M28Team iTeam should return to air staging or not
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'IsAirUnitInCombat'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local tLastOrder = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
     if M28Utilities.IsTableEmpty(tLastOrder) then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return false
     else
         local iDistToTarget, tOrderTarget
@@ -342,6 +427,7 @@ function IsAirUnitInCombat(oUnit, iTeam)
                 tOrderTarget = tLastOrder[M28Orders.subrefoOrderTarget]:GetPosition()
                 iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tOrderTarget)
             else
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return false
             end
         elseif tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove then
@@ -349,6 +435,7 @@ function IsAirUnitInCombat(oUnit, iTeam)
             iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tOrderTarget)
         else
             --Other target so treat as not in combat/wanting to refuel
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return false
         end
         if iDistToTarget < 100 then
@@ -357,6 +444,7 @@ function IsAirUnitInCombat(oUnit, iTeam)
             elseif EntityCategoryContains(categories.TECH2, oUnit.UnitId) then iDistThreshold = 65
             end
             if iDistToTarget > iDistThreshold then
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return false
             else
                 --Our target is relatively close, if we are not an airAA unit then treat as in combat if we have an attack order
@@ -370,11 +458,13 @@ function IsAirUnitInCombat(oUnit, iTeam)
                                 iWaterZone = M28Map.GetWaterZoneFromPosition(tOrderTarget)
                                 if (iWaterZone or 0) == 0 then
                                     --unlikely we are going to a rally point or air staging if it isnt on land or water that can be pathed to by ground
+                                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                     return true
                                 else
                                     --Check if enemy air in water zone
                                     local tWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][iTeam]
                                     if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftWZEnemyAirUnits]) == false then
+                                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                         return true
                                     end
                                 end
@@ -382,36 +472,53 @@ function IsAirUnitInCombat(oUnit, iTeam)
                                 --Check if enemy air in land zone
                                 local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
                                 if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) == false then
+                                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                     return true
                                 end
                             end
                         else
                             --unlikely we are going to a rally point or air staging if it isnt on land or water that can be pathed to by ground
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             return true
                         end
                     end
                 else
                     --Bomber so unavailable if attack order
                     if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAttack then
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         return true
                     end
                 end
             end
         else
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return false
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return false
 end
 
 function AddAssignedAttacker(oTarget, oNewBomber)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AddAssignedAttacker'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     oTarget[refiStrikeDamageAssigned] = (oTarget[refiStrikeDamageAssigned] or 0) + oNewBomber[M28UnitInfo.refiStrikeDamage]
     oNewBomber[refoStrikeDamageAssigned] = oTarget
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function RemoveAssignedAttacker(oTarget, oOldBomber)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RemoveAssignedAttacker'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     oTarget[refiStrikeDamageAssigned] = math.max(0, (oTarget[refiStrikeDamageAssigned] or 0) - oOldBomber[M28UnitInfo.refiStrikeDamage])
     oOldBomber[refoStrikeDamageAssigned] = nil
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 
@@ -510,6 +617,10 @@ function GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, iCategory)
 end
 
 function GetRallyPointValueOfLandZone(iTeam, tLZData, tLZTeamData, iPlateau)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetRallyPointValueOfLandZone'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local iCurAAValue
     local iCurFactor = 1
     if tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] or tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then iCurFactor = 0.5 end
@@ -531,9 +642,14 @@ function GetRallyPointValueOfLandZone(iTeam, tLZData, tLZTeamData, iPlateau)
         end
     end
 
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return iCurAAValue
 end
 function GetRallyPointValueOfWaterZone(iTeam, tWZData, tWZTeamData)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetRallyPointValueOfWaterZone'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local iCurAAValue
     local iCurFactor = 1
     if tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] then iCurFactor = 0.5 end
@@ -553,22 +669,35 @@ function GetRallyPointValueOfWaterZone(iTeam, tWZData, tWZTeamData)
             iCurAAValue = iCurAAValue - tAdjWZTeamData[M28Map.subrefWZThreatEnemyAA] * 2
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return iCurAAValue
 end
 
 function IsThereAAInWaterZone(tWZTeamData, bIgnoreAirAA, iGroundAAThreatThreshold, iAirAAThreatThreshold)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'IsThereAAInWaterZone'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     -- -1 groundAA threat threshold means infinite
     if (iGroundAAThreatThreshold >= 0 and (tWZTeamData[M28Map.subrefWZThreatEnemyAA] or 0) > (iGroundAAThreatThreshold or 0)) or (not(bIgnoreAirAA) and (tWZTeamData[M28Map.refiEnemyAirAAThreat] or 0) >= math.max(40, (iAirAAThreatThreshold or 0) + (tWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) * 0.5)) then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return false
 end
 
 function IsThereAAInLandZone(tLZTeamData, bIgnoreAirAA, iGroundAAThreatThreshold, iAirAAThreatThreshold)
     -- -1 groundAA threat threshold means infinite
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'IsThereAAInLandZone'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     if (iGroundAAThreatThreshold >= 0 and (tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) > (iGroundAAThreatThreshold or 0)) or (not(bIgnoreAirAA) and (tLZTeamData[M28Map.refiEnemyAirAAThreat] or 0) >= math.max(40, (iAirAAThreatThreshold or 0) + (tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) * 0.5)) then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return false
 end
 
@@ -739,6 +868,10 @@ end
 function IsThereAANearLandOrWaterZone(iTeam, iPlateau, iLandOrWaterZone, bIsWaterZone, iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold)
     --returns true if enemy has AA threat in current zone or adjacent land or water zone
     --e.g. used to determine air rally points and support locations, doesnt factor in the path
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'IsThereAANearLandOrWaterZone'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     if bIsWaterZone then
         local tWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
         local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
@@ -784,6 +917,7 @@ function IsThereAANearLandOrWaterZone(iTeam, iPlateau, iLandOrWaterZone, bIsWate
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return false
 end
 
@@ -1662,30 +1796,21 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
 
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of defence water zones empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTorpedoDefenceWaterZones]))) end
         local tiWaterZoneByDistance = {}
-        if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTorpedoDefenceWaterZones]) == false then
-            local iStartPlateauOrZero, iStartLandOrWaterZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tRallyPoint)
-            if (iStartPlateauOrZero or 0) > 0 then
-                if (iStartLandOrWaterZone or 0) == 0 then
-                    iStartLandOrWaterZone = M28Map.GetWaterZoneFromPosition(tRallyPoint)
-                    if (iStartLandOrWaterZone or 0) > 0 then
-                        iStartPlateauOrZero = 0
-                    end
-                end
-            end
+        local tStartLZOrWZData
+        local iStartPlateauOrZero, iStartLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tRallyPoint)
+        if iStartPlateauOrZero == 0 then
+            tStartLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iStartLandOrWaterZone]][M28Map.subrefPondWaterZones][iStartLandOrWaterZone]
+        else
+            tStartLZOrWZData = M28Map.tAllPlateaus[iStartPlateauOrZero][M28Map.subrefPlateauLandZones][iStartLandOrWaterZone]
+        end
 
+        if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTorpedoDefenceWaterZones]) == false then
             for iEntry, iWaterZone in M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTorpedoDefenceWaterZones] do
                 local tWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone]
                 tiWaterZoneByDistance[iWaterZone] = M28Utilities.GetDistanceBetweenPositions(tRallyPoint, tWZData[M28Map.subrefMidpoint])
             end
         else
             --Defend all water as presumably enemy has nearby naval units
-            local tStartLZOrWZData
-            local iStartPlateauOrZero, iStartLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tRallyPoint)
-            if iStartPlateauOrZero == 0 then
-                tStartLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iStartLandOrWaterZone]][M28Map.subrefPondWaterZones][iStartLandOrWaterZone]
-            else
-                tStartLZOrWZData = M28Map.tAllPlateaus[iStartPlateauOrZero][M28Map.subrefPlateauLandZones][iStartLandOrWaterZone]
-            end
             if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
                 for iEntry, tSubtable in tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
                     if tSubtable[M28Map.subrefbIsWaterZone] then
@@ -2563,12 +2688,17 @@ function GetIslandPlateauAndLandZoneForTransportToTravelTo(iTeam, oUnit)
 end
 
 function GetTransportEngiCargoAndRemainingCapacity(oUnit, iEngiTechLevel)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetTransportEngiCargoAndRemainingCapacity'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': About to try and get cargo for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; is oUnit.GetCargo nil='..tostring(oUnit.GetCargo == nil)..'; Does unit contain transport category='..tostring(EntityCategoryContains(categories.TRANSPORTATION, oUnit.UnitId))..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
     local tCargo = oUnit:GetCargo()
     local iCargoSize = 0
     if M28Utilities.IsTableEmpty(tCargo) == false then
         iCargoSize = table.getn(tCargo)
     end
     local iTotalCapacity = M28UnitInfo.GetTransportMaxCapacity(oUnit, iEngiTechLevel)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return iCargoSize, iTotalCapacity - iCargoSize
 end
 

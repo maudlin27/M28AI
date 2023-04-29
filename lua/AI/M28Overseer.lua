@@ -18,6 +18,7 @@ local M28Chat = import('/mods/M28AI/lua/AI/M28Chat.lua')
 local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
+local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
 
 
 bInitialSetup = false
@@ -39,6 +40,7 @@ refoNearestEnemyBrain = 'M28OverseerNearestEnemyBrain'
 refbCloseToUnitCap = 'M28OverseerCloseToUnitCap'
 refiExpectedRemainingCap = 'M28OverseerUnitCap' --number of units to be built before we potentially hit the unit cap, i.e. used as a rough guide for when shoudl call the code to check the unit cap
 refiUnitCapCategoriesDestroyed = 'M28OverseerLstCatDest' --Last category destroyed by unit cap logic
+refiTemporarilySetAsAllyForTeam = 'M28TempSetAsAlly' --against brain, e.g. a civilian brain, returns the .M28Team number that the brain has been set as an ally of temporarily (to reveal civilians at start of game)
 
 function GetNearestEnemyBrain(aiBrain)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -275,6 +277,8 @@ function GameSettingWarningsAndChecks(aiBrain)
         if bFlyingEngineers then
             M28UnitInfo.refCategoryEngineer = M28UnitInfo.refCategoryEngineer + categories.ENGINEER * categories.AIR * categories.CONSTRUCTION - categories.EXPERIMENTAL
         end
+        --BREWLAN compatibility - it adds the TRANSPORTATION category to units that cant transport, leading to errors when M28 tries using them or getting their cargo
+        if categories.TORPEDOBOMBER then M28UnitInfo.refCategoryTransport = M28UnitInfo.refCategoryTransport - categories.TORPEDOBOMBER end --thanks to Balthazaar who gave this tip for checking if a custom category exists
     end
 
     if bIncompatible then
@@ -446,6 +450,7 @@ function Initialisation(aiBrain)
     ForkThread(M28Factory.SetPreferredUnitsByCategory, aiBrain)
     ForkThread(M28Factory.IdleFactoryMonitor, aiBrain)
     ForkThread(M28Map.RecordPondToExpandTo, aiBrain)
+    ForkThread(RevealCiviliansToAI, aiBrain)
 
 end
 
@@ -464,10 +469,17 @@ function OverseerManager(aiBrain)
     while (GetGameTimeSeconds() <= 4.5) do
         WaitTicks(1)
     end
-
+    local bSetHook = false --Used for debugging
     while not(aiBrain:IsDefeated()) and not(aiBrain.M28IsDefeated) do
         --TestCustom(aiBrain)
-
+        --Enable below to help figure out infinite loops
+        --[[if GetGameTimeSeconds() >= 173 and not(bSetHook) then
+            bSetHook = true
+            M28Profiler.bFunctionCallDebugOverride = true
+            --M28Profiler.bGlobalDebugOverride = true --Only enable this if want more detail as it will make things really slow
+            debug.sethook(M28Profiler.OutputRecentFunctionCalls, "c", 200)
+            LOG('Have started the main hook of function calls')
+        end--]]
         ForkThread(M28Economy.RefreshEconomyData, aiBrain)
         WaitSeconds(1)
     end
@@ -548,4 +560,79 @@ end
 function DelayedUnitCapCheck(aiBrain)
     WaitSeconds(30)
     CheckUnitCap(aiBrain)
+end
+
+function ResetCivilianAllianceForBrain(iOurIndex, iCivilianIndex, sRealState, oCivilianBrain)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ResetCivilianAllianceForBrain'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --Call via forkthread
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, Time='..GetGameTimeSeconds()..'; iOurIndex='..iOurIndex..'; iCivilianIndex='..iCivilianIndex..'; Is ally='..tostring(IsAlly(iOurIndex, iCivilianIndex))..'; IsEnemy='..tostring(IsEnemy(iOurIndex, iCivilianIndex))) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    WaitTicks(11)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting for some ticks, iOurIndex='..iOurIndex..'; iCivilianIndex='..iCivilianIndex..'; Is ally='..tostring(IsAlly(iOurIndex, iCivilianIndex))..'; IsEnemy='..tostring(IsEnemy(iOurIndex, iCivilianIndex))) end
+    SetAlliance(iOurIndex, iCivilianIndex, sRealState)
+    oCivilianBrain[refiTemporarilySetAsAllyForTeam] = nil
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    if bDebugMessages == true then LOG(sFunctionRef..': Have now set alliance back to real state, Time='..GetGameTimeSeconds()..' Have just set civilian brain '..oCivilianBrain.Nickname..' back to being '..sRealState..' for iOurIndex='..iOurIndex) end
+end
+
+function RevealCiviliansToAI(aiBrain)
+    --On some maps like burial mounds civilians are revealed to human players but not AI; meanwhile on other maps even if theyre not revealed to humans, the humans will likely know where the buildings are having played the map before
+    --Thanks to Relent0r for providing code that I used as a starting point to achieve this
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RevealCiviliansToAI'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    WaitTicks(75) --Waiting only 5 ticks or less resulted in a strange bug where on one map when ahd 2 ACUs on the same team, the code would run for both of htem as expected, but the civilians would only be visible for one of the AI (as though making the civilian an ally had no effect for hte other); This went away when put a delay of 50 ticks; however have compatibility issues with RNG so want to wait a bit longer; waiting 60 meant it worked for M27 but didnt look like it worked for RNG (wiating 50 meant it worked for RNG but not for M27); waiting 70 meant it worked for both; have done 75 for M28 given M27 uses 70
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    --if aiBrain:GetArmyIndex() == 3 then
+    if bDebugMessages == true then LOG(sFunctionRef..': Have finished waiting, will loop throguh all brians now to look for civilians, aiBrain='..aiBrain.Nickname..' with index ='..aiBrain:GetArmyIndex()..'; M28 team='..(aiBrain.M28Team or 'nil')) end
+    local tiCivilianBrains = {}
+    local toCivilianBrains = {}
+    local iOurIndex = aiBrain:GetArmyIndex()
+    local iBrainIndex
+    local sRealState
+    local iTotalWait = 0
+
+    for i, oBrain in ArmyBrains do
+        iBrainIndex = oBrain:GetArmyIndex()
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..(oBrain.Nickname or 'nil')..' with index '..oBrain:GetArmyIndex()..' for aiBrain '..aiBrain.Nickname..'; Is enemy='..tostring(IsEnemy(iOurIndex, iBrainIndex))..'; ArmyIsCivilian(iBrainIndex)='..tostring(ArmyIsCivilian(iBrainIndex))..'; oBrain[refiTemporarilySetAsAllyForTeam]='..(oBrain[refiTemporarilySetAsAllyForTeam] or 'nil')..'; Our team='..aiBrain.M28Team) end
+        if ArmyIsCivilian(iBrainIndex) then
+            while(oBrain[refiTemporarilySetAsAllyForTeam] and not(oBrain[refiTemporarilySetAsAllyForTeam] == aiBrain.M28Team)) do
+                WaitTicks(1)
+                iTotalWait = iTotalWait + 1
+                if iTotalWait >= 12 then
+                    break
+                end
+            end
+            if not(oBrain[refiTemporarilySetAsAllyForTeam]) then
+                oBrain[refiTemporarilySetAsAllyForTeam] = aiBrain.M28Team
+                sRealState = IsAlly(iOurIndex, iBrainIndex) and 'Ally' or IsEnemy(iOurIndex, iBrainIndex) and 'Enemy' or 'Neutral'
+                SetAlliance(iOurIndex, iBrainIndex, 'Ally')
+                if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Temporarily set the brain as an ally of team '..aiBrain.M28Team..', sRealState='..sRealState) end
+                table.insert(tiCivilianBrains, iBrainIndex)
+                table.insert(toCivilianBrains, oBrain)
+                --Prevent orders being given to these untis by M28
+                --[[local tMobileUnits = oBrain:GetListOfUnits(categories.MOBILE, false, true)
+                if M28Utilities.IsTableEmpty(tMobileUnits) == false then
+                    for iUnit, oUnit in tMobileUnits do
+                        M28Micro.TrackTemporaryUnitMicro(oUnit, 30)
+                    end
+                end--]]
+                ForkThread(ResetCivilianAllianceForBrain, iOurIndex, iBrainIndex, sRealState, oBrain)
+            elseif oBrain[refiTemporarilySetAsAllyForTeam] == aiBrain.M28Team then
+                table.insert(tiCivilianBrains, iBrainIndex)
+                table.insert(toCivilianBrains, oBrain)
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    WaitTicks(8) --When did with just 4 tick delay had issues where getunitsaroundpoint didnt work properly; increasing to 8 tick solved this
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

@@ -2139,7 +2139,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                             if iTeamLandExperimentals == 0 then
                                 iCategoryWanted = M28UnitInfo.refCategoryMonkeylord
                             else
-                                iCategoryWanted = M28UnitInfo.refCategoryMegalith
+                                iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategoryMonkeylord --i.e. megalith (but slightly more helpful to mods doing it this way)
                             end
                         end
                     end
@@ -2254,7 +2254,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                     --If engi is building emergency PD or Arti then dont run
                     if not(oEngineer[refiAssignedAction] == refActionBuildEmergencyPD or oEngineer[refiAssignedAction] == refActionBuildEmergencyArti) then
                         --Is the engineer reclaiming, or alternatively building something whose fraction complete is almost done?
-                        if not(oEngineer:IsUnitState('Reclaiming') or ((oEngineer:IsUnitState('Repairing') or oEngineer:IsUnitState('Building')) and oEngineer:GetFocusUnit() and oEngineer:GetFocusUnit():GetFractionComplete() >= 0.9 and oEngineer:GetFocusUnit():GetFractionComplete() < 1)) then
+                        if not(oEngineer:IsUnitState('Reclaiming') or ((oEngineer:IsUnitState('Repairing') or oEngineer:IsUnitState('Building')) and oEngineer:GetFocusUnit() and oEngineer:GetFocusUnit():GetFractionComplete() >= 0.9 and oEngineer:GetFocusUnit():GetFractionComplete() < 1) or (oEngineer:IsUnitState('Capturing') and oEngineer:GetWorkProgress() >= 0.75)) then
 
                             for iSubtable, tSubtable in tNearbyEnemiesByZone do
                                 if M28Utilities.IsTableEmpty(tSubtable) == false then
@@ -3136,7 +3136,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
             local iHighestPriorityEngi = iCurPriority
             local oHighestPriorityEngi
             for iEngi, oEngi in toAssignedEngisOfTechLevel do
-                if not(oEngi[refiAssignedAction] == iActionToAssign) and oEngi[refiAssignedActionPriority] > iHighestPriorityEngi and not(oEngi:IsUnitState('Reclaiming')) and not(oEngi:IsUnitState('Attached')) then
+                if not(oEngi[refiAssignedAction] == iActionToAssign) and oEngi[refiAssignedActionPriority] > iHighestPriorityEngi and not(oEngi:IsUnitState('Reclaiming')) and not(oEngi:IsUnitState('Attached')) and not(oEngi:IsUnitState('Capturing')) then
                     iHighestPriorityEngi = oEngi[refiAssignedActionPriority]
                     oHighestPriorityEngi = oEngi
                 end

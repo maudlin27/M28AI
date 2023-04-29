@@ -9,6 +9,7 @@ local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 
 --Profiling variables
 bGlobalDebugOverride = false --will turn debugmessages to true for all functions (where has been enabled)
+bFunctionCallDebugOverride = false --use to turn on logs for when functions are entered or exited
 bActiveProfiler = false --true if profiler is running
 refiLastSystemTimeRecorded = 'M28ProfilerLastSystemTime' --Used for simple profiler to just measure how long something is taking without all the logs
 
@@ -42,10 +43,9 @@ tiProfilerEndCountByFunction = {} --[functionref] - Used if want to temporarily 
 --Example of usage of the above: M28Utilities.tiProfilerEndCountByFunction[sFunctionRef] = (M28Utilities.tiProfilerEndCountByFunction[sFunctionRef] or 0) + 1 LOG(sFunctionRef..': M28Utilities.tiProfilerEndCountByFunction[sFunctionRef]='..M28Utilities.tiProfilerEndCountByFunction[sFunctionRef])
 
 
-
 function FunctionProfiler(sFunctionRef, sStartOrEndRef)
     --sStartOrEndRef: refProfilerStart or refProfilerEnd (0 or 1)
-    local bDebugMessages = false if bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if bGlobalDebugOverride == true or bFunctionCallDebugOverride then   bDebugMessages = true end
     if bDebugMessages == true then LOG('FunctionProfiler: Function '..sFunctionRef..'; sStartOrEndRef='..sStartOrEndRef) end
     if M28Config.M28RunProfiling then
 
@@ -231,5 +231,24 @@ function ProfilerOutput()
                 end
             end
         end
+    end
+end
+
+function OutputRecentFunctionCalls(sRef, iCycleSize)
+    --NOTE: Insert below commented out code into e.g. the overseer for the second that want it.  Also can adjust the threshold for iFunctionCurCount from 10000, but if setting to 1 then only do for an individual tick or likely will crash the game
+    --[[if not(bSetHook) and GetGameTimeSeconds() >= 1459 then
+        bSetHook = true
+        M27Utilities.bGlobalDebugOverride = true
+        --debug.sethook(M27Utilities.AllFunctionHook, "c", 200)
+        debug.sethook(M27Utilities.OutputRecentFunctionCalls, "c", 1)
+    end--]]
+
+    local sName = tostring(debug.getinfo(2, "n").name)
+    if sName then tFunctionCallByName[sName] = (tFunctionCallByName[sName] or 0) + 1 end
+    iFunctionCurCount = iFunctionCurCount + 1
+    if iFunctionCurCount >= iCycleSize then
+        iFunctionCurCount = 0
+        LOG('Every function hook: tFunctionCallByName='..repru(tFunctionCallByName)..'; debug.traceback='..debug.traceback())
+        tFunctionCallByName = {}
     end
 end

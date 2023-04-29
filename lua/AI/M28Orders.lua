@@ -663,7 +663,7 @@ function ReleaseStoredUnits(oUnit, bAddToExistingQueue, sOptionalOrderDesc, bOve
     end
 
 
-    if not(tLastOrder[subrefiOrderType] == refiOrderReleaseStoredUnits and oOrderTarget == tLastOrder[subrefoOrderTarget]) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
+    if not(tLastOrder[subrefiOrderType] == refiOrderReleaseStoredUnits) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
         local tUnloadLocation = oUnit:GetPosition()
         tUnloadLocation[1] = tUnloadLocation[1] + 5
         tUnloadLocation[3] = tUnloadLocation[3] + 5

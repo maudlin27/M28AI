@@ -844,7 +844,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
     if M28UnitInfo.IsUnitValid(oUnit) then
 
         local bPreviouslyConsidered = (oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][aiBrain.M28Team] or false)
-
+        local bIgnore = false
         if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname..' - are considering the unit from aiBrain perspective of '..aiBrain.Nickname..' at time '..GetGameTimeSeconds()..'; Have we already considered this unit='..tostring(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][aiBrain.M28Team] or false)..'; bIgnoreIfAssignedAlready='..tostring(bIgnoreIfAssignedAlready or false)..'; Is enemy='..tostring(IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()))) end
         if not(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam]) then oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam] = {} end
         if bIgnoreIfAssignedAlready and oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][aiBrain.M28Team] then
@@ -911,6 +911,11 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                             table.insert(tLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets], oUnit)
                         end
                     end
+                else
+                    --Allied unit - dont record if it isnt owned by M28AI brain (so we dont control allied non-M28 units)
+                    if not(oUnit:GetAIBrain().M28AI) then
+                        bIgnore = true
+                    end
                 end
             elseif bDebugMessages == true then
                 LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has already been considered (considered='..tostring(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][aiBrain.M28Team] or false)..')')
@@ -918,7 +923,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
             end
 
 
-            if EntityCategoryContains(M28UnitInfo.refCategoryWall + categories.UNSELECTABLE + categories.UNTARGETABLE, oUnit.UnitId) then
+            if bIgnore or EntityCategoryContains(M28UnitInfo.refCategoryWall + categories.UNSELECTABLE + categories.UNTARGETABLE, oUnit.UnitId) then
                 --Do nothing
                 if bDebugMessages == true then LOG(sFunctionRef..': Unit is insignificant so will ignore, Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
             else
@@ -981,12 +986,42 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                 AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone)
                             else
                                 --Does the unit already have orders, and is a non-naval unit? If so then wait and try to reassign it in a bit, as e.g. may be a land unit that can path across water so has taken a shortcut
-                                if EntityCategoryContains(M28UnitInfo.refCategoryAllNavy, oUnit.UnitId) then
+                                if EntityCategoryContains(M28UnitInfo.refCategoryAllNavy, oUnit.UnitId) and (EntityCategoryContains(M28UnitInfo.refCategoryAllNavy - categories.AMPHIBIOUS - categories.HOVER, oUnit.UnitId) or (NavUtils.GetLabel(M28Map.refPathingTypeNavy, oUnit:GetPosition()) or 0) > 0) then
                                     local iCurPond = NavUtils.GetLabel(M28Map.refPathingTypeNavy, oUnit:GetPosition())
-                                    if iCurPond > 0 then
-                                        M28Utilities.ErrorHandler('#To add code for naval units')
+                                    if (iCurPond or 0) > 0 then
+                                        --Are in valid pond, find nearest valid water zone and add this segment to that water zone
+                                        iWaterZone = nil --redundancy
+                                        --To find nearby water zone - cycle through a hollow box
+                                        --First to the top row and bottom row
+                                        for iAdjustBase = 1, 10 do
+                                            for iCurSegmentX = iSegmentX - iAdjustBase, iSegmentX + iAdjustBase, 1 do
+                                                for iCurSegmentZ = iSegmentZ - iAdjustBase, iSegmentZ + iAdjustBase, iAdjustBase * 2 do
+                                                    if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
+                                                        if M28Map.tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] then iWaterZone = M28Map.tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] break end
+                                                    end
+                                                end
+                                                if iWaterZone then break end
+                                            end
+                                            if iWaterZone then break end
+                                            --Then do the left and right row (excl corners which ahve already done per the above)
+                                            for iCurSegmentX = iSegmentX - iAdjustBase, iSegmentX + iAdjustBase, iAdjustBase * 2 do
+                                                for iCurSegmentZ = iSegmentZ - iAdjustBase + 1, iSegmentZ + iAdjustBase - 1, 1 do
+                                                    if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
+                                                        if M28Map.tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] then iWaterZone = M28Map.tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] break end
+                                                    end
+                                                end
+                                                if iWaterZone then break end
+                                            end
+                                            if iWaterZone then break end
+                                        end
+                                        if (iWaterZone or 0) > 0 then
+                                            M28Map.AddSegmentToWaterZone(iCurPond, iWaterZone, iSegmentX, iSegmentZ)
+                                            AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone)
+                                        else
+                                            M28Utilities.ErrorHandler('Unable to find nearby water zone despite having a valid pond, unitID='..oUnit.UnitId)
+                                        end
                                     else
-                                        M28Utilities.ErrorHandler('Naval unit but not in a recognised poind')
+                                        M28Utilities.ErrorHandler('Non amphibious Naval unit but not in a recognised poind')
                                     end
                                 else
                                     --Reassign in a bit if we own it
