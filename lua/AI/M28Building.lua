@@ -38,6 +38,8 @@ refoLastTMLLauncher = 'M28BuildTMLLastLnch' --When a TML targets a unit, this is
 refiTimeOfLastLaunch = 'M28BuildTMLTimLstLnch' --Gametimeseconds that we last fired a missile at the unit, i.e. this is against the target, not the launcher
 refiLastTMLMassKills = 'M28BuildTMLMssKil'
 refbPausedAsNoTargets = 'M28BuildPausNoT' --e.g. for SML use this to flag if we have paused it due to lack of targets
+reftTerrainBlockedTargets = 'M28BuildTerrainBLock' --If a TML missile impacts terrain then record the original target
+refbProtectedByTerrain = 'M28BuildUnitBlockByTer' --true if a target of a TML was protected by terrain
 
     --Shield related
 reftoShieldsProvidingCoverage = 'M28BuildShieldsCoveringUnit' --Against unit being shielded, records the fixed shields that are covering it
@@ -113,6 +115,7 @@ function CheckIfUnitWantsFixedShield(oUnit, bCheckForNearbyShields)
             if iPlateau > 0 and iLandZone > 0 then
                 oUnit[refbUnitWantsShielding] = true
                 table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.reftoLZUnitWantingFixedShield], oUnit)
+                if bDebugMessages == true then LOG(sFunctionRef..': Have added unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to table of units wanting shielding') end
             end
         end
     else
@@ -125,10 +128,20 @@ function CheckIfUnitWantsFixedShield(oUnit, bCheckForNearbyShields)
                     for iRecordedUnit, oRecordedUnit in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.reftoLZUnitWantingFixedShield] do
                         if oRecordedUnit == oUnit then
                             table.remove(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.reftoLZUnitWantingFixedShield], iRecordedUnit)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Removed unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' from the table of units wanting fixed shielding') end
                             break
                         end
                     end
                 end
+            end
+        end
+    end
+    if bDebugMessages == true then
+        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+        LOG(sFunctionRef..': Is table of units wanting fixed shield empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.reftoLZUnitWantingFixedShield])))
+        if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.reftoLZUnitWantingFixedShield]) == false then
+            for iUnit, oUnit in M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.reftoLZUnitWantingFixedShield]) do
+                LOG(sFunctionRef..': Listing out each unit wanting shielding for iLandZOne '..iLandZone..'; iUnit '..iUnit..' is oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit))
             end
         end
     end
@@ -1119,9 +1132,21 @@ function ConsiderLaunchingMissile(oLauncher, oWeapon)
                                 -- {oLauncher:GetPosition()[1], oLauncher:GetPosition()[2] + 65, oLauncher:GetPosition()[3]}
                                 oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef] = M28Logic.IsLineBlocked(aiBrain, tExpectedMissileVertical, oUnit:GetPosition(), iAOE, false)
                             end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Potential TML target '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurTargetValue before adj for blocked='..iCurTargetValue..'; oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef]='..tostring(oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef])..'; oUnit[refiTMLShotsFired]='..(oUnit[refiTMLShotsFired] or 0)..'; refiTimeOfLastLaunch='..(oUnit[refiTimeOfLastLaunch] or 'nil')) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Potential TML target '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurTargetValue before adj for blocked='..iCurTargetValue..'; oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef]='..tostring(oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef])..'; oUnit[refiTMLShotsFired]='..(oUnit[refiTMLShotsFired] or 0)..'; refiTimeOfLastLaunch='..(oUnit[refiTimeOfLastLaunch] or 'nil')..'; oUnit[refbProtectedByTerrain]='..tostring(oUnit[refbProtectedByTerrain] or false)..'; oLauncher[reftTerrainBlockedTargets]='..repru(oLauncher[reftTerrainBlockedTargets] or {'nil'})) end
                             if oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef] then iCurTargetValue = iCurTargetValue * 0.2 end
-                            if (oUnit[refiTMLShotsFired] or 0) > 0 then
+                            --Check against actual terrain blocked blacklist
+                            if oUnit[refbProtectedByTerrain] then
+                                iCurTargetValue = 0
+                            elseif M28Utilities.IsTableEmpty(oLauncher[reftTerrainBlockedTargets]) == false then
+                                for iEntry, tLocation in oLauncher[reftTerrainBlockedTargets] do
+                                    if M28Utilities.GetDistanceBetweenPositions(tLocation, oUnit:GetPosition()) <= 1.5 then
+                                        oUnit[refbProtectedByTerrain] = true
+                                        iCurTargetValue = 0
+                                        break
+                                    end
+                                end
+                            end
+                            if iCurTargetValue > 0 and (oUnit[refiTMLShotsFired] or 0) > 0 then
                                 --Reduce shots fired if we dealt damage with our last missile (as may have e.g. hit mass storage blocking us from reaching the target mex)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Last TML target='..(oLauncher[refoLastTMLTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oLauncher[refoLastTMLTarget]) or 'nil')..'; Launcher mass killed='..(oLauncher.VetExperience or oLauncher.Sync.totalMassKilled or 0)..'; TML mass kills='..(oLauncher[refiLastTMLMassKills] or 0)) end
                                 if oLauncher[refoLastTMLTarget] == oUnit and (oLauncher.VetExperience or oLauncher.Sync.totalMassKilled or 0) > (oLauncher[refiLastTMLMassKills] or 0) then
@@ -1301,7 +1326,7 @@ function ConsiderLaunchingMissile(oLauncher, oWeapon)
                     --Launch missile
                     if bDebugMessages == true then LOG(sFunctionRef..': Will launch missile at tTarget='..repru(tTarget)) end
                     if bTML then
-                        IssueTactical({oLauncher}, tTarget)
+                        M28Orders.IssueTrackedTMLMissileLaunch(oLauncher, tTarget, 0.25, false, 'TMLFire', true)
                         oLauncher:SetAutoMode(true)
                         oLauncher:SetPaused(false)
                         if bDebugMessages == true then

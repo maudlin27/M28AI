@@ -450,7 +450,8 @@ function Initialisation(aiBrain)
     ForkThread(M28Factory.SetPreferredUnitsByCategory, aiBrain)
     ForkThread(M28Factory.IdleFactoryMonitor, aiBrain)
     ForkThread(M28Map.RecordPondToExpandTo, aiBrain)
-    ForkThread(RevealCiviliansToAI, aiBrain)
+    --ForkThread(RevealCiviliansToAI, aiBrain)
+    ForkThread(RevealCivilainsToAIByGivingVision, aiBrain)
 
 end
 
@@ -635,4 +636,15 @@ function RevealCiviliansToAI(aiBrain)
 
     --end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function RevealCivilainsToAIByGivingVision(aiBrain)
+    if aiBrain.M28AI then --redundancy
+        local tACU = aiBrain:GetListOfUnits(categories.COMMAND, false, true)
+        for iUnit, oUnit in tACU do
+            M28UnitInfo.GiveUnitTemporaryVision(oUnit, 1000)
+            break
+        end
+
+    end
 end

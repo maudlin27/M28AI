@@ -90,7 +90,11 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
         CreateEnhancement = function(self, enh)
             ForkThread(M28Events.OnEnhancementComplete, self, enh)
             return M28OldUnit.CreateEnhancement(self, enh)
-        end
+        end,
+        OnMissileImpactTerrain = function(self, target, position)
+            ForkThread(M28Events.OnMissileImpactTerrain, self, target, position)
+            return M28OldUnit.OnMissileImpactTerrain(self, target, position)
+        end,
     }
 end
 

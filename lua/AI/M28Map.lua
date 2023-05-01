@@ -57,7 +57,7 @@ tReclaimAreas = {} --Stores reclaim info for each segment: tReclaimAreas[iSegmen
     --refReclaimTimeLastEnemySightedByArmyIndex = 5
     --refsSegmentMidpointLocationRef = 6
     --refiReclaimTotalPrev = 7 --Previous total reclaim mass in a segment
-    refReclaimTotalEnergy = 8
+    refSegmentReclaimTotalEnergy = 8
 --tLastReclaimRefreshByGroup = {} --time that last refreshed reclaim positions for [x] group
 --iLastReclaimRefresh = 0 --stores time that last refreshed reclaim positions
 --refiLastRefreshOfReclaimAreasOfInterest = 'M28MapLastRefreshOfReclaim'
@@ -151,7 +151,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         --Reclaim related (same values used for water zone)
         subrefReclaimSegments = 'ReclSeg' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], table, orderd 1,2,3...; returns {iReclaimSegmentX, iReclaimSegmentZ}
         subrefTotalMassReclaim = 'RecMass' --total mass reclaim in the land zone
-        subrefTotalEnergyReclaim = 'RecEn' --Total energy reclaim in the land zone
+        subrefLZTotalEnergyReclaim = 'RecEn' --Total energy reclaim in the land zone
         subrefLastReclaimRefresh = 'RecTime' --Time that we last refreshed the reclaim in the land zone, against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
 
         --Land scout/intel related
@@ -229,7 +229,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             --subrefLZTAdjacentBPByTechWanted = 'AdjBPByTechW' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power wanted wanted
             --Economy related values
             subrefActiveUpgrades = 'ActiveUpgrades' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam]
-            subrefMexCountByTech = 'MexByTech' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam]
+            subrefMexCountByTech = 'MexByTech' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam], returns {[1]=x,[2]=y,[3]=z} where xyz are counts of mexes
             subreftoUnitsToReclaim = 'UnitToRec' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam], table of units that we should reclaim
             --Intel related values
             refbWantLandScout = 'LandScout' --True/false, used by water and land zones
@@ -317,7 +317,7 @@ tPondDetails = {}
         --Reclaim related - uses same values as water zone
         --subrefReclaimSegments
         --subrefTotalMassReclaim
-        --subrefTotalEnergyReclaim
+        --subrefLZTotalEnergyReclaim
         --subrefLastReclaimRefresh
 
         subrefWZTeamData = 'PWZTeam' --Used to house team related data for a particular water zone
@@ -978,7 +978,7 @@ local function AddNewLandZoneReferenceToPlateau(iPlateau)
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZSegments] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTotalSegmentCount] = 0
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefTotalMassReclaim] = 0
-    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefTotalEnergyReclaim] = 0
+    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTotalEnergyReclaim] = 0
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTravelDistToOtherLandZones] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZPlayerWallSegments] = {}
 
@@ -5120,11 +5120,11 @@ function RefreshLandOrWaterZoneReclaimValue(iPlateauOrPond, iLandOrWaterZone, bI
         for iSegmentCount, tSegmentXZ in tLZOrWZData[subrefReclaimSegments] do
             if bDebugMessages == true then LOG(sFunctionRef..': Considering tSegmentXZ='..tSegmentXZ[1]..'-'..tSegmentXZ[2]..'; total mass in this segment='..tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refReclaimTotalMass]) end
             iMassReclaim = iMassReclaim + tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refReclaimTotalMass]
-            iEnergyReclaim = iEnergyReclaim + tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refReclaimTotalEnergy]
+            iEnergyReclaim = iEnergyReclaim + tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refSegmentReclaimTotalEnergy]
         end
     end
     tLZOrWZData[subrefTotalMassReclaim] = iMassReclaim
-    tLZOrWZData[subrefTotalEnergyReclaim] = iEnergyReclaim
+    tLZOrWZData[subrefLZTotalEnergyReclaim] = iEnergyReclaim
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, iMassReclaim='..iMassReclaim..'; LZ reclaim='..tLZOrWZData[subrefTotalMassReclaim]) end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -5223,7 +5223,7 @@ function UpdateReclaimDataNearSegments(iBaseSegmentX, iBaseSegmentZ, iSegmentRan
                 tReclaimAreas[iCurX][iCurZ][refReclaimTotalMass] = iTotalMassValue
                 --tReclaimAreas[iCurX][iCurZ][refReclaimHighestIndividualReclaim] = iLargestCurReclaim
                 --iHighestReclaimInASegment = math.max(iHighestReclaimInASegment, iTotalMassValue)
-                tReclaimAreas[iCurX][iCurZ][refReclaimTotalEnergy] = iTotalEnergyValue
+                tReclaimAreas[iCurX][iCurZ][refSegmentReclaimTotalEnergy] = iTotalEnergyValue
                 iPlateau, iLandZone = GetPlateauAndLandZoneReferenceFromPosition(tReclaimAreas[iCurX][iCurZ][refReclaimSegmentMidpoint])
                 if bDebugMessages == true then LOG(sFunctionRef..': Reclaim segment midpoint='..repru(tReclaimAreas[iCurX][iCurZ][refReclaimSegmentMidpoint])..'; iPlateau for this='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
                 if iLandZone > 0 then

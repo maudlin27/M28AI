@@ -54,6 +54,8 @@ refiBomberRange = 'M28UBR'
 refbWeaponUnpacks = 'M28WUP'
 refiStrikeDamage = 'M28USD'
 refbCanKite = 'M28CanKite' --true unless weapon unpacks or experimental with a weapon fixed to body (GC and megalith)
+refiTimeBetweenDFShots = 'M28DFTime'
+refiTimeBetweenIFShots = 'M28IFTime'
 
 refbSniperRifleEnabled = 'M27UnitSniperRifleEnabled' --True if seraphim sniperbot has its long range sniperrifle enabled
 
@@ -1121,9 +1123,10 @@ function RecordUnitRange(oUnit)
                     oUnit[refiIndirectAOE] = math.max((oUnit[refiIndirectAOE] or 0), oCurWeapon.MaxRadius or 0)
                 elseif oCurWeapon.RangeCategory == 'UWRC_Countermeasure' then
                     oUnit[refiMissileDefenceRange] = math.max((oUnit[refiMissileDefenceRange] or 0), oCurWeapon.MaxRadius)
-                elseif oCurWeapon.RangeCategory == 'UWRC_DirectFire' then
+                elseif oCurWeapon.RangeCategory == 'UWRC_DirectFire' or (oCurWeapon.RangeCategory == 'UWRC_IndirectFire' and oCurWeapon.WeaponCategory == 'Direct Fire') then --Sera sniper bots have an 'indirectfire' range category that is actually DF
                     oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius or 0)
                     if (oCurWeapon.DamageRadius or 0) > 0 then oUnit[refiDFAOE] = math.max((oUnit[refiDFAOE] or 0), oCurWeapon.DamageRadius) end
+                    if oCurWeapon.RateOfFire then oUnit[refiTimeBetweenDFShots] = math.max((oUnit[refiTimeBetweenDFShots] or 0), 1 / oCurWeapon.RateOfFire) end
                 elseif oCurWeapon.RangeCategory == 'UWRC_AntiNavy' then
                     oUnit[refiAntiNavyRange] = math.max((oUnit[refiAntiNavyRange] or 0), oCurWeapon.MaxRadius)
                 elseif oCurWeapon.RangeCategory == 'UWRC_AntiAir' or oCurWeapon.WeaponCategory == 'Anti Air' then
@@ -1132,12 +1135,14 @@ function RecordUnitRange(oUnit)
                     oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
                     if oCurWeapon.WeaponUnpacks then oUnit[refbWeaponUnpacks] = true end
                     oUnit[refiIndirectAOE] = math.max((oUnit[refiIndirectAOE] or 0), oCurWeapon.MaxRadius or 0)
+                    if oCurWeapon.RateOfFire then oUnit[refiTimeBetweenIFShots] = math.max((oUnit[refiTimeBetweenIFShots] or 0), 1 / oCurWeapon.RateOfFire) end
                 elseif not(oCurWeapon.RangeCategory) or oCurWeapon.RangeCategory == 'UWRC_Undefined' then
                     if oCurWeapon.Label == 'Bomb' or oCurWeapon.DisplayName == 'Kamikaze' or oCurWeapon.Label == 'Torpedo' then
                         oUnit[refiBomberRange] = math.max((oUnit[refiBomberRange] or 0), oCurWeapon.MaxRadius)
                     elseif oCurWeapon.WeaponCategory == 'Direct Fire' or oCurWeapon.WeaponCategory == 'Direct Fire Experimental' or oCurWeapon.WeaponCategory == 'Kamikaze' then
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                         if (oCurWeapon.DamageRadius or 0) > 0 then oUnit[refiDFAOE] = math.max((oUnit[refiDFAOE] or 0), oCurWeapon.DamageRadius) end
+                        if oCurWeapon.RateOfFire then oUnit[refiTimeBetweenDFShots] = math.max((oUnit[refiTimeBetweenDFShots] or 0), 1 / oCurWeapon.RateOfFire) end
                     elseif (oCurWeapon.Damage or 0) == 0 or (oCurWeapon.MaxRadius or 0) <= 1 then
                         --Ignore
                     elseif oUnit.UnitId == 'uab4201' then
@@ -1710,6 +1715,7 @@ end
 
 
 function DisableLongRangeSniper(oUnit)
+    M28Utilities.ErrorHandler('need to update sniper bot range if disabling long range sniper, for now have a hardcoded fix') --hardcoded value is oUnit[refiDFRange] = 65
     if oUnit.SetWeaponEnabledByLabel and oUnit[refbSniperRifleEnabled] then
         local bHaveSniperWeapon = true
         local oBP = oUnit:GetBlueprint()
@@ -1726,6 +1732,7 @@ function DisableLongRangeSniper(oUnit)
             oUnit[refbSniperRifleEnabled] = false
             --LOG('Disabled long range sniper on unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit))
         end
+        oUnit[refiDFRange] = 65
     end
 end
 
@@ -1734,4 +1741,24 @@ function GetMissileCount(oUnit)
     if oUnit.GetTacticalSiloAmmoCount then iMissiles = iMissiles + oUnit:GetTacticalSiloAmmoCount() end
     if oUnit.GetNukeSiloAmmoCount then iMissiles = iMissiles + oUnit:GetNukeSiloAmmoCount() end
     return iMissiles
+end
+
+function GiveUnitTemporaryVision(oUnit, iVision)
+    local Buff = import('/lua/sim/Buff.lua')
+    if not Buffs['CrateVisBuff'] then
+        BuffBlueprint {
+            Name = 'CrateVisBuff',
+            DisplayName = 'CrateVisBuff',
+            BuffType = 'CrateVisBuff',
+            Stacks = 'ALWAYS',
+            Duration = 2,
+            Affects = {
+                VisionRadius = {
+                    Add = iVision,
+                    Mult = 1,
+                },
+            },
+        }
+    end
+    Buff.ApplyBuff(oUnit, 'CrateVisBuff')
 end

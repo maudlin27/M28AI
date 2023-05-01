@@ -489,14 +489,14 @@ function OnWeaponFired(oWeapon)
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         local sFunctionRef = 'OnWeaponFired'
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-        if bDebugMessages == true then LOG(sFunctionRef..': Start of code; does the weapon have a valid unit='..tostring(M28UnitInfo.IsUnitValid(oWeapon.unit))..'; Weapon unitID='..(oWeapon.unit.UnitId or 'nil')) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code; does the weapon have a valid unit='..tostring(M28UnitInfo.IsUnitValid(oWeapon.unit))..'; Weapon unitID='..(oWeapon.unit.UnitId or 'nil')..'; oWeapon[refiLastWeaponEvent]='..(oWeapon[refiLastWeaponEvent] or 'nil')) end
 
         local oUnit = oWeapon.unit
         if oUnit and oUnit.GetUnitId and oUnit.GetAIBrain then
-
             if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' has just fired a shot, Time='..GetGameTimeSeconds()..'; oWeapon[refiLastWeaponEvent]='..(oWeapon[refiLastWeaponEvent] or 'nil')) end
             if not(oWeapon[refiLastWeaponEvent]) or GetGameTimeSeconds() - (oWeapon[refiLastWeaponEvent] or -1) >= 0.5 then
                 oWeapon[refiLastWeaponEvent] = GetGameTimeSeconds()
+                oUnit[refiLastWeaponEvent] = GetGameTimeSeconds()
                 --Update unit last known position/record it
                 local oParentBrain = oUnit:GetAIBrain()
                 for iTeam, tTeam in M28Team.tTeamData do
@@ -1139,5 +1139,29 @@ function OnCreateBrain(aiBrain, planName, bIsHuman)
                 ForkThread(M28Overseer.M28BrainCreated, aiBrain)
             end
         end
+    end
+end
+
+function OnMissileImpactTerrain(self, target, position)
+    --Was this an M28 unit?
+    if M28UnitInfo.IsUnitValid(self) and self:GetAIBrain().M28AI then
+        local sFunctionRef = 'OnMissileImpactTerrain'
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+        local tLastOrder = self[M28Orders.reftiLastOrders][self[M28Orders.refiOrderCount]]
+        if bDebugMessages == true then LOG(sFunctionRef..': self='..(self.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(self) or 'nil')..'; target='..reprs(target)..'; position='..repru(position)..'; tLastOrder='..reprs(tLastOrder)..'; self[M28Building.refiLastTMLMassKills]='..(self[M28Building.refiLastTMLMassKills] or 'nil')..'; Acual XP='..(self.VetExperience or self.Sync.totalMassKilled or 0)) end
+        if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueTMLMissile or M28Utilities.IsTableEmpty(target) == false then
+            --Did we not gain any mass kills (e.g. mightve hit the ground deliberately for aoe)
+            if (self[M28Building.refiLastTMLMassKills] or 0) == (self.VetExperience or self.Sync.totalMassKilled or 0) then
+                if not(self[M28Building.reftTerrainBlockedTargets]) then self[M28Building.reftTerrainBlockedTargets] = {} end
+                local tLastTarget = tLastOrder[M28Orders.subreftOrderPosition]
+
+                if M28Utilities.IsTableEmpty(tLastTarget) == false then table.insert(self[M28Building.reftTerrainBlockedTargets], {tLastTarget[1], tLastTarget[2], tLastTarget[3]}) end
+                if M28Utilities.IsTableEmpty(tLastTarget) or M28Utilities.GetDistanceBetweenPositions(tLastTarget, target) >= 1 then table.insert(self[M28Building.reftTerrainBlockedTargets], {target[1], target[2], target[3]}) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Added locations to blackist, repru of blacklist='..repru(self[M28Building.reftTerrainBlockedTargets])) end
+            end
+        end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
 end

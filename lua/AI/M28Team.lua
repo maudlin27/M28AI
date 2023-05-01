@@ -1329,7 +1329,7 @@ function ConsiderPriorityLandFactoryUpgrades(iM28Team)
     --Enemy has better land tech than us, and we have no active land upgrades
 
     if bDebugMessages == true then LOG(sFunctionRef..': tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech]='..(tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] or 'nil')..'; tTeamData[iM28Team][subrefiHighestEnemyGroundTech]='..(tTeamData[iM28Team][subrefiHighestEnemyGroundTech] or 'nil')) end
-    if tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] > 0 and tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] < 3 and (tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] < tTeamData[iM28Team][subrefiHighestEnemyGroundTech] or (tTeamData[iM28Team][subrefiTeamGrossMass] >= 6.5 and tTeamData[iM28Team][subrefiTeamMassStored] >= 300 and (tTeamData[iM28Team][subrefiTeamGrossMass] >= 8.5 or M28Conditions.GetTeamLifetimeBuildCount(iM28Team, (M28UnitInfo.refCategoryLandCombat * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + M28UnitInfo.refCategoryIndirect * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech])) ) >= 20 * (2-tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + 12))) then
+    if tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] > 0 and tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] < 3 and (tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] < tTeamData[iM28Team][subrefiHighestEnemyGroundTech] or (tTeamData[iM28Team][subrefiTeamGrossMass] >= 3.5 and tTeamData[iM28Team][subrefiTeamMassStored] >= 300 and (tTeamData[iM28Team][subrefiTeamGrossMass] >= 8.5 or tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] == 1 or M28Conditions.GetTeamLifetimeBuildCount(iM28Team, (M28UnitInfo.refCategoryLandCombat * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + M28UnitInfo.refCategoryIndirect * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech])) ) >= 20 * (2-tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + 12))) then
         local bWantUpgrade = false
         for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
             --Can we path to the nearest enemy with land, and we are behind enemy tech level with land or have lots of mass?
@@ -1371,23 +1371,63 @@ function ConsiderPriorityAirFactoryUpgrades(iM28Team)
             end
         end
 
-        if tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech] < 2 and (bAirSubteamNeedsTorps or tTeamData[iM28Team][subrefiHighestEnemyNavyTech] > 0) then
+        --Upgrading from T2 to T3 - Do we only have 1 air fac for the brain, and has it not yet built at least 5 units of that tech (or 15 of any tech) yet?
+        local bWaitUntilBuiltMoreUnits = false
+        if tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech] == 2 then
+            bWaitUntilBuiltMoreUnits = true
             for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
-                if oBrain[M28Economy.refiOurHighestAirFactoryTech] > 0 and oBrain[M28Economy.refiOurHighestAirFactoryTech] < 2 then
-                    bWantUpgrade = true
-                    M28Economy.FindAndUpgradeUnitOfCategory(oBrain, M28UnitInfo.refCategoryAirHQ * categories.TECH1)
+                local tT2AirFactories = oBrain:GetListOfUnits(M28UnitInfo.refCategoryAirFactory * categories.TECH2, false, true)
+                if M28Utilities.IsTableEmpty(tT2AirFactories) == false then
+                    if table.getn(tT2AirFactories) >= 2 then
+                        bWaitUntilBuiltMoreUnits = false
+                        break
+                    else
+                        for iUnit, oUnit in tT2AirFactories do
+                            if M28Conditions.GetFactoryLifetimeCount(oUnit, categories.TECH2) >= 5 or M28Conditions.GetFactoryLifetimeCount(oUnit, categories.TECH1) >= 12 then
+                                bWaitUntilBuiltMoreUnits = false
+                                break
+                            end
+                        end
+                    end
                 end
+                if not(bWaitUntilBuiltMoreUnits) then break end
             end
         end
-        --Prioritise air factory if enemy has T3 air and we dont
-        if not(bWantUpgrade) and tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech] < tTeamData[iM28Team][subrefiHighestEnemyAirTech] and tTeamData[iM28Team][subrefiHighestEnemyAirTech] >= 3 then
-            for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
-                if oBrain[M28Economy.refiOurHighestAirFactoryTech] > 0 and oBrain[M28Economy.refiOurHighestAirFactoryTech] < 3 then
-                    --Do we have any active air factory upgrades?
-                    bWantUpgrade = not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryAirHQ))
+        if bDebugMessages == true then LOG(sFunctionRef..': bWaitUntilBuiltMoreUnits='..tostring(bWaitUntilBuiltMoreUnits)) end
+        if not(bWaitUntilBuiltMoreUnits) then
+            if tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech] < 2 and (bAirSubteamNeedsTorps or tTeamData[iM28Team][subrefiHighestEnemyNavyTech] > 0) then
+                for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
+                    if oBrain[M28Economy.refiOurHighestAirFactoryTech] > 0 and oBrain[M28Economy.refiOurHighestAirFactoryTech] < 2 then
+                        bWantUpgrade = true
+                        M28Economy.FindAndUpgradeUnitOfCategory(oBrain, M28UnitInfo.refCategoryAirHQ * categories.TECH1)
+                    end
+                end
+            end
+            --Prioritise air factory if enemy has T3 air and we dont
+            if not(bWantUpgrade) and tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech] < tTeamData[iM28Team][subrefiHighestEnemyAirTech] and tTeamData[iM28Team][subrefiHighestEnemyAirTech] >= 3 then
+                for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
+                    if oBrain[M28Economy.refiOurHighestAirFactoryTech] > 0 and oBrain[M28Economy.refiOurHighestAirFactoryTech] < 3 then
+                        --Do we have any active air factory upgrades?
+                        bWantUpgrade = not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryAirHQ))
 
-                    if bWantUpgrade then
-                        M28Economy.FindAndUpgradeUnitOfCategory(oBrain, M28UnitInfo.refCategoryAirHQ * M28UnitInfo.ConvertTechLevelToCategory(oBrain[M28Economy.refiOurHighestAirFactoryTech]))
+                        if bWantUpgrade then
+                            M28Economy.FindAndUpgradeUnitOfCategory(oBrain, M28UnitInfo.refCategoryAirHQ * M28UnitInfo.ConvertTechLevelToCategory(oBrain[M28Economy.refiOurHighestAirFactoryTech]))
+                        end
+                    end
+                end
+            end
+            if not(bWantUpgrade) then
+                --Prioritise air fac if we already have T2 land and at least 4 mass per tick and 70 power per tick, or if we have 6 mass and 100 power, provided no current HQ upgrades
+
+                if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) and tTeamData[iM28Team][subrefiTeamGrossMass] >= 4 and tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 70 and (tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] >= 2 or (tTeamData[iM28Team][subrefiTeamGrossMass] >= 6 and tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 100)) then
+                    for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
+                        if oBrain[M28Economy.refiOurHighestAirFactoryTech] > 0 and oBrain[M28Economy.refiOurHighestAirFactoryTech] < 3 then
+                            --Do we have any active air factory upgrades? (redundancy - should already have excluded via above)
+                            bWantUpgrade = not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryAirHQ))
+                            if bWantUpgrade then
+                                M28Economy.FindAndUpgradeUnitOfCategory(oBrain, M28UnitInfo.refCategoryAirHQ * M28UnitInfo.ConvertTechLevelToCategory(oBrain[M28Economy.refiOurHighestAirFactoryTech]))
+                            end
+                        end
                     end
                 end
             end
@@ -1431,6 +1471,14 @@ function ConsiderPriorityMexUpgrades(iM28Team)
             --Do we have mexes in start positions that are lower than the enemy's highest tech, or 2 lower than the highest mex in that LZ? Or are in norush mode?
             local iTechLevelToUpgrade = math.min(3, math.max(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech], (tTeamData[iM28Team][subrefiHighestEnemyMexTech] or 0))) - 1
             if M28Overseer.bNoRushActive then iTechLevelToUpgrade = math.max(1, iTechLevelToUpgrade) end
+            --Always be upgrading a mex at higher mass levels
+            if iTechLevelToUpgrade <= 1 then
+                if iTechLevelToUpgrade == 1 and tTeamData[iM28Team][subrefiTeamGrossMass] > tTeamData[iM28Team][subrefiActiveM28BrainCount] * 6 then
+                    iTechLevelToUpgrade = 2
+                elseif iTechLevelToUpgrade == 0 and tTeamData[iM28Team][subrefiTeamGrossMass] > tTeamData[iM28Team][subrefiActiveM28BrainCount] * 2.5 then
+                    iTechLevelToUpgrade = 1
+                end
+            end
             if bDebugMessages == true then LOG(sFunctionRef..': iTechLevelToUpgrade='..iTechLevelToUpgrade..'; tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]='..tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]..'; tTeamData[iM28Team][subrefiHighestEnemyMexTech]='..(tTeamData[iM28Team][subrefiHighestEnemyMexTech] or 0)) end
             if iTechLevelToUpgrade >= 1 then
                 local iPlateau, iLandZone, tMexesToConsiderUpgrading
@@ -1797,7 +1845,7 @@ function ConsiderNormalUpgrades(iM28Team)
             --Backup - if didnt find anything then get a HQ upgrade if we dont already ahve a HQ upgrade active
             if bDebugMessages == true then LOG(sFunctionRef..': Tried to get a mex upgrade, tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]='..tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]..'; iMassUpgradesAtLoopStart='..iMassUpgradesAtLoopStart) end
             if tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle] == iMassUpgradesAtLoopStart then
-                if tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech] == 1 or (tTeamData[iM28Team][subrefiTeamGrossMass] == 2 and tTeamData[iM28Team][subrefiTeamGrossMass] >= 8 and M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs])) then
+                if tTeamData[iM28Team][subrefiTeamGrossMass] >= 4 and M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Trying backup HQ upgrade as no mexes could be found') end
                     GetSafeHQUpgrade(iM28Team)
                 end
