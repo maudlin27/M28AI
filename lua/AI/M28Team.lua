@@ -1934,9 +1934,16 @@ function TeamEconomyRefresh(iM28Team)
 
     for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
         tTeamData[iM28Team][subrefiTeamGrossEnergy] = tTeamData[iM28Team][subrefiTeamGrossEnergy] + oBrain[M28Economy.refiGrossEnergyBaseIncome]
-        tTeamData[iM28Team][subrefiTeamNetEnergy] = tTeamData[iM28Team][subrefiTeamNetEnergy] + oBrain[M28Economy.refiNetEnergyBaseIncome]
         tTeamData[iM28Team][subrefiTeamGrossMass] = tTeamData[iM28Team][subrefiTeamGrossMass] + oBrain[M28Economy.refiGrossMassBaseIncome]
+        --Adjust gross values if the recorded values seem significantly differnet
+        if math.abs(oBrain[M28Economy.refiGrossEnergyBaseIncome] - oBrain:GetEconomyIncome('ENERGY')) >= math.max(30, oBrain[M28Economy.refiGrossEnergyBaseIncome] * 0.1) then
+            M28Utilities.ErrorHandler('We have calculated gross energy income to be '..oBrain[M28Economy.refiGrossEnergyBaseIncome]..'; including reclaim though it appears to be '..oBrain:GetEconomyIncome('ENERGY')..'; will use the system generated value as wouldnt expect reclaim to cause such a big difference', true)
+            oBrain[M28Economy.refiGrossEnergyBaseIncome] = oBrain:GetEconomyIncome('ENERGY')
+        end
+
+        tTeamData[iM28Team][subrefiTeamNetEnergy] = tTeamData[iM28Team][subrefiTeamNetEnergy] + oBrain[M28Economy.refiNetEnergyBaseIncome]
         tTeamData[iM28Team][subrefiTeamNetMass] = tTeamData[iM28Team][subrefiTeamNetMass] + oBrain[M28Economy.refiNetMassBaseIncome]
+
 
         tTeamData[iM28Team][subrefiTeamEnergyStored] = tTeamData[iM28Team][subrefiTeamEnergyStored] + oBrain:GetEconomyStored('ENERGY')
         tTeamData[iM28Team][subrefiTeamMassStored] = tTeamData[iM28Team][subrefiTeamMassStored] + oBrain:GetEconomyStored('MASS')
@@ -2231,19 +2238,23 @@ function RefreshActiveBrainListForBrainDeath(oDefeatedBrain)
 
     --Remove from air subteam
     local iAirSubteam = oDefeatedBrain.M28AirSubteam
-    for iBrain, oBrain in tAirSubteamData[iAirSubteam][subreftoFriendlyM28Brains] do
-        if oBrain == oDefeatedBrain then
-            table.remove(tAirSubteamData[iAirSubteam][subreftoFriendlyM28Brains], iBrain)
-            break
+    if M28Utilities.IsTableEmpty(tAirSubteamData[iAirSubteam][subreftoFriendlyM28Brains]) == false then
+        for iBrain, oBrain in tAirSubteamData[iAirSubteam][subreftoFriendlyM28Brains] do
+            if oBrain == oDefeatedBrain then
+                table.remove(tAirSubteamData[iAirSubteam][subreftoFriendlyM28Brains], iBrain)
+                break
+            end
         end
     end
 
     --Remove from land subteam
     local iLandSubteam = oDefeatedBrain.M28LandSubteam
-    for iBrain, oBrain in tLandSubteamData[iLandSubteam][subreftoFriendlyM28Brains] do
-        if oBrain == oDefeatedBrain then
-            table.remove(tLandSubteamData[iLandSubteam][subreftoFriendlyM28Brains], iBrain)
-            break
+    if M28Utilities.IsTableEmpty(tLandSubteamData[iLandSubteam][subreftoFriendlyM28Brains]) == false then
+        for iBrain, oBrain in tLandSubteamData[iLandSubteam][subreftoFriendlyM28Brains] do
+            if oBrain == oDefeatedBrain then
+                table.remove(tLandSubteamData[iLandSubteam][subreftoFriendlyM28Brains], iBrain)
+                break
+            end
         end
     end
 

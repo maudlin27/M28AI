@@ -856,8 +856,8 @@ function CalculateAirTravelPath(iStartPlateauOrZero, iStartLandOrWaterZone, iEnd
                 iCurSegmentX, iCurSegmentZ = M28Map.GetPathingSegmentFromPosition(tStartLZOrWZData[M28Map.subrefMidpoint])
                 if iStartPlateauOrZero == 0 then
                     --Dealing with water zone - include all adjacent land and water (ignore distance check) - want to use similar method to above to avoid cases where we include far more zones when re reach the target LZ/WZ than if we are appraoching it (which would lead to gunships aborting the attack and dying while doing nothing)
-                    if M28Utilities.IsTableEmpty(tBaseWZData[M28Map.subrefAdjacentLandZones]) == false then
-                        for iEntry, tSubtable in tBaseWZData[M28Map.subrefAdjacentLandZones] do
+                    if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefAdjacentLandZones]) == false then
+                        for iEntry, tSubtable in tStartLZOrWZData[M28Map.subrefAdjacentLandZones] do
                             local iAdjPlateau = tSubtable[M28Map.subrefWPlatAndLZNumber][1]
                             local iAdjLZ = tSubtable[M28Map.subrefWPlatAndLZNumber][2]
                             local tAdjLZ = M28Map.tAllPlateaus[iAdjPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
@@ -3013,7 +3013,7 @@ function ManageNovax(iTeam, iAirSubteam)
         if oBrain.M28AI then
             local tCurUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategorySatellite, false, true)
             for iUnit, oUnit in tCurUnits do
-                if oUnit:GetFractionComplete() >= 1 then
+                if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() >= 1 then
                     --Refresh positions of enemies in the zone the novax is in
                     iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
                     local tLZOrWZTeamData
@@ -3048,49 +3048,51 @@ function NovaxCoreTargetLoop(aiBrain, oNovax, bCalledFromUnitDeath)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'NovaxCoreTargetLoop'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if M28UnitInfo.IsUnitValid(oNovax) then
 
-    --If called from a unit dying only get a new target if the novax has an attack order on a unit
-    local bGetNewTarget = true
-    if bCalledFromUnitDeath and oNovax[M28Orders.refiOrderCount] > 0 then
-        bGetNewTarget = false
-        local tLastOrder = oNovax[M28Orders.reftiLastOrders][oNovax[M28Orders.refiOrderCount]]
-        if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAttack then
-            bGetNewTarget = true
+        --If called from a unit dying only get a new target if the novax has an attack order on a unit
+        local bGetNewTarget = true
+        if bCalledFromUnitDeath and oNovax[M28Orders.refiOrderCount] > 0 then
+            bGetNewTarget = false
+            local tLastOrder = oNovax[M28Orders.reftiLastOrders][oNovax[M28Orders.refiOrderCount]]
+            if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAttack then
+                bGetNewTarget = true
+            end
         end
-    end
-    if bGetNewTarget then
+        if bGetNewTarget then
 
-        local iEffectiveRange = math.max(20, oNovax:GetBlueprint().Weapon[1].MaxRadius) + 10
-        local oTarget
+            local iEffectiveRange = math.max(20, oNovax:GetBlueprint().Weapon[1].MaxRadius) + 10
+            local oTarget
 
-        local iOrderType
-        local refiLastIssuedOrderType = 'M27NovaxLastOrderType'
-        local refoLastIssuedOrderUnit = 'M27NovaxLastOrderUnit'
-        local reftLastIssuedOrderLocation = 'M27NovaxLastOrderLocation'
-        local refOrderAttack = 1
-        local refOrderMove = 2
-        oTarget = GetNovaxTarget(aiBrain, oNovax)
-        oNovax[refoNovaxLastTarget] = oTarget
-        if oTarget then
-            if bDebugMessages == true then
-                LOG(sFunctionRef .. ': GameTime='..GetGameTimeSeconds()..'; Have a target ' .. oTarget.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oTarget) .. '; will decide whether to attack or move to it; Distance to target=' .. M28Utilities.GetDistanceBetweenPositions(oTarget:GetPosition(), oNovax:GetPosition()))
-            end
-            if M28Utilities.GetDistanceBetweenPositions(oTarget:GetPosition(), oNovax:GetPosition()) > iEffectiveRange then
-                iOrderType = refOrderMove
+            local iOrderType
+            local refiLastIssuedOrderType = 'M27NovaxLastOrderType'
+            local refoLastIssuedOrderUnit = 'M27NovaxLastOrderUnit'
+            local reftLastIssuedOrderLocation = 'M27NovaxLastOrderLocation'
+            local refOrderAttack = 1
+            local refOrderMove = 2
+            oTarget = GetNovaxTarget(aiBrain, oNovax)
+            oNovax[refoNovaxLastTarget] = oTarget
+            if oTarget then
+                if bDebugMessages == true then
+                    LOG(sFunctionRef .. ': GameTime='..GetGameTimeSeconds()..'; Have a target ' .. oTarget.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oTarget) .. '; will decide whether to attack or move to it; Distance to target=' .. M28Utilities.GetDistanceBetweenPositions(oTarget:GetPosition(), oNovax:GetPosition()))
+                end
+                if M28Utilities.GetDistanceBetweenPositions(oTarget:GetPosition(), oNovax:GetPosition()) > iEffectiveRange then
+                    iOrderType = refOrderMove
+                else
+                    iOrderType = refOrderAttack
+                end
+
+                if iOrderType == refOrderMove then
+                    M28Orders.IssueTrackedMove(oNovax, oTarget:GetPosition(), 8, false, 'NVMv', false)
+                else
+                    M28Orders.IssueTrackedAttack(oNovax, oTarget, false, 'NVAtc', false)
+                end
             else
-                iOrderType = refOrderAttack
-            end
+                if bDebugMessages == true then LOG(sFunctionRef .. ': No target so move to enemy base') end
 
-            if iOrderType == refOrderMove then
-                M28Orders.IssueTrackedMove(oNovax, oTarget:GetPosition(), 8, false, 'NVMv', false)
-            else
-                M28Orders.IssueTrackedAttack(oNovax, oTarget, false, 'NVAtc', false)
+                --No target so move towards enemy base
+                M28Orders.IssueTrackedMove(oNovax, M28Map.GetPrimaryEnemyBaseLocation(aiBrain), 8, false, 'NVBsMv', false)
             end
-        else
-            if bDebugMessages == true then LOG(sFunctionRef .. ': No target so move to enemy base') end
-
-            --No target so move towards enemy base
-            M28Orders.IssueTrackedMove(oNovax, M28Map.GetPrimaryEnemyBaseLocation(aiBrain), 8, false, 'NVBsMv', false)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

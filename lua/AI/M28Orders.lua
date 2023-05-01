@@ -149,7 +149,7 @@ function UpdateRecordedOrders(oUnit)
             oUnit[refiOrderCount] = table.getn(oUnit[reftiLastOrders])
         end
         local tCommandQueue
-        if oUnit.GetCommandQueue then
+        if oUnit.GetCommandQueue and M28UnitInfo.IsUnitValid(oUnit) then
             tCommandQueue = oUnit:GetCommandQueue()
         end
         local iCommandQueue = 0

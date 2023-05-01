@@ -1170,11 +1170,19 @@ function RecordUnitRange(oUnit)
         if not(bWeaponUnpacks or (bWeaponIsFixed and EntityCategoryContains(categories.EXPERIMENTAL - refCategoryFatboy, oUnit.UnitId))) then
             oUnit[refbCanKite] = true
         end
-        --LOG('Considering unitID '..(oUnit.UnitId or 'nil')..'; is unit valid='..tostring(IsUnitValid(oUnit)))
+
+        --Special unit adjustments:
+        --Seraphim sniperbot - want to enable long range if we own it
         if oUnit.GetAIBrain and oUnit:GetAIBrain().M28AI and EntityCategoryContains(refCategorySniperBot * categories.SERAPHIM, oUnit.UnitId) then
             EnableLongRangeSniper(oUnit)
             --LOG('Enabled long range on sniper, DFRange='..oUnit[refiDFRange]..'; Strike damage='..GetUnitStrikeDamage(oUnit))
         end
+        --Fatboy - treat DF and indirect range as being the higher of its two ranges
+        if EntityCategoryContains(refCategoryFatboy, oUnit.UnitId) then
+            oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), (oUnit[refiIndirectRange] or 0))
+            oUnit[refiIndirectRange] = oUnit[refiDFRange]
+        end
+        --LOG('Considering unitID '..(oUnit.UnitId or 'nil')..'; is unit valid='..tostring(IsUnitValid(oUnit)))
     end
     oUnit[refiStrikeDamage] = GetUnitStrikeDamage(oUnit)
 

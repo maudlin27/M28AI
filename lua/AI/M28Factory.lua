@@ -1718,7 +1718,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         if ConsiderBuildingCategory(iCombatCategory) then return sBPIDToBuild end
     end
 
-    --Upgrade naval fac as priority if enemy has better navy tech than us or we ahve lots of naval units
+    --Upgrade naval fac as priority if enemy has better navy tech than us or we ahve lots of naval units; also in high mass scenarios where we already have T3 navy
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if bDebugMessages == true then LOG(sFunctionRef..': iCurrentConditionToTry='..iCurrentConditionToTry..'; About ot check if want to upgrade factory, iFactoryTechLevel='..iFactoryTechLevel..'; Is table of active upgrades for WZ empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefActiveUpgrades]))) end
     if iFactoryTechLevel < 3 then

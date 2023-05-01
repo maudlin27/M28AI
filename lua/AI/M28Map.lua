@@ -344,7 +344,7 @@ tPondDetails = {}
             subrefbEnemiesInThisOrAdjacentWZ = 'EnInAdjWZ' --true if enemy in this or adjacent WZ
 
             --subrefThreatEnemyStructureTotalMass - uses same ref as for LZ
-            subrefTThreatEnemyCombatTotal = 'ECCom' --Uses same ref as for LZ
+            --subrefTThreatEnemyCombatTotal = 'ECTotal' --Uses same ref as for LZ
             subrefWZThreatEnemyAntiNavy = 'EnANav'
             subrefWZThreatEnemySubmersible = 'EnSub'
             subrefWZThreatEnemySurface = 'EnSurf'

@@ -401,6 +401,12 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed)
                     local oBP = oUnit:GetBlueprint()
                     iMassGen = math.max(oBP.Economy.ProductionPerSecondMass or 0) * 0.1
                     iEnergyGen = math.max(oBP.Economy.ProductionPerSecondEnergy or 0) * 0.1
+                    --Adjust for AiX
+                    if aiBrain.CheatEnabled then
+                        local iAiXMod = tonumber(ScenarioInfo.Options.CheatMult)
+                        iMassGen = iMassGen * iAiXMod
+                        iEnergyGen = iEnergyGen * iAiXMod
+                    end
                 end
                 if bDestroyed then
                     iMassGen = iMassGen * -1

@@ -1184,10 +1184,10 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                                 end
                             end
                             --Is this a land unit traveling from 1 island to another island? In which case also want to consider
-                        elseif oUnit[refiCurrentAssignmentWaterZone] == nil and oUnit[refiCurrentAssignmentPlateauAndLZ][2] then
+                        elseif oUnit[refiCurrentAssignmentWaterZone] == nil and oUnit[M28Land.refiCurrentAssignmentPlateauAndLZ][2] then
                             local tLastOrder = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
                             if tLastOrder and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove then
-                                local tAssignmentLZData = M28Map.tAllPlateaus[oUnit[refiCurrentAssignmentPlateauAndLZ][1]][M28Map.subrefPlateauLandZones][oUnit[refiCurrentAssignmentPlateauAndLZ][2]]
+                                local tAssignmentLZData = M28Map.tAllPlateaus[oUnit[M28Land.refiCurrentAssignmentPlateauAndLZ][1]][M28Map.subrefPlateauLandZones][oUnit[M28Land.refiCurrentAssignmentPlateauAndLZ][2]]
 
                                 iLZIslandGivingOrder = NavUtils.GetLabel(M28Map.refPathingTypeLand, tAssignmentLZData[M28Map.subrefMidpoint])
                                 iLZIslandTravelingTo = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLastOrder[M28Orders.subreftOrderPosition])

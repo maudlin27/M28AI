@@ -122,12 +122,11 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                         end
 
                         --M28 specific killer logic
-                        local oKillerBrain = instigator:GetAIBrain()
+                        local oKillerBrain = oKillerUnit:GetAIBrain()
                         if oKillerBrain.M28AI then
-                            if EntityCategoryContains(M28UnitInfo.refCategorySatellite, instigator.UnitId) then
+                            if EntityCategoryContains(M28UnitInfo.refCategorySatellite, instigator.UnitId) and M28UnitInfo.IsUnitValid(oKillerUnit) then
                                 ForkThread(M28Air.NovaxCoreTargetLoop, oKillerBrain, instigator, true)
                             end
-                            --TODO - consider adding in logic e.g. chat messages and tracking
                         end
                     end
                 end
@@ -668,14 +667,22 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                     M28Engineer.RecordPartBuiltMex(oEngineer, oConstruction)
                 end
 
-                --Decide if want to shield this construction
+                --Decide if want to shield this construction and update buildable location
                 if EntityCategoryContains(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryExperimentalStructure, oConstruction.UnitId) then
                     M28Building.CheckIfUnitWantsFixedShield(oConstruction, true)
                     --If this is a fixed shield then instead update shield coverage
                     if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oConstruction.UnitId) then
                         M28Building.UpdateShieldCoverageOfUnits(oConstruction, false)
                     end
+
+                    --Buildable locations - update for unit construction started
+                    if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oConstruction.UnitId) then
+                        ForkThread(M28Engineer.CheckIfBuildableLocationsNearPositionStillValid, oEngineer:GetAIBrain(), oConstruction:GetPosition())
+                    end
+                    --Both structures and experimentals - clear any engineers trying to build something else that will be blocked by this
+                    ForkThread(M28Engineer.ClearEngineersWhoseTargetIsNowBlockedByUnitConstructionStarted, oEngineer, oConstruction)
                 end
+
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             end
         end
@@ -820,6 +827,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                         M28Team.tTeamData[oJustBuilt:GetAIBrain().M28Team][M28Team.refbBuiltLotsOfT3Combat] = true
                     end
                 end
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer * categories.TECH3, oJustBuilt.UnitId) then
+                --Late game - destroy lower tech engineers to help with pathing (up to 2 for every T3 engi built)
+                ForkThread(M28Engineer.ConsiderDestroyingLowTechEngineers, oJustBuilt)
             end
 
             --Update economy tracking (this function will check if it is an economic unit as part of it)
@@ -834,6 +844,11 @@ function OnConstructed(oEngineer, oJustBuilt)
             elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory, oEngineer.UnitId) then
                 if bDebugMessages == true then LOG(sFunctionRef..': A factory has just built a unit so will get the next order for the factory') end
                 ForkThread(M28Factory.DecideAndBuildUnitForFactory, oEngineer:GetAIBrain(), oEngineer)
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEngineer.UnitId) then
+                --Clear any engineers trying to build this unit if we just built a building or experimental
+                if EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId) then
+                    M28Engineer.ClearEngineersForUnitJustBuilt(oEngineer, oJustBuilt)
+                end
             end
 
             --Logic based on the type of unit built
@@ -990,10 +1005,10 @@ function OnDetectedBy(oUnitDetected, iBrainIndex)
         M28Team.ConsiderAssigningUnitToZoneForBrain(aiBrain, oUnitDetected) --This function includes check of whether this is an M28 brain, and updates last known position
         if aiBrain.M28AI then
             --Update highest enemy ground unti health
-            if EntityCategoryContains(M28UnitInfo.refCategoryLandCombat - categories.COMMAND - categories.SUBCOMMANDER, oUnitDetected.UnitId) then
+            if EntityCategoryContains(M28UnitInfo.refCategoryLandCombat - categories.COMMAND - categories.SUBCOMMANDER - M28UnitInfo.refCategoryLandScout, oUnitDetected.UnitId) then
                 local iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnitDetected)
                 local iMaxHealth = oUnitDetected:GetMaxHealth() + iMaxShield
-                if iMaxHealth > M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyHighestMobileLandHealth] then
+                if iMaxHealth > (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyHighestMobileLandHealth] or 0) and M28Map.bMapLandSetupComplete then
                     M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyHighestMobileLandHealth] = iMaxHealth
                 end
             end
