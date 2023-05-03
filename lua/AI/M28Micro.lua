@@ -934,3 +934,30 @@ function TurnAirUnitAndMoveToTarget(aiBrain, oBomber, tDirectionToMoveTo, iMaxAc
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
+
+function MoveAwayFromFactory(oUnit, oFactory)
+    if EntityCategoryContains(categories.STRUCTURE, oFactory.UnitId) and not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId)) then
+        local aiBrain = oFactory:GetAIBrain()
+        if aiBrain.M28AI then --redundancy
+            local iTeam = aiBrain.M28Team
+            local tLZOrWZData, tLZOrWZTeamData
+            local iPlateauOrZero, iLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oFactory:GetPosition())
+            if iLZOrWZ > 0 then
+                if iPlateauOrZero == 0 then
+                    tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLZOrWZ]][M28Map.subrefPondWaterZones][iLZOrWZ]
+                    tLZOrWZTeamData = tLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                else
+                    tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLZOrWZ]
+                    tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                end
+                if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftClosestEnemyBase]) == false then
+                    local iFactorySize = M28UnitInfo.GetBuildingSize(oFactory.UnitId)
+                    local tOrderPosition = M28Utilities.MoveInDirection(oFactory:GetPosition(), M28Utilities.GetAngleFromAToB(oFactory:GetPosition(), tLZOrWZTeamData[M28Map.reftClosestEnemyBase]), iFactorySize + 2, true, false)
+                    M28Orders.IssueTrackedMove(oUnit, tOrderPosition, 0, false, 'JustBuilt', true)
+                    TrackTemporaryUnitMicro(oUnit, 1.5)
+                end
+
+            end
+        end
+    end
+end

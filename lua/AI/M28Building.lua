@@ -735,6 +735,37 @@ function UpdateLZUnitsWantingTMDForUnitDeath(oUnit)
     oUnit[refbUnitWantsMoreTMD] = false --redundancy
 end
 
+function GetUnitWantingTMD(tLZData, tLZTeamData)
+    --Gets the unit closest to the nearest enemy base that wants TMD; also refreshes the table for any dead units
+    local iUnitsWantingTMD = table.getn(tLZTeamData[M28Map.reftUnitsWantingTMD])
+    local iClosestDist = 10000
+    local iCurDist
+    local oClosestUnit
+    local tEnemyBase = tLZTeamData[M28Map.reftClosestEnemyBase]
+    for iEntry = iUnitsWantingTMD, 1, -1 do
+        if not(M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry])) then
+            table.remove(tLZTeamData[M28Map.reftUnitsWantingTMD], iEntry)
+        else
+            iCurDist = M28Utilities.GetDistanceBetweenPositions(tEnemyBase, tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry]:GetPosition())
+            if iCurDist < iClosestDist then
+                iClosestDist = iCurDist
+                oClosestUnit = tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry]
+            end
+        end
+    end
+    --Cap on number of TMD to prvent massiveo verbuilding - dont have more than 10 in a LZ
+    local tExistingTMD = EntityCategoryFilterDown(M28UnitInfo.refCategoryTMD, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+    if M28Utilities.IsTableEmpty(tExistingTMD) == false then
+        local iExistingValidTMD = table.getn(tExistingTMD)
+        if iExistingValidTMD >= 10 then
+            M28Utilities.ErrorHandler('Have 10 TMD in land zone so wont build any more TMD, risk we may be overbuilding TMD, will clear entries', true)
+            tLZTeamData[M28Map.reftUnitsWantingTMD] = {}
+            return nil
+        end
+    end
+    return oClosestUnit
+end
+
 
 function RecordPriorityShields(iTeam, tLZTeamData)
     --Records shields that want to ahve engineers assisting

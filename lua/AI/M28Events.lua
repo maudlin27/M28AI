@@ -820,6 +820,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                     if bDebugMessages == true then LOG(sFunctionRef..': Have just build land factory so clearing adjacency desire for all M28 brains') end
                     M28Engineer.tiActionAdjacentCategory[M28Engineer.refActionBuildLandFactory] = nil
                 end
+                --Clear engineers that just built this
 
             elseif EntityCategoryContains(M28UnitInfo.refCategoryLandCombat * categories.TECH3 + M28UnitInfo.refCategoryIndirectT3, oJustBuilt.UnitId) then
                 if not(M28Team.tTeamData[oJustBuilt:GetAIBrain().M28Team][M28Team.refbBuiltLotsOfT3Combat]) then
@@ -861,6 +862,11 @@ function OnConstructed(oEngineer, oJustBuilt)
             elseif EntityCategoryContains(categories.STEALTH, oJustBuilt.UnitId) then
                 --Make sure stealth is enabled
                 M28UnitInfo.EnableUnitStealth(oJustBuilt)
+            end
+
+            --Mobile land units - give a micro move order so they dont block the factory
+            if EntityCategoryContains(M28UnitInfo.refCategoryMobileLand, oJustBuilt.UnitId) then
+                ForkThread(M28Micro.MoveAwayFromFactory, oJustBuilt, oEngineer)
             end
 
             --Unit cap - refresh if are within 25 of the cap since it isnt accurate if have current units
@@ -1092,13 +1098,15 @@ function OnCreate(oUnit)
                         ForkThread(M28Economy.UpdateLandZoneM28MexByTechCount, oUnit) --we run the same logic via onconstructed
                     end
                 end
-                --General logic that want to make sure runs on M28 units even if theyre not constructed yet:
+                --General logic that want to make sure runs on M28 units even if theyre not constructed yet or to ensure we cover scenarios where we are gifted units
                 local aiBrain = oUnit:GetAIBrain()
                 if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId) then
                     M28Air.AddPriorityAirDefenceTarget(oUnit)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) then
                     --Weapon priorities
                     M28UnitInfo.SetUnitTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityGunship)
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryDestroyer, oUnit.UnitId) then
+                    M28UnitInfo.SetUnitTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityDestroyer)
                 end
                 --Check unit cap
                 if (oUnit[M28Overseer.refiExpectedRemainingCap] or 0) <= 100 then

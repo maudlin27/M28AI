@@ -24,6 +24,7 @@ local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
 bInitialSetup = false
 tAllActiveM28Brains = {} --[x] is just a unique integer starting with 1 (so table.getn works on this), not the armyindex; returns the aiBrain object
 tAllAIBrainsByArmyIndex = {} --[x] is the brain army index, returns the aibrain
+bDebugTickCheckerActive = false
 
 --Special settings - restrictions and norush
 bUnitRestrictionsArePresent = false
@@ -309,7 +310,7 @@ function M28BrainCreated(aiBrain)
         M28Utilities.bM28AIInGame = true
 
         --Send a message warning players this could take a while
-        M28Chat.SendForkedMessage(aiBrain, 'LoadingMap', 'Analysing map, this usually freezes the game for 1-2 minutes (more on large maps)...', 0, 10000, false)
+        M28Chat.SendForkedMessage(aiBrain, 'LoadingMap', 'Analysing map, this usually freezes the game for 1-2 minutes (more on large maps or maps with lots of cliffs), if it takes too long try a different map.', 0, 10000, false)
         ForkThread(GameSettingWarningsAndChecks, aiBrain)
         ForkThread(M28Map.SetupMap)
 
@@ -453,37 +454,6 @@ function Initialisation(aiBrain)
     --ForkThread(RevealCiviliansToAI, aiBrain)
     ForkThread(RevealCivilainsToAIByGivingVision, aiBrain)
 
-end
-
-function OverseerManager(aiBrain)
-    --ForkThread(TestCustom, aiBrain)
-
-    --Make sure map setup will be done
-    WaitTicks(1)
-    while not(M28Map.bMapLandSetupComplete) do
-        WaitTicks(1)
-    end
-    --Initialise main systems
-    ForkThread(Initialisation, aiBrain)
-
-    --Wait until we can give orders before doing main logic
-    while (GetGameTimeSeconds() <= 4.5) do
-        WaitTicks(1)
-    end
-    local bSetHook = false --Used for debugging
-    while not(aiBrain:IsDefeated()) and not(aiBrain.M28IsDefeated) do
-        --TestCustom(aiBrain)
-        --Enable below to help figure out infinite loops
-        --[[if GetGameTimeSeconds() >= 173 and not(bSetHook) then
-            bSetHook = true
-            M28Profiler.bFunctionCallDebugOverride = true
-            --M28Profiler.bGlobalDebugOverride = true --Only enable this if want more detail as it will make things really slow
-            debug.sethook(M28Profiler.OutputRecentFunctionCalls, "c", 200)
-            LOG('Have started the main hook of function calls')
-        end--]]
-        ForkThread(M28Economy.RefreshEconomyData, aiBrain)
-        WaitSeconds(1)
-    end
 end
 
 function CheckUnitCap(aiBrain)
@@ -646,5 +616,60 @@ function RevealCivilainsToAIByGivingVision(aiBrain)
             break
         end
 
+    end
+end
+
+function DebugCheck(aiBrain)
+    local sFunctionRef = 'DebugCheck'
+    local iTickTimeToStartDetailedDebug = 833.7 --set to high number if first want to figure out the tick where this happens
+    local bSetHook = false --Used for debugging
+    if not(bDebugTickCheckerActive) then
+        bDebugTickCheckerActive = true
+        --Every tick list out the tick - use this function to help identify infinite loops
+        while true do
+            WaitTicks(1)
+            LOG(sFunctionRef..': Cur time='..GetGameTimeSeconds())
+            if GetGameTimeSeconds() >= iTickTimeToStartDetailedDebug then
+                if not(bSetHook) then
+                    bSetHook = true
+                    M28Profiler.bFunctionCallDebugOverride = true
+                    --M28Profiler.bGlobalDebugOverride = true --Only enable this if want more detail as it will make things really slow
+                    debug.sethook(M28Profiler.OutputRecentFunctionCalls, "c", 200)
+                    LOG(sFunctionRef..': Have started the main hook of function calls')
+                end
+            end
+        end
+    end
+end
+
+function OverseerManager(aiBrain)
+    --ForkThread(DebugCheck,aiBrain)
+    --ForkThread(TestCustom, aiBrain)
+
+    --Make sure map setup will be done
+    WaitTicks(1)
+    while not(M28Map.bMapLandSetupComplete) do
+        WaitTicks(1)
+    end
+    --Initialise main systems
+    ForkThread(Initialisation, aiBrain)
+
+    --Wait until we can give orders before doing main logic
+    while (GetGameTimeSeconds() <= 4.5) do
+        WaitTicks(1)
+    end
+    local bSetHook = false --Used for debugging
+    while not(aiBrain:IsDefeated()) and not(aiBrain.M28IsDefeated) do
+        --TestCustom(aiBrain)
+        --Enable below to help figure out infinite loops
+        --[[if GetGameTimeSeconds() >= 173 and not(bSetHook) then
+            bSetHook = true
+            M28Profiler.bFunctionCallDebugOverride = true
+            --M28Profiler.bGlobalDebugOverride = true --Only enable this if want more detail as it will make things really slow
+            debug.sethook(M28Profiler.OutputRecentFunctionCalls, "c", 200)
+            LOG('Have started the main hook of function calls')
+        end--]]
+        ForkThread(M28Economy.RefreshEconomyData, aiBrain)
+        WaitSeconds(1)
     end
 end

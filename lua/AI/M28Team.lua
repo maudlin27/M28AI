@@ -1641,43 +1641,71 @@ function GetSafeHQUpgrade(iM28Team, bOnlyConsiderLandFactory)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function GetAnyMexOrHQToUpgrade(iM28Team)
+function GetAnyMexOrFactoryToUpgrade(iM28Team)
     --Backup logic for finding an upgrade if we have failed to find one through previous searches for a mex or factory
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'GetAnyMexOrHQToUpgrade'
+    local sFunctionRef = 'GetAnyMexOrFactoryToUpgrade'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local toUnitsThatCouldUpgrade = {}
     local tPotentialUnits
     local bPrioritiseFactory = false
 
-    --First identify any players that have a T1 land or air HQ
+    --First consider any t1 factories (including support factory upgrades)
     for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
-        if oBrain[M28Economy.refiOurHighestAirFactoryTech] == 1 then
-            if not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryAirHQ)) then
-                tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryAirHQ * categories.TECH1, false, true)
-                AddPotentialUnitsToShortlist(toUnitsThatCouldUpgrade, tPotentialUnits, true)
-            end
-        elseif oBrain[M28Economy.refiOurHighestAirFactoryTech] == 2 then
+        --if oBrain[M28Economy.refiOurHighestAirFactoryTech] == 1 then
+        if not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryAirHQ * categories.TECH1)) then
+            tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryAirHQ * categories.TECH1, false, true)
+            AddPotentialUnitsToShortlist(toUnitsThatCouldUpgrade, tPotentialUnits, true)
+        end
+        --[[elseif oBrain[M28Economy.refiOurHighestAirFactoryTech] == 2 then
             if not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryAirHQ)) then
                 tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryAirHQ * categories.TECH2, false, true)
                 AddPotentialUnitsToShortlist(toUnitsThatCouldUpgrade, tPotentialUnits, true)
-            end
+            end--]]
+        --end
+        --if oBrain[M28Economy.refiOurHighestLandFactoryTech] == 1 then
+        if not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryLandHQ * categories.TECH1)) then
+            tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryLandHQ * categories.TECH1, false, true)
+            AddPotentialUnitsToShortlist(toUnitsThatCouldUpgrade, tPotentialUnits, true)
         end
-        if oBrain[M28Economy.refiOurHighestLandFactoryTech] == 1 then
-            if not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryLandHQ)) then
-                tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryLandHQ * categories.TECH1, false, true)
-                AddPotentialUnitsToShortlist(toUnitsThatCouldUpgrade, tPotentialUnits, true)
-            end
-        elseif oBrain[M28Economy.refiOurHighestLandFactoryTech] == 2 then
+
+        if not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryNavalHQ * categories.TECH1)) then
+            tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryNavalHQ * categories.TECH1, false, true)
+            AddPotentialUnitsToShortlist(toUnitsThatCouldUpgrade, tPotentialUnits, true)
+        end
+        --[[elseif oBrain[M28Economy.refiOurHighestLandFactoryTech] == 2 then
             if not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryLandHQ)) then
                 tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryLandHQ * categories.TECH2, false, true)
                 AddPotentialUnitsToShortlist(toUnitsThatCouldUpgrade, tPotentialUnits, true)
-            end
-        end
+            end --]]
+        --end
         tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryT1Mex + M28UnitInfo.refCategoryT2Mex, false, true)
         AddPotentialUnitsToShortlist(toUnitsThatCouldUpgrade, tPotentialUnits, true)
+    end
+    if M28Utilities.IsTableEmpty(toUnitsThatCouldUpgrade) then
+        --If at T3 consider upgrading T2 support factories
+        for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
+            if oBrain[M28Economy.refiOurHighestAirFactoryTech] >= 3 then
+                tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryAirFactory - categories.TECH3, false, true)
+                AddPotentialUnitsToShortlist(toUnitsThatCouldUpgrade, tPotentialUnits, true)
+            end
+            if oBrain[M28Economy.refiOurHighestLandFactoryTech] >= 3 then
+                tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryLandFactory - categories.TECH3, false, true)
+                AddPotentialUnitsToShortlist(toUnitsThatCouldUpgrade, tPotentialUnits, true)
+            end
+            if oBrain[M28Economy.refiOurHighestNavalFactoryTech] >= 3 then
+                tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryNavalFactory - categories.TECH3, false, true)
+                AddPotentialUnitsToShortlist(toUnitsThatCouldUpgrade, tPotentialUnits, true)
+            else
+                tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryNavalFactory * categories.TECH1, false, true)
+                AddPotentialUnitsToShortlist(toUnitsThatCouldUpgrade, tPotentialUnits, true)
+            end
+        end
+
+        --If still no units to upgrade, and have positive net mass income and at least 40% mass stored, then consider factory upgrades
+
     end
     if M28Utilities.IsTableEmpty(toUnitsThatCouldUpgrade) == false then
         local oUnitToUpgrade = M28Economy.GetBestUnitToUpgrade(toUnitsThatCouldUpgrade)
@@ -1715,14 +1743,23 @@ function HaveEcoToSupportUpgrades(iM28Team)
             tTeamData[iM28Team][subrefbTooLittleEnergyForUpgrade] = false
             --Do we have enough mass to support the upgrade?
             local iNetMassIncomeWanted
-            if tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.9 then iNetMassIncomeWanted = math.min(-50, -tTeamData[iM28Team][subrefiTeamGrossMass] * 0.3)
-            elseif tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.7 then iNetMassIncomeWanted = math.min(-25, -tTeamData[iM28Team][subrefiTeamGrossMass] * 0.25)
-            elseif tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.4 then iNetMassIncomeWanted = -tTeamData[iM28Team][subrefiTeamGrossMass] * 0.2
-            elseif tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.3 then iNetMassIncomeWanted = - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.15
-            elseif tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.2 and tTeamData[iM28Team][subrefiTeamMassStored] >= 600 then iNetMassIncomeWanted = - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.1
-            elseif tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.1 and tTeamData[iM28Team][subrefiTeamMassStored] >= 300 then iNetMassIncomeWanted = - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.075
-            elseif tTeamData[iM28Team][subrefiTeamMassStored] >= 300 then iNetMassIncomeWanted = - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.05
-            else iNetMassIncomeWanted = 0.1
+            if tTeamData[iM28Team][subrefiTeamMassStored] >= 4000 then
+                if tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.9 then iNetMassIncomeWanted = math.min(-30, -tTeamData[iM28Team][subrefiTeamGrossMass] * 0.3)
+                elseif tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.7 then iNetMassIncomeWanted = math.min(-15, -tTeamData[iM28Team][subrefiTeamGrossMass] * 0.25)
+                elseif tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.4 then iNetMassIncomeWanted = math.min(-4, -tTeamData[iM28Team][subrefiTeamGrossMass] * 0.2)
+                elseif tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.3 then iNetMassIncomeWanted = math.min(-3, - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.15)
+                elseif tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.2 then iNetMassIncomeWanted = math.min(-2, - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.1)
+                else iNetMassIncomeWanted = math.min(-1, - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.075) end
+            else
+                if tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.9 then iNetMassIncomeWanted = math.min(-1.5, -tTeamData[iM28Team][subrefiTeamGrossMass] * 0.3)
+                elseif tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.7 then iNetMassIncomeWanted = math.min(-1.2, -tTeamData[iM28Team][subrefiTeamGrossMass] * 0.25)
+                elseif tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.4 then iNetMassIncomeWanted = math.min(-0.9, -tTeamData[iM28Team][subrefiTeamGrossMass] * 0.2)
+                elseif tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.3 then iNetMassIncomeWanted = math.min(-0.6, - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.15)
+                elseif tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.2 and tTeamData[iM28Team][subrefiTeamMassStored] >= 600 then iNetMassIncomeWanted = math.min(-0.5, - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.1)
+                elseif tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.1 and tTeamData[iM28Team][subrefiTeamMassStored] >= 300 then iNetMassIncomeWanted = math.min(-0.4, - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.075)
+                elseif tTeamData[iM28Team][subrefiTeamMassStored] >= 300 then iNetMassIncomeWanted = - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.05
+                else iNetMassIncomeWanted = 0.1
+                end
             end
 
             if tTeamData[iM28Team][subrefiTeamMassStored] >= 5000 then iNetMassIncomeWanted = math.min(-5, iNetMassIncomeWanted - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.02) end
@@ -1813,7 +1850,7 @@ function ConsiderNormalUpgrades(iM28Team)
         --Get preferred upgrade type - ideally are always improving mass income (if have safe mexes to upgrade)
         if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) == false then
             --Already have mexes upgrading - do we want to also upgrade an HQ instead of a mex?
-            if (tTeamData[iM28Team][subrefiTeamGrossMass] >= 3 and (tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech] == 1 or tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech] == 1)) or ((tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech] == 2 or tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech] == 2) and tTeamData[iM28Team][subrefiTeamGrossMass] >= 8) then
+            if (tTeamData[iM28Team][subrefiTeamGrossMass] >= 2.5 and (tTeamData[iM28Team][subrefiTeamGrossMass] >= 5 and (tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech] == 1 or tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech] == 1) or (tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech] == 1 and tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech] == 1))) or ((tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech] == 2 or tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech] == 2) and tTeamData[iM28Team][subrefiTeamGrossMass] >= 8) then
                 --Do we already ahve a factory HQ upgrading? If so then consider income based on player count
                 if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) then
                     bLookForMexNotHQ = false
@@ -1859,9 +1896,9 @@ function ConsiderNormalUpgrades(iM28Team)
         --If failed to find a mex or HQ upgrade from above:
         if tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle] == iMassUpgradesAtLoopStart then
             --Only consider upgrading if have lots of mass
-            if tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.5 and tTeamData[iM28Team][subrefiTeamMassStored] >= 600 then
-                if bDebugMessages == true then LOG(sFunctionRef..': Will try and get any mex or HQ to upgrade as failed to find something to upgrade and have lots of mass') end
-                GetAnyMexOrHQToUpgrade(iM28Team)
+            if tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.5 and tTeamData[iM28Team][subrefiTeamMassStored] >= 700 and (tTeamData[iM28Team][subrefiTeamMassStored] >= 7000 or (tTeamData[iM28Team][subrefiTeamMassStored] >= 4000 and tTeamData[iM28Team][subrefiTeamNetMass] > -1) or tTeamData[iM28Team][subrefiTeamNetMass] > 0.5) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will try and get any mex or HQ to upgrade as failed to find something to upgrade and have lots of mass, tTeamData[iM28Team][subrefiTeamNetMass]='..tTeamData[iM28Team][subrefiTeamNetMass]..'; mass stored='..tTeamData[iM28Team][subrefiTeamMassStored]) end
+                GetAnyMexOrFactoryToUpgrade(iM28Team)
             end
         end
 
@@ -1935,11 +1972,11 @@ function TeamEconomyRefresh(iM28Team)
     for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
         tTeamData[iM28Team][subrefiTeamGrossEnergy] = tTeamData[iM28Team][subrefiTeamGrossEnergy] + oBrain[M28Economy.refiGrossEnergyBaseIncome]
         tTeamData[iM28Team][subrefiTeamGrossMass] = tTeamData[iM28Team][subrefiTeamGrossMass] + oBrain[M28Economy.refiGrossMassBaseIncome]
-        --Adjust gross values if the recorded values seem significantly differnet
-        if math.abs(oBrain[M28Economy.refiGrossEnergyBaseIncome] - oBrain:GetEconomyIncome('ENERGY')) >= math.max(30, oBrain[M28Economy.refiGrossEnergyBaseIncome] * 0.1) then
+        --Adjust gross values if the recorded values seem significantly differnet - decided to leave out as there seems to be a 1 tick delay which causes discrepencies
+        --[[if math.abs(oBrain[M28Economy.refiGrossEnergyBaseIncome] - oBrain:GetEconomyIncome('ENERGY')) >= math.max(30, oBrain[M28Economy.refiGrossEnergyBaseIncome] * 0.1) then
             M28Utilities.ErrorHandler('We have calculated gross energy income to be '..oBrain[M28Economy.refiGrossEnergyBaseIncome]..'; including reclaim though it appears to be '..oBrain:GetEconomyIncome('ENERGY')..'; will use the system generated value as wouldnt expect reclaim to cause such a big difference', true)
             oBrain[M28Economy.refiGrossEnergyBaseIncome] = oBrain:GetEconomyIncome('ENERGY')
-        end
+        end--]]
 
         tTeamData[iM28Team][subrefiTeamNetEnergy] = tTeamData[iM28Team][subrefiTeamNetEnergy] + oBrain[M28Economy.refiNetEnergyBaseIncome]
         tTeamData[iM28Team][subrefiTeamNetMass] = tTeamData[iM28Team][subrefiTeamNetMass] + oBrain[M28Economy.refiNetMassBaseIncome]

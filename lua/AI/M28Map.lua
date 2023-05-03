@@ -4784,7 +4784,7 @@ function SetupMap()
     end--]]
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    WaitTicks(2) --So chat message displays
+    WaitTicks(4) --So chat message displays
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --Decide how accurate map related functions are to be based on the map size:

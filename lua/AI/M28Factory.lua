@@ -702,11 +702,18 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         if ConsiderBuildingCategory(M28UnitInfo.refCategoryDFTank) then return sBPIDToBuild end
     end
 
-    --Scouts if we want any
+    --Scouts if we want any, subject to limit based on number of engineers we have
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want land scouts, does this LZ want scouts='..tostring(tLZTeamData[M28Map.refbWantLandScout])) end
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if tLZTeamData[M28Map.refbWantLandScout] then
-        if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandScout) then return sBPIDToBuild end
+        if not(bHaveHighestLZTech) then
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandScout) then return sBPIDToBuild end
+        else
+            local iCurLandScouts = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandScout)
+            if iCurLandScouts < 8 or iCurLandScouts < aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) or iCurLandScouts * 2 < aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat) then
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandScout) then return sBPIDToBuild end
+            end
+        end
     end
 
     --Initial T2+ tanks if have at least 5 engis of our current tech level and dont have many tanks, and can path to enemy by land (core base only)
@@ -1104,6 +1111,11 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
         end
     end
+
+    --More land scouts (no cap)
+    if tLZTeamData[M28Map.refbWantLandScout] then
+        if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandScout) then return sBPIDToBuild end
+    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -1349,6 +1361,19 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         if bDebugMessages == true then LOG(sFunctionRef..': AIr fac engi builder: bHaveLowMass='..tostring(bHaveLowMass)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]..'; subrefTbWantBP='..tostring(tLZTeamData[M28Map.subrefTbWantBP] or false)) end
         if not(bHaveLowMass) and tLZTeamData[M28Map.subrefTbWantBP] then
             if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.4 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.25 and iFactoryTechLevel >= M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) then
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+            end
+        end
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if bDebugMessages == true then LOG(sFunctionRef..': Another engi builder - iFactoryTechLevel='..iFactoryTechLevel..'; Highest friendly tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Mass stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]) end
+        if tLZTeamData[M28Map.subrefTbWantBP] and iFactoryTechLevel >= M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] then
+            --Do we have fewer than 5 engineers of this tech level in this zone and we have some mass stored? if so then build another engineer (also build another engineer if we have fewer than 3 engineers even with low mass)
+            local iEngisOfTechInZone = 0
+            local tEngisOfTechInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel), tLZTeamData[M28Map.subrefLZTAlliedUnits])
+            if M28Utilities.IsTableEmpty(tEngisOfTechInZone) == false then
+                iEngisOfTechInZone = table.getn(tEngisOfTechInZone)
+            end
+            if iEngisOfTechInZone < 3 or (iEngisOfTechInZone < 5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 0) or (iEngisOfTechInZone < 10 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 1000) then
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
             end
         end

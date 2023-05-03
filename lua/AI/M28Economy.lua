@@ -418,7 +418,7 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed)
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering if should temporarily say we have enough power; iEnergyGen='..iEnergyGen..'; Gross energy='..(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossEnergy] or 'nil')..'; Net energy='..(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamNetEnergy] or 'nil')..'; Flag for lots of power='..tostring(M28Team.tTeamData[aiBrain.M28Team][M28Team.refbJustBuiltLotsOfPower] or false)) end
                     if iEnergyGen >= math.max(20, (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossEnergy] or 0) * 0.15, -(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamNetEnergy] or 0)) and not(M28Team.tTeamData[aiBrain.M28Team][M28Team.refbJustBuiltLotsOfPower]) then
                         M28Team.tTeamData[aiBrain.M28Team][M28Team.refbJustBuiltLotsOfPower] = true
-                        M28Utilities.DelayChangeVariable(M28Team.tTeamData[aiBrain.M28Team], M28Team.refbJustBuiltLotsOfPower, false, 5)
+                        M28Utilities.DelayChangeVariable(M28Team.tTeamData[aiBrain.M28Team], M28Team.refbJustBuiltLotsOfPower, false, 6)
                         if bDebugMessages == true then LOG(sFunctionRef..': Just built a lot of power so will temporarily say we dont need more power') end
                     end
                     --Update team eco values to factor in impact of this on any decisions made before the next team eco refresh
