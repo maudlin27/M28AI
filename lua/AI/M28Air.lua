@@ -2153,11 +2153,13 @@ function GetGunshipsToMoveToTarget(tAvailableGunships, tTarget)
         local iMinGunshipRange = 20
         local iMaxCycles = math.max(math.floor(iMinGunshipRange / iAdjustInterval), 1)
         local iAdjustBase
+        local iCornerAdjust
         for iCurCycle = 1, iMaxCycles, 1 do
             --Want to record as ever expanding hollow boxes
             iAdjustBase = iCurCycle * iAdjustInterval
-            --First go along the top and bottom of the box
-            for iCurX = - iAdjustBase, iAdjustBase, iAdjustInterval do
+            --First go along the top and bottom of the box; exclude corners if at the last entry
+            if iCurCycle < iMaxCycles then iCornerAdjust = 0 else iCornerAdjust = iAdjustInterval end
+            for iCurX = - iAdjustBase + iCornerAdjust, iAdjustBase - iCornerAdjust, iAdjustInterval do
                 for iCurZ = - iAdjustBase, iAdjustBase, iAdjustBase * 2 do
                     table.insert(tDistanceAdjustXZ, {iCurX, iCurZ})
                 end

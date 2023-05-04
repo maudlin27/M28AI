@@ -434,7 +434,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     --Do we already ahve lots of MAA?
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to ignore getting any MAA, tLZTeamData[M28Map.refiEnemyAirToGroundThreat]='..tLZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; Time since last had no MAA targets for this island='..GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoMAATargetsByIsland][tLZData[M28Map.subrefLZIslandRef]] or -10)..'; tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])) end
     if tLZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 then
-        if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] <= 1 then bDontConsiderBuildingMAA = true
+        if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] <= 1 and (iFactoryTechLevel == 1 or bHaveLowMass)) then bDontConsiderBuildingMAA = true
         elseif GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoMAATargetsByIsland][tLZData[M28Map.subrefLZIslandRef]] or -10) < 10 then
             if not(tLZTeamData[M28Map.subrefLZCoreExpansion]) then
                 bDontConsiderBuildingMAA = true
@@ -1694,6 +1694,11 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) < 3 or (iFactoryTechLevel <= 2 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer) <= 10) then
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
         end
+    end
+
+    --High priority anti-air if we have a battleship and no cruiser
+    if iFactoryTechLevel >= 3 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBattleship) + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryBattlecruiser) > 0 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryCruiserCarrier) == 0 then
+        if ConsiderBuildingCategory(M28UnitInfo.refCategoryCruiser) then return sBPIDToBuild end
     end
 
     --First consider zone we are in

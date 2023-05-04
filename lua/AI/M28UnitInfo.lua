@@ -62,6 +62,7 @@ refbSniperRifleEnabled = 'M27UnitSniperRifleEnabled' --True if seraphim sniperbo
 --Weapon priorities
 refWeaponPriorityGunship = {'MOBILE SHIELD', 'MOBILE ANTIAIR CRUISER', 'MOBILE ANTIAIR', 'ANTIAIR', 'STRUCTURE SHIELD', 'VOLATILE', 'MASSEXTRACTION', 'GROUNDATTACK', 'TECH3 MOBILE', 'TECH2 MOBILE', 'TECH1 MOBILE', 'ALLUNITS'}
 refWeaponPriorityDestroyer = {'SHIELD NAVAL', 'SUBMERSIBLE', 'EXPERIMENTAL NAVAL, TECH3 NAVAL MOBILE', 'TECH2 NAVAL MOBILE', 'STRUCTURE SHIELD', 'STRUCTURE DEFENSE DIRECTFIRE TECH2, STRUCTURE DEFENSE DIRECTFIRE TECH3, STRUCTURE INDIRECTFIRE ARTILLERY', 'EXPERIMENTAL STRUCTURE, STRUCTURE TECH3 SILO, STRUCTURE TECH3 VOLATILE', 'MOBILE LAND EXPERIMENTAL, MOBILE LAND HOVER DIRECTFIRE', 'MASSPRODUCTION TECH2, MASSPRODUCTION TECH3', 'MOBILE LAND TECH3 DIRECTFIRE, MOBILE LAND TECH3 INDIRECTFIRE', 'EXPERIMENTAL', 'NAVAL', 'STRUCTURE', 'ALLUNITS'}
+refWeaponPriorityMissileShip = {'SHIELD STRUCTURE, ANTIMISSILE STRUCTURE', 'STRUCTURE INDIRECTFIRE ARTILLERY TECH2', 'EXPERIMENTAL STRUCTURE, STRUCTURE ARTILLERY TECH3, STRUCTURE TECH3 SILO', 'STRUCTURE TECH3 VOLATILE', 'STRUCTURE TECH3 ECONOMIC', 'STRUCTURE NAVAL TECH3, STRUCTURE NAVAL TECH2', 'STRUCTURE TECH3', 'STRUCTURE TECH2 ECONOMIC', 'STRUCTURE TECH2', 'STRUCTURE VOLATILE, STRUCTURE DEFENSE, STRUCTURE FACTORY, STRUCTURE INTELLIGENCE', 'STRUCTURE', 'NAVAL SHIELD', 'SHIELD', 'EXPERIMENTAL NAVAL', 'EXPERIMENTAL', 'TECH3 NAVAL', 'TECH2 NAVAL', 'INDIRECTFIRE NAVAL', 'TECH3', 'TECH2', 'ALLUNITS'}
 
 
 refbPaused = 'M28UnitPaused' --true if unit is paused
@@ -1642,12 +1643,14 @@ function GetACUHealthRegenRate(oUnit)
 
 end
 
-function SetUnitTargetPriorities(oUnit, tPriorityTable)
+function SetUnitTargetPriorities(oUnit, tPriorityTable, bCheckIfCanAttackGround)
     if IsUnitValid(oUnit) then
         if EntityCategoryContains(refCategoryMAA, oUnit) then M28Utilities.ErrorHandler('Changing weapon priority for MAA') end
         for i =1, oUnit:GetWeaponCount() do
             local wep = oUnit:GetWeapon(i)
-            wep:SetWeaponPriorities(tPriorityTable)
+            if not(bCheckIfCanAttackGround) or not(wep.CannotAttackGround) then
+                wep:SetWeaponPriorities(tPriorityTable)
+            end
         end
     end
 end
@@ -1770,4 +1773,13 @@ function GiveUnitTemporaryVision(oUnit, iVision)
         }
     end
     Buff.ApplyBuff(oUnit, 'CrateVisBuff')
+end
+
+function ToggleUnitDiveOrSurfaceStatus(oUnit)
+    --Assumes have already checked that the unit is or isnt underwater
+    local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
+    M28Orders.IssueTrackedClearCommands(oUnit)
+    IssueDive({oUnit})
+    local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
+    M28Micro.TrackTemporaryUnitMicro(oUnit, 1)
 end

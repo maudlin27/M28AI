@@ -367,9 +367,12 @@ function OnEnhancementComplete(oUnit, sEnhancement)
         if bDebugMessages == true then LOG(sFunctionRef..': Enhancement completed for self='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; sEnhancement='..reprs(sEnhancement)) end
         M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit)
         M28UnitInfo.RecordUnitRange(oUnit) --Refresh the range incase enhancement has increased anything
+        --Update ACU upgrade count
+        if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+            oUnit[M28ACU.refiUpgradeCount] = (oUnit[M28ACU.refiUpgradeCount] or 0) + 1
+        end
         if oUnit:GetAIBrain().M28AI then
             if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
-                oUnit[M28ACU.refiUpgradeCount] = (oUnit[M28ACU.refiUpgradeCount] or 0) + 1
                 M28ACU.GetUpgradePathForACU(oUnit)
             end
             --Remove any upgrade tracking
@@ -831,6 +834,8 @@ function OnConstructed(oEngineer, oJustBuilt)
             elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer * categories.TECH3, oJustBuilt.UnitId) then
                 --Late game - destroy lower tech engineers to help with pathing (up to 2 for every T3 engi built)
                 ForkThread(M28Engineer.ConsiderDestroyingLowTechEngineers, oJustBuilt)
+            elseif EntityCategoryContains(categories.MOBILE * categories.SUBMERSIBLE, oJustBuilt.UnitId) then
+                ForkThread(M28Navy.DelayedCheckIfShouldSubmerge, oJustBuilt)
             end
 
             --Update economy tracking (this function will check if it is an economic unit as part of it)
@@ -1104,9 +1109,11 @@ function OnCreate(oUnit)
                     M28Air.AddPriorityAirDefenceTarget(oUnit)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) then
                     --Weapon priorities
-                    M28UnitInfo.SetUnitTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityGunship)
+                    M28UnitInfo.SetUnitTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityGunship, true)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryDestroyer, oUnit.UnitId) then
-                    M28UnitInfo.SetUnitTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityDestroyer)
+                    M28UnitInfo.SetUnitTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityDestroyer, true)
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryMissileShip + M28UnitInfo.refCategoryCruiser, oUnit.UnitId) then
+                    M28UnitInfo.SetUnitTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityMissileShip, true)
                 end
                 --Check unit cap
                 if (oUnit[M28Overseer.refiExpectedRemainingCap] or 0) <= 100 then

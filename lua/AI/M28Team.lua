@@ -21,6 +21,7 @@ local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 local M28Config = import('/mods/M28AI/lua/M28Config.lua')
 local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
+local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
 
 
 --Team data variables
@@ -106,6 +107,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refbEnemySMDDiedSinceLastNukeCheck = 'M28TeamESMDDied' --True when enemy SMD is dies, used to decide to rerun logic for identifying nuke land zone targets for deciding whether to build nuke
     refbEnemyHasSub = 'M28EnemyHasSub' --true if enemy has sub - used to be more cautious with ACU
     reftEnemyACUs = 'M28EnemyACUs' --Table of all enemy ACUs
+    refbEnemyHasUpgradedACU = 'M28TeamEnUpgACU' --true if enemy has an ACU that is upgrading or upgraded
     reftCoreLZsTimeOfApproachingACUByPlateauAndZone = 'M28TApprACULZ' --table, entry [iPlateau][iLandZoneRef], returns gametimeseconds that flagged as having an approaching ACU
 
     subrefiAlliedDFThreat = 'M28TeamDFThreat' --Total DF threat
@@ -2012,9 +2014,29 @@ function TeamEconomyRefresh(iM28Team)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function CheckEnemyACUStatus(iTeam)
+    if not(tTeamData[iTeam][refbEnemyHasUpgradedACU]) then
+        local aiBrain
+        for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
+            aiBrain = oBrain
+            break
+        end
+        if M28Utilities.IsTableEmpty(tTeamData[iTeam][reftEnemyACUs]) == false then
+            for iACU, oACU in  tTeamData[iTeam][reftEnemyACUs] do
+                if M28UnitInfo.IsUnitValid(oACU) and (M28Conditions.CanSeeUnit(aiBrain, oACU, false) or GetGameTimeSeconds() >= 600) then --after 10m of gametime a human would assume enemy will have gun anyway
+                    if oACU:IsUnitState('Upgrading') or (oACU[M28ACU.refiUpgradeCount] or 0) > 0 then
+                        tTeamData[iTeam][refbEnemyHasUpgradedACU] = true
+                    end
+                end
+            end
+        end
+    end
+end
+
 function TeamOverseer(iM28Team)
     while tTeamData[iM28Team][subrefiActiveM28BrainCount] > 0 do
         ForkThread(TeamEconomyRefresh, iM28Team)
+        ForkThread(CheckEnemyACUStatus, iM28Team)
         WaitTicks(10)
     end
 end

@@ -374,7 +374,7 @@ function ManageAllWaterZones(aiBrain, iTeam)
             if bDebugMessages == true then LOG(sFunctionRef..': Warning - no water zones found for pond '..iPond) end
         end
         --1-of flag in game where will switch to using frigates as scouts for a pond (done as 1-off as not sure if will cause issues with scout logic if switch between having frigates acting as scouts and then not later; would probably work ok though if after testing decide want to change
-        if not(bAlreadyUsingFrigatesAsScouts) and not(bHaveCoreWZWithAdjacentEnemies) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 25 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] >= 3 and M28Team.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryNavalSurface) >= 20 then
+        if not(bAlreadyUsingFrigatesAsScouts) and not(bHaveCoreWZWithAdjacentEnemies) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 25 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] >= 3 and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryNavalSurface) >= 20 then
             M28Team.tTeamData[iTeam][M28Team.subrefbUseFrigatesAsScoutsByPond][iPond] = true
         end
     end
@@ -1537,7 +1537,7 @@ function RecordClosestAdjacentRangesAndEnemies(tWZData, tWZTeamData, iPond, iWat
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering adjacent WZ '..iAdjWaterZone..'; tAltWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange]='..tAltWZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange]..'; tAltWZTeamData[M28Map.subrefWZBestEnemyDFRange]='..tAltWZTeamData[M28Map.subrefWZBestEnemyDFRange]) end
                 if M28Utilities.IsTableEmpty(tAltWZTeamData[M28Map.subrefTEnemyUnits]) == false and tAltWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 10 then
                     for iUnit, oUnit in tAltWZTeamData[M28Map.subrefTEnemyUnits] do
-                        if oUnit[M28UnitInfo.refiDFRange] > 0 or oUnit[M28UnitInfo.refiAntiNavyRange] > 0 then
+                        if M28UnitInfo.IsUnitValid(oUnit) and (oUnit[M28UnitInfo.refiDFRange] > 0 or oUnit[M28UnitInfo.refiAntiNavyRange] > 0) then
                             iCurDistUntilInRange = M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], tMidpoint) - math.max((oUnit[M28UnitInfo.refiDFRange] or 0), (oUnit[M28UnitInfo.refiAntiNavyRange] or 0))
                             if iCurDistUntilInRange < iLowestDistUntilInRange then
                                 oLowestDFDistUntilInRange = oUnit
@@ -3049,4 +3049,21 @@ function UpdateZoneIntelForSonar(oSonar)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+
+function DelayedCheckIfShouldSubmerge(oJustBuilt)
+    --Call via fork thread just after unit is built
+    WaitSeconds(3)
+    if M28UnitInfo.IsUnitValid(oJustBuilt) then
+        local bWantToBeUnderwater
+        if EntityCategoryContains(M28UnitInfo.refCategorySeraphimDestroyer, oJustBuilt.UnitId) then
+            bWantToBeUnderwater = false
+        else
+            bWantToBeUnderwater = true
+        end
+        if not(M28UnitInfo.IsUnitUnderwater(oJustBuilt) == bWantToBeUnderwater) then
+            M28UnitInfo.ToggleUnitDiveOrSurfaceStatus(oJustBuilt)
+        end
+    end
 end

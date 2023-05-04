@@ -336,9 +336,9 @@ function CanBuildOnHydroLocation(tHydroLocation)
 end
 
 function IsUnitVisibleSEEBELOW()  end --To help with finding canseeunit
-function CanSeeUnit(aiBrain, oUnit, bFalseIfOnlySeeBlip)
+function CanSeeUnit(aiBrain, oUnit, bReturnFalseIfOnlySeeBlip)
     --returns true if aiBrain can see oUnit
-    --bFalseIfOnlySeeBlip - if true, then returns false if can see the blip but have never seen what the unit was for the blip; defaults to false
+    --bReturnFalseIfOnlySeeBlip - if true, then returns false if can see the blip but have never seen what the unit was for the blip; defaults to false
     local iUnitBrain = oUnit:GetAIBrain()
     if iUnitBrain == aiBrain then return true
     else
@@ -350,7 +350,7 @@ function CanSeeUnit(aiBrain, oUnit, bFalseIfOnlySeeBlip)
             else
                 local oBlip = oUnit:GetBlip(iArmyIndex)
                 if oBlip then
-                    if bFalseIfOnlySeeBlip and not(oBlip:IsSeenEver(iArmyIndex)) then return false
+                    if bReturnFalseIfOnlySeeBlip and not(oBlip:IsSeenEver(iArmyIndex)) then return false
                     else return true
                     end
                 end
@@ -554,7 +554,7 @@ function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, 
     for iUnit, oUnit in tUnitsToCheck do
         if M28UnitInfo.IsUnitValid(oUnit) then
             iCurDist = M28Utilities.GetDistanceBetweenPositions(tStartPosition, oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])
-            if bIncludeAngleChecks and M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tStartPosition), M28UnitInfo.GetUnitFacingAngle(oUnit)) <= iAngleDifferenceThreshold then
+            if bIncludeAngleChecks and EntityCategoryContains(categories.MOBILE, oUnit.UnitId) and M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tStartPosition), M28UnitInfo.GetUnitFacingAngle(oUnit)) <= iAngleDifferenceThreshold then
                 if bDebugMessages == true then LOG(sFunctionRef..': Unit facing angle='..M28UnitInfo.GetUnitFacingAngle(oUnit)..'; Angle to start position='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tStartPosition)..'; so will adjust iCurDist '..iCurDist..' by iAngleDistMod='..iAngleDistMod) end
                 iCurDist = iCurDist + iAngleDistMod
             end

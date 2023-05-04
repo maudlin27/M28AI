@@ -946,7 +946,7 @@ function RecordClosestAdjacentEnemiesAndGetBestEnemyRange(tLZData, tLZTeamData, 
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering adjacent LZ '..iAdjLandZone..'; Enemy mobile DF for this LZ='..tAltLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange]..'; Mobile structure range='..tAltLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange]..'; Mobile indirect='..tAltLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange]) end
                 if M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subrefTEnemyUnits]) == false and tAltLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 10 then
                     for iUnit, oUnit in tAltLZTeamData[M28Map.subrefTEnemyUnits] do
-                        if oUnit[M28UnitInfo.refiDFRange] > 0 and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout - categories.SERAPHIM, oUnit.UnitId)) then
+                        if M28UnitInfo.IsUnitValid(oUnit) and oUnit[M28UnitInfo.refiDFRange] > 0 and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout - categories.SERAPHIM, oUnit.UnitId)) then
                             iCurDistUntilInRange = M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], tMidpoint) - oUnit[M28UnitInfo.refiDFRange]
                             if iCurDistUntilInRange < iLowestDistUntilInRange then
                                 oLowestDFDistUntilInRange = oUnit
@@ -977,7 +977,7 @@ function RecordClosestAdjacentEnemiesAndGetBestEnemyRange(tLZData, tLZTeamData, 
 
                     for iUnit, oUnit in tWZTeamData[M28Map.reftoNearestCombatEnemies] do
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with DF range='..(oUnit[M28UnitInfo.refiDFRange] or 0)) end
-                        if (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 then
+                        if M28UnitInfo.IsUnitValid(oUnit) and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 then
                             iCurDistUntilInRange = M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], tMidpoint) - oUnit[M28UnitInfo.refiDFRange]
                             if bDebugMessages == true then LOG(sFunctionRef..': iCurDistUntilInRange='..iCurDistUntilInRange) end
                             if iCurDistUntilInRange < iLowestDistUntilInRange then
@@ -2213,6 +2213,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
                 local tSkirmisherEnemies = {}
                 for iUnit, oUnit in tLZTeamData[M28Map.reftoNearestDFEnemies] do
+                    --if bDebugMessages == true then LOG(sFunctionRef..': In scenario 1, including enemy unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' in skirmisher enemy table, is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
                     table.insert(tSkirmisherEnemies, oUnit)
                 end
                 table.insert(tSkirmisherEnemies, oNearestEnemyToMidpoint)
@@ -2760,16 +2761,38 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             end
             tIndirectUnits = nil
         end
+        local tRemainingLandUnits = {}
         if M28Utilities.IsTableEmpty(tDFUnits) == false then
             for iUnit, oUnit in tDFUnits do
-                M28Orders.IssueTrackedMove(oUnit, tLZTeamData[M28Map.reftClosestEnemyBase], 6, false, 'MTDEnB'..iLandZone)
+                table.insert(tRemainingLandUnits, oUnit)
             end
         end
         if M28Utilities.IsTableEmpty(tIndirectUnits) == false then
             for iUnit, oUnit in tIndirectUnits do
-                M28Orders.IssueTrackedAggressiveMove(oUnit, tLZTeamData[M28Map.reftClosestEnemyBase], 10, false, 'MTIEnB'..iLandZone)
+                table.insert(tRemainingLandUnits, oUnit)
             end
         end
+        if M28Utilities.IsTableEmpty(tRemainingLandUnits) == false then
+            --Can we path to the enemy base with land? if so then send units to it
+            if NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint]) then
+                for iUnit, oUnit in tRemainingLandUnits do
+                    M28Orders.IssueTrackedMove(oUnit, tLZTeamData[M28Map.reftClosestEnemyBase], 6, false, 'MTDEnB'..iLandZone)
+                end
+                tRemainingLandUnits = nil
+            end
+            if M28Utilities.IsTableEmpty(tRemainingLandUnits) == false then
+                --Cant go to enemy base, so just follow land scouting path
+                if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath]) == false then
+                    --Patrol the land zone
+                    for iUnit, oUnit in tRemainingLandUnits do
+                        M28Orders.PatrolPath(oUnit, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath], false, 'SP')
+                    end
+                else
+                    --Do nothing
+                end
+            end
+        end
+        --M28Orders.IssueTrackedMove(oUnit, tLZTeamData[M28Map.reftClosestEnemyBase], 6, false, 'MTDEnB'..iLandZone)
     end
 
     if bDebugMessages == true then LOG(sFunctionRef..': End of code for iLandZOne '..iLandZone..', bWantReinforcements='..tostring(bWantReinforcements)..'; bWantIndirectReinforcements='..tostring(bWantIndirectReinforcements)) end
