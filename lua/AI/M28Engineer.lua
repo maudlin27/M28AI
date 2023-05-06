@@ -122,6 +122,8 @@ refActionAssistUpgrade = 61
 refActionReclaimEnemyUnit = 62
 refActionBuildSecondMassStorage = 63
 refActionCompletePartBuiltMex = 64
+refActionBuildExperimentalNavy = 65
+refActionBuildGameEnder = 65
 
 --tiEngiActionsThatDontBuild = {refActionReclaimArea, refActionSpare, refActionNavalSpareAction, refActionHasNearbyEnemies, refActionReclaimFriendlyUnit, refActionReclaimTrees, refActionUpgradeBuilding, refActionAssistSMD, refActionAssistTML, refActionAssistMexUpgrade, refActionAssistAirFactory, refActionAssistNavalFactory, refActionUpgradeHQ, refActionAssistNuke, refActionLoadOntoTransport, refActionAssistShield}
 
@@ -156,6 +158,8 @@ tiActionCategory = {
     [refActionAssistShield] = M28UnitInfo.refCategoryFixedShield * categories.TECH3,
     [refActionBuildSecondMassStorage] = M28UnitInfo.refCategoryMassStorage,
     [refActionCompletePartBuiltMex] = M28UnitInfo.refCategoryT1Mex,
+    [refActionBuildExperimentalNavy] = M28UnitInfo.refCategoryAllNavy * categories.EXPERIMENTAL,
+    [refActionBuildGameEnder] = M28UnitInfo.refCategoryGameEnder,
 }
 
 tiActionOrder = {
@@ -199,6 +203,8 @@ tiActionOrder = {
     [refActionReclaimEnemyUnit] = M28Orders.refiOrderIssueReclaim,
     [refActionBuildSecondMassStorage] = M28Orders.refiOrderIssueBuild,
     [refActionCompletePartBuiltMex] = M28Orders.refiOrderIssueBuild,
+    [refActionBuildExperimentalNavy] = M28Orders.refiOrderIssueBuild,
+    [refActionBuildGameEnder] = M28Orders.refiOrderIssueBuild,
 }
 
 --Adjacent categories to search for for a particular action
@@ -3210,7 +3216,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     local sFunctionRef = 'ConsiderActionToAssign'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iActionToAssign == refActionBuildEmergencyPD and iLandOrWaterZone == 7 then bDebugMessages = true end
 
     if iTotalBuildPowerWanted < 0 then M28Utilities.ErrorHandler('Have negative BP wanted') end
 
@@ -4092,7 +4098,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     local sFunctionRef = 'ConsiderCoreBaseLandZoneEngineerAssignment'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iLandZone == 7 then bDebugMessages = true end
     --For land zones in the core base
     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
     local toAvailableEngineersByTech, toAssignedEngineers = FilterToAvailableEngineersByTech(tEngineers, true, tLZData, tLZTeamData, iTeam, iPlateau, iLandZone)
@@ -4164,6 +4170,39 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     if bDebugMessages == true then LOG(sFunctionRef..': T3 AA builder - iBPWanted='..iBPWanted) end
                 end
             end
+        end
+    end
+
+    --First T2 PD emergency builder if we have no T2 PD and nearby enemy threat
+    --Approaching enemy guncom - prioritise upgrades if dont have T2, if do have T2 then get T2 PD
+    iCurPriority = iCurPriority + 1
+    local iApproachingACUThreat, tNearestEnemyACU = M28Conditions.GetThreatOfApproachingEnemyACUsAndNearestACU(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam)
+    if bDebugMessages == true then LOG(sFunctionRef..': Checking if emergency PD is needed, iApproachingACUThreat='..iApproachingACUThreat) end
+    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 25 and ((iApproachingACUThreat > 0 and M28Team.tTeamData[iTeam][M28Team.refbEnemyHasUpgradedACU]) or (tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false)) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 then
+        --We have T2 (or only need T1 due to enemy not having gun), so want to build PD
+        local iRangeThreshold = 35 --Range of Aeon guncom
+        local iCurPDThreat = 0
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange]) == false then
+            for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange] do
+                if iRange >= iRangeThreshold then
+                    iCurPDThreat = iCurPDThreat + iThreat
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': We have T2 or better, iCurPDThreat='..iCurPDThreat..'; iAppraochingACUThreat='..iApproachingACUThreat) end
+        if iCurPDThreat <= 470 then
+            iBPWanted = 40
+            if not(bHaveLowMass) and not(bHaveLowPower) then iBPWanted = 80 end
+            local tTargetBuildLocation
+            if tNearestEnemyACU then
+                tTargetBuildLocation = GetStartSearchPositionForEmergencyPD(tNearestEnemyACU, tLZData[M28Map.subrefMidpoint], iPlateau, iLandZone)
+            else
+                local oNearestEnemy = M28Utilities.GetNearestUnit(tLZTeamData[M28Map.reftoNearestDFEnemies], tLZData[M28Map.subrefMidpoint], true, M28Map.refPathingTypeLand)
+                local tTargetBuildLocation = GetStartSearchPositionForEmergencyPD(oNearestEnemy:GetPosition(), tLZData[M28Map.subrefMidpoint], iPlateau, iLandZone)
+            end
+
+            HaveActionToAssign(refActionBuildEmergencyPD, 2, iBPWanted, tTargetBuildLocation)
+            if bDebugMessages == true then LOG(sFunctionRef..': Will build emergency PD') end
         end
     end
 
@@ -4239,6 +4278,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             if bDebugMessages == true then LOG(sFunctionRef..': AA builder if no fixed AA: iBPWanted='..iBPWanted..'; tLZTeamData[M28Map.refiEnemyAirToGroundThreat]='..tLZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; subrefiAlliedGroundAAThreat='..tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]) end
         end
     end
+
 
     --Start of game - if low power and dont ahve 12 gross energy yet, then ahve 1 engi on tree reclaim duty
     iCurPriority = iCurPriority + 1
@@ -4455,7 +4495,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --Approaching enemy guncom - prioritise upgrades if dont have T2, if do have T2 then get T2 PD
     iCurPriority = iCurPriority + 1
-    local iApproachingACUThreat, tNearestEnemyACU = M28Conditions.GetThreatOfApproachingEnemyACUsAndNearestACU(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam)
     if bDebugMessages == true then LOG(sFunctionRef..': Checking if emergency PD is needed, iApproachingACUThreat='..iApproachingACUThreat) end
     if iApproachingACUThreat > 0 then
         --Do we have T2 (or a teammate has t3)?
@@ -5076,6 +5115,13 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         HaveActionToAssign(refActionAssistUpgrade, 1, 10, false, false)
     end
 
+    --Game ender builder (in addition to normal experimental builders) - intended for extreme scenarios where overflowing lots of mass
+    iCurPriority = iCurPriority + 1
+    if not(bHaveLowPower) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 95 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.55 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= 20 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 10000 then
+        iBPWanted = 45
+        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 125 then iBPWanted = 90 end
+        HaveActionToAssign(refActionBuildGameEnder, 3,                     iBPWanted,      nil,                false,                      true)
+    end
     UpdateSpareEngineerNumber(tLZTeamData, toAvailableEngineersByTech)
 
     --Spare engi - assist any upgrading unit
@@ -6007,6 +6053,19 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
             end
         end
     end
+
+    --Experimental naval unit for very high mass levels
+    if tWZTeamData[M28Map.subrefWZbCoreBase] then bDebugMessages = true end
+    iCurPriority = iCurPriority + 1
+    if tWZTeamData[M28Map.subrefWZbCoreBase] and not(bHaveLowMass) and not(bHaveLowPower) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.4 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 35 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= 5 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > -1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 80)) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] >= 3 and (not(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]) or (tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] >= 12500 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.7)) then
+        --Likely have the eco to get an experimental naval unit, check if we have a lifetime build count of at least 2 T3 naval units
+        if M28Team.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryBattleship) >= 2 then
+            iBPWanted = 45
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.6 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= 10 then iBPWanted = 90 end
+            HaveActionToAssign(refActionBuildExperimentalNavy, 3, iBPWanted, false, false, true)
+        end
+    end
+
 
 
     --spare engis - If still have an engineer available and there is reclaim in the WZ of any kind, and we arent overflowing, then reclaim (but dont request engineers for this)

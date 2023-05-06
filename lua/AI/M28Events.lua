@@ -570,6 +570,10 @@ function OnWeaponFired(oWeapon)
                             if bDebugMessages == true then LOG(sFunctionRef..': have set time of last launch to '..oUnit[M28Building.refoLastTMLTarget][M28Building.refiTimeOfLastLaunch]..' for target '..oUnit[M28Building.refoLastTMLTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit[M28Building.refoLastTMLTarget])) end
                         end
                     end
+                    --SML, TML and SMD - unpause (if paused)
+                    if EntityCategoryContains(M28UnitInfo.refCategorySML + M28UnitInfo.refCategorySMD + M28UnitInfo.refCategoryTML, oUnit.UnitId) then
+                        M28UnitInfo.PauseOrUnpauseEnergyUsage(oUnit, false)
+                    end
                 end
             end
         end

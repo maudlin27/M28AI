@@ -541,6 +541,7 @@ function GetACUUpgradeWanted(oACU)
             else
                 iResourceFactor = 4 --Cant path to enemy except with air
             end
+            if oACU[refiUpgradeCount] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 2 then iResourceFactor = iResourceFactor * 1.3 end
             if oACU[refbStartedUnderwater] and (tEnhancement.ProductionPerSecondEnergy or 0) > 20 then iResourceFactor = 0.5 end
             local iDistToEnemyBase
             local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
@@ -558,13 +559,13 @@ function GetACUUpgradeWanted(oACU)
 
             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingACUs]) == false then iActiveACUUpgrades = table.getn(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingACUs]) end
             if bDebugMessages == true then LOG(sFunctionRef..': Considering if we have enough resources to get this upgrade, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Net mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]..'; Other active upgrades='..iActiveACUUpgrades..'; Is safe to get upgrade='..tostring(M28Conditions.SafeToUpgradeUnit(oACU))..'; iEnergyCostPerTick='..iEnergyCostPerTick..'; iMassCostPerTick='..iMassCostPerTick..'; iResourceFactor'..iResourceFactor..'; iDistToEnemyBase='..iDistToEnemyBase..'; oACU[refiUpgradeCount]='..oACU[refiUpgradeCount]..'; aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]='..tostring(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand])..'; Have low mass='..tostring(M28Conditions.HaveLowMass(aiBrain))) end
-            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 45 * iActiveACUUpgrades + iResourceFactor * iEnergyCostPerTick * 1.35 then
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 45 * iActiveACUUpgrades * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] + iResourceFactor * iEnergyCostPerTick * 1.35 then
                 --Do we have enough gross mass?
-                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= iActiveACUUpgrades + iResourceFactor * 2.5 * iMassCostPerTick * 2 then
+                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= iActiveACUUpgrades * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] + iResourceFactor * 2.5 * iMassCostPerTick * 2 then
                     --Do we have enough net energy?
-                    if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= iActiveACUUpgrades + iResourceFactor * 100 * iEnergyCostPerTick * 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 5) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= iEnergyCostPerTick * math.min(2.5, iResourceFactor * 0.4) then
+                    if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= iActiveACUUpgrades * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] + iResourceFactor * 100 * iEnergyCostPerTick * 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 5) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= iEnergyCostPerTick * math.min(2.5, iResourceFactor * 0.4) then
                         --Do we have enoguh net mass?
-                        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= iActiveACUUpgrades + iResourceFactor * 3.5 * iMassCostPerTick * 3 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= iMassCostPerTick * math.min(2.5, iResourceFactor * 0.4) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= math.min(3, iResourceFactor) * tEnhancement.BuildCostMass * 0.5 then
+                        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= iActiveACUUpgrades * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] + iResourceFactor * 3.5 * iMassCostPerTick * 3 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= iMassCostPerTick * math.min(2.5, iResourceFactor * 0.4) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= math.min(3, iResourceFactor) * tEnhancement.BuildCostMass * 0.5 then
                             sUpgradeWanted = sPotentialUpgrade
                         end
                     end
@@ -904,7 +905,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                 if not(bUnitInFurtherAwayZoneWeRanFrom) then
                     --iCurDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oUnit:GetPosition())
                     iCurDist = M28Utilities.GetTravelDistanceBetweenPositions(oACU:GetPosition(), oUnit:GetPosition(), sPathing)
-                    if iCurDist < iClosestDist then
+                    if iCurDist and iCurDist < iClosestDist then
                         iClosestDist = iCurDist
                         oEnemyToTarget = oUnit
                     end
