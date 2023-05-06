@@ -31,6 +31,7 @@ refPathingTypeAll = {refPathingTypeHover, refPathingTypeNavy, refPathingTypeAir,
 
 --Map size
 rMapPlayableArea = {0,0, 256, 256} --{x1,z1, x2,z2} - Set at start of the game, use instead of the scenarioinfo method; note that x0 z0 is the top-left corner of the map
+iMapSize = 256 -- average of the rmap playable area difs, e.g. 256 for a 5kmx5km, but smaller than this if its 2.5kmx5km
 iMaxLandSegmentX = 1
 iMaxLandSegmentZ = 1
 
@@ -649,6 +650,7 @@ local function SetupPlayableAreaAndSegmentSizes()
     else
         rMapPlayableArea = {0, 0, ScenarioInfo.size[1], ScenarioInfo.size[2]}
     end
+    iMapSize = (rMapPlayableArea[3] - rMapPlayableArea[1] + rMapPlayableArea[4] - rMapPlayableArea[2]) * 0.5
 
 
     --Decide on land zone segment sizes

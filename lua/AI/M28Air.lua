@@ -515,8 +515,12 @@ function RemoveAssignedAttacker(oTarget, oOldBomber)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RemoveAssignedAttacker'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-    oTarget[refiStrikeDamageAssigned] = math.max(0, (oTarget[refiStrikeDamageAssigned] or 0) - oOldBomber[M28UnitInfo.refiStrikeDamage])
+    if not(oOldBomber[M28UnitInfo.refiStrikeDamage]) then
+        M28Utilities.ErrorHandler('Bomber '..(oOldBomber.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oOldBomber) or 'nil')..' doesnt have any strike damage, will reset unit strike damage assignment')
+        oTarget[refiStrikeDamageAssigned] = 0
+    else
+        oTarget[refiStrikeDamageAssigned] = math.max(0, (oTarget[refiStrikeDamageAssigned] or 0) - oOldBomber[M28UnitInfo.refiStrikeDamage])
+    end
     oOldBomber[refoStrikeDamageAssigned] = nil
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

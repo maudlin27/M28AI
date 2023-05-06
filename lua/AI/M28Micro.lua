@@ -936,7 +936,7 @@ function TurnAirUnitAndMoveToTarget(aiBrain, oBomber, tDirectionToMoveTo, iMaxAc
 end
 
 function MoveAwayFromFactory(oUnit, oFactory)
-    if EntityCategoryContains(categories.STRUCTURE, oFactory.UnitId) and not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId)) then
+    if EntityCategoryContains(categories.STRUCTURE, oFactory.UnitId) then --and not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId)) then
         local aiBrain = oFactory:GetAIBrain()
         if aiBrain.M28AI then --redundancy
             local iTeam = aiBrain.M28Team

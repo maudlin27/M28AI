@@ -61,6 +61,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiTimeOfLastEngiSelfDestruct = 'M28TeamTimeOfLastEnegiSelfDestruct'
     refbNeedResourcesForMissile = 'M28TeamNeedResourcesForMissile' --true if are building nuke or smd that needs a missile
     refiTimeOfLastOverflowEngiCheck = 'M28TeamOverflowCheck' --gametimeseconds that we last cleared engineers from recliaming
+    refiUpgradedMexCount = 'M28TeamUpgradedMexCount'
 
     subreftTeamUpgradingHQs = 'M28TeamUpgradingHQs'
     subreftTeamUpgradingMexes = 'M28TeamUpgradingMexes'
@@ -1330,13 +1331,14 @@ function ConsiderPriorityLandFactoryUpgrades(iM28Team)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --Enemy has better land tech than us, and we have no active land upgrades
 
-    if bDebugMessages == true then LOG(sFunctionRef..': tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech]='..(tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] or 'nil')..'; tTeamData[iM28Team][subrefiHighestEnemyGroundTech]='..(tTeamData[iM28Team][subrefiHighestEnemyGroundTech] or 'nil')) end
+    if bDebugMessages == true then LOG(sFunctionRef..': tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech]='..(tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] or 'nil')..'; tTeamData[iM28Team][subrefiHighestEnemyGroundTech]='..(tTeamData[iM28Team][subrefiHighestEnemyGroundTech] or 'nil')..'; Lifetime combat count='..M28Conditions.GetTeamLifetimeBuildCount(iM28Team, (M28UnitInfo.refCategoryLandCombat * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + M28UnitInfo.refCategoryIndirect * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech])) ) >= 20 * (2-tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + 12) end
     if tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] > 0 and tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] < 3 and (tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] < tTeamData[iM28Team][subrefiHighestEnemyGroundTech] or (tTeamData[iM28Team][subrefiTeamGrossMass] >= 3.5 and tTeamData[iM28Team][subrefiTeamMassStored] >= 300 and (tTeamData[iM28Team][subrefiTeamGrossMass] >= 8.5 or tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] == 1 or M28Conditions.GetTeamLifetimeBuildCount(iM28Team, (M28UnitInfo.refCategoryLandCombat * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + M28UnitInfo.refCategoryIndirect * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech])) ) >= 20 * (2-tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + 12))) then
         local bWantUpgrade = false
         for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
             --Can we path to the nearest enemy with land, and we are behind enemy tech level with land or have lots of mass?
             if bDebugMessages == true then LOG(sFunctionRef..': Considering oBrain '..oBrain.Nickname..'; oBrain[M28Map.refbCanPathToEnemyBaseWithLand]='..tostring(oBrain[M28Map.refbCanPathToEnemyBaseWithLand])..'; oBrain[M28Economy.refiOurHighestLandFactoryTech]='..oBrain[M28Economy.refiOurHighestLandFactoryTech]) end
-            if oBrain[M28Map.refbCanPathToEnemyBaseWithLand] and oBrain[M28Economy.refiOurHighestLandFactoryTech] > 0 and (oBrain[M28Economy.refiOurHighestLandFactoryTech] < tTeamData[iM28Team][subrefiHighestEnemyGroundTech] or tTeamData[iM28Team][subrefiTeamGrossMass] >= 6.5 and tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 50) then
+
+            if oBrain[M28Map.refbCanPathToEnemyBaseWithLand] and oBrain[M28Economy.refiOurHighestLandFactoryTech] > 0 and (oBrain[M28Economy.refiOurHighestLandFactoryTech] < tTeamData[iM28Team][subrefiHighestEnemyGroundTech] or (tTeamData[iM28Team][subrefiTeamGrossMass] >= 6.5 and tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 50) or M28Conditions.GetTeamLifetimeBuildCount(iM28Team, (M28UnitInfo.refCategoryLandCombat * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + M28UnitInfo.refCategoryIndirect * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]))) >= 20 * (2-tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + 15) then
                 --Do we have any active land factory upgrades?
                 bWantUpgrade = not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryLandHQ))
 
@@ -1375,17 +1377,20 @@ function ConsiderPriorityAirFactoryUpgrades(iM28Team)
 
         --Upgrading from T2 to T3 - Do we only have 1 air fac for the brain, and has it not yet built at least 5 units of that tech (or 15 of any tech) yet?
         local bWaitUntilBuiltMoreUnits = false
-        if tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech] == 2 then
+        if tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech] == 2 and tTeamData[iM28Team][subrefiHighestEnemyAirTech] < 3 then
             bWaitUntilBuiltMoreUnits = true
             for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
                 local tT2AirFactories = oBrain:GetListOfUnits(M28UnitInfo.refCategoryAirFactory * categories.TECH2, false, true)
                 if M28Utilities.IsTableEmpty(tT2AirFactories) == false then
+                    if bDebugMessages == true then LOG(sFunctionRef..': T2 air fac count for brain '..oBrain.Nickname..'='..table.getn(tT2AirFactories)) end
                     if table.getn(tT2AirFactories) >= 2 then
                         bWaitUntilBuiltMoreUnits = false
                         break
                     else
                         for iUnit, oUnit in tT2AirFactories do
-                            if M28Conditions.GetFactoryLifetimeCount(oUnit, categories.TECH2) >= 5 or M28Conditions.GetFactoryLifetimeCount(oUnit, categories.TECH1) >= 12 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Lifetime build count for T2 air for factory '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'='..M28Conditions.GetFactoryLifetimeCount(oUnit, categories.AIR * categories.TECH2)..'; Lifetime T1+T2 count='..M28Conditions.GetFactoryLifetimeCount(oUnit, categories.TECH1 + categories.TECH2)) end
+                            if M28Conditions.GetFactoryLifetimeCount(oUnit, categories.AIR * categories.TECH2) >= 5 or M28Conditions.GetFactoryLifetimeCount(oUnit, categories.TECH1 + categories.TECH2) >= 15 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': AIr fac has built enough T2 units for us to contemplate T3 upgrade') end
                                 bWaitUntilBuiltMoreUnits = false
                                 break
                             end
@@ -1588,6 +1593,7 @@ function GetSafeMexToUpgrade(iM28Team)
 end
 
 function GetSafeHQUpgrade(iM28Team, bOnlyConsiderLandFactory)
+    --if bRunningThisAsBackupUpgradeOption then wont upgrade T2 land fac that hasnt built much
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetSafeHQUpgrade'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -1621,13 +1627,27 @@ function GetSafeHQUpgrade(iM28Team, bOnlyConsiderLandFactory)
             if oBrain[M28Economy.refiOurHighestAirFactoryTech] == 2 and not(bOnlyConsiderLandFactory) then
                 if not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryAirHQ)) then
                     tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryAirHQ * categories.TECH2, false, true)
-                    AddPotentialUnitsToShortlist(toSafeUnitsToUpgrade, tPotentialUnits)
+                    --Dont add factories that havent built much (for air fac will consider T1+ since may be building inties
+                    for iFactory, oFactory in tPotentialUnits do
+                        if M28Conditions.GetFactoryLifetimeCount(oFactory, categories.MOBILE - M28UnitInfo.refCategoryAirScout) > 5 then
+                            AddPotentialUnitsToShortlist(toSafeUnitsToUpgrade, { oFactory })
+                        end
+                    end
                 end
             end
             if oBrain[M28Economy.refiOurHighestLandFactoryTech] == 2 then
                 if not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryLandHQ)) then
                     tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryLandHQ * categories.TECH2, false, true)
-                    AddPotentialUnitsToShortlist(toSafeUnitsToUpgrade, tPotentialUnits)
+                    if M28Utilities.IsTableEmpty(tPotentialUnits) == false then
+                        for iFactory, oFactory in tPotentialUnits do
+                            --Dont add factories that havent built much
+                            if M28Conditions.GetFactoryLifetimeCount(oFactory, categories.MOBILE * categories.TECH2) > 6 then
+                                AddPotentialUnitsToShortlist(toSafeUnitsToUpgrade, { oFactory })
+                            end
+                        end
+                    end
+
+
                 end
             end
         end
@@ -1653,8 +1673,8 @@ function GetAnyMexOrFactoryToUpgrade(iM28Team)
     local toUnitsThatCouldUpgrade = {}
     local tPotentialUnits
     local bPrioritiseFactory = false
-
-    --First consider any t1 factories (including support factory upgrades)
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()) end
+    --First consider any t1 factories
     for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
         --if oBrain[M28Economy.refiOurHighestAirFactoryTech] == 1 then
         if not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryAirHQ * categories.TECH1)) then
@@ -1691,10 +1711,12 @@ function GetAnyMexOrFactoryToUpgrade(iM28Team)
         for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
             if oBrain[M28Economy.refiOurHighestAirFactoryTech] >= 3 then
                 tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryAirFactory - categories.TECH3, false, true)
+                if bDebugMessages == true then LOG(sFunctionRef..': We have T3+ air for brain '..oBrian.Nickname..' so will upgrade t2 support factories to T3, oBrain[M28Economy.refiOurHighestAirFactoryTech]='..(oBrain[M28Economy.refiOurHighestAirFactoryTech] or 'nil')..'; Is tPotentialUnits empty='..tostring(M28Utilities.IsTableEmpty(tPotentialUnits))) end
                 AddPotentialUnitsToShortlist(toUnitsThatCouldUpgrade, tPotentialUnits, true)
             end
             if oBrain[M28Economy.refiOurHighestLandFactoryTech] >= 3 then
                 tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryLandFactory - categories.TECH3, false, true)
+                if bDebugMessages == true then LOG(sFunctionRef..': We have T3+ land for brain '..oBrain.Nickname..' so will upgrade t2 support factories to T3, oBrain[M28Economy.refiOurHighestLandFactoryTech]='..(oBrain[M28Economy.refiOurHighestLandFactoryTech] or 'nil')..'; Is tPotentialUnits empty='..tostring(M28Utilities.IsTableEmpty(tPotentialUnits))) end
                 AddPotentialUnitsToShortlist(toUnitsThatCouldUpgrade, tPotentialUnits, true)
             end
             if oBrain[M28Economy.refiOurHighestNavalFactoryTech] >= 3 then
@@ -1711,9 +1733,12 @@ function GetAnyMexOrFactoryToUpgrade(iM28Team)
     end
     if M28Utilities.IsTableEmpty(toUnitsThatCouldUpgrade) == false then
         local oUnitToUpgrade = M28Economy.GetBestUnitToUpgrade(toUnitsThatCouldUpgrade)
+        if bDebugMessages == true then LOG(sFunctionRef..': Have potential units to upgrade, oUnitToUpgrade='..(oUnitToUpgrade.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitToUpgrade) or 'nil')) end
         if oUnitToUpgrade then
             M28Economy.UpgradeUnit(oUnitToUpgrade, true)
         end
+    else
+        if bDebugMessages == true then LOG(sFunctionRef..': No potential units to ugprade') end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -1730,97 +1755,101 @@ function HaveEcoToSupportUpgrades(iM28Team)
     if bDebugMessages == true then LOG(sFunctionRef..': Start, GameTime='..GetGameTimeSeconds()..'; Gross energy='..tTeamData[iM28Team][subrefiTeamGrossEnergy]..'; % stored='..tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored]..'; Net energy='..tTeamData[iM28Team][subrefiTeamNetEnergy]..'; tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]='..tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) end
 
     if (tTeamData[iM28Team][subrefiTeamGrossEnergy] >= M28Economy.tiMinEnergyPerTech[tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]] or (tTeamData[iM28Team][subrefiTeamNetEnergy] > 5 * tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] * tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] and tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] >= 0.99)) and tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] >= 0.4 and (tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 25 or tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] >= 0.9) and tTeamData[iM28Team][subrefiTeamNetEnergy] > 0 then
-
-        local iNetEnergyIncomeWanted
-        if tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] >= 0.99 then iNetEnergyIncomeWanted = math.max(-tTeamData[iM28Team][subrefiTeamGrossEnergy] * 0.03, -25)
-        elseif tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] >= 0.95 then iNetEnergyIncomeWanted = tTeamData[iM28Team][subrefiTeamGrossEnergy] * 0.01
-        elseif tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] >= 0.9 then iNetEnergyIncomeWanted = math.max(4, tTeamData[iM28Team][subrefiTeamGrossEnergy] * 0.03)
-        elseif tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] >= 0.7 then iNetEnergyIncomeWanted = math.max(6, tTeamData[iM28Team][subrefiTeamGrossEnergy] * 0.06)
-        else iNetEnergyIncomeWanted = 100
-        end
-
-        if bDebugMessages == true then LOG(sFunctionRef..': Have enough gross energy, iNetEnergyIncomeWanted='..iNetEnergyIncomeWanted) end
-
-        if (tTeamData[iM28Team][subrefiTeamNetEnergy] - tTeamData[iM28Team][subrefiEnergyUpgradesStartedThisCycle] > iNetEnergyIncomeWanted) then
-            tTeamData[iM28Team][subrefbTooLittleEnergyForUpgrade] = false
-            --Do we have enough mass to support the upgrade?
-            local iNetMassIncomeWanted
-            if tTeamData[iM28Team][subrefiTeamMassStored] >= 4000 then
-                if tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.9 then iNetMassIncomeWanted = math.min(-30, -tTeamData[iM28Team][subrefiTeamGrossMass] * 0.3)
-                elseif tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.7 then iNetMassIncomeWanted = math.min(-15, -tTeamData[iM28Team][subrefiTeamGrossMass] * 0.25)
-                elseif tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.4 then iNetMassIncomeWanted = math.min(-4, -tTeamData[iM28Team][subrefiTeamGrossMass] * 0.2)
-                elseif tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.3 then iNetMassIncomeWanted = math.min(-3, - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.15)
-                elseif tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.2 then iNetMassIncomeWanted = math.min(-2, - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.1)
-                else iNetMassIncomeWanted = math.min(-1, - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.075) end
-            else
-                if tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.9 then iNetMassIncomeWanted = math.min(-1.5, -tTeamData[iM28Team][subrefiTeamGrossMass] * 0.3)
-                elseif tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.7 then iNetMassIncomeWanted = math.min(-1.2, -tTeamData[iM28Team][subrefiTeamGrossMass] * 0.25)
-                elseif tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.4 then iNetMassIncomeWanted = math.min(-0.9, -tTeamData[iM28Team][subrefiTeamGrossMass] * 0.2)
-                elseif tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.3 then iNetMassIncomeWanted = math.min(-0.6, - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.15)
-                elseif tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.2 and tTeamData[iM28Team][subrefiTeamMassStored] >= 600 then iNetMassIncomeWanted = math.min(-0.5, - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.1)
-                elseif tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.1 and tTeamData[iM28Team][subrefiTeamMassStored] >= 300 then iNetMassIncomeWanted = math.min(-0.4, - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.075)
-                elseif tTeamData[iM28Team][subrefiTeamMassStored] >= 300 then iNetMassIncomeWanted = - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.05
-                else iNetMassIncomeWanted = 0.1
-                end
+        --If already have active HQ upgrades, then double min energy wanted if net poweri sn't that high
+        if tTeamData[iM28Team][subrefiTeamNetEnergy] > 15 or M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) or tTeamData[iM28Team][subrefiTeamGrossEnergy] >= M28Economy.tiMinEnergyPerTech[tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]] * 2 then
+            local iNetEnergyIncomeWanted
+            if tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] >= 0.99 then iNetEnergyIncomeWanted = math.max(-tTeamData[iM28Team][subrefiTeamGrossEnergy] * 0.03, -25)
+            elseif tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] >= 0.95 then iNetEnergyIncomeWanted = tTeamData[iM28Team][subrefiTeamGrossEnergy] * 0.01
+            elseif tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] >= 0.9 then iNetEnergyIncomeWanted = math.max(4, tTeamData[iM28Team][subrefiTeamGrossEnergy] * 0.03)
+            elseif tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] >= 0.7 then iNetEnergyIncomeWanted = math.max(6, tTeamData[iM28Team][subrefiTeamGrossEnergy] * 0.06)
+            else iNetEnergyIncomeWanted = 100
             end
 
-            if tTeamData[iM28Team][subrefiTeamMassStored] >= 5000 then iNetMassIncomeWanted = math.min(-5, iNetMassIncomeWanted - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.02) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Have enough gross energy, iNetEnergyIncomeWanted='..iNetEnergyIncomeWanted) end
 
-            if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) then
-                iNetMassIncomeWanted = iNetMassIncomeWanted - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.05
-                if tTeamData[iM28Team][subrefiTeamMassStored] >= 600 then iNetMassIncomeWanted = iNetMassIncomeWanted - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.05 end
-            else
-                --Adjust net mass income wanted if we will use up our stored mass quickly and have active mex upgrades
-                if (iNetMassIncomeWanted < 0 and tTeamData[iM28Team][subrefiTeamNetMass] < 0) or tTeamData[iM28Team][subrefiTeamMassStored] <= 650 then
-                    if tTeamData[iM28Team][subrefiTeamMassStored] <= 400 then iNetMassIncomeWanted = math.max(0, iNetMassIncomeWanted)
-                    else
-                        local iTimeUntilUseUpStoredMass = tTeamData[iM28Team][subrefiTeamMassStored] / -10 * (tTeamData[iM28Team][subrefiTeamNetMass] - tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle])
-                        if iTimeUntilUseUpStoredMass <= 80 then
-                            iNetMassIncomeWanted = math.max(-0.2, iNetMassIncomeWanted)
-                        elseif iTimeUntilUseUpStoredMass <= 150 and (tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] >= 3 or (tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] >= 2 and GetGameTimeSeconds() - (tTeamData[iM28Team][refiTimeOfLastEnergyStall] or -20) < 20)) then
-                            iNetMassIncomeWanted = math.max(-0.2, iNetMassIncomeWanted)
+            if (tTeamData[iM28Team][subrefiTeamNetEnergy] - tTeamData[iM28Team][subrefiEnergyUpgradesStartedThisCycle] > iNetEnergyIncomeWanted) then
+                tTeamData[iM28Team][subrefbTooLittleEnergyForUpgrade] = false
+                --Do we have enough mass to support the upgrade?
+                local iNetMassIncomeWanted
+                if tTeamData[iM28Team][subrefiTeamMassStored] >= 4000 then
+                    if tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.9 then iNetMassIncomeWanted = math.min(-30, -tTeamData[iM28Team][subrefiTeamGrossMass] * 0.3)
+                    elseif tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.7 then iNetMassIncomeWanted = math.min(-15, -tTeamData[iM28Team][subrefiTeamGrossMass] * 0.25)
+                    elseif tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.4 then iNetMassIncomeWanted = math.min(-4, -tTeamData[iM28Team][subrefiTeamGrossMass] * 0.2)
+                    elseif tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.3 then iNetMassIncomeWanted = math.min(-3, - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.15)
+                    elseif tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.2 then iNetMassIncomeWanted = math.min(-2, - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.1)
+                    else iNetMassIncomeWanted = math.min(-1, - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.075) end
+                else
+                    if tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.9 then iNetMassIncomeWanted = math.min(-1.5, -tTeamData[iM28Team][subrefiTeamGrossMass] * 0.3)
+                    elseif tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.7 then iNetMassIncomeWanted = math.min(-1.2, -tTeamData[iM28Team][subrefiTeamGrossMass] * 0.25)
+                    elseif tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.4 then iNetMassIncomeWanted = math.min(-0.9, -tTeamData[iM28Team][subrefiTeamGrossMass] * 0.2)
+                    elseif tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.3 then iNetMassIncomeWanted = math.min(-0.6, - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.15)
+                    elseif tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.2 and tTeamData[iM28Team][subrefiTeamMassStored] >= 600 then iNetMassIncomeWanted = math.min(-0.5, - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.1)
+                    elseif tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.1 and tTeamData[iM28Team][subrefiTeamMassStored] >= 300 then iNetMassIncomeWanted = math.min(-0.4, - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.075)
+                    elseif tTeamData[iM28Team][subrefiTeamMassStored] >= 300 then iNetMassIncomeWanted = - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.05
+                    else iNetMassIncomeWanted = 0.1
+                    end
+                end
+
+                if tTeamData[iM28Team][subrefiTeamMassStored] >= 5000 then iNetMassIncomeWanted = math.min(-5, iNetMassIncomeWanted - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.02) end
+
+                if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) then
+                    iNetMassIncomeWanted = iNetMassIncomeWanted - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.05
+                    if tTeamData[iM28Team][subrefiTeamMassStored] >= 600 then iNetMassIncomeWanted = iNetMassIncomeWanted - tTeamData[iM28Team][subrefiTeamGrossMass] * 0.05 end
+                else
+                    --Adjust net mass income wanted if we will use up our stored mass quickly and have active mex upgrades
+                    if (iNetMassIncomeWanted < 0 and tTeamData[iM28Team][subrefiTeamNetMass] < 0) or tTeamData[iM28Team][subrefiTeamMassStored] <= 650 then
+                        if tTeamData[iM28Team][subrefiTeamMassStored] <= 400 then iNetMassIncomeWanted = math.max(0, iNetMassIncomeWanted)
+                        else
+                            local iTimeUntilUseUpStoredMass = tTeamData[iM28Team][subrefiTeamMassStored] / -10 * (tTeamData[iM28Team][subrefiTeamNetMass] - tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle])
+                            if iTimeUntilUseUpStoredMass <= 80 then
+                                iNetMassIncomeWanted = math.max(-0.2, iNetMassIncomeWanted)
+                            elseif iTimeUntilUseUpStoredMass <= 150 and (tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] >= 3 or (tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] >= 2 and GetGameTimeSeconds() - (tTeamData[iM28Team][refiTimeOfLastEnergyStall] or -20) < 20)) then
+                                iNetMassIncomeWanted = math.max(-0.2, iNetMassIncomeWanted)
+                            end
+                        end
+                        --Early game or low gross mass - restrict number of upgrades further
+                        if (tTeamData[iM28Team][subrefiTeamGrossMass] < 2 or GetGameTimeSeconds() <= 300) and tTeamData[iM28Team][subrefiTeamMassStored] <= 650 then
+                            iNetMassIncomeWanted = math.max(0.8, iNetMassIncomeWanted)
                         end
                     end
-                    --Early game or low gross mass - restrict number of upgrades further
-                    if (tTeamData[iM28Team][subrefiTeamGrossMass] < 2 or GetGameTimeSeconds() <= 300) and tTeamData[iM28Team][subrefiTeamMassStored] <= 650 then
-                        iNetMassIncomeWanted = math.max(0.8, iNetMassIncomeWanted)
-                    end
                 end
-            end
 
-            --Very high mass storage level adjustments
-            if tTeamData[iM28Team][subrefiTeamMassStored] >= 5000 and iNetMassIncomeWanted <= -1 then
-                --Want to be spending mass at a rate taht means in 75 seconds we will have used up all the amount stored
-                iNetMassIncomeWanted = math.min(iNetMassIncomeWanted, -tTeamData[iM28Team][subrefiTeamGrossMass] * 0.3, -tTeamData[iM28Team][subrefiTeamMassStored] / 75)
-            end
-
-
-
-
-            if bDebugMessages == true then LOG(sFunctionRef..': Consideringi f have enough mass, tTeamData[iM28Team][subrefiTeamMassStored]='..tTeamData[iM28Team][subrefiTeamMassStored]..'; % mass stored='..tTeamData[iM28Team][subrefiTeamLowestMassPercentStored]..'; Gross mass income='..tTeamData[iM28Team][subrefiTeamGrossMass]..'; Net mass income='..tTeamData[iM28Team][subrefiTeamNetMass]..'; Net mass wanted='..iNetMassIncomeWanted..'; Is table of upgrading mexes empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]))..'; tTeamData[iM28Team][subreftiPrevTeamNetMass]='..repru(tTeamData[iM28Team][subreftiPrevTeamNetMass])) end
-            --Average out our mass from the last 5 cycles as well
-            local iLowestNetMass = tTeamData[iM28Team][subrefiTeamNetMass]
-            for iLastEntry = 1, 5 do
-                iLowestNetMass = math.min(iLowestNetMass, (tTeamData[iM28Team][subreftiPrevTeamNetMass][iLastEntry] or tTeamData[iM28Team][subrefiTeamNetMass]))
-            end
-
-            if (iLowestNetMass - tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]) > iNetMassIncomeWanted then
-                if bDebugMessages == true then LOG(sFunctionRef..': We have enough energy and mass to get an upgrade; will now factor in if we would rather build more factories if are early game and enemy doesnt have T2, Time='..GetGameTimeSeconds()..'; iLowestNetMass='..iLowestNetMass..'; % mass stored='..tTeamData[iM28Team][subrefiTeamLowestMassPercentStored]..'; Gross mass income='..tTeamData[iM28Team][subrefiTeamGrossMass]..'; Highest enemy tech='..tTeamData[iM28Team][subrefiHighestEnemyGroundTech]..'; Map playable area size='..M28Map.rMapPlayableArea[3] - M28Map.rMapPlayableArea[1]) end
-                if tTeamData[iM28Team][subrefiTeamMassStored] <= 650 and GetGameTimeSeconds() <= 600 and tTeamData[iM28Team][subrefiHighestEnemyGroundTech] <= 1 and M28Map.rMapPlayableArea[3] - M28Map.rMapPlayableArea[1] <= 512 then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Early game on 10km or smaller map so want to only get a mex upgrade if we have loads of mass') end
-                    if iLowestNetMass <= 0.8 * tTeamData[iM28Team][subrefiActiveM28BrainCount] or tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] <= 0.3 or (tTeamData[iM28Team][subrefiTeamMassStored] <= 600 and tTeamData[iM28Team][subrefiTeamGrossMass] < 2 * tTeamData[iM28Team][subrefiActiveM28BrainCount]) then
-                        if bDebugMessages == true then LOG(sFunctionRef..': We dont actually have eco to support upgrade due to being early game') end
-                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                        return false
-                    else
-                        if bDebugMessages == true then LOG(sFunctionRef..': We still have eco to support upgrade despite being early game') end
-                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                        return true
-                    end
+                --Very high mass storage level adjustments
+                if tTeamData[iM28Team][subrefiTeamMassStored] >= 5000 and iNetMassIncomeWanted <= -1 then
+                    --Want to be spending mass at a rate taht means in 75 seconds we will have used up all the amount stored
+                    iNetMassIncomeWanted = math.min(iNetMassIncomeWanted, -tTeamData[iM28Team][subrefiTeamGrossMass] * 0.3, -tTeamData[iM28Team][subrefiTeamMassStored] / 75)
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Either not early game or we have lots of mass stored so think we have eco to get upgrade') end
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                return true
+
+
+
+
+                --Average out our mass from the last 5 cycles as well
+                local iLowestNetMass = tTeamData[iM28Team][subrefiTeamNetMass]
+                for iLastEntry = 1, 5 do
+                    iLowestNetMass = math.min(iLowestNetMass, (tTeamData[iM28Team][subreftiPrevTeamNetMass][iLastEntry] or tTeamData[iM28Team][subrefiTeamNetMass]))
+                end
+
+                if bDebugMessages == true then LOG(sFunctionRef..': Consideringi f have enough mass, tTeamData[iM28Team][subrefiTeamMassStored]='..tTeamData[iM28Team][subrefiTeamMassStored]..'; % mass stored='..tTeamData[iM28Team][subrefiTeamLowestMassPercentStored]..'; Gross mass income='..tTeamData[iM28Team][subrefiTeamGrossMass]..'; Net mass income='..tTeamData[iM28Team][subrefiTeamNetMass]..'; Net mass wanted='..iNetMassIncomeWanted..'; Is table of upgrading mexes empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]))..'; tTeamData[iM28Team][subreftiPrevTeamNetMass]='..repru(tTeamData[iM28Team][subreftiPrevTeamNetMass])..'; iLowestNetMass - tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]='..iLowestNetMass - tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]..'; tTeamData[iM28Team][refiUpgradedMexCount]='..(tTeamData[iM28Team][refiUpgradedMexCount] or 'nil')) end
+                if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) and (tTeamData[iM28Team][refiUpgradedMexCount] or 0) > 0 then iNetMassIncomeWanted = math.min(iNetMassIncomeWanted, 0) end
+
+                if (iLowestNetMass - tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]) > iNetMassIncomeWanted then
+                    if bDebugMessages == true then LOG(sFunctionRef..': We have enough energy and mass to get an upgrade; will now factor in if we would rather build more factories if are early game and enemy doesnt have T2, Time='..GetGameTimeSeconds()..'; iLowestNetMass='..iLowestNetMass..'; % mass stored='..tTeamData[iM28Team][subrefiTeamLowestMassPercentStored]..'; Gross mass income='..tTeamData[iM28Team][subrefiTeamGrossMass]..'; Highest enemy tech='..tTeamData[iM28Team][subrefiHighestEnemyGroundTech]..'; Map playable area size='..M28Map.rMapPlayableArea[3] - M28Map.rMapPlayableArea[1]) end
+                    if tTeamData[iM28Team][subrefiTeamMassStored] <= 450 and GetGameTimeSeconds() <= 600 and tTeamData[iM28Team][subrefiHighestEnemyGroundTech] <= 1 and M28Map.rMapPlayableArea[3] - M28Map.rMapPlayableArea[1] <= 512 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Early game on 10km or smaller map so want to only get a mex upgrade if we have loads of mass') end
+                        if tTeamData[iM28Team][subrefiTeamMassStored] <= 600 and (M28Map.rMapPlayableArea[3] - M28Map.rMapPlayableArea[1] <= 256 or (iLowestNetMass <= 0.6 * tTeamData[iM28Team][subrefiActiveM28BrainCount] and tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] <= 0.6)) then --or (tTeamData[iM28Team][subrefiTeamMassStored] <= 600 and tTeamData[iM28Team][subrefiTeamGrossMass] < 2 * tTeamData[iM28Team][subrefiActiveM28BrainCount]) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': We dont actually have eco to support upgrade due to being early game') end
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            return false
+                        else
+                            if bDebugMessages == true then LOG(sFunctionRef..': We still have eco to support upgrade despite being early game') end
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            return true
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Either not early game or we have lots of mass stored so think we have eco to get upgrade') end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    return true
+                end
             end
         end
     end
@@ -1932,7 +1961,7 @@ function ConsiderGettingUpgrades(iM28Team)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored]='..tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored]..'; Stalling energy='..tostring(tTeamData[iM28Team][subrefbTeamIsStallingEnergy])..'; Stalling mass='..tostring(tTeamData[iM28Team][subrefbTeamIsStallingMass])) end
-    if tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] >= 0.6 and GetGameTimeSeconds() >= 180 and not(tTeamData[iM28Team][subrefbTeamIsStallingEnergy]) and (not(tTeamData[iM28Team][subrefbTeamIsStallingMass]) or (M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) and M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]))) then
+    if tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] >= 0.6 and GetGameTimeSeconds() >= 150 and not(tTeamData[iM28Team][subrefbTeamIsStallingEnergy]) and (not(tTeamData[iM28Team][subrefbTeamIsStallingMass]) or (M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) and M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]))) then
         if bDebugMessages == true then LOG(sFunctionRef..': Have enough energy that we will check for priority upgrades and then normal upgrades') end
         tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle] = 0
         tTeamData[iM28Team][subrefiEnergyUpgradesStartedThisCycle] = 0

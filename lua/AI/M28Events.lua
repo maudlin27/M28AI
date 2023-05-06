@@ -194,7 +194,10 @@ function OnUnitDeath(oUnit)
 
 
 
-        if bDebugMessages == true then LOG(sFunctionRef..'Hook successful. oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; GameTime='..GetGameTimeSeconds()) end
+        if bDebugMessages == true then
+            LOG(sFunctionRef..'Hook successful. oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; GameTime='..GetGameTimeSeconds())
+            if oUnit.GetAIBrain then LOG(sFunctionRef..': Unit owner='..oUnit:GetAIBrain().Nickname) end
+        end
         --Is it an ACU?
         if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
             OnACUKilled(oUnit)
@@ -308,6 +311,7 @@ function OnUnitDeath(oUnit)
                         end
 
                         --Run unit type specific on death logic where the unit is completed
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if need to run certain M28AI on death logic, unit fraction ocmplete='..oUnit:GetFractionComplete()) end
                         if oUnit:GetFractionComplete() == 1 then
                             M28Economy.UpdateGrossIncomeForUnit(oUnit, true)
                             if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
@@ -761,6 +765,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                 M28Engineer.CheckIfBuildableLocationsNearPositionStillValid(oJustBuilt:GetAIBrain(), oJustBuilt:GetPosition())
                 M28Economy.UpdateHighestFactoryTechLevelForBuiltUnit(oJustBuilt) --includes a check to see if are dealing with a factory HQ
                 if EntityCategoryContains(M28UnitInfo.refCategoryMex, oJustBuilt.UnitId) then
+                    M28Team.tTeamData[oJustBuilt:GetAIBrain().M28Team][M28Team.refiUpgradedMexCount] = (M28Team.tTeamData[oJustBuilt:GetAIBrain().M28Team][M28Team.refiUpgradedMexCount] or 0) + 1
                     ForkThread(M28Economy.UpdateLandZoneM28MexByTechCount, oJustBuilt, false, 10)
                     --If have storage owned by M28 on same team by this mex, gift it over
                     --All mexes - on construction check if we have allied M28 mass storage nearby (e.g. we have rebuilt on a mex that they used to have) and if so then have that M28 gift over their mass storage
@@ -822,6 +827,8 @@ function OnConstructed(oEngineer, oJustBuilt)
                     --Clear the desire to build land facs by mexes - i.e. only want hte first one to be built as such
                     if bDebugMessages == true then LOG(sFunctionRef..': Have just build land factory so clearing adjacency desire for all M28 brains') end
                     M28Engineer.tiActionAdjacentCategory[M28Engineer.refActionBuildLandFactory] = nil
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oJustBuilt.UnitId) then
+                    ForkThread(M28Building.GetT3ArtiTarget, oJustBuilt)
                 end
                 --Clear engineers that just built this
 
@@ -875,7 +882,7 @@ function OnConstructed(oEngineer, oJustBuilt)
             end
 
             --Unit cap - refresh if are within 25 of the cap since it isnt accurate if have current units
-            if oJustBuilt:GetAIBrain()[M28Overseer.refbCloseToUnitCap] and oJustBuilt:GetAIBrain()[M28Overseer.refiExpectedRemainingCap] <= 25 then
+            if M28UnitInfo.IsUnitValid(oJustBuilt) and oJustBuilt:GetAIBrain()[M28Overseer.refbCloseToUnitCap] and oJustBuilt:GetAIBrain()[M28Overseer.refiExpectedRemainingCap] <= 25 then
                 M28Overseer.CheckUnitCap(oJustBuilt:GetAIBrain())
             end
 
@@ -1107,13 +1114,15 @@ function OnCreate(oUnit)
                 local aiBrain = oUnit:GetAIBrain()
                 if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId) then
                     M28Air.AddPriorityAirDefenceTarget(oUnit)
+                --WEAPON PRIORITIES
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) then
-                    --Weapon priorities
                     M28UnitInfo.SetUnitTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityGunship, true)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryDestroyer, oUnit.UnitId) then
                     M28UnitInfo.SetUnitTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityDestroyer, true)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryMissileShip + M28UnitInfo.refCategoryCruiser, oUnit.UnitId) then
                     M28UnitInfo.SetUnitTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityMissileShip, true)
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryBattleship, oUnit.UnitId) then
+                    M28UnitInfo.SetUnitTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityBattleShip, true)
                 end
                 --Check unit cap
                 if (oUnit[M28Overseer.refiExpectedRemainingCap] or 0) <= 100 then

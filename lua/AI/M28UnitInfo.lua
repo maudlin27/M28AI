@@ -62,6 +62,7 @@ refbSniperRifleEnabled = 'M27UnitSniperRifleEnabled' --True if seraphim sniperbo
 --Weapon priorities
 refWeaponPriorityGunship = {'MOBILE SHIELD', 'MOBILE ANTIAIR CRUISER', 'MOBILE ANTIAIR', 'ANTIAIR', 'STRUCTURE SHIELD', 'VOLATILE', 'MASSEXTRACTION', 'GROUNDATTACK', 'TECH3 MOBILE', 'TECH2 MOBILE', 'TECH1 MOBILE', 'ALLUNITS'}
 refWeaponPriorityDestroyer = {'SHIELD NAVAL', 'SUBMERSIBLE', 'EXPERIMENTAL NAVAL, TECH3 NAVAL MOBILE', 'TECH2 NAVAL MOBILE', 'STRUCTURE SHIELD', 'STRUCTURE DEFENSE DIRECTFIRE TECH2, STRUCTURE DEFENSE DIRECTFIRE TECH3, STRUCTURE INDIRECTFIRE ARTILLERY', 'EXPERIMENTAL STRUCTURE, STRUCTURE TECH3 SILO, STRUCTURE TECH3 VOLATILE', 'MOBILE LAND EXPERIMENTAL, MOBILE LAND HOVER DIRECTFIRE', 'MASSPRODUCTION TECH2, MASSPRODUCTION TECH3', 'MOBILE LAND TECH3 DIRECTFIRE, MOBILE LAND TECH3 INDIRECTFIRE', 'EXPERIMENTAL', 'NAVAL', 'STRUCTURE', 'ALLUNITS'}
+refWeaponPriorityBattleShip = {'EXPERIMENTAL NAVAL, TECH3 NAVAL', 'TECH2 NAVAL', 'STRUCTURE SHIELD', 'STRUCTURE INDIRECTFIRE ARTILLERY', 'EXPERIMENTAL STRUCTURE, STRUCTURE TECH3 SILO, STRUCTURE TECH3 VOLATILE', 'MOBILE LAND EXPERIMENTAL, MOBILE LAND TECH3 DIRECTFIRE, MOBILE LAND TECH3 INDIRECTFIRE', 'EXPERIMENTAL', 'NAVAL', 'STRUCTURE', 'ALLUNITS'}
 refWeaponPriorityMissileShip = {'SHIELD STRUCTURE, ANTIMISSILE STRUCTURE', 'STRUCTURE INDIRECTFIRE ARTILLERY TECH2', 'EXPERIMENTAL STRUCTURE, STRUCTURE ARTILLERY TECH3, STRUCTURE TECH3 SILO', 'STRUCTURE TECH3 VOLATILE', 'STRUCTURE TECH3 ECONOMIC', 'STRUCTURE NAVAL TECH3, STRUCTURE NAVAL TECH2', 'STRUCTURE TECH3', 'STRUCTURE TECH2 ECONOMIC', 'STRUCTURE TECH2', 'STRUCTURE VOLATILE, STRUCTURE DEFENSE, STRUCTURE FACTORY, STRUCTURE INTELLIGENCE', 'STRUCTURE', 'NAVAL SHIELD', 'SHIELD', 'EXPERIMENTAL NAVAL', 'EXPERIMENTAL', 'TECH3 NAVAL', 'TECH2 NAVAL', 'INDIRECTFIRE NAVAL', 'TECH3', 'TECH2', 'ALLUNITS'}
 
 
@@ -840,10 +841,19 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                             if bDebugMessages == true then LOG(sFunctionRef..': Unit doesnt have air pathing. bIncludeGroundToAir='..tostring(bIncludeGroundToAir)) end
                             if bIncludeGroundToAir == true then
                                 if EntityCategoryContains(categories.ANTIAIR, sCurUnitBP) == true then
-                                    iMassMod = 1 --Cruisers and T3 aircraft carriers have antiair as well as overlay antiair
-                                    if sCurUnitBP == 'urs0103' or EntityCategoryContains(categories.EXPERIMENTAL, sCurUnitBP) then iMassMod = 0.1 end --Cybran frigate and land experimentals misclassified as anti-air
+                                    if EntityCategoryContains(categories.SUBMERSIBLE, sCurUnitBP) then
+                                        if EntityCategoryContains(categories.EXPERIMENTAL, sCurUnitBP) then
+                                            iMassMod = 1 --atlantis (if categorised correctly)
+                                        else
+                                            iMassMod = 0.5 --sera sub hunter
+                                        end
+                                    elseif EntityCategoryContains(categories.EXPERIMENTAL + refCategoryFrigate, sCurUnitBP) then
+                                        iMassMod = 0.1 --Cybran frigate and land experimentals misclassified as anti-air
+                                    else
+                                        iMassMod = 1 --Cruisers and T3 aircraft carriers have antiair as well as overlay antiair
+                                    end
                                 elseif EntityCategoryContains(categories.OVERLAYANTIAIR, sCurUnitBP) == true then
-                                    iMassMod = 0.05
+                                    iMassMod = 0.04
                                     if sCurUnitBP == 'ues0401' then iMassMod = 1 end --atlantis misclassifiefd as not anti-air
                                     if EntityCategoryContains(categories.FRIGATE, sCurUnitBP) then iMassMod = 0.18 end
                                 end
@@ -1504,12 +1514,12 @@ function GetFactoryType(oUnit)
     local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua') --Putting this at the top crashes the game
 
     if EntityCategoryContains(refCategoryLandFactory, oUnit.UnitId) then
-        return M28Factory.refiFactoryTypeLand
+        return M28Factory.refiFactoryTypeLand, refCategoryLandFactory
     elseif EntityCategoryContains(refCategoryAirFactory, oUnit.UnitId) then
-        return M28Factory.refiFactoryTypeAir
+        return M28Factory.refiFactoryTypeAir, refCategoryAirFactory
     elseif EntityCategoryContains(refCategoryNavalFactory, oUnit.UnitId) then
-        return M28Factory.refiFactoryTypeNaval
-    else return M28Factory.refiFactoryTypeOther
+        return M28Factory.refiFactoryTypeNaval, refCategoryNavalFactory
+    else return M28Factory.refiFactoryTypeOther, categories.FACTORY
     end
 end
 
@@ -1658,9 +1668,11 @@ end
 function GetLauncherAOEStrikeDamageMinAndMaxRange(oUnit)
     local oBP = oUnit:GetBlueprint()
     local iAOE = 0
-    local iStrikeDamage
+    local iStrikeDamage = 0
     local iMinRange = 0
     local iMaxRange = 0
+    local iSalvoSize = 1
+    local iSalvoIndividualDelay
     for sWeaponRef, tWeapon in oBP.Weapon do
         if not(tWeapon.WeaponCategory == 'Death') then
             if (tWeapon.DamageRadius or 0) > iAOE then
@@ -1669,15 +1681,19 @@ function GetLauncherAOEStrikeDamageMinAndMaxRange(oUnit)
                 if (tWeapon.FixedSpreadRadius or 0) >= 20 then --e.g. scathis
                     iStrikeDamage = math.min(iStrikeDamage, tWeapon.Damage * math.min(3, tWeapon.MuzzleSalvoSize * 0.5))
                 end
-            elseif (tWeapon.NukeInnerRingRadius or 0) > iAOE then
+                iSalvoSize = (tWeapon.MuzzleSalvoSize or 1)
+                iSalvoIndividualDelay = (tWeapon.MuzzleSalvoDelay or 0.1)
+            elseif (tWeapon.NukeInnerRingRadius or 0) > 0 and (tWeapon.NukeInnerRingDamage or 0) >= iStrikeDamage then
                 iAOE = tWeapon.NukeInnerRingRadius
                 iStrikeDamage = tWeapon.NukeInnerRingDamage
+                iSalvoSize = (tWeapon.MuzzleSalvoSize or 1)
+                iSalvoIndividualDelay = (tWeapon.MuzzleSalvoDelay or 0.1)
             end
             if (tWeapon.MinRadius or 0) > iMinRange then iMinRange = tWeapon.MinRadius end
             if (tWeapon.MaxRadius or 0) > iMaxRange then iMaxRange = tWeapon.MaxRadius end
         end
     end
-    return iAOE, iStrikeDamage, iMinRange, iMaxRange
+    return iAOE, iStrikeDamage, iMinRange, iMaxRange, iSalvoSize, iSalvoIndividualDelay
 end
 
 function GetSniperStrikeDamage(oUnit)
