@@ -314,6 +314,15 @@ function M28BrainCreated(aiBrain)
         ForkThread(GameSettingWarningsAndChecks, aiBrain)
         ForkThread(M28Map.SetupMap)
 
+        local sStartMessage
+        local iRand = math.random(1,3)
+        if iRand == 1 then sStartMessage = 'gl hf'
+        elseif iRand == 2 then sStartMessage = 'gl'
+        elseif iRand == 3 then sStartMessage = '/82' -- QAI: If you destroy this ACU, another shall rise in its place. I am endless.
+        end
+        --SendMessage(aiBrain, sMessageType, sMessage, iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam)
+        M28Chat.SendMessage(aiBrain, 'Start', sStartMessage, 10,                     60)
+
     end
 
     ForkThread(OverseerManager, aiBrain)
