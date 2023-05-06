@@ -627,13 +627,15 @@ function CheckForUnitsToReclaimOfCategory(iTeam, iCategory, sTeamSubrefFlag)
         --Are we low on mass and not low on power?
         if bDebugMessages == true then LOG(sFunctionRef..': Will only add units to be reclaimed if we have low mass, and have power (if checking for power). Has low mass='..tostring(M28Conditions.TeamHasLowMass(iTeam))..'; Have low power='..tostring(M28Conditions.HaveLowPower(iTeam))) end
         if M28Conditions.TeamHasLowMass(iTeam) and (bDontCheckForPower or not(M28Conditions.HaveLowPower(iTeam))) then
-            RecordUnitsOfCategoryToBeReclaimed(iTeam, iCategory)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            RecordUnitsOfCategoryToBeReclaimed(iTeam, iCategory) --this can sometimes have waitticks in it
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
             if bDebugMessages == true then LOG(sFunctionRef..': Have added any units to be reclaimed, will stop looping now') end
             break
         end
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-        WaitSeconds(1)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
 
     M28Team.tTeamData[iTeam][sTeamSubrefFlag] = false

@@ -867,8 +867,9 @@ function OnMexDeath(tUnitPosition)
         --Record time of last mex death against LZ data to help with error messages
         tLZOrWZData[M28Map.refiTimeOfLastMexDeath] = GetGameTimeSeconds()
 
-
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitSeconds(1) --dont treat mex as available for a second (this is to help cover scenarios where if a mex has 'died' due to being upgraded, the new building will be here) - was a 2s delay, are trying 1s delay now to see if causes an issue
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         for iMexLocation, tMexLocation in tMexLocations do
             --Prev line - redid at same time as changing approach for removing an unbuilt location to try and be more accurate
             --if M28Utilities.GetDistanceBetweenPositions(tMexLocation, oUnit:GetPosition()) <= 0.9 then
@@ -1396,7 +1397,9 @@ function ConsiderLaunchingMissile(oLauncher, oWeapon)
                         if oLauncher.UnitId == 'xsb2401' then M28Utilities.ErrorHandler('Pausing Yolona') end
                         if bDebugMessages == true then LOG(sFunctionRef..': Pausing unit '..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..' as have no targets') end
                     end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     WaitSeconds(10)
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                     ForkThread(ConsiderLaunchingMissile, oLauncher, oWeapon)
                 end
             end

@@ -557,6 +557,7 @@ function GetClosestPlateauOrZeroAndZoneToPosition(tPosition)
 
     if tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX][iSegmentZ] then
         if bDebugMessages == true then LOG(sFunctionRef..': Returning override, which is:'..repru(tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX][iSegmentZ])) end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX][iSegmentZ][1], tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX][iSegmentZ][2]
     else
         local iPlateau = NavUtils.GetLabel(refPathingTypeHover, GetPositionFromPathingSegments(iSegmentX, iSegmentZ))
@@ -613,7 +614,7 @@ function GetClosestPlateauOrZeroAndZoneToPosition(tPosition)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return iPlateau, tLandZoneBySegment[iSegmentX][iSegmentZ]
             end
-            end
+        end
     end
 end
 

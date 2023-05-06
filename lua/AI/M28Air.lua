@@ -725,17 +725,22 @@ function CalculateAirTravelPath(iStartPlateauOrZero, iStartLandOrWaterZone, iEnd
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; iStartPlateauOrZero='..(iStartPlateauOrZero or 'nil')..'; iStartLandOrWaterZone='..(iStartLandOrWaterZone or 'nil')..'; iEndPlateauOrZero='..(iEndPlateauOrZero or 'nil')..'; iEndLandOrWaterZone='..(iEndLandOrWaterZone or 'nil')..'; Is tAirZonePathingFromZoneToZone[iStartPlateauOrZero][iStartLandOrWaterZone][iEndPlateauOrZero][iEndLandOrWaterZone] nil='..tostring(tAirZonePathingFromZoneToZone[iStartPlateauOrZero][iStartLandOrWaterZone][iEndPlateauOrZero][iEndLandOrWaterZone] == nil)) end
 
     if not(tAirZonePathingFromZoneToZone[iStartPlateauOrZero][iStartLandOrWaterZone][iEndPlateauOrZero][iEndLandOrWaterZone]) then
+        --M28Profiler.FunctionProfiler(sFunctionRef..': TabSetup', M28Profiler.refProfilerStart)
         if not(tAirZonePathingFromZoneToZone[iStartPlateauOrZero]) then tAirZonePathingFromZoneToZone[iStartPlateauOrZero] = {} end
         if not(tAirZonePathingFromZoneToZone[iStartPlateauOrZero][iStartLandOrWaterZone]) then tAirZonePathingFromZoneToZone[iStartPlateauOrZero][iStartLandOrWaterZone] = {} end
         if not(tAirZonePathingFromZoneToZone[iStartPlateauOrZero][iStartLandOrWaterZone]) then tAirZonePathingFromZoneToZone[iStartPlateauOrZero][iStartLandOrWaterZone] = {} end
         if not(tAirZonePathingFromZoneToZone[iStartPlateauOrZero][iStartLandOrWaterZone][iEndPlateauOrZero]) then tAirZonePathingFromZoneToZone[iStartPlateauOrZero][iStartLandOrWaterZone][iEndPlateauOrZero] = {} end
+        --M28Profiler.FunctionProfiler(sFunctionRef..': TabSetup', M28Profiler.refProfilerEnd)
 
         --Do we already have the path in the opposite direction?
         if bDebugMessages == true then LOG(sFunctionRef..': Do we already have pathing in the opposite direction? Is tAirZonePathingFromZoneToZone[iEndPlateauOrZero][iEndLandOrWaterZone][iStartPlateauOrZero][iStartLandOrWaterZone] nil='..tostring(tAirZonePathingFromZoneToZone[iEndPlateauOrZero][iEndLandOrWaterZone][iStartPlateauOrZero][iStartLandOrWaterZone] == nil)) end
         if M28Utilities.IsTableEmpty(tAirZonePathingFromZoneToZone[iEndPlateauOrZero][iEndLandOrWaterZone][iStartPlateauOrZero][iStartLandOrWaterZone]) == false then
+            --M28Profiler.FunctionProfiler(sFunctionRef..': TabMirror', M28Profiler.refProfilerStart)
             tAirZonePathingFromZoneToZone[iStartPlateauOrZero][iStartLandOrWaterZone][iEndPlateauOrZero][iEndLandOrWaterZone] = tAirZonePathingFromZoneToZone[iEndPlateauOrZero][iEndLandOrWaterZone][iStartPlateauOrZero][iStartLandOrWaterZone]
             if bDebugMessages == true then LOG(sFunctionRef..': Will use pathing in opposite direction') end
+            --M28Profiler.FunctionProfiler(sFunctionRef..': TabMirror', M28Profiler.refProfilerEnd)
         else
+            --M28Profiler.FunctionProfiler(sFunctionRef..': Detail', M28Profiler.refProfilerStart)
             tAirZonePathingFromZoneToZone[iStartPlateauOrZero][iStartLandOrWaterZone][iEndPlateauOrZero][iEndLandOrWaterZone] = {} --need here not above or else we end up thinking there is an entry already
 
             --Determine the path - move in a straight line from the start point towards the end point in periodic intervals, checking for the zones to include
@@ -939,6 +944,7 @@ function CalculateAirTravelPath(iStartPlateauOrZero, iStartLandOrWaterZone, iEnd
                     end
                 end
             end
+            --M28Profiler.FunctionProfiler(sFunctionRef..': Detail', M28Profiler.refProfilerEnd)
 
             if bDebugMessages == true then LOG(sFunctionRef..': Finished updating tBaseTableRef, WaterZonesInPath='..repru(tBaseTableRef[subreftWaterZonesInPath])..'; Land zones in path='..repru(tBaseTableRef[subreftPlateauAndLandZonesInPath])) end
         end
@@ -958,13 +964,18 @@ function IsThereAANearLandOrWaterZone(iTeam, iPlateau, iLandOrWaterZone, bIsWate
     if bIsWaterZone then
         local tWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
         local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
-        if IsThereAAInWaterZone(tWZTeamData, false, iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold) then return true
+        if IsThereAAInWaterZone(tWZTeamData, false, iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold) then
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return true
         else
             --Cycle through every adjacent water zone
             if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
                 for _, iAdjWZ in tWZData[M28Map.subrefWZAdjacentWaterZones] do
                     local tAdjWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
-                    if IsThereAAInWaterZone(tWZTeamData, false, iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold) then return true end
+                    if IsThereAAInWaterZone(tWZTeamData, false, iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold) then
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        return true
+                    end
                 end
             end
             --Cycle through every adjacent land zone
@@ -973,7 +984,10 @@ function IsThereAANearLandOrWaterZone(iTeam, iPlateau, iLandOrWaterZone, bIsWate
                     local iAdjPlateau = tSubtable[M28Map.subrefWPlatAndLZNumber][1]
                     local iAdjLZ = tSubtable[M28Map.subrefWPlatAndLZNumber][2]
                     local tLZTeamData = M28Map.tAllPlateaus[iAdjPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
-                    if IsThereAAInLandZone(tLZTeamData, false, iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold) then return true end
+                    if IsThereAAInLandZone(tLZTeamData, false, iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold) then
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        return true
+                    end
                 end
             end
         end
@@ -981,13 +995,18 @@ function IsThereAANearLandOrWaterZone(iTeam, iPlateau, iLandOrWaterZone, bIsWate
         --Dealing with a land zone
         local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
         local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
-        if IsThereAAInLandZone(tLZTeamData, false, iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold) then return true
+        if IsThereAAInLandZone(tLZTeamData, false, iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold) then
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return true
         else
             --Cycle through every adjacent land zone
             if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                 for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                     local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
-                    if IsThereAAInLandZone(tLZTeamData, false, iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold) then return true end
+                    if IsThereAAInLandZone(tLZTeamData, false, iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold) then
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        return true
+                    end
                 end
             end
             --Cycle through every adjacent water zone
@@ -995,7 +1014,10 @@ function IsThereAANearLandOrWaterZone(iTeam, iPlateau, iLandOrWaterZone, bIsWate
                 for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
                     local iAdjWZ = tSubtable[M28Map.subrefAWZRef]
                     local tAdjWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
-                    if IsThereAAInWaterZone(tAdjWZTeamData, false, iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold) then return true end
+                    if IsThereAAInWaterZone(tAdjWZTeamData, false, iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold) then
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        return true
+                    end
                 end
             end
         end
@@ -1833,26 +1855,20 @@ function ManageBombers(iTeam, iAirSubteam)
             break
         end
         local tRallyPoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
-        local tNearbyEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryStructure, tRallyPoint, 300, 'Enemy')
-        if M28Utilities.IsTableEmpty(tNearbyEnemyUnits) == false then
-            local iClosestUnitDist = 10000
-            local oClosestUnit
-            local iCurDist
+        --[[local iRallyPlateauOrZero, iRallyLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tRallyPoint)
+        local tRallyLZOrWZData
+        local tRallyLZOrWZTeamData
+        if iRallyPlateauOrZero == 0 then --]]
+--            tRallyLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iRallyLZOrWZ]][M28Map.subrefPondWaterZones][iRallyLZOrWZ]
+--            tRallyLZOrWZTeamData = tRallyLZOrWZData[M28Map.subrefWZTeamData][aiBrain.M28Team]
+--        else
+--            tRallyLZOrWZData = M28Map.tAllPlateaus[iRallyPlateauOrZero][M28Map.subrefPlateauLandZones][iRallyLZOrWZ]
+--            tRallyLZOrWZTeamData = tRallyLZOrWZData[M28Map.subrefLZTeamData][aiBrain.M28Team]
+--        end
 
-            for iUnit, oUnit in tNearbyEnemyUnits do
-                if oUnit:GetFractionComplete() >= 0.8 and not(oUnit:IsUnitState('Attached')) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
-                    iCurDist = M28Utilities.GetDistanceBetweenPositions(tRallyPoint, oUnit:GetPosition())
-                    if iCurDist < iClosestUnitDist then
-                        iClosestUnitDist = iCurDist
-                        oClosestUnit = oUnit
-                    end
-                end
-            end
-            if oClosestUnit then
-                for iBomber, oBomber in tAvailableBombers do
-                    M28Orders.IssueTrackedAttack(oBomber, oClosestUnit, false, 'PlaceholderBA', false)
-                end
-            end
+        local tEnemyTargets = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand * categories.TECH3 + M28UnitInfo.refCategoryMobileLand * categories.EXPERIMENTAL + M28UnitInfo.refCategoryStructure * categories.TECH3 +  M28UnitInfo.refCategoryStructure * categories.TECH2 + M28UnitInfo.refCategoryStructure * categories.TECH3 + M28UnitInfo.refCategoryNavalSurface - categories.TECH1, tRallyPoint, 300, 'Enemy')
+        if M28Utilities.IsTableEmpty(tEnemyTargets) == false then
+            AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam)
         end
     end
 
@@ -1970,21 +1986,21 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                             local tEnemyPriority1 = EntityCategoryFilterDown(iPriorityCat1, tEnemyTargets)
                             if bDebugMessages == true then LOG(sFunctionRef..': Is table of priority1 units empty='..tostring(M28Utilities.IsTableEmpty(tEnemyPriority1))) end
                             if M28Utilities.IsTableEmpty(tEnemyPriority1) == false then
-                                AssignTorpTargets(tAvailableBombers, tEnemyPriority1, iAirSubteam)
+                                AssignTorpOrBomberTargets(tAvailableBombers, tEnemyPriority1, iAirSubteam)
                                 if M28Utilities.IsTableEmpty(tAvailableBombers) then
                                     break
                                 end
                             end
                             local tEnemyPriority2 = EntityCategoryFilterDown(iPriorityCat2, tEnemyTargets)
                             if M28Utilities.IsTableEmpty(tEnemyPriority2) == false then
-                                AssignTorpTargets(tAvailableBombers, tEnemyPriority2, iAirSubteam)
+                                AssignTorpOrBomberTargets(tAvailableBombers, tEnemyPriority2, iAirSubteam)
                                 if M28Utilities.IsTableEmpty(tAvailableBombers) then
                                     break
                                 end
                             end
                             local tEnemyOther = EntityCategoryFilterDown(iOtherCat, tEnemyTargets)
                             if M28Utilities.IsTableEmpty(tEnemyOther) == false then
-                                AssignTorpTargets(tAvailableBombers, tEnemyOther, iAirSubteam)
+                                AssignTorpOrBomberTargets(tAvailableBombers, tEnemyOther, iAirSubteam)
                                 if M28Utilities.IsTableEmpty(tAvailableBombers) then
                                     break
                                 end
@@ -2034,11 +2050,11 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function AssignTorpTargets(tAvailableTorpBombers, tEnemyTargets, iAirSubteam)
+function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam)
     --NOTE: If want to prioritise by category then do by changing tEnemyTargets and calling this function multiple times
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'AssignTorpTargets'
+    local sFunctionRef = 'AssignTorpOrBomberTargets'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --Copy of M28Utiliteis function (for speed)
@@ -2049,7 +2065,7 @@ function AssignTorpTargets(tAvailableTorpBombers, tEnemyTargets, iAirSubteam)
 
 
 
-    --local iAvailableAirSize = table.getn(tAvailableTorpBombers)
+    --local iAvailableAirSize = table.getn(tAvailableBombers)
     local iEnemyTargetSize = table.getn(tEnemyTargets)
     local iClosestUnitDist, oClosestUnit, iCurDist, iClosestTorpRef
     local iCurLoopCount
@@ -2081,7 +2097,7 @@ function AssignTorpTargets(tAvailableTorpBombers, tEnemyTargets, iAirSubteam)
             iCurLoopCount = iCurLoopCount + 1
             if iCurLoopCount > iMaxLoopCount then M28Utilities.ErrorHandler('Potential infinite loop unless have '..iMaxLoopCount..' plus torp bombers') break end
             iClosestUnitDist = 100000
-            for iTorp, oTorp in tAvailableTorpBombers do
+            for iTorp, oTorp in tAvailableBombers do
                 iCurDist = GetRoughDistanceBetweenPositions(tBasePosition, oTorp:GetPosition())
                 if iCurDist < iClosestUnitDist then
                     iClosestUnitDist = iCurDist
@@ -2093,8 +2109,8 @@ function AssignTorpTargets(tAvailableTorpBombers, tEnemyTargets, iAirSubteam)
             M28Orders.IssueTrackedAttack(oClosestUnit, oEnemyUnit, false, 'ATrp', false)
             if bDebugMessages == true then LOG(sFunctionRef..': Will tell oClosestUnit='..oClosestUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestUnit)..' with distance '..iClosestUnitDist..' to attack enemy, strike damage of torp bomber='..oClosestUnit[M28UnitInfo.refiStrikeDamage]..'; assigned strike damage after including this='..oEnemyUnit[refiStrikeDamageAssigned]) end
 
-            table.remove(tAvailableTorpBombers, iClosestTorpRef)
-            if M28Utilities.IsTableEmpty(tAvailableTorpBombers) then break end
+            table.remove(tAvailableBombers, iClosestTorpRef)
+            if M28Utilities.IsTableEmpty(tAvailableBombers) then break end
         end
     end
 end

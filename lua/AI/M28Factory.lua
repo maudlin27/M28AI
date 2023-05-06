@@ -34,6 +34,8 @@ function GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFacto
     local sFunctionRef = 'GetBlueprintsThatCanBuildOfCategory'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     local tBlueprints = EntityCategoryGetUnitList(iCategoryCondition)
     local tAllBlueprints = __blueprints
     local tValidBlueprints = {}
@@ -556,6 +558,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
     function ConsiderUpgrading()
         sBPIDToBuild = M28UnitInfo.GetUnitUpgradeBlueprint(oFactory, true)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return sBPIDToBuild
     end
 
@@ -1373,6 +1376,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
 
     function ConsiderUpgrading()
         sBPIDToBuild = M28UnitInfo.GetUnitUpgradeBlueprint(oFactory, true)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return sBPIDToBuild
     end
 
@@ -1720,7 +1724,6 @@ end
 
 function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     local sFunctionRef = 'GetBlueprintToBuildForNavalFactory'
-    local bDebugMessages = false
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -1792,6 +1795,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
 
     function ConsiderUpgrading()
         sBPIDToBuild = M28UnitInfo.GetUnitUpgradeBlueprint(oFactory, true)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return sBPIDToBuild
     end
 

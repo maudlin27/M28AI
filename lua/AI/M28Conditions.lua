@@ -475,10 +475,9 @@ function WantMorePower(iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     local bWantMorePower = true
     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 1.25 * (M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir] or 0) then
-        return true
+        --No change - want more power
     elseif M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower] then
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        return false
+        bWantMorePower = false
     else
         if HaveLowPower(iTeam) then bWantMorePower = true
         else
