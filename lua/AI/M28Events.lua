@@ -25,6 +25,7 @@ local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
 local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
+local M28Chat = import('/mods/M28AI/lua/AI/M28Chat.lua')
 
 refiLastWeaponEvent = 'M28LastWep' --Gametimeseconds that last updated onweapon
 
@@ -47,6 +48,18 @@ function OnPlayerDefeated(aiBrain)
             end
             if bHaveTeammates then
                 ForkThread(M28Team.GiveAllResourcesToAllies, aiBrain)
+            else
+                --Send end of game message
+                local iRand = math.random(1,3)
+                local sEndOfGameMessage
+                if iRand == 1 then
+                    sEndOfGameMessage = 'gg'
+                elseif iRand == 2 then
+                    sEndOfGameMessage = 'You may have defeated me, but my older brother M27 will crush you like an insect'
+                elseif iRand == 3 then
+                    sEndOfGameMessage = ':( Time for me to go back to fighting other bots'
+                end
+                M28Chat.SendMessage(aiBrain, 'Our ACU Died', sEndOfGameMessage, 3, 60)
             end
         end
 
