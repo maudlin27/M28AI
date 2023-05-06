@@ -38,6 +38,9 @@ refoLastTMLLauncher = 'M28BuildTMLLastLnch' --When a TML targets a unit, this is
 refiTimeOfLastLaunch = 'M28BuildTMLTimLstLnch' --Gametimeseconds that we last fired a missile at the unit, i.e. this is against the target, not the launcher
 refiLastTMLMassKills = 'M28BuildTMLMssKil'
 refbPausedAsNoTargets = 'M28BuildPausNoT' --e.g. for SML use this to flag if we have paused it due to lack of targets
+reftTerrainBlockedTargets = 'M28BuildTerrainBLock' --If a TML missile impacts terrain then record the original target
+refbProtectedByTerrain = 'M28BuildUnitBlockByTer' --true if a target of a TML was protected by terrain
+refbSalvoDelayActive = 'M28BuildSalvoDelayActive' --true if want to hold off on targets due to salvo
 
     --Shield related
 reftoShieldsProvidingCoverage = 'M28BuildShieldsCoveringUnit' --Against unit being shielded, records the fixed shields that are covering it
@@ -113,6 +116,7 @@ function CheckIfUnitWantsFixedShield(oUnit, bCheckForNearbyShields)
             if iPlateau > 0 and iLandZone > 0 then
                 oUnit[refbUnitWantsShielding] = true
                 table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.reftoLZUnitWantingFixedShield], oUnit)
+                if bDebugMessages == true then LOG(sFunctionRef..': Have added unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to table of units wanting shielding') end
             end
         end
     else
@@ -125,10 +129,20 @@ function CheckIfUnitWantsFixedShield(oUnit, bCheckForNearbyShields)
                     for iRecordedUnit, oRecordedUnit in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.reftoLZUnitWantingFixedShield] do
                         if oRecordedUnit == oUnit then
                             table.remove(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.reftoLZUnitWantingFixedShield], iRecordedUnit)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Removed unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' from the table of units wanting fixed shielding') end
                             break
                         end
                     end
                 end
+            end
+        end
+    end
+    if bDebugMessages == true then
+        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+        LOG(sFunctionRef..': Is table of units wanting fixed shield empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.reftoLZUnitWantingFixedShield])))
+        if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.reftoLZUnitWantingFixedShield]) == false then
+            for iUnit, oUnit in M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.reftoLZUnitWantingFixedShield]) do
+                LOG(sFunctionRef..': Listing out each unit wanting shielding for iLandZOne '..iLandZone..'; iUnit '..iUnit..' is oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit))
             end
         end
     end
@@ -722,6 +736,37 @@ function UpdateLZUnitsWantingTMDForUnitDeath(oUnit)
     oUnit[refbUnitWantsMoreTMD] = false --redundancy
 end
 
+function GetUnitWantingTMD(tLZData, tLZTeamData)
+    --Gets the unit closest to the nearest enemy base that wants TMD; also refreshes the table for any dead units
+    local iUnitsWantingTMD = table.getn(tLZTeamData[M28Map.reftUnitsWantingTMD])
+    local iClosestDist = 10000
+    local iCurDist
+    local oClosestUnit
+    local tEnemyBase = tLZTeamData[M28Map.reftClosestEnemyBase]
+    for iEntry = iUnitsWantingTMD, 1, -1 do
+        if not(M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry])) then
+            table.remove(tLZTeamData[M28Map.reftUnitsWantingTMD], iEntry)
+        else
+            iCurDist = M28Utilities.GetDistanceBetweenPositions(tEnemyBase, tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry]:GetPosition())
+            if iCurDist < iClosestDist then
+                iClosestDist = iCurDist
+                oClosestUnit = tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry]
+            end
+        end
+    end
+    --Cap on number of TMD to prvent massiveo verbuilding - dont have more than 10 in a LZ
+    local tExistingTMD = EntityCategoryFilterDown(M28UnitInfo.refCategoryTMD, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+    if M28Utilities.IsTableEmpty(tExistingTMD) == false then
+        local iExistingValidTMD = table.getn(tExistingTMD)
+        if iExistingValidTMD >= 10 then
+            M28Utilities.ErrorHandler('Have 10 TMD in land zone so wont build any more TMD, risk we may be overbuilding TMD, will clear entries', true)
+            tLZTeamData[M28Map.reftUnitsWantingTMD] = {}
+            return nil
+        end
+    end
+    return oClosestUnit
+end
+
 
 function RecordPriorityShields(iTeam, tLZTeamData)
     --Records shields that want to ahve engineers assisting
@@ -822,8 +867,9 @@ function OnMexDeath(tUnitPosition)
         --Record time of last mex death against LZ data to help with error messages
         tLZOrWZData[M28Map.refiTimeOfLastMexDeath] = GetGameTimeSeconds()
 
-
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitSeconds(1) --dont treat mex as available for a second (this is to help cover scenarios where if a mex has 'died' due to being upgraded, the new building will be here) - was a 2s delay, are trying 1s delay now to see if causes an issue
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         for iMexLocation, tMexLocation in tMexLocations do
             --Prev line - redid at same time as changing approach for removing an unbuilt location to try and be more accurate
             --if M28Utilities.GetDistanceBetweenPositions(tMexLocation, oUnit:GetPosition()) <= 0.9 then
@@ -1119,9 +1165,21 @@ function ConsiderLaunchingMissile(oLauncher, oWeapon)
                                 -- {oLauncher:GetPosition()[1], oLauncher:GetPosition()[2] + 65, oLauncher:GetPosition()[3]}
                                 oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef] = M28Logic.IsLineBlocked(aiBrain, tExpectedMissileVertical, oUnit:GetPosition(), iAOE, false)
                             end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Potential TML target '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurTargetValue before adj for blocked='..iCurTargetValue..'; oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef]='..tostring(oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef])..'; oUnit[refiTMLShotsFired]='..(oUnit[refiTMLShotsFired] or 0)..'; refiTimeOfLastLaunch='..(oUnit[refiTimeOfLastLaunch] or 'nil')) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Potential TML target '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurTargetValue before adj for blocked='..iCurTargetValue..'; oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef]='..tostring(oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef])..'; oUnit[refiTMLShotsFired]='..(oUnit[refiTMLShotsFired] or 0)..'; refiTimeOfLastLaunch='..(oUnit[refiTimeOfLastLaunch] or 'nil')..'; oUnit[refbProtectedByTerrain]='..tostring(oUnit[refbProtectedByTerrain] or false)..'; oLauncher[reftTerrainBlockedTargets]='..repru(oLauncher[reftTerrainBlockedTargets] or {'nil'})) end
                             if oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef] then iCurTargetValue = iCurTargetValue * 0.2 end
-                            if (oUnit[refiTMLShotsFired] or 0) > 0 then
+                            --Check against actual terrain blocked blacklist
+                            if oUnit[refbProtectedByTerrain] then
+                                iCurTargetValue = 0
+                            elseif M28Utilities.IsTableEmpty(oLauncher[reftTerrainBlockedTargets]) == false then
+                                for iEntry, tLocation in oLauncher[reftTerrainBlockedTargets] do
+                                    if M28Utilities.GetDistanceBetweenPositions(tLocation, oUnit:GetPosition()) <= 1.5 then
+                                        oUnit[refbProtectedByTerrain] = true
+                                        iCurTargetValue = 0
+                                        break
+                                    end
+                                end
+                            end
+                            if iCurTargetValue > 0 and (oUnit[refiTMLShotsFired] or 0) > 0 then
                                 --Reduce shots fired if we dealt damage with our last missile (as may have e.g. hit mass storage blocking us from reaching the target mex)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Last TML target='..(oLauncher[refoLastTMLTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oLauncher[refoLastTMLTarget]) or 'nil')..'; Launcher mass killed='..(oLauncher.VetExperience or oLauncher.Sync.totalMassKilled or 0)..'; TML mass kills='..(oLauncher[refiLastTMLMassKills] or 0)) end
                                 if oLauncher[refoLastTMLTarget] == oUnit and (oLauncher.VetExperience or oLauncher.Sync.totalMassKilled or 0) > (oLauncher[refiLastTMLMassKills] or 0) then
@@ -1301,7 +1359,7 @@ function ConsiderLaunchingMissile(oLauncher, oWeapon)
                     --Launch missile
                     if bDebugMessages == true then LOG(sFunctionRef..': Will launch missile at tTarget='..repru(tTarget)) end
                     if bTML then
-                        IssueTactical({oLauncher}, tTarget)
+                        M28Orders.IssueTrackedTMLMissileLaunch(oLauncher, tTarget, 0.25, false, 'TMLFire', true)
                         oLauncher:SetAutoMode(true)
                         oLauncher:SetPaused(false)
                         if bDebugMessages == true then
@@ -1339,7 +1397,9 @@ function ConsiderLaunchingMissile(oLauncher, oWeapon)
                         if oLauncher.UnitId == 'xsb2401' then M28Utilities.ErrorHandler('Pausing Yolona') end
                         if bDebugMessages == true then LOG(sFunctionRef..': Pausing unit '..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..' as have no targets') end
                     end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     WaitSeconds(10)
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                     ForkThread(ConsiderLaunchingMissile, oLauncher, oWeapon)
                 end
             end
@@ -1486,220 +1546,240 @@ function GetHighestNukeTargetValue(tLZOrWZData, tLZOrWZTeamData, iTeam)
     return iBestValue
 end
 
-function GetT3ArtiTarget(oArti)
+function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
     --Gets oArti to fire an attack on the ground for where it thinks it will deal the most damage, works for t3 and experimental arti
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetT3ArtiTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bCalledFromSalvoSize then oArti[refbSalvoDelayActive] = false end
+    if not(oArti[refbSalvoDelayActive]) then
+        local iPlateau, iLandZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oArti:GetPosition())
+        local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+        local aiBrain = oArti:GetAIBrain()
+        local iTeam = aiBrain.M28Team
+        local iArtiFacingAngle = M28UnitInfo.GetUnitFacingAngle(oArti)
 
-    local iPlateau, iLandZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oArti:GetPosition())
-    local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
-    local aiBrain = oArti:GetAIBrain()
-    local iTeam = aiBrain.M28Team
-    local iArtiFacingAngle = M28UnitInfo.GetUnitFacingAngle(oArti)
+        local iAOE, iDamage, iMinRange, iMaxRange, iSalvoSize, iSalvoIndividualDelay = M28UnitInfo.GetLauncherAOEStrikeDamageMinAndMaxRange(oArti)
+        --Wait if salvo size >1
+        local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
+        if iSalvoSize > 1 and not(bCalledFromSalvoSize) and oArti[M28Events.refiLastWeaponEvent] then
+            --E.g. scathis - dont want to change targets after firing a single shot - we have fired the scathis before, and this has presumably been called from the onweaponevent trigger
 
-    local iAOE, iDamage, iMinRange, iMaxRange = M28UnitInfo.GetLauncherAOEStrikeDamageMinAndMaxRange(oArti)
-    if (iMaxRange or 0) == 0 or (iAOE or 0) == 0 then M28Utilities.ErrorHandler('Arti '..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti)..' has no range or no aoe')
-    end
-
-    --First make sure pathing is setup
-    if M28Utilities.IsTableEmpty(oArti[reftiPlateauAndZonesInRange]) then
-        oArti[reftiPlateauAndZonesInRange] = {}
-        M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefMidpoint])
-        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) then
-            M28Utilities.ErrorHandler('No other zones located for oArti='..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti))
+            local iTimeToWait = 4
+            if (iSalvoIndividualDelay or 0) > 0 then iTimeToWait = iSalvoSize * iSalvoIndividualDelay + 0.1 end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitSeconds(iTimeToWait)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            if M28UnitInfo.IsUnitValid(oArti) then
+                oArti[refbSalvoDelayActive] = true
+                ForkThread(GetT3ArtiTarget, oArti, true)
+            end
         else
-            local iPlateauOrZero
-            for iEntry, tSubtable in tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
-                --Stop searching once got past arti max range
-                if tSubtable[M28Map.subrefiDistance] > iMaxRange then
-                    break
-                end
-                --If outside min range then include
-                if tSubtable[M28Map.subrefiDistance] > iMinRange then
-                    --Add to potential zone table
-                    local tAltLZOrWZData
-                    local tAltLZOrWZTeamData
-                    if tSubtable[M28Map.subrefbIsWaterZone] then
-                        iPlateauOrZero = 0
+            if (iMaxRange or 0) == 0 or (iAOE or 0) == 0 then M28Utilities.ErrorHandler('Arti '..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti)..' has no range or no aoe')
+            end
 
-                        tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[tSubtable[M28Map.subrefiLandOrWaterZoneRef]]][M28Map.subrefPondWaterZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
-                        tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+            --First make sure pathing is setup
+            if M28Utilities.IsTableEmpty(oArti[reftiPlateauAndZonesInRange]) then
+                oArti[reftiPlateauAndZonesInRange] = {}
+                M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefMidpoint])
+                if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) then
+                    M28Utilities.ErrorHandler('No other zones located for oArti='..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti))
+                else
+                    local iPlateauOrZero
+                    for iEntry, tSubtable in tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+                        --Stop searching once got past arti max range
+                        if tSubtable[M28Map.subrefiDistance] > iMaxRange then
+                            break
+                        end
+                        --If outside min range then include
+                        if tSubtable[M28Map.subrefiDistance] > iMinRange then
+                            --Add to potential zone table
+                            local tAltLZOrWZData
+                            local tAltLZOrWZTeamData
+                            if tSubtable[M28Map.subrefbIsWaterZone] then
+                                iPlateauOrZero = 0
+
+                                tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[tSubtable[M28Map.subrefiLandOrWaterZoneRef]]][M28Map.subrefPondWaterZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
+                                tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                            else
+                                iPlateauOrZero = tSubtable[M28Map.subrefiPlateauOrPond]
+                                tAltLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
+                                tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                            end
+                            table.insert(oArti[reftiPlateauAndZonesInRange], {iPlateauOrZero, tSubtable[M28Map.subrefiLandOrWaterZoneRef], M28Utilities.GetDistanceBetweenPositions(tAltLZOrWZData[M28Map.subrefMidpoint], tAltLZOrWZTeamData[M28Map.reftClosestFriendlyBase]), M28Utilities.GetAngleFromAToB(oArti:GetPosition(), tAltLZOrWZData[M28Map.subrefMidpoint])})
+                        end
+                    end
+                end
+            end
+
+            --Cycle through each zone that may be in range and pick the best one
+            local iCurValue
+            local iBestValue = 0
+            local iSecondBestValue = 0
+            local iBestPlateauOrZero, iBestLZOrWZ, iSecondBestPlateauOrZero, iSecondBestLZOrWZ, iBestAngleFactor, iSecondBestAngleFactor
+            local iCurMobileThreat
+            local iCurAAThreat
+            local iShotMissFactor
+            local iArtiAngleFactor
+            for iEntry, tPlateauZoneAndDist in oArti[reftiPlateauAndZonesInRange] do
+                local tAltLZOrWZData
+                local tAltLZOrWZTeamData
+                if tPlateauZoneAndDist[1] == 0 then
+                    tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[tPlateauZoneAndDist[2]]][M28Map.subrefPondWaterZones][tPlateauZoneAndDist[2]]
+                    tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                else
+                    tAltLZOrWZData = M28Map.tAllPlateaus[tPlateauZoneAndDist[1]][M28Map.subrefPlateauLandZones][tPlateauZoneAndDist[2]]
+                    tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                end
+                iCurMobileThreat = ((tAltLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) + (tAltLZOrWZTeamData[M28Map.subrefWZThreatEnemySurface] or 0))
+                --Get more precise calculation - i.e. the threat calculation above reduces threat for health, meaning if we attack say a fatboy, its threat decreases as its shield decreases, making it likely we switch targets when its shield is about to be destroyed; however dont bother with low threat values
+                if iCurMobileThreat >= 1000 then
+                    iCurMobileThreat = M28UnitInfo.GetCombatThreatRating(EntityCategoryFilterDown(categories.MOBILE, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits]), true, true)
+                end
+                iCurValue = tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] + iCurMobileThreat * 0.2
+                --Add extra mobile threat if enemy has long ranged units and is close to our nearest base
+                if iCurMobileThreat >= 4000 and tPlateauZoneAndDist[3] <= 300 and M28Utilities.IsTableEmpty(tAltLZOrWZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]) == false then
+                    local iLongRangeThreat = 0
+                    for iRange, iThreat in tAltLZOrWZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange] do
+                        if iRange >= 65 then --i.e. just above a megaliths range
+                            iLongRangeThreat = iLongRangeThreat + iThreat
+                        end
+                    end
+                    if iLongRangeThreat >= 1500 then
+                        iCurValue = iCurValue + iCurMobileThreat * 0.8 --want based on mobile threat so less likely to run into issue for units like fatboy where threat decreases as shield decreases
+                    end
+                end
+                --Add extra mobile threat if enemy has large mobile MAA
+                iCurAAThreat = (tAltLZOrWZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) + (tAltLZOrWZTeamData[M28Map.subrefWZThreatEnemyAA] or 0)
+                if iCurAAThreat >= 3000 then
+                    local tEnemyMobileAA = EntityCategoryFilterDown(categories.MOBILE, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits])
+                    if M28Utilities.IsTableEmpty( tEnemyMobileAA) == false then
+                        iCurValue = iCurValue + iCurAAThreat * 0.2 + M28UnitInfo.GetCombatThreatRating(tEnemyMobileAA, true, true) * 0.8
                     else
-                        iPlateauOrZero = tSubtable[M28Map.subrefiPlateauOrPond]
-                        tAltLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
-                        tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                        iCurValue = iCurValue + iCurAAThreat * 0.2
                     end
-                    table.insert(oArti[reftiPlateauAndZonesInRange], {iPlateauOrZero, tSubtable[M28Map.subrefiLandOrWaterZoneRef], M28Utilities.GetDistanceBetweenPositions(tAltLZOrWZData[M28Map.subrefMidpoint], tAltLZOrWZTeamData[M28Map.reftClosestFriendlyBase]), M28Utilities.GetAngleFromAToB(oArti:GetPosition(), tAltLZOrWZData[M28Map.subrefMidpoint])})
+                else
+                    iCurValue = iCurValue + iCurAAThreat * 0.2
                 end
-            end
-        end
-    end
 
-    --Cycle through each zone that may be in range and pick the best one
-    local iCurValue
-    local iBestValue = 0
-    local iSecondBestValue = 0
-    local iBestPlateauOrZero, iBestLZOrWZ, iSecondBestPlateauOrZero, iSecondBestLZOrWZ, iBestAngleFactor, iSecondBestAngleFactor
-    local iCurMobileThreat
-    local iCurAAThreat
-    local iShotMissFactor
-    local iArtiAngleFactor
-    for iEntry, tPlateauZoneAndDist in oArti[reftiPlateauAndZonesInRange] do
-        local tAltLZOrWZData
-        local tAltLZOrWZTeamData
-        if tPlateauZoneAndDist[1] == 0 then
-            tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[tPlateauZoneAndDist[2]]][M28Map.subrefPondWaterZones][tPlateauZoneAndDist[2]]
-            tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
-        else
-            tAltLZOrWZData = M28Map.tAllPlateaus[tPlateauZoneAndDist[1]][M28Map.subrefPlateauLandZones][tPlateauZoneAndDist[2]]
-            tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
-        end
-        iCurMobileThreat = ((tAltLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) + (tAltLZOrWZTeamData[M28Map.subrefWZThreatEnemySurface] or 0))
-        --Get more precise calculation - i.e. the threat calculation above reduces threat for health, meaning if we attack say a fatboy, its threat decreases as its shield decreases, making it likely we switch targets when its shield is about to be destroyed; however dont bother with low threat values
-        if iCurMobileThreat >= 1000 then
-            iCurMobileThreat = M28UnitInfo.GetCombatThreatRating(EntityCategoryFilterDown(categories.MOBILE, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits]), true, true)
-        end
-        iCurValue = tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] + iCurMobileThreat * 0.2
-        --Add extra mobile threat if enemy has long ranged units and is close to our nearest base
-        if iCurMobileThreat >= 4000 and tPlateauZoneAndDist[3] <= 300 and M28Utilities.IsTableEmpty(tAltLZOrWZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]) == false then
-            local iLongRangeThreat = 0
-            for iRange, iThreat in tAltLZOrWZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange] do
-                if iRange >= 65 then --i.e. just above a megaliths range
-                    iLongRangeThreat = iLongRangeThreat + iThreat
+                --Add extra threat if enemy has t2 arti near the nearest friendly base (relevant for team games, since 1v1 this hsould be inside the minimum rnage)
+                if tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] >= 4000 and tPlateauZoneAndDist[3] <= 200 then
+                    local tEnemyT2ArtiAndMissileShips = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryTML + M28UnitInfo.refCategoryMissileShip + M28UnitInfo.refCategoryCruiser * categories.SILO, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits])
+                    if M28Utilities.IsTableEmpty(tEnemyT2ArtiAndMissileShips) == false then
+                        iCurValue = iCurValue + tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass]
+                    end
                 end
-            end
-            if iLongRangeThreat >= 1500 then
-                iCurValue = iCurValue + iCurMobileThreat * 0.8 --want based on mobile threat so less likely to run into issue for units like fatboy where threat decreases as shield decreases
-            end
-        end
-        --Add extra mobile threat if enemy has large mobile MAA
-        iCurAAThreat = (tAltLZOrWZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) + (tAltLZOrWZTeamData[M28Map.subrefWZThreatEnemyAA] or 0)
-        if iCurAAThreat >= 3000 then
-            local tEnemyMobileAA = EntityCategoryFilterDown(categories.MOBILE, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits])
-            if M28Utilities.IsTableEmpty( tEnemyMobileAA) == false then
-                iCurValue = iCurValue + iCurAAThreat * 0.2 + M28UnitInfo.GetCombatThreatRating(tEnemyMobileAA, true, true) * 0.8
-            else
-                iCurValue = iCurValue + iCurAAThreat * 0.2
-            end
-        else
-            iCurValue = iCurValue + iCurAAThreat * 0.2
-        end
 
-        --Add extra threat if enemy has t2 arti near the nearest friendly base (relevant for team games, since 1v1 this hsould be inside the minimum rnage)
-        if tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] >= 4000 and tPlateauZoneAndDist[3] <= 200 then
-            local tEnemyT2ArtiAndMissileShips = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryTML + M28UnitInfo.refCategoryMissileShip + M28UnitInfo.refCategoryCruiser * categories.SILO, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits])
-            if M28Utilities.IsTableEmpty(tEnemyT2ArtiAndMissileShips) == false then
-                iCurValue = iCurValue + tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass]
-            end
-        end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering plateau '..tPlateauZoneAndDist[1]..' and zone '..tPlateauZoneAndDist[2]..'; Dist='..tPlateauZoneAndDist[3]..'; iCurValue before factoring in ineffective shot count='..iCurValue..'; tLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount]='..(tAltLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] or 'nil')..'; iCurAAThreat='..iCurAAThreat..'; iCurMobileThreat='..iCurMobileThreat..'; tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass]='..tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass]..'; iSecondBestValue='..iSecondBestValue) end
 
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering plateau '..tPlateauZoneAndDist[1]..' and zone '..tPlateauZoneAndDist[2]..'; Dist='..tPlateauZoneAndDist[3]..'; iCurValue before factoring in ineffective shot count='..iCurValue..'; tLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount]='..(tAltLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] or 'nil')..'; iCurAAThreat='..iCurAAThreat..'; iCurMobileThreat='..iCurMobileThreat..'; tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass]='..tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass]..'; iSecondBestValue='..iSecondBestValue) end
+                --Adjust value for number of times shots have hit
+                if iCurValue > iSecondBestValue then
+                    --Adjust cur value for shot missed percentage
+                    iShotMissFactor = GetArtiValueFactorForShotFailures((tAltLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] or 0))
+                    --Adjust cur value for angle to target
+                    iArtiAngleFactor = GetArtiValueFactorForFacingDifference(iArtiFacingAngle, tPlateauZoneAndDist[4])
 
-        --Adjust value for number of times shots have hit
-        if iCurValue > iSecondBestValue then
-            --Adjust cur value for shot missed percentage
-            iShotMissFactor = GetArtiValueFactorForShotFailures((tAltLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] or 0))
-            --Adjust cur value for angle to target
-            iArtiAngleFactor = GetArtiValueFactorForFacingDifference(iArtiFacingAngle, tPlateauZoneAndDist[4])
+                    iCurValue = iCurValue * iShotMissFactor * iArtiAngleFactor
 
-            iCurValue = iCurValue * iShotMissFactor * iArtiAngleFactor
-
-            --Record as best/second best
-            if iCurValue > iBestValue then
-                iSecondBestValue = iBestValue
-                iSecondBestPlateauOrZero = iBestPlateauOrZero
-                iSecondBestLZOrWZ = iBestLZOrWZ
-                iSecondBestAngleFactor = iBestAngleFactor
-                iBestValue = iCurValue
-                iBestPlateauOrZero = tPlateauZoneAndDist[1]
-                iBestLZOrWZ = tPlateauZoneAndDist[2]
-                iBestAngleFactor = iArtiAngleFactor
-            elseif iCurValue > iSecondBestValue then
-                iSecondBestValue = iCurValue
-                iSecondBestPlateauOrZero = tPlateauZoneAndDist[1]
-                iSecondBestLZOrWZ = tPlateauZoneAndDist[2]
-                iSecondBestAngleFactor = iArtiAngleFactor
-            end
-            if bDebugMessages == true then LOG(sFunctionRef..': iCurValue after adj='..iCurValue..'; iShotMissFactor='..iShotMissFactor..'; iArtiAngleFactor='..iArtiAngleFactor) end
-        end
-    end
-
-    --Now have the best 2 zones on an aggregate basis, get the best location for the arti target within these zones
-    local iFriendlyUnitReductionFactor = 2
-    local iFriendlyUnitAOEFactor = 2
-    local iSizeAdjust = 0.25
-    local iMultipleShotMod = 1
-    local iMobileValueFactorInner = 0.4
-    local iShieldReductionFactor = 0.25
-
-    function GetBestUnitTargetAndValueInZone(iPlateauOrZero, iLZOrWZ, iAngleFactor)
-        local tAltLZOrWZData
-        local tAltLZOrWZTeamData
-        local iCurValue
-        local iBestValue = 0
-        local oBestUnitTarget
-        if iPlateauOrZero == 0 then
-            tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLZOrWZ]][M28Map.subrefPondWaterZones][iLZOrWZ]
-            tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
-        else
-            tAltLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLZOrWZ]
-            tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
-        end
-        if M28Utilities.IsTableEmpty(tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false then
-            local tPriorityUnits = EntityCategoryFilterDown(categories.EXPERIMENTAL + categories.TECH3 + M28UnitInfo.refCategoryStructure * categories.TECH2 + M28UnitInfo.refCategoryCruiser * categories.TECH2, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits])
-            local iCurDist
-            if M28Utilities.IsTableEmpty(tPriorityUnits) then tPriorityUnits = tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits] end
-            for iUnit, oUnit in tPriorityUnits do
-                --Double check are in range
-                iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oArti:GetPosition())
-                if iCurDist <= iMaxRange and iCurDist >= iMinRange then
-                    iCurValue = M28Logic.GetDamageFromBomb(aiBrain, oUnit:GetPosition(), iAOE, iDamage, iFriendlyUnitReductionFactor, iFriendlyUnitAOEFactor, false, iSizeAdjust, iMultipleShotMod, iMobileValueFactorInner, true, iShieldReductionFactor)
+                    --Record as best/second best
                     if iCurValue > iBestValue then
+                        iSecondBestValue = iBestValue
+                        iSecondBestPlateauOrZero = iBestPlateauOrZero
+                        iSecondBestLZOrWZ = iBestLZOrWZ
+                        iSecondBestAngleFactor = iBestAngleFactor
                         iBestValue = iCurValue
-                        oBestUnitTarget = oUnit
+                        iBestPlateauOrZero = tPlateauZoneAndDist[1]
+                        iBestLZOrWZ = tPlateauZoneAndDist[2]
+                        iBestAngleFactor = iArtiAngleFactor
+                    elseif iCurValue > iSecondBestValue then
+                        iSecondBestValue = iCurValue
+                        iSecondBestPlateauOrZero = tPlateauZoneAndDist[1]
+                        iSecondBestLZOrWZ = tPlateauZoneAndDist[2]
+                        iSecondBestAngleFactor = iArtiAngleFactor
                     end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iCurValue after adj='..iCurValue..'; iShotMissFactor='..iShotMissFactor..'; iArtiAngleFactor='..iArtiAngleFactor) end
                 end
             end
+
+            --Now have the best 2 zones on an aggregate basis, get the best location for the arti target within these zones
+            local iFriendlyUnitReductionFactor = 2
+            local iFriendlyUnitAOEFactor = 2
+            local iSizeAdjust = 0.25
+            local iMultipleShotMod = 1
+            local iMobileValueFactorInner = 0.4
+            local iShieldReductionFactor = 0.25
+
+            function GetBestUnitTargetAndValueInZone(iPlateauOrZero, iLZOrWZ, iAngleFactor)
+                local tAltLZOrWZData
+                local tAltLZOrWZTeamData
+                local iCurValue
+                local iBestValue = 0
+                local oBestUnitTarget
+                if iPlateauOrZero == 0 then
+                    tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLZOrWZ]][M28Map.subrefPondWaterZones][iLZOrWZ]
+                    tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                else
+                    tAltLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLZOrWZ]
+                    tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                end
+                if M28Utilities.IsTableEmpty(tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                    local tPriorityUnits = EntityCategoryFilterDown(categories.EXPERIMENTAL + categories.TECH3 + M28UnitInfo.refCategoryStructure * categories.TECH2 + M28UnitInfo.refCategoryCruiser * categories.TECH2, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits])
+                    local iCurDist
+                    if M28Utilities.IsTableEmpty(tPriorityUnits) then tPriorityUnits = tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits] end
+                    for iUnit, oUnit in tPriorityUnits do
+                        --Double check are in range
+                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oArti:GetPosition())
+                        if iCurDist <= iMaxRange and iCurDist >= iMinRange then
+                            iCurValue = M28Logic.GetDamageFromBomb(aiBrain, oUnit:GetPosition(), iAOE, iDamage, iFriendlyUnitReductionFactor, iFriendlyUnitAOEFactor, false, iSizeAdjust, iMultipleShotMod, iMobileValueFactorInner, true, iShieldReductionFactor)
+                            if iCurValue > iBestValue then
+                                iBestValue = iCurValue
+                                oBestUnitTarget = oUnit
+                            end
+                        end
+                    end
+                end
+                return oBestUnitTarget, iBestValue
+            end
+
+            local oBestTarget, iBestTargetValue = GetBestUnitTargetAndValueInZone(iBestPlateauOrZero, iBestLZOrWZ)
+            iBestTargetValue = iBestAngleFactor * iBestTargetValue
+            if bDebugMessages == true then LOG(sFunctionRef..': iBestPlateauOrZero='..(iBestPlateauOrZero or 'nil')..'; iBestLZOrWZ='..(iBestLZOrWZ or 'nil')..'; iBestTargetValue='..(iBestTargetValue or 'nil')..'; oBestTarget='..(oBestTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oBestTarget) or 'nil')..'; iBestAngleFactor='..(iBestAngleFactor or 'nil')) end
+            if iSecondBestLZOrWZ then
+                local oAltTarget, iAltTargetValue = GetBestUnitTargetAndValueInZone(iSecondBestPlateauOrZero, iSecondBestLZOrWZ)
+                if bDebugMessages == true then LOG(sFunctionRef..': iSecondBestPlateauOrZero='..(iSecondBestPlateauOrZero or 'nil')..'; iSecondBestLZOrWZ='..(iSecondBestLZOrWZ or 'nil')..'; iAltTargetValue='..(iAltTargetValue or 'nil')..'; oAltTarget='..(oAltTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oAltTarget) or 'nil')..'; iBestTargetValue before considering this='..(iBestTargetValue or 'nil')..'; iSecondBestAngleFactor='..(iSecondBestAngleFactor or 'nil')) end
+                iAltTargetValue = iAltTargetValue * iSecondBestAngleFactor
+                if iAltTargetValue > iBestTargetValue then
+                    oBestTarget = oAltTarget
+                end
+            end
+            if not(oBestTarget) then M28Utilities.ErrorHandler('No target found for T3 arti', true)
+            else
+                local tActualTarget = M28Logic.GetBestAOETarget(aiBrain, oBestTarget:GetPosition(), iAOE, iDamage, false, nil, nil, nil, iFriendlyUnitReductionFactor, iFriendlyUnitAOEFactor, nil, iMobileValueFactorInner, iShieldReductionFactor)
+                --Double check are still in range
+                local iTargetDist = M28Utilities.GetDistanceBetweenPositions(tActualTarget, oArti:GetPosition())
+                if bDebugMessages == true then LOG(sFunctionRef..': tActualTarget='..repru(tActualTarget)..'; iTargetDist='..iTargetDist) end
+                if iTargetDist > iMaxRange or iTargetDist < iMinRange then
+                    tActualTarget = oBestTarget:GetPosition()
+                end
+
+                --Issue attack order
+                M28Orders.IssueTrackedGroundAttack(oArti, tActualTarget, 1, false, 'ArtiGF', false)
+
+                --Increase shot count
+                local iAltPlateauOrZero, iAltLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tActualTarget)
+                local tAltLZOrWZTeamData
+                if iAltPlateauOrZero == 0 then
+                    tAltLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAltLZOrWZ]][M28Map.subrefPondWaterZones][iAltLZOrWZ][M28Map.subrefWZTeamData][iTeam]
+                else
+                    tAltLZOrWZTeamData = M28Map.tAllPlateaus[iAltPlateauOrZero][M28Map.subrefPlateauLandZones][iAltLZOrWZ][M28Map.subrefLZTeamData][iTeam]
+                end
+
+                tAltLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] = (tAltLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] or 0) + 1
+            end
+
         end
-        return oBestUnitTarget, iBestValue
     end
-
-    local oBestTarget, iBestTargetValue = GetBestUnitTargetAndValueInZone(iBestPlateauOrZero, iBestLZOrWZ)
-    iBestTargetValue = iBestAngleFactor * iBestTargetValue
-    if bDebugMessages == true then LOG(sFunctionRef..': iBestPlateauOrZero='..iBestPlateauOrZero..'; iBestLZOrWZ='..iBestLZOrWZ..'; iBestTargetValue='..iBestTargetValue..'; oBestTarget='..oBestTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBestTarget)..'; iBestAngleFactor='..iBestAngleFactor) end
-    if iSecondBestLZOrWZ then
-        local oAltTarget, iAltTargetValue = GetBestUnitTargetAndValueInZone(iSecondBestPlateauOrZero, iSecondBestLZOrWZ)
-        if bDebugMessages == true then LOG(sFunctionRef..': iSecondBestPlateauOrZero='..iSecondBestPlateauOrZero..'; iSecondBestLZOrWZ='..iSecondBestLZOrWZ..'; iAltTargetValue='..iAltTargetValue..'; oAltTarget='..oAltTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAltTarget)..'; iBestTargetValue before considering this='..iBestTargetValue..'; iSecondBestAngleFactor='..iSecondBestAngleFactor) end
-        iAltTargetValue = iAltTargetValue * iSecondBestAngleFactor
-        if iAltTargetValue > iBestTargetValue then
-            oBestTarget = oAltTarget
-        end
-    end
-
-    local tActualTarget = M28Logic.GetBestAOETarget(aiBrain, oBestTarget:GetPosition(), iAOE, iDamage, false, nil, nil, nil, iFriendlyUnitReductionFactor, iFriendlyUnitAOEFactor, nil, iMobileValueFactorInner, iShieldReductionFactor)
-    --Double check are still in range
-    local iTargetDist = M28Utilities.GetDistanceBetweenPositions(tActualTarget, oArti:GetPosition())
-    if bDebugMessages == true then LOG(sFunctionRef..': tActualTarget='..repru(tActualTarget)..'; iTargetDist='..iTargetDist) end
-    if iTargetDist > iMaxRange or iTargetDist < iMinRange then
-        tActualTarget = oBestTarget:GetPosition()
-    end
-
-    --Issue attack order
-    M28Orders.IssueTrackedGroundAttack(oArti, tActualTarget, 1, false, 'ArtiGF', false)
-
-    --Increase shot count
-    local iAltPlateauOrZero, iAltLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tActualTarget)
-    local tAltLZOrWZTeamData
-    if iAltPlateauOrZero == 0 then
-        tAltLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAltLZOrWZ]][M28Map.subrefPondWaterZones][iAltLZOrWZ][M28Map.subrefWZTeamData][iTeam]
-    else
-        tAltLZOrWZTeamData = M28Map.tAllPlateaus[iAltPlateauOrZero][M28Map.subrefPlateauLandZones][iAltLZOrWZ][M28Map.subrefLZTeamData][iTeam]
-    end
-
-    tAltLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] = (tAltLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] or 0) + 1
-
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 

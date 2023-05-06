@@ -122,12 +122,11 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                         end
 
                         --M28 specific killer logic
-                        local oKillerBrain = instigator:GetAIBrain()
+                        local oKillerBrain = oKillerUnit:GetAIBrain()
                         if oKillerBrain.M28AI then
-                            if EntityCategoryContains(M28UnitInfo.refCategorySatellite, instigator.UnitId) then
+                            if EntityCategoryContains(M28UnitInfo.refCategorySatellite, instigator.UnitId) and M28UnitInfo.IsUnitValid(oKillerUnit) then
                                 ForkThread(M28Air.NovaxCoreTargetLoop, oKillerBrain, instigator, true)
                             end
-                            --TODO - consider adding in logic e.g. chat messages and tracking
                         end
                     end
                 end
@@ -195,7 +194,10 @@ function OnUnitDeath(oUnit)
 
 
 
-        if bDebugMessages == true then LOG(sFunctionRef..'Hook successful. oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; GameTime='..GetGameTimeSeconds()) end
+        if bDebugMessages == true then
+            LOG(sFunctionRef..'Hook successful. oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; GameTime='..GetGameTimeSeconds())
+            if oUnit.GetAIBrain then LOG(sFunctionRef..': Unit owner='..oUnit:GetAIBrain().Nickname) end
+        end
         --Is it an ACU?
         if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
             OnACUKilled(oUnit)
@@ -309,6 +311,7 @@ function OnUnitDeath(oUnit)
                         end
 
                         --Run unit type specific on death logic where the unit is completed
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if need to run certain M28AI on death logic, unit fraction ocmplete='..oUnit:GetFractionComplete()) end
                         if oUnit:GetFractionComplete() == 1 then
                             M28Economy.UpdateGrossIncomeForUnit(oUnit, true)
                             if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
@@ -368,9 +371,12 @@ function OnEnhancementComplete(oUnit, sEnhancement)
         if bDebugMessages == true then LOG(sFunctionRef..': Enhancement completed for self='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; sEnhancement='..reprs(sEnhancement)) end
         M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit)
         M28UnitInfo.RecordUnitRange(oUnit) --Refresh the range incase enhancement has increased anything
+        --Update ACU upgrade count
+        if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+            oUnit[M28ACU.refiUpgradeCount] = (oUnit[M28ACU.refiUpgradeCount] or 0) + 1
+        end
         if oUnit:GetAIBrain().M28AI then
             if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
-                oUnit[M28ACU.refiUpgradeCount] = (oUnit[M28ACU.refiUpgradeCount] or 0) + 1
                 M28ACU.GetUpgradePathForACU(oUnit)
             end
             --Remove any upgrade tracking
@@ -489,14 +495,14 @@ function OnWeaponFired(oWeapon)
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         local sFunctionRef = 'OnWeaponFired'
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-        if bDebugMessages == true then LOG(sFunctionRef..': Start of code; does the weapon have a valid unit='..tostring(M28UnitInfo.IsUnitValid(oWeapon.unit))..'; Weapon unitID='..(oWeapon.unit.UnitId or 'nil')) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code; does the weapon have a valid unit='..tostring(M28UnitInfo.IsUnitValid(oWeapon.unit))..'; Weapon unitID='..(oWeapon.unit.UnitId or 'nil')..'; oWeapon[refiLastWeaponEvent]='..(oWeapon[refiLastWeaponEvent] or 'nil')) end
 
         local oUnit = oWeapon.unit
         if oUnit and oUnit.GetUnitId and oUnit.GetAIBrain then
-
             if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' has just fired a shot, Time='..GetGameTimeSeconds()..'; oWeapon[refiLastWeaponEvent]='..(oWeapon[refiLastWeaponEvent] or 'nil')) end
             if not(oWeapon[refiLastWeaponEvent]) or GetGameTimeSeconds() - (oWeapon[refiLastWeaponEvent] or -1) >= 0.5 then
                 oWeapon[refiLastWeaponEvent] = GetGameTimeSeconds()
+                oUnit[refiLastWeaponEvent] = GetGameTimeSeconds()
                 --Update unit last known position/record it
                 local oParentBrain = oUnit:GetAIBrain()
                 for iTeam, tTeam in M28Team.tTeamData do
@@ -563,6 +569,10 @@ function OnWeaponFired(oWeapon)
                             oUnit[M28Building.refoLastTMLTarget][M28Building.refiTimeOfLastLaunch] = GetGameTimeSeconds()
                             if bDebugMessages == true then LOG(sFunctionRef..': have set time of last launch to '..oUnit[M28Building.refoLastTMLTarget][M28Building.refiTimeOfLastLaunch]..' for target '..oUnit[M28Building.refoLastTMLTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit[M28Building.refoLastTMLTarget])) end
                         end
+                    end
+                    --SML, TML and SMD - unpause (if paused)
+                    if EntityCategoryContains(M28UnitInfo.refCategorySML + M28UnitInfo.refCategorySMD + M28UnitInfo.refCategoryTML, oUnit.UnitId) then
+                        M28UnitInfo.PauseOrUnpauseEnergyUsage(oUnit, false)
                     end
                 end
             end
@@ -668,14 +678,22 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                     M28Engineer.RecordPartBuiltMex(oEngineer, oConstruction)
                 end
 
-                --Decide if want to shield this construction
+                --Decide if want to shield this construction and update buildable location
                 if EntityCategoryContains(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryExperimentalStructure, oConstruction.UnitId) then
                     M28Building.CheckIfUnitWantsFixedShield(oConstruction, true)
                     --If this is a fixed shield then instead update shield coverage
                     if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oConstruction.UnitId) then
                         M28Building.UpdateShieldCoverageOfUnits(oConstruction, false)
                     end
+
+                    --Buildable locations - update for unit construction started
+                    if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oConstruction.UnitId) then
+                        ForkThread(M28Engineer.CheckIfBuildableLocationsNearPositionStillValid, oEngineer:GetAIBrain(), oConstruction:GetPosition())
+                    end
+                    --Both structures and experimentals - clear any engineers trying to build something else that will be blocked by this
+                    ForkThread(M28Engineer.ClearEngineersWhoseTargetIsNowBlockedByUnitConstructionStarted, oEngineer, oConstruction)
                 end
+
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             end
         end
@@ -751,6 +769,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                 M28Engineer.CheckIfBuildableLocationsNearPositionStillValid(oJustBuilt:GetAIBrain(), oJustBuilt:GetPosition())
                 M28Economy.UpdateHighestFactoryTechLevelForBuiltUnit(oJustBuilt) --includes a check to see if are dealing with a factory HQ
                 if EntityCategoryContains(M28UnitInfo.refCategoryMex, oJustBuilt.UnitId) then
+                    M28Team.tTeamData[oJustBuilt:GetAIBrain().M28Team][M28Team.refiUpgradedMexCount] = (M28Team.tTeamData[oJustBuilt:GetAIBrain().M28Team][M28Team.refiUpgradedMexCount] or 0) + 1
                     ForkThread(M28Economy.UpdateLandZoneM28MexByTechCount, oJustBuilt, false, 10)
                     --If have storage owned by M28 on same team by this mex, gift it over
                     --All mexes - on construction check if we have allied M28 mass storage nearby (e.g. we have rebuilt on a mex that they used to have) and if so then have that M28 gift over their mass storage
@@ -812,7 +831,10 @@ function OnConstructed(oEngineer, oJustBuilt)
                     --Clear the desire to build land facs by mexes - i.e. only want hte first one to be built as such
                     if bDebugMessages == true then LOG(sFunctionRef..': Have just build land factory so clearing adjacency desire for all M28 brains') end
                     M28Engineer.tiActionAdjacentCategory[M28Engineer.refActionBuildLandFactory] = nil
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oJustBuilt.UnitId) then
+                    ForkThread(M28Building.GetT3ArtiTarget, oJustBuilt)
                 end
+                --Clear engineers that just built this
 
             elseif EntityCategoryContains(M28UnitInfo.refCategoryLandCombat * categories.TECH3 + M28UnitInfo.refCategoryIndirectT3, oJustBuilt.UnitId) then
                 if not(M28Team.tTeamData[oJustBuilt:GetAIBrain().M28Team][M28Team.refbBuiltLotsOfT3Combat]) then
@@ -820,6 +842,11 @@ function OnConstructed(oEngineer, oJustBuilt)
                         M28Team.tTeamData[oJustBuilt:GetAIBrain().M28Team][M28Team.refbBuiltLotsOfT3Combat] = true
                     end
                 end
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer * categories.TECH3, oJustBuilt.UnitId) then
+                --Late game - destroy lower tech engineers to help with pathing (up to 2 for every T3 engi built)
+                ForkThread(M28Engineer.ConsiderDestroyingLowTechEngineers, oJustBuilt)
+            elseif EntityCategoryContains(categories.MOBILE * categories.SUBMERSIBLE, oJustBuilt.UnitId) then
+                ForkThread(M28Navy.DelayedCheckIfShouldSubmerge, oJustBuilt)
             end
 
             --Update economy tracking (this function will check if it is an economic unit as part of it)
@@ -834,6 +861,11 @@ function OnConstructed(oEngineer, oJustBuilt)
             elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory, oEngineer.UnitId) then
                 if bDebugMessages == true then LOG(sFunctionRef..': A factory has just built a unit so will get the next order for the factory') end
                 ForkThread(M28Factory.DecideAndBuildUnitForFactory, oEngineer:GetAIBrain(), oEngineer)
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEngineer.UnitId) then
+                --Clear any engineers trying to build this unit if we just built a building or experimental
+                if EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId) then
+                    M28Engineer.ClearEngineersForUnitJustBuilt(oEngineer, oJustBuilt)
+                end
             end
 
             --Logic based on the type of unit built
@@ -848,8 +880,13 @@ function OnConstructed(oEngineer, oJustBuilt)
                 M28UnitInfo.EnableUnitStealth(oJustBuilt)
             end
 
+            --Mobile land units - give a micro move order so they dont block the factory
+            if EntityCategoryContains(M28UnitInfo.refCategoryMobileLand, oJustBuilt.UnitId) then
+                ForkThread(M28Micro.MoveAwayFromFactory, oJustBuilt, oEngineer)
+            end
+
             --Unit cap - refresh if are within 25 of the cap since it isnt accurate if have current units
-            if oJustBuilt:GetAIBrain()[M28Overseer.refbCloseToUnitCap] and oJustBuilt:GetAIBrain()[M28Overseer.refiExpectedRemainingCap] <= 25 then
+            if M28UnitInfo.IsUnitValid(oJustBuilt) and oJustBuilt:GetAIBrain()[M28Overseer.refbCloseToUnitCap] and oJustBuilt:GetAIBrain()[M28Overseer.refiExpectedRemainingCap] <= 25 then
                 M28Overseer.CheckUnitCap(oJustBuilt:GetAIBrain())
             end
 
@@ -990,10 +1027,10 @@ function OnDetectedBy(oUnitDetected, iBrainIndex)
         M28Team.ConsiderAssigningUnitToZoneForBrain(aiBrain, oUnitDetected) --This function includes check of whether this is an M28 brain, and updates last known position
         if aiBrain.M28AI then
             --Update highest enemy ground unti health
-            if EntityCategoryContains(M28UnitInfo.refCategoryLandCombat - categories.COMMAND - categories.SUBCOMMANDER, oUnitDetected.UnitId) then
+            if EntityCategoryContains(M28UnitInfo.refCategoryLandCombat - categories.COMMAND - categories.SUBCOMMANDER - M28UnitInfo.refCategoryLandScout, oUnitDetected.UnitId) then
                 local iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnitDetected)
                 local iMaxHealth = oUnitDetected:GetMaxHealth() + iMaxShield
-                if iMaxHealth > M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyHighestMobileLandHealth] then
+                if iMaxHealth > (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyHighestMobileLandHealth] or 0) and M28Map.bMapLandSetupComplete then
                     M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyHighestMobileLandHealth] = iMaxHealth
                 end
             end
@@ -1077,13 +1114,19 @@ function OnCreate(oUnit)
                         ForkThread(M28Economy.UpdateLandZoneM28MexByTechCount, oUnit) --we run the same logic via onconstructed
                     end
                 end
-                --General logic that want to make sure runs on M28 units even if theyre not constructed yet:
+                --General logic that want to make sure runs on M28 units even if theyre not constructed yet or to ensure we cover scenarios where we are gifted units
                 local aiBrain = oUnit:GetAIBrain()
                 if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId) then
                     M28Air.AddPriorityAirDefenceTarget(oUnit)
+                --WEAPON PRIORITIES
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) then
-                    --Weapon priorities
-                    M28UnitInfo.SetUnitTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityGunship)
+                    M28UnitInfo.SetUnitTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityGunship, true)
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryDestroyer, oUnit.UnitId) then
+                    M28UnitInfo.SetUnitTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityDestroyer, true)
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryMissileShip + M28UnitInfo.refCategoryCruiser, oUnit.UnitId) then
+                    M28UnitInfo.SetUnitTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityMissileShip, true)
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryBattleship, oUnit.UnitId) then
+                    M28UnitInfo.SetUnitTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityBattleShip, true)
                 end
                 --Check unit cap
                 if (oUnit[M28Overseer.refiExpectedRemainingCap] or 0) <= 100 then
@@ -1139,5 +1182,29 @@ function OnCreateBrain(aiBrain, planName, bIsHuman)
                 ForkThread(M28Overseer.M28BrainCreated, aiBrain)
             end
         end
+    end
+end
+
+function OnMissileImpactTerrain(self, target, position)
+    --Was this an M28 unit?
+    if M28UnitInfo.IsUnitValid(self) and self:GetAIBrain().M28AI then
+        local sFunctionRef = 'OnMissileImpactTerrain'
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+        local tLastOrder = self[M28Orders.reftiLastOrders][self[M28Orders.refiOrderCount]]
+        if bDebugMessages == true then LOG(sFunctionRef..': self='..(self.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(self) or 'nil')..'; target='..reprs(target)..'; position='..repru(position)..'; tLastOrder='..reprs(tLastOrder)..'; self[M28Building.refiLastTMLMassKills]='..(self[M28Building.refiLastTMLMassKills] or 'nil')..'; Acual XP='..(self.VetExperience or self.Sync.totalMassKilled or 0)) end
+        if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueTMLMissile or M28Utilities.IsTableEmpty(target) == false then
+            --Did we not gain any mass kills (e.g. mightve hit the ground deliberately for aoe)
+            if (self[M28Building.refiLastTMLMassKills] or 0) == (self.VetExperience or self.Sync.totalMassKilled or 0) then
+                if not(self[M28Building.reftTerrainBlockedTargets]) then self[M28Building.reftTerrainBlockedTargets] = {} end
+                local tLastTarget = tLastOrder[M28Orders.subreftOrderPosition]
+
+                if M28Utilities.IsTableEmpty(tLastTarget) == false then table.insert(self[M28Building.reftTerrainBlockedTargets], {tLastTarget[1], tLastTarget[2], tLastTarget[3]}) end
+                if M28Utilities.IsTableEmpty(tLastTarget) or M28Utilities.GetDistanceBetweenPositions(tLastTarget, target) >= 1 then table.insert(self[M28Building.reftTerrainBlockedTargets], {target[1], target[2], target[3]}) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Added locations to blackist, repru of blacklist='..repru(self[M28Building.reftTerrainBlockedTargets])) end
+            end
+        end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
 end
