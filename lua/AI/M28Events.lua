@@ -586,6 +586,8 @@ function OnWeaponFired(oWeapon)
                     --SML, TML and SMD - unpause (if paused)
                     if EntityCategoryContains(M28UnitInfo.refCategorySML + M28UnitInfo.refCategorySMD + M28UnitInfo.refCategoryTML, oUnit.UnitId) then
                         M28UnitInfo.PauseOrUnpauseEnergyUsage(oUnit, false)
+                        --TML and nuke - consider launching missile if have any remaining
+                        ForkThread(M28Building.JustFiredMissile, oUnit)
                     end
                 end
             end
