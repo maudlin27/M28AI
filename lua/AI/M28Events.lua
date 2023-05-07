@@ -749,7 +749,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                     sWZOrLZRef = ':P='..(iPlateau or 0)..'LZ='..(iLandZone or 0)
                 end
 
-                oJustBuilt:SetCustomName(oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..sWZOrLZRef..': Built')
+                if M28Config.M28ShowUnitNames then oJustBuilt:SetCustomName(oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..sWZOrLZRef..': Built') end
             end
 
             --If we have just built a radar then update radar logic
@@ -1084,7 +1084,7 @@ function OnCreate(oUnit)
                             sWZOrLZRef = 'LZ'..iLandZone
                         end
                     end
-                    oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..sWZOrLZRef)
+                    if M28Config.M28ShowUnitNames then oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..sWZOrLZRef) end
                 end
                 --Units with upgrade - update the base threat value
                 if EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit) end --Will check if unit has enhancements as part of this
