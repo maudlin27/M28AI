@@ -1030,8 +1030,9 @@ function OnMexConstructionStarted(oUnit)
 end
 
 function DecideToLaunchNukeSMLOrTMLMissile()  end --Done only to make it easier to find considerlaunchingmissile
-function ConsiderLaunchingMissile(oLauncher, oWeapon)
+function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
     --Should be called via forkthread when missile created due to creating a loop
+    --oOptioanlWeapon - if specified then can get the missile speed
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderLaunchingMissile'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -1228,9 +1229,12 @@ function ConsiderLaunchingMissile(oLauncher, oWeapon)
                     --Shortlist of locations we have recently nuked
                     local tRecentlyNuked = {}
                     local iTimeSMDNeedsToHaveBeenBuiltFor = 240 --default, will adjust
-                    local iMissileSpeed = (__blueprints[oWeapon.Blueprint.ProjectileId].Physics.MaxSpeed or 40)
+                    local iMissileSpeed
+                    if oOptionalWeapon then iMissileSpeed = (__blueprints[oOptionalWeapon.Blueprint.ProjectileId].Physics.MaxSpeed or 40)
+                    else iMissileSpeed = 40
+                    end
                     if bDebugMessages == true then
-                        LOG(sFunctionRef..': oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..'; Breakdown of the weapon table='..reprs(oWeapon)..'; iMissileSpeed='..iMissileSpeed..'; missile speed per BP='..__blueprints[oWeapon.Blueprint.ProjectileId].Physics.MaxSpeed)
+                        LOG(sFunctionRef..': oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..'; Breakdown of the weapon table='..reprs(oOptionalWeapon)..'; iMissileSpeed='..iMissileSpeed..'; missile speed per BP='..(__blueprints[oOptionalWeapon.Blueprint.ProjectileId].Physics.MaxSpeed or 'nil'))
                     end
 
                     if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefNukeLaunchLocations]) == false then
@@ -1400,7 +1404,7 @@ function ConsiderLaunchingMissile(oLauncher, oWeapon)
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     WaitSeconds(10)
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-                    ForkThread(ConsiderLaunchingMissile, oLauncher, oWeapon)
+                    ForkThread(ConsiderLaunchingMissile, oLauncher, oOptionalWeapon)
                 end
             end
         end
@@ -1801,5 +1805,20 @@ function GetArtiValueFactorForFacingDifference(iArtiFacingAngle, iAngleToTarget)
         return 1
     else
         return 1 - 0.4 * iAngleDif / 180
+    end
+end
+
+function JustFiredMissile(oLauncher)
+    --Wait 1 tick then check if sitll have missile loaded and if so then consider firing another missile
+    if EntityCategoryContains(M28UnitInfo.refCategoryTML + M28UnitInfo.refCategorySML, oLauncher.UnitId) then
+        WaitTicks(1)
+        if M28UnitInfo.IsUnitValid(oLauncher) then
+            local iMissiles = 0 --For some reason the count is off by 1, presumably a slight delay between the event being called and the below ammo counts working
+            if oLauncher.GetTacticalSiloAmmoCount then iMissiles = iMissiles + oLauncher:GetTacticalSiloAmmoCount() end
+            if oLauncher.GetNukeSiloAmmoCount then iMissiles = iMissiles + oLauncher:GetNukeSiloAmmoCount() end
+            if iMissiles > 0 then
+                ConsiderLaunchingMissile(oLauncher)
+            end
+        end
     end
 end

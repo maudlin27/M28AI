@@ -4211,7 +4211,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             end
 
             HaveActionToAssign(refActionBuildEmergencyPD, 2, iBPWanted, tTargetBuildLocation)
-            if bDebugMessages == true then LOG(sFunctionRef..': Will build emergency PD') end
+            if bDebugMessages == true then LOG(sFunctionRef..': Will build emergency T2 PD') end
         end
     end
 
@@ -4509,10 +4509,15 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         --Do we have T2 (or a teammate has t3)?
         local bHaveSufficientTech = false
         if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 then bHaveSufficientTech = true
-        else
+        elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 then
             local tT2PlusFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory - categories.TECH1, tLZTeamData[M28Map.subrefLZTAlliedUnits])
             if M28Utilities.IsTableEmpty(tT2PlusFactories) == false then
-                bHaveSufficientTech = true
+                for iUnit, oUnit in tT2PlusFactories do
+                    if oUnit:GetFractionComplete() >= 1 and oUnit:GetAIBrain().M28AI then
+                        bHaveSufficientTech = true
+                        break
+                    end
+                end
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': bHaveSufficientTech='..tostring(bHaveSufficientTech)) end
@@ -4558,6 +4563,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         else
             --We have T2 (or only need T1 due to enemy not having gun), so want to build PD
             local iRangeThreshold = 35 --Range of Aeon guncom
+            if not(bHaveSufficientTech) then iRangeThreshold = 1 end
             local iCurPDThreat = 0
             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange]) == false then
                 for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange] do
@@ -4566,8 +4572,8 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     end
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': We have T2 or better, iCurPDThreat='..iCurPDThreat..'; iAppraochingACUThreat='..iApproachingACUThreat) end
-            if iCurPDThreat <= math.max(1200, iApproachingACUThreat * 2.5) or (iCurPDThreat <= 2400 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 200 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0)) then
+            if bDebugMessages == true then LOG(sFunctionRef..': We have T2 or better or want T1 PD for nongun ACU, iCurPDThreat='..iCurPDThreat..'; iAppraochingACUThreat='..iApproachingACUThreat..'; bHaveSufficientTech='..tostring(bHaveSufficientTech)) end
+            if (bHaveSufficientTech or iCurPDThreat == 0) and (iCurPDThreat <= math.max(1200, iApproachingACUThreat * 1.75) or (iCurPDThreat <= 2400 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 200 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0))) then
                 iBPWanted = 40
                 if not(bHaveLowMass) and not(bHaveLowPower) then iBPWanted = 80 end
                 local tTargetBuildLocation
@@ -4577,7 +4583,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 local iPDTechLevelWanted = 2
                 if not(bHaveSufficientTech) then iPDTechLevelWanted = 1 end
                 HaveActionToAssign(refActionBuildEmergencyPD, iPDTechLevelWanted, iBPWanted, tTargetBuildLocation)
-                if bDebugMessages == true then LOG(sFunctionRef..': Will build emergency PD') end
+                if bDebugMessages == true then LOG(sFunctionRef..': Will build emergency PD, iPDTechLevelWanted='..iPDTechLevelWanted) end
             end
         end
     end
@@ -4614,7 +4620,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     local iMinTechWanted = 1
                     if iCurPDThreat > 0 then iMinTechWanted = 2 end
                     HaveActionToAssign(refActionBuildEmergencyPD, iMinTechWanted, iBPWanted, tTargetBuildLocation)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will build emergency PD to stop enemy ground threat') end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will build emergency PD to stop enemy ground threat, iMinTechWanted='..iMinTechWanted) end
                 end
             end
         end

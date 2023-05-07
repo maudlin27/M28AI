@@ -285,6 +285,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iTargetLand
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
+
     local iBaseCategoryWanted
     local bInSameIsland = false
     if NavUtils.GetLabel(M28Map.refPathingTypeLand, oFactory:GetPosition()) == NavUtils.GetLabel(M28Map.refPathingTypeLand, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone][M28Map.subrefMidpoint]) then
@@ -293,85 +294,89 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iTargetLand
     local tLZTargetTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone][M28Map.subrefLZTeamData][iTeam]
     if bDebugMessages == true then LOG(sFunctionRef..': Considering iPlateau '..iPlateau..'; iTargetLandZone='..iTargetLandZone..'; bInSameIsland='..tostring(bInSameIsland)..'; bDontConsiderBuildingMAA='..tostring(bDontConsiderBuildingMAA)..'; tLZTargetTeamData[M28Map.subrefbLZWantsIndirectSupport]='..tostring(tLZTargetTeamData[M28Map.subrefbLZWantsIndirectSupport])..'; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]..'; tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA]='..tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA]..'; tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted]='..tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted]..'; tLZTargetTeamData[M28Map.subrefbLZWantsSupport]='..tostring(tLZTargetTeamData[M28Map.subrefbLZWantsSupport])..'; LZ Air to ground enemy threat='..tLZTargetTeamData[M28Map.refiEnemyAirToGroundThreat]..'; tLZTargetTeamData[M28Map.refbLZWantsMobileShield]='..tostring(tLZTargetTeamData[M28Map.refbLZWantsMobileShield])..'; tLZTargetTeamData[M28Map.refbLZWantsMobileStealth]='..tostring(tLZTargetTeamData[M28Map.refbLZWantsMobileStealth])..'; tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]='..tostring(tLZTargetTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ])) end
 
-    --Mobile shields as highest priority
-    if bConsiderMobileShields and tLZTargetTeamData[M28Map.refbLZWantsMobileShield] then
-        iBaseCategoryWanted = M28UnitInfo.refCategoryMobileLandShield
-        if bInSameIsland then iBaseCategoryWanted = M28UnitInfo.refCategoryMobileLandShield
-        else iBaseCategoryWanted = iBaseCategoryWanted * categories.AMPHIBIOUS + iBaseCategoryWanted * categories.HOVER
-        end
-        if bDebugMessages == true then LOG(sFunctionRef..': LZ wants mobile stealths so will build them; blueprint expect to build from this='..(GetBlueprintsThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory) or 'nil')) end
-        --If dont have any blueprints to build then look to support indirect or DF instead
-        local sBPIDToBuild = GetBlueprintsThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory)
-        if sBPIDToBuild then
-            sBPIDToBuild = AdjustBlueprintForOverrides(oFactory:GetAIBrain(), sBPIDToBuild, tLZTargetTeamData, M28UnitInfo.GetUnitTechLevel(oFactory))
-        end
-        if not(sBPIDToBuild) then iBaseCategoryWanted = nil end
-    end
-    if not(iBaseCategoryWanted) then
-        --Mobile stealth (unless enemy so close that combat units would be better)
-        if bConsiderMobileStealths and tLZTargetTeamData[M28Map.refbLZWantsMobileStealth] and not(tLZTargetTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) then
-            iBaseCategoryWanted = M28UnitInfo.refCategoryMobileLandStealth
-            if bInSameIsland then iBaseCategoryWanted = M28UnitInfo.refCategoryMobileLandStealth
-            else iBaseCategoryWanted = iBaseCategoryWanted * categories.AMPHIBIOUS + iBaseCategoryWanted * categories.HOVER
+
+    if not(bDontGetCombat) and tLZTargetTeamData[M28Map.subrefbLZWantsIndirectSupport] and tLZTargetTeamData[M28Map.subrefbLZWantsSupport] then
+        --First consider if we need MAA more urgently than indirect
+        local bWantMAANotIndirect = false
+        if not(bDontConsiderBuildingMAA) and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 500 and tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA] < tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted] then
+            --We want more MAA for this LZ as well as wanting more indirect fire; prioritise MAA based on threat ratio and if enemy has a large air to ground force
+            local iMAARatioWanted = 8
+            if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 25000 then iMAARatioWanted = 4 end
+            if tLZTargetTeamData[M28Map.refiEnemyAirToGroundThreat] >= 200 then iMAARatioWanted = iMAARatioWanted * 0.5 end
+            if tLZTargetTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] < tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA] * iMAARatioWanted then
+                bWantMAANotIndirect = true
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': LZ wants mobile shilelds so will build them; blueprint expect to build from this='..(GetBlueprintsThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory) or 'nil')) end
-            --If dont have any blueprints to build then look to support indirect or DF instead
-            local sBPIDToBuild = GetBlueprintsThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory)
-            if sBPIDToBuild then
-                sBPIDToBuild = AdjustBlueprintForOverrides(oFactory:GetAIBrain(), sBPIDToBuild, tLZTargetTeamData, M28UnitInfo.GetUnitTechLevel(oFactory))
-            end
-            if not(sBPIDToBuild) then iBaseCategoryWanted = nil end
         end
-    end
-    if not(iBaseCategoryWanted) then
-        if not(bDontGetCombat) and tLZTargetTeamData[M28Map.subrefbLZWantsIndirectSupport] and tLZTargetTeamData[M28Map.subrefbLZWantsSupport] then
-            --First consider if we need MAA more urgently than indirect
-            local bWantMAANotIndirect = false
-            if not(bDontConsiderBuildingMAA) and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 500 and tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA] < tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted] then
-                --We want more MAA for this LZ as well as wanting more indirect fire; prioritise MAA based on threat ratio and if enemy has a large air to ground force
-                local iMAARatioWanted = 8
-                if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 25000 then iMAARatioWanted = 4 end
-                if tLZTargetTeamData[M28Map.refiEnemyAirToGroundThreat] >= 200 then iMAARatioWanted = iMAARatioWanted * 0.5 end
-                if tLZTargetTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] < tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA] * iMAARatioWanted then
-                    bWantMAANotIndirect = true
-                end
-            end
-            if bDebugMessages == true then LOG(sFunctionRef..': tLZTargetTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]='..tLZTargetTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]..'; bWantMAANotIndirect='..tostring(bWantMAANotIndirect)) end
-            if bWantMAANotIndirect then
-                if M28UnitInfo.GetUnitTechLevel(oFactory) == 3 and oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMAA) >= 50 or (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] >= 2000 and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.TECH3 * M28UnitInfo.refCategoryBomber, M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirToGround])) == false) and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 0 and oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMAA - categories.TECH3) >  oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMAA * categories.TECH3) * 4 then iBaseCategoryWanted = M28UnitInfo.refCategoryMAA
-                else
-                    iBaseCategoryWanted = M28UnitInfo.refCategoryMAA - categories.TECH3
-                end
-                if not(bInSameIsland) then iBaseCategoryWanted = iBaseCategoryWanted * categories.AMPHIBIOUS + iBaseCategoryWanted * categories.HOVER end
-                if bDebugMessages == true then LOG(sFunctionRef..': Will get MAA1') end
+        if bDebugMessages == true then LOG(sFunctionRef..': tLZTargetTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]='..tLZTargetTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]..'; bWantMAANotIndirect='..tostring(bWantMAANotIndirect)) end
+        if bWantMAANotIndirect then
+            if M28UnitInfo.GetUnitTechLevel(oFactory) == 3 and oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMAA) >= 50 or (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] >= 2000 and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.TECH3 * M28UnitInfo.refCategoryBomber, M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirToGround])) == false) and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 0 and oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMAA - categories.TECH3) >  oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMAA * categories.TECH3) * 4 then iBaseCategoryWanted = M28UnitInfo.refCategoryMAA
             else
-                if bInSameIsland then
-                    iBaseCategoryWanted = M28UnitInfo.refCategoryIndirect
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; iTeam='..iTeam..'; iPlateau='..iPlateau..'; iTargetLandZone='..iTargetLandZone..'; We want indirect support for this LZ; Enemy structure threat by DF range='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZThreatEnemyStructureDFByRange])..'; Total indirect threat wanted for LZ='..M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZIndirectThreatWanted]) end
-                else
-                    --Only consider amphibious indirect (so most factions wont build anything)
-                    iBaseCategoryWanted = M28UnitInfo.refCategoryIndirect * categories.AMPHIBIOUS + M28UnitInfo.refCategoryIndirect * categories.HOVER
+                iBaseCategoryWanted = M28UnitInfo.refCategoryMAA - categories.TECH3
+            end
+            if not(bInSameIsland) then iBaseCategoryWanted = iBaseCategoryWanted * categories.AMPHIBIOUS + iBaseCategoryWanted * categories.HOVER end
+            if bDebugMessages == true then LOG(sFunctionRef..': Will get MAA1') end
+        else
+            if bInSameIsland then
+                iBaseCategoryWanted = M28UnitInfo.refCategoryIndirect
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; iTeam='..iTeam..'; iPlateau='..iPlateau..'; iTargetLandZone='..iTargetLandZone..'; We want indirect support for this LZ; Enemy structure threat by DF range='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZThreatEnemyStructureDFByRange])..'; Total indirect threat wanted for LZ='..M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZIndirectThreatWanted]) end
+            else
+                --Only consider amphibious indirect (so most factions wont build anything)
+                iBaseCategoryWanted = M28UnitInfo.refCategoryIndirect * categories.AMPHIBIOUS + M28UnitInfo.refCategoryIndirect * categories.HOVER
+            end
+            --If enemy has a firebase in range then cancel request for indirect
+            if not(tLZTargetTeamData[M28Map.subrefLZbCoreBase]) and M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.subreftEnemyFirebasesInRange]) == false then
+                iBaseCategoryWanted = nil
+                if bDebugMessages == true then LOG(sFunctionRef..': Are in range of a firebase so wont get indirect afterall') end
+            else
+                if bDebugMessages == true then LOG(sFunctionRef..': Will get Indirect') end
+            end
+        end
+    end
+    if not(iBaseCategoryWanted) then
+        --We dont want indirect fire units, do we want MAA units?
+        if bDebugMessages == true then LOG(sFunctionRef..': Dont want indirect fire, do we want MAA? M28Map.subrefLZThreatAllyGroundAA='..tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA]..'; M28Map.subrefLZMAAThreatWanted='..tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted]..'; tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA]='..reprs(tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA])..'; tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted]='..tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted]) end
+        if not(bDontConsiderBuildingMAA) and tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA] < tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted] and (M28UnitInfo.GetUnitTechLevel(oFactory) >= 2 or (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoAllEnemyAir]) == false and (not(bDontConsiderBuildingMAA) or tLZTargetTeamData[M28Map.refiEnemyAirToGroundThreat] > 0))) then
+            if M28UnitInfo.GetUnitTechLevel(oFactory) == 3 and oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMAA) >= 50 or (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] >= 2000 and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.TECH3 * M28UnitInfo.refCategoryBomber, M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirToGround])) == false) and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 0 and oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMAA - categories.TECH3) >  oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMAA * categories.TECH3) * 4 then iBaseCategoryWanted = M28UnitInfo.refCategoryMAA
+            else
+                iBaseCategoryWanted = M28UnitInfo.refCategoryMAA - categories.TECH3
+            end
+            if not(bInSameIsland) then iBaseCategoryWanted = iBaseCategoryWanted * categories.AMPHIBIOUS + iBaseCategoryWanted * categories.HOVER end
+            if bDebugMessages == true then LOG(sFunctionRef..': Will build MAA2') end
+        end
+        if not(iBaseCategoryWanted) then
+            --Mobile shields
+            if bConsiderMobileShields and tLZTargetTeamData[M28Map.refbLZWantsMobileShield] then
+                iBaseCategoryWanted = M28UnitInfo.refCategoryMobileLandShield
+                if bInSameIsland then iBaseCategoryWanted = M28UnitInfo.refCategoryMobileLandShield
+                else iBaseCategoryWanted = iBaseCategoryWanted * categories.AMPHIBIOUS + iBaseCategoryWanted * categories.HOVER
                 end
-                --If enemy has a firebase in range then cancel request for indirect
-                if not(tLZTargetTeamData[M28Map.subrefLZbCoreBase]) and M28Utilities.IsTableEmpty(tLZTargetTeamData[M28Map.subreftEnemyFirebasesInRange]) == false then
-                    iBaseCategoryWanted = nil
-                    if bDebugMessages == true then LOG(sFunctionRef..': Are in range of a firebase so wont get indirect afterall') end
-                else
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will get Indirect') end
+                if bDebugMessages == true then LOG(sFunctionRef..': LZ wants mobile stealths so will build them; blueprint expect to build from this='..(GetBlueprintsThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory) or 'nil')) end
+                --If dont have any blueprints to build then look to support indirect or DF instead
+                local sBPIDToBuild = GetBlueprintsThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory)
+                if sBPIDToBuild then
+                    sBPIDToBuild = AdjustBlueprintForOverrides(oFactory:GetAIBrain(), sBPIDToBuild, tLZTargetTeamData, M28UnitInfo.GetUnitTechLevel(oFactory))
+                end
+                if not(sBPIDToBuild) then iBaseCategoryWanted = nil end
+            end
+            if not(iBaseCategoryWanted) then
+                --Mobile stealth (unless enemy so close that combat units would be better)
+                if bConsiderMobileStealths and tLZTargetTeamData[M28Map.refbLZWantsMobileStealth] and not(tLZTargetTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) then
+                    iBaseCategoryWanted = M28UnitInfo.refCategoryMobileLandStealth
+                    if bInSameIsland then iBaseCategoryWanted = M28UnitInfo.refCategoryMobileLandStealth
+                    else iBaseCategoryWanted = iBaseCategoryWanted * categories.AMPHIBIOUS + iBaseCategoryWanted * categories.HOVER
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': LZ wants mobile shilelds so will build them; blueprint expect to build from this='..(GetBlueprintsThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory) or 'nil')) end
+                    --If dont have any blueprints to build then look to support indirect or DF instead
+                    local sBPIDToBuild = GetBlueprintsThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory)
+                    if sBPIDToBuild then
+                        sBPIDToBuild = AdjustBlueprintForOverrides(oFactory:GetAIBrain(), sBPIDToBuild, tLZTargetTeamData, M28UnitInfo.GetUnitTechLevel(oFactory))
+                    end
+                    if not(sBPIDToBuild) then iBaseCategoryWanted = nil end
                 end
             end
         end
         if not(iBaseCategoryWanted) then
-            --We dont want indirect fire units, do we want MAA units?
-            if bDebugMessages == true then LOG(sFunctionRef..': Dont want indirect fire, do we want MAA? M28Map.subrefLZThreatAllyGroundAA='..tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA]..'; M28Map.subrefLZMAAThreatWanted='..tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted]..'; tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA]='..reprs(tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA])..'; tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted]='..tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted]) end
-            if not(bDontConsiderBuildingMAA) and tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA] < tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted] and (M28UnitInfo.GetUnitTechLevel(oFactory) >= 2 or (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoAllEnemyAir]) == false and (not(bDontConsiderBuildingMAA) or tLZTargetTeamData[M28Map.refiEnemyAirToGroundThreat] > 0))) then
-                if M28UnitInfo.GetUnitTechLevel(oFactory) == 3 and oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMAA) >= 50 or (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] >= 2000 and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.TECH3 * M28UnitInfo.refCategoryBomber, M28Team.tTeamData[iTeam][M28Team.reftoEnemyAirToGround])) == false) and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 0 and oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMAA - categories.TECH3) >  oFactory:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryMAA * categories.TECH3) * 4 then iBaseCategoryWanted = M28UnitInfo.refCategoryMAA
-                else
-                    iBaseCategoryWanted = M28UnitInfo.refCategoryMAA - categories.TECH3
-                end
-                if not(bInSameIsland) then iBaseCategoryWanted = iBaseCategoryWanted * categories.AMPHIBIOUS + iBaseCategoryWanted * categories.HOVER end
-                if bDebugMessages == true then LOG(sFunctionRef..': Will build MAA2') end
-            elseif not(bDontGetCombat) and tLZTargetTeamData[M28Map.subrefbLZWantsSupport] then
+            if not(bDontGetCombat) and tLZTargetTeamData[M28Map.subrefbLZWantsSupport] then
                 --We want DF units (but not indirect fire units)
                 if bInSameIsland then
                     local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)
@@ -603,6 +608,25 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         end
     end
 
+    --Enemy nearby ACU and PD or T2 arti nearby, with no enemies in this actual LZ - get indirect fire as last resort
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if iFactoryTechLevel >= 2 and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] == 0 then
+        local iApproachingACU, tNearestACU = M28Conditions.GetThreatOfApproachingEnemyACUsAndNearestACU(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam)
+        if bDebugMessages == true then LOG(sFunctionRef..': Emergency indirect builder: iApproachingACU threat='..iApproachingACU..'; Dist to it='..M28Utilities.GetDistanceBetweenPositions((tNearestACU or oFactory:GetPosition()), oFactory:GetPosition())..'; Cur indirect='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryIndirect)..'; Lifetime indirect='..M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryIndirect)..'; Is table of nearby enemy dangerous buildings empty='..tostring(M28Utilities.IsTableEmpty(aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryT2PlusPD + M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryTMD, oFactory:GetPosition(), 175, 'Enemy')))) end
+        if iApproachingACU >= 400 and M28Utilities.GetDistanceBetweenPositions(tNearestACU, oFactory:GetPosition()) <= 175 then
+            --Does enemy have any T2+ buildings?
+            local tNearbyEnemyT2Plus = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryT2PlusPD + M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryTMD, oFactory:GetPosition(), 175, 'Enemy')
+            if M28Utilities.IsTableEmpty(tNearbyEnemyT2Plus) == false then
+                local iTechCategory = M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)
+                local iCurIndirectFire = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryIndirect * iTechCategory)
+                if iCurIndirectFire <= 10 and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryIndirect * iTechCategory) <= 20 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': WIll try and get MML or mobile arti') end
+                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect) then return sBPIDToBuild end
+                end
+            end
+        end
+    end
+
     --Enemies nearby and have built fewer tanks of this tech level than engineers; or are on a core expansion and have no combat threat in this LZ
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if bDebugMessages == true then LOG(sFunctionRef..': CHecking if nearby enemy threat and we are T2 plus, iFactoryTechLevel='..iFactoryTechLevel..'; Enemies in this or adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; bSaveMassDueToEnemyFirebaseOrOurExperimental='..tostring(bSaveMassDueToEnemyFirebaseOrOurExperimental)..'; bDontConsiderBuildingMAA='..tostring(bDontConsiderBuildingMAA)) end
@@ -723,6 +747,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         end
     end
 
+
     --Initiail combat
     if bDebugMessages == true then LOG(sFunctionRef..': Considering initial combat units, lifetime count='..M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat)) end
     iCurrentConditionToTry = iCurrentConditionToTry + 1
@@ -743,6 +768,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             end
         end
     end
+
 
     --Initial T2+ tanks if have at least 5 engis of our current tech level and dont have many tanks, and can path to enemy by land (core base only)
     iCurrentConditionToTry = iCurrentConditionToTry + 1
