@@ -3184,6 +3184,13 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                     bWantIndirectSupport = true
                 end
             end
+            --If enemy has PD in this or adjacent zone then flag we want indirect support
+            if not(bWantIndirectSupport) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false and tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] <= math.min(2000 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech], tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] * 3) then
+                for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                    local tAltLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                    if tAltLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] > 0 then bWantIndirectSupport = true break end
+                end
+            end
             UpdateIfLandZoneWantsSupport(tLZTeamData, iPlateau, iLandZone, iTeam, bWantDFSupport, bWantIndirectSupport)
             if bDebugMessages == true then LOG(sFunctionRef..': Will update if this land zone wants some DF support='..tostring(bWantDFSupport)..'; bWantIndirectSupport='..tostring(bWantIndirectSupport)) end
         else
