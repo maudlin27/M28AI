@@ -4978,7 +4978,7 @@ function CreateWaterZones()
                 if bDebugMessages == true then LOG(sFunctionRef..': About to record a water zone using iPotentialZoneStartSegmentX-Z='..(iPotentialZoneStartSegmentX or 'nil')..'-'..(iPotentialZoneStartSegmentZ or 'nil')..'; water zone for this (hopefully shoudl be nil)='..(tWaterZoneBySegment[iPotentialZoneStartSegmentX][iPotentialZoneStartSegmentZ] or 'nil')) end
                 local tPosition = GetPositionFromPathingSegments(iPotentialZoneStartSegmentX, iPotentialZoneStartSegmentZ)
                 RecordWaterZoneAtPosition(tPosition)
-                table.insert(tBaseWaterStartPositionTable, {iPotentialZoneStartSegmentX, iPotentialZoneStartSegmentZ, tSegmentPosition, iTotalWaterZoneCount})
+                table.insert(tBaseWaterStartPositionTable, {iPotentialZoneStartSegmentX, iPotentialZoneStartSegmentZ, tPosition, iTotalWaterZoneCount})
             end
         end
     end
@@ -5168,7 +5168,7 @@ function RecordWaterZoneMidpointAndMinMaxPositions()
                         end
                     end
                     if not(bHaveValidAltMidpoint) then
-                        M28Utilities.ErrorHandler(' dont have valid midpoint even after checking every water zone segment for iPond='..iPond)
+                        M28Utilities.ErrorHandler(' dont have valid midpoint even after checking every water zone segment for iPond='..iPond..'; will just use the first WZSegment')
                         if bDebugMessages == true then
                             LOG(sFunctionRef..': iWaterZone='..iWaterZone..'; tWZData[subrefWZSegments]='..repru(tWZData[subrefWZSegments] or 'nil')..'; First segment position='..repru(GetPositionFromPathingSegments(tWZData[subrefWZSegments][1][1], tWZData[subrefWZSegments][1][2]))..'; playable area='..repru(rMapPlayableArea)..'; GetLabel navy pathing result for the first segment position='..(NavUtils.GetLabel(refPathingTypeNavy, GetPositionFromPathingSegments(tWZData[subrefWZSegments][1][1], tWZData[subrefWZSegments][1][2])) or 'nil')..'; water zone of this segment position='..(tWaterZoneBySegment[tWZData[subrefWZSegments][1][1]][tWZData[subrefWZSegments][1][2]] or 'nil')..'; will draw the water zone')
                             DrawSpecificWaterZone(iWaterZone, math.random(1, 8))
