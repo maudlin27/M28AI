@@ -1270,7 +1270,7 @@ end
 function ThirdAltAssignSegmentsNearMexesToLandZones()
     --With thanks to Jip for providing the core idea for this and some example code
 
-    --The below works on a segment by segment basis, so has issues where our segments are larger than the segments used by navmesh (since unpathable locations appear pathable)
+    --The below works on a segment by segment basis, so has issues where our segments are larger than the segments used by navmesh (since unpathable locations appear pathable), so uses a workaround of requiring the two segments to be pathable in a straight line between each other at a more granular level of detail
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ThirdAltAssignSegmentsNearMexesToLandZones'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -1300,8 +1300,8 @@ function ThirdAltAssignSegmentsNearMexesToLandZones()
         LOG('Travel time between location 1 and 2='..M28Utilities.GetTravelDistanceBetweenPositions(tLocations[1], tLocations[2], 'Land'))
     end--]]
 
-    -- first step: find all segments of the extractor groups, and store them in the queue
     function GetNeighbours(iSegmentX, iSegmentZ, tBasePosition)
+    --Get the adjacent segments to iSegmentX and Z, and the position of these adjacent segments (ntoe this is slightly different from the segment midpoint as it is based on tBasePosition for simplicity)
         local tTableBeforePositions = {{iSegmentX - 1, iSegmentZ, {{tBasePosition[1] - 1, 0, tBasePosition[3]}}}, {iSegmentX, iSegmentZ - 1, {{tBasePosition[1], 0, tBasePosition[3] - 1}}}, {iSegmentX, iSegmentZ + 1, {{tBasePosition[1], 0, tBasePosition[3] + 1}}}, {iSegmentX + 1, iSegmentZ, {{tBasePosition[1] + 1, 0, tBasePosition[3]}}}}
         if iLandZoneSegmentSize > 1 then
             for iEntry, tSubtable in tTableBeforePositions do
@@ -1330,12 +1330,14 @@ function ThirdAltAssignSegmentsNearMexesToLandZones()
     local iMexLandZone, iMexLandLabel, bSameLandLabel
     if bDebugMessages == true then LOG('X99Z34 land zone='..(tLandZoneBySegment[99][34] or 'nil')) end
     if bDebugMessages == true then LOG(sFunctionRef..': About to start cycling through plateaus and mexes, iLandZoneSegmentSize='..iLandZoneSegmentSize..'; iMaxSegmentSearchDistance='..iMaxSegmentSearchDistance) end
+    --Cycle through every plateau
     for iPlateau, tPlateauSubtable in tAllPlateaus do
         local tbSegmentHasDifferentZone = {}
         if M28Utilities.IsTableEmpty(tPlateauSubtable[subrefPlateauMexes]) == false then
             local iBaseQueueCount = 0
             local tiAdjacentSegmentsForSearchCountByMex = {}
             tiAdjacentSegmentsForSearchCountByMex[0] = {}
+            --Cycle through every mex in the current plateau and record as the 'base' position to start searching from
             for iMex, tMex in tPlateauSubtable[subrefPlateauMexes] do
                 iBaseSegmentX, iBaseSegmentZ = GetPathingSegmentFromPosition(tMex)
                 iMexLandZone = tLandZoneBySegment[iBaseSegmentX][iBaseSegmentZ]
@@ -1351,6 +1353,7 @@ function ThirdAltAssignSegmentsNearMexesToLandZones()
                 if bDebugMessages == true then LOG(sFunctionRef..': iMex='..iMex..'; iBaseSegmentXZ='..iBaseSegmentX..'-'..iBaseSegmentZ..'; tMex='..repru(tMex)..'; iMexLandZone='..(iMexLandZone or 0)..'; iBaseQueueCount='..iBaseQueueCount..'; tiAdjacentSegmentsForSearchCountByMex[0][iBaseQueueCount]='..repru(tiAdjacentSegmentsForSearchCountByMex[0][iBaseQueueCount])..'; iMexLandLabel='..(iMexLandLabel or 'nil')..'; iMaxSegmentSearchDistance='..iMaxSegmentSearchDistance) end
                 --tiBaseQueueSegments[iBaseQueueCount] = {iBaseSegmentX, iBaseSegmentZ}
             end
+            --Cycle through each base position and consider adjcent pathable segments for inclusion in the base position's zone.  Record any such segments as the base points for the next search count (so the process repeats up to iMaxSegmentSearchDistance times)
             for iSearchCount = 1, iMaxSegmentSearchDistance + 1 do --+1 since we only consider iSearchCount-1 values
                 tiAdjacentSegmentsForSearchCountByMex[iSearchCount] = {}
                 bHadSomeEntries = false
@@ -1358,7 +1361,9 @@ function ThirdAltAssignSegmentsNearMexesToLandZones()
                     tiAdjacentSegmentsForSearchCountByMex[iSearchCount][iBaseQueueCount] = {}
                     for iEntry, tiSegmentXZAndZone in tiQueueEntries do
                         for iNeighbourEntry, tiNeighbourXZ in GetNeighbours(tiSegmentXZAndZone[1], tiSegmentXZAndZone[2], tiSegmentXZAndZone[5]) do
+                            --Check we dont already have this segment assigned to another land zone
                             if not(tLandZoneBySegment[tiNeighbourXZ[1]][tiNeighbourXZ[2]]) then
+                                --Check we can path to this neighbouring segment from the base segment
                                 if not(tLandZoneBySegment[tiNeighbourXZ[1]]) then tLandZoneBySegment[tiNeighbourXZ[1]] = {} end
                                 bSameLandLabel = true
                                 for iEntry, tPosition in tiNeighbourXZ[3] do
@@ -1370,6 +1375,7 @@ function ThirdAltAssignSegmentsNearMexesToLandZones()
                                 end
 
                                 if bSameLandLabel then
+                                    --We can path here, so update the land zone to group it with the base segment, and then record it so we consider the neighbours of this segment in the next iSearchCount
                                     tLandZoneBySegment[tiNeighbourXZ[1]][tiNeighbourXZ[2]] = tiSegmentXZAndZone[3]
                                     table.insert(tiAdjacentSegmentsForSearchCountByMex[iSearchCount][iBaseQueueCount], {tiNeighbourXZ[1], tiNeighbourXZ[2],  tiSegmentXZAndZone[3], tiSegmentXZAndZone[4], GetPositionFromPathingSegments(tiNeighbourXZ[1], tiNeighbourXZ[2])})
                                     bHadSomeEntries = true
@@ -1384,6 +1390,7 @@ function ThirdAltAssignSegmentsNearMexesToLandZones()
                     end
                 end
                 if not(bHadSomeEntries) then
+                    --Didnt find any valid entries this cycle so abort
                     if bDebugMessages == true then LOG(sFunctionRef..': No entries for iSearchCount='..iSearchCount..' so will abort further entries') end
                     break
                 else
