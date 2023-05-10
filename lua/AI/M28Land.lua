@@ -420,7 +420,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         local iCurThreat
         if M28Utilities.IsTableEmpty(tMobileUnits) == false then
             for iUnit, oUnit in tMobileUnits do
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; Combat threat rating='..M28UnitInfo.GetCombatThreatRating({ oUnit }, true)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; Indirect range='..(oUnit[M28UnitInfo.refiIndirectRange] or 'nil')..'; Combat threat rating='..M28UnitInfo.GetCombatThreatRating({ oUnit }, true)) end
                 if oUnit[M28UnitInfo.refiDFRange] > 0 or oUnit[M28UnitInfo.refiIndirectRange] then
                     iCurThreat = M28UnitInfo.GetCombatThreatRating({ oUnit }, true)
                     if iCurThreat > 0 then
@@ -438,6 +438,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
                     end
                 end
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': Enemy mobile indirect range after updating all units='..repru(tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange])..'; tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]='..repru(tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange])) end
         end
         if M28Utilities.IsTableEmpty(tStructures) == false then
             for iUnit, oUnit in tStructures do

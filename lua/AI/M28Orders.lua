@@ -194,6 +194,7 @@ function IssueTrackedMove(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddTo
         else tLastOrder = oUnit[reftiLastOrders][1]
         end
     end
+    --if EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then LOG('IssueTrackedMove: Time='..GetGameTimeSeconds()..'; reprs of tLastOrder='..reprs(tLastOrder)..'; tOrderPosition='..repru(tOrderPosition)..'; iDistanceToReissueOrder='..iDistanceToReissueOrder..'; bAddToExistingQueue='..tostring(bAddToExistingQueue or false)..'; sOptionalOrderDesc='..(sOptionalOrderDesc or 'nil')..'; bOverrideMicroOrder='..tostring(bOverrideMicroOrder or false)) end
     if not(tLastOrder and tLastOrder[subrefiOrderType] == refiOrderIssueMove and iDistanceToReissueOrder and M28Utilities.GetDistanceBetweenPositions(tOrderPosition, tLastOrder[subreftOrderPosition]) < iDistanceToReissueOrder) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive]))  then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
@@ -409,8 +410,8 @@ function IssueTrackedFactoryBuild(oUnit, sOrderBlueprint, bAddToExistingQueue, s
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueFactoryBuild, [subrefsOrderBlueprint] = sOrderBlueprint})
         IssueBuildFactory({ oUnit }, sOrderBlueprint, 1)
         local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
-        if not(oUnit[M28Factory.refiBuildCountByBlueprint]) then oUnit[M28Factory.refiBuildCountByBlueprint] = {} end
-        oUnit[M28Factory.refiBuildCountByBlueprint][sOrderBlueprint] = (oUnit[M28Factory.refiBuildCountByBlueprint][sOrderBlueprint] or 0) + 1
+        M28Factory.UpdateLastBuiltTracker(oUnit, sOrderBlueprint)
+
     end
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 end
