@@ -1015,6 +1015,9 @@ function ManageMassStalls(iTeam)
                                 elseif not(bPauseNotUnpause) and (oUnit.GetTacticalSiloAmmoCount or oUnit.GetTacticalSiloAmmoCount) and M28UnitInfo.GetMissileCount(oUnit) >= 2 then
                                     --Dont unpause TML, SML and SMD that have 2+ missiles loaded already
                                     bApplyActionToUnit = false
+                                elseif bPauseNotUnpause and iCategoryRef == M28UnitInfo.refCategoryTML and M28UnitInfo.GetMissileCount(oUnit) == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1.2 then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Dealing with TML that has no missile so dont want to pause it') end
+                                    bApplyActionToUnit = false
                                 end
 
 
@@ -1506,14 +1509,15 @@ function ManageEnergyStalls(iTeam)
                                         --Dont pause factory that is building an engineer or is an air factory that isnt building an air unit, if its our highest tech level and we dont have at least 5 engis of that tech level
                                         if M28UnitInfo.GetUnitTechLevel(oUnit) >= math.max(2, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) and oBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(M28UnitInfo.GetUnitTechLevel(oUnit))) < 2 then
                                             --Dont pause factory as have too few engis and want to build power with those engis
-                                            if bDebugMessages == true then
-                                                LOG(sFunctionRef .. ': Have too few engineers so wont pause factory')
-                                            end
+                                            if bDebugMessages == true then LOG(sFunctionRef .. ': Have too few engineers so wont pause factory') end
                                             bApplyActionToUnit = false
                                         end
                                     end
                                 elseif not(bPauseNotUnpause) and (oUnit.GetTacticalSiloAmmoCount or oUnit.GetTacticalSiloAmmoCount) and M28UnitInfo.GetMissileCount(oUnit) >= 2 then
                                     --Dont unpause TML, SML and SMD that have 2+ missiles loaded already
+                                    bApplyActionToUnit = false
+                                elseif bPauseNotUnpause and iCategoryRef == M28UnitInfo.refCategoryTML and M28UnitInfo.GetMissileCount(oUnit) == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 30 then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Dealing with TML that has no missile so dont want to pause it') end
                                     bApplyActionToUnit = false
                                 end
 

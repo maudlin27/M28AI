@@ -99,7 +99,7 @@ refActionLoadOntoTransport = 38
     refActionFortifyFirebase = 39
 refActionAssistShield = 40
     refActionBuildSecondShield = 41
-    refActionBuildEmergencyArti = 42 --Not yet got the main code in place
+refActionBuildEmergencyArti = 42 --Not yet got the main code in place that M27 used, for now just have basic placeholder that builds T2 the same as a normal building
     refActionAssistTML = 43
     refActionBuildQuantumGateway = 44
     refActionBuildQuantumOptics = 45
@@ -153,6 +153,7 @@ tiActionCategory = {
     [refActionBuildTMD] = M28UnitInfo.refCategoryTMD,
     [refActionBuildAA] = M28UnitInfo.refCategoryStructureAA,
     --refActionBuildEmergencyPD - will use custom code as sometimes want T1 PD
+    [refActionBuildEmergencyArti] = M28UnitInfo.refCategoryFixedT2Arti,
     [refActionBuildSecondLandFactory] = M28UnitInfo.refCategoryLandFactory,
     [refActionBuildTML] = M28UnitInfo.refCategoryTML,
     [refActionAssistShield] = M28UnitInfo.refCategoryFixedShield * categories.TECH3,
@@ -196,6 +197,7 @@ tiActionOrder = {
     [refActionBuildTMD] = M28Orders.refiOrderIssueBuild,
     [refActionBuildAA] = M28Orders.refiOrderIssueBuild,
     [refActionBuildEmergencyPD] = M28Orders.refiOrderIssueBuild,
+    [refActionBuildEmergencyArti] = M28Orders.refiOrderIssueBuild,
     [refActionBuildSecondLandFactory] = M28Orders.refiOrderIssueBuild,
     [refActionBuildTML] = M28Orders.refiOrderIssueBuild,
     [refActionLoadOntoTransport] = M28Orders.refiOrderLoadOntoTransport,
@@ -1892,7 +1894,7 @@ function SlowlyRefreshBuildableLandZoneLocations(oOrigBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     local iSearchesConsideredThisTick
     local iTicksWaitedThisCycle
-    local iSegmentsBeforeWaiting = 16 --Must be a multiple of 2, i.e. 2^x results in this
+    local iSegmentsBeforeWaiting = 32 --Must be a multiple of 2, i.e. 2^x results in this
     local aiBrain = oOrigBrain
 
     --First update every start position that has an M28 brain to make sure we have a decent number of options recorded for a land factory and smaller
@@ -2550,7 +2552,7 @@ function GetCategoryToBuildOrAssistFromAction(iActionToAssign, iMinTechLevel, ai
             iCategoryToBuild, iOptionalFactionRequired = DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFactionOrNilIfAlreadyAssigned, tLZOrWZData, tLZOrWZTeamData)
         elseif iActionToAssign == refActionBuildShield or iActionToAssign == refActionBuildSecondShield then
             --NOTE: Separately this gets changed to tech3 if need increased range
-            if aiBrain[M28Overseer.refbDefendAgainstArti] or aiBrain[M28Overseer.refbCloseToUnitCap] then
+            if aiBrain[M28Overseer.refbDefendAgainstArti] or aiBrain[M28Overseer.refbCloseToUnitCap] or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 12000 then
                 iCategoryToBuild = M28UnitInfo.refCategoryFixedShield * categories.TECH3
             else
                 iCategoryToBuild = M28UnitInfo.refCategoryFixedShield * categories.TECH2
@@ -3254,7 +3256,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     if bAlreadyHaveTechLevelWanted then iMinTechWanted = 1 end
 
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; iActionToAssign='..iActionToAssign..'; iTeam='..iTeam..'; iPlateauOrPond='..iPlateauOrPond..'; iLandOrWaterZone='..iLandOrWaterZone..'; Have just updated BP wanted for existing engineers with the same action, iTotalBuildPowerWanted='..iTotalBuildPowerWanted..'; Is toAvailableEngineersByTech empty='..tostring(M28Utilities.IsTableEmpty(toAvailableEngineersByTech))..'; iTotalBuildPowerWanted='..iTotalBuildPowerWanted) end
-
+    bDebugMessages = false
     --Do we have an engineer of the tech level wanted? First assign any available engineers of the right tech level to the action
     --If we dont have any engineers of the right tech level available, then see if we have an engineer with a lower priority action
     local tEngineersOfTechWanted
@@ -3946,7 +3948,7 @@ function GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, bCoreZone, bHave
             if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurMass='..iCurMass..'; iHighestMassValue='..iHighestMassValue) end
         end
         if oUnitToShield then
-            if iHighestMassValue >= 15000 or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]  then
+            if iHighestMassValue >= 15000 or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 12000 then
                 iTechLevelWanted = 3
                 --Think have logic elsewhere which will make a T3 shield be built if nowhere for T2 shield that will cover it
 
@@ -4835,17 +4837,96 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
+    --Reclaim specific units if are low on mass
+    iCurPriority = iCurPriority + 1
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoUnitsToReclaim]) == false then
+        HaveActionToAssign(refActionReclaimFriendlyUnit, 1, math.max(10, 10 * table.getn(tLZTeamData[M28Map.subreftoUnitsToReclaim])), nil, true)
+    end
+
+    --T2 arti if enemy has sniper bots or fatboy
+    iCurPriority = iCurPriority + 1
+    bDebugMessages = true
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want emergency T2 arti, iCurPriority='..iCurPriority..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]..'; Friendly tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Is table of pathing to other zones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]))) end
+    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 5 then
+        local iRangeThreshold = 65
+        local iEnemyLongRangeThreat = 0
+        local iSearchRange = 300
+        local iBestEnemyRange = 0
+        local iCurDFThreat, iCurIFThreat
+        --Only consider enemy long range threat in adjacent zones - if already in this zone then presumably too close for arti to help that much
+        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
+            for iEntry, tSubtable in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
+                if tSubtable[M28Map.subrefLZTravelDist] > iSearchRange then break
+                else
+                    local iAltLZ = tSubtable[M28Map.subrefLZNumber]
+                    local tAltLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAltLZ][M28Map.subrefLZTeamData][iTeam]
+                    iCurDFThreat = 0
+                    iCurIFThreat = 0
+                    if M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]) == false then
+                        for iRange, iThreat in tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange] do
+                            if iRange >= iRangeThreshold then
+                                iCurDFThreat = iCurDFThreat + iThreat
+                                iBestEnemyRange = math.max(iBestEnemyRange, iRange)
+                            end
+                        end
+                    end
+                    if M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange]) == false then
+                        for iRange, iThreat in tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange] do
+                            if iRange >= iRangeThreshold then
+                                iCurIFThreat = iCurIFThreat + iThreat
+                                iBestEnemyRange = math.max(iBestEnemyRange, iRange)
+                            end
+                        end
+                    end
+                    iEnemyLongRangeThreat = iEnemyLongRangeThreat + math.max(iCurIFThreat, iCurDFThreat)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Finished considering iAltLZ='..iAltLZ..'; iCurIFThreat='..iCurIFThreat..'; iCurDFThreat='..iCurDFThreat..'; iEnemyLongRnageThreat='..iEnemyLongRangeThreat..'; tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]='..repru(tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange])..'; tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange]='..repru(tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange])) end
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': iEnemyLongRangeThreat after checking all zones within dist threshold='..iEnemyLongRangeThreat) end
+        if iEnemyLongRangeThreat >= 1500 then
+            --What is our long range threat that equals their range?
+            iCurDFThreat = 0
+            iCurIFThreat = 0
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange]) == false then
+                for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange] do
+                    if iRange >= iEnemyLongRangeThreat then iCurDFThreat = iCurDFThreat + iThreat end
+                end
+            end
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange]) == false then
+                for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange] do
+                    if iRange >= iEnemyLongRangeThreat then iCurIFThreat = iCurIFThreat + iThreat end
+                end
+            end
+            local iThreatWanted = iEnemyLongRangeThreat * 1.5 - iCurDFThreat - iCurIFThreat
+            if bDebugMessages == true then LOG(sFunctionRef..': iCurDFThreat='..iCurDFThreat..'; iCurIFThreat='..iCurIFThreat..'; iThreatWanted='..iThreatWanted) end
+            if iThreatWanted >= 700 then
+                --Get friendly T2 arti threat
+                local iT2ArtiThreat = 0
+                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
+                    local tT2Arti = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                    if M28Utilities.IsTableEmpty(tT2Arti) == false then
+                        iT2ArtiThreat = M28UnitInfo.GetCombatThreatRating(tT2Arti, false, true)
+                    end
+                end
+                iThreatWanted = iThreatWanted - iT2ArtiThreat
+                if bDebugMessages == true then LOG(sFunctionRef..': iT2ArtiThreat='..iT2ArtiThreat..'; iThreatWanted='..iThreatWanted) end
+                if iThreatWanted >= 700 then
+                    iBPWanted = math.min(120, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 10)
+                    if bHaveLowMass or bHaveLowPower then iBPWanted = iBPWanted * 0.5 end
+                    HaveActionToAssign(refActionBuildEmergencyArti, 2, iBPWanted)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Want to build emergency arti, iBPWanted='..iBPWanted) end
+                end
+            end
+
+        end
+    end
+
     --More power
     iCurPriority = iCurPriority + 1
     if not(bHaveLowMass) and bWantMorePower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 11 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 0) > 0 then
         iBPWanted = tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 5
         HaveActionToAssign(refActionBuildPower, iMinTechLevelForPower, iBPWanted)
-    end
-
-    --Reclaim specific units if are low on mass
-    iCurPriority = iCurPriority + 1
-    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoUnitsToReclaim]) == false then
-        HaveActionToAssign(refActionReclaimFriendlyUnit, 1, math.max(10, 10 * table.getn(tLZTeamData[M28Map.subreftoUnitsToReclaim])), nil, true)
     end
 
     --Shield assistance

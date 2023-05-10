@@ -310,7 +310,7 @@ function M28BrainCreated(aiBrain)
         M28Utilities.bM28AIInGame = true
 
         --Send a message warning players this could take a while
-        M28Chat.SendForkedMessage(aiBrain, 'LoadingMap', 'Analysing map, this usually freezes the game for 1-2 minutes (more on large maps or maps with lots of cliffs), if it takes too long try a different map.', 0, 10000, false)
+        M28Chat.SendForkedMessage(aiBrain, 'LoadingMap', 'Analysing map, this will freeze the game for a while.  Contact maudlin27 on discord if the freeze lasts more than 2 minutes', 0, 10000, false)
         ForkThread(GameSettingWarningsAndChecks, aiBrain)
         ForkThread(M28Map.SetupMap)
 
@@ -321,7 +321,7 @@ function M28BrainCreated(aiBrain)
         elseif iRand == 3 then sStartMessage = '/82' -- QAI: If you destroy this ACU, another shall rise in its place. I am endless.
         end
         --SendMessage(aiBrain, sMessageType, sMessage, iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam)
-        M28Chat.SendMessage(aiBrain, 'Start', sStartMessage, 10,                     60)
+        M28Chat.SendMessage(aiBrain, 'Start', sStartMessage, 30,                     60)
 
     end
 

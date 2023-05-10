@@ -81,7 +81,7 @@ function CheckIfUnitWantsFixedShield(oUnit, bCheckForNearbyShields)
         if bDebugMessages == true then LOG(sFunctionRef..': Unit mass cost='..oBP.Economy.BuildCostMass..'; Shieldm ax health='..(oBP.Defense.Shield.ShieldMaxHealth or 0)) end
         if oBP.Economy.BuildCostMass >= 2000 and (oBP.Defense.Shield.ShieldMaxHealth or 0) == 0 then
             if bDebugMessages == true then LOG(sFunctionRef..': Unit health='..oBP.Defense.Health..'; Defending against t3 arti for iTeam'..oUnit:GetAIBrain().M28Team..'='..tostring(M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refbDefendAgainstArti] or false)) end
-            if oBP.Defense.Health / oBP.Economy.BuildCostMass < 1 or EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) or (M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refbDefendAgainstArti] and oBP.Economy.BuildCostMass >= 3000 and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId)) then
+            if oBP.Defense.Health / oBP.Economy.BuildCostMass < 1 or EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) or ((M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refbDefendAgainstArti] or M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiEnemyAirToGroundThreat] >= 12000) and oBP.Economy.BuildCostMass >= 3000 and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId)) then
                 if M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refbDefendAgainstArti] and oBP.Economy.BuildCostMass >= 12000 then iShieldsWanted = 2
                 else iShieldsWanted = 1
                 end
