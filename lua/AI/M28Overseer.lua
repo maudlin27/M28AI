@@ -321,7 +321,7 @@ function M28BrainCreated(aiBrain)
         elseif iRand == 3 then sStartMessage = '/82' -- QAI: If you destroy this ACU, another shall rise in its place. I am endless.
         end
         --SendMessage(aiBrain, sMessageType, sMessage, iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam)
-        M28Chat.SendMessage(aiBrain, 'Start', sStartMessage, 30,                     60)
+        M28Chat.SendMessage(aiBrain, 'Start', sStartMessage, 40,                     60)
 
     end
 
