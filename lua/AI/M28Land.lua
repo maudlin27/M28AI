@@ -3717,7 +3717,7 @@ end
 
 function UpdateZoneIntelForRadar(oRadar)
     --If just built radar then want to update all land zones for the team to indicate the intel coverage
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateZoneIntelForRadar'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -3832,7 +3832,6 @@ function UpdateZoneIntelForRadar(oRadar)
                         if M28Utilities.IsTableEmpty(tUnitsToKill) == false then
                             local iTotalCount = table.getn(tUnitsToKill)
                             for iEntry = iTotalCount, 1, -1 do
-                                bDebugMessages = true
                                 if bDebugMessages == true then LOG(sFunctionRef..': Radar '..tUnitsToKill[iEntry].UnitId..M28UnitInfo.GetUnitLifetimeCount(tUnitsToKill[iEntry])..' has radar range of '..(tUnitsToKill[iEntry]:GetBlueprint().Intel.RadarRadius or 0)..' and is obsolete by oRadar '..oRadar.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRadar)..'; with iIntelRange='..iIntelRange) end
                                 M28Orders.IssueTrackedKillUnit(tUnitsToKill[iEntry])
                             end

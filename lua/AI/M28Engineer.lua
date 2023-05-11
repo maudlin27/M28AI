@@ -3256,7 +3256,6 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     if bAlreadyHaveTechLevelWanted then iMinTechWanted = 1 end
 
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; iActionToAssign='..iActionToAssign..'; iTeam='..iTeam..'; iPlateauOrPond='..iPlateauOrPond..'; iLandOrWaterZone='..iLandOrWaterZone..'; Have just updated BP wanted for existing engineers with the same action, iTotalBuildPowerWanted='..iTotalBuildPowerWanted..'; Is toAvailableEngineersByTech empty='..tostring(M28Utilities.IsTableEmpty(toAvailableEngineersByTech))..'; iTotalBuildPowerWanted='..iTotalBuildPowerWanted) end
-    bDebugMessages = false
     --Do we have an engineer of the tech level wanted? First assign any available engineers of the right tech level to the action
     --If we dont have any engineers of the right tech level available, then see if we have an engineer with a lower priority action
     local tEngineersOfTechWanted
@@ -4845,7 +4844,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --T2 arti if enemy has sniper bots or fatboy
     iCurPriority = iCurPriority + 1
-    bDebugMessages = true
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want emergency T2 arti, iCurPriority='..iCurPriority..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]..'; Friendly tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Is table of pathing to other zones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]))) end
     if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 5 then
         local iRangeThreshold = 65
