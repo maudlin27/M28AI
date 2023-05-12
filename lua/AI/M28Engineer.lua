@@ -4207,12 +4207,29 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             if tNearestEnemyACU then
                 tTargetBuildLocation = GetStartSearchPositionForEmergencyPD(tNearestEnemyACU, tLZData[M28Map.subrefMidpoint], iPlateau, iLandZone)
             else
-                local oNearestEnemy = M28Utilities.GetNearestUnit(tLZTeamData[M28Map.reftoNearestDFEnemies], tLZData[M28Map.subrefMidpoint], true, M28Map.refPathingTypeLand)
-                local tTargetBuildLocation = GetStartSearchPositionForEmergencyPD(oNearestEnemy:GetPosition(), tLZData[M28Map.subrefMidpoint], iPlateau, iLandZone)
+                local tEnemiesToConsider = {}
+                local oNearestEnemy
+                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                    for iUnit, oUnit in tLZTeamData[M28Map.reftoNearestDFEnemies] do
+                        if M28UnitInfo.IsUnitValid(oUnit) then
+                            table.insert(tEnemiesToConsider, oUnit)
+                        end
+                    end
+                end
+                if M28Utilities.IsTableEmpty(tEnemiesToConsider) == false then
+                    oNearestEnemy = M28Utilities.GetNearestUnit(tLZTeamData[M28Map.reftoNearestDFEnemies], tLZData[M28Map.subrefMidpoint], true, M28Map.refPathingTypeLand)
+                    if oNearestEnemy then --factors in if can path to enemy by land
+                        if bDebugMessages == true then LOG(sFunctionRef..': oNearestEnemy='..(oNearestEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemy) or 'nil')..'; tLZData[M28Map.subrefMidpoint]='..repru(tLZData[M28Map.subrefMidpoint])) end
+                        tTargetBuildLocation = GetStartSearchPositionForEmergencyPD(oNearestEnemy:GetPosition(), tLZData[M28Map.subrefMidpoint], iPlateau, iLandZone)
+                    end
+                end
+                if not(oNearestEnemy) then iBPWanted = 0 end
             end
+            if iBPWanted > 0 and tTargetBuildLocation then
 
-            HaveActionToAssign(refActionBuildEmergencyPD, 2, iBPWanted, tTargetBuildLocation)
-            if bDebugMessages == true then LOG(sFunctionRef..': Will build emergency T2 PD') end
+                HaveActionToAssign(refActionBuildEmergencyPD, 2, iBPWanted, tTargetBuildLocation)
+                if bDebugMessages == true then LOG(sFunctionRef..': Will build emergency T2 PD') end
+            end
         end
     end
 
@@ -4614,14 +4631,24 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             if iCurPDThreat < iEnemyThreat * 3 then
                 iBPWanted = 40
                 if not(bHaveLowMass) and not(bHaveLowPower) then iBPWanted = 80 end
-                local oNearestEnemy = M28Utilities.GetNearestUnit(tLZTeamData[M28Map.reftoNearestDFEnemies], tLZData[M28Map.subrefMidpoint], true, M28Map.refPathingTypeLand)
-                if bDebugMessages == true then LOG(sFunctionRef..': oNearestEnemy='..(oNearestEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemy) or 'nil')..'; Is it valid='..tostring(M28UnitInfo.IsUnitValid(oNearestEnemy))) end
-                if oNearestEnemy then
-                    local tTargetBuildLocation = GetStartSearchPositionForEmergencyPD(oNearestEnemy:GetPosition(), tLZData[M28Map.subrefMidpoint], iPlateau, iLandZone)
-                    local iMinTechWanted = 1
-                    if iCurPDThreat > 0 then iMinTechWanted = 2 end
-                    HaveActionToAssign(refActionBuildEmergencyPD, iMinTechWanted, iBPWanted, tTargetBuildLocation)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will build emergency PD to stop enemy ground threat, iMinTechWanted='..iMinTechWanted) end
+                local tEnemiesToConsider = {}
+                local oNearestEnemy
+                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                    for iUnit, oUnit in tLZTeamData[M28Map.reftoNearestDFEnemies] do
+                        if M28UnitInfo.IsUnitValid(oUnit) then
+                            table.insert(tEnemiesToConsider, oUnit)
+                        end
+                    end
+                end
+                if M28Utilities.IsTableEmpty(tEnemiesToConsider) == false then
+                    oNearestEnemy = M28Utilities.GetNearestUnit(tLZTeamData[M28Map.reftoNearestDFEnemies], tLZData[M28Map.subrefMidpoint], true, M28Map.refPathingTypeLand)
+                    if oNearestEnemy then
+                        local tTargetBuildLocation = GetStartSearchPositionForEmergencyPD(oNearestEnemy:GetPosition(), tLZData[M28Map.subrefMidpoint], iPlateau, iLandZone)
+                        local iMinTechWanted = 1
+                        if iCurPDThreat > 0 then iMinTechWanted = 2 end
+                        HaveActionToAssign(refActionBuildEmergencyPD, iMinTechWanted, iBPWanted, tTargetBuildLocation)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will build emergency PD to stop enemy ground threat, iMinTechWanted='..iMinTechWanted) end
+                    end
                 end
             end
         end
