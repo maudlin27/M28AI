@@ -156,6 +156,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     reftiTeamMessages = 'M28TeamMessages' --against tTeamData[aiBrain.M28Team], [x] is the message type string, returns the gametime that last sent a message of this type to the team
     subrefNukeLaunchLocations = 'M28NukeLocations' --locations that we have nuked recently
     refiTimeLastNearUnitCap = 'M28TimeLastNearUnitCap'
+    refiPriorityPondValues = 'M28PriorityPonds' --Table of ponds that are considered sufficiently high value for our team, [x] is the pond, returns the value of hte pond
 
 --AirSubteam data variables
 iTotalAirSubteamCount = 0
@@ -598,6 +599,7 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
             if bIsEnemyAirUnit then
                 table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.reftLZEnemyAirUnits], oUnit)
             else
+                if bDebugMessages == true then LOG(sFunctionRef..': About to add enemy to table of enemy units, iPlateau='..(iPlateau or 'nil')..'; iLandZOne='..(iLandZone or 'nil')..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                 table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefTEnemyUnits], oUnit)
                 --T2 arti tracking - consider firebase
                 if EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) then
@@ -974,8 +976,13 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                 M28Utilities.DrawLocation(oUnit:GetPosition())
                             end
                         end
-                        if iLandZone > 0 then
+                        if (iLandZone or 0) > 0 then
                             --Unit is in a land zone so assign it to a land zone instead of a pond
+                            if not(iPlateau) then
+                                local iAltLandZone
+                                iPlateau, iAltLandZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                                if (iAltLandZone or 0) > 0 then iLandZone = iAltLandZone end
+                            end
                             if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to iLandZone '..iLandZone..' for plateau '..iPlateau) end
                             AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone)
                         elseif iPlateau > 0 then
@@ -2017,7 +2024,7 @@ function TeamEconomyRefresh(iM28Team)
         tTeamData[iM28Team][subrefiLowestEnergyStorageCount] = math.min(tTeamData[iM28Team][subrefiLowestEnergyStorageCount], oBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage))
     end
 
-    if tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] <= 0.05 then tTeamData[iM28Team][subrefbTeamIsStallingEnergy] = true end
+    if tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] <= 0.05 and (GetGameTimeSeconds() >= 120 or tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] <= 0.001) then tTeamData[iM28Team][subrefbTeamIsStallingEnergy] = true end
     if tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] == 0 and tTeamData[iM28Team][subrefiTeamMassStored] < tTeamData[iM28Team][subrefiActiveM28BrainCount] * 25 then
         tTeamData[iM28Team][subrefbTeamIsStallingMass] = true
         tTeamData[iM28Team][refiTimeOfLastMassStall] = GetGameTimeSeconds()

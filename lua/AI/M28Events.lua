@@ -644,6 +644,7 @@ function OnMissileBuilt(self, weapon)
 
                     if bDebugMessages == true then LOG(sFunctionRef..': Have at least 2 missiles so will set paused to true on unit '..self.UnitId..M28UnitInfo.GetUnitLifetimeCount(self)) end
                     self:SetPaused(true)
+                    if self.SetAutoMode then self:SetAutoMode(false) end
 
                     --Recheck every minute
                     ForkThread(M28Building.CheckIfWantToBuildAnotherMissile, self)

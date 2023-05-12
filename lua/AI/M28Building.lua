@@ -240,6 +240,7 @@ function ForkedCheckForAnotherMissile(oUnit)
                     if bDebugMessages == true then LOG(sFunctionRef..': iMissiles='..iMissiles) end
                     if iMissiles < 2 then
                         oUnit:SetPaused(false)
+                        oUnit:SetAutoMode(false)
                         if bDebugMessages == true then LOG(sFunctionRef..': Will change unit state so it isnt paused') end
                         break
                     end
@@ -384,6 +385,36 @@ function RecordTMLAndTMDForUnitJustBuilt(oUnit)
     end
 end
 
+function IsTMDProtectingUnitFromTML(oTMD, oUnit, oTML, iOptionalBuildingSize)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'IsTMDProtectingUnitFromTML'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iBuildingSize = iOptionalBuildingSize
+    if not(iBuildingSize) then iBuildingSize = M28UnitInfo.GetBuildingSize(oUnit.UnitId) end
+    local iUnitToTMD = M28Utilities.GetDistanceBetweenPositions(oTMD:GetPosition(), oUnit:GetPosition())
+    if not(oTMD[M28UnitInfo.refiMissileDefenceRange]) then M28UnitInfo.RecordUnitRange(oTMD) end
+    local iTMDRange = (oTMD[M28UnitInfo.refiMissileDefenceRange] or 12.5)
+
+    --Reduce TMDRange to the effective range
+    iTMDRange = iTMDRange - iBuildingSize
+
+
+    local iUnitToTML = M28Utilities.GetDistanceBetweenPositions(oTML:GetPosition(), oUnit:GetPosition())
+    local iTMDToTML = M28Utilities.GetDistanceBetweenPositions(oTMD:GetPosition(), oTML:GetPosition())
+
+    local iAngleTMLToUnit = M28Utilities.GetAngleFromAToB(oTML:GetPosition(), oUnit:GetPosition())
+    local iAngleTMLToTMD = M28Utilities.GetAngleFromAToB(oTML:GetPosition(), oTMD:GetPosition())
+    if bDebugMessages == true then LOG(sFunctionRef..': Checking if TMD '..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)..' is able to block the TML '..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)..' for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iUnitToTMD='..iUnitToTMD..'; iTMDRange reduced by building size='..iTMDRange..'; TMD recorded range='..(oUnit[M28UnitInfo.refiMissileDefenceRange] or 'nil')..'; iUnitToTML='..iUnitToTML..'; iTMDToTML='..iTMDToTML..'; iAngleTMLToUnit='..iAngleTMLToUnit..'; iAngleTMLToTMD='..iAngleTMLToTMD) end
+    if M28Utilities.IsLineFromAToBInRangeOfCircleAtC(iUnitToTML, iTMDToTML, iUnitToTMD, iAngleTMLToUnit, iAngleTMLToTMD, iTMDRange) then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return true
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return false
+
+end
+
 function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange)
     --Updates the following variables: For TMD: reftUnitsCoveredByThisTMD; for TML: reftUnprotectedUnitTargetsForThisTML and reftUnitsInRangeOfThisTML; for units in range of TML: reftTMDCoveringThisUnit and reftTMLInRangeOfThisUnit
     --Assumes that oTML is in range of oUnit
@@ -407,29 +438,18 @@ function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange)
     end
     local bIsBlockedByTMD
     if bDebugMessages == true then LOG(sFunctionRef..': Near start at time '..GetGameTimeSeconds()..'; Considering if oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; is proitected from oTML '..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)..' by any of the TMD noted, is table of TMD empty='..tostring(M28Utilities.IsTableEmpty(tTMDInRange))) end
+    local iBuildingSize = M28UnitInfo.GetBuildingSize(oUnit.UnitId)
     if M28Utilities.IsTableEmpty(tTMDInRange) == false then
-        local iBuildingSize = M28UnitInfo.GetBuildingSize(oUnit.UnitId)
-        local iUnitToTMD
+        --[[local iUnitToTMD
         local iTMDRange
-        local iUnitToTML, iTMDToTML, iAngleTMLToUnit, iAngleTMLToTMD
+        local iUnitToTML, iTMDToTML, iAngleTMLToUnit, iAngleTMLToTMD--]]
         local bAlreadyRecordedTMD
+
+
+
         for iTMD, oTMD in tTMDInRange do
+            if IsTMDProtectingUnitFromTML(oTMD, oUnit, oTML, iBuildingSize) then
 
-            iUnitToTMD = M28Utilities.GetDistanceBetweenPositions(oTMD:GetPosition(), oUnit:GetPosition())
-            if not(oTMD[M28UnitInfo.refiMissileDefenceRange]) then M28UnitInfo.RecordUnitRange(oTMD) end
-            iTMDRange = (oTMD[M28UnitInfo.refiMissileDefenceRange] or 12.5)
-
-            --Reduce TMDRange to the effective range
-            iTMDRange = iTMDRange - iBuildingSize
-
-
-            iUnitToTML = M28Utilities.GetDistanceBetweenPositions(oTML:GetPosition(), oUnit:GetPosition())
-            iTMDToTML = M28Utilities.GetDistanceBetweenPositions(oTMD:GetPosition(), oTML:GetPosition())
-
-            iAngleTMLToUnit = M28Utilities.GetAngleFromAToB(oTML:GetPosition(), oUnit:GetPosition())
-            iAngleTMLToTMD = M28Utilities.GetAngleFromAToB(oTML:GetPosition(), oTMD:GetPosition())
-            if bDebugMessages == true then LOG(sFunctionRef..': Checking if TMD '..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)..' is able to block the TML '..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)..' for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iUnitToTMD='..iUnitToTMD..'; iTMDRange reduced by building size='..iTMDRange..'; TMD recorded range='..(oUnit[M28UnitInfo.refiMissileDefenceRange] or 'nil')..'; iUnitToTML='..iUnitToTML..'; iTMDToTML='..iTMDToTML..'; iAngleTMLToUnit='..iAngleTMLToUnit..'; iAngleTMLToTMD='..iAngleTMLToTMD) end
-            if M28Utilities.IsLineFromAToBInRangeOfCircleAtC(iUnitToTML, iTMDToTML, iUnitToTMD, iAngleTMLToUnit, iAngleTMLToTMD, iTMDRange) then
                 --TMD can block the TML
                 bAlreadyRecordedTMD = false
                 bIsBlockedByTMD = true
@@ -444,14 +464,38 @@ function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange)
                     table.insert(oUnit[reftTMDCoveringThisUnit], oTMD)
                     if not(oTMD[reftUnitsCoveredByThisTMD]) then oTMD[reftUnitsCoveredByThisTMD] = {} end
                     table.insert(oTMD[reftUnitsCoveredByThisTMD], oUnit)
+                    if bDebugMessages == true then LOG(sFunctionRef..': TMD '..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)..' recorded against oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' as covering it from TML') end
                 end
             else
-                if bDebugMessages == true then LOG(sFunctionRef..': TMD doesnt block the TML') end
+                if bDebugMessages == true then LOG(sFunctionRef..': TMD '..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)..' doesnt block the TML') end
             end
         end
     end
     if not(bIsBlockedByTMD) then
-        --None of the TMD are blocking the TML from hitting this unit
+        --None of the TMD are blocking the TML from hitting this unit; check if there are any other valid TMD that are covering this unit
+        if M28Utilities.IsTableEmpty(oUnit[reftTMDCoveringThisUnit]) == false then
+            for iTMD, oTMD in oUnit[reftTMDCoveringThisUnit] do
+                if M28UnitInfo.IsUnitValid(oTMD) then
+                    --Have we considered this TMD alreayd?
+                    local bConsideredAbove = false
+                    for iExistingTMD, oExistingTMD in tTMDInRange do
+                        if oExistingTMD == oTMD then
+                            bConsideredAbove = true
+                            break
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': This unit has TMD recorded as covering it, oTMD='..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)..'; bConsideredAbove='..tostring(bConsideredAbove)..'; Does the TMD cover the unit from this TML='..tostring(IsTMDProtectingUnitFromTML(oTMD, oUnit, oTML, iBuildingSize))) end
+                    if not(bConsideredAbove) then
+                        if IsTMDProtectingUnitFromTML(oTMD, oUnit, oTML, iBuildingSize) then
+                            bIsBlockedByTMD = true
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end
+    if not(bIsBlockedByTMD) then
         local bAlreadyIncluded = false
         if not(oTML[reftUnprotectedUnitTargetsForThisTML]) or M28Utilities.IsTableEmpty(oTML[reftUnprotectedUnitTargetsForThisTML]) then
             oTML[reftUnprotectedUnitTargetsForThisTML] = {}
@@ -467,6 +511,18 @@ function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange)
         if bDebugMessages == true then LOG(sFunctionRef..': Will record this unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' against table of unprotected units for TML as it isnt blocked by any of the TMD, bAlreadyIncluded='..tostring(bAlreadyIncluded or false)) end
         if not(bAlreadyIncluded) then
             table.insert(oTML[reftUnprotectedUnitTargetsForThisTML], oUnit)
+        end
+    else
+        --is covered by TMD, make sure not listed in reftUnprotectedUnitTargetsForThisTML
+        if bDebugMessages == true then LOG(sFunctionRef..': Unit is covered by TMD so will make sure not listed as an unprotected target against the TML, is table of unrptoected targets empty='..tostring(M28Utilities.IsTableEmpty(oTML[reftUnprotectedUnitTargetsForThisTML]))) end
+        if M28Utilities.IsTableEmpty(oTML[reftUnprotectedUnitTargetsForThisTML]) == false then
+            for iExistingUnit, oExistingUnit in oTML[reftUnprotectedUnitTargetsForThisTML] do
+                if oExistingUnit == oUnit then
+                    if bDebugMessages == true then LOG(sFunctionRef..': This unit was previously recorded as an unprotected target, will remove') end
+                    table.remove(oTML[reftUnprotectedUnitTargetsForThisTML], iExistingUnit)
+                    break
+                end
+            end
         end
     end
     --Either way record unit as being in range of TML
@@ -486,6 +542,7 @@ function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange)
     if not(bAlreadyIncluded) then
         table.insert(oTML[reftUnitsInRangeOfThisTML], oUnit)
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function AlliedTMDFirstRecorded(iTeam, oTMD)
@@ -1039,7 +1096,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
 
 
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..' owned by brain '..oLauncher:GetAIBrain().Nickname..' at time='..GetGameTimeSeconds()) end
     if M28UnitInfo.IsUnitValid(oLauncher) then
         --oLauncher[refbActiveMissileChecker] = true
 
@@ -1364,7 +1421,9 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                     if bDebugMessages == true then LOG(sFunctionRef..': Will launch missile at tTarget='..repru(tTarget)) end
                     if bTML then
                         M28Orders.IssueTrackedTMLMissileLaunch(oLauncher, tTarget, 0.25, false, 'TMLFire', true)
-                        oLauncher:SetAutoMode(true)
+                        if M28UnitInfo.GetMissileCount(oLauncher) <= 1 then
+                            oLauncher:SetAutoMode(true)
+                        end
                         oLauncher:SetPaused(false)
                         if bDebugMessages == true then
                             local tExpectedMissileVertical = M28Utilities.MoveInDirection(oLauncher:GetPosition(), M28Utilities.GetAngleFromAToB(oLauncher:GetPosition(), tTarget), 31, true)
@@ -1380,7 +1439,9 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                         --Unpause incase we paused previously
                         if oLauncher[refbPausedAsNoTargets] then
                             oLauncher[refbPausedAsNoTargets] = false
-                            oLauncher:SetAutoMode(true)
+                            if M28UnitInfo.GetMissileCount(oLauncher) <= 1 then
+                                oLauncher:SetAutoMode(true)
+                            end
                             oLauncher:SetPaused(false)
                         end
                         if not(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefNukeLaunchLocations]) then M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefNukeLaunchLocations] = {} end

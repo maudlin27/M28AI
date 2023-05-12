@@ -132,7 +132,7 @@ function GetUnitPlateauAndLandZoneOverride(oUnit)
                         local iClosestUnpathableLZRef
                         local iCurLZDist
                         for iLandZone, tAltLZData in M28Map.tAllPlateaus[iPossiblePlateau][M28Map.subrefPlateauLandZones] do
-                            iCurLZDist = M28Utilities.GetDistanceBetweenPositions(tAltLocation, M28Map.tAllPlateaus[iPossiblePlateau][M28Map.subrefPlateauLandZones][M28Map.subrefMidpoint])
+                            iCurLZDist = M28Utilities.GetDistanceBetweenPositions(tAltLocation, M28Map.tAllPlateaus[iPossiblePlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMidpoint])
 
                             if iCurLZDist < iClosestLZDist then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Can we path from alt location to midpoint of land zone '..iLandZone..' with iCurLZDist='..iCurLZDist..'='..tostring(NavUtils.CanPathTo(M28Map.refPathingTypeLand, tAltLocation, M28Map.tAllPlateaus[iPossiblePlateau][M28Map.subrefPlateauLandZones][M28Map.subrefMidpoint]))) end
@@ -150,7 +150,7 @@ function GetUnitPlateauAndLandZoneOverride(oUnit)
                         if not(iPossibleLZ) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Couldnt find any LZs that are actually pathable, closest unpaathable dist='..iClosestUnpathableLZDist..'; if this is within 50 then will use this') end
                             if iClosestUnpathableLZDist < 50 then
-                                iPossibleLZ = iClosestUnpathableLZDist
+                                iPossibleLZ = iClosestUnpathableLZRef
                             end
                         end
                     end
@@ -160,7 +160,7 @@ function GetUnitPlateauAndLandZoneOverride(oUnit)
                     if not(iPossibleLZ) then M28Utilities.DrawLocation(oUnit:GetPosition(), 2) end
                 end
                 if (iPossiblePlateau or 0) > 0 and (iPossibleLZ or 0) > 0 then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Identified a backup land zone override for oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at position '..repru(oUnit:GetPosition())..' and tAdjustXZ='..repru(tAdjustXZ)..'; will add to list of exceptions') end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Identified a backup land zone override for oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at position '..repru(oUnit:GetPosition())..' and tAdjustXZ='..repru(tAdjustXZ)..'; will add to list of exceptions, iPossibleLZ='..(iPossibleLZ or 'nil')) end
                     bFoundAlternative = true
                     M28Map.AddLocationToPlateauExceptions(oUnit:GetPosition(), iPossiblePlateau, iPossibleLZ)
                     break
@@ -3733,11 +3733,12 @@ function UpdateZoneIntelForRadar(oRadar)
             if bDebugMessages == true then LOG(sFunctionRef..': Radar intel range='..iIntelRange) end
             if iIntelRange > 0 or iOmniRange > 0 then
                 --Update land zones:
+                local tPotentiallyObsoleteRadar = {}
                 for iPlateau, tPlateauSubtable in M28Map.tAllPlateaus do
                     for iLandZone, tLZData in tPlateauSubtable[M28Map.subrefPlateauLandZones] do
                         if tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refiRadarCoverage] < iIntelRange then
                             iCurIntelRange = iIntelRange - M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], oRadar:GetPosition())
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering iPlateau '..iPlateau..' Land zone '..iLandZone..'; iCurIntelRange factoring in distance='..iCurIntelRange..'; Distance='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], oRadar:GetPosition())..'; LZ current radar coverage='..tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refiRadarCoverage]) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering iPlateau '..iPlateau..' Land zone '..iLandZone..'; iCurIntelRange factoring in distance='..iCurIntelRange..'; Distance='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], oRadar:GetPosition())..'; LZ current radar coverage='..tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refiRadarCoverage]..'; tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar]='..(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar]) or 'nil')) end
                             if iCurIntelRange > tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refiRadarCoverage] then
                                 --First remove this plateau and LZ from the existing radar if there was one
                                 if M28UnitInfo.IsUnitValid(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar]) then
@@ -3749,6 +3750,8 @@ function UpdateZoneIntelForRadar(oRadar)
                                             end
                                         end
                                     end
+                                    table.insert(tPotentiallyObsoleteRadar, tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar])
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Added radar '..tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar].UnitId..M28UnitInfo.GetUnitLifetimeCount(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar])..' to potentially obsolete table') end
                                 end
                                 tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refiRadarCoverage] = iCurIntelRange
                                 tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar] = oRadar
@@ -3790,10 +3793,47 @@ function UpdateZoneIntelForRadar(oRadar)
                                     if not(oRadar[M28Navy.reftiRadarWaterZonesCoveredByTeam][iTeam]) then oRadar[M28Navy.reftiRadarWaterZonesCoveredByTeam][iTeam] = {} end
                                     table.insert(oRadar[M28Navy.reftiRadarWaterZonesCoveredByTeam][iTeam], iWaterZone)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Finished udpating for the new intel range, iWaterZone='..iWaterZone..'; tWZTeamData[M28Map.refiRadarCoverage]='..tWZTeamData[M28Map.refiRadarCoverage]) end
+                                    table.insert(tPotentiallyObsoleteRadar, tWZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar])
                                 end
                             end
                             if iOmniRange > (tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiOmniCoverage] or 0) then
                                 tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiOmniCoverage] = math.max((tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiOmniCoverage] or 0), iOmniRange - M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], oRadar:GetPosition()))
+                            end
+                        end
+                    end
+                end
+
+                --Filter to obsolete radar and ctrl-K these
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished cycling through zones, is table of obsolete radar empty='..tostring(M28Utilities.IsTableEmpty(tPotentiallyObsoleteRadar))) end
+                if M28Utilities.IsTableEmpty(tPotentiallyObsoleteRadar) == false then
+                    local tUniqueList = {}
+                    local iUnitRef
+                    local oBrain
+                    for iUnit, oUnit in tPotentiallyObsoleteRadar do
+                        oBrain = oUnit:GetAIBrain()
+                        if oBrain.M28AI then
+                            iUnitRef = oBrain:GetArmyIndex()..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will add unit with ref incl ai index of '..iUnitRef..' to tUniqueList') end
+                            if not(tUniqueList[iUnitRef]) then
+                                tUniqueList[iUnitRef] = oUnit
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is tUniqueList empty='..tostring( M28Utilities.IsTableEmpty(tUniqueList))) end
+                    if M28Utilities.IsTableEmpty(tUniqueList) == false then
+                        local tUnitsToKill = {}
+                        for iUnit, oUnit in tUniqueList do
+                            local oBP = oUnit:GetBlueprint()
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with radar radius '..(oBP.Intel.RadarRadius or 0)..' vs iIntelRange='..iIntelRange) end
+                            if (oBP.Intel.RadarRadius or 0) < math.max(1, iIntelRange) and (oBP.Intel.OmniRadius or 0) < math.max(1, iOmniRange) then
+                                table.insert(tUnitsToKill, oUnit)
+                            end
+                        end
+                        if M28Utilities.IsTableEmpty(tUnitsToKill) == false then
+                            local iTotalCount = table.getn(tUnitsToKill)
+                            for iEntry = iTotalCount, 1, -1 do
+                                if bDebugMessages == true then LOG(sFunctionRef..': Radar '..tUnitsToKill[iEntry].UnitId..M28UnitInfo.GetUnitLifetimeCount(tUnitsToKill[iEntry])..' has radar range of '..(tUnitsToKill[iEntry]:GetBlueprint().Intel.RadarRadius or 0)..' and is obsolete by oRadar '..oRadar.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRadar)..'; with iIntelRange='..iIntelRange) end
+                                M28Orders.IssueTrackedKillUnit(tUnitsToKill[iEntry])
                             end
                         end
                     end
