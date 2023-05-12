@@ -1551,7 +1551,7 @@ function AssignValuesToWaterZones(iTeam)
                         tWZTeamData[M28Map.subrefWZbCoreBase] = nil
 
                         --Is this a core base water zone?
-                        if tWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation] then
+                        if tWZTeamData[M28Map.subrefWZbContainsNavalBuildLocation] and ((M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 0) > 0 or tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Setting iWaterZone='..iWaterZone..' to be a WZ core base as it contains a naval build location') end
                             tWZTeamData[M28Map.subrefWZbCoreBase] = true
                         elseif M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTAlliedUnits]) == false then

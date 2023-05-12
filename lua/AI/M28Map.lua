@@ -288,12 +288,12 @@ tPondDetails = {}
     subrefPondMidpoint = 'PondMidpoint'
 --subrefPondNearbyBrains = 'PondNearbyBrains'
     subrefPondMexInfo = 'PondMexInfo'
-    subrefMexLocation = 'PondMexLocation'
-    subrefMexDistance = 'PondMexDistance'
-    subrefMexDFDistance = 'PondMexDFDistance'
-    subrefMexDFUnblockedLocation = 'PondMexDFLocation' --i.e. the closest location we found where a DF unit should be able to hit the mex
-    subrefMexIndirectDistance = 'PondMexIndirectDistance'
-    subrefMexIndirectUnblockedLocation = 'PondMexIndirectLocation' --i.e. the closest location we found where an indirect unit should be able to hit the mex
+        subrefMexLocation = 'PondMexLocation'
+        subrefMexDistance = 'PondMexDistance'
+        subrefMexDFDistance = 'PondMexDFDistance'
+        subrefMexDFUnblockedLocation = 'PondMexDFLocation' --i.e. the closest location we found where a DF unit should be able to hit the mex
+        subrefMexIndirectDistance = 'PondMexIndirectDistance'
+        subrefMexIndirectUnblockedLocation = 'PondMexIndirectLocation' --i.e. the closest location we found where an indirect unit should be able to hit the mex
     subrefBuildLocationByStartPosition = 'PondBuildLocationByStart' --Subtable, key is start position number, which stores the build location for that start position (will only record for M28 brain start positions)
 
     --Water zones (against tPondDetails)
@@ -430,21 +430,25 @@ end
 function GetPathingOverridePlateauAndLandZone(tPosition, bOptionalShouldBePathable, oOptionalPathingUnit)
     local iX = math.floor(tPosition[1])
     --if (oOptionalPathingUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oOptionalPathingUnit) or 'nil') == 'uel02031' then LOG('GetPathingOverridePlateauAndLandZone: iPlateau is nil or 0, tPosition='..repru(tPosition)..'; tPathingPlateauAndLZOverride[ix]='..repru(tPathingPlateauAndLZOverride[iX])..'; bOptionalShouldBePathable='..tostring(bOptionalShouldBePathable or false)..'; Is oOptionalPathingUnit valid='..tostring(M28UnitInfo.IsUnitValid(oOptionalPathingUnit))) end
+    --LOG('GetPathingOverridePlateauAndLandZone: iPlateau is nil or 0, tPosition='..repru(tPosition)..'; tPathingPlateauAndLZOverride[ix]='..repru(tPathingPlateauAndLZOverride[iX])..'; bOptionalShouldBePathable='..tostring(bOptionalShouldBePathable or false)..'; Is oOptionalPathingUnit valid='..tostring(M28UnitInfo.IsUnitValid(oOptionalPathingUnit)))
     if tPathingPlateauAndLZOverride[iX] then
         local iZ = math.floor(tPosition[3])
         if tPathingPlateauAndLZOverride[iX][iZ] then
             --if (oOptionalPathingUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oOptionalPathingUnit) or 'nil') == 'uel02031' then LOG('GetPathingOverridePlateauAndLandZone: Have a valid override so will return this, override='..repru(tPathingPlateauAndLZOverride[iX][iZ])) end
+            --LOG('GetPathingOverridePlateauAndLandZone: Have a valid override so will return this, override='..repru(tPathingPlateauAndLZOverride[iX][iZ]))
             return tPathingPlateauAndLZOverride[iX][iZ][1], tPathingPlateauAndLZOverride[iX][iZ][2]
         end
     end
     --Dont have an override for here - if we think it shoudl be pathable then create an override
     if bOptionalShouldBePathable and oOptionalPathingUnit then
         --if (oOptionalPathingUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oOptionalPathingUnit) or 'nil') == 'uel02031' then LOG('GetPathingOverridePlateauAndLandZone: No plateau for a unit that should be pathable, tPosition='..repru(tPosition)..'; bOptionalShouldBePathable='..tostring(bOptionalShouldBePathable)..'; oOptionalPathingUnit='..oOptionalPathingUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOptionalPathingUnit)..'; oOptionalPathingUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]='..repru(oOptionalPathingUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam])..'; Unit state='..M28UnitInfo.GetUnitState(oOptionalPathingUnit)..'; iMapWaterHeight='..iMapWaterHeight..'; about to run ConsiderAddingPlateauOverrideForUnit') end
+        --LOG('GetPathingOverridePlateauAndLandZone: No plateau for a unit that should be pathable, tPosition='..repru(tPosition)..'; bOptionalShouldBePathable='..tostring(bOptionalShouldBePathable)..'; oOptionalPathingUnit='..oOptionalPathingUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOptionalPathingUnit)..'; oOptionalPathingUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]='..repru(oOptionalPathingUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam])..'; Unit state='..M28UnitInfo.GetUnitState(oOptionalPathingUnit)..'; iMapWaterHeight='..iMapWaterHeight..'; about to run ConsiderAddingPlateauOverrideForUnit')
         if M28Land.ConsiderAddingPlateauOverrideForUnit(oOptionalPathingUnit) then
             if tPathingPlateauAndLZOverride[iX] then
                 local iZ = math.floor(tPosition[3])
                 if tPathingPlateauAndLZOverride[iX][iZ] then
                     --if (oOptionalPathingUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oOptionalPathingUnit) or 'nil') == 'uel02031' then LOG('GetPathingOverridePlateauAndLandZone: Have a valid override after considering plateau override for unit, override='..repru(tPathingPlateauAndLZOverride[iX][iZ])) end
+                    --LOG('GetPathingOverridePlateauAndLandZone: Have a valid override after considering plateau override for unit, override='..repru(tPathingPlateauAndLZOverride[iX][iZ]))
                     return tPathingPlateauAndLZOverride[iX][iZ][1], tPathingPlateauAndLZOverride[iX][iZ][2]
                 end
             end
@@ -506,12 +510,13 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
         --Have a valid plateau, get the land zone reference:
         --local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tPosition)
         iLandZone = tLandZoneBySegment[iSegmentX][iSegmentZ]
-        --LOG('GetPlateauAndLandZoneReferenceFromPosition - iLandZOne='..(iLandZone or 'nil'))
+        --LOG('GetPlateauAndLandZoneReferenceFromPosition - iLandZOne based on segment='..(iLandZone or 'nil'))
         if not(iLandZone) then
             --Are we above water in height? If so check for override
             if tPosition[2] > iMapWaterHeight then
                 local iAltPlateau
                 iAltPlateau, iLandZone = GetPathingOverridePlateauAndLandZone(tPosition, bOptionalShouldBePathable, oOptionalPathingUnit)
+                --LOG('GetPlateauAndLandZoneReferenceFromPosition: iLandZone after checking for override='..(iLandZone or 'nil'))
                 if not(iLandZone) and bOptionalShouldBePathable then
                     --Possible explanation - engineer has traveled across water and reached a cliff
                     if EntityCategoryContains(categories.HOVER + categories.AMPHIBIOUS, oOptionalPathingUnit.UnitId) then
@@ -1542,7 +1547,6 @@ local function AssignRemainingSegmentsToLandZones()
     local tBasePosition
 
     --Create a new zone for any locations with no nearby pathable zones
-    local iNewZoneCount = 0
     local iBasePositionX = - iLandZoneSegmentSize * 0.5 + rMapPlayableArea[1]
     local iBasePositionZ
     local iNearbyAssignmentSegmentRange = math.min(iMaxSegmentSearchDistance, math.ceil(iMaxSegmentSearchDistance * 0.5) + 1)
@@ -1652,7 +1656,7 @@ local function AssignRemainingSegmentsToLandZones()
                                 end
                             else
                                 --Have a valid segment so use this as the land zone unless have reached iCopyZoneThreshold
-                                if bDebugMessages == true then LOG(sFunctionRef..': Already considered or recorded this zone, iLandZoneToUse='..(iLandZoneToUse or 'nil')..'; iSearchCount='..iSearchCount..'; iCopyZoneThreshold='..(iCopyZoneThreshold or 'nil')..'; Neighbour land zone='..(tLandZoneBySegment[tiNeighbourXZ[1]][tiNeighbourXZ[2]] or 'nil')) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Already considered or recorded this zone, iLandZoneToUse='..(iLandZoneToUse or 'nil')..'; iSearchCount='..iSearchCount..'; iCopyZoneThreshold='..(iCopyZoneThreshold or 'nil')..'; Neighbour land zone='..(tLandZoneBySegment[tiNeighbourXZ[1]][tiNeighbourXZ[2]] or 'nil')..'; Neighbour segment=X'..tiNeighbourXZ[1]..'Z'..tiNeighbourXZ[2]) end
                                 if not(iLandZoneToUse) and iSearchCount < (iCopyZoneThreshold or 10000) then
                                     iLandZoneToUse = tLandZoneBySegment[tiNeighbourXZ[1]][tiNeighbourXZ[2]]
                                 end
@@ -1663,31 +1667,31 @@ local function AssignRemainingSegmentsToLandZones()
                     if not(bHadSomeEntries) then break end
                 end
                 --If we didnt come across an existing nearby land zone we can path to then create a new zone:
+                if bDebugMessages == true then LOG(sFunctionRef..': FInished cycling through all nearby pathable segments for base segments X'..iRevisedBaseSegmentX..'Z'..iRevisedBaseSegmentZ..'; iLandZoneToUse='..(iLandZoneToUse or 'nil')) end
                 if not(iLandZoneToUse) then
-                    if tAllPlateaus[iPlateauGroup][subrefPlateauTotalMexCount] > 0 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Plateau mex count='..(tAllPlateaus[iPlateauGroup][subrefPlateauTotalMexCount] or 0)..'; iPlateauGroup='..(iPlateauGroup or 'nil')) end
+                    if (tAllPlateaus[iPlateauGroup][subrefPlateauTotalMexCount] or 0) > 0 then
                         CreateNewLandZoneAtSegment(iRevisedBaseSegmentX, iRevisedBaseSegmentZ, iPlateauGroup)
-                        iNewZoneCount = iNewZoneCount + 1
-                        iLandZoneToUse = iNewZoneCount
+                        iLandZoneToUse = tAllPlateaus[iPlateauGroup][subrefLandZoneCount]
+                        if bDebugMessages == true then LOG(sFunctionRef..': Created new zone for this plateau, iLandZoneToUse='..iLandZoneToUse..'; will use this as the land zone') end
                     else
                         if iPlateauGroup > 0 then
-                            if not(tiLZEntryByNavUtilsRef[iPlateauGroup][iLandPathingGroupWanted]) then
-                                --We haven't created this LZ yet; have we created the plateau?
-                                if not(tAllPlateaus[iPlateauGroup]) then
-                                    RecordMexlessPlateau(iPlateauGroup)
-                                end
-
-                                if not(tiLZEntryByNavUtilsRef[iPlateauGroup]) then
-                                    tiLZEntryByNavUtilsRef[iPlateauGroup] = {}
-                                end
-
-                                --Need to add land zone reference to this plateau
-                                AddNewLandZoneReferenceToPlateau(iPlateauGroup)
-                                tiLZEntryByNavUtilsRef[iPlateauGroup][iLandPathingGroupWanted] = tAllPlateaus[iPlateauGroup][subrefLandZoneCount]
-                                RecordSegmentLandZone(iBaseSegmentX, iBaseSegmentZ, iPlateauGroup, tAllPlateaus[iPlateauGroup][subrefLandZoneCount])
-                                iLandZoneToUse = tAllPlateaus[iPlateauGroup][subrefLandZoneCount]
-                            else
-                                RecordSegmentLandZone(iBaseSegmentX, iBaseSegmentZ, iPlateauGroup, tiLZEntryByNavUtilsRef[iPlateauGroup][iLandPathingGroupWanted])
+                            --We haven't created this LZ yet; have we created the plateau?
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will create a new land zone but first checking if we have this plateau recorded, is all plateaus nil for iPlateauGroup='..iPlateauGroup..'='..tostring(tAllPlateaus[iPlateauGroup] == nil)) end
+                            if not(tAllPlateaus[iPlateauGroup]) then
+                                RecordMexlessPlateau(iPlateauGroup)
                             end
+
+                            if not(tiLZEntryByNavUtilsRef[iPlateauGroup]) then
+                                tiLZEntryByNavUtilsRef[iPlateauGroup] = {}
+                            end
+
+                            --Need to add land zone reference to this plateau
+                            AddNewLandZoneReferenceToPlateau(iPlateauGroup)
+                            tiLZEntryByNavUtilsRef[iPlateauGroup][iLandPathingGroupWanted] = tAllPlateaus[iPlateauGroup][subrefLandZoneCount]
+                            RecordSegmentLandZone(iBaseSegmentX, iBaseSegmentZ, iPlateauGroup, tAllPlateaus[iPlateauGroup][subrefLandZoneCount])
+                            iLandZoneToUse = tAllPlateaus[iPlateauGroup][subrefLandZoneCount]
+                            if bDebugMessages == true then LOG(sFunctionRef..': Created new land zone, iLandZoneToUse='..iLandZoneToUse) end
                         else
                             M28Utilities.ErrorHandler('somehow have a land zone but not a plateau group; Refer to log for base position and other details if logs are enabled')
                             if bDebugMessages == true then
@@ -1698,7 +1702,7 @@ local function AssignRemainingSegmentsToLandZones()
                         end
                     end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Finished creating land zone if we didnt have one, iLandZoneTOUse='..(iLandZoneToUse or 'nil')) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished creating land zone if we didnt have one, iLandZoneTOUse='..(iLandZoneToUse or 'nil')..'; iPlateauGroup='..(iPlateauGroup or 'nil')) end
                 if iLandZoneToUse then
                     RecordSegmentLandZone(iBaseSegmentX, iBaseSegmentZ, iPlateauGroup, iLandZoneToUse)
                     if M28Utilities.IsTableEmpty(tiSegmentsForAssignment) == false then
@@ -1714,6 +1718,7 @@ local function AssignRemainingSegmentsToLandZones()
                 M28Utilities.DrawLocation(tBasePosition)
             end
         end
+
     end
 
     --Cycle through every nth segment on the map - only consider every iMaxSegmentSearchDistance 'th segment (for performance reasons), and check if it has nearby land zones, and if not then create a new land zone at this position
@@ -1739,6 +1744,7 @@ local function AssignRemainingSegmentsToLandZones()
     if bDebugMessages == true then LOG(sFunctionRef..': Finished assigning land zones for locations with no nearby zones, systemtime='..GetSystemTimeSecondsOnlyForProfileUse()) end
 
     --Now cycle through every segment on the map, and assign to a land zone (or create a new land zone if none nearby, but hopefully after the above code this will be rare)
+
     iBasePositionX = - iLandZoneSegmentSize * 0.5 + rMapPlayableArea[1] --Calculate the position manually (instead of using the function GetPositionFromPathingSegments) for performance
     for iBaseSegmentX = 1, iMaxLandSegmentX do
         iBasePositionX = iBasePositionX + iLandZoneSegmentSize --(i.e. as per GetPositionFromPathingSegments)
@@ -1751,6 +1757,7 @@ local function AssignRemainingSegmentsToLandZones()
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Finsihed creating land zones for any remaining locations with no nearby land zone, system time='..GetSystemTimeSecondsOnlyForProfileUse()..'; Land zone for base segment1-1='..(tLandZoneBySegment[1][1] or 'nil')) end
+
     --The above will have updated the temporary table with details of how long to path to each zone; now go through and assign each segment to the closest zone to it
     --AssignTempSegmentsWithDistance()
 
@@ -2347,10 +2354,14 @@ function RecordAdjacentLandZones()
                         if NavUtils.GetTerrainLabel(refPathingTypeHover, GetPositionFromPathingSegments(iAltSegX, iAltSegZ)) == iPlateau then
                             tRecordedAdjacentZones[iAltLandZone] = true
                             table.insert(tLandZoneInfo[subrefLZAdjacentLandZones], iAltLandZone)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering base segment '..tSegmentXZ[1]..'-'..tSegmentXZ[2]..' at position '..repru(GetPositionFromPathingSegments(tSegmentXZ[1], tSegmentXZ[2]))..'; the adjacent segment to this, X'..iAltSegX..'Z'..iAltSegZ..' is in another land zone '..iAltLandZone..'; will record as being adjacent and draw the adjcent segment in blue')
+                                M28Utilities.DrawLocation(GetPositionFromPathingSegments(iAltSegX, iAltSegZ))
+                            end
                         end
                     end
                 end
             end
+
 
             if bDebugMessages == true then
                 LOG(sFunctionRef..': Finished considering Plateau '..iPlateau..' LZ '..iLandZone..': subrefLZAdjacentLandZones='..repru(tLandZoneInfo[subrefLZAdjacentLandZones]))
@@ -3690,6 +3701,7 @@ function AddLocationToPlateauExceptions(tLocation, iPlateau, iLandZone)
     local iX = math.floor(tLocation[1])
     local iZ = math.floor(tLocation[3])
     if not(tPathingPlateauAndLZOverride[iX]) then tPathingPlateauAndLZOverride[iX] = {} end
+    if not(math.floor(iLandZone) == iLandZone) then M28Utilities.ErrorHandler('Land zone isnt rounded', false, true) end
     tPathingPlateauAndLZOverride[iX][iZ] = {iPlateau, iLandZone}
 end
 
@@ -4231,6 +4243,20 @@ function RecordPondToExpandTo(aiBrain)
             if bDebugMessages == true then
                 LOG(sFunctionRef..': Have a priority pond ref='..aiBrain[M28Navy.refiPriorityPondRef]..'; will draw a square in orangy pink for the build position='..repru(tPondDetails[aiBrain[M28Navy.refiPriorityPondRef]][subrefBuildLocationByStartPosition][aiBrain:GetArmyIndex()]))
                 M28Utilities.DrawLocation(tPondDetails[aiBrain[M28Navy.refiPriorityPondRef]][subrefBuildLocationByStartPosition][aiBrain:GetArmyIndex()], 8, 200, 10)
+            end
+            local bInTeamList = false
+            local iTeam = aiBrain.M28Team
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues]) == false then
+                for iEntry, iPond in M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues] do
+                    if iBestPondRef == iPond then
+                        bInTeamList = true
+                        break
+                    end
+                end
+            end
+            if not(bInTeamList) then
+                if not(M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues]) then M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues] = {} end
+                M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][iBestPondRef] = math.max((M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][iBestPondRef] or 0), iBestPondValue)
             end
         end
     end

@@ -5905,13 +5905,15 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     --Commented out as need logic for identifying build locations first
     if bDebugMessages == true then LOG(sFunctionRef..': About to see if we want to build a naval factory, is this a core WZ base='..tostring(tWZTeamData[M28Map.subrefWZbCoreBase])..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) end
     if (tWZTeamData[M28Map.subrefWZbCoreBase] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 4 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) or tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] then
-
-        local iFactoriesWanted = 1
-        --if bHaveLowMass then iFactoriesWanted = math.max(1, iFactoriesWanted * 0.5) end
-        if bDebugMessages == true then LOG(sFunctionRef..': iFactoriesWanted='..iFactoriesWanted..'; iExistingWaterFactory='..iExistingWaterFactory) end
-        if iExistingWaterFactory < iFactoriesWanted then
-            if bDebugMessages == true then LOG(sFunctionRef..': We want to build a naval factory') end
-            HaveActionToAssign(refActionBuildNavalFactory, 1, 30, nil)
+        --Is this a priority pond for our team to expand to?
+        if (M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 0) > 0 or tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] then
+            local iFactoriesWanted = 1
+            --if bHaveLowMass then iFactoriesWanted = math.max(1, iFactoriesWanted * 0.5) end
+            if bDebugMessages == true then LOG(sFunctionRef..': iFactoriesWanted='..iFactoriesWanted..'; iExistingWaterFactory='..iExistingWaterFactory) end
+            if iExistingWaterFactory < iFactoriesWanted then
+                if bDebugMessages == true then LOG(sFunctionRef..': We want to build a naval factory') end
+                HaveActionToAssign(refActionBuildNavalFactory, 1, 30, nil)
+            end
         end
     end
 
@@ -5995,15 +5997,17 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': About to see if we want to build a naval factory, is this a core WZ base='..tostring(tWZTeamData[M28Map.subrefWZbCoreBase])..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; bHaveLowMass='..tostring(bHaveLowMass)..'; bWantBP='..tostring(tWZTeamData[M28Map.subrefTbWantBP])) end
     if (not(bHaveLowMass) or tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) and (not(bHaveLowPower) or (tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > 1 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or -100) >= 10)) and ((tWZTeamData[M28Map.subrefWZbCoreBase] and (tWZTeamData[M28Map.subrefTbWantBP] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 10000) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 6 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) or (tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 4 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (tWZTeamData[M28Map.subrefTbWantBP] or not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 12 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]))) then
-        local iMaxFactories = 2
-        if tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] then iMaxFactories = math.min(8, math.max(2, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] / 2)) end
-        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 100 then iMaxFactories = 3 end
+        if (M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 0) > 0  or tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] then
+            local iMaxFactories = 2
+            if tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] then iMaxFactories = math.min(8, math.max(2, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] / 2)) end
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 100 then iMaxFactories = 3 end
 
-        --if bHaveLowMass then iFactoriesWanted = math.max(1, iFactoriesWanted * 0.5) end
-        if bDebugMessages == true then LOG(sFunctionRef..': iMaxFactories='..iMaxFactories..'; iExistingWaterFactory='..iExistingWaterFactory) end
-        if iExistingWaterFactory < iMaxFactories then
-            if bDebugMessages == true then LOG(sFunctionRef..': Lower priority builder - We want to build a naval factory') end
-            HaveActionToAssign(refActionBuildNavalFactory, 1, 30, nil)
+            --if bHaveLowMass then iFactoriesWanted = math.max(1, iFactoriesWanted * 0.5) end
+            if bDebugMessages == true then LOG(sFunctionRef..': iMaxFactories='..iMaxFactories..'; iExistingWaterFactory='..iExistingWaterFactory) end
+            if iExistingWaterFactory < iMaxFactories then
+                if bDebugMessages == true then LOG(sFunctionRef..': Lower priority builder - We want to build a naval factory') end
+                HaveActionToAssign(refActionBuildNavalFactory, 1, 30, nil)
+            end
         end
     end
 
@@ -6124,13 +6128,14 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
     if iHighestTechEngiAvailable > 0 then
         if tWZTeamData[M28Map.subrefWZbCoreBase] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 4 then
-
-            local iFactoriesWanted = 1
-            --if bHaveLowMass then iFactoriesWanted = math.max(1, iFactoriesWanted * 0.5) end
-            if bDebugMessages == true then LOG(sFunctionRef..': iFactoriesWanted='..iFactoriesWanted..'; iExistingWaterFactory='..iExistingWaterFactory) end
-            if iExistingWaterFactory < iFactoriesWanted then
-                if bDebugMessages == true then LOG(sFunctionRef..': Later naval fac builder We want to build a naval factory') end
-                HaveActionToAssign(refActionBuildNavalFactory, 1, 30, nil)
+            if (M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 0) > 0 or tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] then
+                local iFactoriesWanted = 1
+                --if bHaveLowMass then iFactoriesWanted = math.max(1, iFactoriesWanted * 0.5) end
+                if bDebugMessages == true then LOG(sFunctionRef..': iFactoriesWanted='..iFactoriesWanted..'; iExistingWaterFactory='..iExistingWaterFactory) end
+                if iExistingWaterFactory < iFactoriesWanted then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Later naval fac builder We want to build a naval factory') end
+                    HaveActionToAssign(refActionBuildNavalFactory, 1, 30, nil)
+                end
             end
         end
     end

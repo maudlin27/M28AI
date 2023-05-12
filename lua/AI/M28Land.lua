@@ -132,7 +132,7 @@ function GetUnitPlateauAndLandZoneOverride(oUnit)
                         local iClosestUnpathableLZRef
                         local iCurLZDist
                         for iLandZone, tAltLZData in M28Map.tAllPlateaus[iPossiblePlateau][M28Map.subrefPlateauLandZones] do
-                            iCurLZDist = M28Utilities.GetDistanceBetweenPositions(tAltLocation, M28Map.tAllPlateaus[iPossiblePlateau][M28Map.subrefPlateauLandZones][M28Map.subrefMidpoint])
+                            iCurLZDist = M28Utilities.GetDistanceBetweenPositions(tAltLocation, M28Map.tAllPlateaus[iPossiblePlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMidpoint])
 
                             if iCurLZDist < iClosestLZDist then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Can we path from alt location to midpoint of land zone '..iLandZone..' with iCurLZDist='..iCurLZDist..'='..tostring(NavUtils.CanPathTo(M28Map.refPathingTypeLand, tAltLocation, M28Map.tAllPlateaus[iPossiblePlateau][M28Map.subrefPlateauLandZones][M28Map.subrefMidpoint]))) end
@@ -150,7 +150,7 @@ function GetUnitPlateauAndLandZoneOverride(oUnit)
                         if not(iPossibleLZ) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Couldnt find any LZs that are actually pathable, closest unpaathable dist='..iClosestUnpathableLZDist..'; if this is within 50 then will use this') end
                             if iClosestUnpathableLZDist < 50 then
-                                iPossibleLZ = iClosestUnpathableLZDist
+                                iPossibleLZ = iClosestUnpathableLZRef
                             end
                         end
                     end
@@ -160,7 +160,7 @@ function GetUnitPlateauAndLandZoneOverride(oUnit)
                     if not(iPossibleLZ) then M28Utilities.DrawLocation(oUnit:GetPosition(), 2) end
                 end
                 if (iPossiblePlateau or 0) > 0 and (iPossibleLZ or 0) > 0 then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Identified a backup land zone override for oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at position '..repru(oUnit:GetPosition())..' and tAdjustXZ='..repru(tAdjustXZ)..'; will add to list of exceptions') end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Identified a backup land zone override for oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at position '..repru(oUnit:GetPosition())..' and tAdjustXZ='..repru(tAdjustXZ)..'; will add to list of exceptions, iPossibleLZ='..(iPossibleLZ or 'nil')) end
                     bFoundAlternative = true
                     M28Map.AddLocationToPlateauExceptions(oUnit:GetPosition(), iPossiblePlateau, iPossibleLZ)
                     break
