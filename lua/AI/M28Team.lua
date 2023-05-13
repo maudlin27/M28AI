@@ -473,7 +473,7 @@ function CreateNewTeam(aiBrain)
     local bHaveOmniVision = false
     for iCurBrain, oBrain in ArmyBrains do
         --First make sure we have recorded all brains (redundancy for AI like dillidalli) - the function below will check if we have already recorded the brain
-        M28Events.OnCreateBrain(oBrain, nil, nil)
+        ForkThread(M28Events.OnCreateBrain, oBrain, nil, nil)
         --[[if not(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()]) then --redundancy
             local iStartPositionX, iStartPositionZ = oBrain:GetArmyStartPos()
             M28Map.PlayerStartPoints[oBrain:GetArmyIndex()] = {iStartPositionX, GetSurfaceHeight(iStartPositionX, iStartPositionZ), iStartPositionZ}

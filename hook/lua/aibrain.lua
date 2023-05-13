@@ -14,13 +14,13 @@ AIBrain = Class(M28AIBrainClass) {
     end,
 
     OnCreateAI = function(self, planName)
-        M28Events.OnCreateBrain(self, planName, false)
+        ForkThread(M28Events.OnCreateBrain, self, planName, false)
         if not(self.M28AI) then M28AIBrainClass.OnCreateAI(self, planName) end
     end,
 
     OnCreateHuman = function(self, planName)
         M28AIBrainClass.OnCreateHuman(self, planName)
-        M28Events.OnCreateBrain(self, planName, true)
+        ForkThread(M28Events.OnCreateBrain, self, planName, true)
     end
 }
 

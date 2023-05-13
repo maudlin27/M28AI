@@ -383,8 +383,15 @@ function NoRushMonitor()
 end
 
 function TestCustom(aiBrain)
-    local tWZTeamData = M28Map.tPondDetails[552][M28Map.subrefPondWaterZones][25][M28Map.subrefWZTeamData][aiBrain.M28Team]
-    LOG('WZ25 pond 552 closest friendly base='..repru(tWZTeamData[M28Map.reftClosestFriendlyBase]))
+    --Scenario data
+    LOG('WIll do reprs of just options'..reprs(ScenarioInfo.Options))
+    LOG('Will now try cycling through each entry in ScenarioInfo and do repru of it')
+    for iEntry, vValue in ScenarioInfo do
+        LOG('iEntry='..iEntry..'; vValue='..repru(vValue))
+    end
+
+    --local tWZTeamData = M28Map.tPondDetails[552][M28Map.subrefPondWaterZones][25][M28Map.subrefWZTeamData][aiBrain.M28Team]
+    --LOG('WZ25 pond 552 closest friendly base='..repru(tWZTeamData[M28Map.reftClosestFriendlyBase]))
     --WaitSeconds(5)
     --M28Air.CalculateAirTravelPath(0, 18, 0, 22)
     --[[M28Utilities.DrawLocation({10,GetTerrainHeight(10,10),10}, 3)
@@ -653,7 +660,7 @@ end
 
 function OverseerManager(aiBrain)
     --ForkThread(DebugCheck,aiBrain)
-    --ForkThread(TestCustom, aiBrain)
+    ForkThread(TestCustom, aiBrain)
 
     --Make sure map setup will be done
     WaitTicks(1)
@@ -681,4 +688,17 @@ function OverseerManager(aiBrain)
         ForkThread(M28Economy.RefreshEconomyData, aiBrain)
         WaitSeconds(1)
     end
+end
+
+function CheckIfScenarioMap()
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'CheckIfScenarioMap'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    --local vCampaignMode = import("/lua/ui/campaign/campaignmanager.lua").campaignMode
+
+    if bDebugMessages == true then LOG(sFunctionRef..': ScenarioInfo.type == campaign='..tostring(ScenarioInfo.type == "campaign")..'; repru of ScenarioInfo.type='..repru(ScenarioInfo.type)..'; Is table of hunman players empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.HumanPlayers))..'; Is human players nil='..tostring(ScenarioInfo.HumanPlayers == nil)) end
+    if M28Utilities.IsTableEmpty(ScenarioInfo.HumanPlayers) == false then
+        M28Map.bIsScenarioMap = true
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

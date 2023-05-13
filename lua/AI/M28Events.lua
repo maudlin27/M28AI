@@ -1156,12 +1156,21 @@ function OnCreate(oUnit)
 end
 
 function OnCreateBrain(aiBrain, planName, bIsHuman)
+    local sFunctionRef = 'OnCreateBrain'
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': aiBrain has just been created at time '..GetGameTimeSeconds()..'; Brain nickname='..(aiBrain.Nickname or 'nil')..'; Has setup been run='..tostring(aiBrain['M28BrainSetupRun'] or false)..'; Brain type='..(aiBrain.BrainType or 'nil')) end
     if not(aiBrain['M28BrainSetupRun']) then
         if M28Config.M28RunProfiling then
             ForkThread(M28Profiler.ProfilerActualTimePerTick)
         end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitTicks(10)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         aiBrain['M28BrainSetupRun'] = true
-
+        --Make sure we have checked if this is a scenario map (run for each AI to be safe since minimal load and ensures this happens ahead of any other M28 code)
+        M28Overseer.CheckIfScenarioMap()
+        if bDebugMessages == true then LOG(sFunctionRef..': M28Map.bIsScenarioMap='..tostring(M28Map.bIsScenarioMap or false)) end
         if bIsHuman == nil then
             if aiBrain.BrainType == "AI" or not(aiBrain.BrainType) or string.find(aiBrain.BrainType, "AI") then bIsHuman = false else bIsHuman = true end
         end
@@ -1199,6 +1208,7 @@ function OnCreateBrain(aiBrain, planName, bIsHuman)
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function OnMissileImpactTerrain(self, target, position)
