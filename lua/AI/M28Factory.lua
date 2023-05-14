@@ -2018,20 +2018,18 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                 if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyNavyTech] then
                     iGrossMassThreshold = iGrossMassThreshold * 0.75
                 end
-                if bDebugMessages == true then
-                    LOG(sFunctionRef .. ': Gross mass income=' .. aiBrain[M28Economy.refiGrossMassBaseIncome] .. '; iGrossMassThreshold=' .. iGrossMassThreshold)
-                end
+                if bDebugMessages == true then LOG(sFunctionRef .. ': Gross mass income=' .. aiBrain[M28Economy.refiGrossMassBaseIncome] .. '; iGrossMassThreshold=' .. iGrossMassThreshold) end
                 if aiBrain[M28Economy.refiGrossMassBaseIncome] >= iGrossMassThreshold then
                     if ConsiderUpgrading() then
                         return sBPIDToBuild
                     end
                 else
                     --Lower threshold if we have built lots of T2 units
-                    if bDebugMessages == true then
-                        LOG(sFunctionRef .. ': Lifetime build amount of naval units=' .. M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryNavalSurface * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)))
-                    end
-                    if M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryNavalSurface * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) >= 14 then
-                        iGrossMassThreshold = iGrossMassThreshold * 0.75
+
+                    local iLifetimeBuildCount = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryNavalSurface * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))
+                    if bDebugMessages == true then LOG(sFunctionRef .. ': Lifetime build amount of naval units=' .. M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryNavalSurface * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))) end
+                    if iLifetimeBuildCount >= 14 then
+                        iGrossMassThreshold = iGrossMassThreshold * math.max(0.35, (1 - iGrossMassThreshold * 0.02))
                         if aiBrain[M28Economy.refiGrossMassBaseIncome] >= iGrossMassThreshold then
                             if ConsiderUpgrading() then return sBPIDToBuild end
                         end
