@@ -1187,9 +1187,6 @@ function OnCreateBrain(aiBrain, planName, bIsHuman)
             M28Utilities.bM28AIInGame = true
         end
 
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        WaitTicks(5)
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         aiBrain['M28BrainSetupRun'] = true
         --Make sure we have checked if this is a scenario map (run for each AI to be safe since minimal load and ensures this happens ahead of any other M28 code)
         M28Overseer.CheckIfScenarioMap()

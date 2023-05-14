@@ -246,7 +246,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
             if iCurLandFactories == 0 then
                 if bDebugMessages == true then LOG(sFunctionRef..': Want ACU to build land factory') end
                 ACUActionBuildFactory(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryLandFactory)
-            --do we have unbuilt nearby mexes (within 2 of ACU build range)? if so then build on them
+                --do we have unbuilt nearby mexes (within 2 of ACU build range)? if so then build on them
             elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 12 and ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, 2) then
                 --Do nothing - have bene given an order to build a neaby mex
             elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] <= iMinEnergyPerTickWanted then
@@ -310,6 +310,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                     if aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(4, iMexInLandZone) * 0.2 then
                         if bDebugMessages == true then LOG(sFunctionRef..': We ahve mexes in land zone and we havent built on all of them so will build a mex') end
                         ACUActionBuildMex(aiBrain, oACU)
+                        if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then M28Utilities.ErrorHandler('ACU wants to build a mex but failed to find anywhere') end
                     elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 10 then
                         if bDebugMessages == true then LOG(sFunctionRef..': Will try to assist a hydro nearby') end
                         ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData)
@@ -320,6 +321,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                     end
 
                     --Redundancy if fail to get order from above
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is ACU table of last orders empty after attempting above='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))) end
                     if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) and oACU[refbDoingInitialBuildOrder] then
                         --Is it just that we want to assist a hydro and engineers havent started one yet? If so then check if we have an engineer assigned to build one, and check the game time
                         if GetGameTimeSeconds() <= 180 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 10 and M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefHydroLocations]) == false then
@@ -393,6 +395,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
     else
         if bDebugMessages == true then LOG(sFunctionRef..': Are building so wont give any new orders') end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, is ACU table of last orders empty='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 

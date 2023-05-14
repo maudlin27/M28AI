@@ -6432,9 +6432,13 @@ function GetStartSearchPositionForEmergencyPD(tTargetBuildLocation, tLZMidpoint,
     local tTargetLocation = M28Utilities.MoveInDirection(tTargetBuildLocation, iAngleFromTargetToMidpoint, iDistToMove, true)
     --Adjust if we end up out of the zone
     local iTargetPlateau, iTargetLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
+    if bDebugMessages == true then LOG(sFunctionRef..': Time '..GetGameTimeSeconds()..'; First position with iDistToMove='..iDistToMove..'='..repru(tTargetLocation)..'; tLZMidpoint='..repru(tLZMidpoint)..'; tTargetBuildLocation='..repru(tTargetBuildLocation)..'; Dist to midpoint='..M28Utilities.GetDistanceBetweenPositions(tTargetBuildLocation, tLZMidpoint)..'; Dist to original target='..M28Utilities.GetDistanceBetweenPositions(tTargetBuildLocation, tTargetLocation)..'; iTargetPlateau='..(iTargetPlateau or 'nil')..'; iTargetLandZone='..(iTargetLandZone or 'nil')) end
     while not(iLandZone == iTargetLandZone) do
-        iDistToMove = iDistToMove - 5
-        if iDistToMove < 0 then break end
+        iDistToMove = iDistToMove + 5
+        if iDistToMove > iDistToTarget then
+            tTargetLocation = tLZMidpoint
+            break
+        end
         tTargetLocation = M28Utilities.MoveInDirection(tTargetBuildLocation, iAngleFromTargetToMidpoint, iDistToMove, true)
         iTargetPlateau, iTargetLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
     end
