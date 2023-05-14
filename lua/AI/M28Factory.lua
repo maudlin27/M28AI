@@ -1209,7 +1209,7 @@ function IsFactoryReadyToBuild(oFactory)
         if GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastBuiltAtFactory] or -100) >= 0.09 then --i.e. dont start production in more than 1 factory per zone per tick, so e.g. air facs are less likely to all build asfs at the same time and cause a power stall
             return true
         --backup for scenarios where dont want to wait - if high mass and energy and AiX
-        elseif aiBrain.CheatEnabled and ScenarioInfo.Options.CheatMult >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] > (M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] or 0) * 1.25 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or -100) >= 15 then
+        elseif aiBrain.CheatEnabled and (ScenarioInfo.Options.CheatMult or 1.5) >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] > (M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] or 0) * 1.25 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or -100) >= 15 then
             return true
         end
     end

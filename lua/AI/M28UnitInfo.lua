@@ -76,6 +76,7 @@ refCategoryT1Mex = refCategoryMex * categories.TECH1
 refCategoryT2Mex = refCategoryMex * categories.TECH2
 refCategoryT3Mex = refCategoryMex * categories.TECH3
 refCategoryHydro = categories.HYDROCARBON - categories.NAVAL
+refCategoryResourceUnit = categories.MASSPRODUCTION + categories.MASSFABRICATION + categories.ENERGYPRODUCTION --i.e. includes SACU
 
 refCategoryPower = categories.STRUCTURE * categories.ENERGYPRODUCTION - categories.EXPERIMENTAL - categories.HYDROCARBON
 refCategoryT1Power = categories.STRUCTURE * categories.ENERGYPRODUCTION * categories.TECH1 - categories.EXPERIMENTAL - categories.HYDROCARBON

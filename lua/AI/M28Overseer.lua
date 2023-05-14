@@ -302,6 +302,12 @@ function M28BrainCreated(aiBrain)
     aiBrain.M28AI = true
     table.insert(tAllActiveM28Brains, aiBrain)
 
+    --Set cheat mult if this is campaign (which doesnt allow in game options)
+    if aiBrain.CheatEnabled and not(ScenarioInfo.Options.CheatMult) then
+        bDebugMessages = true
+        if bDebugMessages == true then LOG(sFunctionRef..': No cheat mult in scenario options so will set to 1.5 for build and resource') end
+        SetBuildAndResourceCheatModifiers(aiBrain, 1.5, 1.5)
+    end
 
     if not(bInitialSetup) then
         bInitialSetup = true
@@ -820,4 +826,24 @@ function CheckForAlliedCampaignUnitsToShareAtGameStart(aiBrain)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function SetBuildAndResourceCheatModifiers(aiBrain, iBuildModifier, iResourceModifier)
+    ScenarioInfo.Options.CheatMult = tostring(iResourceModifier)
+    ScenarioInfo.Options.BuildMult = tostring(iBuildModifier)
+    local FAFBuffs = import('/lua/sim/Buff.lua')
+    Buffs['CheatBuildRate'].Affects.BuildRate.Mult = iBuildModifier
+    Buffs['CheatIncome'].Affects.EnergyProduction.Mult = iResourceModifier
+    Buffs['CheatIncome'].Affects.MassProduction.Mult = iResourceModifier
+
+    local tExistingUnits = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryResourceUnit, false, false)
+    if M28Utilities.IsTableEmpty(tExistingUnits) == false then
+        for iUnit, oUnit in tExistingUnits do
+            FAFBuffs.RemoveBuff(oUnit, 'CheatIncome', true)
+            FAFBuffs.ApplyBuff(oUnit, 'CheatIncome')
+            FAFBuffs.RemoveBuff(oUnit, 'CheatBuildRate', true)
+            FAFBuffs.ApplyBuff(oUnit, 'CheatBuildRate')
+        end
+    end
+
 end

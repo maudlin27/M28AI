@@ -496,7 +496,11 @@ function CreateNewTeam(aiBrain)
             end
             --Record brain details in log for ease of reference
             local sAiXref = ''
-            if oBrain.CheatEnabled then sAIXref = ' AiX '..tonumber(ScenarioInfo.Options.CheatMult) end
+            bDebugMessages = true
+            if bDebugMessages == true then LOG(sFunctionRef..': Brain '..oBrain.Nickname..': .CheatEnabled='..tostring(oBrain.CheatEnabled or false)..'; ScenarioInfo.Options.CheatMult='..(ScenarioInfo.Options.CheatMult or 'nil')..'; reprs of scenario.options='..reprs(ScenarioInfo.Options)) end
+            if oBrain.CheatEnabled then
+                sAiXref = ' AiX '..tonumber(ScenarioInfo.Options.CheatMult or 1.5)
+            end
             LOG(sFunctionRef..': Recorded non-civilian brain '..oBrain.Nickname..' with index '..oBrain:GetArmyIndex()..' for team '..iTotalTeamCount..sAiXref)
         elseif IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) and not(M28Conditions.IsCivilianBrain(oBrain)) then
             table.insert(tTeamData[iTotalTeamCount][subreftoEnemyBrains], oBrain)
