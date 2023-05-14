@@ -4499,6 +4499,7 @@ function CreateWaterZones()
     end
 
     --pick equally spaced apart points on the map and if are near water then create a water zone, then cycle through each of htese simultaneously assigning adjacent points to water zones
+    --local tiAbortedWZSegments = {}
     for iIntervalCountX = 1, iMaxXIntervals do
         iBaseSegmentX = math.ceil(iSegmentInterval * (iIntervalCountX - 0.5))
         for iIntervalCountZ = 1, iMaxZIntervals do
@@ -4512,7 +4513,7 @@ function CreateWaterZones()
                 bFoundForThisInterval = true
                 iPotentialZoneStartSegmentX = nil
                 iPotentialZoneStartSegmentZ = nil
-                tiAbortedWZSegments[tWaterZoneBySegment[iBaseSegmentX][iBaseSegmentZ]] = {iBaseSegmentX, iBaseSegmentZ}
+                --tiAbortedWZSegments[tWaterZoneBySegment[iBaseSegmentX][iBaseSegmentZ]] = {iBaseSegmentX, iBaseSegmentZ}
                 if bDebugMessages == true then LOG(sFunctionRef..': Added aborted WZ Segment for water zone '..tWaterZoneBySegment[iBaseSegmentX][iBaseSegmentZ]..'; iBaseSegmentX-Z='..iBaseSegmentX..'-'..iBaseSegmentZ) end
             else
                 --See if there is anywhere near the base segment that is in a pond, and if so use this as the waterzone start point
