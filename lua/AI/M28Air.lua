@@ -191,16 +191,21 @@ function AssignScoutingIntervalPriorities(iTeam)
     --Make all enemy start positions a high priority
     local iPlateauOrZero, iLandOrWaterZone
     for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
-        iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
-        --[[iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
-        iWaterZone = nil
-        if (iPlateau or 0) > 0 and (iLandZone or 0) == 0 then
-            iWaterZone = M28Map.GetWaterZoneFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
-        end--]]
-        if iPlateauOrZero == 0 then
-            M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone][M28Map.subrefWZTeamData][iTeam][M28Map.refiScoutingPriority] = M28Map.subrefiScoutingHighPriority
-        else
-            M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam][M28Map.refiScoutingPriority] = M28Map.subrefiScoutingHighPriority
+        if bDebugMessages == true then LOG(sFunctionRef..': About to get closest plateau and zone for the enemy start position, oBrain='..oBrain.Nickname..'; start point='..repru(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])..'; Map plyaable area='..repru(M28Map.rMapPlayableArea)..'; Map size='..repru(ScenarioInfo.size)..'; rMapPotentialPlayableArea='..repru(M28Map.rMapPotentialPlayableArea)) end
+        --Check if are within the playable area
+        local tStartPoint = M28Map.PlayerStartPoints[oBrain:GetArmyIndex()]
+        if not(M28Map.bIsCampaignMap) or M28Map.InPlayableArea(tStartPoint) then
+            iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+            --[[iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+            iWaterZone = nil
+            if (iPlateau or 0) > 0 and (iLandZone or 0) == 0 then
+                iWaterZone = M28Map.GetWaterZoneFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+            end--]]
+            if iPlateauOrZero == 0 then
+                M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone][M28Map.subrefWZTeamData][iTeam][M28Map.refiScoutingPriority] = M28Map.subrefiScoutingHighPriority
+            else
+                M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam][M28Map.refiScoutingPriority] = M28Map.subrefiScoutingHighPriority
+            end
         end
     end
 
@@ -1267,6 +1272,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
 
         --Update the support rally point, and record pathing of other land and air zones to it if havent previously
         local tStartLZOrWZData
+        if bDebugMessages == true then LOG(sFunctionRef..': About to get the plateau and zone for air support point='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])) end
         local tStartMidpoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]
         local iStartPlateau, iStartLZOrWZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tStartMidpoint)
         if (iStartPlateau or 0) > 0 and (iStartLZOrWZ or 0) == 0 then

@@ -5,7 +5,7 @@
 ---
 
 
-local M28OldSetPlayableArea
+local M28OldSetPlayableArea = SetPlayableArea
 SetPlayableArea = function(rect, voFlag)
     M28OldSetPlayableArea(rect, voFlag)
     ForkThread(ForkedPlayableAreaChange, rect, voFlag)
