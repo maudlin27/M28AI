@@ -722,217 +722,234 @@ function OnConstructed(oEngineer, oJustBuilt)
     --NOTE: This is called every time an engineer stops building a unit whose fractioncomplete is 100%, so can be called multiple times
     if M28Utilities.bM28AIInGame then
         --NonM28 specific - dont set the M28OnConstructionCalled for this, so need to  be careful that any code here will not be run repeatedly
-        --LOG('OnConstructed for unit '..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt))
-        M28Orders.ClearAnyRepairingUnits(oJustBuilt)
-
-        if EntityCategoryContains(categories.STRUCTURE, oJustBuilt.UnitId) then
-            --If a building has just build a building, then make sure all M28 are aware of it (since a player would be)
-            if EntityCategoryContains(categories.STRUCTURE, oEngineer.UnitId) then
-                local tTeamsUpdated = {}
-                for iBrain, oBrain in M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subreftoEnemyBrains] do
-                    if oBrain.M28AI and not(tTeamsUpdated[oBrain.M28Team]) then
-                        tTeamsUpdated[oBrain.M28Team] = true
-                        M28Team.AssignUnitToLandZoneOrPond(oBrain, oJustBuilt, false, false, true)
-                    end
+        LOG('OnConstructed at time '..GetGameTimeSeconds()..' for unit '..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..' owned by brain '..oJustBuilt:GetAIBrain().Nickname..'; oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete or false))
+        if not(M28Map.bMapLandSetupComplete) then
+            local iWaitCount = 0
+            local bDontCallAgain = false
+            while not(M28Map.bMapLandSetupComplete) do
+                WaitTicks(1)
+                iWaitCount = iWaitCount + 1
+                if iWaitCount >= 300 then
+                    M28Utilities.ErrorHandler('Waited more than 5m for map setup to complete, something has gone wrong')
+                    bDontCallAgain = true
+                    break
                 end
             end
-            --Also update the name
-            if M28Config.M28ShowUnitNames then
-                local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oJustBuilt:GetPosition(), false)
-
-                local sWZOrLZRef = ''
-                local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oJustBuilt:GetPosition())
-                local iWaterZone
-                if (iLandZone or 0) == 0 then
-                    iWaterZone = M28Map.GetWaterZoneFromPosition(oJustBuilt:GetPosition())
-                    if (iWaterZone or 0) > 0 then
-                        sWZOrLZRef = 'WZ'..iWaterZone
-                    end
-                else
-                    sWZOrLZRef = ':P='..(iPlateau or 0)..'LZ='..(iLandZone or 0)
-                end
-
-                if M28Config.M28ShowUnitNames then oJustBuilt:SetCustomName(oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..sWZOrLZRef..': Built') end
+            if not(bDontCallAgain) and M28UnitInfo.IsUnitalid(oJustBuilt) then
+                OnConstructed(oEngineer, oJustBuilt)
             end
+        else
+            M28Orders.ClearAnyRepairingUnits(oJustBuilt)
 
-            --If we have just built a radar then update radar logic
-            if EntityCategoryContains(M28UnitInfo.refCategoryRadar, oJustBuilt.UnitId) then
-                ForkThread(M28Land.UpdateZoneIntelForRadar, oJustBuilt)
-            elseif EntityCategoryContains(M28UnitInfo.refCategorySonar, oJustBuilt.UnitId) then
-                ForkThread(M28Navy.UpdateZoneIntelForSonar, oJustBuilt)
-            end
-
-            --Track non-M28AI wall segments
-            if EntityCategoryContains(M28UnitInfo.refCategoryWall, oJustBuilt.UnitId) and not(oJustBuilt:GetAIBrain().M28AI) then
-                M28Land.TrackWallSegment(oJustBuilt, true)
-            end
-
-
-        end
-
-        --M28 specific
-        if oJustBuilt:GetAIBrain().M28AI and not(oJustBuilt.M28OnConstructedCalled) then
-            local sFunctionRef = 'OnConstructed'
-            local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-            oJustBuilt.M28OnConstructedCalled = true
-            if bDebugMessages == true then LOG(sFunctionRef..': oEngineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' has just built '..oJustBuilt.UnitId) end
-
-            --Logic based on the unit that was just built:
-
-            --Check build locations for units not built at a factory
-            if EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId) then
-                M28Engineer.CheckIfBuildableLocationsNearPositionStillValid(oJustBuilt:GetAIBrain(), oJustBuilt:GetPosition())
-                M28Economy.UpdateHighestFactoryTechLevelForBuiltUnit(oJustBuilt) --includes a check to see if are dealing with a factory HQ
-                if EntityCategoryContains(M28UnitInfo.refCategoryMex, oJustBuilt.UnitId) then
-                    M28Team.tTeamData[oJustBuilt:GetAIBrain().M28Team][M28Team.refiUpgradedMexCount] = (M28Team.tTeamData[oJustBuilt:GetAIBrain().M28Team][M28Team.refiUpgradedMexCount] or 0) + 1
-                    ForkThread(M28Economy.UpdateLandZoneM28MexByTechCount, oJustBuilt, false, 10)
-                    --If have storage owned by M28 on same team by this mex, gift it over
-                    --All mexes - on construction check if we have allied M28 mass storage nearby (e.g. we have rebuilt on a mex that they used to have) and if so then have that M28 gift over their mass storage
-                    local tMexLocation = oJustBuilt:GetPosition()
-                    local rSearchRectangle = M28Utilities.GetRectAroundLocation(tMexLocation, 2.749)
-                    local tNearbyUnits = GetUnitsInRect(rSearchRectangle) --at 1.5 end up with storage thats not adjacent being gifted in some cases but not in others; at 1 none of it gets gifted; the mass storage should be exactly 2 from the mex; however even at 2.1, 2.25 and 2.499 had cases where the mex wasnt identified so will try 2.75 since distances can vary/be snapped to the nearest 0.5 I think
-                    if bDebugMessages == true then LOG(sFunctionRef..': Storage gifting where built mex - oJustBuilt='..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..'; owner='..oJustBuilt:GetAIBrain().Nickname..'; is tNearbyUnits empty='..tostring(M28Utilities.IsTableEmpty(tNearbyUnits))) end
-                    if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
-                        local tNearbyStorage = EntityCategoryFilterDown(M28UnitInfo.refCategoryMassStorage, tNearbyUnits)
-                        if M28Utilities.IsTableEmpty(tNearbyStorage) == false then
-                            for iUnit, oUnit in tNearbyStorage do
-                                if bDebugMessages == true then LOG(sFunctionRef..': About to transfer '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' from brain '..oUnit:GetAIBrain().Nickname..' to '..oJustBuilt:GetAIBrain().Nickname..'; Dist from unit to tMexLocation='..M28Utilities.GetDistanceBetweenPositions(tMexLocation, oUnit:GetPosition())) end
-                                if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tMexLocation) <= 2.25 then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Will try and gift the storage to the player that built the mex') end
-                                    M28Team.TransferUnitsToPlayer({oUnit}, oJustBuilt:GetAIBrain():GetArmyIndex(), false)
-                                end
-                            end
+            if EntityCategoryContains(categories.STRUCTURE, oJustBuilt.UnitId) then
+                --If a building has just build a building, then make sure all M28 are aware of it (since a player would be)
+                if EntityCategoryContains(categories.STRUCTURE, oEngineer.UnitId) then
+                    local tTeamsUpdated = {}
+                    for iBrain, oBrain in M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subreftoEnemyBrains] do
+                        if oBrain.M28AI and not(tTeamsUpdated[oBrain.M28Team]) then
+                            tTeamsUpdated[oBrain.M28Team] = true
+                            M28Team.AssignUnitToLandZoneOrPond(oBrain, oJustBuilt, false, false, true)
                         end
                     end
-                    --Update part built t1 mex tracking
-                    if EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oJustBuilt.UnitId) then
-                        M28Engineer.UpdatePartBuiltListForCompletedMex(oJustBuilt)
-                    end
-                elseif EntityCategoryContains(M28UnitInfo.refCategoryMassStorage, oJustBuilt.UnitId) then
-                    --If just built a mass storage but we dont own the mex it is adjacent to, then gift the storage
-                    local rSearchRectangle = M28Utilities.GetRectAroundLocation(oJustBuilt:GetPosition(), 2.749)
-                    local tNearbyUnits = GetUnitsInRect(rSearchRectangle) --at 1.5 end up with storage thats not adjacent being gifted in some cases but not in others; at 1 none of it gets gifted; the mass storage should be exactly 2 from the mex; however even at 2.1, 2.25 and 2.499 had cases where the mex wasnt identified so will try 2.75 since distances can vary/be snapped to the nearest 0.5 I think
-                    if bDebugMessages == true then
-                        LOG(sFunctionRef..': Storage gifting where built storage - oJustBuilt='..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..'; owner='..oJustBuilt:GetAIBrain().Nickname..'; is tNearbyUnits empty='..tostring(M28Utilities.IsTableEmpty(tNearbyUnits)))
-                        if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
-                            for iUnit, oUnit in tNearbyUnits do
-                                LOG(sFunctionRef..': iUnit '..iUnit..' in tNearbyUnits='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; owner='..oUnit:GetAIBrain().Nickname)
-                            end
-                        end
-                    end
-                    if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
-                        local tNearbyMexes = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tNearbyUnits)
-                        if M28Utilities.IsTableEmpty(tNearbyMexes) == false then
-                            local bHaveMexWeOwnNearby = false
-                            local oBrainToTransferToIfWeOwnNoMexes
-                            for iUnit, oUnit in tNearbyMexes do
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering nearby unit oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname) end
-                                if oUnit:GetAIBrain() == oJustBuilt:GetAIBrain() then
-                                    bHaveMexWeOwnNearby = true
-                                elseif oUnit:GetAIBrain().M28Team == oJustBuilt:GetAIBrain().M28Team then
-                                    oBrainToTransferToIfWeOwnNoMexes = oUnit:GetAIBrain()
-                                end
-                            end
-                            if not(bHaveMexWeOwnNearby) and oBrainToTransferToIfWeOwnNoMexes then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Will try and gift the storage to the player who owns the mex already there') end
-                                M28Team.TransferUnitsToPlayer({oJustBuilt}, oBrainToTransferToIfWeOwnNoMexes:GetArmyIndex(), false)
-                            end
-                        end
-                    end
-                elseif EntityCategoryContains(M28UnitInfo.refCategoryEnergyStorage, oJustBuilt.UnitId) then
-                    M28Team.TeamEconomyRefresh(oJustBuilt:GetAIBrain().M28Team)
-                    M28Team.ConsiderGiftingStorageToTeammate(oJustBuilt)
-                elseif EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oJustBuilt.UnitId) then
-                    --Clear the desire to build land facs by mexes - i.e. only want hte first one to be built as such
-                    if bDebugMessages == true then LOG(sFunctionRef..': Have just build land factory so clearing adjacency desire for all M28 brains') end
-                    M28Engineer.tiActionAdjacentCategory[M28Engineer.refActionBuildLandFactory] = nil
-                elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oJustBuilt.UnitId) then
-                    ForkThread(M28Building.GetT3ArtiTarget, oJustBuilt)
                 end
-                --Clear engineers that just built this
+                --Also update the name
+                if M28Config.M28ShowUnitNames then
+                    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oJustBuilt:GetPosition(), false)
 
-            elseif EntityCategoryContains(M28UnitInfo.refCategoryLandCombat * categories.TECH3 + M28UnitInfo.refCategoryIndirectT3, oJustBuilt.UnitId) then
-                if not(M28Team.tTeamData[oJustBuilt:GetAIBrain().M28Team][M28Team.refbBuiltLotsOfT3Combat]) then
-                    if M28Conditions.GetTeamLifetimeBuildCount(oJustBuilt:GetAIBrain().M28Team, M28UnitInfo.refCategoryLandCombat * categories.TECH3 + M28UnitInfo.refCategoryIndirectT3) >= 30 then
-                        M28Team.tTeamData[oJustBuilt:GetAIBrain().M28Team][M28Team.refbBuiltLotsOfT3Combat] = true
+                    local sWZOrLZRef = ''
+                    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oJustBuilt:GetPosition())
+                    local iWaterZone
+                    if (iLandZone or 0) == 0 then
+                        iWaterZone = M28Map.GetWaterZoneFromPosition(oJustBuilt:GetPosition())
+                        if (iWaterZone or 0) > 0 then
+                            sWZOrLZRef = 'WZ'..iWaterZone
+                        end
+                    else
+                        sWZOrLZRef = ':P='..(iPlateau or 0)..'LZ='..(iLandZone or 0)
                     end
+
+                    if M28Config.M28ShowUnitNames then oJustBuilt:SetCustomName(oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..sWZOrLZRef..': Built') end
                 end
-            elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer * categories.TECH3, oJustBuilt.UnitId) then
-                --Late game - destroy lower tech engineers to help with pathing (up to 2 for every T3 engi built)
-                ForkThread(M28Engineer.ConsiderDestroyingLowTechEngineers, oJustBuilt)
-            elseif EntityCategoryContains(categories.MOBILE * categories.SUBMERSIBLE, oJustBuilt.UnitId) then
-                ForkThread(M28Navy.DelayedCheckIfShouldSubmerge, oJustBuilt)
+
+                --If we have just built a radar then update radar logic
+                if EntityCategoryContains(M28UnitInfo.refCategoryRadar, oJustBuilt.UnitId) then
+                    ForkThread(M28Land.UpdateZoneIntelForRadar, oJustBuilt)
+                elseif EntityCategoryContains(M28UnitInfo.refCategorySonar, oJustBuilt.UnitId) then
+                    ForkThread(M28Navy.UpdateZoneIntelForSonar, oJustBuilt)
+                end
+
+                --Track non-M28AI wall segments
+                if EntityCategoryContains(M28UnitInfo.refCategoryWall, oJustBuilt.UnitId) and not(oJustBuilt:GetAIBrain().M28AI) then
+                    M28Land.TrackWallSegment(oJustBuilt, true)
+                end
+
+
             end
 
-            --Update economy tracking (this function will check if it is an economic unit as part of it)
-            M28Economy.UpdateGrossIncomeForUnit(oJustBuilt)
-            if EntityCategoryContains(M28UnitInfo.refCategoryScathis, oJustBuilt.UnitId) then
-                table.insert(M28Engineer.tAllScathis, oJustBuilt)
-            end
+            --M28 specific
+            if oJustBuilt:GetAIBrain().M28AI and not(oJustBuilt.M28OnConstructedCalled) then
+                local sFunctionRef = 'OnConstructed'
+                local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                oJustBuilt.M28OnConstructedCalled = true
+                if bDebugMessages == true then LOG(sFunctionRef..': oEngineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' has just built '..oJustBuilt.UnitId) end
 
-            --Logic based on the engineer
-            if EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
-                M28ACU.GetACUOrder(oEngineer:GetAIBrain(), oEngineer)
-            elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory, oEngineer.UnitId) then
-                if bDebugMessages == true then LOG(sFunctionRef..': A factory has just built a unit so will get the next order for the factory') end
-                ForkThread(M28Factory.DecideAndBuildUnitForFactory, oEngineer:GetAIBrain(), oEngineer)
-            elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEngineer.UnitId) then
-                --Clear any engineers trying to build this unit if we just built a building or experimental
+                --Logic based on the unit that was just built:
+
+                --Check build locations for units not built at a factory
                 if EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId) then
-                    M28Engineer.ClearEngineersForUnitJustBuilt(oEngineer, oJustBuilt)
+                    M28Engineer.CheckIfBuildableLocationsNearPositionStillValid(oJustBuilt:GetAIBrain(), oJustBuilt:GetPosition())
+                    M28Economy.UpdateHighestFactoryTechLevelForBuiltUnit(oJustBuilt) --includes a check to see if are dealing with a factory HQ
+                    if EntityCategoryContains(M28UnitInfo.refCategoryMex, oJustBuilt.UnitId) then
+                        M28Team.tTeamData[oJustBuilt:GetAIBrain().M28Team][M28Team.refiUpgradedMexCount] = (M28Team.tTeamData[oJustBuilt:GetAIBrain().M28Team][M28Team.refiUpgradedMexCount] or 0) + 1
+                        ForkThread(M28Economy.UpdateLandZoneM28MexByTechCount, oJustBuilt, false, 10)
+                        --If have storage owned by M28 on same team by this mex, gift it over
+                        --All mexes - on construction check if we have allied M28 mass storage nearby (e.g. we have rebuilt on a mex that they used to have) and if so then have that M28 gift over their mass storage
+                        local tMexLocation = oJustBuilt:GetPosition()
+                        local rSearchRectangle = M28Utilities.GetRectAroundLocation(tMexLocation, 2.749)
+                        local tNearbyUnits = GetUnitsInRect(rSearchRectangle) --at 1.5 end up with storage thats not adjacent being gifted in some cases but not in others; at 1 none of it gets gifted; the mass storage should be exactly 2 from the mex; however even at 2.1, 2.25 and 2.499 had cases where the mex wasnt identified so will try 2.75 since distances can vary/be snapped to the nearest 0.5 I think
+                        if bDebugMessages == true then LOG(sFunctionRef..': Storage gifting where built mex - oJustBuilt='..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..'; owner='..oJustBuilt:GetAIBrain().Nickname..'; is tNearbyUnits empty='..tostring(M28Utilities.IsTableEmpty(tNearbyUnits))) end
+                        if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
+                            local tNearbyStorage = EntityCategoryFilterDown(M28UnitInfo.refCategoryMassStorage, tNearbyUnits)
+                            if M28Utilities.IsTableEmpty(tNearbyStorage) == false then
+                                for iUnit, oUnit in tNearbyStorage do
+                                    if bDebugMessages == true then LOG(sFunctionRef..': About to transfer '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' from brain '..oUnit:GetAIBrain().Nickname..' to '..oJustBuilt:GetAIBrain().Nickname..'; Dist from unit to tMexLocation='..M28Utilities.GetDistanceBetweenPositions(tMexLocation, oUnit:GetPosition())) end
+                                    if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tMexLocation) <= 2.25 then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Will try and gift the storage to the player that built the mex') end
+                                        M28Team.TransferUnitsToPlayer({oUnit}, oJustBuilt:GetAIBrain():GetArmyIndex(), false)
+                                    end
+                                end
+                            end
+                        end
+                        --Update part built t1 mex tracking
+                        if EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oJustBuilt.UnitId) then
+                            M28Engineer.UpdatePartBuiltListForCompletedMex(oJustBuilt)
+                        end
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryMassStorage, oJustBuilt.UnitId) then
+                        --If just built a mass storage but we dont own the mex it is adjacent to, then gift the storage
+                        local rSearchRectangle = M28Utilities.GetRectAroundLocation(oJustBuilt:GetPosition(), 2.749)
+                        local tNearbyUnits = GetUnitsInRect(rSearchRectangle) --at 1.5 end up with storage thats not adjacent being gifted in some cases but not in others; at 1 none of it gets gifted; the mass storage should be exactly 2 from the mex; however even at 2.1, 2.25 and 2.499 had cases where the mex wasnt identified so will try 2.75 since distances can vary/be snapped to the nearest 0.5 I think
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef..': Storage gifting where built storage - oJustBuilt='..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..'; owner='..oJustBuilt:GetAIBrain().Nickname..'; is tNearbyUnits empty='..tostring(M28Utilities.IsTableEmpty(tNearbyUnits)))
+                            if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
+                                for iUnit, oUnit in tNearbyUnits do
+                                    LOG(sFunctionRef..': iUnit '..iUnit..' in tNearbyUnits='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; owner='..oUnit:GetAIBrain().Nickname)
+                                end
+                            end
+                        end
+                        if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
+                            local tNearbyMexes = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tNearbyUnits)
+                            if M28Utilities.IsTableEmpty(tNearbyMexes) == false then
+                                local bHaveMexWeOwnNearby = false
+                                local oBrainToTransferToIfWeOwnNoMexes
+                                for iUnit, oUnit in tNearbyMexes do
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering nearby unit oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname) end
+                                    if oUnit:GetAIBrain() == oJustBuilt:GetAIBrain() then
+                                        bHaveMexWeOwnNearby = true
+                                    elseif oUnit:GetAIBrain().M28Team == oJustBuilt:GetAIBrain().M28Team then
+                                        oBrainToTransferToIfWeOwnNoMexes = oUnit:GetAIBrain()
+                                    end
+                                end
+                                if not(bHaveMexWeOwnNearby) and oBrainToTransferToIfWeOwnNoMexes then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will try and gift the storage to the player who owns the mex already there') end
+                                    M28Team.TransferUnitsToPlayer({oJustBuilt}, oBrainToTransferToIfWeOwnNoMexes:GetArmyIndex(), false)
+                                end
+                            end
+                        end
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryEnergyStorage, oJustBuilt.UnitId) then
+                        M28Team.TeamEconomyRefresh(oJustBuilt:GetAIBrain().M28Team)
+                        M28Team.ConsiderGiftingStorageToTeammate(oJustBuilt)
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oJustBuilt.UnitId) then
+                        --Clear the desire to build land facs by mexes - i.e. only want hte first one to be built as such
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have just build land factory so clearing adjacency desire for all M28 brains') end
+                        M28Engineer.tiActionAdjacentCategory[M28Engineer.refActionBuildLandFactory] = nil
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oJustBuilt.UnitId) then
+                        ForkThread(M28Building.GetT3ArtiTarget, oJustBuilt)
+                    end
+                    --Clear engineers that just built this
+
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryLandCombat * categories.TECH3 + M28UnitInfo.refCategoryIndirectT3, oJustBuilt.UnitId) then
+                    if not(M28Team.tTeamData[oJustBuilt:GetAIBrain().M28Team][M28Team.refbBuiltLotsOfT3Combat]) then
+                        if M28Conditions.GetTeamLifetimeBuildCount(oJustBuilt:GetAIBrain().M28Team, M28UnitInfo.refCategoryLandCombat * categories.TECH3 + M28UnitInfo.refCategoryIndirectT3) >= 30 then
+                            M28Team.tTeamData[oJustBuilt:GetAIBrain().M28Team][M28Team.refbBuiltLotsOfT3Combat] = true
+                        end
+                    end
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer * categories.TECH3, oJustBuilt.UnitId) then
+                    --Late game - destroy lower tech engineers to help with pathing (up to 2 for every T3 engi built)
+                    ForkThread(M28Engineer.ConsiderDestroyingLowTechEngineers, oJustBuilt)
+                elseif EntityCategoryContains(categories.MOBILE * categories.SUBMERSIBLE, oJustBuilt.UnitId) then
+                    ForkThread(M28Navy.DelayedCheckIfShouldSubmerge, oJustBuilt)
                 end
-            end
 
-            --Logic based on the type of unit built
-            if EntityCategoryContains(M28UnitInfo.refCategoryFactory, oJustBuilt.UnitId) then
-                if bDebugMessages == true then LOG(sFunctionRef..': A factory has just been built so will get the next order for the factory') end
-                ForkThread(M28Factory.DecideAndBuildUnitForFactory, oJustBuilt:GetAIBrain(), oJustBuilt)
-                if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oJustBuilt.UnitId) then
-                    oJustBuilt:GetAIBrain()[M28Economy.refiOurHighestFactoryTechLevel] = math.max(M28UnitInfo.GetUnitTechLevel(oJustBuilt), oJustBuilt:GetAIBrain()[M28Economy.refiOurHighestFactoryTechLevel])
+                --Update economy tracking (this function will check if it is an economic unit as part of it)
+                M28Economy.UpdateGrossIncomeForUnit(oJustBuilt)
+                if EntityCategoryContains(M28UnitInfo.refCategoryScathis, oJustBuilt.UnitId) then
+                    table.insert(M28Engineer.tAllScathis, oJustBuilt)
                 end
-            elseif EntityCategoryContains(categories.STEALTH, oJustBuilt.UnitId) then
-                --Make sure stealth is enabled
-                M28UnitInfo.EnableUnitStealth(oJustBuilt)
-            end
 
-            --Mobile land units - give a micro move order so they dont block the factory
-            if EntityCategoryContains(M28UnitInfo.refCategoryMobileLand, oJustBuilt.UnitId) then
-                ForkThread(M28Micro.MoveAwayFromFactory, oJustBuilt, oEngineer)
-            end
-
-            --Unit cap - refresh if are within 25 of the cap since it isnt accurate if have current units
-            if M28UnitInfo.IsUnitValid(oJustBuilt) and oJustBuilt:GetAIBrain()[M28Overseer.refbCloseToUnitCap] and oJustBuilt:GetAIBrain()[M28Overseer.refiExpectedRemainingCap] <= 25 then
-                M28Overseer.CheckUnitCap(oJustBuilt:GetAIBrain())
-            end
-
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        elseif not(oJustBuilt:GetAIBrain().M28AI) then
-            --If build an M28 unit then will record its plateau and LZ; so for non-M28 AI also want to do this so we have a backup for pathfinding if dont already have something
-            if M28Utilities.IsTableEmpty(oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) and not(EntityCategoryContains(categories.AIR, oJustBuilt.UnitId)) then
-                local iPlateau, iLandZone = M28Map.GetPathingOverridePlateauAndLandZone(oJustBuilt:GetPosition(), true, oJustBuilt)
-                if not(oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) then oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam] = {} end
-                oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][oJustBuilt:GetAIBrain().M28Team] = {iPlateau, iLandZone}
-                if iPlateau and not(iLandZone) then
-                    --May be on water
-                    local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(oJustBuilt:GetPosition())
-                    local iWaterZone = M28Map.tWaterZoneBySegment[iSegmentX][iSegmentZ]
-                    if iWaterZone then
-                        if not(oJustBuilt[M28UnitInfo.reftAssignedWaterZoneByTeam]) then oJustBuilt[M28UnitInfo.reftAssignedWaterZoneByTeam] = {} end
-                        oJustBuilt[M28UnitInfo.reftAssignedWaterZoneByTeam][oJustBuilt:GetAIBrain().M28Team] = iWaterZone
+                --Logic based on the engineer
+                if EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
+                    M28ACU.GetACUOrder(oEngineer:GetAIBrain(), oEngineer)
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory, oEngineer.UnitId) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': A factory has just built a unit so will get the next order for the factory') end
+                    ForkThread(M28Factory.DecideAndBuildUnitForFactory, oEngineer:GetAIBrain(), oEngineer)
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEngineer.UnitId) then
+                    --Clear any engineers trying to build this unit if we just built a building or experimental
+                    if EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId) then
+                        M28Engineer.ClearEngineersForUnitJustBuilt(oEngineer, oJustBuilt)
                     end
                 end
-                --[[if (iPlateau or 0) > 0 then
+
+                --Logic based on the type of unit built
+                if EntityCategoryContains(M28UnitInfo.refCategoryFactory, oJustBuilt.UnitId) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': A factory has just been built so will get the next order for the factory') end
+                    ForkThread(M28Factory.DecideAndBuildUnitForFactory, oJustBuilt:GetAIBrain(), oJustBuilt)
+                    if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oJustBuilt.UnitId) then
+                        oJustBuilt:GetAIBrain()[M28Economy.refiOurHighestFactoryTechLevel] = math.max(M28UnitInfo.GetUnitTechLevel(oJustBuilt), oJustBuilt:GetAIBrain()[M28Economy.refiOurHighestFactoryTechLevel])
+                    end
+                elseif EntityCategoryContains(categories.STEALTH, oJustBuilt.UnitId) then
+                    --Make sure stealth is enabled
+                    M28UnitInfo.EnableUnitStealth(oJustBuilt)
+                end
+
+                --Mobile land units - give a micro move order so they dont block the factory
+                if EntityCategoryContains(M28UnitInfo.refCategoryMobileLand, oJustBuilt.UnitId) then
+                    ForkThread(M28Micro.MoveAwayFromFactory, oJustBuilt, oEngineer)
+                end
+
+                --Unit cap - refresh if are within 25 of the cap since it isnt accurate if have current units
+                if M28UnitInfo.IsUnitValid(oJustBuilt) and oJustBuilt:GetAIBrain()[M28Overseer.refbCloseToUnitCap] and oJustBuilt:GetAIBrain()[M28Overseer.refiExpectedRemainingCap] <= 25 then
+                    M28Overseer.CheckUnitCap(oJustBuilt:GetAIBrain())
+                end
+
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            elseif not(oJustBuilt:GetAIBrain().M28AI) then
+                --If build an M28 unit then will record its plateau and LZ; so for non-M28 AI also want to do this so we have a backup for pathfinding if dont already have something
+                if M28Utilities.IsTableEmpty(oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) and not(EntityCategoryContains(categories.AIR, oJustBuilt.UnitId)) then
+                    local iPlateau, iLandZone = M28Map.GetPathingOverridePlateauAndLandZone(oJustBuilt:GetPosition(), true, oJustBuilt)
                     if not(oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) then oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam] = {} end
                     oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][oJustBuilt:GetAIBrain().M28Team] = {iPlateau, iLandZone}
-                end--]]
-            end
+                    if iPlateau and not(iLandZone) then
+                        --May be on water
+                        local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(oJustBuilt:GetPosition())
+                        local iWaterZone = M28Map.tWaterZoneBySegment[iSegmentX][iSegmentZ]
+                        if iWaterZone then
+                            if not(oJustBuilt[M28UnitInfo.reftAssignedWaterZoneByTeam]) then oJustBuilt[M28UnitInfo.reftAssignedWaterZoneByTeam] = {} end
+                            oJustBuilt[M28UnitInfo.reftAssignedWaterZoneByTeam][oJustBuilt:GetAIBrain().M28Team] = iWaterZone
+                        end
+                    end
+                    --[[if (iPlateau or 0) > 0 then
+                        if not(oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) then oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam] = {} end
+                        oJustBuilt[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][oJustBuilt:GetAIBrain().M28Team] = {iPlateau, iLandZone}
+                    end--]]
+                end
 
-        end
-        --Upgrade tracking (even if have run this already)
-        if oEngineer.GetAIBrain and EntityCategoryContains(categories.STRUCTURE, oEngineer.UnitId) and EntityCategoryContains(categories.STRUCTURE, oJustBuilt.UnitId) then
-            if oJustBuilt:GetAIBrain().M28AI or (M28UnitInfo.IsUnitValid(oEngineer) and oEngineer:GetAIBrain().M28AI) then
-                M28Team.UpdateUpgradeTrackingOfUnit(oJustBuilt, true)
+            end
+            --Upgrade tracking (even if have run this already)
+            if oEngineer.GetAIBrain and EntityCategoryContains(categories.STRUCTURE, oEngineer.UnitId) and EntityCategoryContains(categories.STRUCTURE, oJustBuilt.UnitId) then
+                if oJustBuilt:GetAIBrain().M28AI or (M28UnitInfo.IsUnitValid(oEngineer) and oEngineer:GetAIBrain().M28AI) then
+                    M28Team.UpdateUpgradeTrackingOfUnit(oJustBuilt, true)
+                end
             end
         end
     end
@@ -1157,20 +1174,20 @@ end
 
 function OnCreateBrain(aiBrain, planName, bIsHuman)
     local sFunctionRef = 'OnCreateBrain'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if bDebugMessages == true then LOG(sFunctionRef..': aiBrain has just been created at time '..GetGameTimeSeconds()..'; Brain nickname='..(aiBrain.Nickname or 'nil')..'; Has setup been run='..tostring(aiBrain['M28BrainSetupRun'] or false)..'; Brain type='..(aiBrain.BrainType or 'nil')) end
+    if bDebugMessages == true then LOG(sFunctionRef..': aiBrain has just been created at time '..GetGameTimeSeconds()..'; Brain nickname='..(aiBrain.Nickname or 'nil')..'; Has setup been run='..tostring(aiBrain['M28BrainSetupRun'] or false)..'; Brain type='..(aiBrain.BrainType or 'nil')..'; M28Team (if brain setup)='..(aiBrain.M28Team or 'nil')..'; aiBrain.Civilian='..tostring(aiBrain.Civilian or false)) end
     if not(aiBrain['M28BrainSetupRun']) then
         if M28Config.M28RunProfiling then
             ForkThread(M28Profiler.ProfilerActualTimePerTick)
         end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        WaitTicks(10)
+        WaitTicks(5)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         aiBrain['M28BrainSetupRun'] = true
         --Make sure we have checked if this is a scenario map (run for each AI to be safe since minimal load and ensures this happens ahead of any other M28 code)
         M28Overseer.CheckIfScenarioMap()
-        if bDebugMessages == true then LOG(sFunctionRef..': M28Map.bIsScenarioMap='..tostring(M28Map.bIsScenarioMap or false)) end
+        if bDebugMessages == true then LOG(sFunctionRef..': M28Map.bIsCampaignMap='..tostring(M28Map.bIsCampaignMap or false)) end
         if bIsHuman == nil then
             if aiBrain.BrainType == "AI" or not(aiBrain.BrainType) or string.find(aiBrain.BrainType, "AI") then bIsHuman = false else bIsHuman = true end
         end

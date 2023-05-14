@@ -107,11 +107,20 @@ function IsCivilianBrain(aiBrain)
                 end
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': campaign adjust - treat most civilians as actual brains, rely on nickname (not precise method). bIsCampaignMap='..tostring(M28Map.bIsCampaignMap)..'; bIsCivilian before adjust='..tostring(bIsCivilian)) end
+        if bIsCivilian and M28Map.bIsCampaignMap then
+            bIsCivilian = false
+            if bDebugMessages == true then LOG(sFunctionRef..': brain name='..aiBrain.Name..'; Nickname='..aiBrain.Nickname..'; does nickanme contain "civilian"='..repru(string.find(aiBrain.Name, "civilian"))) end
+            if string.find(aiBrain.Nickname, "civilian") or string.find(aiBrain.Name, "civilian") or string.find(aiBrain.Nickname, "Civilian") or string.find(aiBrain.Nickname, "Civilian") then
+                bIsCivilian = true
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': bIsCivilian after campaign adjust (if relevant)='..tostring(bIsCivilian)) end
         aiBrain.M28IsCivilian = bIsCivilian
     end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    return aiBrain.M28IsCivilian
-end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return aiBrain.M28IsCivilian
+    end
 
 function GetLifetimeBuildCount(aiBrain, category)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end

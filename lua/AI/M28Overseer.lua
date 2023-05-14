@@ -315,13 +315,26 @@ function M28BrainCreated(aiBrain)
         ForkThread(M28Map.SetupMap)
 
         local sStartMessage
-        local iRand = math.random(1,3)
-        if iRand == 1 then sStartMessage = 'gl hf'
-        elseif iRand == 2 then sStartMessage = 'gl'
-        elseif iRand == 3 then sStartMessage = '/82' -- QAI: If you destroy this ACU, another shall rise in its place. I am endless.
+
+        if M28Map.bIsCampaignMap then
+            local iRand = math.random(1,5)
+            if iRand == 1 then sStartMessage = 'Lets do this!'
+            elseif iRand == 2 then sStartMessage = 'Time to foil the Seraphim plans'
+            elseif iRand == 3 then sStartMessage = 'For the coalition!'
+            elseif iRand == 4 then sStartMessage = 'Its time to end this'
+            elseif iRand == 5 then sStartMessage = 'I hope youve got my back commander'
+            elseif iRand == 6 then sStartMessage = 'So...I just need to eco right?'
+            elseif iRand == 7 then sStartMessage = 'This doesnt look as easy as the simulation...'
+            end
+        else
+            local iRand = math.random(1,3)
+            if iRand == 1 then sStartMessage = 'gl hf'
+            elseif iRand == 2 then sStartMessage = 'gl'
+            elseif iRand == 3 then sStartMessage = '/82' -- QAI: If you destroy this ACU, another shall rise in its place. I am endless.
+            end
         end
-        --SendMessage(aiBrain, sMessageType, sMessage, iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam)
-        M28Chat.SendMessage(aiBrain, 'Start', sStartMessage, 40,                     60)
+        --SendMessage(aiBrain, sMessageType, sMessage, iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU)
+        M28Chat.SendMessage(aiBrain, 'Start', sStartMessage, 40,                     60,                                false,          M28Map.bIsCampaignMap)
 
     end
 
@@ -385,9 +398,9 @@ end
 function TestCustom(aiBrain)
     --Scenario data
     LOG('WIll do reprs of just options'..reprs(ScenarioInfo.Options))
-    LOG('Will now try cycling through each entry in ScenarioInfo and do repru of it')
+    LOG('Will now try cycling through each entry in ScenarioInfo and note the iEntry value')
     for iEntry, vValue in ScenarioInfo do
-        LOG('iEntry='..iEntry..'; vValue='..repru(vValue))
+        LOG('iEntry='..iEntry)
     end
 
     --local tWZTeamData = M28Map.tPondDetails[552][M28Map.subrefPondWaterZones][25][M28Map.subrefWZTeamData][aiBrain.M28Team]
@@ -691,14 +704,13 @@ function OverseerManager(aiBrain)
 end
 
 function CheckIfScenarioMap()
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'CheckIfScenarioMap'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    --local vCampaignMode = import("/lua/ui/campaign/campaignmanager.lua").campaignMode
 
-    if bDebugMessages == true then LOG(sFunctionRef..': ScenarioInfo.type == campaign='..tostring(ScenarioInfo.type == "campaign")..'; repru of ScenarioInfo.type='..repru(ScenarioInfo.type)..'; Is table of hunman players empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.HumanPlayers))..'; Is human players nil='..tostring(ScenarioInfo.HumanPlayers == nil)) end
-    if M28Utilities.IsTableEmpty(ScenarioInfo.HumanPlayers) == false then
-        M28Map.bIsScenarioMap = true
+    if bDebugMessages == true then LOG(sFunctionRef..': ScenarioInfo.type == skirmish='..tostring(ScenarioInfo.type == "skirmish")..'; repru of ScenarioInfo.type='..repru(ScenarioInfo.type)..'; Is table of hunman players empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.HumanPlayers))..'; Is human players nil='..tostring(ScenarioInfo.HumanPlayers == nil)) end
+    if not(ScenarioInfo.type == "skirmish") then --M28Utilities.IsTableEmpty(ScenarioInfo.HumanPlayers) == false then
+        M28Map.bIsCampaignMap = true
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

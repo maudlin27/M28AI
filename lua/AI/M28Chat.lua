@@ -84,11 +84,12 @@ function SendGloatingMessage(aiBrain, iOptionalDelayInSeconds, iOptionalTimeBetw
     ForkThread(SendForkedGloatingMessage, aiBrain, iOptionalDelayInSeconds, iOptionalTimeBetweenTaunts)
 end
 
-function SendForkedMessage(aiBrain, sMessageType, sMessage, iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam)
+function SendForkedMessage(aiBrain, sMessageType, sMessage, iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU)
     --Use SendMessage rather than this to reduce risk of error
 
     --If just sending a message rather than a taunt then can use this. sMessageType will be used to check if we have sent similar messages recently with the same sMessageType
     --if bOnlySendToTeam is true then will both only consider if message has been sent to teammates before (not all AI), and will send via team chat
+    --bWaitUntilHaveACU - if true then will wait until aiBrain has an ACU (e.g. use for start of game messages in campaign)
     local sFunctionRef = 'SendForkedMessage'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -103,35 +104,57 @@ function SendForkedMessage(aiBrain, sMessageType, sMessage, iOptionalDelayBefore
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         end
 
+        local bAbort = false
 
-        local iTimeSinceSentSimilarMessage
-        if bOnlySendToTeam then
-            iTimeSinceSentSimilarMessage = GetGameTimeSeconds() - (M28Team.tTeamData[aiBrain.M28Team][M28Team.reftiTeamMessages][sMessageType] or -100000)
-        else
-            iTimeSinceSentSimilarMessage = GetGameTimeSeconds() - (tiM28VoiceTauntByType[sMessageType] or -100000000)
-        end
+        if bWaitUntilHaveACU then
+            local iCount = 0
 
-        if bDebugMessages == true then LOG(sFunctionRef..': sMessageType='..(sMessageType or 'nil')..'; iOptionalTimeBetweenTaunts='..(iOptionalTimeBetweenMessageType or 'nil')..'; tiM28VoiceTauntByType[sMessageType]='..(tiM28VoiceTauntByType[sMessageType] or 'nil')..'; Cur game time='..GetGameTimeSeconds()..'; iTimeSinceSentSimilarMessage='..iTimeSinceSentSimilarMessage) end
+            while M28Utilities.IsTableEmpty( aiBrain:GetListOfUnits(categories.COMMAND, false, true)) do
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitSeconds(1)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                iCount = iCount + 1
+                if iCount >= 300 then M28Utilities.ErrorHandler('Waited '..iCount..' times so wont send chat message '..sMessage)
+                    bAbort = true
+                    break
+                end
 
-        if iTimeSinceSentSimilarMessage > (iOptionalTimeBetweenMessageType or 60) then
-            if bOnlySendToTeam then
-                SUtils.AISendChat('allies', aiBrain.Nickname, sMessage)
-                M28Team.tTeamData[aiBrain.M28Team][M28Team.reftiTeamMessages][sMessageType] = GetGameTimeSeconds()
-                if bDebugMessages == true then LOG(sFunctionRef..': Sent a team chat message') end
-            else
-                SUtils.AISendChat('all', aiBrain.Nickname, sMessage)
-                tiM28VoiceTauntByType[sMessageType] = GetGameTimeSeconds()
             end
-            LOG(sFunctionRef..': Sent chat message. bOnlySendToTeam='..tostring(bOnlySendToTeam)..'; sMessageType='..sMessageType..'; sMessage='..sMessage) --Log so in replays can see if this triggers since chat doesnt show properly
+            local tFriendlyACUs = aiBrain:GetListOfUnits(categories.COMMAND, false, true)
+            if M28Utilities.IsTableEmpty(tFriendlyACUs) then
+            end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': tiM28VoiceTauntByType='..repru(tiM28VoiceTauntByType)..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.reftiTeamMessages='..repru(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftiTeamMessages])) end
+
+        if not(bAbort) then
+            local iTimeSinceSentSimilarMessage
+            if bOnlySendToTeam then
+                iTimeSinceSentSimilarMessage = GetGameTimeSeconds() - (M28Team.tTeamData[aiBrain.M28Team][M28Team.reftiTeamMessages][sMessageType] or -100000)
+            else
+                iTimeSinceSentSimilarMessage = GetGameTimeSeconds() - (tiM28VoiceTauntByType[sMessageType] or -100000000)
+            end
+
+            if bDebugMessages == true then LOG(sFunctionRef..': sMessageType='..(sMessageType or 'nil')..'; iOptionalTimeBetweenTaunts='..(iOptionalTimeBetweenMessageType or 'nil')..'; tiM28VoiceTauntByType[sMessageType]='..(tiM28VoiceTauntByType[sMessageType] or 'nil')..'; Cur game time='..GetGameTimeSeconds()..'; iTimeSinceSentSimilarMessage='..iTimeSinceSentSimilarMessage) end
+
+            if iTimeSinceSentSimilarMessage > (iOptionalTimeBetweenMessageType or 60) then
+                if bOnlySendToTeam then
+                    SUtils.AISendChat('allies', aiBrain.Nickname, sMessage)
+                    M28Team.tTeamData[aiBrain.M28Team][M28Team.reftiTeamMessages][sMessageType] = GetGameTimeSeconds()
+                    if bDebugMessages == true then LOG(sFunctionRef..': Sent a team chat message') end
+                else
+                    SUtils.AISendChat('all', aiBrain.Nickname, sMessage)
+                    tiM28VoiceTauntByType[sMessageType] = GetGameTimeSeconds()
+                end
+                LOG(sFunctionRef..': Sent chat message. bOnlySendToTeam='..tostring(bOnlySendToTeam)..'; sMessageType='..sMessageType..'; sMessage='..sMessage) --Log so in replays can see if this triggers since chat doesnt show properly
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': tiM28VoiceTauntByType='..repru(tiM28VoiceTauntByType)..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.reftiTeamMessages='..repru(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftiTeamMessages])) end
+        end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function SendMessage(aiBrain, sMessageType, sMessage, iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam)
+function SendMessage(aiBrain, sMessageType, sMessage, iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU)
     --Fork thread as backup to make sure any unforseen issues dont break the code that called this
-    ForkThread(SendForkedMessage, aiBrain, sMessageType, sMessage, iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam)
+    ForkThread(SendForkedMessage, aiBrain, sMessageType, sMessage, iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU)
 end
 
 --[[function SendGameCompatibilityWarning(aiBrain, sMessage, iOptionalDelay, iOptionalTimeBetweenTaunts)

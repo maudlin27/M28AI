@@ -18,7 +18,7 @@ local M28Config = import('/mods/M28AI/lua/M28Config.lua')
 
 bMapLandSetupComplete = false --set to true once have finished setting up map (used to decide how long to wait before starting main aibrain logic)
 bWaterZoneInitialCreation = false --set to true once have finished code for recording water zones (note WZ setup wont be fully complete yet)
-bIsScenarioMap = false --set at start of game
+bIsCampaignMap = false --set at start of game
 
 --Pathing types
 --NavLayers 'Land' | 'Water' | 'Amphibious' | 'Hover' | 'Air'
@@ -664,22 +664,23 @@ local function SetupPlayableAreaAndSegmentSizes()
     --Decide on land zone segment sizes
     local iHighestSize = math.max(rMapPlayableArea[3] - rMapPlayableArea[1], rMapPlayableArea[4] - rMapPlayableArea[2])
     local iTableSizeCap = 125000 --e.g. 1x1 resolution on a 10km, 3x3 resolution on a 20km
+    if not(bMapLandSetupComplete) then --e.g. if this is a campaign we may want to change playable area size
+        --iTableSizeCap = SegmentCount^2; SegmentCount = iTotalSize / SegmentSize; (TotalSize/SegmentSize)^2 = iTableSizeCap; SemgentSize = TotalSize/Sqrt(iTableSizeCap)
+        iLandZoneSegmentSize = math.ceil(iHighestSize / math.sqrt(iTableSizeCap))
 
-    --iTableSizeCap = SegmentCount^2; SegmentCount = iTotalSize / SegmentSize; (TotalSize/SegmentSize)^2 = iTableSizeCap; SemgentSize = TotalSize/Sqrt(iTableSizeCap)
-    iLandZoneSegmentSize = math.ceil(iHighestSize / math.sqrt(iTableSizeCap))
+        --Record the max values
+        iMaxLandSegmentX, iMaxLandSegmentZ = GetPathingSegmentFromPosition({rMapPlayableArea[3], 0, rMapPlayableArea[4]})
 
-    --Record the max values
-    iMaxLandSegmentX, iMaxLandSegmentZ = GetPathingSegmentFromPosition({rMapPlayableArea[3], 0, rMapPlayableArea[4]})
-
-    if bDebugMessages == true then LOG(sFunctionRef..': iHighestSize='..iHighestSize..'; iTableSizeCap='..iTableSizeCap..'; iLandZoneSegmentSize='..iLandZoneSegmentSize..'; Max Segment X-Z='..iMaxLandSegmentX..'-'..iMaxLandSegmentZ) end
+        if bDebugMessages == true then LOG(sFunctionRef..': iHighestSize='..iHighestSize..'; iTableSizeCap='..iTableSizeCap..'; iLandZoneSegmentSize='..iLandZoneSegmentSize..'; Max Segment X-Z='..iMaxLandSegmentX..'-'..iMaxLandSegmentZ) end
 
 
-    local iMinReclaimSegmentSize = 8.5 --Engineer build range is 6; means that a square of about 4.2 will fit inside this circle; If have 2 separate engineers assigned to adjacent reclaim segments, and want their build range to cover the two areas, then would want a gap twice this, so 8.4; will therefore go with min size of 8
-    local iMapSizeX = rMapPlayableArea[3] - rMapPlayableArea[1]
-    local iMapSizeZ = rMapPlayableArea[4] - rMapPlayableArea[2]
-    iReclaimSegmentSizeX = math.max(iMinReclaimSegmentSize, iLandZoneSegmentSize)
-    iReclaimSegmentSizeZ = math.max(iMinReclaimSegmentSize, iLandZoneSegmentSize)
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        local iMinReclaimSegmentSize = 8.5 --Engineer build range is 6; means that a square of about 4.2 will fit inside this circle; If have 2 separate engineers assigned to adjacent reclaim segments, and want their build range to cover the two areas, then would want a gap twice this, so 8.4; will therefore go with min size of 8
+        local iMapSizeX = rMapPlayableArea[3] - rMapPlayableArea[1]
+        local iMapSizeZ = rMapPlayableArea[4] - rMapPlayableArea[2]
+        iReclaimSegmentSizeX = math.max(iMinReclaimSegmentSize, iLandZoneSegmentSize)
+        iReclaimSegmentSizeZ = math.max(iMinReclaimSegmentSize, iLandZoneSegmentSize)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    end
 end
 
 

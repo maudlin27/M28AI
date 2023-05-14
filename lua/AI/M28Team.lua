@@ -496,7 +496,7 @@ function CreateNewTeam(aiBrain)
             --Record brain details in log for ease of reference
             local sAiXref = ''
             if oBrain.CheatEnabled then sAIXref = ' AiX '..tonumber(ScenarioInfo.Options.CheatMult) end
-            LOG(sFunctionRef..': Recorded brain '..oBrain.Nickname..' with index '..oBrain:GetArmyIndex()..' for team '..iTotalTeamCount..sAiXref)
+            LOG(sFunctionRef..': Recorded non-civilian brain '..oBrain.Nickname..' with index '..oBrain:GetArmyIndex()..' for team '..iTotalTeamCount..sAiXref)
         elseif IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) and not(M28Conditions.IsCivilianBrain(oBrain)) then
             table.insert(tTeamData[iTotalTeamCount][subreftoEnemyBrains], oBrain)
             --Check if anyone on enemy team has omni
