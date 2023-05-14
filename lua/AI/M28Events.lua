@@ -721,7 +721,7 @@ function OnConstructed(oEngineer, oJustBuilt)
     --NOTE: This is called every time an engineer stops building a unit whose fractioncomplete is 100%, so can be called multiple times
     if M28Utilities.bM28AIInGame then
         --NonM28 specific - dont set the M28OnConstructionCalled for this, so need to  be careful that any code here will not be run repeatedly
-        LOG('OnConstructed at time '..GetGameTimeSeconds()..' for unit '..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..' owned by brain '..oJustBuilt:GetAIBrain().Nickname..'; oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete or false))
+        --LOG('OnConstructed at time '..GetGameTimeSeconds()..' for unit '..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..' owned by brain '..oJustBuilt:GetAIBrain().Nickname..'; oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete or false))
         if not(M28Map.bMapLandSetupComplete) then
             local iWaitCount = 0
             local bDontCallAgain = false
@@ -1075,7 +1075,7 @@ function OnCreate(oUnit)
         local sFunctionRef = 'OnCreate'
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time'..GetGameTimeSeconds()..'; oUnit[M28OnCrRn]='..tostring(oUnit['M28OnCrRn'] or false)..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete or false)..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
         if not(M28Map.bMapLandSetupComplete) then --Start of game ACU creation happens before we have setup the map
             while not(M28Map.bMapLandSetupComplete) do
                 WaitTicks(1)
@@ -1089,6 +1089,7 @@ function OnCreate(oUnit)
 
                 --All units (not just M28 specific):
                 M28UnitInfo.RecordUnitRange(oUnit)
+                if bDebugMessages == true then LOG(sFunctionRef..': Just recorded unit ranges for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')) end
                 if M28Config.M28ShowEnemyUnitNames then
                     local sWZOrLZRef = ''
                     if EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) then
@@ -1150,7 +1151,7 @@ function OnCreate(oUnit)
                 local aiBrain = oUnit:GetAIBrain()
                 if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId) then
                     M28Air.AddPriorityAirDefenceTarget(oUnit)
-                --WEAPON PRIORITIES
+                    --WEAPON PRIORITIES
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) then
                     M28UnitInfo.SetUnitTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityGunship, true)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryDestroyer, oUnit.UnitId) then
@@ -1177,9 +1178,15 @@ function OnCreateBrain(aiBrain, planName, bIsHuman)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': aiBrain has just been created at time '..GetGameTimeSeconds()..'; Brain nickname='..(aiBrain.Nickname or 'nil')..'; Has setup been run='..tostring(aiBrain['M28BrainSetupRun'] or false)..'; Brain type='..(aiBrain.BrainType or 'nil')..'; M28Team (if brain setup)='..(aiBrain.M28Team or 'nil')..'; aiBrain.Civilian='..tostring(aiBrain.Civilian or false)) end
     if not(aiBrain['M28BrainSetupRun']) then
-        if M28Config.M28RunProfiling then
-            ForkThread(M28Profiler.ProfilerActualTimePerTick)
+        if M28Config.M28RunProfiling then ForkThread(M28Profiler.ProfilerActualTimePerTick) end
+        if bIsHuman == nil then
+            if aiBrain.BrainType == "AI" or not(aiBrain.BrainType) or string.find(aiBrain.BrainType, "AI") then bIsHuman = false else bIsHuman = true end
         end
+        if not(bIsHuman) and (ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == 'm28ai' or ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == 'm28aicheat') then
+            aiBrain.M28AI = true
+            M28Utilities.bM28AIInGame = true
+        end
+
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(5)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -1187,9 +1194,6 @@ function OnCreateBrain(aiBrain, planName, bIsHuman)
         --Make sure we have checked if this is a scenario map (run for each AI to be safe since minimal load and ensures this happens ahead of any other M28 code)
         M28Overseer.CheckIfScenarioMap()
         if bDebugMessages == true then LOG(sFunctionRef..': M28Map.bIsCampaignMap='..tostring(M28Map.bIsCampaignMap or false)) end
-        if bIsHuman == nil then
-            if aiBrain.BrainType == "AI" or not(aiBrain.BrainType) or string.find(aiBrain.BrainType, "AI") then bIsHuman = false else bIsHuman = true end
-        end
 
         --Logic to run for all brains
         local iStartPositionX, iStartPositionZ = aiBrain:GetArmyStartPos()
@@ -1202,8 +1206,7 @@ function OnCreateBrain(aiBrain, planName, bIsHuman)
             --Logic to run just for M28AI
             LOG('OnCreateBrain hook for ai with personality '..ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality)
 
-            if ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == 'm28ai' or ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == 'm28aicheat' then
-                aiBrain.M28AI = true
+            if aiBrain.M28AI then
                 LOG('M28 brain created')
 
                 --Copy of parts of aiBrain OnCreateAI that still want to retain
