@@ -1069,6 +1069,7 @@ function OnCreate(oUnit)
         else
             if not(oUnit['M28OnCrRn']) then
                 oUnit['M28OnCrRn'] = true
+                M28UnitInfo.GetUnitLifetimeCount(oUnit)
                 M28Team.ConsiderAssigningUnitToZoneForBrain(oUnit:GetAIBrain(), oUnit) --This function includes check of whether this is an M28 brain
 
                 --All units (not just M28 specific):
