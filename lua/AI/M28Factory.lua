@@ -1904,6 +1904,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     end
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] > 0 then
+        if bDebugMessages == true then LOG(sFunctionRef..': Immediate threat - want antinavy') end
         if ConsiderBuildingCategory(M28UnitInfo.refCategoryAntiNavy - categories.SILO) then
             return sBPIDToBuild
         end
@@ -1911,6 +1912,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
 
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if tWZTeamData[M28Map.subrefWZThreatEnemySurface] > 0 then
+        if bDebugMessages == true then LOG(sFunctionRef..': Immediate threat - want frigate') end
         if ConsiderBuildingCategory(M28UnitInfo.refCategoryFrigate) then
             return sBPIDToBuild
         end --Want frigate as enemy is close
@@ -1919,11 +1921,13 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 then
         if EntityCategoryContains(categories.AEON, oFactory.UnitId) or tWZTeamData[M28Map.refiEnemyAirToGroundThreat] >= math.max(100, (tWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) * 0.5) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Immediate threat - want AA') end
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryNavalAA) then
                 return sBPIDToBuild
             end
         else
             --Frigates should be a faster way of getting basic AA
+            if bDebugMessages == true then LOG(sFunctionRef..': Immediate threat - want AA via frigate') end
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryFrigate) then
                 return sBPIDToBuild
             end
@@ -1932,6 +1936,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
 
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if bConsiderBuildingShieldOrStealthBoats and tWZTeamData[M28Map.refbWZWantsMobileShield] then
+        if bDebugMessages == true then LOG(sFunctionRef..': Want shielding for core WZ') end
         if ConsiderBuildingCategory(M28UnitInfo.refCategoryShieldBoat) then
             return sBPIDToBuild
         end
@@ -1939,6 +1944,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
 
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if bConsiderBuildingShieldOrStealthBoats and tWZTeamData[M28Map.refbWZWantsMobileStealth] then
+        if bDebugMessages == true then LOG(sFunctionRef..': Want stealth for core WZ') end
         if ConsiderBuildingCategory(M28UnitInfo.refCategoryStealthBoat) then
             return sBPIDToBuild
         end
@@ -1947,6 +1953,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if iFactoryTechLevel == 2 then
         --Wnat first t2 unit to be a destroyer, assuming no immediate threats (per above)
+
         if M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryDestroyer) == 0 then
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryDestroyer) then
                 return sBPIDToBuild
