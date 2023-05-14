@@ -653,7 +653,7 @@ local function SetupPlayableAreaAndSegmentSizes()
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'DetermineReclaimAndLandSegmentSizes'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if ScenarioInfo.MapData.PlayableRect then
+    if ScenarioInfo.MapData.PlayableRect and (bMapLandSetupComplete or not(bIsCampaignMap)) then
         rMapPlayableArea = ScenarioInfo.MapData.PlayableRect
     else
         rMapPlayableArea = {0, 0, ScenarioInfo.size[1], ScenarioInfo.size[2]}
@@ -5011,6 +5011,11 @@ function SetupMap()
     if bDebugMessages == true then LOG(sFunctionRef..': Finished setting up water zones, will also now clal forked threads for other aspects, time='..GetGameTimeSeconds()..'; system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
     ForkThread(ClearTemporarySetupVariables)
     ForkThread(ReclaimManager)
+
+    --Campaign specific - reduce playable area to the current playable area (once have setup all zones based on full map size)
+    if bIsCampaignMap then
+        SetupPlayableAreaAndSegmentSizes()
+    end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

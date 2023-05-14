@@ -33,7 +33,7 @@ refiTimeOfLastCheck = 'M28UnitTimeOfLastCheck' --Currently used for shot is bloc
 refbLastShotBlocked = 'M28UnitLastShotBlocked' --Used for DF units to indicate if last shot was blocked
 refiTimeOfLastOverchargeShot = 'M28UnitTimeLastOvercharge' --Gametimeseconds
 reftbInArmyIndexBigThreatTable = 'M28UnitInBigThreatTable' --[x] is army index; true if have added unit to table of big threats for that army index
-
+refbConstructionStart = 'M28UnitConStrt' --True if constructionstarted event logic has been run for this unit
 
 
     --Unit micro related

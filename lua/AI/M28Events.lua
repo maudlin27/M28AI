@@ -683,13 +683,12 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
         --Record any mexes so we can repair them if construction gets interrupted
         if oEngineer:GetAIBrain().M28AI then
             --Track experimental construction and other special on construction logic
-            local refbConstructionStart = 'M28FirstConstructionStart'
-            if oConstruction.GetUnitId and not(oConstruction[refbConstructionStart]) then
+            if oConstruction.GetUnitId and not(oConstruction[M28UnitInfo.refbConstructionStart]) then
                 local sFunctionRef = 'OnConstructionStarted'
                 local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-                oConstruction[refbConstructionStart] = true
+                oConstruction[M28UnitInfo.refbConstructionStart] = true
                 if EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oConstruction.UnitId) then
                     M28Engineer.RecordPartBuiltMex(oEngineer, oConstruction)
                 end
@@ -1250,4 +1249,8 @@ function OnMissileImpactTerrain(self, target, position)
         end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
+end
+
+function OnPlayableAreaChange(rect, voFlag)
+    M28Map.SetupPlayableAreaAndSegmentSizes()
 end

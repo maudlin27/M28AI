@@ -157,6 +157,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefNukeLaunchLocations = 'M28NukeLocations' --locations that we have nuked recently
     refiTimeLastNearUnitCap = 'M28TimeLastNearUnitCap'
     refiPriorityPondValues = 'M28PriorityPonds' --Table of ponds that are considered sufficiently high value for our team, [x] is the pond, returns the value of hte pond
+    refbAlreadyCheckedForUnitsToShare = 'M28CheckedUnitsShare' --true if already run logic for campaign to share units at start of game
 
 --AirSubteam data variables
 iTotalAirSubteamCount = 0

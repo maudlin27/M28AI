@@ -1729,6 +1729,11 @@ function ManageACU(aiBrain)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
 
+    --Campaign specific - check if friendly units should gift to M28AI
+    if M28Map.bIsCampaignMap then
+        ForkThread(M28Overseer.CheckForAlliedCampaignUnitsToShareAtGameStart, oACU:GetAIBrain())
+    end
+
     --Make sure ACU is recorded
     M28Team.AssignUnitToLandZoneOrPond(aiBrain, oACU, false, false, true)
     oACU[refiUpgradeCount] = 0

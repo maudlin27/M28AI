@@ -3,12 +3,18 @@
 --- Created by maudlin27.
 --- DateTime: 14/05/2023 08:19
 ---
-local M28Old
-function SetPlayableArea(rect, voFlag)
+
+
+local M28OldSetPlayableArea
+SetPlayableArea = function(rect, voFlag)
+    M28OldSetPlayableArea(rect, voFlag)
+    ForkThread(ForkedPlayableAreaChange, rect, voFlag)
 end
 
-local M28OldCreateResourceDeposit = CreateResourceDeposit
-CreateResourceDeposit = function(t,x,y,z,size)
-    M28OldCreateResourceDeposit(t,x,y,z,size)
-    ForkThread(M28Map.RecordResourcePoint,t,x,y,z,size)
+function ForkedPlayableAreaChange(rect, voFlag)
+    --If run too early M28 code wont have loaded
+    while GetGameTimeSeconds() < 3 do
+        WaitTicks(1)
+    end
+    ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').OnPlayableAreaChange, rect, voFlag)
 end

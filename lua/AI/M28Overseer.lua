@@ -714,3 +714,110 @@ function CheckIfScenarioMap()
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
+
+function CheckForAlliedCampaignUnitsToShareAtGameStart(aiBrain)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'CheckForAlliedCampaignUnitsToShareAtGameStart'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    local iTeam = aiBrain.M28Team
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; M28Team.tTeamData[iTeam][M28Team.refbAlreadyCheckedForUnitsToShare]='..tostring(M28Team.tTeamData[iTeam][M28Team.refbAlreadyCheckedForUnitsToShare] or false)) end
+    if not(M28Team.tTeamData[iTeam][M28Team.refbAlreadyCheckedForUnitsToShare]) then
+        M28Team.tTeamData[iTeam][M28Team.refbAlreadyCheckedForUnitsToShare] = true
+        local tStartPosition = M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()]
+        local tNearbyStructures = {}
+        local iWaitCount = 0
+        local tHumanBrains = {}
+        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains] do
+            if bDebugMessages == true then LOG(sFunctionRef..': Creating list of human brains, oBrain.Nickanme='..oBrain.Nickname..'; brain type='..oBrain.BrainType) end
+            if oBrain.BrainType == 'Human' then
+                table.insert(tHumanBrains, oBrain)
+            end
+        end
+        local iCategoriesOfInterest = M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryAllAir + M28UnitInfo.refCategoryAllNavy - categories.COMMAND
+        if M28Utilities.IsTableEmpty(tHumanBrains) == false then
+            while M28Utilities.IsTableEmpty(tNearbyStructures) do
+                if iWaitCount > 0 then
+                    WaitTicks(1)
+                end
+                iWaitCount = iWaitCount + 1
+                for iBrain, oBrain in tHumanBrains do
+                    local tPotentialStructures = oBrain:GetListOfUnits(iCategoriesOfInterest, false, true)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Is table of potential units empty for brain '..oBrain.Nickname..'='..tostring(M28Utilities.IsTableEmpty(tPotentialStructures))) end
+                    if M28Utilities.IsTableEmpty(tPotentialStructures) == false then
+                        for iUnit, oUnit in tPotentialStructures do
+                            table.insert(tNearbyStructures, oUnit)
+                        end
+                    end
+                end
+                --tNearbyStructures = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryStructure, tStartPosition, 1000, 'Ally')
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': FInished wait for checking for ally structures to share, Time='..GetGameTimeSeconds()..'; Is tNearbyStructures empty='..tostring(M28Utilities.IsTableEmpty(tNearbyStructures))) end
+        if M28Utilities.IsTableEmpty(tNearbyStructures) == false then
+            --local tUnitsOfCategoryWanted = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryAllAir + M28UnitInfo.refCategoryAllNavy - categories.COMMAND, tStartPosition, 1000, 'Ally')
+            local tUnitsOfCategoryWanted = tNearbyStructures
+            if bDebugMessages == true then LOG(sFunctionRef..': Is table of units of category wanted empty='..tostring(M28Utilities.IsTableEmpty(tUnitsOfCategoryWanted))) end
+            if M28Utilities.IsTableEmpty(tUnitsOfCategoryWanted) == false then
+                local tUnitsToShareByBlueprint = {}
+                for iUnit, oUnit in  tUnitsOfCategoryWanted do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to add unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to table of units to share, Is uint valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; Fraction complete='..oUnit:GetFractionComplete()..'; Unit brain nickname='..oUnit:GetAIBrain().Nickname..'; Unit brain type='..oUnit:GetAIBrain().BrainType) end
+                    if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() == 1 and oUnit:GetAIBrain().BrainType == "Human" then
+                        if not(tUnitsToShareByBlueprint[oUnit.UnitId]) then tUnitsToShareByBlueprint[oUnit.UnitId] = {} end
+                        table.insert(tUnitsToShareByBlueprint[oUnit.UnitId], oUnit)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Add unit to the table of units to consider sharing') end
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Is untis to share empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToShareByBlueprint))) end
+                if M28Utilities.IsTableEmpty(tUnitsToShareByBlueprint) == false then
+                    local iNthEntryToGive
+                    local iHumanBrainCount = 0
+                    local iM28BrainCount = 0
+                    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains] do
+                        if oBrain.M28AI then iM28BrainCount = iM28BrainCount + 1
+                        elseif oBrain.BrainType == 'Human' then
+                            iHumanBrainCount = iHumanBrainCount + 1
+                        end
+                    end
+                    iNthEntryToGive = math.ceil((iM28BrainCount + iHumanBrainCount) / iM28BrainCount)
+                    local iTotalUnitCount
+                    local iCurCycleCount
+                    local tUnitsToGive = {}
+                    if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through all units to potentially share, iNthEntryToGive='..iNthEntryToGive..'; iM28BrainCount='..iM28BrainCount..'; iHumanBrainCount='..iHumanBrainCount) end
+                    for sBlueprint, tUnits in tUnitsToShareByBlueprint do
+                        iTotalUnitCount = table.getn(tUnits)
+                        if bDebugMessages == true then LOG(sFunctionRef..': sBLueprint='..sBlueprint..'; iTotalUnitCount='..iTotalUnitCount) end
+                        if iTotalUnitCount >= iNthEntryToGive then
+                            iCurCycleCount = 0
+                            for iUnit, oUnit in tUnits do
+                                iCurCycleCount = iCurCycleCount + 1
+                                if iCurCycleCount >= iNthEntryToGive then
+                                    table.insert(tUnitsToGive, oUnit)
+                                    iCurCycleCount = 0
+                                end
+                            end
+                        end
+                    end
+                    if M28Utilities.IsTableEmpty(tUnitsToGive) == false then
+                        local tiM28Brains = {}
+                        local iM28BrainCount = 0
+                        local oCurBrain
+                        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                            table.insert(tiM28Brains, oBrain)
+                            iM28BrainCount = iM28BrainCount + 1
+                        end
+                        for iUnit, oUnit in tUnitsToGive do
+                            if iM28BrainCount > 1 then
+                                oCurBrain = tiM28Brains[math.random(1, iM28BrainCount)]
+                            else
+                                oCurBrain = tiM28Brains[iM28BrainCount]
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Just about to try and gift unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' to M28AI brain '..oCurBrain.Nickname) end
+                            M28Team.TransferUnitsToPlayer({ oUnit }, oCurBrain:GetArmyIndex(), false)
+                        end
+                    end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
