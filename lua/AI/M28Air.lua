@@ -1865,16 +1865,24 @@ function ManageBombers(iTeam, iAirSubteam)
         local tRallyLZOrWZData
         local tRallyLZOrWZTeamData
         if iRallyPlateauOrZero == 0 then --]]
---            tRallyLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iRallyLZOrWZ]][M28Map.subrefPondWaterZones][iRallyLZOrWZ]
---            tRallyLZOrWZTeamData = tRallyLZOrWZData[M28Map.subrefWZTeamData][aiBrain.M28Team]
---        else
---            tRallyLZOrWZData = M28Map.tAllPlateaus[iRallyPlateauOrZero][M28Map.subrefPlateauLandZones][iRallyLZOrWZ]
---            tRallyLZOrWZTeamData = tRallyLZOrWZData[M28Map.subrefLZTeamData][aiBrain.M28Team]
---        end
-
+        --            tRallyLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iRallyLZOrWZ]][M28Map.subrefPondWaterZones][iRallyLZOrWZ]
+        --            tRallyLZOrWZTeamData = tRallyLZOrWZData[M28Map.subrefWZTeamData][aiBrain.M28Team]
+        --        else
+        --            tRallyLZOrWZData = M28Map.tAllPlateaus[iRallyPlateauOrZero][M28Map.subrefPlateauLandZones][iRallyLZOrWZ]
+        --            tRallyLZOrWZTeamData = tRallyLZOrWZData[M28Map.subrefLZTeamData][aiBrain.M28Team]
+        --        end
+        local iSearchSize = 300
+        if M28Map.iMapSize > 512 then iSearchSize = 450 end
+        local iAvailableBombers = table.getn(tAvailableBombers)
+        if iAvailableBombers >= 10 then iSearchSize = iSearchSize * 1.5 end
         local tEnemyTargets = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand * categories.TECH3 + M28UnitInfo.refCategoryMobileLand * categories.EXPERIMENTAL + M28UnitInfo.refCategoryStructure * categories.TECH3 +  M28UnitInfo.refCategoryStructure * categories.TECH2 + M28UnitInfo.refCategoryStructure * categories.TECH3 + M28UnitInfo.refCategoryNavalSurface - categories.TECH1, tRallyPoint, 300, 'Enemy')
         if M28Utilities.IsTableEmpty(tEnemyTargets) == false then
             AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam)
+        end
+        if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
+            for iUnit, oUnit in tAvailableBombers do
+                M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 20, false, 'BombIdl', false)
+            end
         end
     end
 
