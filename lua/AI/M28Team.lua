@@ -496,7 +496,6 @@ function CreateNewTeam(aiBrain)
             end
             --Record brain details in log for ease of reference
             local sAiXref = ''
-            bDebugMessages = true
             if bDebugMessages == true then LOG(sFunctionRef..': Brain '..oBrain.Nickname..': .CheatEnabled='..tostring(oBrain.CheatEnabled or false)..'; ScenarioInfo.Options.CheatMult='..(ScenarioInfo.Options.CheatMult or 'nil')..'; reprs of scenario.options='..reprs(ScenarioInfo.Options)) end
             if oBrain.CheatEnabled then
                 sAiXref = ' AiX '..tonumber(ScenarioInfo.Options.CheatMult or 1.5)

@@ -304,7 +304,6 @@ function M28BrainCreated(aiBrain)
 
     --Set cheat mult if this is campaign (which doesnt allow in game options)
     if aiBrain.CheatEnabled and not(ScenarioInfo.Options.CheatMult) then
-        bDebugMessages = true
         if bDebugMessages == true then LOG(sFunctionRef..': No cheat mult in scenario options so will set to 1.5 for build and resource') end
         SetBuildAndResourceCheatModifiers(aiBrain, 1.5, 1.5)
     end

@@ -4,7 +4,6 @@
 --- DateTime: 14/05/2023 19:14
 ---
 
---Below was an attempt to have custom lobby options, it didnt work
 AIOpts = {
 
     {
