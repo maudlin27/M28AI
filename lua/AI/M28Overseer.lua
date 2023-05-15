@@ -714,6 +714,7 @@ function CheckIfScenarioMap()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if bDebugMessages == true then LOG(sFunctionRef..': ScenarioInfo.type == skirmish='..tostring(ScenarioInfo.type == "skirmish")..'; repru of ScenarioInfo.type='..repru(ScenarioInfo.type)..'; Is table of hunman players empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.HumanPlayers))..'; Is human players nil='..tostring(ScenarioInfo.HumanPlayers == nil)) end
+    --Thanks to Hdt80bro for highlighting ScenarioInfo.type as a better way of figuring out if this is a campaign map
     if not(ScenarioInfo.type == "skirmish") then --M28Utilities.IsTableEmpty(ScenarioInfo.HumanPlayers) == false then
         M28Map.bIsCampaignMap = true
     end
