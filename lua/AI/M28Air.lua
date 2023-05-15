@@ -191,16 +191,21 @@ function AssignScoutingIntervalPriorities(iTeam)
     --Make all enemy start positions a high priority
     local iPlateauOrZero, iLandOrWaterZone
     for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
-        iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
-        --[[iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
-        iWaterZone = nil
-        if (iPlateau or 0) > 0 and (iLandZone or 0) == 0 then
-            iWaterZone = M28Map.GetWaterZoneFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
-        end--]]
-        if iPlateauOrZero == 0 then
-            M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone][M28Map.subrefWZTeamData][iTeam][M28Map.refiScoutingPriority] = M28Map.subrefiScoutingHighPriority
-        else
-            M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam][M28Map.refiScoutingPriority] = M28Map.subrefiScoutingHighPriority
+        if bDebugMessages == true then LOG(sFunctionRef..': About to get closest plateau and zone for the enemy start position, oBrain='..oBrain.Nickname..'; start point='..repru(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])..'; Map plyaable area='..repru(M28Map.rMapPlayableArea)..'; Map size='..repru(ScenarioInfo.size)..'; rMapPotentialPlayableArea='..repru(M28Map.rMapPotentialPlayableArea)) end
+        --Check if are within the playable area
+        local tStartPoint = M28Map.PlayerStartPoints[oBrain:GetArmyIndex()]
+        if not(M28Map.bIsCampaignMap) or M28Map.InPlayableArea(tStartPoint) then
+            iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+            --[[iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+            iWaterZone = nil
+            if (iPlateau or 0) > 0 and (iLandZone or 0) == 0 then
+                iWaterZone = M28Map.GetWaterZoneFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+            end--]]
+            if iPlateauOrZero == 0 then
+                M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone][M28Map.subrefWZTeamData][iTeam][M28Map.refiScoutingPriority] = M28Map.subrefiScoutingHighPriority
+            else
+                M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam][M28Map.refiScoutingPriority] = M28Map.subrefiScoutingHighPriority
+            end
         end
     end
 
@@ -424,8 +429,8 @@ function IsAirUnitInCombat(oUnit, iTeam)
     else
         local iDistToTarget, tOrderTarget
         if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAttack then
-            if M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderTarget]) then
-                tOrderTarget = tLastOrder[M28Orders.subrefoOrderTarget]:GetPosition()
+            if M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]) then
+                tOrderTarget = tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition()
                 iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tOrderTarget)
             else
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -552,8 +557,8 @@ function GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, iCategory)
                         else
                             local tLastOrder = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
                             local oExistingValidAttackTarget
-                            if tLastOrder and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAttack and M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderTarget]) then
-                                oExistingValidAttackTarget = tLastOrder[M28Orders.subrefoOrderTarget]
+                            if tLastOrder and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAttack and M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]) then
+                                oExistingValidAttackTarget = tLastOrder[M28Orders.subrefoOrderUnitTarget]
                             end
 
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is unit attached='..tostring(oUnit:IsUnitState('Attached'))..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; reprs of tLastOrder='..reprs(tLastOrder)..'; Is oExistingValidAttackTarget valid='..tostring(M28UnitInfo.IsUnitValid(oExistingValidAttackTarget))) end
@@ -563,13 +568,13 @@ function GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, iCategory)
                                     M28Orders.IssueTrackedClearCommands(oUnit)
                                 end
                                 table.insert(tInUseUnits, oUnit)
-                            elseif tLastOrder and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderRefuel and M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderTarget]) then
+                            elseif tLastOrder and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderRefuel and M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]) then
                                 --Unit on its way to refuel
                                 table.insert(tInUseUnits, oUnit)
                                 --Also update unit orders in case something has happened so next cycle it will try again
                                 M28Orders.UpdateRecordedOrders(oUnit)
                                 --Torp bombers and bombers - treat as unavailable if are targeting a valid unit that is on land (bomber) or water (torp bomber) and are close to it (within 90); for bombers also consider ground attacks simialr to unit targets
-                            elseif (tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueGroundAttack and tLastOrder[M28Orders.subreftOrderPosition] and M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subreftOrderPosition], oUnit:GetPosition()) <= 90) or (oExistingValidAttackTarget and ( (EntityCategoryContains(M28UnitInfo.refCategoryTorpBomber, oUnit.UnitId) and (M28Map.GetWaterZoneFromPosition(tLastOrder[M28Orders.subrefoOrderTarget]:GetPosition()) or 0) > 0) or (EntityCategoryContains(M28UnitInfo.refCategoryBomber, oUnit.UnitId) and not(M28UnitInfo.IsUnitUnderwater(tLastOrder[M28Orders.subrefoOrderTarget])))) and M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subrefoOrderTarget]:GetPosition(), oUnit:GetPosition()) <= 90) then
+                            elseif (tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueGroundAttack and tLastOrder[M28Orders.subreftOrderPosition] and M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subreftOrderPosition], oUnit:GetPosition()) <= 90) or (oExistingValidAttackTarget and ( (EntityCategoryContains(M28UnitInfo.refCategoryTorpBomber, oUnit.UnitId) and (M28Map.GetWaterZoneFromPosition(tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition()) or 0) > 0) or (EntityCategoryContains(M28UnitInfo.refCategoryBomber, oUnit.UnitId) and not(M28UnitInfo.IsUnitUnderwater(tLastOrder[M28Orders.subrefoOrderUnitTarget])))) and M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition(), oUnit:GetPosition()) <= 90) then
                                 table.insert(tInUseUnits, oUnit)
                                 M28Orders.UpdateRecordedOrders(oUnit)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Have bomber or torp bomber with valid last attack target that is relatively nearby') end
@@ -1267,6 +1272,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
 
         --Update the support rally point, and record pathing of other land and air zones to it if havent previously
         local tStartLZOrWZData
+        if bDebugMessages == true then LOG(sFunctionRef..': About to get the plateau and zone for air support point='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])) end
         local tStartMidpoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]
         local iStartPlateau, iStartLZOrWZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tStartMidpoint)
         if (iStartPlateau or 0) > 0 and (iStartLZOrWZ or 0) == 0 then
@@ -1348,7 +1354,7 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam)
                                 local oRefuelingUnit = oAirStaging[reftAssignedRefuelingUnits][iCurUnit]
                                 if M28UnitInfo.IsUnitValid(oRefuelingUnit) then
                                     local tLastOrder = oRefuelingUnit[M28Orders.reftiLastOrders][oRefuelingUnit[M28Orders.refiOrderCount]]
-                                    if oRefuelingUnit:IsUnitState('Attached') or (tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderRefuel and tLastOrder[M28Orders.subrefoOrderTarget] == oAirStaging) then
+                                    if oRefuelingUnit:IsUnitState('Attached') or (tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderRefuel and tLastOrder[M28Orders.subrefoOrderUnitTarget] == oAirStaging) then
 
                                         --Unit is still assigned here
                                         iCapacityInUse = iCapacityInUse + GetUnitAirStagingSize(oRefuelingUnit)
@@ -1356,7 +1362,7 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam)
                                     else
                                         --Unit has other orders so remove from here
                                         table.remove(oAirStaging[reftAssignedRefuelingUnits], iCurUnit)
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Removing unit '..oRefuelingUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRefuelingUnit)..' as it has other orders now; Unit state='..M28UnitInfo.GetUnitState(oRefuelingUnit)..'; tLastOrder[M28Orders.subrefoOrderTarget]='..(tLastOrder[M28Orders.subrefoOrderTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tLastOrder[M28Orders.subrefoOrderTarget]) or 'nil')..'; air staging it is recorded against='..oAirStaging.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirStaging)) end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Removing unit '..oRefuelingUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRefuelingUnit)..' as it has other orders now; Unit state='..M28UnitInfo.GetUnitState(oRefuelingUnit)..'; tLastOrder[M28Orders.subrefoOrderUnitTarget]='..(tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tLastOrder[M28Orders.subrefoOrderUnitTarget]) or 'nil')..'; air staging it is recorded against='..oAirStaging.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirStaging)) end
                                     end
                                 else
                                     --Unit is dead so remove from this list
@@ -1859,16 +1865,24 @@ function ManageBombers(iTeam, iAirSubteam)
         local tRallyLZOrWZData
         local tRallyLZOrWZTeamData
         if iRallyPlateauOrZero == 0 then --]]
---            tRallyLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iRallyLZOrWZ]][M28Map.subrefPondWaterZones][iRallyLZOrWZ]
---            tRallyLZOrWZTeamData = tRallyLZOrWZData[M28Map.subrefWZTeamData][aiBrain.M28Team]
---        else
---            tRallyLZOrWZData = M28Map.tAllPlateaus[iRallyPlateauOrZero][M28Map.subrefPlateauLandZones][iRallyLZOrWZ]
---            tRallyLZOrWZTeamData = tRallyLZOrWZData[M28Map.subrefLZTeamData][aiBrain.M28Team]
---        end
-
+        --            tRallyLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iRallyLZOrWZ]][M28Map.subrefPondWaterZones][iRallyLZOrWZ]
+        --            tRallyLZOrWZTeamData = tRallyLZOrWZData[M28Map.subrefWZTeamData][aiBrain.M28Team]
+        --        else
+        --            tRallyLZOrWZData = M28Map.tAllPlateaus[iRallyPlateauOrZero][M28Map.subrefPlateauLandZones][iRallyLZOrWZ]
+        --            tRallyLZOrWZTeamData = tRallyLZOrWZData[M28Map.subrefLZTeamData][aiBrain.M28Team]
+        --        end
+        local iSearchSize = 300
+        if M28Map.iMapSize > 512 then iSearchSize = 450 end
+        local iAvailableBombers = table.getn(tAvailableBombers)
+        if iAvailableBombers >= 10 then iSearchSize = iSearchSize * 1.5 end
         local tEnemyTargets = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand * categories.TECH3 + M28UnitInfo.refCategoryMobileLand * categories.EXPERIMENTAL + M28UnitInfo.refCategoryStructure * categories.TECH3 +  M28UnitInfo.refCategoryStructure * categories.TECH2 + M28UnitInfo.refCategoryStructure * categories.TECH3 + M28UnitInfo.refCategoryNavalSurface - categories.TECH1, tRallyPoint, 300, 'Enemy')
         if M28Utilities.IsTableEmpty(tEnemyTargets) == false then
             AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam)
+        end
+        if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
+            for iUnit, oUnit in tAvailableBombers do
+                M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 20, false, 'BombIdl', false)
+            end
         end
     end
 

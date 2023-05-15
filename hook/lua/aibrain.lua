@@ -14,7 +14,7 @@ AIBrain = Class(M28AIBrainClass) {
     end,
 
     OnCreateAI = function(self, planName)
-        M28Events.OnCreateBrain(self, planName, false)
+        M28Events.OnCreateBrain(self, planName, false) --dont do via forkthread or else self.m28ai wont work
         if not(self.M28AI) then M28AIBrainClass.OnCreateAI(self, planName) end
     end,
 

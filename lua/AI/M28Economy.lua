@@ -421,7 +421,7 @@ end
 function UpdateGrossIncomeForUnit(oUnit, bDestroyed)
     --Logs are enabled below
 
-    if oUnit.GetAIBrain and EntityCategoryContains(categories.MASSPRODUCTION + categories.MASSFABRICATION + categories.ENERGYPRODUCTION, oUnit.UnitId) then
+    if oUnit.GetAIBrain and EntityCategoryContains(M28UnitInfo.refCategoryResourceUnit, oUnit.UnitId) then
         --Does the unit have an M28 aiBrain?
         local aiBrain = oUnit:GetAIBrain()
         if aiBrain.M28AI then
@@ -444,7 +444,7 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed)
                     iEnergyGen = math.max(oBP.Economy.ProductionPerSecondEnergy or 0) * 0.1
                     --Adjust for AiX
                     if aiBrain.CheatEnabled then
-                        local iAiXMod = tonumber(ScenarioInfo.Options.CheatMult)
+                        local iAiXMod = tonumber(ScenarioInfo.Options.CheatMult or 1.5)
                         iMassGen = iMassGen * iAiXMod
                         iEnergyGen = iEnergyGen * iAiXMod
                     end
@@ -491,7 +491,7 @@ function RefreshEconomyGrossValues(aiBrain)
     local sFunctionRef = 'RefreshEconomyGrossValues'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    local tEconomyUnits = aiBrain:GetListOfUnits(categories.MASSPRODUCTION + categories.MASSFABRICATION + categories.ENERGYPRODUCTION, false, true)
+    local tEconomyUnits = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryResourceUnit, false, true)
     if bDebugMessages == true then LOG(sFunctionRef..': refreshing gross income for every unit we own time='..GetGameTimeSeconds()..'; size of tEconomyUnits='..table.getn(tEconomyUnits)) end
     for iUnit, oUnit in tEconomyUnits do
         if oUnit:GetFractionComplete() == 1 then

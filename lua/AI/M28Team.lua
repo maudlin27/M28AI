@@ -157,6 +157,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefNukeLaunchLocations = 'M28NukeLocations' --locations that we have nuked recently
     refiTimeLastNearUnitCap = 'M28TimeLastNearUnitCap'
     refiPriorityPondValues = 'M28PriorityPonds' --Table of ponds that are considered sufficiently high value for our team, [x] is the pond, returns the value of hte pond
+    refbAlreadyCheckedForUnitsToShare = 'M28CheckedUnitsShare' --true if already run logic for campaign to share units at start of game
 
 --AirSubteam data variables
 iTotalAirSubteamCount = 0
@@ -473,7 +474,7 @@ function CreateNewTeam(aiBrain)
     local bHaveOmniVision = false
     for iCurBrain, oBrain in ArmyBrains do
         --First make sure we have recorded all brains (redundancy for AI like dillidalli) - the function below will check if we have already recorded the brain
-        M28Events.OnCreateBrain(oBrain, nil, nil)
+        ForkThread(M28Events.OnCreateBrain, oBrain, nil, nil)
         --[[if not(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()]) then --redundancy
             local iStartPositionX, iStartPositionZ = oBrain:GetArmyStartPos()
             M28Map.PlayerStartPoints[oBrain:GetArmyIndex()] = {iStartPositionX, GetSurfaceHeight(iStartPositionX, iStartPositionZ), iStartPositionZ}
@@ -495,8 +496,11 @@ function CreateNewTeam(aiBrain)
             end
             --Record brain details in log for ease of reference
             local sAiXref = ''
-            if oBrain.CheatEnabled then sAIXref = ' AiX '..tonumber(ScenarioInfo.Options.CheatMult) end
-            LOG(sFunctionRef..': Recorded brain '..oBrain.Nickname..' with index '..oBrain:GetArmyIndex()..' for team '..iTotalTeamCount..sAiXref)
+            if bDebugMessages == true then LOG(sFunctionRef..': Brain '..oBrain.Nickname..': .CheatEnabled='..tostring(oBrain.CheatEnabled or false)..'; ScenarioInfo.Options.CheatMult='..(ScenarioInfo.Options.CheatMult or 'nil')..'; reprs of scenario.options='..reprs(ScenarioInfo.Options)) end
+            if oBrain.CheatEnabled then
+                sAiXref = ' AiX '..tonumber(ScenarioInfo.Options.CheatMult or 1.5)
+            end
+            LOG(sFunctionRef..': Recorded non-civilian brain '..oBrain.Nickname..' with index '..oBrain:GetArmyIndex()..' for team '..iTotalTeamCount..sAiXref)
         elseif IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) and not(M28Conditions.IsCivilianBrain(oBrain)) then
             table.insert(tTeamData[iTotalTeamCount][subreftoEnemyBrains], oBrain)
             --Check if anyone on enemy team has omni
@@ -1838,9 +1842,9 @@ function HaveEcoToSupportUpgrades(iM28Team)
 
                 if (iLowestNetMass - tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]) > iNetMassIncomeWanted then
                     if bDebugMessages == true then LOG(sFunctionRef..': We have enough energy and mass to get an upgrade; will now factor in if we would rather build more factories if are early game and enemy doesnt have T2, Time='..GetGameTimeSeconds()..'; iLowestNetMass='..iLowestNetMass..'; % mass stored='..tTeamData[iM28Team][subrefiTeamLowestMassPercentStored]..'; Gross mass income='..tTeamData[iM28Team][subrefiTeamGrossMass]..'; Highest enemy tech='..tTeamData[iM28Team][subrefiHighestEnemyGroundTech]..'; Map playable area size='..M28Map.rMapPlayableArea[3] - M28Map.rMapPlayableArea[1]) end
-                    if tTeamData[iM28Team][subrefiTeamMassStored] <= 450 and GetGameTimeSeconds() <= 600 and tTeamData[iM28Team][subrefiHighestEnemyGroundTech] <= 1 and M28Map.rMapPlayableArea[3] - M28Map.rMapPlayableArea[1] <= 512 then
+                    if tTeamData[iM28Team][subrefiTeamMassStored] <= 450 and GetGameTimeSeconds() <= 600 and tTeamData[iM28Team][subrefiHighestEnemyGroundTech] <= 1 and M28Map.iMapSize <= 512 then
                         if bDebugMessages == true then LOG(sFunctionRef..': Early game on 10km or smaller map so want to only get a mex upgrade if we have loads of mass') end
-                        if tTeamData[iM28Team][subrefiTeamMassStored] <= 600 and (M28Map.rMapPlayableArea[3] - M28Map.rMapPlayableArea[1] <= 256 or (iLowestNetMass <= 0.6 * tTeamData[iM28Team][subrefiActiveM28BrainCount] and tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] <= 0.6)) then --or (tTeamData[iM28Team][subrefiTeamMassStored] <= 600 and tTeamData[iM28Team][subrefiTeamGrossMass] < 2 * tTeamData[iM28Team][subrefiActiveM28BrainCount]) then
+                        if tTeamData[iM28Team][subrefiTeamMassStored] <= 600 and (M28Map.iMapSize <= 256 or (iLowestNetMass <= 0.6 * tTeamData[iM28Team][subrefiActiveM28BrainCount] and tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] <= 0.6)) then --or (tTeamData[iM28Team][subrefiTeamMassStored] <= 600 and tTeamData[iM28Team][subrefiTeamGrossMass] < 2 * tTeamData[iM28Team][subrefiActiveM28BrainCount]) then
                             if bDebugMessages == true then LOG(sFunctionRef..': We dont actually have eco to support upgrade due to being early game') end
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             return false

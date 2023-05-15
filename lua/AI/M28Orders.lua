@@ -14,7 +14,7 @@ refiOrderCount = 'M28OrdersCount' --Size of the table of last orders
 --Subtables for each order:
 subrefiOrderType = 1
 subreftOrderPosition = 2 --Location of the order
-subrefoOrderTarget = 3 --Unit target if there is one
+subrefoOrderUnitTarget = 3 --Unit target if there is one
 subrefsOrderBlueprint = 4
 
 --Order type references
@@ -73,26 +73,26 @@ function IssueTrackedClearCommands(oUnit)
     if oUnit[reftiLastOrders] then
         local tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]]
         if tLastOrder[subrefiOrderType] == refiOrderIssueRepair then
-            if M28UnitInfo.IsUnitValid(tLastOrder[subrefoOrderTarget]) and M28Utilities.IsTableEmpty(tLastOrder[subrefoOrderTarget][toUnitsOrderedToRepairThis]) == false then
+            if M28UnitInfo.IsUnitValid(tLastOrder[subrefoOrderUnitTarget]) and M28Utilities.IsTableEmpty(tLastOrder[subrefoOrderUnitTarget][toUnitsOrderedToRepairThis]) == false then
                 local iRefToRemove
-                for iRepairer, oRepairer in tLastOrder[subrefoOrderTarget][toUnitsOrderedToRepairThis] do
+                for iRepairer, oRepairer in tLastOrder[subrefoOrderUnitTarget][toUnitsOrderedToRepairThis] do
                     if oRepairer == oUnit then
                         iRefToRemove = iRepairer
                         break
                     end
                 end
-                if iRefToRemove then table.remove(tLastOrder[subrefoOrderTarget][toUnitsOrderedToRepairThis], iRefToRemove) end
+                if iRefToRemove then table.remove(tLastOrder[subrefoOrderUnitTarget][toUnitsOrderedToRepairThis], iRefToRemove) end
             end
         elseif tLastOrder[subrefiOrderType] == refiOrderIssueGuard then
-            if M28UnitInfo.IsUnitValid(tLastOrder[subrefoOrderTarget]) and M28Utilities.IsTableEmpty(tLastOrder[subrefoOrderTarget][M28UnitInfo.reftoUnitsAssistingThis]) == false then
+            if M28UnitInfo.IsUnitValid(tLastOrder[subrefoOrderUnitTarget]) and M28Utilities.IsTableEmpty(tLastOrder[subrefoOrderUnitTarget][M28UnitInfo.reftoUnitsAssistingThis]) == false then
                 local iRefToRemove
-                for iAssister, oAssister in tLastOrder[subrefoOrderTarget][M28UnitInfo.reftoUnitsAssistingThis] do
+                for iAssister, oAssister in tLastOrder[subrefoOrderUnitTarget][M28UnitInfo.reftoUnitsAssistingThis] do
                     if oAssister == oUnit then
                         iRefToRemove = iAssister
                         break
                     end
                 end
-                if iRefToRemove then table.remove(tLastOrder[subrefoOrderTarget][M28UnitInfo.reftoUnitsAssistingThis], iRefToRemove) end
+                if iRefToRemove then table.remove(tLastOrder[subrefoOrderUnitTarget][M28UnitInfo.reftoUnitsAssistingThis], iRefToRemove) end
             end
         end
     end
@@ -300,11 +300,11 @@ function IssueTrackedAttack(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalO
     end
 
 
-    if not(tLastOrder[subrefiOrderType] == refiOrderIssueAttack and oOrderTarget == tLastOrder[subrefoOrderTarget]) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
+    if not(tLastOrder[subrefiOrderType] == refiOrderIssueAttack and oOrderTarget == tLastOrder[subrefoOrderUnitTarget]) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
-        table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueAttack, [subrefoOrderTarget] = oOrderTarget})
+        table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueAttack, [subrefoOrderUnitTarget] = oOrderTarget})
         IssueAttack({oUnit}, oOrderTarget)
     end
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
@@ -320,17 +320,17 @@ function IssueTrackedOvercharge(oUnit, oOrderTarget, bAddToExistingQueue, sOptio
         else tLastOrder = oUnit[reftiLastOrders][1]
         end
     end
-    if not(tLastOrder[subrefiOrderType] == refiOrderOvercharge and oOrderTarget == tLastOrder[subrefoOrderTarget]) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
+    if not(tLastOrder[subrefiOrderType] == refiOrderOvercharge and oOrderTarget == tLastOrder[subrefoOrderUnitTarget]) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
-        table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderOvercharge, [subrefoOrderTarget] = oOrderTarget})
+        table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderOvercharge, [subrefoOrderUnitTarget] = oOrderTarget})
         IssueOverCharge({oUnit}, oOrderTarget)
     else --OC - add to queue if we think we are already overcharging, as in some cases we dont
         if (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
             if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
             oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
-            table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderOvercharge, [subrefoOrderTarget] = oOrderTarget})
+            table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderOvercharge, [subrefoOrderUnitTarget] = oOrderTarget})
             IssueOverCharge({oUnit}, oOrderTarget)
         end
     end
@@ -428,11 +428,11 @@ function IssueTrackedReclaim(oUnit, oOrderTarget, bAddToExistingQueue, sOptional
         else tLastOrder = oUnit[reftiLastOrders][1]
         end
     end
-    if (not(tLastOrder[subrefiOrderType] == refiOrderIssueReclaim and oOrderTarget == tLastOrder[subrefoOrderTarget]) or (not(oUnit:IsUnitState('Reclaiming')))) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
+    if (not(tLastOrder[subrefiOrderType] == refiOrderIssueReclaim and oOrderTarget == tLastOrder[subrefoOrderUnitTarget]) or (not(oUnit:IsUnitState('Reclaiming')))) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
-        table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueReclaim, [subrefoOrderTarget] = oOrderTarget})
+        table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueReclaim, [subrefoOrderUnitTarget] = oOrderTarget})
         IssueReclaim({oUnit}, oOrderTarget)
         if not(oOrderTarget[M28Engineer.reftUnitsReclaimingUs]) then oOrderTarget[M28Engineer.reftUnitsReclaimingUs] = {} end
         table.insert(oOrderTarget[M28Engineer.reftUnitsReclaimingUs], oUnit)
@@ -474,11 +474,11 @@ function IssueTrackedGuard(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalOr
         else tLastOrder = oUnit[reftiLastOrders][1]
         end
     end
-    if not(tLastOrder[subrefiOrderType] == refiOrderIssueGuard and oOrderTarget == tLastOrder[subrefoOrderTarget]) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
+    if not(tLastOrder[subrefiOrderType] == refiOrderIssueGuard and oOrderTarget == tLastOrder[subrefoOrderUnitTarget]) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
-        table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueGuard, [subrefoOrderTarget] = oOrderTarget})
+        table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueGuard, [subrefoOrderUnitTarget] = oOrderTarget})
         if not(oOrderTarget[M28UnitInfo.reftoUnitsAssistingThis]) then oOrderTarget[M28UnitInfo.reftoUnitsAssistingThis] = {} end
         table.insert(oOrderTarget[M28UnitInfo.reftoUnitsAssistingThis], oUnit)
         IssueGuard({oUnit}, oOrderTarget)
@@ -496,11 +496,11 @@ function IssueTrackedRepair(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalO
         else tLastOrder = oUnit[reftiLastOrders][1]
         end
     end
-    if not(tLastOrder[subrefiOrderType] == refiOrderIssueRepair and oOrderTarget == tLastOrder[subrefoOrderTarget]) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
+    if not(tLastOrder[subrefiOrderType] == refiOrderIssueRepair and oOrderTarget == tLastOrder[subrefoOrderUnitTarget]) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
-        table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueRepair, [subrefoOrderTarget] = oOrderTarget})
+        table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueRepair, [subrefoOrderUnitTarget] = oOrderTarget})
         IssueRepair({oUnit}, oOrderTarget)
         --Track against the unit we are repairing if it is under construction
         if oOrderTarget:GetFractionComplete() < 1 then
@@ -566,7 +566,7 @@ end
     --tOrderPosition - this should only be completed if it is requried for the order
     if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
     oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
-    table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = iOrderType, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}, [subrefoOrderTarget] = oOrderTarget, [subrefsOrderBlueprint] = sOrderBlueprint})
+    table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = iOrderType, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}, [subrefoOrderUnitTarget] = oOrderTarget, [subrefsOrderBlueprint] = sOrderBlueprint})
     if iOrderType == refiOrderIssueMove then
         IssueMove({oUnit}, tOrderPosition)
     elseif iOrderType == refiOrderIssueAggressiveMove then
@@ -609,7 +609,7 @@ function ClearAnyRepairingUnits(oUnitBeingRepaired)
                     --LOG('Considering if oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is still repairing; Last orders='..reprs(oUnit[reftiLastOrders]))
                     if oUnit[reftiLastOrders] then
                         local tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]]
-                        if tLastOrder[subrefiOrderType] == refiOrderIssueRepair and oUnitBeingRepaired == tLastOrder[subrefoOrderTarget] then
+                        if tLastOrder[subrefiOrderType] == refiOrderIssueRepair and oUnitBeingRepaired == tLastOrder[subrefoOrderUnitTarget] then
                             oUnit[reftiLastOrders] = nil --Clear here so we avoid the logic for lcearing in trackedclearcommands
                             IssueTrackedClearCommands(oUnit)
                         end
@@ -634,7 +634,7 @@ function IssueTrackedRefuel(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalO
     end
 
 
-    if not(tLastOrder[subrefiOrderType] == refiOrderRefuel and oOrderTarget == tLastOrder[subrefoOrderTarget]) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
+    if not(tLastOrder[subrefiOrderType] == refiOrderRefuel and oOrderTarget == tLastOrder[subrefoOrderUnitTarget]) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
         --Moven ear the air staging first if are far away
@@ -646,7 +646,7 @@ function IssueTrackedRefuel(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalO
         end
 
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
-        table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderRefuel, [subrefoOrderTarget] = oOrderTarget})
+        table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderRefuel, [subrefoOrderUnitTarget] = oOrderTarget})
         IssueTransportLoad({oUnit}, oOrderTarget)
     end
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
@@ -722,11 +722,11 @@ function IssueTrackedTransportLoad(oUnit, oOrderTarget, bAddToExistingQueue, sOp
     end
 
 
-    if not(tLastOrder[subrefiOrderType] == refiOrderLoadOntoTransport and oOrderTarget == tLastOrder[subrefoOrderTarget]) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
+    if not(tLastOrder[subrefiOrderType] == refiOrderLoadOntoTransport and oOrderTarget == tLastOrder[subrefoOrderUnitTarget]) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
-        table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderLoadOntoTransport, [subrefoOrderTarget] = oOrderTarget})
+        table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderLoadOntoTransport, [subrefoOrderUnitTarget] = oOrderTarget})
         IssueTransportLoad({oUnit}, oOrderTarget)
     end
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end

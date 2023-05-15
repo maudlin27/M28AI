@@ -30,7 +30,7 @@ refbNoNearbyTMDBuildLocations = 'M28BuiltUnitHasNoNearbyTMDBuildLocations' --tru
 refbMissileRecentlyBuilt = 'M28BuildMissileBuiltRecently' --true if unit has recently built a missile
 refbMissileChecker = 'M28BuildMissileChecker' --true if active missile builder checker for the unit
 --refbActiveMissileChecker = 'M28BuildMissileTargetChecker' --true if active missile target checker for the unit
-iTMLHighPriorityCategories = M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryT3Mex * categories.CYBRAN + M28UnitInfo.refCategoryT2Mex + M28UnitInfo.refCategoryTML + M28UnitInfo.refCategorySML + M28UnitInfo.refCategorySMD + M28UnitInfo.refCategoryT2Power + M28UnitInfo.refCategoryT3Radar
+--iTMLHighPriorityCategories = M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryT3Mex * categories.CYBRAN + M28UnitInfo.refCategoryT2Mex + M28UnitInfo.refCategoryTML + M28UnitInfo.refCategorySML + M28UnitInfo.refCategorySMD + M28UnitInfo.refCategoryT2Power + M28UnitInfo.refCategoryT3Radar
 tbExpectMissileBlockedByCliff = 'M28BuildMisBlck' --true if missile firing at this has hit a cliff
 refiTMLShotsFired = 'M28BuildTMLShtFird'
 refoLastTMLTarget = 'M28BuildTMLLstTrg'
@@ -1808,11 +1808,15 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
             end
 
             local oBestTarget, iBestTargetValue = GetBestUnitTargetAndValueInZone(iBestPlateauOrZero, iBestLZOrWZ)
+            if not(iBestAngleFactor) then iBestAngleFactor = GetArtiValueFactorForFacingDifference(0,180) end
+            if not(iBestTargetValue) then iBestTargetValue = 0 end
             iBestTargetValue = iBestAngleFactor * iBestTargetValue
             if bDebugMessages == true then LOG(sFunctionRef..': iBestPlateauOrZero='..(iBestPlateauOrZero or 'nil')..'; iBestLZOrWZ='..(iBestLZOrWZ or 'nil')..'; iBestTargetValue='..(iBestTargetValue or 'nil')..'; oBestTarget='..(oBestTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oBestTarget) or 'nil')..'; iBestAngleFactor='..(iBestAngleFactor or 'nil')) end
             if iSecondBestLZOrWZ then
                 local oAltTarget, iAltTargetValue = GetBestUnitTargetAndValueInZone(iSecondBestPlateauOrZero, iSecondBestLZOrWZ)
                 if bDebugMessages == true then LOG(sFunctionRef..': iSecondBestPlateauOrZero='..(iSecondBestPlateauOrZero or 'nil')..'; iSecondBestLZOrWZ='..(iSecondBestLZOrWZ or 'nil')..'; iAltTargetValue='..(iAltTargetValue or 'nil')..'; oAltTarget='..(oAltTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oAltTarget) or 'nil')..'; iBestTargetValue before considering this='..(iBestTargetValue or 'nil')..'; iSecondBestAngleFactor='..(iSecondBestAngleFactor or 'nil')) end
+                if not(iSecondBestAngleFactor) then iSecondBestAngleFactor = GetArtiValueFactorForFacingDifference(0,180) end
+                if not(iAltTargetValue) then iAltTargetValue = 0 end
                 iAltTargetValue = iAltTargetValue * iSecondBestAngleFactor
                 if iAltTargetValue > iBestTargetValue then
                     oBestTarget = oAltTarget

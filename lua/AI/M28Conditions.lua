@@ -107,11 +107,20 @@ function IsCivilianBrain(aiBrain)
                 end
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': campaign adjust - treat most civilians as actual brains, rely on nickname (not precise method). bIsCampaignMap='..tostring(M28Map.bIsCampaignMap)..'; bIsCivilian before adjust='..tostring(bIsCivilian)) end
+        if bIsCivilian and M28Map.bIsCampaignMap then
+            bIsCivilian = false
+            if bDebugMessages == true then LOG(sFunctionRef..': brain name='..aiBrain.Name..'; Nickname='..aiBrain.Nickname..'; does nickanme contain "civilian"='..repru(string.find(aiBrain.Name, "civilian"))) end
+            if string.find(aiBrain.Nickname, "civilian") or string.find(aiBrain.Name, "civilian") or string.find(aiBrain.Nickname, "Civilian") or string.find(aiBrain.Nickname, "Civilian") then
+                bIsCivilian = true
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': bIsCivilian after campaign adjust (if relevant)='..tostring(bIsCivilian)) end
         aiBrain.M28IsCivilian = bIsCivilian
     end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    return aiBrain.M28IsCivilian
-end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return aiBrain.M28IsCivilian
+    end
 
 function GetLifetimeBuildCount(aiBrain, category)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -656,7 +665,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
             --If enemy has a firebase then dont want more factories if dont have lots of mass
             if not(WantToEcoDueToEnemyFirebase(iTeam, tLZTeamData, iPlateau)) then
                 --Do we have the energy to support another factory?
-                if bDebugMessages == true then LOG(sFunctionRef..': iCurAirAndLandFactories='..iCurAirAndLandFactories..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]..'; Playable area largest size='..math.max(M28Map.rMapPlayableArea[3] - M28Map.rMapPlayableArea[1], M28Map.rMapPlayableArea[4] - M28Map.rMapPlayableArea[2])..'; Team mass stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]) end
+                if bDebugMessages == true then LOG(sFunctionRef..': iCurAirAndLandFactories='..iCurAirAndLandFactories..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]..'; Playable area iMapSize='..M28Map.iMapSize..' Team mass stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]) end
 
                 --Small map specific - want loads of land factories
                 if M28Map.iMapSize <= 256 and iCurAirAndLandFactories <= M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * tiFactoryToMassByTechRatioWanted[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 30 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0) then
@@ -666,7 +675,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
                     --Dont want more factories
 
                     --Cap on no. of factories on larger maps
-                elseif iCurAirAndLandFactories >= 4 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] > 0 and math.max(M28Map.rMapPlayableArea[3] - M28Map.rMapPlayableArea[1], M28Map.rMapPlayableArea[4] - M28Map.rMapPlayableArea[2]) > 256 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] < 8000 then
+                elseif iCurAirAndLandFactories >= 4 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] > 0 and M28Map.iMapSize > 256 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] < 8000 then
                     --Dont want more factories
 
                     --If we dont have at least 25% mass stored, do we have an enemy in the same plateau as us who is within 300 land travel distance?

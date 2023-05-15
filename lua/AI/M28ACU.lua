@@ -58,34 +58,45 @@ function ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearchForAdjace
     if M28UnitInfo.IsUnitValid(oNearestPartComplete) then
         if bDebugMessages == true then LOG(sFunctionRef..': Will assist part complete building='..oNearestPartComplete.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestPartComplete)) end
         local tLastOrder = oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]]
-        if not(tLastOrder[M28Orders.subrefoOrderTarget] == oNearestPartComplete) then
+        if not(tLastOrder[M28Orders.subrefoOrderUnitTarget] == oNearestPartComplete) then
             M28Orders.IssueTrackedRepair(oACU, oNearestPartComplete, false, 'ACUComplB', false)
             --M28Orders.IssueTrackedGuard(oACU, oNearestPartComplete, false)
         end
 
     else
-        --No nearby under construction factory, so build one
-        --GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy,         tAlternativePositionToLookFrom, bLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure)
-        local sBlueprint, tBuildLocation = M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oACU, nil, iCategoryToBuild, iMaxAreaToSearchForAdjacencyAndUnderConstruction, iOptionalAdjacencyCategory, nil,                           false,                      nil,         iOptionalCategoryBuiltUnitCanBuild, nil)
-        if not(tBuildLocation) then sBlueprint, tBuildLocation = M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oACU, nil, iCategoryToBuild, iMaxAreaToSearchForBuildLocation, nil, nil,                           false,                      nil,         iOptionalCategoryBuiltUnitCanBuild, nil) end
-        if bDebugMessages == true then
-            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oACU:GetPosition(), true, oACU)
-            LOG(sFunctionRef..': Blueprint to build='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation)..'; ACU plateau and land zone based on cur position='..iPlateau..'; iLandZone='..(iLandZone or 'nil')..'; iMaxAreaToSearchForBuildLocation='..(iMaxAreaToSearchForBuildLocation or 'nil')..'; was iOptionalAdjacencyCategory nil='..tostring(iOptionalAdjacencyCategory == nil))
-            if sBlueprint and tBuildLocation then
-                LOG(sFunctionRef..': Can build structure at target='..tostring(aiBrain:CanBuildStructureAt(sBlueprint, tBuildLocation)))
-            end
+        --No nearby under construction factory, so build one unless we allready have a queued orer to build one
+        local bAlreadyHaveOrder = false
+        M28Orders.UpdateRecordedOrders(oACU)
+        local tLastOrder = oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]]
+        --NOTE: Dont do location check, as we will exclude queued locations; i.e. first time this runs ACU queues land fac; second time it runs if it looks for a location to build it treats the first location as unavailable (due to the queued order) so tries somewhere else
+        if tLastOrder[M28Orders.subrefsOrderBlueprint] and EntityCategoryContains(iCategoryToBuild, tLastOrder[M28Orders.subrefsOrderBlueprint]) then
+            bAlreadyHaveOrder = true
         end
-        if sBlueprint and tBuildLocation then
-            --Move to the target and then build on it
-            local tMoveTarget = M28Engineer.GetLocationToMoveForConstruction(oACU, tBuildLocation, sBlueprint)
-            if tMoveTarget then
-                --IssueTrackedMoveAndBuild(oUnit, tBuildLocation, sOrderBlueprint, tMoveTarget, iDistanceToReorderMoveTarget, bAddToExistingQueue)
-                M28Orders.IssueTrackedMoveAndBuild(oACU, tBuildLocation, sBlueprint, tMoveTarget, 2, false)
-            else
-                M28Orders.IssueTrackedBuild(oACU, tBuildLocation, sBlueprint, false)
+        if bDebugMessages == true then LOG(sFunctionRef..': tLastOrder='..reprs(tLastOrder)..'; bAlreadyHaveOrder='..tostring(bAlreadyHaveOrder)) end
+        if not(bAlreadyHaveOrder) then
+                                                        --GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerActionForDebug, iCategoryToBuild, iMaxAreaToSearch,                                   iCatToBuildBy,              tAlternativePositionToLookFrom, bLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZTeamData)
+            local sBlueprint, tBuildLocation = M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oACU,        nil,                            iCategoryToBuild, iMaxAreaToSearchForAdjacencyAndUnderConstruction, iOptionalAdjacencyCategory, nil,                            false,                      nil,         iOptionalCategoryBuiltUnitCanBuild,    nil)
+            if not(tBuildLocation) then sBlueprint, tBuildLocation = M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oACU, nil, iCategoryToBuild, iMaxAreaToSearchForBuildLocation, nil, nil,                           false,                      nil,         iOptionalCategoryBuiltUnitCanBuild, nil) end
+            if bDebugMessages == true then
+                local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oACU:GetPosition(), true, oACU)
+                LOG(sFunctionRef..': Blueprint to build='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation)..'; ACU plateau and land zone based on cur position='..iPlateau..'; iLandZone='..(iLandZone or 'nil')..'; iMaxAreaToSearchForBuildLocation='..(iMaxAreaToSearchForBuildLocation or 'nil')..'; was iOptionalAdjacencyCategory nil='..tostring(iOptionalAdjacencyCategory == nil))
+                if sBlueprint and tBuildLocation then
+                    LOG(sFunctionRef..': Can build structure at target='..tostring(aiBrain:CanBuildStructureAt(sBlueprint, tBuildLocation)))
+                end
             end
-        else
-            M28Orders.UpdateRecordedOrders(oACU)
+            if sBlueprint and tBuildLocation then
+                --If our last order was to build this unit (ignoring location)
+                --Move to the target and then build on it
+                local tMoveTarget = M28Engineer.GetLocationToMoveForConstruction(oACU, tBuildLocation, sBlueprint)
+                if tMoveTarget then
+                    --IssueTrackedMoveAndBuild(oUnit, tBuildLocation, sOrderBlueprint, tMoveTarget, iDistanceToReorderMoveTarget, bAddToExistingQueue)
+                    M28Orders.IssueTrackedMoveAndBuild(oACU, tBuildLocation, sBlueprint, tMoveTarget, 2, false)
+                else
+                    M28Orders.IssueTrackedBuild(oACU, tBuildLocation, sBlueprint, false)
+                end
+            else
+                --M28Orders.UpdateRecordedOrders(oACU) --now are doing this earlier on
+            end
         end
     end
 
@@ -246,7 +257,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
             if iCurLandFactories == 0 then
                 if bDebugMessages == true then LOG(sFunctionRef..': Want ACU to build land factory') end
                 ACUActionBuildFactory(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryLandFactory)
-            --do we have unbuilt nearby mexes (within 2 of ACU build range)? if so then build on them
+                --do we have unbuilt nearby mexes (within 2 of ACU build range)? if so then build on them
             elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 12 and ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, 2) then
                 --Do nothing - have bene given an order to build a neaby mex
             elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] <= iMinEnergyPerTickWanted then
@@ -310,6 +321,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                     if aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(4, iMexInLandZone) * 0.2 then
                         if bDebugMessages == true then LOG(sFunctionRef..': We ahve mexes in land zone and we havent built on all of them so will build a mex') end
                         ACUActionBuildMex(aiBrain, oACU)
+                        if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then M28Utilities.ErrorHandler('ACU wants to build a mex but failed to find anywhere') end
                     elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 10 then
                         if bDebugMessages == true then LOG(sFunctionRef..': Will try to assist a hydro nearby') end
                         ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData)
@@ -320,6 +332,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                     end
 
                     --Redundancy if fail to get order from above
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is ACU table of last orders empty after attempting above='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))) end
                     if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) and oACU[refbDoingInitialBuildOrder] then
                         --Is it just that we want to assist a hydro and engineers havent started one yet? If so then check if we have an engineer assigned to build one, and check the game time
                         if GetGameTimeSeconds() <= 180 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 10 and M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefHydroLocations]) == false then
@@ -393,6 +406,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
     else
         if bDebugMessages == true then LOG(sFunctionRef..': Are building so wont give any new orders') end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, is ACU table of last orders empty='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -1585,7 +1599,7 @@ function GetACUOrder(aiBrain, oACU)
                                     else
                                         --If we are reclaiming or building then dont do anything
                                         if bDebugMessages == true then
-                                            LOG(sFunctionRef..': Arent doing initial build order and dont want to run, ACU unit state='..M28UnitInfo.GetUnitState(oACU)..'; Brain mass stored%='..aiBrain:GetEconomyStoredRatio('MASS')..'; If are nearby enemies then will list out, is table of nearby enemies empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies])))
+                                            LOG(sFunctionRef..': Arent doing initial build order and dont want to run, ACU unit state='..M28UnitInfo.GetUnitState(oACU)..'; Brain mass stored%='..aiBrain:GetEconomyStoredRatio('MASS')..'; If are nearby enemies then will list out, is table of nearby enemies empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]))..'; oACU[M28UnitInfo.refiDFRange]='..(oACU[M28UnitInfo.refiDFRange] or 'nil')..'; ACU position='..repru(oACU:GetPosition())..'; ACU team='..oACU:GetAIBrain().M28Team)
                                             if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) == false then
                                                 LOG(sFunctionRef..': are we close to nearby units='..tostring(M28Conditions.CloseToEnemyUnit(oACU:GetPosition(), tLZOrWZTeamData[M28Map.reftoNearestDFEnemies], 12 , aiBrain.M28Team, true, math.max(25, oACU[M28UnitInfo.refiDFRange] + 12))))
                                                 for iUnit, oUnit in tLZOrWZTeamData[M28Map.reftoNearestDFEnemies] do
@@ -1727,6 +1741,11 @@ function ManageACU(aiBrain)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    end
+
+    --Campaign specific - check if friendly units should gift to M28AI
+    if M28Map.bIsCampaignMap then
+        ForkThread(M28Overseer.CheckForAlliedCampaignUnitsToShareAtGameStart, oACU:GetAIBrain())
     end
 
     --Make sure ACU is recorded
