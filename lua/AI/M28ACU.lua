@@ -58,34 +58,45 @@ function ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearchForAdjace
     if M28UnitInfo.IsUnitValid(oNearestPartComplete) then
         if bDebugMessages == true then LOG(sFunctionRef..': Will assist part complete building='..oNearestPartComplete.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestPartComplete)) end
         local tLastOrder = oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]]
-        if not(tLastOrder[M28Orders.subrefoOrderTarget] == oNearestPartComplete) then
+        if not(tLastOrder[M28Orders.subrefoOrderUnitTarget] == oNearestPartComplete) then
             M28Orders.IssueTrackedRepair(oACU, oNearestPartComplete, false, 'ACUComplB', false)
             --M28Orders.IssueTrackedGuard(oACU, oNearestPartComplete, false)
         end
 
     else
-        --No nearby under construction factory, so build one
-        --GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy,         tAlternativePositionToLookFrom, bLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure)
-        local sBlueprint, tBuildLocation = M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oACU, nil, iCategoryToBuild, iMaxAreaToSearchForAdjacencyAndUnderConstruction, iOptionalAdjacencyCategory, nil,                           false,                      nil,         iOptionalCategoryBuiltUnitCanBuild, nil)
-        if not(tBuildLocation) then sBlueprint, tBuildLocation = M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oACU, nil, iCategoryToBuild, iMaxAreaToSearchForBuildLocation, nil, nil,                           false,                      nil,         iOptionalCategoryBuiltUnitCanBuild, nil) end
-        if bDebugMessages == true then
-            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oACU:GetPosition(), true, oACU)
-            LOG(sFunctionRef..': Blueprint to build='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation)..'; ACU plateau and land zone based on cur position='..iPlateau..'; iLandZone='..(iLandZone or 'nil')..'; iMaxAreaToSearchForBuildLocation='..(iMaxAreaToSearchForBuildLocation or 'nil')..'; was iOptionalAdjacencyCategory nil='..tostring(iOptionalAdjacencyCategory == nil))
-            if sBlueprint and tBuildLocation then
-                LOG(sFunctionRef..': Can build structure at target='..tostring(aiBrain:CanBuildStructureAt(sBlueprint, tBuildLocation)))
-            end
+        --No nearby under construction factory, so build one unless we allready have a queued orer to build one
+        local bAlreadyHaveOrder = false
+        M28Orders.UpdateRecordedOrders(oACU)
+        local tLastOrder = oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]]
+        --NOTE: Dont do location check, as we will exclude queued locations; i.e. first time this runs ACU queues land fac; second time it runs if it looks for a location to build it treats the first location as unavailable (due to the queued order) so tries somewhere else
+        if tLastOrder[M28Orders.subrefsOrderBlueprint] and EntityCategoryContains(iCategoryToBuild, tLastOrder[M28Orders.subrefsOrderBlueprint]) then
+            bAlreadyHaveOrder = true
         end
-        if sBlueprint and tBuildLocation then
-            --Move to the target and then build on it
-            local tMoveTarget = M28Engineer.GetLocationToMoveForConstruction(oACU, tBuildLocation, sBlueprint)
-            if tMoveTarget then
-                --IssueTrackedMoveAndBuild(oUnit, tBuildLocation, sOrderBlueprint, tMoveTarget, iDistanceToReorderMoveTarget, bAddToExistingQueue)
-                M28Orders.IssueTrackedMoveAndBuild(oACU, tBuildLocation, sBlueprint, tMoveTarget, 2, false)
-            else
-                M28Orders.IssueTrackedBuild(oACU, tBuildLocation, sBlueprint, false)
+        if bDebugMessages == true then LOG(sFunctionRef..': tLastOrder='..reprs(tLastOrder)..'; bAlreadyHaveOrder='..tostring(bAlreadyHaveOrder)) end
+        if not(bAlreadyHaveOrder) then
+                                                        --GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerActionForDebug, iCategoryToBuild, iMaxAreaToSearch,                                   iCatToBuildBy,              tAlternativePositionToLookFrom, bLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZTeamData)
+            local sBlueprint, tBuildLocation = M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oACU,        nil,                            iCategoryToBuild, iMaxAreaToSearchForAdjacencyAndUnderConstruction, iOptionalAdjacencyCategory, nil,                            false,                      nil,         iOptionalCategoryBuiltUnitCanBuild,    nil)
+            if not(tBuildLocation) then sBlueprint, tBuildLocation = M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oACU, nil, iCategoryToBuild, iMaxAreaToSearchForBuildLocation, nil, nil,                           false,                      nil,         iOptionalCategoryBuiltUnitCanBuild, nil) end
+            if bDebugMessages == true then
+                local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oACU:GetPosition(), true, oACU)
+                LOG(sFunctionRef..': Blueprint to build='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation)..'; ACU plateau and land zone based on cur position='..iPlateau..'; iLandZone='..(iLandZone or 'nil')..'; iMaxAreaToSearchForBuildLocation='..(iMaxAreaToSearchForBuildLocation or 'nil')..'; was iOptionalAdjacencyCategory nil='..tostring(iOptionalAdjacencyCategory == nil))
+                if sBlueprint and tBuildLocation then
+                    LOG(sFunctionRef..': Can build structure at target='..tostring(aiBrain:CanBuildStructureAt(sBlueprint, tBuildLocation)))
+                end
             end
-        else
-            M28Orders.UpdateRecordedOrders(oACU)
+            if sBlueprint and tBuildLocation then
+                --If our last order was to build this unit (ignoring location)
+                --Move to the target and then build on it
+                local tMoveTarget = M28Engineer.GetLocationToMoveForConstruction(oACU, tBuildLocation, sBlueprint)
+                if tMoveTarget then
+                    --IssueTrackedMoveAndBuild(oUnit, tBuildLocation, sOrderBlueprint, tMoveTarget, iDistanceToReorderMoveTarget, bAddToExistingQueue)
+                    M28Orders.IssueTrackedMoveAndBuild(oACU, tBuildLocation, sBlueprint, tMoveTarget, 2, false)
+                else
+                    M28Orders.IssueTrackedBuild(oACU, tBuildLocation, sBlueprint, false)
+                end
+            else
+                --M28Orders.UpdateRecordedOrders(oACU) --now are doing this earlier on
+            end
         end
     end
 

@@ -913,7 +913,7 @@ function DrawBlacklistedLocations(tLZData)
     end
 end
 
-function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerActionForDebug, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy, tAlternativePositionToLookFrom, bLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZTeamData)
+function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerActionForDebug, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy, tAlternativePositionToLookFrom, bLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZTeamData, bCalledFromGetBestLocation, sBlueprintOverride)
     --Returns blueprint and location for oEngineer to build at and returns these or nil if no suitable locations can be found
     --iCatToBuildBy: Optional, specify if want to look for adjacency locations; Note to factor in 50% of the builder's size and 50% of the likely adjacency building size
 
@@ -923,11 +923,11 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
 
 
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, Engineer UC='..GetEngineerUniqueCount(oEngineer)..'; Engineer LC='..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; Techlevel='..M28UnitInfo.GetUnitTechLevel(oEngineer)..'; tAlternativePositionToLookFrom='..repru(tAlternativePositionToLookFrom or {'nil'})..'; bBuildCheapestStructure='..tostring((bBuildCheapestStructure or false))..'; All blueprints that meet the category='..repru(EntityCategoryGetUnitList(iCategoryToBuild))..'; iMaxAreaToSearch='..(iMaxAreaToSearch or 'nil')) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for action (if specified) '..(iOptionalEngineerActionForDebug or 'nil')..', Engineer UC='..GetEngineerUniqueCount(oEngineer)..'; Engineer LC='..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; Techlevel='..M28UnitInfo.GetUnitTechLevel(oEngineer)..'; tAlternativePositionToLookFrom='..repru(tAlternativePositionToLookFrom or {'nil'})..'; bBuildCheapestStructure='..tostring((bBuildCheapestStructure or false))..'; All blueprints that meet the category='..repru(EntityCategoryGetUnitList(iCategoryToBuild))..'; iMaxAreaToSearch='..(iMaxAreaToSearch or 'nil')) end
 
     --Get the blueprint to build
     --GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, iOptionalCategoryThatMustBeAbleToBuild, bGetCheapest)
-    local sBlueprintToBuild = M28Factory.GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oEngineer, false, false, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure)
+    local sBlueprintToBuild = sBlueprintOverride or M28Factory.GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oEngineer, false, false, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure)
 
 
     if sBlueprintToBuild == nil then
@@ -1124,7 +1124,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of potential build locations empty='..tostring(M28Utilities.IsTableEmpty(tPotentialBuildLocations))..'; sBlueprintToBuild='..sBlueprintToBuild) end
         if M28Utilities.IsTableEmpty(tPotentialBuildLocations) == false then
             --GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLocation, tPotentialBuildLocations, iOptionalMaxDistanceFromTargetLocation)
-            local tBestLocation = GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLocation, tPotentialBuildLocations, iMaxAreaToSearch)
+            local tBestLocation = GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLocation, tPotentialBuildLocations, iMaxAreaToSearch, bCalledFromGetBestLocation)
             if tBestLocation then
                 --TMD check - if too far away to proect the unit we are interested in, then flag that dont want to try building tmd for the unit anymore
                 if oClosestUnitToTML then
@@ -1142,9 +1142,10 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
     return nil, nil
 end
 
-function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLocation, tPotentialBuildLocations, iOptionalMaxDistanceFromTargetLocation)
+function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLocation, tPotentialBuildLocations, iOptionalMaxDistanceFromTargetLocation, bAlreadyTriedAlternatives)
     --Assumes we have already checked for: Adjacency; In the same land zone; Valid location to build
     --WIll then consider: If engineer can build without moving; How far away it is from the engineer; if it will block mex adjacency, and (if we specify a maximum distance) if it is within the max distance
+    --bAlreadyTriedAlternatives - set to true if we have already called this function via this function
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetBestBuildLocationForTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -1163,6 +1164,21 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
     local bBuildTowardsHydro = false
     local tLocationToBuildTowards
     local tiClosestDistByPriorityAndCount --[x] is the priority before adjusting for this, returns {iDistance, iCount} where iCount is the number of times this has been updated (as need to increase priority by this to ensure we have a greater uplift than a further away distance)
+    local bTryOtherLocationsIfNoneBuildableImmediately = false
+    if GetGameTimeSeconds() <= 10 and EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryFactory, sBlueprintToBuild) then
+        if not(bAlreadyTriedAlternatives) then
+            bTryOtherLocationsIfNoneBuildableImmediately = true
+        end
+    end
+    --Reduce likelihood of units switching build location targets slightly
+    local tLastBuildLocationForUnit
+    local tLastOrder = oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]]
+    if tLastOrder[M28Orders.subrefsOrderBlueprint] and tLastOrder[M28Orders.subrefsOrderBlueprint] == sBlueprintToBuild then tLastBuildLocationForUnit = tLastOrder[M28Orders.subreftOrderPosition] end
+    if bDebugMessages == true then
+        LOG(sFunctionRef..': tLastOrder reprs='..reprs(tLastOrder)..'; tLastBuildLocationForUnit if we think it is the same='..repru(tLastBuildLocationForUnit)..'; sBlueprintToBuild='..sBlueprintToBuild..'; Building size of BP to build='..M28UnitInfo.GetBuildingSize(sBlueprintToBuild))
+    end
+
+    local bLocationBuildableImmediately
     --Start of game - build factory closer to hydro if possible
     if GetGameTimeSeconds() <= 60 and EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, sBlueprintToBuild) then
         --Do we have hydro in this LZ? dont want to consider if water zone
@@ -1198,27 +1214,61 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; sBLueprintToBuild='..(sBlueprintToBuild or 'nil')..'; tTargetLocation='..repru(tTargetLocation)..'; tPotentialBuildLocations='..repru(tPotentialBuildLocations)..'; iOptionalMaxDistanceFromTargetLocation='..(iOptionalMaxDistanceFromTargetLocation or 'nil')..'; iMaxRange='..iMaxRange..'; iBuilderRange='..iBuilderRange..'; iNewBuildingRadius='..iNewBuildingRadius..'; bBuildTowardsHydro='..tostring(bBuildTowardsHydro)..'; tLocationToBuildTowards (e.g. for hydro)='..repru(tLocationToBuildTowards)..'; Engineer position='..repru(oEngineer:GetPosition())) end
     for iCurLocation, tCurLocation in tPotentialBuildLocations do
+        bLocationBuildableImmediately = true
         iCurPriority = -100
         iCurDistance = M28Utilities.GetDistanceBetweenPositions(tTargetLocation, tCurLocation)
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering location ref '..iCurLocation..'; tCurLocation='..repru(tCurLocation)..'; iCurDistance='..iCurDistance..'; iMaxRange='..iMaxRange..'; Can we build here='..tostring(oEngineer:GetAIBrain():CanBuildStructureAt(sBlueprintToBuild, tCurLocation))) end
+        if bDebugMessages == true then
+            LOG(sFunctionRef..': Considering location ref '..iCurLocation..'; tCurLocation='..repru(tCurLocation)..'; iCurDistance='..iCurDistance..'; iMaxRange='..iMaxRange..'; Can we build here='..tostring(oEngineer:GetAIBrain():CanBuildStructureAt(sBlueprintToBuild, tCurLocation)))
+            if tLastBuildLocationForUnit then LOG(sFunctionRef..': Rough dist to last build location='..M28Utilities.GetRoughDistanceBetweenPositions(tCurLocation, tLastBuildLocationForUnit)) end
+            M28Utilities.DrawLocation(tCurLocation)
+        end
         if iCurDistance <= iMaxRange and aiBrain:CanBuildStructureAt(sBlueprintToBuild, tCurLocation) then
-            if iCurDistance <= iBuilderRange then iCurPriority = iCurPriority + 3 end
+            if iCurDistance <= iBuilderRange then
+                iCurPriority = iCurPriority + 3
+                if bDebugMessages == true then LOG(sFunctionRef..': Within build range so increasing priority by 3') end
+            else
+                bLocationBuildableImmediately = false
+            end
             rBuildAreaRect = Rect(tCurLocation[1] - iNewBuildingRadius, tCurLocation[3] - iNewBuildingRadius, tCurLocation[1] + iNewBuildingRadius, tCurLocation[3] + iNewBuildingRadius)
-            if M28Map.GetReclaimInRectangle(1, rBuildAreaRect) == false then iCurPriority = iCurPriority + 3 end
-            if not(M28Conditions.AreMobileLandUnitsInRect(rBuildAreaRect)) then iCurPriority = iCurPriority + 3 end
+            if bDebugMessages == true then LOG(sFunctionRef..': Will force debug on whether we have reclaim in rec, do we have reclaim='..tostring(M28Map.GetReclaimInRectangle(1, rBuildAreaRect, true))) end
+            if M28Map.GetReclaimInRectangle(1, rBuildAreaRect) == false then
+                iCurPriority = iCurPriority + 3
+                if bDebugMessages == true then LOG(sFunctionRef..': No reclaim in build area so increasing priority by 3') end
+            else
+                bLocationBuildableImmediately = false
+                if bDebugMessages == true then LOG(sFunctionRef..': Reclaim in build area so not increasing priority') end
+            end
+            if not(M28Conditions.AreMobileLandUnitsInRect(rBuildAreaRect)) then
+                if bDebugMessages == true then LOG(sFunctionRef..': No units in rect so increasing priority by 3') end
+                iCurPriority = iCurPriority + 3
+            else
+                bLocationBuildableImmediately = false
+            end
             if iCurDistance <= 50 then
                 if iCurDistance <= math.max(10, iBuilderRange - 0.5) then
                     iCurPriority = iCurPriority + 7
                     if bDebugMessages == true then LOG(sFunctionRef..': Location is within 10 so increasing priority by 7') end
-                elseif iCurDistance <= 25 then
-                    iCurPriority = iCurPriority + 5
                 else
-                    iCurPriority = iCurPriority + 3
+                    bLocationBuildableImmediately = false
+                    if iCurDistance <= 25 then
+                        iCurPriority = iCurPriority + 5
+                    else
+                        iCurPriority = iCurPriority + 3
+                    end
                 end
             end
             --General dist adjust
             if iCurDistance >= 15 then
                 iCurPriority = iCurPriority - iCurDistance / iMaxRange * 6
+            end
+
+            --Adjust if can build immediately
+            if bLocationBuildableImmediately then iCurPriority = iCurPriority + 1 end
+
+            --Adjust if was location of our last build order
+            if tLastBuildLocationForUnit and M28Utilities.GetRoughDistanceBetweenPositions(tLastBuildLocationForUnit, tCurLocation) <= 0.75 then
+                iCurPriority = iCurPriority + 1
+                if bDebugMessages == true then LOG(sFunctionRef..': Are close to our last build order location so increasing priority by 1') end
             end
 
 
@@ -1250,6 +1300,22 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
                 oUnit[refiFailedShieldBuildDistance] = math.max(iOptionalMaxDistanceFromTargetLocation + 1, (oUnit[refiFailedShieldBuildDistance] or 0))
                 if bDebugMessages == true then LOG(sFunctionRef..': Set shield failed idstance for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to '..oUnit[refiFailedShieldBuildDistance]) end
             end
+        end
+    end
+
+    if not(bLocationBuildableImmediately) and bTryOtherLocationsIfNoneBuildableImmediately then
+        local tLZTeamData
+        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
+        if (iLandZone or 0) > 0 and iPlateau > 0 then
+            local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+            local iTeam = oEngineer:GetAIBrain().M28Team
+            tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+        end
+        local sRedundantBlueprint, tAltBestLocation = GetBlueprintAndLocationToBuild(aiBrain, oEngineer, nil, nil, iOptionalMaxDistanceFromTargetLocation, nil, tTargetLocation, true, nil, nil, nil, tLZTeamData, true, sBlueprintToBuild)
+        if bDebugMessages == true then LOG(sFunctionRef..': tAltBestLocation='..repru(tAltBestLocation)..'; oEngineer:GetPosition='..repru(oEngineer:GetPosition())) end
+        if tAltBestLocation and M28Utilities.GetDistanceBetweenPositions(tAltBestLocation, oEngineer:GetPosition()) <= iMaxRange then
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return tAltBestLocation
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -1397,6 +1463,8 @@ function GetLocationToMoveForConstruction(oUnit, tTargetLocation, sBlueprintID, 
 end
 
 function BuildStructureNearLocation(aiBrain, oEngineer, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy, tAlternativePositionToLookFrom, bLookForPartCompleteBuildings, bLookForQueuedBuildings, oUnitToBuildBy, bNeverBuildRandom, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, iOptionalEngiActionRef)
+--NOT USED? Might be old code copied from M27 that ended up rewriting?
+
     --Determines the blueprint and location for oEngineer to build at; also returns the location
     --iCatToBuildBy: Optional, specify if want to look for adjacency locations; Note to factor in 50% of the builder's size and 50% of the likely adjacency building size
     --bLookForQueuedBuildings: Optional, if true, then doesnt choose a target if another engineer already has that target function ref assigned to build something
@@ -6485,7 +6553,7 @@ function ClearEngineersForUnitJustBuilt(oEngineer, oJustBuilt)
                     for iUnit, oUnit in tAllEngineers do
                         if M28UnitInfo.IsUnitValid(oUnit) and oUnit[refiAssignedAction] == iAction and not(oUnit:IsUnitState('Reclaiming')) then
                             local tLastOrder = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
-                            if (M28Utilities.IsTableEmpty(tLastOrder[M28Orders.subreftOrderPosition]) == false and M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subreftOrderPosition], oJustBuilt:GetPosition()) <= 1) or tLastOrder[M28Orders.subrefoOrderTarget] == oJustBuilt then
+                            if (M28Utilities.IsTableEmpty(tLastOrder[M28Orders.subreftOrderPosition]) == false and M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subreftOrderPosition], oJustBuilt:GetPosition()) <= 1) or tLastOrder[M28Orders.subrefoOrderUnitTarget] == oJustBuilt then
                                 M28Orders.IssueTrackedClearCommands(oUnit)
                             end
                         end

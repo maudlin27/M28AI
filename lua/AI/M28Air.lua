@@ -429,8 +429,8 @@ function IsAirUnitInCombat(oUnit, iTeam)
     else
         local iDistToTarget, tOrderTarget
         if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAttack then
-            if M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderTarget]) then
-                tOrderTarget = tLastOrder[M28Orders.subrefoOrderTarget]:GetPosition()
+            if M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]) then
+                tOrderTarget = tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition()
                 iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tOrderTarget)
             else
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -557,8 +557,8 @@ function GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, iCategory)
                         else
                             local tLastOrder = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
                             local oExistingValidAttackTarget
-                            if tLastOrder and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAttack and M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderTarget]) then
-                                oExistingValidAttackTarget = tLastOrder[M28Orders.subrefoOrderTarget]
+                            if tLastOrder and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAttack and M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]) then
+                                oExistingValidAttackTarget = tLastOrder[M28Orders.subrefoOrderUnitTarget]
                             end
 
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is unit attached='..tostring(oUnit:IsUnitState('Attached'))..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; reprs of tLastOrder='..reprs(tLastOrder)..'; Is oExistingValidAttackTarget valid='..tostring(M28UnitInfo.IsUnitValid(oExistingValidAttackTarget))) end
@@ -568,13 +568,13 @@ function GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, iCategory)
                                     M28Orders.IssueTrackedClearCommands(oUnit)
                                 end
                                 table.insert(tInUseUnits, oUnit)
-                            elseif tLastOrder and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderRefuel and M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderTarget]) then
+                            elseif tLastOrder and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderRefuel and M28UnitInfo.IsUnitValid(tLastOrder[M28Orders.subrefoOrderUnitTarget]) then
                                 --Unit on its way to refuel
                                 table.insert(tInUseUnits, oUnit)
                                 --Also update unit orders in case something has happened so next cycle it will try again
                                 M28Orders.UpdateRecordedOrders(oUnit)
                                 --Torp bombers and bombers - treat as unavailable if are targeting a valid unit that is on land (bomber) or water (torp bomber) and are close to it (within 90); for bombers also consider ground attacks simialr to unit targets
-                            elseif (tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueGroundAttack and tLastOrder[M28Orders.subreftOrderPosition] and M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subreftOrderPosition], oUnit:GetPosition()) <= 90) or (oExistingValidAttackTarget and ( (EntityCategoryContains(M28UnitInfo.refCategoryTorpBomber, oUnit.UnitId) and (M28Map.GetWaterZoneFromPosition(tLastOrder[M28Orders.subrefoOrderTarget]:GetPosition()) or 0) > 0) or (EntityCategoryContains(M28UnitInfo.refCategoryBomber, oUnit.UnitId) and not(M28UnitInfo.IsUnitUnderwater(tLastOrder[M28Orders.subrefoOrderTarget])))) and M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subrefoOrderTarget]:GetPosition(), oUnit:GetPosition()) <= 90) then
+                            elseif (tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueGroundAttack and tLastOrder[M28Orders.subreftOrderPosition] and M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subreftOrderPosition], oUnit:GetPosition()) <= 90) or (oExistingValidAttackTarget and ( (EntityCategoryContains(M28UnitInfo.refCategoryTorpBomber, oUnit.UnitId) and (M28Map.GetWaterZoneFromPosition(tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition()) or 0) > 0) or (EntityCategoryContains(M28UnitInfo.refCategoryBomber, oUnit.UnitId) and not(M28UnitInfo.IsUnitUnderwater(tLastOrder[M28Orders.subrefoOrderUnitTarget])))) and M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subrefoOrderUnitTarget]:GetPosition(), oUnit:GetPosition()) <= 90) then
                                 table.insert(tInUseUnits, oUnit)
                                 M28Orders.UpdateRecordedOrders(oUnit)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Have bomber or torp bomber with valid last attack target that is relatively nearby') end
@@ -1354,7 +1354,7 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam)
                                 local oRefuelingUnit = oAirStaging[reftAssignedRefuelingUnits][iCurUnit]
                                 if M28UnitInfo.IsUnitValid(oRefuelingUnit) then
                                     local tLastOrder = oRefuelingUnit[M28Orders.reftiLastOrders][oRefuelingUnit[M28Orders.refiOrderCount]]
-                                    if oRefuelingUnit:IsUnitState('Attached') or (tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderRefuel and tLastOrder[M28Orders.subrefoOrderTarget] == oAirStaging) then
+                                    if oRefuelingUnit:IsUnitState('Attached') or (tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderRefuel and tLastOrder[M28Orders.subrefoOrderUnitTarget] == oAirStaging) then
 
                                         --Unit is still assigned here
                                         iCapacityInUse = iCapacityInUse + GetUnitAirStagingSize(oRefuelingUnit)
@@ -1362,7 +1362,7 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam)
                                     else
                                         --Unit has other orders so remove from here
                                         table.remove(oAirStaging[reftAssignedRefuelingUnits], iCurUnit)
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Removing unit '..oRefuelingUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRefuelingUnit)..' as it has other orders now; Unit state='..M28UnitInfo.GetUnitState(oRefuelingUnit)..'; tLastOrder[M28Orders.subrefoOrderTarget]='..(tLastOrder[M28Orders.subrefoOrderTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tLastOrder[M28Orders.subrefoOrderTarget]) or 'nil')..'; air staging it is recorded against='..oAirStaging.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirStaging)) end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Removing unit '..oRefuelingUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRefuelingUnit)..' as it has other orders now; Unit state='..M28UnitInfo.GetUnitState(oRefuelingUnit)..'; tLastOrder[M28Orders.subrefoOrderUnitTarget]='..(tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tLastOrder[M28Orders.subrefoOrderUnitTarget]) or 'nil')..'; air staging it is recorded against='..oAirStaging.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirStaging)) end
                                     end
                                 else
                                     --Unit is dead so remove from this list
