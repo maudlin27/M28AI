@@ -42,7 +42,7 @@ function RecordNewAirUnitForTeam(iTeam, oUnit)
     if bDebugMessages == true then LOG(sFunctionRef..': iTeam='..iTeam..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
     local sTeamTableRef
     --Is this an enemy unit?
-    if not(oUnit:GetAIBrain().M28Team == iTeam) then
+    if not(oUnit:GetAIBrain().M28Team == iTeam) and M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] == false then
         if EntityCategoryContains(M28UnitInfo.refCategoryAirToGround, oUnit.UnitId) then
             sTeamTableRef = M28Team.reftoEnemyAirToGround
         elseif EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oUnit.UnitId) then
@@ -57,16 +57,15 @@ function RecordNewAirUnitForTeam(iTeam, oUnit)
         table.insert(M28Team.tTeamData[iTeam][M28Team.reftoAllEnemyAir], oUnit)
 
         local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
-        local aiBrain
-        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-            aiBrain = oBrain
-            break
-        end
+        local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
+        if aiBrain then
 
-        if iPlateauOrZero == 0 then
-            M28Team.AddUnitToWaterZoneForBrain(aiBrain, oUnit, iLandOrWaterZone, true)
-        else
-            M28Team.AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateauOrZero, iLandOrWaterZone, true)
+
+            if iPlateauOrZero == 0 then
+                M28Team.AddUnitToWaterZoneForBrain(aiBrain, oUnit, iLandOrWaterZone, true)
+            else
+                M28Team.AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateauOrZero, iLandOrWaterZone, true)
+            end
         end
         --[[local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), false, nil)
         if (iLandZone or 0) == 0 then
@@ -116,15 +115,13 @@ function RefreshZonelessAir(iTeam)
     local sFunctionRef = 'RefreshZonelessAir'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoEnemyUnitsWithNoLZ]) == false then
-        local aiBrain
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoEnemyUnitsWithNoLZ]) == false and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+        local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
 
-        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-            aiBrain = oBrain
-            break
+        if aiBrain then
+            --UpdateUnitPositionsAndLandZone(aiBrain, tUnits,                                                       iTeam, iRecordedPlateau, iRecordedLandZone, bUseLastKnownPosition, bAreAirUnits)
+            M28Land.UpdateUnitPositionsAndLandZone(aiBrain, M28Team.tTeamData[iTeam][M28Team.reftoEnemyUnitsWithNoLZ], iTeam, nil,              nil,            true,                   true)
         end
-        --UpdateUnitPositionsAndLandZone(aiBrain, tUnits,                                                       iTeam, iRecordedPlateau, iRecordedLandZone, bUseLastKnownPosition, bAreAirUnits)
-        M28Land.UpdateUnitPositionsAndLandZone(aiBrain, M28Team.tTeamData[iTeam][M28Team.reftoEnemyUnitsWithNoLZ], iTeam, nil,              nil,            true,                   true)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

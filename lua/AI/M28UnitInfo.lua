@@ -969,7 +969,7 @@ function GetUnitHealthPercent(oUnit)
     return oUnit:GetHealth() / oUnit:GetMaxHealth()
 end
 
-function GetCurrentAndMaximumShield(oUnit, bIgnoreIfShieldFailedFromLowPower)
+function GetCurrentAndMaximumShield(oUnit, bDontTreatLowPowerShieldAsZero)
     --Returns 0, 0 if unit has no shield, or 0, [max shield] if it has a shield but it is depleted
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetCurrentAndMaximumShield'
@@ -988,7 +988,7 @@ function GetCurrentAndMaximumShield(oUnit, bIgnoreIfShieldFailedFromLowPower)
             end
         end
         if iCurShield > 0 then
-            if not(bIgnoreIfShieldFailedFromLowPower) then
+            if not(bDontTreatLowPowerShieldAsZero) then
                 --GetHealth doesnt look like it factors in power stall
                 if not(oUnit.MyShield.Enabled) or oUnit.MyShield.DepletedByEnergy or (oUnit:GetAIBrain():GetEconomyStored('ENERGY') == 0) then iCurShield = 0 end
             end

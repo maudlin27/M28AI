@@ -84,14 +84,14 @@ end
 
 function IsCivilianBrain(aiBrain)
     --Is this an AI brain?
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'IsCivilianBrain'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if aiBrain.M28IsCivilian == nil then
         local bIsCivilian = false
         if bDebugMessages == true then
-            LOG(sFunctionRef..': Brain index='..aiBrain:GetArmyIndex()..'; BrainType='..(aiBrain.BrainType or 'nil')..'; Personality='..ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality..'; reprs of brain='..reprs(aiBrain))
+            LOG(sFunctionRef..': Brain index='..aiBrain:GetArmyIndex()..'; BrainType='..(aiBrain.BrainType or 'nil')..'; Personality='..ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality..'; Nickname='..(aiBrain.Nickname or 'nil')..'; reprs of brain='..reprs(aiBrain))
         end
         --Basic check that it appears to have the values we'd expect
         --if aiBrain.BrainType and aiBrain.Name then
@@ -101,7 +101,7 @@ function IsCivilianBrain(aiBrain)
             if not(ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality) or ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == "" then
                 if bDebugMessages == true then LOG(sFunctionRef..': Index='..aiBrain:GetArmyIndex()..'; Has no AI personality so will treat as being a civilian brain unless nickname contains AI or AIX and doesnt contain civilian') end
                 bIsCivilian = true
-                if string.find(aiBrain.Nickname, '%(AI') and not(string.find(aiBrain.Nickname, "civilian")) then
+                if string.find(aiBrain.Nickname or aiBrain.Name, '%(AI') and not(string.find(aiBrain.Nickname or aiBrain.Name, "civilian")) then
                     if bDebugMessages == true then LOG(sFunctionRef..': AI nickanme suggests its an actual AI and the developer has forgotten to give it a personality') end
                     bIsCivilian = false
                 end

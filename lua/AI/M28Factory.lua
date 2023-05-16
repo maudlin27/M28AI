@@ -1443,10 +1443,12 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] >= 0.7 and iFactoryTechLevel >= 2 and tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
             local iOurGunshipThreat = 0
             local tiSubteamsConsidered = {}
-            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-                if not(tiSubteamsConsidered[oBrain.M28AirSubteam]) then
-                    tiSubteamsConsidered[oBrain.M28AirSubteam] = true
-                    iOurGunshipThreat = iOurGunshipThreat + (M28Team.tAirSubteamData[oBrain.M28AirSubteam][M28Team.subrefiOurGunshipThreat] or 0)
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+                for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                    if not(tiSubteamsConsidered[oBrain.M28AirSubteam]) then
+                        tiSubteamsConsidered[oBrain.M28AirSubteam] = true
+                        iOurGunshipThreat = iOurGunshipThreat + (M28Team.tAirSubteamData[oBrain.M28AirSubteam][M28Team.subrefiOurGunshipThreat] or 0)
+                    end
                 end
             end
             if iOurGunshipThreat == 0 then

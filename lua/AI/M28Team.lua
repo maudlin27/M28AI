@@ -2141,10 +2141,12 @@ function TeamInitialisation(iM28Team)
         end
     end
     --NOTE: Water zone data is handled via RecordClosestAllyAndEnemyBaseForEachWaterZone, to ensure it is run after water zones are created
-    TeamEconomyRefresh(iM28Team)
-    ForkThread(M28Map.RecordClosestAllyAndEnemyBaseForEachLandZone, iM28Team)
-    ForkThread(M28Map.RecordClosestAllyAndEnemyBaseForEachWaterZone, iM28Team)
-    M28Air.AirTeamInitialisation(iM28Team)
+    if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftoFriendlyActiveM28Brains]) == false then
+        TeamEconomyRefresh(iM28Team)
+        ForkThread(M28Map.RecordClosestAllyAndEnemyBaseForEachLandZone, iM28Team)
+        ForkThread(M28Map.RecordClosestAllyAndEnemyBaseForEachWaterZone, iM28Team)
+        M28Air.AirTeamInitialisation(iM28Team)
+    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -2415,4 +2417,14 @@ function ConsiderGiftingStorageToTeammate(oEnergyStorage)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function GetFirstActiveBrain(iTeam)
+    if M28Utilities.IsTableEmpty(tTeamData[iTeam][subreftoFriendlyActiveM28Brains]) == false then
+        for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
+            if not(oBrain.M28IsDefeated) then
+                return oBrain
+            end
+        end
+    end
 end

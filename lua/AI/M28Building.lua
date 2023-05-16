@@ -555,21 +555,19 @@ function AlliedTMDFirstRecorded(iTeam, oTMD)
 
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyTML]) == false then
         if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
-            local aiBrain
-            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-                aiBrain = oBrain
-                break
-            end
-            local tUnitsToProtect = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryProtectFromTML, oTMD:GetPosition(), iTMLMissileRange + 20, 'Ally')
-            if M28Utilities.IsTableEmpty(tUnitsToProtect) == false then
-                local tOnLandUnits = {}
-                for iUnit, oUnit in tUnitsToProtect do
-                    if not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
-                        table.insert(tOnLandUnits, oUnit)
+            local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
+            if aiBrain then
+                local tUnitsToProtect = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryProtectFromTML, oTMD:GetPosition(), iTMLMissileRange + 20, 'Ally')
+                if M28Utilities.IsTableEmpty(tUnitsToProtect) == false then
+                    local tOnLandUnits = {}
+                    for iUnit, oUnit in tUnitsToProtect do
+                        if not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
+                            table.insert(tOnLandUnits, oUnit)
+                        end
                     end
-                end
-                if M28Utilities.IsTableEmpty(tOnLandUnits) == false then
-                    UpdateTMDCoverageOfUnits(iTeam,{ oTMD }, tOnLandUnits)
+                    if M28Utilities.IsTableEmpty(tOnLandUnits) == false then
+                        UpdateTMDCoverageOfUnits(iTeam,{ oTMD }, tOnLandUnits)
+                    end
                 end
             end
         end
@@ -1526,89 +1524,96 @@ end
 
 function GetHighestNukeTargetValue(tLZOrWZData, tLZOrWZTeamData, iTeam)
     --Refresh list if havent calcualted before or SMD has been refreshed; returns highest value target
-    local aiBrain
-    local iBestValue = 0
-    local iCurValue
-    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-        aiBrain = oBrain
-        break
-    end
-    function GetZoneValue(iEnemyStructureMass, iEnemyCombatThreat)
-        return iEnemyStructureMass + iEnemyCombatThreat * 0.25
-    end
-    local tSMLPosition = tLZOrWZData[M28Map.subrefMidpoint]
-    if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftiPotentialNukeTargetZones]) or M28Team.tTeamData[iTeam][M28Team.refbEnemySMDDiedSinceLastNukeCheck] then
-        --Do full calculation
-        tLZOrWZTeamData[M28Map.subreftiPotentialNukeTargetZones] = {}
-        --Make sure we have recorded pathing in a straight line for this zone (will only run if table is empty)
-        M28Air.RecordOtherLandAndWaterZonesByDistance(tLZOrWZData, tLZOrWZData[M28Map.subrefMidpoint])
-        if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) then
-            M28Utilities.ErrorHandler('No other zones found')
-        else
-            for iEntry, tSubtable in tLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
-                local tAltLZOrWZData
-                local tAltLZOrWZTeamData
-                local sMidpointRef
-                local sCombatThreatRef
-                local iCurPlateauOrPond
-                local iCurLZOrWZRef = tSubtable[M28Map.subrefiLandOrWaterZoneRef]
-                if tSubtable[M28Map.subrefbIsWaterZone] then
-                    sMidpointRef = M28Map.subrefMidpoint
-                    sCombatThreatRef = M28Map.subrefTThreatEnemyCombatTotal
-                    tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iCurLZOrWZRef]][M28Map.subrefPondWaterZones][iCurLZOrWZRef]
-                    iCurPlateauOrPond = 0
-                    tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+        local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
+        if aiBrain then
+            local iBestValue = 0
+            local iCurValue
+
+            function GetZoneValue(iEnemyStructureMass, iEnemyCombatThreat)
+                return iEnemyStructureMass + iEnemyCombatThreat * 0.25
+            end
+            local tSMLPosition = tLZOrWZData[M28Map.subrefMidpoint]
+            if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftiPotentialNukeTargetZones]) or M28Team.tTeamData[iTeam][M28Team.refbEnemySMDDiedSinceLastNukeCheck] then
+                --Do full calculation
+                tLZOrWZTeamData[M28Map.subreftiPotentialNukeTargetZones] = {}
+                --Make sure we have recorded pathing in a straight line for this zone (will only run if table is empty)
+                M28Air.RecordOtherLandAndWaterZonesByDistance(tLZOrWZData, tLZOrWZData[M28Map.subrefMidpoint])
+                if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) then
+                    M28Utilities.ErrorHandler('No other zones found')
                 else
-                    sMidpointRef = M28Map.subrefMidpoint
-                    sCombatThreatRef = M28Map.subrefTThreatEnemyCombatTotal
-                    iCurPlateauOrPond = tSubtable[M28Map.subrefiPlateauOrPond]
-                    tAltLZOrWZData = M28Map.tAllPlateaus[iCurPlateauOrPond][M28Map.subrefPlateauLandZones][iCurLZOrWZRef]
-                    tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                    for iEntry, tSubtable in tLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+                        local tAltLZOrWZData
+                        local tAltLZOrWZTeamData
+                        local sMidpointRef
+                        local sCombatThreatRef
+                        local iCurPlateauOrPond
+                        local iCurLZOrWZRef = tSubtable[M28Map.subrefiLandOrWaterZoneRef]
+                        if tSubtable[M28Map.subrefbIsWaterZone] then
+                            sMidpointRef = M28Map.subrefMidpoint
+                            sCombatThreatRef = M28Map.subrefTThreatEnemyCombatTotal
+                            tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iCurLZOrWZRef]][M28Map.subrefPondWaterZones][iCurLZOrWZRef]
+                            iCurPlateauOrPond = 0
+                            tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                        else
+                            sMidpointRef = M28Map.subrefMidpoint
+                            sCombatThreatRef = M28Map.subrefTThreatEnemyCombatTotal
+                            iCurPlateauOrPond = tSubtable[M28Map.subrefiPlateauOrPond]
+                            tAltLZOrWZData = M28Map.tAllPlateaus[iCurPlateauOrPond][M28Map.subrefPlateauLandZones][iCurLZOrWZRef]
+                            tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                        end
+                        if not(IsSMDBlockingTarget(aiBrain, tAltLZOrWZData[sMidpointRef], tSMLPosition, 0, 0)) then
+                            --Have a valid target
+                            table.insert(tLZOrWZTeamData[M28Map.subreftiPotentialNukeTargetZones], {iCurPlateauOrPond, iCurLZOrWZRef })
+                            iCurValue = GetZoneValue(tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass], tAltLZOrWZTeamData[sCombatThreatRef])
+                            if iCurValue > iBestValue then
+                                iBestValue = iCurValue
+                            end
+                        end
+                    end
                 end
-                if not(IsSMDBlockingTarget(aiBrain, tAltLZOrWZData[sMidpointRef], tSMLPosition, 0, 0)) then
-                    --Have a valid target
-                    table.insert(tLZOrWZTeamData[M28Map.subreftiPotentialNukeTargetZones], {iCurPlateauOrPond, iCurLZOrWZRef })
-                    iCurValue = GetZoneValue(tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass], tAltLZOrWZTeamData[sCombatThreatRef])
-                    if iCurValue > iBestValue then
-                        iBestValue = iCurValue
+            elseif M28Team.tTeamData[iTeam][M28Team.refbEnemySMDBuiltSinceLastNukeCheck] then
+                --Check existing values for if still valid
+                local iExistingEntries = table.getn(tLZOrWZTeamData[M28Map.subreftiPotentialNukeTargetZones])
+                for iEntry = iExistingEntries, 1, -1 do
+                    local tAltLZOrWZData
+                    local tAltLZOrWZTeamData
+                    local sMidpointRef
+                    local sCombatThreatRef
+                    local iCurPlateauOrPond = tLZOrWZTeamData[M28Map.subreftiPotentialNukeTargetZones][iEntry][1]
+                    local iCurLZOrWZRef = tLZOrWZTeamData[M28Map.subreftiPotentialNukeTargetZones][iEntry][2]
+
+                    if iCurPlateauOrPond == 0 then
+                        sMidpointRef = M28Map.subrefMidpoint
+                        sCombatThreatRef = M28Map.subrefTThreatEnemyCombatTotal
+                        tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iCurLZOrWZRef]][M28Map.subrefPondWaterZones][iCurLZOrWZRef]
+                        tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                    else
+                        sMidpointRef = M28Map.subrefMidpoint
+                        sCombatThreatRef = M28Map.subrefTThreatEnemyCombatTotal
+                        tAltLZOrWZData = M28Map.tAllPlateaus[iCurPlateauOrPond][M28Map.subrefPlateauLandZones][iCurLZOrWZRef]
+                        tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                    end
+                    if IsSMDBlockingTarget(aiBrain, tAltLZOrWZData[sMidpointRef], tSMLPosition, 0, 0) then
+                        --No longer have a valid target
+                        table.remove(tLZOrWZTeamData[M28Map.subreftiPotentialNukeTargetZones], iEntry)
+                    else
+                        iCurValue = GetZoneValue(tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass], tAltLZOrWZTeamData[sCombatThreatRef])
+                        if iCurValue > iBestValue then
+                            iBestValue = iCurValue
+                        end
                     end
                 end
             end
+            return iBestValue
+        else
+            M28Utilities.ErrorHandler('No alive M28 brain')
+            return 0
         end
-    elseif M28Team.tTeamData[iTeam][M28Team.refbEnemySMDBuiltSinceLastNukeCheck] then
-        --Check existing values for if still valid
-        local iExistingEntries = table.getn(tLZOrWZTeamData[M28Map.subreftiPotentialNukeTargetZones])
-        for iEntry = iExistingEntries, 1, -1 do
-            local tAltLZOrWZData
-            local tAltLZOrWZTeamData
-            local sMidpointRef
-            local sCombatThreatRef
-            local iCurPlateauOrPond = tLZOrWZTeamData[M28Map.subreftiPotentialNukeTargetZones][iEntry][1]
-            local iCurLZOrWZRef = tLZOrWZTeamData[M28Map.subreftiPotentialNukeTargetZones][iEntry][2]
-
-            if iCurPlateauOrPond == 0 then
-                sMidpointRef = M28Map.subrefMidpoint
-                sCombatThreatRef = M28Map.subrefTThreatEnemyCombatTotal
-                tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iCurLZOrWZRef]][M28Map.subrefPondWaterZones][iCurLZOrWZRef]
-                tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
-            else
-                sMidpointRef = M28Map.subrefMidpoint
-                sCombatThreatRef = M28Map.subrefTThreatEnemyCombatTotal
-                tAltLZOrWZData = M28Map.tAllPlateaus[iCurPlateauOrPond][M28Map.subrefPlateauLandZones][iCurLZOrWZRef]
-                tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
-            end
-            if IsSMDBlockingTarget(aiBrain, tAltLZOrWZData[sMidpointRef], tSMLPosition, 0, 0) then
-                --No longer have a valid target
-                table.remove(tLZOrWZTeamData[M28Map.subreftiPotentialNukeTargetZones], iEntry)
-            else
-                iCurValue = GetZoneValue(tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass], tAltLZOrWZTeamData[sCombatThreatRef])
-                if iCurValue > iBestValue then
-                    iBestValue = iCurValue
-                end
-            end
-        end
+    else
+        M28Utilities.ErrorHandler('No active M28 brains')
+        return 0
     end
-    return iBestValue
 end
 
 function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)

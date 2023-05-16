@@ -807,9 +807,14 @@ function CheckForAlliedCampaignUnitsToShareAtGameStart(aiBrain)
                         local tiM28Brains = {}
                         local iM28BrainCount = 0
                         local oCurBrain
-                        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-                            table.insert(tiM28Brains, oBrain)
-                            iM28BrainCount = iM28BrainCount + 1
+                        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+                            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                                table.insert(tiM28Brains, oBrain)
+                                iM28BrainCount = iM28BrainCount + 1
+                            end
+                        elseif aiBrain.M28AI then
+                            table.insert(tiM28Brains, aiBrain)
+                            M28Utilities.ErrorHandler('Dont have any activeM28 brains noted despite dealing with an M28Brain')
                         end
                         for iUnit, oUnit in tUnitsToGive do
                             if iM28BrainCount > 1 then

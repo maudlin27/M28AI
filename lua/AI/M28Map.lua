@@ -2709,7 +2709,7 @@ local function RecordTravelDistBetweenZonesOverTime()
 end
 
 function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordClosestAllyAndEnemyBaseForEachLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -2728,18 +2728,16 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
         end
     end
     for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains] do
-        if bDebugMessages == true then LOG(sFunctionRef..': Cycling through friedly active brains in iTeam='..iTeam..'; oBrain.Nickname='..oBrain.Nickname) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Cycling through friedly active brains in iTeam='..iTeam..'; oBrain.Nickname='..(oBrain.Nickname or 'nil')) end
         tAllyBases[oBrain:GetArmyIndex()] = PlayerStartPoints[oBrain:GetArmyIndex()]
         tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
     end
 
     if M28Utilities.IsTableEmpty(tEnemyBases) then
-        local aiBrain
-        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-            aiBrain = oBrain
-            break
+        local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
+        if aiBrain then
+            table.insert(tEnemyBases, GetPrimaryEnemyBaseLocation(aiBrain))
         end
-        table.insert(tEnemyBases, GetPrimaryEnemyBaseLocation(aiBrain))
     end
 
     local iCurBrainDist
@@ -2771,65 +2769,69 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam)
     local sFunctionRef = 'RecordClosestAllyAndEnemyBaseForEachWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    while not(bWaterZoneInitialCreation) do
-        WaitTicks(1)
-        if GetGameTimeSeconds() >= 5 then break end
-    end
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
 
-    local tEnemyBases = {}
-    local tAllyBases = {}
-    local tBrainsByIndex = {}
+        while not(bWaterZoneInitialCreation) do
+            WaitTicks(1)
+            if GetGameTimeSeconds() >= 5 then break end
+        end
 
-    local iCurBrainDist
-    local iClosestBrainDist
-    local iClosestBrainRef
+        local tEnemyBases = {}
+        local tAllyBases = {}
+        local tBrainsByIndex = {}
 
-    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains]) == false then
-        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
-            tEnemyBases[oBrain:GetArmyIndex()] = PlayerStartPoints[oBrain:GetArmyIndex()]
+        local iCurBrainDist
+        local iClosestBrainDist
+        local iClosestBrainRef
+
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains]) == false then
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
+                tEnemyBases[oBrain:GetArmyIndex()] = PlayerStartPoints[oBrain:GetArmyIndex()]
+                tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
+            end
+        end
+        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains] do
+            tAllyBases[oBrain:GetArmyIndex()] = PlayerStartPoints[oBrain:GetArmyIndex()]
             tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
         end
-    end
-    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains] do
-        tAllyBases[oBrain:GetArmyIndex()] = PlayerStartPoints[oBrain:GetArmyIndex()]
-        tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
-    end
 
-    if M28Utilities.IsTableEmpty(tEnemyBases) then
-        local aiBrain
-        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-            aiBrain = oBrain
-            break
-        end
-        table.insert(tEnemyBases, GetPrimaryEnemyBaseLocation(aiBrain))
-    end
+        if M28Utilities.IsTableEmpty(tEnemyBases) then
+            local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
+            if aiBrain then
 
-    --Update water zones
-    if bDebugMessages == true then LOG(sFunctionRef..': About to start with updating water zone information, GameTime='..GetGameTimeSeconds()..'; bMapLandSetupComplete='..tostring(bMapLandSetupComplete or false)..'; bHaveConsideredPreferredPondForM28AI='..tostring(bHaveConsideredPreferredPondForM28AI or false)) end
-    for iPond, tPondSubtable in tPondDetails do
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering iPond='..iPond..'; reprs of tPondSubtable='..reprs(tPondSubtable)) end
-        for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
-            if not(tWZData[subrefWZTeamData]) then tWZData[subrefWZTeamData] = {} end
-            if not(tWZData[subrefWZTeamData][iTeam]) then tWZData[subrefWZTeamData][iTeam] = {} end
-            local tWZTeamData = tWZData[subrefWZTeamData][iTeam]
-
-            iClosestBrainDist = 100000
-            for iBrain, tStartPoint in tAllyBases do
-                iCurBrainDist = M28Utilities.GetDistanceBetweenPositions(tWZData[subrefMidpoint], tStartPoint)
-                if iCurBrainDist < iClosestBrainDist then
-                    iClosestBrainRef = iBrain
-                    iClosestBrainDist = iCurBrainDist
-                end
+                table.insert(tEnemyBases, GetPrimaryEnemyBaseLocation(aiBrain))
             end
-
-            tWZTeamData[reftClosestFriendlyBase] = {PlayerStartPoints[iClosestBrainRef][1], PlayerStartPoints[iClosestBrainRef][2], PlayerStartPoints[iClosestBrainRef][3]}
-            if bDebugMessages == true then LOG(sFunctionRef..': Recorded closest friendly base '..repru(tWZTeamData[reftClosestFriendlyBase])..' for iWaterZone='..iWaterZone..'; iPond='..iPond) end
-            tWZTeamData[reftClosestEnemyBase] = GetPrimaryEnemyBaseLocation(tBrainsByIndex[iClosestBrainRef])
-            tWZTeamData[refiModDistancePercent] = GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tWZData[subrefMidpoint], false)
-
         end
+
+        --Update water zones
+        if bDebugMessages == true then LOG(sFunctionRef..': About to start with updating water zone information, GameTime='..GetGameTimeSeconds()..'; bMapLandSetupComplete='..tostring(bMapLandSetupComplete or false)..'; bHaveConsideredPreferredPondForM28AI='..tostring(bHaveConsideredPreferredPondForM28AI or false)) end
+        for iPond, tPondSubtable in tPondDetails do
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering iPond='..iPond..'; reprs of tPondSubtable='..reprs(tPondSubtable)) end
+            for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
+                if not(tWZData[subrefWZTeamData]) then tWZData[subrefWZTeamData] = {} end
+                if not(tWZData[subrefWZTeamData][iTeam]) then tWZData[subrefWZTeamData][iTeam] = {} end
+                local tWZTeamData = tWZData[subrefWZTeamData][iTeam]
+
+                iClosestBrainDist = 100000
+                for iBrain, tStartPoint in tAllyBases do
+                    iCurBrainDist = M28Utilities.GetDistanceBetweenPositions(tWZData[subrefMidpoint], tStartPoint)
+                    if iCurBrainDist < iClosestBrainDist then
+                        iClosestBrainRef = iBrain
+                        iClosestBrainDist = iCurBrainDist
+                    end
+                end
+
+                tWZTeamData[reftClosestFriendlyBase] = {PlayerStartPoints[iClosestBrainRef][1], PlayerStartPoints[iClosestBrainRef][2], PlayerStartPoints[iClosestBrainRef][3]}
+                if bDebugMessages == true then LOG(sFunctionRef..': Recorded closest friendly base '..repru(tWZTeamData[reftClosestFriendlyBase])..' for iWaterZone='..iWaterZone..'; iPond='..iPond) end
+                tWZTeamData[reftClosestEnemyBase] = GetPrimaryEnemyBaseLocation(tBrainsByIndex[iClosestBrainRef])
+                tWZTeamData[refiModDistancePercent] = GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tWZData[subrefMidpoint], false)
+
+            end
+        end
+        ForkThread(M28Team.WaterZoneTeamInitialisation, iTeam)
+    else
+        M28Utilities.ErrorHandler('No M28 active brain')
     end
-    ForkThread(M28Team.WaterZoneTeamInitialisation, iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -3591,13 +3593,16 @@ end
 
 function UpdateNewPrimaryBaseLocation(aiBrain)
     --Updates reftPrimaryEnemyBaseLocation to the nearest enemy start position (unless there are no structures there in which case it searches for a better start position)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateNewPrimaryBaseLocation'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
     --LOG(sFunctionRef..': aiBrain='..aiBrain:GetArmyIndex()..'; Start position='..(aiBrain:GetArmyIndex() or 'nil'))
-    if bDebugMessages == true then LOG(sFunctionRef..': About to get new primary base location for brain '..aiBrain.Nickname..' unless it is civilian or defeated. IsCivilian='..tostring(M28Conditions.IsCivilianBrain(aiBrain))..'; .M28IsDefeated='..tostring((aiBrain.M28IsDefeated or false))) end
+    if bDebugMessages == true then
+        LOG(sFunctionRef..': About to get new primary base location for brain '..(aiBrain.Nickname or 'nil')..' unless it is civilian or defeated')
+        LOG(sFunctionRef..': IsCivilian='..tostring(M28Conditions.IsCivilianBrain(aiBrain))..'; .M28IsDefeated='..tostring((aiBrain.M28IsDefeated or false)))
+    end
     if not(M28Conditions.IsCivilianBrain(aiBrain)) and not(aiBrain.M28IsDefeated) and not(aiBrain:IsDefeated()) then
         local tPrevPosition
         if aiBrain[reftPrimaryEnemyBaseLocation] then tPrevPosition = {aiBrain[reftPrimaryEnemyBaseLocation][1], aiBrain[reftPrimaryEnemyBaseLocation][2], aiBrain[reftPrimaryEnemyBaseLocation][3]} end
