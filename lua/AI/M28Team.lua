@@ -86,7 +86,8 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefiHighestEnemyMexTech = 'M28TeamHighestEnemyMex' --I.e. 1, 2 or 3
     subrefiTotalFactoryCountByType = 'M28TeamFactoryByType' --[x] is the factory type, returns the number that our team has; factory type per M28Factory.refiFactoryType..., e.g. M28Factory.refiFactoryTypeLand
     refbBuiltLotsOfT3Combat = 'M28TeamBuiltLotsOfT3Combat' --true once we have reached a certain lifetime count of T3 combat units (used e.g. to decide if we want to build an experimental)
-
+    refiTimeLastHadNothingToBuildForAirFactory = 'M28TeamAirFacTimNoBuild' --Gametimeseconds that failed to find something to do with air factory that was our highest tech level
+    refiTimeLastHadNothingToBuildForLandFactory = 'M28TeamLandFacTimNoBuild' --Gametimeseconds that failed to find something to do with land fac that was our highest tech level
 
     --Intel details
     subrefbTeamHasOmni = 'M28TeamHaveOmni' --True if our team has omni vision (i.e. one of our team is an AiX with omni vision)
@@ -133,6 +134,8 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiLastTimeNoMAATargetsByIsland = 'M28TeamLastTimeNoMAATargets' --[x] is the plateau ref, returns gametimeseconds
     --Water related
     subrefiRallyPointWaterZonesByPond = 'M28TeamWZRallyPoint' --[x] is the pond ref, then returns a table orderd 1, 2... of water zones that are rally points
+    refiTimeLastNoSurfaceCombatTargetByPond = 'M28TeamLastTimeNoSurfTarget' --[x] is the pond ref, returns gametimeseconds that had surface bomat units with no target
+    refiTimeLastNoSubCombatTargetByPond = 'M28TeamLastTimeNoSubTarget' --[x] is the pond ref, returns gametimeseconds that had submersible combat units with no target
 
     --Air related
     reftoAllEnemyAir = 'M28TeamEnemyAirAll'
@@ -574,6 +577,7 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AddUnitToLandZoneForBrain'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
 
 
     if EntityCategoryContains(categories.MOBILE * categories.AIR, oUnit.UnitId) and not(bIsEnemyAirUnit) and not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId)) then M28Utilities.ErrorHandler('Havent flagged that an air unit is an air unit') end
@@ -2364,6 +2368,16 @@ function RefreshActiveBrainListForBrainDeath(oDefeatedBrain)
             M28Overseer.tAllActiveM28Brains[iArmyIndex] = nil --Should only have had a value for m28 brains anyway but this is a redundancy
         end
     end
+
+    --Update primary enemy base locations for M28 brain if their nearest brain is now defeated
+    if M28Utilities.IsTableEmpty(M28Overseer.tAllActiveM28Brains) == false then
+        for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
+            if oBrain[M28Overseer.refoNearestEnemyBrain].M28IsDefeated then
+                UpdateNewPrimaryBaseLocation(oBrain)
+            end
+        end
+    end
+
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 

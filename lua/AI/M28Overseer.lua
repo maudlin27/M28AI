@@ -49,6 +49,7 @@ function GetNearestEnemyBrain(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if (aiBrain[refoNearestEnemyBrain] and not(aiBrain[refoNearestEnemyBrain].M28IsDefeated) and not(aiBrain[refoNearestEnemyBrain]:IsDefeated())) or aiBrain.M28IsDefeated then
+        if bDebugMessages == true then LOG(sFunctionRef..': Previously nearest enemy brain is still valid='..(aiBrain[refoNearestEnemyBrain].Nickname or 'nil')) end
         return aiBrain[refoNearestEnemyBrain]
     else
         if bDebugMessages == true then LOG(sFunctionRef..': GameTime='..GetGameTimeSeconds()..'; Is pathing complete='..tostring(M28Map.bMapLandSetupComplete)..'; Dont have a valid nearest enemy already recorded for aiBrain '..(aiBrain.Nickname or 'nil')..' with index '..aiBrain:GetArmyIndex()..' so will get a new one; are all enemies defeated for team '..aiBrain.M28Team..'='..tostring(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbAllEnemiesDefeated])) end
@@ -155,7 +156,7 @@ end
 function GameSettingWarningsAndChecks(aiBrain)
     --One once at start of the game if an M28 brain is present
     local sFunctionRef = 'GameSettingWarningsAndChecks'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then
@@ -185,6 +186,14 @@ function GameSettingWarningsAndChecks(aiBrain)
             end
         end
     end
+    if not(bUnitRestrictionsArePresent) then
+        --Check if campaign or map has any active restrictions
+        if bDebugMessages == true then LOG(sFunctionRef..': bUnitRestrictionsArePresent='..tostring(bUnitRestrictionsArePresent)..'; Is getrestrictions empty='..tostring(M28Utilities.IsTableEmpty(import("/lua/game.lua").GetRestrictions()))..'; reprs of this='..reprs(import("/lua/game.lua").GetRestrictions())) end
+        if M28Utilities.IsTableEmpty(import("/lua/game.lua").GetRestrictions()) == false then
+            bUnitRestrictionsArePresent = true
+        end
+    end
+
 
     if not (ScenarioInfo.Options.NoRushOption == "Off") then
         bIncompatible = true
@@ -401,12 +410,42 @@ function NoRushMonitor()
 end
 
 function TestCustom(aiBrain)
+    --Hook assist order
+    local M28OldIssueGuard = _G.IssueGuard
+    _G.IssueGuard = function(units, target)
+        LOG('IssueGuard hook - will give trail if hooked factory')
+        for iUnit, oUnit in units do
+            if EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oUnit.UnitId) then M28Utilities.ErrorHandler('Audit trail', true, true) end
+        end
+        M28OldIssueGuard(units, target)
+    end,
+    LOG('Have attempted to hook issueguard')
+    local M28OldIssueFactoryAssist = _G.IssueFactoryAssist
+    _G.IssueFactoryAssist = function(units, target)
+        LOG('IssueFactoryAssist hook - will give trail if hooked factory')
+        for iUnit, oUnit in units do
+            if EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oUnit.UnitId) then
+                if oUnit:GetAIBrain().M28AI then
+                    M28Utilities.ErrorHandler('Audit trail', true, true)
+                end
+            end
+        end
+        M28OldIssueFactoryAssist(units, target)
+    end,
+
+
+
     --Scenario data
-    LOG('WIll do reprs of just options'..reprs(ScenarioInfo.Options))
+    --WaitSeconds(10)
+    --LOG('WIll do reprs of ScenarioFramework')
+    --LOG('reprs='..reprs(ScenarioFramework))
+
+
+    --[[LOG('WIll do reprs of just options'..reprs(ScenarioInfo.Options))
     LOG('Will now try cycling through each entry in ScenarioInfo and note the iEntry value')
     for iEntry, vValue in ScenarioInfo do
         LOG('iEntry='..iEntry)
-    end
+    end--]]
 
     --local tWZTeamData = M28Map.tPondDetails[552][M28Map.subrefPondWaterZones][25][M28Map.subrefWZTeamData][aiBrain.M28Team]
     --LOG('WZ25 pond 552 closest friendly base='..repru(tWZTeamData[M28Map.reftClosestFriendlyBase]))
@@ -678,7 +717,7 @@ end
 
 function OverseerManager(aiBrain)
     --ForkThread(DebugCheck,aiBrain)
-    --ForkThread(TestCustom, aiBrain)
+    ForkThread(TestCustom, aiBrain)
 
     --Make sure map setup will be done
     WaitTicks(1)

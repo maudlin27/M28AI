@@ -1959,7 +1959,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
     local sFunctionRef = 'ManageCombatUnitsInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iLandZone == 5 and GetGameTimeSeconds() >= 960 then bDebugMessages = true end
+
 
     if bDebugMessages == true then LOG(sFunctionRef..': start of code, iTeam='..iTeam..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is table of available combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))..'; iFriendlyBestMobileDFRange='..iFriendlyBestMobileDFRange..'; iFriendlyBestMobileIndirectRange='..iFriendlyBestMobileIndirectRange..'; Are there enemy units in this or adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; bWantIndirectReinforcements='..tostring(bWantIndirectReinforcements or false)) end
 
@@ -2861,7 +2861,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
     local sFunctionRef = 'ManageSpecificLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iLandZone == 5 and GetGameTimeSeconds() >= 960 then bDebugMessages = true end
+
 
     --Record enemy threat
     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
@@ -3116,9 +3116,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
         if M28Utilities.IsTableEmpty(tAvailableMAA) == false then
             ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tAvailableMAA)
         end
-        bDebugMessages = true
         if bDebugMessages == true then LOG(sFunctionRef..': Will retreat other units if any, is table empty='..tostring(M28Utilities.IsTableEmpty(tOtherUnitsToRetreat))) end
-        bDebugMessages = false
         if M28Utilities.IsTableEmpty(tOtherUnitsToRetreat) == false then
             RetreatOtherUnits(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tOtherUnitsToRetreat)
         end

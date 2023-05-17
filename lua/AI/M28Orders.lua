@@ -465,6 +465,7 @@ function IssueTrackedGroundAttack(oUnit, tOrderPosition, iDistanceToReissueOrder
 end
 
 function IssueTrackedGuard(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
+    if EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oUnit.UnitId) then M28Utilities.ErrorHandler('Audit trail - trying to give guard order to factory') end
     UpdateRecordedOrders(oUnit)
     --Issue order if we arent already trying to attack them
     local tLastOrder
@@ -501,6 +502,7 @@ function IssueTrackedRepair(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalO
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueRepair, [subrefoOrderUnitTarget] = oOrderTarget})
+        if EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oUnit.UnitId) then M28Utilities.ErrorHandler('Audit trail - trying to give repair order to factory') end
         IssueRepair({oUnit}, oOrderTarget)
         --Track against the unit we are repairing if it is under construction
         if oOrderTarget:GetFractionComplete() < 1 then

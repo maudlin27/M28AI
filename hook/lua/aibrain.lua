@@ -15,7 +15,10 @@ AIBrain = Class(M28AIBrainClass) {
 
     OnCreateAI = function(self, planName)
         M28Events.OnCreateBrain(self, planName, false) --dont do via forkthread or else self.m28ai wont work
-        if not(self.M28AI) then M28AIBrainClass.OnCreateAI(self, planName) end
+        if not(self.M28AI) then
+            LOG('Running normal aiBrain creation code for brain '..(self.Nickname or 'nil'))
+            M28AIBrainClass.OnCreateAI(self, planName)
+        end
     end,
 
     OnCreateHuman = function(self, planName)

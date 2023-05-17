@@ -1035,6 +1035,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             end
         end
     elseif (not(bHaveHighestLZTech) or iFactoryTechLevel < aiBrain[M28Economy.refiOurHighestLandFactoryTech]) then
+        --Dont have highest tech, and have low mass
         if bDebugMessages == true then LOG(sFunctionRef..': Consideringi f we want to upgrade factory, iFactoryTechLevel='..iFactoryTechLevel..'; Brain highest tech='..aiBrain[M28Economy.refiOurHighestLandFactoryTech]) end
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if iFactoryTechLevel < aiBrain[M28Economy.refiOurHighestLandFactoryTech] then
@@ -1073,13 +1074,16 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             end
         end
 
-        --Do we want MAA, mobile shield or mobile stealth?
+        --Do we want MAA, mobile shield or mobile stealth (with T2 factory while we have other T3 factories)?
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if iFactoryTechLevel == 2 then
             local iEnemyPlateau, iEnemyLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.GetPrimaryEnemyBaseLocation(aiBrain))
             if iEnemyPlateau == iPlateau then
-                if bDebugMessages == true then LOG(sFunctionRef..': Time '..GetGameTimeSeconds()..'; aiBrain[M28Overseer.refiDistanceToNearestEnemyBase]='..(aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] or 'nil')..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iEnemyLandZone='..(iEnemyLandZone or 'nil')..'; Factory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' at position '..repru(oFactory:GetPosition())) end
-                local iDistToEnemyBaseToConsider = (M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iEnemyLandZone) or aiBrain[M28Overseer.refiDistanceToNearestEnemyBase]) * 0.5
+                if bDebugMessages == true then LOG(sFunctionRef..': Time '..GetGameTimeSeconds()..'; aiBrain[M28Overseer.refiDistanceToNearestEnemyBase]='..(aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] or 'nil')..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iEnemyLandZone='..(iEnemyLandZone or 'nil')..'; Factory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' at position '..repru(oFactory:GetPosition())..'; Primary enemy base location='..repru(M28Map.GetPrimaryEnemyBaseLocation(aiBrain))) end
+                local iDistToEnemyBaseToConsider
+                if iEnemyLandZone == iLandZone then iDistToEnemyBaseToConsider = (M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iEnemyLandZone) or aiBrain[M28Overseer.refiDistanceToNearestEnemyBase]) * 0.5
+                else iDistToEnemyBaseToConsider = aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] * 0.4
+                end
                 if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
                     for iEntry, tLZPathing in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
                         if tLZPathing[M28Map.subrefLZTravelDist] <= iDistToEnemyBaseToConsider then
@@ -1176,6 +1180,8 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     if tLZTeamData[M28Map.refbWantLandScout] then
         if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandScout) then return sBPIDToBuild end
     end
+
+    M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForLandFactory] = GetGameTimeSeconds()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -1193,7 +1199,8 @@ function DetermineWhatToBuild(aiBrain, oFactory)
     return sBPIDToBuild
 end
 function IsFactoryReadyToBuild(oFactory)
-    if oFactory:GetFractionComplete() == 1 and oFactory:GetWorkProgress() == 0 and oFactory:GetFractionComplete() == 1 and not (oFactory:IsUnitState('Building')) and not (oFactory:IsUnitState('Upgrading')) and not (oFactory:IsUnitState('Busy')) and M28Utilities.IsTableEmpty(oFactory:GetCommandQueue()) then
+    if oFactory:GetFractionComplete() == 1 and oFactory:GetWorkProgress() == 0 and oFactory:GetFractionComplete() == 1 and not (oFactory:IsUnitState('Building')) and not (oFactory:IsUnitState('Upgrading')) and not (oFactory:IsUnitState('Busy')) and
+            (oFactory:IsUnitState('Guarding') or M28Utilities.IsTableEmpty(oFactory:GetCommandQueue())) then --Issue in campaign where factories were being given a guard order by another script, meaning their command queue wasnt empty - have updated so this will be ignored
         --Add further check that we havent built something at a nearby factory and have recently stalled
         local aiBrain = oFactory:GetAIBrain()
         local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oFactory:GetPosition())
@@ -1221,7 +1228,7 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
     local sFunctionRef = 'DecideAndBuildUnitForFactory'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory) == 'zeb96022' then bDebugMessages = true end
     if not (oFactory['M28ActiveBuilderCheck']) then
         oFactory['M28ActiveBuilderCheck'] = true
         local iTicksWaited = 0
@@ -1383,6 +1390,8 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
     local sFunctionRef = 'GetBlueprintToBuildForAirFactory'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory) == 'zeb96022' then bDebugMessages = true end
 
     local iCategoryToBuild
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oFactory:GetPosition(), true, oFactory)
@@ -1770,6 +1779,9 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 end
             end
         end
+    end
+    if iFactoryTechLevel >= M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] then
+        M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForAirFactory] = GetGameTimeSeconds()
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

@@ -2648,6 +2648,14 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
         if M28Utilities.IsTableEmpty(tSubmarinesWithNoTarget) == false or M28Utilities.IsTableEmpty(tCombatUnitsWithNoTarget) == false then
             --No enemies in the water zone or adjacent that can target so will look to reinforce another water zone
             tUnassignedLandUnits = ConsiderOrdersForUnitsWithNoTarget(tWZData, iPond, iWaterZone, iTeam, tSubmarinesWithNoTarget, tCombatUnitsWithNoTarget)
+            if M28Utilities.IsTableEmpty(tSubmarinesWithNoTarget) == false then
+                if not(M28Team.tTeamData[iTeam][M28Team.refiTimeLastNoSubCombatTargetByPond]) then M28Team.tTeamData[iTeam][M28Team.refiTimeLastNoSubCombatTargetByPond] = {} end
+                M28Team.tTeamData[iTeam][M28Team.refiTimeLastNoSubCombatTargetByPond][iPond] = GetGameTimeSeconds()
+            end
+            if M28Utilities.IsTableEmpty(tCombatUnitsWithNoTarget) == false then
+                if not(M28Team.tTeamData[iTeam][M28Team.refiTimeLastNoSurfaceCombatTargetByPond]) then M28Team.tTeamData[iTeam][M28Team.refiTimeLastNoSurfaceCombatTargetByPond] = {} end
+                M28Team.tTeamData[iTeam][M28Team.refiTimeLastNoSurfaceCombatTargetByPond][iPond] = GetGameTimeSeconds()
+            end
         end
     end
 

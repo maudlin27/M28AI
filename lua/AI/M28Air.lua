@@ -39,10 +39,12 @@ function RecordNewAirUnitForTeam(iTeam, oUnit)
     local sFunctionRef = 'RecordNewAirUnitForTeam'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bDebugMessages == true then LOG(sFunctionRef..': iTeam='..iTeam..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+
+
+    if bDebugMessages == true then LOG(sFunctionRef..': iTeam='..iTeam..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit team='..oUnit:GetAIBrain().M28Team..'; table of active M28 brains for this team is empty?='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))) end
     local sTeamTableRef
     --Is this an enemy unit?
-    if not(oUnit:GetAIBrain().M28Team == iTeam) and M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] == false then
+    if not(oUnit:GetAIBrain().M28Team == iTeam) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
         if EntityCategoryContains(M28UnitInfo.refCategoryAirToGround, oUnit.UnitId) then
             sTeamTableRef = M28Team.reftoEnemyAirToGround
         elseif EntityCategoryContains(M28UnitInfo.refCategoryAirAA, oUnit.UnitId) then
@@ -60,10 +62,11 @@ function RecordNewAirUnitForTeam(iTeam, oUnit)
         local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
         if aiBrain then
 
-
             if iPlateauOrZero == 0 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will add unit to water zone, iLandOrWaterZone='..iLandOrWaterZone) end
                 M28Team.AddUnitToWaterZoneForBrain(aiBrain, oUnit, iLandOrWaterZone, true)
             else
+                if bDebugMessages == true then LOG(sFunctionRef..': Will add unit to land zone, iLandOrWaterZone='..iLandOrWaterZone..'; iPlateauOrZero='..iPlateauOrZero) end
                 M28Team.AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateauOrZero, iLandOrWaterZone, true)
             end
         end

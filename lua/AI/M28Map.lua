@@ -2709,7 +2709,7 @@ local function RecordTravelDistBetweenZonesOverTime()
 end
 
 function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordClosestAllyAndEnemyBaseForEachLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -3593,7 +3593,7 @@ end
 
 function UpdateNewPrimaryBaseLocation(aiBrain)
     --Updates reftPrimaryEnemyBaseLocation to the nearest enemy start position (unless there are no structures there in which case it searches for a better start position)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateNewPrimaryBaseLocation'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -3630,9 +3630,11 @@ function UpdateNewPrimaryBaseLocation(aiBrain)
             if M28Utilities.GetDistanceBetweenPositions(tAverageTeamPosition, {rMapPotentialPlayableArea[1] + (rMapPotentialPlayableArea[3] - rMapPotentialPlayableArea[1])*0.5, 0, rMapPotentialPlayableArea[2] + (rMapPotentialPlayableArea[4] - rMapPotentialPlayableArea[2])*0.5}) <= 50 then
                 --Average is really close to middle of the map, so just  assume enemy base is in the opposite direction to us
                 aiBrain[reftPrimaryEnemyBaseLocation] = GetOppositeLocation(PlayerStartPoints[aiBrain:GetArmyIndex()])
+                if bDebugMessages == true then LOG(sFunctionRef..': Average close to middle of map so assuming enemy base is opposite direction to us') end
             else
                 --Average isnt really close to mid of map, so assume enemy base is in opposite directino to average
                 aiBrain[reftPrimaryEnemyBaseLocation] = GetOppositeLocation(tAverageTeamPosition)
+                if bDebugMessages == true then LOG(sFunctionRef..': Assuming enemy base is opposite direction to average allied position') end
             end
         else --Still have enemies that are alive
             local tEnemyBase = PlayerStartPoints[M28Logic.GetNearestEnemyIndex(aiBrain)]
