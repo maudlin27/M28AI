@@ -1193,10 +1193,12 @@ function DetermineWhatToBuild(aiBrain, oFactory)
         sBPIDToBuild = GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
     elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oFactory.UnitId) then
         sBPIDToBuild = GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
+    elseif EntityCategoryContains(M28UnitInfo.refCategoryQuantumGateway, oFactory.UnitId) then
+        sBPIDToBuild = GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
     else
         M28Utilities.ErrorHandler('Need to add code - unexpected factory type')
     end
-    return sBPIDToBuild
+        return sBPIDToBuild
 end
 function IsFactoryReadyToBuild(oFactory)
     if oFactory:GetFractionComplete() == 1 and oFactory:GetWorkProgress() == 0 and oFactory:GetFractionComplete() == 1 and not (oFactory:IsUnitState('Building')) and not (oFactory:IsUnitState('Upgrading')) and not (oFactory:IsUnitState('Busy')) and
@@ -1216,7 +1218,7 @@ function IsFactoryReadyToBuild(oFactory)
         if GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastBuiltAtFactory] or -100) >= 0.09 then --i.e. dont start production in more than 1 factory per zone per tick, so e.g. air facs are less likely to all build asfs at the same time and cause a power stall
             return true
         --backup for scenarios where dont want to wait - if high mass and energy and AiX
-        elseif aiBrain.CheatEnabled and (ScenarioInfo.Options.CheatMult or 1.5) >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] > (M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] or 0) * 1.25 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or -100) >= 15 then
+        elseif aiBrain.CheatEnabled and tonumber(ScenarioInfo.Options.CheatMult or 1.5) >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] > (M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] or 0) * 1.25 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or -100) >= 15 then
             return true
         end
     end
@@ -1228,7 +1230,7 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
     local sFunctionRef = 'DecideAndBuildUnitForFactory'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory) == 'zeb96022' then bDebugMessages = true end
+
     if not (oFactory['M28ActiveBuilderCheck']) then
         oFactory['M28ActiveBuilderCheck'] = true
         local iTicksWaited = 0
@@ -1391,7 +1393,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory) == 'zeb96022' then bDebugMessages = true end
+
 
     local iCategoryToBuild
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oFactory:GetPosition(), true, oFactory)
@@ -2201,4 +2203,29 @@ function UpdateLastBuiltTracker(oFactory, sBlueprint)
         tLZOrWZTeamData[M28Map.refiTimeLastBuiltAtFactory] = GetGameTimeSeconds()
     end
 
+end
+
+function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
+    local sFunctionRef = 'GetBlueprintToBuildForQuantumGateway'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iCategoryToBuild
+    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oFactory:GetPosition(), true, oFactory)
+    local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+    local tLZTeamData = tLZData[M28Map.subrefLZTeamData][aiBrain.M28Team]
+    local iTeam = aiBrain.M28Team
+    local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
+    local bHaveLowPower = M28Conditions.HaveLowPower(iTeam)
+    local bCanPathToEnemyWithLand = false
+    if tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) then bCanPathToEnemyWithLand = true end
+    local sBPIDToBuild
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel='..iFactoryTechLevel..'; Highest friendly factory tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Allied ground threat='..(M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] or 'nil')..'; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]='..(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 'nil')..'; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]='..(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 'nil')..'; M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]='..(M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] or 'nil')..'; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat]='..(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat] or 'nil')..'; Is factory paused='..tostring(oFactory:IsPaused())..'; IsPaused value='..tostring(oFactory[M28UnitInfo.refbPaused])..'; Does LZ factory is in need BP='..tostring(tLZTeamData[M28Map.subrefTbWantBP])..'; Core LZ='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false)..'; Core expansion='..tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false)) end
+
+    --Build RAS SACUs
+    if not(bHaveLowPower) then
+        if ConsiderBuildingCategory(M28UnitInfo.refCategoryRASSACU) then return sBPIDToBuild end
+    end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

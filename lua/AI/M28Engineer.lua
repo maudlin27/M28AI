@@ -101,7 +101,7 @@ refActionAssistShield = 40
     refActionBuildSecondShield = 41
 refActionBuildEmergencyArti = 42 --Not yet got the main code in place that M27 used, for now just have basic placeholder that builds T2 the same as a normal building
     refActionAssistTML = 43
-    refActionBuildQuantumGateway = 44
+refActionBuildQuantumGateway = 44
     refActionBuildQuantumOptics = 45
     refActionBuildHive = 46
     refActionSelenMexBuild = 47
@@ -124,6 +124,7 @@ refActionBuildSecondMassStorage = 63
 refActionCompletePartBuiltMex = 64
 refActionBuildExperimentalNavy = 65
 refActionBuildGameEnder = 66
+refActionBuildLandExperimental = 67 --e.g. for when building in water
 
 --tiEngiActionsThatDontBuild = {refActionReclaimArea, refActionSpare, refActionNavalSpareAction, refActionHasNearbyEnemies, refActionReclaimFriendlyUnit, refActionReclaimTrees, refActionUpgradeBuilding, refActionAssistSMD, refActionAssistTML, refActionAssistMexUpgrade, refActionAssistAirFactory, refActionAssistNavalFactory, refActionUpgradeHQ, refActionAssistNuke, refActionLoadOntoTransport, refActionAssistShield}
 
@@ -154,6 +155,7 @@ tiActionCategory = {
     [refActionBuildAA] = M28UnitInfo.refCategoryStructureAA,
     --refActionBuildEmergencyPD - will use custom code as sometimes want T1 PD
     [refActionBuildEmergencyArti] = M28UnitInfo.refCategoryFixedT2Arti,
+    [refActionBuildQuantumGateway] = M28UnitInfo.refCategoryQuantumGateway,
     [refActionBuildSecondLandFactory] = M28UnitInfo.refCategoryLandFactory,
     [refActionBuildTML] = M28UnitInfo.refCategoryTML,
     [refActionAssistShield] = M28UnitInfo.refCategoryFixedShield * categories.TECH3,
@@ -161,6 +163,7 @@ tiActionCategory = {
     [refActionCompletePartBuiltMex] = M28UnitInfo.refCategoryT1Mex,
     [refActionBuildExperimentalNavy] = categories.NAVAL * categories.EXPERIMENTAL - categories.UNSELECTABLE - categories.UNTARGETABLE,
     [refActionBuildGameEnder] = M28UnitInfo.refCategoryGameEnder,
+    [refActionBuildExperimentalNavy] = M28UnitInfo.refCategoryLandExperimental,
 }
 
 tiActionOrder = {
@@ -198,6 +201,7 @@ tiActionOrder = {
     [refActionBuildAA] = M28Orders.refiOrderIssueBuild,
     [refActionBuildEmergencyPD] = M28Orders.refiOrderIssueBuild,
     [refActionBuildEmergencyArti] = M28Orders.refiOrderIssueBuild,
+    [refActionBuildQuantumGateway] = M28Orders.refiOrderIssueBuild,
     [refActionBuildSecondLandFactory] = M28Orders.refiOrderIssueBuild,
     [refActionBuildTML] = M28Orders.refiOrderIssueBuild,
     [refActionLoadOntoTransport] = M28Orders.refiOrderLoadOntoTransport,
@@ -207,6 +211,7 @@ tiActionOrder = {
     [refActionCompletePartBuiltMex] = M28Orders.refiOrderIssueBuild,
     [refActionBuildExperimentalNavy] = M28Orders.refiOrderIssueBuild,
     [refActionBuildGameEnder] = M28Orders.refiOrderIssueBuild,
+    [refActionBuildLandExperimental] = M28Orders.refiOrderIssueBuild,
 }
 
 --Adjacent categories to search for for a particular action
@@ -1875,7 +1880,7 @@ function BuildStructureNearLocation(aiBrain, oEngineer, iCategoryToBuild, iMaxAr
                 local tMoveNearTargetLocation = M28PlatoonUtilities.MoveNearConstruction(aiBrain, oEngineer, tTargetLocation, sBlueprintToBuild, 0, false, false, false, true)
                 if oPartCompleteBuilding then
                     if bDebugMessages == true then LOG(sFunctionRef..': Send order for oEngineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to repair '..oPartCompleteBuilding.UnitId..M28UnitInfo.GetUnitLifetimeCount(oPartCompleteBuilding)..' at '..repru(oPartCompleteBuilding:GetPosition())) end
-                    if EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oEngineer.UnitId) then M28Utilities.ErrorHandler('Audit trail - trying to give repair order to factory') end
+
                     IssueRepair({ oEngineer}, oPartCompleteBuilding)
                 else
                     if bDebugMessages == true then
@@ -5301,6 +5306,42 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
+    --Quantum gateway for high AiX modifier and campaign, once we are at T3 mexes for the LZ
+    iCurPriority = iCurPriority + 1
+    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 20 then bDebugMessages = true end
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to build quantum gateway, MexCountByTech='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; bHaveLowPower='..tostring(bHaveLowPower)..'; mass storage locations empty?='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMassStorageLocationsAvailable]))..'; mass stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]) end
+    --if not(bHaveLowPower) and (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 11)) and (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 6 or (tLZTeamData[M28Map.subrefMexCountByTech][2] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][1] == 0)) and M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMassStorageLocationsAvailable]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 0 then
+    if not(bHaveLowPower) and tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 and (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 6 or (tLZTeamData[M28Map.subrefMexCountByTech][2] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][1] == 0)) and M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMassStorageLocationsAvailable]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 0 then
+        --Are we in campaign (where ecoing more important) or AiX 1.2+?
+        local iHighestCheatModifier = 1
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                if oBrain.CheatEnabled then
+                    iHighestCheatModifier = tonumber(ScenarioInfo.Options.CheatMult or 1.5)
+                    break
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': bIsCampaignMap='..tostring(M28Map.bIsCampaignMap)..'; iHighestCheatModifier='..iHighestCheatModifier) end
+        if M28Map.bIsCampaignMap or iHighestCheatModifier >= 1.2 then
+            iBPWanted = 20
+            if not(bHaveLowMass) then iBPWanted = 80 end
+            if bDebugMessages == true then LOG(sFunctionRef..': Will try and build a quantum gateway') end
+            --Do we already have a quantum gateway in this land zone?
+            local bHaveQuantumGateway = false
+            local tQuantumGateways = EntityCategoryFilterDown(M28UnitInfo.refCategoryQuantumGateway, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+            if M28Utilities.IsTableEmpty( tQuantumGateways) == false then
+                for iUnit, oUnit in tQuantumGateways do
+                    if oUnit:GetFractionComplete() >= 1 then
+                        bHaveQuantumGateway = true
+                    end
+                end
+            end
+            HaveActionToAssign(refActionBuildQuantumGateway, 3, iBPWanted)
+        end
+    end
+
+
     --Second experimental builder (for very high mass scenarios)
     iCurPriority = iCurPriority + 1
     if not(bHaveLowMass) and not(bHaveLowPower) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= 8 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 5000 then
@@ -6226,6 +6267,16 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
             if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastNoSurfaceCombatTargetByPond] or -100) <= 30 then
                 iExperimentalsWanted = 2
             end
+            if iCurNavalExperimentals >= iExperimentalsWanted then
+                local iCurLandExperimentals = 0
+                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+                    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                        iCurLandExperimentals = iCurLandExperimentals + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandExperimental)
+                    end
+                end
+                iExperimentalsWanted = math.max(iExperimentalsWanted, iCurLandExperimentals)
+                if bDebugMessages == true then LOG(sFunctionRef..': iCurLandExperimentals='..iCurLandExperimentals) end
+            end
             if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.9 then iExperimentalsWanted = iExperimentalsWanted * 1.5 end
             if iCurNavalExperimentals < iExperimentalsWanted then
                 iBPWanted = 45
@@ -6235,7 +6286,6 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
             end
         end
     end
-
 
     --Send engineer to a land zone adjacent to this that wants support
     iCurPriority = iCurPriority + 1
@@ -6342,7 +6392,21 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
         end
     end
 
-
+    --Build land experimentals in water if v.high mass
+    iCurPriority = iCurPriority + 1
+    if not(bHaveLowMass) and not(bHaveLowPower) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.8 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech] or 1) >= 3 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 40 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.9 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 20)) then
+        local iT3AndExperimentalNavy = 0
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                iT3AndExperimentalNavy = iT3AndExperimentalNavy + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryAllNavy * categories.EXPERIMENTAL + M28UnitInfo.refCategoryAllNavy * categories.TECH3)
+            end
+        end
+        if iT3AndExperimentalNavy >= 4 then
+            iBPWanted = 45
+            HaveActionToAssign(refActionBuildLandExperimental, 3, iBPWanted, false, false, true)
+            if bDebugMessages == true then LOG(sFunctionRef..': Want experimental naval unit, iBPWanted='..iBPWanted) end
+        end
+    end
 
     --spare engis - If still have an engineer available and there is reclaim in the WZ of any kind, and we arent overflowing, then reclaim (but dont request engineers for this)
     iCurPriority = iCurPriority + 1

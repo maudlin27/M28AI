@@ -889,7 +889,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                 --Logic based on the engineer
                 if EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
                     M28ACU.GetACUOrder(oEngineer:GetAIBrain(), oEngineer)
-                elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory, oEngineer.UnitId) then
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway, oEngineer.UnitId) then
                     if bDebugMessages == true then LOG(sFunctionRef..': A factory has just built a unit so will get the next order for the factory') end
                     ForkThread(M28Factory.DecideAndBuildUnitForFactory, oEngineer:GetAIBrain(), oEngineer)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEngineer.UnitId) then
@@ -900,7 +900,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                 end
 
                 --Logic based on the type of unit built
-                if EntityCategoryContains(M28UnitInfo.refCategoryFactory, oJustBuilt.UnitId) then
+                if EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway, oJustBuilt.UnitId) then
                     if bDebugMessages == true then LOG(sFunctionRef..': A factory has just been built so will get the next order for the factory') end
                     ForkThread(M28Factory.DecideAndBuildUnitForFactory, oJustBuilt:GetAIBrain(), oJustBuilt)
                     if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oJustBuilt.UnitId) then

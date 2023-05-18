@@ -1953,6 +1953,68 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tRASSACU)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ManageRASSACUsInLandZone'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --If have mass stored then find the nearest quantum gatway and assist it for now, otherwise do nothing (if enemies in this LZ then will have been sent to the combat unit management already)
+    local tQuantumGateways = EntityCategoryFilterDown(M28UnitInfo.refCategoryQuantumGateway, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+    local oGateway
+    local bNotAssistingGateway = true
+
+    if M28Utilities.IsTableEmpty( tQuantumGateways) == false then
+        for iUnit, oUnit in tQuantumGateways do
+            oGateway = oUnit
+            break
+        end
+    end
+    if oGateway then
+        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.05 and not(M28Conditions.HaveLowPower(iTeam)) then
+            bNotAssistingGateway = false
+            for iUnit, oUnit in tRASSACU do
+                M28Orders.IssueTrackedGuard(oUnit, oGateway, false, 'RASQG', false)
+            end
+        end
+    end
+    if bNotAssistingGateway then
+        local tUnitsToAssist
+        --If have upgrading unit then assist this
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]) == false then tUnitsToAssist = tLZTeamData[M28Map.subrefActiveUpgrades]
+        else
+            --Assist shield if need to defend from arti
+            if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]) == false then
+                tUnitsToAssist = tLZTeamData[M28Map.reftPriorityShieldsToAssist]
+            else
+                --otherwise assist an air factory if we have one
+                tUnitsToAssist = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+            end
+        end
+
+        if M28Utilities.IsTableEmpty(tUnitsToAssist) == false then
+            local tStartPoint
+            if oGateway then tStartPoint = oGateway:GetPosition()
+            else tStartPoint = tLZData[M28Map.subrefMidpoint]
+            end
+            local oClosestUnitToAssist = M28Utilities.GetNearestUnit(tRASSACU, tStartPoint)
+            if not(M28UnitInfo.IsUnitValid(oClosestUnitToAssist)) then M28Utilities.ErrorHandler('No unit to assist for RAS', true)
+            else
+                for iUnit, oUnit in tRASSACU do
+                    M28Orders.IssueTrackedGuard(oUnit, oGateway, false, 'RASAs', false)
+                end
+            end
+
+        else
+            --Othewrise clear orders if nothing to assist
+            for iUnit, oUnit in tRASSACU do
+                M28Orders.IssueTrackedClearCommands(oUnit)
+            end
+        end
+    end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tAvailableCombatUnits, iFriendlyBestMobileDFRange, iFriendlyBestMobileIndirectRange, bWantIndirectReinforcements, tUnavailableUnitsInThisLZ)
     --Handles logic for main combat units (direct and indirect fire mobile units) that are noted as available to the land zone
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -2876,7 +2938,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
     tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth] = {}
     tLZTeamData[M28Map.refbLZWantsMobileStealth] = false --will change later
 
-    local tEngineers, tScouts, tMobileShields, tMobileStealths, tOtherUnitsToRetreat
+    local tEngineers, tScouts, tMobileShields, tMobileStealths, tOtherUnitsToRetreat, tRASSACU
     local iCurShield, iMaxShield
     local bLandZoneOrAdjHasUnitsWantingScout = false
     if bDebugMessages == true then LOG(sFunctionRef..': Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]))) end
@@ -2887,7 +2949,10 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
         tScouts = {}
         tMobileShields = {}
         tMobileStealths = {}
+        tRASSACU = {}
         tOtherUnitsToRetreat = {} --Intended for e.g. fatboys and units with personal shield
+        local bUseRASInCombat = false
+        if tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 0 then bUseRASInCombat = true end
         local tAvailableCombatUnits = {}
         local tUnavailableUnitsInThisLZ = {}
         local tTempOtherUnits = {}
@@ -2924,7 +2989,9 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                     table.insert(tMobileShields, oUnit)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileLandStealth, oUnit.UnitId) then
                     table.insert(tMobileStealths, oUnit)
-                elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryMobileLand - categories.COMMAND - M28UnitInfo.refCategoryRASSACU, oUnit.UnitId) then
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryRASSACU, oUnit.UnitId) and bUseRASInCombat then
+                    table.insert(tRASSACU, oUnit)
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryMobileLand - categories.COMMAND, oUnit.UnitId) then
                     --Tanks, skirmishers, and indirect fire units - handled by main combat unit manager
                     bIncludeUnit = false
                     bLandZoneOrAdjHasUnitsWantingScout = true
@@ -3119,6 +3186,9 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
         if bDebugMessages == true then LOG(sFunctionRef..': Will retreat other units if any, is table empty='..tostring(M28Utilities.IsTableEmpty(tOtherUnitsToRetreat))) end
         if M28Utilities.IsTableEmpty(tOtherUnitsToRetreat) == false then
             RetreatOtherUnits(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tOtherUnitsToRetreat)
+        end
+        if M28Utilities.IsTableEmpty(tRASSACU) == false then
+            ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tRASSACU)
         end
 
         if M28Utilities.IsTableEmpty(tTempOtherUnits) == false then

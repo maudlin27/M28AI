@@ -5,6 +5,7 @@ local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28Config = import('/mods/M28AI/lua/M28Config.lua')
 local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 
+--Note - looks like this logic may be moved to lua\aibrains\base-ai.lua at some point based on FAF develop (as at May 2023)
 M28AIBrainClass = AIBrain
 AIBrain = Class(M28AIBrainClass) {
 
@@ -24,6 +25,53 @@ AIBrain = Class(M28AIBrainClass) {
     OnCreateHuman = function(self, planName)
         M28AIBrainClass.OnCreateHuman(self, planName)
         M28Events.OnCreateBrain(self, planName, true)
-    end
+    end,
+
+    --Redundancy - make sure base AI doesnt run for M28AI
+    InitializeSkirmishSystems = function(self)
+        if self.M28AI then
+            --Do nothing
+            LOG('BaseAIHook - M28AI InitializeSkirmishSystems disabled')
+        else
+            --LOG('BaseAIHook - InitializeSkirmishSystems, self='..(self.Nickname or 'nil'))
+            M28AIBrainClass.InitializeSkirmishSystems(self)
+        end
+    end,
+    InitializeAttackManager = function(self, attackDataTable)
+        if self.M28AI then
+            --Do nothing
+            LOG('BaseAIHook - M28AI InitializeAttackManager disabled')
+        else
+            --LOG('BaseAIHook - InitializeAttackManager, ai='..(self.Nickname or 'nil'))
+            M28AIBrainClass.InitializeAttackManager(self, attackDataTable)
+        end
+    end,
+    InitializePlatoonBuildManager = function(self)
+        if self.M28AI then
+            --Do nothing
+            LOG('BaseAIHook - M28AI InitializePlatoonBuildManager disabled')
+        else
+            --LOG('BaseAIHook - InitializePlatoonBuildManager, ai='..(self.Nickname or 'nil'))
+            M28AIBrainClass.InitializePlatoonBuildManager(self)
+        end
+    end,
+    BaseMonitorInitialization = function(self, spec)
+        if self.M28AI then
+            --Do nothing
+            LOG('BaseAIHook - M28AI BaseMonitorInitialization disabled')
+        else
+            --LOG('BaseAIHook - BaseMonitorInitialization, ai='..(self.Nickname or 'nil'))
+            M28AIBrainClass.BaseMonitorInitialization(self, spec)
+        end
+    end,
+    BaseMonitorInitializationSorian = function(self, spec)
+        if self.M28AI then
+            --Do nothing
+            LOG('BaseAIHook - M28AI BaseMonitorInitializationSorian disabled')
+        else
+            --LOG('BaseAIHook - BaseMonitorInitializationSorian, ai='..(self.Nickname or 'nil'))
+            M28AIBrainClass.BaseMonitorInitializationSorian(self, spec)
+        end
+    end,
 }
 
