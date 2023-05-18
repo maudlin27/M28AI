@@ -1162,6 +1162,12 @@ function OnCreate(oUnit)
                     M28UnitInfo.SetUnitTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityMissileShip, true)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryBattleship, oUnit.UnitId) then
                     M28UnitInfo.SetUnitTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityBattleShip, true)
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway, oUnit.UnitId) then
+                    --If have been gifted factory or created via cheat then want to start building something
+                    if oUnit:GetFractionComplete() >= 1 then
+                        ForkThread(M28Factory.DecideAndBuildUnitForFactory, oUnit:GetAIBrain(), oUnit)
+                    end
+
                 end
                 --Check unit cap
                 if (oUnit[M28Overseer.refiExpectedRemainingCap] or 0) <= 100 then
@@ -1255,4 +1261,12 @@ end
 
 function OnPlayableAreaChange(rect, voFlag)
     M28Map.SetupPlayableAreaAndSegmentSizes()
+end
+
+function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
+    --Record capture missions
+    LOG('Have a mission, Title='..Title..'; Description='..Description..'; Target.captured='..(Target.captured or 'nil'))
+    if Target.captured == 0 then
+        LOG('Have a capture mission')
+    end
 end

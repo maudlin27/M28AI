@@ -34,6 +34,7 @@ iNoRushRange = 0
 iNoRushTimer = 0 --Gametimeseconds that norush should end
 reftNoRushCentre = 'M28OverseerNRCtre' --against aiBrain
 reftNoRushM28StartPoints = { } --start positions for all norush buildable locations
+bActiveMissionChecker = false --true if are actively checking for mission objectives
 
 --aiBrain variables
 refiDistanceToNearestEnemyBase = 'M28OverseerDistToNearestEnemyBase'
@@ -411,7 +412,7 @@ end
 
 function TestCustom(aiBrain)
     --Hook assist order
-    local M28OldIssueGuard = _G.IssueGuard
+    --[[local M28OldIssueGuard = _G.IssueGuard
     _G.IssueGuard = function(units, target)
         LOG('IssueGuard hook - will give trail if hooked factory')
         for iUnit, oUnit in units do
@@ -431,7 +432,7 @@ function TestCustom(aiBrain)
             end
         end
         M28OldIssueFactoryAssist(units, target)
-    end,
+    end,--]]
 
 
 
@@ -717,7 +718,7 @@ end
 
 function OverseerManager(aiBrain)
     --ForkThread(DebugCheck,aiBrain)
-    ForkThread(TestCustom, aiBrain)
+    --ForkThread(TestCustom, aiBrain)
 
     --Make sure map setup will be done
     WaitTicks(1)
@@ -756,6 +757,7 @@ function CheckIfScenarioMap()
     --Thanks to Hdt80bro for highlighting ScenarioInfo.type as a better way of figuring out if this is a campaign map
     if not(ScenarioInfo.type == "skirmish") then --M28Utilities.IsTableEmpty(ScenarioInfo.HumanPlayers) == false then
         M28Map.bIsCampaignMap = true
+        ForkThread(CheckForScenarioObjectives)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -890,4 +892,51 @@ function SetBuildAndResourceCheatModifiers(aiBrain, iBuildModifier, iResourceMod
         end
     end
 
+end
+
+function CheckForScenarioObjectives()
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'CheckForScenarioObjectives'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Will start scenario mission checker if not already active, bActiveMissionChecker='..tostring(bActiveMissionChecker)) end
+    if not(bActiveMissionChecker) then
+        bActiveMissionChecker = true
+
+        while not(M28Map.bMapLandSetupComplete) do
+            WaitSeconds(1)
+            if M28Utilities.IsTableEmpty(tAllActiveM28Brains) then break end
+        end
+        local iTeam
+
+        local tObjectivesConsidered = {}
+        local iLastMissionConsidered = 0
+        function ConsiderObjective(sMissionRef, iMission, iObjective)
+            --Does this objective exist and we havent already considered it?
+            if ScenarioInfo[sMissionRef] and not(tObjectivesConsidered[sMissionRef]) then
+                tObjectivesConsidered[sMissionRef] = true
+                iLastMissionConsidered = math.max(iMission, iLastMissionConsidered)
+                if bDebugMessages == true then LOG(sFunctionRef..': Have just recorded a new objective, sMissionRef='..sMissionRef..'; iMission='..iMission..'; iObjective='..iObjective..'; reprs of mission='..reprs(ScenarioInfo[sMissionRef])) end
+            end
+        end
+        local sMissionRef
+        if bDebugMessages == true then LOG(sFunctionRef..': About to start main loop, is table of active M28 brains empty='..tostring(M28Utilities.IsTableEmpty(tAllActiveM28Brains))) end
+        while M28Utilities.IsTableEmpty(tAllActiveM28Brains) == false do
+            WaitSeconds(60)
+            --Check for new objectives
+            for iMission = math.max(1, iLastMissionConsidered), iLastMissionConsidered + 1 do
+                for iPrimaryObjective = 1, 5 do
+                    sMissionRef = 'M'..iMission..'P'..iPrimaryObjective
+                    ConsiderObjective(sMissionRef, iMission, iPrimaryObjective)
+                end
+                for iSecondaryObjective = 1, 5 do
+                    sMissionRef = 'M'..iMission..'S'..iSecondaryObjective
+                    ConsiderObjective(sMissionRef, iMission, iSecondaryObjective)
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished checking form issions, iLastMissionConsidered='..iLastMissionConsidered..'; tObjectivesConsidered='..repru(tObjectivesConsidered)) end
+        end
+
+        bActiveMissionChecker = false
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

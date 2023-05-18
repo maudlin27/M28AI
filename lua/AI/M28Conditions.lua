@@ -614,7 +614,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
     end
     local iCurAirAndLandFactories = (M28Team.tTeamData[iTeam][M28Team.subrefiTotalFactoryCountByType][M28Factory.refiFactoryTypeLand] or 0) + (M28Team.tTeamData[iTeam][M28Team.subrefiTotalFactoryCountByType][M28Factory.refiFactoryTypeAir] or 0)
 
-    if iCurAirAndLandFactories >= 8 then bDebugMessages = true end
+
 
     local bWantMoreFactories = false
     --Unit cap - want max of 2 factories in the core LZ and no more factories in non-core LZs

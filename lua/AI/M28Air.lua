@@ -1625,7 +1625,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
         end
 
 
-        function AddEnemyAirInLandZoneIfNoAA(iPlateau, iLandZone, bAddAdjacentZones, refiAASearchType)
+        function AddEnemyAirInLandZoneIfNoAA(iPlateau, iLandZone, bAddAdjacentZones, refiAASearchType, iOptionalGroundThreatThresholdOverride, iOptionalAirThreatThresholdOverride)
             --See above for refiAASearchTypes, i.e. refiAvoidAllAA, refiAvoidOnlyGroundAA, refiIgnoreAllAA
             if bDebugMessages == true then LOG(sFunctionRef..': refiAASearchType='..(refiAASearchType or 'nil')..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
             if not(tbAdjacentPlateauAndLandZonesConsidered[refiAASearchType][iPlateau][iLandZone]) and (bAddAdjacentZones or not(tbPlateauAndLandZonesConsidered[refiAASearchType][iPlateau][iLandZone])) then
@@ -1639,7 +1639,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                 if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) == false then
                     --Add units from here unless there is too much AA
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to add enemy air units in land zone '..iLandZone..'; refiAASearchType='..refiAASearchType..'; DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iPlateau, iLandZone, refiAASearchType == refiAvoidOnlyGroundAA, nil, nil)='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iPlateau, iLandZone, refiAASearchType == refiAvoidOnlyGroundAA, nil, nil))) end
-                    if refiAASearchType == refiIgnoreAllAA or not(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iPlateau, iLandZone, refiAASearchType == refiAvoidOnlyGroundAA, nil, nil)) then
+                    if refiAASearchType == refiIgnoreAllAA or not(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iPlateau, iLandZone, refiAASearchType == refiAvoidOnlyGroundAA, iOptionalGroundThreatThresholdOverride, iOptionalAirThreatThresholdOverride)) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Will add all enemy air as potential targets') end
                         for iUnit, oUnit in tLZTeamData[M28Map.reftLZEnemyAirUnits] do
                             if M28UnitInfo.IsUnitValid(oUnit) then
@@ -1668,7 +1668,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                 end
             end
         end
-        function AddEnemyAirInWaterZoneIfNoAA(iWaterZone, bAddAdjacentZones, refiAASearchType)
+        function AddEnemyAirInWaterZoneIfNoAA(iWaterZone, bAddAdjacentZones, refiAASearchType, iOptionalGroundThreatThresholdOverride, iOptionalAirThreatThresholdOverride)
             --See above for refiAASearchTypes, i.e. refiAvoidAllAA, refiAvoidOnlyGroundAA, refiIgnoreAllAA
             if not(tbAdjacentWaterZonesConsidered[refiAASearchType][iWaterZone]) and (bAddAdjacentZones or not(tbWaterZonesConsidered[refiAASearchType][iWaterZone])) then
                 if not(tbWaterZonesConsidered[refiAASearchType]) then tbWaterZonesConsidered[refiAASearchType] = {} end
@@ -1678,7 +1678,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                 if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftWZEnemyAirUnits]) == false then
                     --Add air units unless too much enemy AA
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to add enemy air units in water zone '..iWaterZone..'; refiAASearchType='..refiAASearchType..'; DoesEnemyHaveAAThreatAlongPath='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, refiAASearchType == refiAvoidOnlyGroundAA, nil, nil))) end
-                    if refiAASearchType == refiIgnoreAllAA or not(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, refiAASearchType == refiAvoidOnlyGroundAA, nil, nil)) then
+                    if refiAASearchType == refiIgnoreAllAA or not(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, refiAASearchType == refiAvoidOnlyGroundAA, iOptionalGroundThreatThresholdOverride, iOptionalAirThreatThresholdOverride)) then
                         for iUnit, oUnit in tWZTeamData[M28Map.reftWZEnemyAirUnits] do
                             if M28UnitInfo.IsUnitValid(oUnit) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Adding enemy air unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to tEnemyAirTargets') end
@@ -1708,10 +1708,13 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
         --First search for air near priority defence targets - look for enemies near priority defensive targets and core bases
         local iAASearchType
         local bConsiderAvoidingAA
+        local iGroundAAThresholdForPriorityDefence
         if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] then
             bConsiderAvoidingAA = true --will adjust later
             iAASearchType = refiAvoidOnlyGroundAA
-        else iAASearchType = refiIgnoreAllAA
+        else
+            iAASearchType = refiIgnoreAllAA
+
         end
 
 
@@ -1726,7 +1729,9 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                         tUnitLZOrWZTeamData = M28Map.tPondDetails[iLandOrWaterZone][M28Map.subrefPondWaterZones][iLandOrWaterZone][M28Map.subrefWZTeamData][iTeam]
                         if not(tbWaterZonesConsidered[iLandOrWaterZone]) then
                             --Only consider avoiding AA if no enemy air to ground threat in this zone or adjacent zone
-                            if tUnitLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 then bConsiderAvoidingAA = false end
+                            if tUnitLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 then bConsiderAvoidingAA = false
+                            else bConsiderAvoidingAA = M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]
+                            end
                             if bConsiderAvoidingAA then
                                 AddEnemyAirInWaterZoneIfNoAA(iLandOrWaterZone, true, iAASearchType)
                             else
@@ -1737,7 +1742,9 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                 else
                     if (iLandOrWaterZone or 0) > 0 then
                         tUnitLZOrWZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
-                        if tUnitLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 then bConsiderAvoidingAA = false end
+                        if tUnitLZOrWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 then bConsiderAvoidingAA = false
+                        else bConsiderAvoidingAA = M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]
+                        end
                         if bDebugMessages == true then LOG(sFunctionRef..': About to consider adding enemy air in land or water zone near priority units to protect, iAASearchType='..iAASearchType..'; iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone) end
                         if bConsiderAvoidingAA then
                             AddEnemyAirInLandZoneIfNoAA(iTeam, iLandOrWaterZone, true, iAASearchType)
@@ -1753,28 +1760,36 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
         if M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]) then
             if bDebugMessages == true then LOG(sFunctionRef..': About to get the closest plateau or zone to the front gunship, front gunship='..M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship].UnitId..M28UnitInfo.GetUnitLifetimeCount(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship])..' at position '..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition())) end
             iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition())
+            local iGunshipGroundAAThreshold = nil
+            if iAASearchType == refiAvoidOnlyGroundAA and M28Team.tAirSubteamData[M28Team.subrefiOurGunshipThreat] >= 2000 then
+                iGunshipGroundAAThreshold = math.min(3200,M28Team.tAirSubteamData[M28Team.subrefiOurGunshipThreat] * 0.15)
+            end
             if iPlateauOrZero == 0 then
                 if (iLandOrWaterZone or 0) > 0 then
-                    AddEnemyAirInWaterZoneIfNoAA(iLandOrWaterZone, true, iAASearchType)
+                    AddEnemyAirInWaterZoneIfNoAA(iLandOrWaterZone, true, iAASearchType, iGunshipGroundAAThreshold)
                 end
             else
                 if (iLandOrWaterZone or 0) > 0 then
-                    AddEnemyAirInLandZoneIfNoAA(iTeam, iLandOrWaterZone, true, iAASearchType)
+                    AddEnemyAirInLandZoneIfNoAA(iTeam, iLandOrWaterZone, true, iAASearchType, iGunshipGroundAAThreshold)
                 end
             end
         end
         --Now search around start positions
+        local iStartPositionGroundAAThreshold = nil
+        if iAASearchType == refiAvoidOnlyGroundAA and M28Team.tAirSubteamData[M28Team.subrefiOurAirAAThreat] >= 600 then
+            iStartPositionGroundAAThreshold = math.min(3200,M28Team.tAirSubteamData[M28Team.subrefiOurAirAAThreat] * 0.2)
+        end
         for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
             iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
             if (iPlateauOrZero or 0) == 0 then
                 if (iLandOrWaterZone or 0) > 0 then
-                    AddEnemyAirInWaterZoneIfNoAA(iLandOrWaterZone, true, iAASearchType)
+                    AddEnemyAirInWaterZoneIfNoAA(iLandOrWaterZone, true, iAASearchType, iStartPositionGroundAAThreshold)
                 end
             else
                 if (iLandOrWaterZone or 0) > 0 then
                     --Have a land zone - check for groundAA
                     if bDebugMessages == true then LOG(sFunctionRef..': About to consider adding enemy air in land or water zone near start position, iAASearchType='..iAASearchType..'; iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone) end
-                    AddEnemyAirInLandZoneIfNoAA(iPlateauOrZero, iLandOrWaterZone, true, iAASearchType)
+                    AddEnemyAirInLandZoneIfNoAA(iPlateauOrZero, iLandOrWaterZone, true, iAASearchType, iStartPositionGroundAAThreshold)
                 end
             end
         end
