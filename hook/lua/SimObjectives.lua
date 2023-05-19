@@ -3,7 +3,7 @@
 --- Created by maudlin27.
 --- DateTime: 18/05/2023 22:00
 ---
-local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
+
 local M28OldAddObjective = AddObjective
 AddObjective = function(Type,         -- 'primary', 'bonus', etc
         Complete,     -- 'complete', 'incomplete'
@@ -17,6 +17,6 @@ AddObjective = function(Type,         -- 'primary', 'bonus', etc
         loadedTag     -- If IsLoading is specified, whats the tag?
 )
 
-    ForkThread(M28Events.ObjectiveAdded, Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
+    ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').ObjectiveAdded, Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
     M28OldAddObjective(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
 end
