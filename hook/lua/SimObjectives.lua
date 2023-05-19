@@ -18,5 +18,5 @@ AddObjective = function(Type,         -- 'primary', 'bonus', etc
 )
 
     ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').ObjectiveAdded, Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
-    M28OldAddObjective(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
+    return M28OldAddObjective(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
 end
