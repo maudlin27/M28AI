@@ -658,7 +658,7 @@ function SetupPlayableAreaAndSegmentSizes()
     local sFunctionRef = 'DetermineReclaimAndLandSegmentSizes'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': About to set playable area at time='..GetGameTimeSeconds()..'; ScenarioInfo.MapData.PlayableRect='..repru(ScenarioInfo.MapData.PlayableRect)..'; bMapLandSetupComplete='..tostring(bMapLandSetupComplete or false)..'; bIsCampaignMap='..tostring(bIsCampaignMap or false)) end
-    if ScenarioInfo.MapData.PlayableRect and (bMapLandSetupComplete or not(bIsCampaignMap)) then
+    if ScenarioInfo.MapData.PlayableRect then --and (bMapLandSetupComplete or not(bIsCampaignMap)) then
         rMapPlayableArea = ScenarioInfo.MapData.PlayableRect
     else
         rMapPlayableArea = {0, 0, ScenarioInfo.size[1], ScenarioInfo.size[2]}
@@ -2730,10 +2730,19 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
             tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
         end
     end
+    function IsInPlayableArea(tLocation)
+        if tLocation[1] >= rMapPlayableArea[1] and tLocation[1] <= rMapPlayableArea[3] and tLocation[2] >= rMapPlayableArea[2] and tLocation[4] <= rMapPlayableArea[4] then
+            return true
+        end
+        return false
+    end
     for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains] do
-        if bDebugMessages == true then LOG(sFunctionRef..': Cycling through friedly active brains in iTeam='..iTeam..'; oBrain.Nickname='..(oBrain.Nickname or 'nil')) end
-        tAllyBases[oBrain:GetArmyIndex()] = PlayerStartPoints[oBrain:GetArmyIndex()]
-        tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
+        if bDebugMessages == true then LOG(sFunctionRef..': Cycling through friedly active brains in iTeam='..iTeam..'; oBrain.Nickname='..(oBrain.Nickname or 'nil')..' with start position '..repru(PlayerStartPoints[oBrain:GetArmyIndex()])..'; bIsCampaignMap='..tostring(bIsCampaignMap)..'; Land result for brain start='..(NavUtils.GetTerrainLabel(refPathingTypeLand, PlayerStartPoints[oBrain:GetArmyIndex()]) or 'nil')..'; Brain type='..(oBrain.BrainType or 'nil')..'; Playable area='..repru(rMapPlayableArea)) end
+        --Campaign specific - check this is on a valid land zone
+        if not(bIsCampaignMap) or not(oBrain.BrainType == "AI") or oBrain.M28AI or ((NavUtils.GetTerrainLabel(refPathingTypeLand, PlayerStartPoints[oBrain:GetArmyIndex()]) or 0) > 0 and IsInPlayableArea(PlayerStartPoints[oBrain:GetArmyIndex()])) then
+            tAllyBases[oBrain:GetArmyIndex()] = PlayerStartPoints[oBrain:GetArmyIndex()]
+            tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
+        end
     end
 
     if M28Utilities.IsTableEmpty(tEnemyBases) then

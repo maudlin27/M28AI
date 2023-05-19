@@ -1268,39 +1268,37 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
     local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --Wait until map setup complete
-    if false then
-        while not(M28Map.bMapLandSetupComplete) or not(M28Map.bWaterZoneInitialCreation) do
-            if GetGameTimeSeconds() >= 10 then break end
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-            WaitSeconds(1)
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-        end
+    while not(M28Map.bMapLandSetupComplete) or not(M28Map.bWaterZoneInitialCreation) do
+        if GetGameTimeSeconds() >= 10 then break end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    end
 
 
 
-        --Record capture missions
-        if bDebugMessages == true then LOG('Have a mission, Title='..Title..'; Description='..Description..'; Target.captured='..(Target.captured or 'nil')) end
-        if Target.captured == 0 then
-            if bDebugMessages == true then  LOG('Have a capture mission, is target empty='..tostring(M28Utilities.IsTableEmpty(Target))) end
-            --Record every unit to be captured
-            if M28Utilities.IsTableEmpty(Target.Units) == false then
-                local iPlateauOrZero, iLandOrWaterZone
-                for iEntry, oUnit in Target.Units do
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iEntry='..iEntry..' in Target; Is valid unit='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
-                    if M28UnitInfo.IsUnitValid(oUnit) then
-                        iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
-                        local tLZOrWZData
-                        if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; Unit position='..repru(oUnit)) end
-                        if iLandOrWaterZone > 0 then
-                            if iPlateauOrZero == 0 then
-                                tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
-                            else
-                                tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
-                            end
-                            if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToCapture]) then tLZOrWZData[M28Map.subreftoUnitsToCapture] = {} end
-                            table.insert(tLZOrWZData[M28Map.subreftoUnitsToCapture], oUnit)
-                            if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of units to capture') end
+    --Record capture missions
+    if bDebugMessages == true then LOG('Have a mission, Title='..Title..'; Description='..Description..'; Target.captured='..(Target.captured or 'nil')) end
+    if Target.captured == 0 then
+        if bDebugMessages == true then  LOG('Have a capture mission, is target empty='..tostring(M28Utilities.IsTableEmpty(Target))) end
+        --Record every unit to be captured
+        if M28Utilities.IsTableEmpty(Target.Units) == false then
+            local iPlateauOrZero, iLandOrWaterZone
+            for iEntry, oUnit in Target.Units do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering iEntry='..iEntry..' in Target; Is valid unit='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
+                if M28UnitInfo.IsUnitValid(oUnit) then
+                    iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                    local tLZOrWZData
+                    if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; Unit position='..repru(oUnit:GetPosition())) end
+                    if iLandOrWaterZone > 0 then
+                        if iPlateauOrZero == 0 then
+                            tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+                        else
+                            tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
                         end
+                        if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToCapture]) then tLZOrWZData[M28Map.subreftoUnitsToCapture] = {} end
+                        table.insert(tLZOrWZData[M28Map.subreftoUnitsToCapture], oUnit)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of units to capture') end
                     end
                 end
             end

@@ -1160,7 +1160,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Finished going through all units to protect, tClosestMidpoint='..repru(tClosestMidpoint)) end
             if tClosestMidpoint then
-                --Move from the closest base to the support point until no longer find a save land/water zone, and then abort
+                --Move from the closest base to the support point until no longer find a safe land/water zone, and then abort
                 local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(tClosestBase, tClosestMidpoint)
                 if bDebugMessages == true then LOG(sFunctionRef..': iDistToTarget='..iDistToTarget..'; tClosestBase='..repru(tClosestBase)) end
                 if iDistToTarget <= 50 then
@@ -1262,12 +1262,13 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                 end
             end
         end
-
+        if bDebugMessages == true then LOG(sFunctionRef..': tSupportRallyPoint='..repru(tSupportRallyPoint)..'; tPreferredRallyPoint='..repru(tPreferredRallyPoint)) end
         if not(tSupportRallyPoint) then
             M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint] = tPreferredRallyPoint
         else
             M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint] = tSupportRallyPoint
         end
+
 
 
         --Update the support rally point, and record pathing of other land and air zones to it if havent previously
@@ -1287,9 +1288,12 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
         if not(tStartLZOrWZData) then
             iStartPlateau, iStartLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tStartMidpoint)
             if iStartPlateau == 0 and (iStartLZOrWZ or 0) > 0 then
-              tStartLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iStartLZOrWZ]][M28Map.subrefPondWaterZones][iStartLZOrWZ]
+                tStartLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iStartLZOrWZ]][M28Map.subrefPondWaterZones][iStartLZOrWZ]
             elseif (iStartLZOrWZ or 0) > 0 then
-                            tStartLZOrWZData = M28Map.tAllPlateaus[iStartPlateau][M28Map.subrefPlateauLandZones][iStartLZOrWZ]
+                tStartLZOrWZData = M28Map.tAllPlateaus[iStartPlateau][M28Map.subrefPlateauLandZones][iStartLZOrWZ]
+            else
+                M28Utilities.ErrorHandler('Couldnt find LZ or WZ close to tStartMidpoint')
+                LOG(sFunctionRef..': tStartMidpoint='..repru(tStartMidpoint))
             end
         end
         if tStartLZOrWZData then
@@ -1816,6 +1820,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                 tStartLZOrWZData = M28Map.tAllPlateaus[iStartPlateauOrZero][M28Map.subrefPlateauLandZones][iStartLandOrWaterZone]
             end
             --Cycle through other land and water zones using the table sorting them by distance
+            if bDebugMessages == true then LOG(sFunctionRef..': Is table of other land/water zones empty='..tostring(M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]))..'; iStartPlateauOrZero='..(iStartPlateauOrZero or 'nil')..'; iStartLandOrWaterZone='..(iStartLandOrWaterZone or 'nil')..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])) end
             if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
                 local iAASearchType
                 if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] then iAASearchType = refiAvoidAllAA

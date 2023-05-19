@@ -19,6 +19,7 @@ local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
+local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 
 
 bInitialSetup = false
@@ -627,9 +628,12 @@ end
 function RevealCiviliansToAI(aiBrain)
     --On some maps like burial mounds civilians are revealed to human players but not AI; meanwhile on other maps even if theyre not revealed to humans, the humans will likely know where the buildings are having played the map before
     --Thanks to Relent0r for providing code that I used as a starting point to achieve this
+
+    --SUPERCEDED BY RevealCivilainsToAIByGivingVision
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RevealCiviliansToAI'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    M28Utilities.ErrorHandler('Deprecated function')
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     WaitTicks(75) --Waiting only 5 ticks or less resulted in a strange bug where on one map when ahd 2 ACUs on the same team, the code would run for both of htem as expected, but the civilians would only be visible for one of the AI (as though making the civilian an ally had no effect for hte other); This went away when put a delay of 50 ticks; however have compatibility issues with RNG so want to wait a bit longer; waiting 60 meant it worked for M27 but didnt look like it worked for RNG (wiating 50 meant it worked for RNG but not for M27); waiting 70 meant it worked for both; have done 75 for M28 given M27 uses 70
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -683,14 +687,71 @@ function RevealCiviliansToAI(aiBrain)
 end
 
 function RevealCivilainsToAIByGivingVision(aiBrain)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RevealCivilainsToAIByGivingVision'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': About to reveal civilains and then consider capture targets if this is M28Brain, aiBrain.M28AI='..tostring(aiBrain.M28AI or false)..'; nickname='..(aiBrain.Nickname or 'nil')) end
     if aiBrain.M28AI then --redundancy
         local tACU = aiBrain:GetListOfUnits(categories.COMMAND, false, true)
         for iUnit, oUnit in tACU do
             M28UnitInfo.GiveUnitTemporaryVision(oUnit, 1000)
             break
         end
+        --Consider capture targets
+        if bDebugMessages == true then LOG(sFunctionRef..': Will now consider capture targets') end
+        ForkThread(GetCivilianCaptureTargets, aiBrain)
 
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function GetCivilianCaptureTargets(aiBrain)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetCivilianCaptureTargets'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    WaitTicks(1)
+    local tStartPoint = M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()]
+    local iPlateauWanted, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tStartPoint)
+    local iClosestEnemyBase = M28Map.iMapSize
+    local iTeam = aiBrain.M28Team
+
+    if iLandZone > 0 then
+        local tLZData = M28Map.tAllPlateaus[iPlateauWanted][M28Map.subrefPlateauLandZones][iLandZone]
+        local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+        iClosestEnemyBase = M28Utilities.GetDistanceBetweenPositions(tStartPoint, tLZTeamData[M28Map.reftClosestEnemyBase])
+    end
+    local iSearchRange = math.min(450, math.max(iClosestEnemyBase * 0.6, 200, math.min(275, iClosestEnemyBase * 0.75)))
+    local iCategoriesOfInterest = M28UnitInfo.refCategoryLandCombat * categories.RECLAIMABLE - categories.TECH1
+    local tUnitsOfInterest = aiBrain:GetUnitsAroundPoint(iCategoriesOfInterest, tStartPoint, iSearchRange, 'Neutral')
+    --local sPathing = M28Map.refPathingTypeAmphibious
+
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Running for aiBrain='..aiBrain.Nickname..' at gametime='..GetGameTimeSeconds()..'; Is table of tUnitsOfInterest empty='..tostring(M28Utilities.IsTableEmpty(tUnitsOfInterest))..'; iPlateauWanted='..iPlateauWanted..'; iClosestEnemyBase='..iClosestEnemyBase..'; iSearchRange='..iSearchRange..'; Is table of enemy units with further range empty='..tostring(M28Utilities.IsTableEmpty(aiBrain:GetUnitsAroundPoint(iCategoriesOfInterest, tStartPoint, 1000, 'Enemy')))) end
+    if M28Utilities.IsTableEmpty(tUnitsOfInterest) == false then
+        local iCurPlateau, iCurLandZone
+        for iUnit, oUnit in tUnitsOfInterest do
+            if oUnit:GetFractionComplete() >= 1 then
+                --Is it in the same plateua?
+                iCurPlateau, iCurLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering civilian unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurPlateau='..(iCurPlateau or 'nil')..'; iPlateauWanted='..iPlateauWanted..'; Dist to our base='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tStartPoint)..'; Mod dist='..M28Map.GetModDistanceFromStart(aiBrain, oUnit:GetPosition())) end
+                if (iCurLandZone or 0) > 0 and iCurPlateau == iPlateauWanted then
+                    --Is it one of the civilian brains we temporarily moved to be our ally?
+                    if M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()) then
+                        local tNearbyThreats = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryFixedT2Arti, oUnit:GetPosition(), 140, 'Enemy')
+                        if M28Utilities.IsTableEmpty(tNearbyThreats) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to the table of civilians to capture; unit brain='..(oUnit:GetAIBrain().Nickname or 'nil')..'; is civilian='..tostring(M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()))..'; iCurPlateau='..iCurPlateau..'; iCurLandZone='..iCurLandZone) end
+                            local tUnitLZData = M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLandZone]
+                            if not(tUnitLZData[M28Map.subreftoUnitsToCapture]) then tUnitLZData[M28Map.subreftoUnitsToCapture] = {} end
+                            table.insert(tUnitLZData[M28Map.subreftoUnitsToCapture], oUnit)
+                        end
+                    end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function DebugCheck(aiBrain)
@@ -757,7 +818,7 @@ function CheckIfScenarioMap()
     --Thanks to Hdt80bro for highlighting ScenarioInfo.type as a better way of figuring out if this is a campaign map
     if not(ScenarioInfo.type == "skirmish") then --M28Utilities.IsTableEmpty(ScenarioInfo.HumanPlayers) == false then
         M28Map.bIsCampaignMap = true
-        ForkThread(CheckForScenarioObjectives)
+        --ForkThread(CheckForScenarioObjectives) --superceded by hook of addobjective
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -895,9 +956,11 @@ function SetBuildAndResourceCheatModifiers(aiBrain, iBuildModifier, iResourceMod
 end
 
 function CheckForScenarioObjectives()
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    --NO LONGER USED - use AddObjective hook instead
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'CheckForScenarioObjectives'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    M28Utilities.ErrorHandler('Obsolete function')
     if bDebugMessages == true then LOG(sFunctionRef..': Will start scenario mission checker if not already active, bActiveMissionChecker='..tostring(bActiveMissionChecker)) end
     if not(bActiveMissionChecker) then
         bActiveMissionChecker = true

@@ -29,7 +29,7 @@ tsBlueprintsBySize = {[1] = 'ueb2101', [2] = 'ueb1101', [6] = 'ueb1201', [8] = '
 tsWZBlueprintsBySize = {[1] = 'ueb2109', [2] = 'ueb4201', [6] = 'ual0401', [8] = 'ura0401', [9]='uel0401', [10]='ueb0103', [14]='ueb0103', [16]='uas0401', [24]='uaa0310'} --Blueprints to use when trying to find locations that can buid on on water for a building/engineer built unit of a particular size
 --Some blueprints have different skirt size offsets, e.g. naval factories; current solution is to manually note any of the BlueprintsBySize blueprints above and then list alternatives to try
 tsExtraBlueprintsToCheck = {['ueb0103'] = {'urb0103', 'xsb0103'},
-                            }
+}
 tAllScathis = {} --If a scathis is constructed it gets recorded here (and we then check this for build locations to avoid trying to build on a scathis); for performance reasons will just use a single global table
 tiBPByTech = {5,12.5,30, 30}
 iCurQueueRefNumber = 0
@@ -45,27 +45,27 @@ refbPrimaryBuilder = 'M28EngPrimaryBuilder' --If was the first engineer assigned
 reftUnitsReclaimingUs = 'M28EngReclaimingUnits' --If have queued up reclaim order on a unit, this will store all units given such an order
 reftUnitsWeAreReclaiming = 'M28EngUnitsReclaiming' --If have queued up reclaim order on a unit, this stors against the reclaimer the unit being reclaimed
 reftQueuedBuildings = 'M28EngQueuedBuildings' --Whenever issuebuild order is given it should update this
-    subrefQueueRef = 1 --Unique queue reference number (the same as the ref number given to the land zone)
-    subrefBuildingID = 2 --Blueprint/UnitId of the building queued
-    subrefBuildingLocation = 3 --Location the building is to be built at
-    subrefBuildingRadius = 4 --Size (radius) of the building
-    subrefPlateauOrZero = 5 --Plateau where hte building is to be built; zero if water zone
-    subrefLandOrWaterZone = 6 --Land zone where hte building is to be built
+subrefQueueRef = 1 --Unique queue reference number (the same as the ref number given to the land zone)
+subrefBuildingID = 2 --Blueprint/UnitId of the building queued
+subrefBuildingLocation = 3 --Location the building is to be built at
+subrefBuildingRadius = 4 --Size (radius) of the building
+subrefPlateauOrZero = 5 --Plateau where hte building is to be built; zero if water zone
+subrefLandOrWaterZone = 6 --Land zone where hte building is to be built
 refbBuildingExperimental = 'M28EngBuildingExperimental' --True if engineer is building an experimental andh aving itself tracked in the team table for this
 refiFailedShieldBuildDistance = 'M28EngFailedShieldBuildDist' --against a building wanting shielding - records the distance of the closest location that we can build (so can decide if the unit can even be shielded)
 refiAssignedActionPriority = 'M28EngPriority' --Priority of the currently assigned action
 
 --Actions for engineers (dont have as local variables due to cap on how many local variables we can have)
-    --Intended actions are those from M27 that havent been integrated yet
+--Intended actions are those from M27 that havent been integrated yet
 refActionBuildMex = 1
 refActionBuildHydro = 2
 refActionReclaimArea = 3
 refActionBuildPower = 4
 refActionBuildLandFactory = 5
 refActionBuildEnergyStorage = 6
-    refActionSpare = 7
-    refActionHasNearbyEnemies = 8
-    refActionUpgradeBuilding = 9
+refActionSpare = 7
+refActionHasNearbyEnemies = 8
+refActionUpgradeBuilding = 9
 refActionBuildSecondPower = 10
 refActionBuildAirStaging = 11
 refActionBuildAirFactory = 12
@@ -80,40 +80,40 @@ refActionBuildThirdPower = 20
 refActionBuildExperimental = 21
 refActionReclaimFriendlyUnit = 22
 --See below for reclaimenemyunit action
-    refActionBuildT3MexOverT2 = 23
-    refActionUpgradeHQ = 24 --Assists an HQ with its upgrade
-    refActionReclaimTrees = 25
+refActionBuildT3MexOverT2 = 23
+refActionUpgradeHQ = 24 --Assists an HQ with its upgrade
+refActionReclaimTrees = 25
 refActionBuildT1Sonar = 26
 refActionBuildT2Sonar = 27
-    refActionAssistNuke = 28
+refActionAssistNuke = 28
 refActionBuildShield = 29
-    refActionBuildT3ArtiPower = 30
+refActionBuildT3ArtiPower = 30
 refActionBuildTMD = 31
 refActionBuildAA = 32
 refActionBuildEmergencyPD = 33 --Indented values below mean not yet got the main code in place
 refActionBuildSecondLandFactory = 34
-    refActionBuildSecondAirFactory = 35
+refActionBuildSecondAirFactory = 35
 refActionBuildTML = 36
 refActionBuildSecondExperimental = 37
 refActionLoadOntoTransport = 38
-    refActionFortifyFirebase = 39
+refActionFortifyFirebase = 39
 refActionAssistShield = 40
-    refActionBuildSecondShield = 41
+refActionBuildSecondShield = 41
 refActionBuildEmergencyArti = 42 --Not yet got the main code in place that M27 used, for now just have basic placeholder that builds T2 the same as a normal building
-    refActionAssistTML = 43
+refActionAssistTML = 43
 refActionBuildQuantumGateway = 44
-    refActionBuildQuantumOptics = 45
-    refActionBuildHive = 46
-    refActionSelenMexBuild = 47
-    refActionBuildSecondTMD = 48
+refActionBuildQuantumOptics = 45
+refActionBuildHive = 46
+refActionSelenMexBuild = 47
+refActionBuildSecondTMD = 48
 refActionBuildNavalFactory = 49
 refActionAssistNavalFactory = 50
-    refActionNavalSpareAction = 51
-    refActionBuildWall = 52
-    refActionBuildT3MexOnly = 53
-    refActionAssistMexUpgrade = 54
-    refActionSAMCreep = 55 --Intended to gradually expand SAM coverage for mexes
-    refActionBuildMassFab = 56
+refActionNavalSpareAction = 51
+refActionBuildWall = 52
+refActionBuildT3MexOnly = 53
+refActionAssistMexUpgrade = 54
+refActionSAMCreep = 55 --Intended to gradually expand SAM coverage for mexes
+refActionBuildMassFab = 56
 refActionMoveToLandZone = 57
 refActionRunToLandZone = 58
 refActionMoveToWaterZone = 59
@@ -125,6 +125,7 @@ refActionCompletePartBuiltMex = 64
 refActionBuildExperimentalNavy = 65
 refActionBuildGameEnder = 66
 refActionBuildLandExperimental = 67 --e.g. for when building in water
+refActionCaptureUnit = 68
 
 --tiEngiActionsThatDontBuild = {refActionReclaimArea, refActionSpare, refActionNavalSpareAction, refActionHasNearbyEnemies, refActionReclaimFriendlyUnit, refActionReclaimTrees, refActionUpgradeBuilding, refActionAssistSMD, refActionAssistTML, refActionAssistMexUpgrade, refActionAssistAirFactory, refActionAssistNavalFactory, refActionUpgradeHQ, refActionAssistNuke, refActionLoadOntoTransport, refActionAssistShield}
 
@@ -212,6 +213,7 @@ tiActionOrder = {
     [refActionBuildExperimentalNavy] = M28Orders.refiOrderIssueBuild,
     [refActionBuildGameEnder] = M28Orders.refiOrderIssueBuild,
     [refActionBuildLandExperimental] = M28Orders.refiOrderIssueBuild,
+    [refActionCaptureUnit] = M28Orders.refiOrderIssueCapture
 }
 
 --Adjacent categories to search for for a particular action
@@ -239,6 +241,7 @@ tbActionsThatDontHaveCategory = {
     [refActionReclaimArea] = true,
     [refActionReclaimEnemyUnit] = true,
     [refActionLoadOntoTransport] = true,
+    [refActionCaptureUnit] = true,
 }
 
 tbIgnoreUnderConstructionActions = { --Any actions that are building something where would by default search for an under construction building should be set to true in this table if we dont want to, e.g. if want to build a second land factory, dont want to end up repairing a factory that is upgrading to a higher tech level; similarly for mex dont want to assist an existing engineer
@@ -1475,7 +1478,7 @@ function GetLocationToMoveForConstruction(oUnit, tTargetLocation, sBlueprintID, 
 end
 
 function BuildStructureNearLocation(aiBrain, oEngineer, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy, tAlternativePositionToLookFrom, bLookForPartCompleteBuildings, bLookForQueuedBuildings, oUnitToBuildBy, bNeverBuildRandom, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, iOptionalEngiActionRef)
---NOT USED? Might be old code copied from M27 that ended up rewriting?
+    --NOT USED? Might be old code copied from M27 that ended up rewriting?
 
     --Determines the blueprint and location for oEngineer to build at; also returns the location
     --iCatToBuildBy: Optional, specify if want to look for adjacency locations; Note to factor in 50% of the builder's size and 50% of the likely adjacency building size
@@ -3772,6 +3775,16 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                         end
                     end
                 end
+            elseif iActionToAssign == refActionCaptureUnit then
+                bDebugMessages = true
+                local oUnitToCapture = vOptionalVariable
+                if bDebugMessages == true then LOG(sFunctionRef..': oUnitToCapture='..oUnitToCapture.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToCapture)..'; iTotalBuildPowerWanted='..iTotalBuildPowerWanted..'; iEngiCount='..iEngiCount) end
+                while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
+                    if bDebugMessages == true then LOG(sFunctionRef..': About to tell engineer '..tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount])..' to reclaim nearby, iTotalBuildPowerWanted='..iTotalBuildPowerWanted..'; iEngiCount='..iEngiCount) end
+                    M28Orders.IssueTrackedCapture(tEngineersOfTechWanted[iEngiCount], oUnitToCapture, false, 'Cap', false)
+                    TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign, false, iCurPriority)
+                    UpdateBPTracking()
+                end
             else
                 if not(aiBrain[M28Overseer.refbCloseToUnitCap]) then
                     M28Utilities.ErrorHandler('Unrecognised order, need to add logic')
@@ -5697,6 +5710,24 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         if bDebugMessages == true then LOG(sFunctionRef..': Have just tried to assign an action to shield unit '..oUnitToShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToShield)) end
     end
 
+    --Units to capture
+    if M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]) == false then
+        bDebugMessages = true
+        --Refresh the list
+        local iCaptureCount = table.getn(tLZData[M28Map.subreftoUnitsToCapture])
+        for iCurCount = iCaptureCount, 1, -1 do
+            if not(M28UnitInfo.IsUnitValid(tLZData[M28Map.subreftoUnitsToCapture][iCurCount])) then
+                table.remove(tLZData[M28Map.subreftoUnitsToCapture], iCurCount)
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Have units to capture for zone '..iLandZone..' after freshing them is table empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]))) end
+        if M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]) == false then
+            local oUnitToCapture = M28Utilities.GetNearestUnit(tLZData[M28Map.subreftoUnitsToCapture], tLZData[M28Map.subrefMidpoint])
+            if bDebugMessages == true then LOG(sFunctionRef..': Unit to cpature='..oUnitToCapture.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToCapture)) end
+            HaveActionToAssign(refActionCaptureUnit, 1, 25, oUnitToCapture)
+        end
+    end
+
     --Shield assistance
     iCurPriority = iCurPriority + 1
     iBPWanted = GetBPForShieldAssistance(tLZTeamData, iTeam)
@@ -5948,6 +5979,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     iCurPriority = iCurPriority + 1
     iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
     if iHighestTechEngiAvailable > 0 then
+
         if bDebugMessages == true then LOG(sFunctionRef..': Table of adjacnet LZs='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones])) end
         if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones]) == false then
             local iBPAlreadyTraveling = 0
@@ -5970,6 +6002,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             end
         end
     end
+
 
     --Adjacent water zones that want an engineer
     iCurPriority = iCurPriority + 1
@@ -6406,6 +6439,21 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
             iBPWanted = 45
             HaveActionToAssign(refActionBuildLandExperimental, 3, iBPWanted, false, false, true)
             if bDebugMessages == true then LOG(sFunctionRef..': Want experimental naval unit, iBPWanted='..iBPWanted) end
+        end
+    end
+
+    --Units to capture
+    if M28Utilities.IsTableEmpty(tWZData[M28Map.subreftoUnitsToCapture]) == false then
+        --Refresh the list
+        local iCaptureCount = table.getn(tWZData[M28Map.subreftoUnitsToCapture])
+        for iCurCount = iCaptureCount, 1, -1 do
+            if not(M28UnitInfo.IsUnitValid(tWZData[M28Map.subreftoUnitsToCapture][iCurCount])) then
+                table.remove(tWZData[M28Map.subreftoUnitsToCapture], iCurCount)
+            end
+        end
+        if M28Utilities.IsTableEmpty(tWZData[M28Map.subreftoUnitsToCapture]) == false then
+            local oUnitToCapture = M28Utilities.GetNearestUnit(tWZData[M28Map.subreftoUnitsToCapture], tWZData[M28Map.subrefMidpoint])
+            HaveActionToAssign(refActionCaptureUnit, 1, 25, oUnitToCapture)
         end
     end
 
