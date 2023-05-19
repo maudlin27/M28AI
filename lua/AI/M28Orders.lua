@@ -39,6 +39,7 @@ refiOrderReleaseStoredUnits = 18 --e.g. for air staging to release units; uses t
 refiOrderUnloadTransport = 19
 refiOrderLoadOntoTransport = 20
 refiOrderIssueTMLMissile = 21
+refiOrderIssueCapture = 22
 
 --Other tracking: Against units
 toUnitsOrderedToRepairThis = 'M28OrderRepairing' --Table of units given an order to repair the unit
@@ -751,6 +752,28 @@ function IssueTrackedTMLMissileLaunch(oUnit, tOrderPosition, iDistanceToReissueO
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueTMLMissile, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
         IssueTactical({oUnit}, tOrderPosition)
+    end
+    if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
+end
+
+function IssueTrackedCapture(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
+    UpdateRecordedOrders(oUnit)
+    --Issue order if we arent already trying to attack them
+    local tLastOrder
+    if oUnit[reftiLastOrders] then
+        if bAddToExistingQueue then
+            tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]]
+        else tLastOrder = oUnit[reftiLastOrders][1]
+        end
+    end
+
+
+    if not(tLastOrder[subrefiOrderType] == refiOrderIssueCapture and oOrderTarget == tLastOrder[subrefoOrderUnitTarget]) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
+        if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
+        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
+        oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
+        table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueCapture, [subrefoOrderUnitTarget] = oOrderTarget})
+        IssueCapture({oUnit}, oOrderTarget)
     end
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 end

@@ -1271,21 +1271,38 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
 
 
         --Update the support rally point, and record pathing of other land and air zones to it if havent previously
+        bDebugMessages = true
         local tStartLZOrWZData
-        if bDebugMessages == true then LOG(sFunctionRef..': About to get the plateau and zone for air support point='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])) end
+        if bDebugMessages == true then LOG(sFunctionRef..': About to get the plateau and zone for air support point='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])..'; tPreferredRallyPoint='..repru(tPreferredRallyPoint)..'; tSupportRallyPoint='..repru(tSupportRallyPoint)) end
         local tStartMidpoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]
         local iStartPlateau, iStartLZOrWZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tStartMidpoint)
         if (iStartPlateau or 0) > 0 and (iStartLZOrWZ or 0) == 0 then
             iStartLZOrWZ = M28Map.GetWaterZoneFromPosition(tStartMidpoint)
-            tSupportRallyPoint = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iStartLZOrWZ]][M28Map.subrefPondWaterZones][iStartLZOrWZ][M28Map.subrefMidpoint]
-            tStartLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iStartLZOrWZ]][M28Map.subrefPondWaterZones][iStartLZOrWZ]
+            if (iStartLZOrWZ or 0) > 0 then
+                tStartLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iStartLZOrWZ]][M28Map.subrefPondWaterZones][iStartLZOrWZ]
+            end
         else
-            tSupportRallyPoint = M28Map.tAllPlateaus[iStartPlateau][M28Map.subrefPlateauLandZones][iStartLZOrWZ][M28Map.subrefMidpoint]
             tStartLZOrWZData = M28Map.tAllPlateaus[iStartPlateau][M28Map.subrefPlateauLandZones][iStartLZOrWZ]
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': About to record the land and water zones by order of distance to iStartPlateau '..(iStartPlateau or 'nil')..'; iStartLZOrWZ='..(iStartLZOrWZ or 'nil')) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished trying to get tStartLZOrWZData using base logic, is this nil='..tostring(tStartLZOrWZData == nil)..'; tStartMidpoint='..repru(tStartMidpoint)) end
+        --if not(tStartLZOrWZData) then
+          --  iStartPlateau, iStartLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tStartMidpoint)
+            --if iStartPlateau == 0 and (iStartLZOrWZ or 0) > 0 then
+              --  tStartLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iStartLZOrWZ]][M28Map.subrefPondWaterZones][iStartLZOrWZ]
+            --elseif (iStartLZOrWZ or 0) > 0 then
+--                tStartLZOrWZData = M28Map.tAllPlateaus[iStartPlateau][M28Map.subrefPlateauLandZones][iStartLZOrWZ]
+--            end
+--        end
+        if tStartLZOrWZData then
+            if bDebugMessages == true then LOG(sFunctionRef..': Temp marker') end
+            tSupportRallyPoint = tStartLZOrWZData[M28Map.subrefMidpoint]
+            if bDebugMessages == true then LOG(sFunctionRef..': About to record the land and water zones by order of distance to iStartPlateau '..(iStartPlateau or 'nil')..'; iStartLZOrWZ='..(iStartLZOrWZ or 'nil')..'; zone midpoint='..repru(tStartLZOrWZData)) end
 
-        RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartMidpoint)
+            RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartMidpoint)
+        else
+            if bDebugMessages == true then LOG(sFunctionRef..': Werent able to find a start LZOrWZData, tSupportRallyPoint='..repru(tSupportRallyPoint)..'; iStartPlateau '..(iStartPlateau or 'nil')..'; iStartLZOrWZ='..(iStartLZOrWZ or 'nil')) end
+
+        end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

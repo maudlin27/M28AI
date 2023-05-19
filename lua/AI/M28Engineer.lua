@@ -125,6 +125,7 @@ refActionCompletePartBuiltMex = 64
 refActionBuildExperimentalNavy = 65
 refActionBuildGameEnder = 66
 refActionBuildLandExperimental = 67 --e.g. for when building in water
+refActionCaptureUnit = 68
 
 --tiEngiActionsThatDontBuild = {refActionReclaimArea, refActionSpare, refActionNavalSpareAction, refActionHasNearbyEnemies, refActionReclaimFriendlyUnit, refActionReclaimTrees, refActionUpgradeBuilding, refActionAssistSMD, refActionAssistTML, refActionAssistMexUpgrade, refActionAssistAirFactory, refActionAssistNavalFactory, refActionUpgradeHQ, refActionAssistNuke, refActionLoadOntoTransport, refActionAssistShield}
 
@@ -212,6 +213,7 @@ tiActionOrder = {
     [refActionBuildExperimentalNavy] = M28Orders.refiOrderIssueBuild,
     [refActionBuildGameEnder] = M28Orders.refiOrderIssueBuild,
     [refActionBuildLandExperimental] = M28Orders.refiOrderIssueBuild,
+    [refActionCaptureUnit] = M28Orders.refiOrderIssueCapture
 }
 
 --Adjacent categories to search for for a particular action
@@ -239,6 +241,7 @@ tbActionsThatDontHaveCategory = {
     [refActionReclaimArea] = true,
     [refActionReclaimEnemyUnit] = true,
     [refActionLoadOntoTransport] = true,
+    [refActionCaptureUnit] = true,
 }
 
 tbIgnoreUnderConstructionActions = { --Any actions that are building something where would by default search for an under construction building should be set to true in this table if we dont want to, e.g. if want to build a second land factory, dont want to end up repairing a factory that is upgrading to a higher tech level; similarly for mex dont want to assist an existing engineer
@@ -3772,6 +3775,16 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                         end
                     end
                 end
+            elseif iActionToAssign == refActionCaptureUnit then
+                bDebugMessages = true
+                local oUnitToCapture = vOptionalVariable
+                if bDebugMessages == true then LOG(sFunctionRef..': oUnitToCapture='..oUnitToCapture.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToCapture)..'; iTotalBuildPowerWanted='..iTotalBuildPowerWanted..'; iEngiCount='..iEngiCount) end
+                while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
+                    if bDebugMessages == true then LOG(sFunctionRef..': About to tell engineer '..tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount])..' to reclaim nearby, iTotalBuildPowerWanted='..iTotalBuildPowerWanted..'; iEngiCount='..iEngiCount) end
+                    M28Orders.IssueTrackedCapture(tEngineersOfTechWanted[iEngiCount], oUnitToCapture, false, 'Cap', false)
+                    TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign, false, iCurPriority)
+                    UpdateBPTracking()
+                end
             else
                 if not(aiBrain[M28Overseer.refbCloseToUnitCap]) then
                     M28Utilities.ErrorHandler('Unrecognised order, need to add logic')
@@ -5697,6 +5710,24 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         if bDebugMessages == true then LOG(sFunctionRef..': Have just tried to assign an action to shield unit '..oUnitToShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToShield)) end
     end
 
+    --Units to capture
+    if M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]) == false then
+        bDebugMessages = true
+        --Refresh the list
+        local iCaptureCount = table.getn(tLZData[M28Map.subreftoUnitsToCapture])
+        for iCurCount = iCaptureCount, 1, -1 do
+            if not(M28UnitInfo.IsUnitValid(tLZData[M28Map.subreftoUnitsToCapture][iCurCount])) then
+                table.remove(tLZData[M28Map.subreftoUnitsToCapture], iCurCount)
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Have units to capture for zone '..iLandZone..' after freshing them is table empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]))) end
+        if M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]) == false then
+            local oUnitToCapture = M28Utilities.GetNearestUnit(tLZData[M28Map.subreftoUnitsToCapture], tLZData[M28Map.subrefMidpoint])
+            if bDebugMessages == true then LOG(sFunctionRef..': Unit to cpature='..oUnitToCapture.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToCapture)) end
+            HaveActionToAssign(refActionCaptureUnit, 1, 25, oUnitToCapture)
+        end
+    end
+
     --Shield assistance
     iCurPriority = iCurPriority + 1
     iBPWanted = GetBPForShieldAssistance(tLZTeamData, iTeam)
@@ -6406,6 +6437,21 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
             iBPWanted = 45
             HaveActionToAssign(refActionBuildLandExperimental, 3, iBPWanted, false, false, true)
             if bDebugMessages == true then LOG(sFunctionRef..': Want experimental naval unit, iBPWanted='..iBPWanted) end
+        end
+    end
+
+    --Units to capture
+    if M28Utilities.IsTableEmpty(tWZData[M28Map.subreftoUnitsToCapture]) == false then
+        --Refresh the list
+        local iCaptureCount = table.getn(tWZData[M28Map.subreftoUnitsToCapture])
+        for iCurCount = iCaptureCount, 1, -1 do
+            if not(M28UnitInfo.IsUnitValid(tWZData[M28Map.subreftoUnitsToCapture][iCurCount])) then
+                table.remove(tWZData[M28Map.subreftoUnitsToCapture], iCurCount)
+            end
+        end
+        if M28Utilities.IsTableEmpty(tWZData[M28Map.subreftoUnitsToCapture]) == false then
+            local oUnitToCapture = M28Utilities.GetNearestUnit(tWZData[M28Map.subreftoUnitsToCapture], tWZData[M28Map.subrefMidpoint])
+            HaveActionToAssign(refActionCaptureUnit, 1, 25, oUnitToCapture)
         end
     end
 
