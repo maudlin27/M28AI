@@ -2803,8 +2803,12 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam)
             end
         end
         for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains] do
-            tAllyBases[oBrain:GetArmyIndex()] = PlayerStartPoints[oBrain:GetArmyIndex()]
-            tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
+            if bDebugMessages == true then LOG(sFunctionRef..': Cycling through friedly active brains in iTeam='..iTeam..'; oBrain.Nickname='..(oBrain.Nickname or 'nil')..' with start position '..repru(PlayerStartPoints[oBrain:GetArmyIndex()])..'; bIsCampaignMap='..tostring(bIsCampaignMap)..'; Navy result for brain start='..(NavUtils.GetTerrainLabel(refPathingTypeNavy, PlayerStartPoints[oBrain:GetArmyIndex()]) or 'nil')..'; Brain type='..(oBrain.BrainType or 'nil')..'; Playable area='..repru(rMapPlayableArea)) end
+            --Campaign specific - check this is on a valid land zone
+            if not(bIsCampaignMap) or not(oBrain.BrainType == "AI") or oBrain.M28AI or ((NavUtils.GetTerrainLabel(refPathingTypeNavy, PlayerStartPoints[oBrain:GetArmyIndex()]) or 0) > 0 and IsInPlayableArea(PlayerStartPoints[oBrain:GetArmyIndex()])) then
+                tAllyBases[oBrain:GetArmyIndex()] = PlayerStartPoints[oBrain:GetArmyIndex()]
+                tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
+            end
         end
 
         if M28Utilities.IsTableEmpty(tEnemyBases) then
@@ -2818,7 +2822,7 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam)
         --Update water zones
         if bDebugMessages == true then LOG(sFunctionRef..': About to start with updating water zone information, GameTime='..GetGameTimeSeconds()..'; bMapLandSetupComplete='..tostring(bMapLandSetupComplete or false)..'; bHaveConsideredPreferredPondForM28AI='..tostring(bHaveConsideredPreferredPondForM28AI or false)) end
         for iPond, tPondSubtable in tPondDetails do
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering iPond='..iPond..'; reprs of tPondSubtable='..reprs(tPondSubtable)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering iPond='..iPond) end
             for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
                 if not(tWZData[subrefWZTeamData]) then tWZData[subrefWZTeamData] = {} end
                 if not(tWZData[subrefWZTeamData][iTeam]) then tWZData[subrefWZTeamData][iTeam] = {} end

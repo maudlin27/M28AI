@@ -2989,7 +2989,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                     table.insert(tMobileShields, oUnit)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileLandStealth, oUnit.UnitId) then
                     table.insert(tMobileStealths, oUnit)
-                elseif EntityCategoryContains(M28UnitInfo.refCategoryRASSACU, oUnit.UnitId) and bUseRASInCombat then
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryRASSACU, oUnit.UnitId) and not(bUseRASInCombat) then
                     table.insert(tRASSACU, oUnit)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryMobileLand - categories.COMMAND, oUnit.UnitId) then
                     --Tanks, skirmishers, and indirect fire units - handled by main combat unit manager

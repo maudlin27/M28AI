@@ -180,7 +180,7 @@ tAirSubteamData = {}
     reftiTorpedoDefenceWaterZones = 'M28ASTTorpDef' --Contains water zones that want torpedo bombers to consider defending
     refoFrontGunship = 'M28ASTFrntGshp' --Front available gunship
     refiTimeLastTriedBuildingTransport = 'M28TimeLastTrns' --Gametimeseconds that someone on air subteam tried building an air transport
-
+    refbGunshipsHadAttackOrderLastCycle = 'M28GunshipAtck' --True if the last time we ran gunship cycle we had a unit to attack (to reduce likelihood gunships appraoch somewhere then upon entering a new zone with slightly different adjacent enemy zones we decide to retreat)
 
 
 --Land subteam data varaibles (used for factory production logic)
