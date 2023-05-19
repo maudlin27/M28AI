@@ -1780,10 +1780,8 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                     end
                     if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefAdjacentLandZones]) == false then
                         for iEntry, tSubtable in tWZData[M28Map.subrefAdjacentLandZones] do
-                            bDebugMessages = true
                             if bDebugMessages == true then LOG(sFunctionRef..': About to add enemy air in land zone if no AA, iEntry='..iEntry..'; tSubtable='..repru(tSubtable)..'; tSubtable[M28Map.subrefWPlatAndLZNumber][1]='..(tSubtable[M28Map.subrefWPlatAndLZNumber][1] or 'nil')..'; tSubtable[M28Map.subrefWPlatAndLZNumber][2]='..(tSubtable[M28Map.subrefWPlatAndLZNumber][2] or 'nil')) end
                             AddEnemyAirInLandZoneIfNoAA(tSubtable[M28Map.subrefWPlatAndLZNumber][1], tSubtable[M28Map.subrefWPlatAndLZNumber][2], false, refiAASearchType)
-                            bDebugMessages = false
                         end
                     end
                     if not(tbAdjacentWaterZonesConsidered[refiAASearchType]) then tbAdjacentWaterZonesConsidered[refiAASearchType] = {} end

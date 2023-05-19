@@ -1364,7 +1364,7 @@ function IdleFactoryMonitor(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     while not (aiBrain.M28IsDefeated) do
-        local tOurFactories = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryFactory, false, true)
+        local tOurFactories = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway, false, true)
         local tCommandQueue
         local sBPToBuild
         if M28Utilities.IsTableEmpty(tOurFactories) == false then
@@ -2238,7 +2238,7 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
 
     --Build RAS SACUs
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if not(bHaveLowPower) then
+    if not(bHaveLowPower) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 750 then
         if bDebugMessages == true then LOG(sFunctionRef..': Will try to build RAS SACU') end
         if ConsiderBuildingCategory(M28UnitInfo.refCategoryRASSACU) then
             if bDebugMessages == true then LOG(sFunctionRef..': Foudn a RAS SACU blueprint to build='..(sBPIDToBuild or 'nil')) end

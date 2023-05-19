@@ -3776,7 +3776,6 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                     end
                 end
             elseif iActionToAssign == refActionCaptureUnit then
-                bDebugMessages = true
                 local oUnitToCapture = vOptionalVariable
                 if bDebugMessages == true then LOG(sFunctionRef..': oUnitToCapture='..oUnitToCapture.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToCapture)..'; iTotalBuildPowerWanted='..iTotalBuildPowerWanted..'; iEngiCount='..iEngiCount) end
                 while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
@@ -5322,7 +5321,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     --Quantum gateway for high AiX modifier and campaign, once we are at T3 mexes for the LZ
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to build quantum gateway, MexCountByTech='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; bHaveLowPower='..tostring(bHaveLowPower)..'; mass storage locations empty?='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMassStorageLocationsAvailable]))..'; mass stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]) end
-    if not(bHaveLowPower) and (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 11)) and (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 6 or (tLZTeamData[M28Map.subrefMexCountByTech][2] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][1] == 0)) and M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMassStorageLocationsAvailable]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 0 then
+    if not(bHaveLowPower) and (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 11) or (M28Map.bIsCampaignMap and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 13)) and (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 6 or (tLZTeamData[M28Map.subrefMexCountByTech][2] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][1] == 0)) and (M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMassStorageLocationsAvailable]) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 or (M28Map.bIsCampaignMap and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 14)) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 0 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 30) then
         --Are we in campaign (where ecoing more important) or AiX 1.2+?
         local iHighestCheatModifier = 1
         if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
@@ -5351,6 +5350,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             if bDebugMessages == true then LOG(sFunctionRef..': bHaveQuantumGateway='..tostring(bHaveQuantumGateway or false)) end
             if not(bHaveQuantumGateway) then
                 HaveActionToAssign(refActionBuildQuantumGateway, 3, iBPWanted)
+                if bDebugMessages == true then LOG(sFunctionRef..': Will try and assign '..iBPWanted..' to building a quantum gateway') end
             end
         end
     end
@@ -5712,7 +5712,6 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
 
     --Units to capture
     if M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]) == false then
-        bDebugMessages = true
         --Refresh the list
         local iCaptureCount = table.getn(tLZData[M28Map.subreftoUnitsToCapture])
         for iCurCount = iCaptureCount, 1, -1 do

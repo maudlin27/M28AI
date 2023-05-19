@@ -1970,24 +1970,41 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
         end
     end
     if oGateway then
-        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.05 and not(M28Conditions.HaveLowPower(iTeam)) then
-            bNotAssistingGateway = false
-            for iUnit, oUnit in tRASSACU do
-                M28Orders.IssueTrackedGuard(oUnit, oGateway, false, 'RASQG', false)
+        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.05 and not(M28Conditions.HaveLowPower(iTeam)) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 80 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+            if M28Map.bIsCampaignMap or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 100 then
+                bNotAssistingGateway = false
+                for iUnit, oUnit in tRASSACU do
+                    M28Orders.IssueTrackedGuard(oUnit, oGateway, false, 'RASQG', false)
+                end
             end
         end
     end
     if bNotAssistingGateway then
-        local tUnitsToAssist
-        --If have upgrading unit then assist this
-        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]) == false then tUnitsToAssist = tLZTeamData[M28Map.subrefActiveUpgrades]
-        else
-            --Assist shield if need to defend from arti
-            if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]) == false then
-                tUnitsToAssist = tLZTeamData[M28Map.reftPriorityShieldsToAssist]
+        local tUnitsToAssist = {}
+        --If building an experimental and dont have low mass then assist it
+        if not(M28Conditions.TeamHasLowMass(iTeam)) and not(M28Conditions.HaveLowPower(iTeam)) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals]) == false then
+
+            local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
+            local tExperimentalLevelUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryExperimentalLevel, tLZData[M28Map.subrefMidpoint], 100, 'Ally')
+            if M28Utilities.IsTableEmpty( tExperimentalLevelUnits) == false then
+                for iUnit, oUnit in tExperimentalLevelUnits do
+                    if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() < 1 then
+                        table.insert(tUnitsToAssist, oUnit)
+                    end
+                end
+            end
+        end
+        if M28Utilities.IsTableEmpty(tUnitsToAssist) then
+            --If have upgrading unit then assist this
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]) == false then tUnitsToAssist = tLZTeamData[M28Map.subrefActiveUpgrades]
             else
-                --otherwise assist an air factory if we have one
-                tUnitsToAssist = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                --Assist shield if need to defend from arti
+                if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]) == false then
+                    tUnitsToAssist = tLZTeamData[M28Map.reftPriorityShieldsToAssist]
+                else
+                    --otherwise assist an air factory if we have one
+                    tUnitsToAssist = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                end
             end
         end
 
@@ -2000,7 +2017,7 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
             if not(M28UnitInfo.IsUnitValid(oClosestUnitToAssist)) then M28Utilities.ErrorHandler('No unit to assist for RAS', true)
             else
                 for iUnit, oUnit in tRASSACU do
-                    M28Orders.IssueTrackedGuard(oUnit, oGateway, false, 'RASAs', false)
+                    M28Orders.IssueTrackedGuard(oUnit, oClosestUnitToAssist, false, 'RASAs', false)
                 end
             end
 
