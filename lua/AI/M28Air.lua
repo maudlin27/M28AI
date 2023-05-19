@@ -1284,8 +1284,17 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
             tStartLZOrWZData = M28Map.tAllPlateaus[iStartPlateau][M28Map.subrefPlateauLandZones][iStartLZOrWZ]
         end
         if bDebugMessages == true then LOG(sFunctionRef..': About to record the land and water zones by order of distance to iStartPlateau '..(iStartPlateau or 'nil')..'; iStartLZOrWZ='..(iStartLZOrWZ or 'nil')) end
-
-        RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartMidpoint)
+        if not(tStartLZOrWZData) then
+            iStartPlateau, iStartLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tStartMidpoint)
+            if iStartPlateau == 0 and (iStartLZOrWZ or 0) > 0 then
+              tStartLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iStartLZOrWZ]][M28Map.subrefPondWaterZones][iStartLZOrWZ]
+            elseif (iStartLZOrWZ or 0) > 0 then
+                            tStartLZOrWZData = M28Map.tAllPlateaus[iStartPlateau][M28Map.subrefPlateauLandZones][iStartLZOrWZ]
+            end
+        end
+        if tStartLZOrWZData then
+            RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartMidpoint)
+        end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
