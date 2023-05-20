@@ -470,6 +470,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][subreftTeamEngineersBuildingExperimentals] = {}
     tTeamData[iTotalTeamCount][refiLastFailedIslandDropTime] = {}
     tTeamData[iTotalTeamCount][subrefbUseFrigatesAsScoutsByPond] = {}
+    M28Engineer.tiLastBuildingSizeFromActionForTeam[iTotalTeamCount] = {}
 
 
 

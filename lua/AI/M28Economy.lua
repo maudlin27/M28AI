@@ -653,15 +653,21 @@ function ConsiderReclaimingPower(iTeam, oPowerJustBuilt)
     if iPowerTechLevel == 2 then
         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 100 and not(M28Team.tTeamData[iTeam][M28Team.subrefbActiveT1PowerReclaimer]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbActiveT2PowerReclaimer]) then
             if bDebugMessages == true then LOG(sFunctionRef..': Will check for t1 power that we can reclaim') end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             CheckForUnitsToReclaimOfCategory(iTeam, M28UnitInfo.refCategoryT1Power, M28Team.subrefbActiveT1PowerReclaimer)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         end
     elseif iPowerTechLevel == 3 then
         if not(M28Team.tTeamData[iTeam][M28Team.subrefbActiveT2PowerReclaimer]) then
             if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 600 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 CheckForUnitsToReclaimOfCategory(iTeam, M28UnitInfo.refCategoryT1Power + M28UnitInfo.refCategoryT2Power, M28Team.subrefbActiveT2PowerReclaimer)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
             elseif not(M28Team.tTeamData[iTeam][M28Team.subrefbActiveT1PowerReclaimer]) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Built T3 PGen, but sitll low gross energy, Will check for t1 power that we can reclaim') end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 CheckForUnitsToReclaimOfCategory(iTeam, M28UnitInfo.refCategoryT1Power, M28Team.subrefbActiveT1PowerReclaimer)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
             end
         end
     end

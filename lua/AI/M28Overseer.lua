@@ -651,7 +651,9 @@ function RevealCiviliansToAI(aiBrain)
         if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..(oBrain.Nickname or 'nil')..' with index '..oBrain:GetArmyIndex()..' for aiBrain '..aiBrain.Nickname..'; Is enemy='..tostring(IsEnemy(iOurIndex, iBrainIndex))..'; ArmyIsCivilian(iBrainIndex)='..tostring(ArmyIsCivilian(iBrainIndex))..'; oBrain[refiTemporarilySetAsAllyForTeam]='..(oBrain[refiTemporarilySetAsAllyForTeam] or 'nil')..'; Our team='..aiBrain.M28Team) end
         if ArmyIsCivilian(iBrainIndex) then
             while(oBrain[refiTemporarilySetAsAllyForTeam] and not(oBrain[refiTemporarilySetAsAllyForTeam] == aiBrain.M28Team)) do
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 WaitTicks(1)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                 iTotalWait = iTotalWait + 1
                 if iTotalWait >= 12 then
                     break
@@ -708,9 +710,9 @@ end
 function GetCivilianCaptureTargets(aiBrain)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetCivilianCaptureTargets'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     WaitTicks(1)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     local tStartPoint = M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()]
     local iPlateauWanted, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tStartPoint)
     local iClosestEnemyBase = M28Map.iMapSize
@@ -845,7 +847,9 @@ function CheckForAlliedCampaignUnitsToShareAtGameStart(aiBrain)
         if M28Utilities.IsTableEmpty(tHumanBrains) == false then
             while M28Utilities.IsTableEmpty(tNearbyStructures) do
                 if iWaitCount > 0 then
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     WaitTicks(1)
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                 end
                 iWaitCount = iWaitCount + 1
                 for iBrain, oBrain in tHumanBrains do
@@ -966,7 +970,9 @@ function CheckForScenarioObjectives()
         bActiveMissionChecker = true
 
         while not(M28Map.bMapLandSetupComplete) do
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitSeconds(1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
             if M28Utilities.IsTableEmpty(tAllActiveM28Brains) then break end
         end
         local iTeam
@@ -984,7 +990,9 @@ function CheckForScenarioObjectives()
         local sMissionRef
         if bDebugMessages == true then LOG(sFunctionRef..': About to start main loop, is table of active M28 brains empty='..tostring(M28Utilities.IsTableEmpty(tAllActiveM28Brains))) end
         while M28Utilities.IsTableEmpty(tAllActiveM28Brains) == false do
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitSeconds(60)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
             --Check for new objectives
             for iMission = math.max(1, iLastMissionConsidered), iLastMissionConsidered + 1 do
                 for iPrimaryObjective = 1, 5 do

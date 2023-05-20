@@ -1241,12 +1241,13 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
         end
 
         local iWorkProgressStart = (oFactory:GetWorkProgress() or 0)
+        local iTicksToWait = 1
 
         while not (bProceed) do
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-            WaitTicks(1)
+            WaitTicks(iTicksToWait)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-            iTicksWaited = iTicksWaited + 1
+            iTicksWaited = iTicksWaited + iTicksToWait
             if M28UnitInfo.IsUnitValid(oFactory) == false then
                 return nil
             end
@@ -1258,6 +1259,8 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
             if iTicksWaited >= 200 then
                 M28Utilities.ErrorHandler('oFactory has waited more than 200 ticks and still isnt showing as ready to build, oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; brain nickname=' .. oFactory:GetAIBrain().Nickname .. '; Work progress=' .. oFactory:GetWorkProgress() .. '; Factory fraction complete=' .. oFactory:GetFractionComplete() .. '; Factory status=' .. M28UnitInfo.GetUnitState(oFactory) .. '; Is command queue empty=' .. tostring(M28Utilities.IsTableEmpty(oFactory:GetCommandQueue())) .. '; iWorkProgressStart=' .. (iWorkProgressStart or 'nil'), true)
                 break
+            elseif iTicksWaited >= 40 then
+                iTicksToWait = math.min(iTicksToWait + 1, 10)
             end
         end
         if bProceed then
@@ -1271,7 +1274,9 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                     M28Orders.IssueTrackedFactoryBuild(oFactory, sBPToBuild, bDontWait)
                 end
             else
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 WaitTicks(10)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                 if M28UnitInfo.IsUnitValid(oFactory) then
                     local bSelfDestructIfLowMass = false
                     local iExistingT3Factories = 0

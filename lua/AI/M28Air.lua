@@ -745,7 +745,7 @@ function CalculateAirTravelPath(iStartPlateauOrZero, iStartLandOrWaterZone, iEnd
             if bDebugMessages == true then LOG(sFunctionRef..': Will use pathing in opposite direction') end
             --M28Profiler.FunctionProfiler(sFunctionRef..': TabMirror', M28Profiler.refProfilerEnd)
         else
-            --M28Profiler.FunctionProfiler(sFunctionRef..': Detail', M28Profiler.refProfilerStart)
+            M28Profiler.FunctionProfiler(sFunctionRef..': Detail', M28Profiler.refProfilerStart)
             tAirZonePathingFromZoneToZone[iStartPlateauOrZero][iStartLandOrWaterZone][iEndPlateauOrZero][iEndLandOrWaterZone] = {} --need here not above or else we end up thinking there is an entry already
 
             --Determine the path - move in a straight line from the start point towards the end point in periodic intervals, checking for the zones to include
@@ -963,7 +963,7 @@ function CalculateAirTravelPath(iStartPlateauOrZero, iStartLandOrWaterZone, iEnd
                     end
                 end
             end
-            --M28Profiler.FunctionProfiler(sFunctionRef..': Detail', M28Profiler.refProfilerEnd)
+            M28Profiler.FunctionProfiler(sFunctionRef..': Detail', M28Profiler.refProfilerEnd)
 
             if bDebugMessages == true then LOG(sFunctionRef..': Finished updating tBaseTableRef, WaterZonesInPath='..repru(tBaseTableRef[subreftWaterZonesInPath])..'; Land zones in path='..repru(tBaseTableRef[subreftPlateauAndLandZonesInPath])) end
         end
