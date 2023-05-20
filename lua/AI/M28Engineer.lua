@@ -618,13 +618,20 @@ function SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateau, iLandO
     if iSegmentStart > iTotalSegments then iSegmentStart = 1 end
     local iSegmentsConsidered = 0
     local tSegmentXZ
-    local iMaxSegmentsToConsiderWithMatches = math.max(50, (iOptionalMaxSegmentsToConsider or 0))
-    local iMaxSegmentsToConsiderWithoutMatches = math.max(500, (iOptionalMaxSegmentsToConsider or 0))
+    local iMaxSegmentsToConsiderWithMatches
+    local iMaxSegmentsToConsiderWithoutMatches
+    if GetGameTimeSeconds() <= 600 or M28Overseer.refiRoughTotalUnitsInGame <= 500 then
+        iMaxSegmentsToConsiderWithMatches = math.max(50, (iOptionalMaxSegmentsToConsider or 0))
+        iMaxSegmentsToConsiderWithoutMatches = math.max(500, (iOptionalMaxSegmentsToConsider or 0))
+    else
+        iMaxSegmentsToConsiderWithMatches = math.min(25, (iOptionalMaxSegmentsToConsider or 0))
+        iMaxSegmentsToConsiderWithoutMatches = math.min(75, (iOptionalMaxSegmentsToConsider or 0))
+    end
 
 
     --Cycle through every segment in the land/water zone and see if we can build the desired unit at the segment midpoint
     if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through each segment to check for buildable locations. iPlateau='..iPlateau..'; iLandOrWaterZone='..iLandOrWaterZone..'; iSize='..iSize..'; iOptionalMaxSegmentsToConsider='..(iOptionalMaxSegmentsToConsider or 'nil')..'; iSegmentStart='..iSegmentStart..'; iTotalSegments='..iTotalSegments) end
-    for iSegmentCount = iSegmentStart, iTotalSegments do
+    for iSegmentCount = iSegmentStart, math.min(iTotalSegments, iSegmentStart + iMaxSegmentsToConsiderWithoutMatches) do
         iSegmentsConsidered = iSegmentsConsidered + 1
         tSegmentXZ = tLZOrWZData[iSegmentRef][iSegmentCount]
         tCurPosition = M28Map.GetPositionFromPathingSegments(tSegmentXZ[1], tSegmentXZ[2])

@@ -384,6 +384,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
     --Track team total threat - first remove the previous entry, then add in the new entry
     M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] - tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]
     M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] - tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]
+    M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] - tLZTeamData[M28Map.subrefLZThreatAllyMAA]
     M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] - tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]
 
 
@@ -473,7 +474,9 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         local tStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tLZTeamData[M28Map.subrefLZTAlliedUnits])
         tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] = M28UnitInfo.GetCombatThreatRating(tLZTeamData[M28Map.subrefLZTAlliedUnits], false)
         tLZTeamData[M28Map.subrefLZThreatAllyStructureIndirect] = M28UnitInfo.GetCombatThreatRating(tStructures, false, false, true)
-        tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] = M28UnitInfo.GetAirThreatLevel(tLZTeamData[M28Map.subrefLZTAlliedUnits], false, false, true, false, false, false)
+        tLZTeamData[M28Map.subrefLZThreatAllyMAA] = M28UnitInfo.GetAirThreatLevel(tMobileUnits, false, false, true, false, false, false)
+        tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] = M28UnitInfo.GetAirThreatLevel(tStructures, false, false, true, false, false, false) + tLZTeamData[M28Map.subrefLZThreatAllyMAA]
+
         tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange] = nil
         tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange] = nil
         tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange] = nil
@@ -522,6 +525,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
 
         M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] + tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]
         M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] + tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]
+        M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] + tLZTeamData[M28Map.subrefLZThreatAllyMAA]
         M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] + tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]
 
     end

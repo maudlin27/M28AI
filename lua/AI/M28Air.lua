@@ -584,7 +584,7 @@ function GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, iCategory)
                                     M28Orders.UpdateRecordedOrders(oUnit)--]]
                             else
                                 --Bombers - remove any assigned strike damage; AirAA - still treat as available
-                                if oExistingValidAttackTarget then
+                                if oExistingValidAttackTarget and EntityCategoryContains(M28UnitInfo.refCategoryBomber + M28UnitInfo.refCategoryTorpBomber, oUnit.UnitId) then
                                     RemoveAssignedAttacker(oExistingValidAttackTarget, oUnit)
                                 end
                                 --Unit not refueling, and not got special micro - consider if we want it to refuel
