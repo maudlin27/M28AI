@@ -414,6 +414,10 @@ function NoRushMonitor()
 end
 
 function TestCustom(aiBrain)
+    --AiX 10.0
+    ScenarioInfo.Options.CheatMult = tostring(10.0)
+    ScenarioInfo.Options.BuildMult = tostring(10.0)
+
     --Hook assist order
     --[[local M28OldIssueGuard = _G.IssueGuard
     _G.IssueGuard = function(units, target)
@@ -783,7 +787,7 @@ end
 
 function OverseerManager(aiBrain)
     --ForkThread(DebugCheck,aiBrain)
-    --ForkThread(TestCustom, aiBrain)
+    ForkThread(TestCustom, aiBrain)
 
     --Make sure map setup will be done
     WaitTicks(1)
