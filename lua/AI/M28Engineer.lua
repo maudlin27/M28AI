@@ -314,21 +314,29 @@ function CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOption
             local iSkirtSizeRadius = __blueprints[sBlueprintToBuild].Physics.SkirtSizeX * 0.5
             if bCheckForQueuedBuildings == true then
                 if iOptionalPlateauGroupOrZero and iOptionalLandOrWaterZone then
-                    local iBuildingSize = M28UnitInfo.GetBuildingSize(sBlueprintToBuild)
-                    local tLZOrWZTeamData
+                    --local iBuildingSize = M28UnitInfo.GetBuildingSize(sBlueprintToBuild)
+                    local iBuildingRadius = math.floor(M28UnitInfo.GetBuildingSize(sBlueprintToBuild) * 0.5)
+                    local tLZOrWZData, tLZOrWZTeamData
                     if iOptionalPlateauGroupOrZero > 0 then
-                        tLZOrWZTeamData  = M28Map.tAllPlateaus[iOptionalPlateauGroupOrZero][M28Map.subrefPlateauLandZones][iOptionalLandOrWaterZone][M28Map.subrefLZTeamData][aiBrain.M28Team]
+                        tLZOrWZData  = M28Map.tAllPlateaus[iOptionalPlateauGroupOrZero][M28Map.subrefPlateauLandZones][iOptionalLandOrWaterZone]
+                        tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][aiBrain.M28Team]
                     else
                         --Water zone
-                        tLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iOptionalLandOrWaterZone]][M28Map.subrefPondWaterZones][iOptionalLandOrWaterZone][M28Map.subrefWZTeamData][aiBrain.M28Team]
+                        tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iOptionalLandOrWaterZone]][M28Map.subrefPondWaterZones][iOptionalLandOrWaterZone]
+                        tLZOrWZTeamData = tLZOrWZData[M28Map.subrefWZTeamData][aiBrain.M28Team]
                     end
-                    if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefQueuedBuildings]) == false then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have already queued up a building for htis location, tLZOrWZTeamData[M28Map.subrefQueuedBuildings]='..reprs(tLZOrWZTeamData[M28Map.subrefQueuedBuildings])..'; tTargetLocation='..repru(tTargetLocation)) end
-                        for iQueue, tEntryDetails in tLZOrWZTeamData[M28Map.subrefQueuedBuildings] do
-                            if M28Utilities.GetDistanceBetweenPositions(tEntryDetails[M28Map.subrefBuildingLocation], tTargetLocation) < iBuildingSize + tEntryDetails[M28Map.subrefBuildingRadius] then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Already have a building queued for this location, tEntryDetails='..reprs(tEntryDetails)) end
-                                bCanBuildStructure = false
-                                break
+                    if tLZOrWZData and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefQueuedBuildings]) == false then
+                        local iBaseX = math.floor(tTargetLocation[1])
+                        local iBaseZ = math.floor(tTargetLocation[3])
+                        for iX = iBaseX - iBuildingRadius, iBaseX + iBuildingRadius, 1 do
+                            if tLZOrWZData[M28Map.subrefQueuedLocationsByPosition][iX] then
+                                for iZ = iBaseZ - iBuildingRadius, iBaseZ + iBuildingRadius do
+                                    if tLZOrWZData[M28Map.subrefQueuedLocationsByPosition][iX][iZ] then
+                                        bCanBuildStructure = false
+                                        break
+                                    end
+                                end
+                                if not(bCanBuildStructure) then break end
                             end
                         end
                     end
@@ -522,8 +530,6 @@ function SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateau, iLandO
     local sFunctionRef = 'SearchForBuildableLocationsForLandOrWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
-
     --First get a blueprint of the same size (or just use htis if this is a different size)
     local sGenericBlueprint
     if bIsWaterZone then
@@ -568,6 +574,13 @@ function SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateau, iLandO
         if not(tLZOrWZData[M28Map.subrefBuildLocationsBySize]) then tLZOrWZData[M28Map.subrefBuildLocationsBySize] = {} end
         tLZOrWZData[M28Map.subrefBuildLocationsBySize][iSize] = {}
     end
+
+    if (tLZOrWZData[M28Map.subrefTimesSearchedForLocationsBySize][iSize] or 0) >= 100 and GetGameTimeSeconds() >= 60 then
+        if not(iOptionalMaxSegmentsToConsider) then iOptionalMaxSegmentsToConsider = 3
+        else iOptionalMaxSegmentsToConsider = math.min(3, iOptionalMaxSegmentsToConsider)
+        end
+    end
+
     local iSegmentStart = (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] or 0) + 1
     local iTotalSegments = table.getn(tLZOrWZData[iSegmentRef])
     if iSegmentStart > iTotalSegments then iSegmentStart = 1 end
@@ -605,7 +618,13 @@ function SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateau, iLandO
     if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefBuildLocationsBySize][iSize]) then
         tLZOrWZData[M28Map.subrefBuildLocationsBySize][iSize] = -1
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': MtLZOrWZData[M28Map.subrefBuildLocationsBySize][iSize]='..repru(tLZOrWZData[M28Map.subrefBuildLocationsBySize][iSize] or {'nil'})) end
+    if not(tLZOrWZData[M28Map.subrefTimesSearchedForLocationsBySize][iSize]) then
+        if not(tLZOrWZData[M28Map.subrefTimesSearchedForLocationsBySize]) then tLZOrWZData[M28Map.subrefTimesSearchedForLocationsBySize] = {} end
+        tLZOrWZData[M28Map.subrefTimesSearchedForLocationsBySize][iSize] = iSegmentsConsidered
+    else
+        tLZOrWZData[M28Map.subrefTimesSearchedForLocationsBySize][iSize] = (tLZOrWZData[M28Map.subrefTimesSearchedForLocationsBySize][iSize] or 0) + iSegmentsConsidered
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': MtLZOrWZData[M28Map.subrefBuildLocationsBySize][iSize]='..repru(tLZOrWZData[M28Map.subrefBuildLocationsBySize][iSize] or {'nil'})..'; tLZOrWZData[M28Map.subrefTimesSearchedForLocationsBySize][iSize]='..(tLZOrWZData[M28Map.subrefTimesSearchedForLocationsBySize][iSize] or 'nil')) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -2773,13 +2792,16 @@ function RemoveBuildingFromQueuedBuildings(oEngineer, oBuilding)
     if M28Utilities.IsTableEmpty(oEngineer[reftQueuedBuildings]) == false then
         for iEntry, tOrderDetails in oEngineer[reftQueuedBuildings] do
             if tOrderDetails[subrefBuildingID] == oBuilding.UnitId and math.abs(oBuilding:GetPosition()[1] - tOrderDetails[subrefBuildingLocation][1]) < 0.5 and math.abs(oBuilding:GetPosition()[3] - tOrderDetails[subrefBuildingLocation][3]) < 0.5 then
-                local tLZOrWZTeamData
+                local tLZOrWZTeamData, tLZOrWZData
                 if tOrderDetails[subrefPlateauOrZero] == 0 then
-                    tLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[tOrderDetails[subrefLandOrWaterZone]]][M28Map.subrefPondWaterZones][tOrderDetails[subrefLandOrWaterZone]][M28Map.subrefWZTeamData][oEngineer:GetAIBrain().M28Team]
+                    tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[tOrderDetails[subrefLandOrWaterZone]]][M28Map.subrefPondWaterZones][tOrderDetails[subrefLandOrWaterZone]]
+                    tLZOrWZTeamData = tLZOrWZData[M28Map.subrefWZTeamData][oEngineer:GetAIBrain().M28Team]
                 else
                     --Dealing with land zone
-                    tLZOrWZTeamData = M28Map.tAllPlateaus[tOrderDetails[subrefPlateauOrZero]][M28Map.subrefPlateauLandZones][tOrderDetails[subrefLandOrWaterZone]][M28Map.subrefLZTeamData][oEngineer:GetAIBrain().M28Team]
+                    tLZOrWZData = M28Map.tAllPlateaus[tOrderDetails[subrefPlateauOrZero]][M28Map.subrefPlateauLandZones][tOrderDetails[subrefLandOrWaterZone]]
+                    tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][oEngineer:GetAIBrain().M28Team]
                 end
+                ChangeQueuedLocationsTracker(tOrderDetails[subrefBuildingLocation], tLZOrWZData, tOrderDetails[subrefBuildingRadius], false)
                 if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefQueuedBuildings]) == false then
                     for iLZEntry, tLZOrWZOrderDetails in tLZOrWZTeamData[M28Map.subrefQueuedBuildings] do
                         if tLZOrWZOrderDetails[M28Map.subrefQueueRef] == tOrderDetails[subrefQueueRef] then
@@ -2788,6 +2810,7 @@ function RemoveBuildingFromQueuedBuildings(oEngineer, oBuilding)
                         end
                     end
                 end
+
                 table.remove(oEngineer[reftQueuedBuildings], iEntry)
                 break
             end
@@ -2935,12 +2958,16 @@ function ClearEngineerTracking(oEngineer)
     --Clear any queued building orders
     if M28Utilities.IsTableEmpty(oEngineer[reftQueuedBuildings]) == false then
         for iEntry, tOrderDetails in oEngineer[reftQueuedBuildings] do
-            local tLZOrWZTeamData
+            local tLZOrWZTeamData, tLZOrWZData
             if tOrderDetails[subrefPlateauOrZero] > 0 then
-                tLZOrWZTeamData = M28Map.tAllPlateaus[tOrderDetails[subrefPlateauOrZero]][M28Map.subrefPlateauLandZones][tOrderDetails[subrefLandOrWaterZone]][M28Map.subrefLZTeamData][oEngineer:GetAIBrain().M28Team]
+                tLZOrWZData = M28Map.tAllPlateaus[tOrderDetails[subrefPlateauOrZero]][M28Map.subrefPlateauLandZones][tOrderDetails[subrefLandOrWaterZone]]
+                tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][oEngineer:GetAIBrain().M28Team]
             else
-                tLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[tOrderDetails[subrefLandOrWaterZone]]][M28Map.subrefPondWaterZones][tOrderDetails[subrefLandOrWaterZone]][M28Map.subrefWZTeamData][oEngineer:GetAIBrain().M28Team]
+                tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[tOrderDetails[subrefLandOrWaterZone]]][M28Map.subrefPondWaterZones][tOrderDetails[subrefLandOrWaterZone]]
+                tLZOrWZTeamData = tLZOrWZData[M28Map.subrefWZTeamData][oEngineer:GetAIBrain().M28Team]
             end
+            ChangeQueuedLocationsTracker(tOrderDetails[subrefBuildingLocation], tLZOrWZData, tOrderDetails[subrefBuildingRadius], false)
+
             if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefQueuedBuildings]) == false then
                 for iLZEntry, tLZOrderDetails in tLZOrWZTeamData[M28Map.subrefQueuedBuildings] do
                     if tLZOrderDetails[M28Map.subrefQueueRef] == tOrderDetails[subrefQueueRef] then
@@ -2984,16 +3011,47 @@ function TrackQueuedBuilding(oEngineer, sBuildingID, tBuildLocation)
         if iLandOrWaterZone > 0 then
             iCurQueueRefNumber = iCurQueueRefNumber + 1
             if not(oEngineer[reftQueuedBuildings]) then oEngineer[reftQueuedBuildings] = {} end
-            local iBuildingRadius = M28UnitInfo.GetBuildingSize(sBuildingID)
+            local iBuildingRadius = math.floor(M28UnitInfo.GetBuildingSize(sBuildingID) * 0.5)
             table.insert(oEngineer[reftQueuedBuildings], {[subrefQueueRef] = iCurQueueRefNumber, [subrefBuildingID] = sBuildingID, [subrefBuildingLocation] = tBuildLocation, [subrefBuildingRadius] = iBuildingRadius, [subrefPlateauOrZero] = iPlateauOrZero, [subrefLandOrWaterZone] = iLandOrWaterZone})
-            local tLZOrWZTeamData
+            local tLZOrWZTeamData, tLZOrWZData
+            if iPlateauOrZero > 0 then
+                tLZOrWZData  = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+                tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][oEngineer:GetAIBrain().M28Team]
+            else
+                --Water zone
+                tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+                tLZOrWZTeamData = tLZOrWZData[M28Map.subrefWZTeamData][oEngineer:GetAIBrain().M28Team]
+            end
+
             if iPlateauOrZero == 0 then
+
                 tLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone][M28Map.subrefWZTeamData][oEngineer:GetAIBrain().M28Team]
             else
                 tLZOrWZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][oEngineer:GetAIBrain().M28Team]
             end
             if not(tLZOrWZTeamData[M28Map.subrefQueuedBuildings]) then tLZOrWZTeamData[M28Map.subrefQueuedBuildings] = {} end
             table.insert(tLZOrWZTeamData[M28Map.subrefQueuedBuildings], {[M28Map.subrefQueueRef] = iCurQueueRefNumber, [M28Map.subrefBuildingID] = sBuildingID, [M28Map.subrefBuildingLocation] = tBuildLocation, [M28Map.subrefBuildingRadius] = iBuildingRadius, [M28Map.subrefPrimaryBuilder] = oEngineer})
+            --Record the locations as being queued
+            ChangeQueuedLocationsTracker(tBuildLocation, tLZOrWZData, iBuildingRadius, true)
+        end
+    end
+end
+
+function ChangeQueuedLocationsTracker(tBuildLocation, tLZOrWZData, iBuildingRadius, bAddToQueue)
+    local iBaseX = math.floor(tBuildLocation[1])
+    local iBaseZ = math.floor(tBuildLocation[3])
+    for iX = iBaseX - iBuildingRadius, iBaseX + iBuildingRadius, 1 do
+        if bAddToQueue then
+            if not(tLZOrWZData[M28Map.subrefQueuedLocationsByPosition][iX]) then tLZOrWZData[M28Map.subrefQueuedLocationsByPosition][iX] = {} end
+            for iZ = iBaseZ - iBuildingRadius, iBaseZ + iBuildingRadius do
+                tLZOrWZData[M28Map.subrefQueuedLocationsByPosition][iX][iZ] = true
+            end
+        else
+            if tLZOrWZData[M28Map.subrefQueuedLocationsByPosition][iX] then
+                for iZ = iBaseZ - iBuildingRadius, iBaseZ + iBuildingRadius do
+                    tLZOrWZData[M28Map.subrefQueuedLocationsByPosition][iX][iZ] = nil
+                end
+            end
         end
     end
 end
