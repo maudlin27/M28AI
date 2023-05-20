@@ -403,13 +403,25 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
-    local bIgnoreT3ArtiShotReduction = not(bT3ArtiShotReduction or false)
-
     local iTotalDamage = 0
-    local tEnemiesInRange = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryAllNavy + M28UnitInfo.refCategoryAllAir * categories.EXPERIMENTAL, tBaseLocation, iAOE + 4, 'Enemy')
+    local bCheckForShields = true
+    if iDamage >= 25000 then bCheckForShields = false end
+    local iCategoryToSearch
+    if iDamage >= 10000 then
+        if M28Overseer.refiRoughTotalUnitsInGame >= 800 then
+            iCategoryToSearch = M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryAllNavy + M28UnitInfo.refCategoryAllAir * categories.EXPERIMENTAL - categories.TECH1 - M28UnitInfo.refCategoryMobileLand * categories.TECH2 + categories.COMMAND
+        else
+            iCategoryToSearch = M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryAllNavy + M28UnitInfo.refCategoryAllAir * categories.EXPERIMENTAL - M28UnitInfo.refCategoryMobileLand * categories.TECH1 + categories.COMMAND
+        end
+    else
+        iCategoryToSearch = M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryAllNavy + M28UnitInfo.refCategoryAllAir * categories.EXPERIMENTAL
+    end
+    local tEnemiesInRange = aiBrain:GetUnitsAroundPoint(iCategoryToSearch, tBaseLocation, iAOE + 4, 'Enemy')
     local oCurBP
     local iMassFactor
-    local iCurHealth, iMaxHealth, iCurShield, iMaxShield
+    local iCurHealth, iMaxHealth
+    local iCurShield = 0
+    local iMaxShield = 0
     local tFriendlyUnits
     local iSizeAdjustFactor = iOptionalSizeAdjust or 1
     local iDifBetweenSize8And2 = 0
@@ -502,10 +514,12 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
                 if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBaseLocation) <= iAOE then
                     --Is the unit shielded by more than 90% of our damage?
                     --IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisHealth, bReturnShieldHealthInstead, bIgnoreMobileShields, bTreatPartCompleteAsComplete, bCumulativeShieldHealth)
-                    if IsTargetUnderShield(aiBrain, oUnit, iShieldThreshold, false, false, nil, bCumulativeShieldHealthCheck) then iMassFactor = (iOptionalShieldReductionFactor or 0) end
+                    if bCheckForShields and IsTargetUnderShield(aiBrain, oUnit, iShieldThreshold, false, false, nil, bCumulativeShieldHealthCheck) then iMassFactor = (iOptionalShieldReductionFactor or 0) end
                     if bDebugMessages == true then LOG(sFunctionRef..': Mass factor after considering if under shield='..iMassFactor) end
                     if iMassFactor > 0 then
-                        iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit)
+                        if bCheckForShields then
+                            iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit)
+                        end
                         iCurHealth = iCurShield + oUnit:GetHealth()
                         iMaxHealth = iMaxShield + oUnit:GetMaxHealth()
                         --Set base mass value based on health

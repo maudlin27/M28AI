@@ -1048,11 +1048,12 @@ end
 function RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartMidpoint)
     --Records all other land and water zones in order of straight line distance to tStartLZOrWZData, if not already recorded
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'CalculateAirTravelPath'
+    local sFunctionRef = 'RecordOtherLandAndWaterZonesByDistance'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start time='..GetGameTimeSeconds()..'; Is table of other land and water zones empty='..tostring(M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]))) end
     if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) then
+        M28Profiler.FunctionProfiler(sFunctionRef..'Detail', M28Profiler.refProfilerStart)
         tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] = {}
         local tTableToSort = {}
         --Add all land zones in the map
@@ -1077,6 +1078,7 @@ function RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartMidpoint
             table.insert(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance], tValue)
         end
         if bDebugMessages == true then LOG(sFunctionRef..': reprs of table after sorting='..reprs(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance])) end
+        M28Profiler.FunctionProfiler(sFunctionRef..'Detail', M28Profiler.refProfilerEnd)
     end
 end
 

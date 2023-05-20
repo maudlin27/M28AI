@@ -414,10 +414,11 @@ function CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOption
     return bCanBuildStructure
 end
 
-function CheckIfBuildableLocationsNearPositionStillValid(aiBrain, tLocation, bCheckLastBlacklistEntry)
+function CheckIfBuildableLocationsNearPositionStillValid(aiBrain, tLocation, bCheckLastBlacklistEntry, iSearchRadius)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'CheckIfBuildableLocationsNearPositionStillValid'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    --Check if the locations near tLocation are still valid - e.g. usually called if we have just built a unit (so unlikely to be valid) or have identified a blacklist location
 
     if not(aiBrain.M28IsDefeated) then
         local iPlateauOrZero, iLandOrWaterZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tLocation)
@@ -435,39 +436,70 @@ function CheckIfBuildableLocationsNearPositionStillValid(aiBrain, tLocation, bCh
         end
         if (iLandOrWaterZone or 0) > 0 then
             local sGenericBlueprint
+            local iRevisedIndex, iTableSize
+            local iMinX, iMaxX, iMinZ, iMaxZ, iSearchSize
             if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefBuildLocationsBySize]) == false then
                 for iSize, tOldBuildableLocations in tLZOrWZData[M28Map.subrefBuildLocationsBySize] do
+                    iSearchSize = (iSearchRadius or 4) + iSize
                     if not(tOldBuildableLocations == -1) then
+                        iMinX = tLocation[1] - iSearchSize
+                        iMaxX = tLocation[1] + iSearchSize
+                        iMinZ = tLocation[3] - iSearchSize
+                        iMaxZ = tLocation[3] + iSearchSize
+
                         sGenericBlueprint = sBlueprintSizeRef[iSize]
                         --Is the location still valid?
                         local function StillKeepLocation(tArray, iEntry)
-                            if aiBrain:CanBuildStructureAt(sGenericBlueprint, tArray[iEntry]) then --Done instead of the detailed test since will have already passed the detailed test to get here and want something quick as will be running potentially tens of thousands of times
-                                if bCheckLastBlacklistEntry then
-                                    if tLZOrWZData[M28Map.subrefBuildLocationBlacklistByPosition][math.floor(tLocation[1])][math.floor(tLocation[3])] then
-                                        return false
-                                    end
-                                    --Old blacklist approach (commented out)
-                                    --Check the last blacklist entry only (since the idea is we call this just after adding a blacklist entry)
-                                    --[[if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefBuildLocationBlacklist]) == false then
-                                        local tBlacklistLocation = tLZOrWZData[M28Map.subrefBuildLocationBlacklist][table.getn(tLZOrWZData[M28Map.subrefBuildLocationBlacklist])][M28Map.subrefBlacklistLocation]
-                                        local iDistThreshold = tLZOrWZData[M28Map.subrefBuildLocationBlacklist][table.getn(tLZOrWZData[M28Map.subrefBuildLocationBlacklist])][M28Map.subrefBlacklistSize] + iSize * 0.5
-                                        if math.abs(tLocation[1] - tBlacklistLocation[1]) <= iDistThreshold and math.abs(tLocation[3] - tBlacklistLocation[3]) <= iDistThreshold then
+                            if tArray[iEntry][1] >= iMinX and tArray[iEntry][3] >= iMinZ and tArray[iEntry][3] <= iMaxX and tArray[iEntry][3] <= iMaxZ then
+                                if aiBrain:CanBuildStructureAt(sGenericBlueprint, tArray[iEntry]) then --Done instead of the detailed test since will have already passed the detailed test to get here and want something quick as will be running potentially tens of thousands of times
+                                    if bCheckLastBlacklistEntry then
+                                        if tLZOrWZData[M28Map.subrefBuildLocationBlacklistByPosition][math.floor(tLocation[1])][math.floor(tLocation[3])] then
                                             return false
                                         end
-                                    end--]]
-                                    return true
-                                else return true
+                                        --Old blacklist approach (commented out)
+                                        --Check the last blacklist entry only (since the idea is we call this just after adding a blacklist entry)
+                                        --[[if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefBuildLocationBlacklist]) == false then
+                                            local tBlacklistLocation = tLZOrWZData[M28Map.subrefBuildLocationBlacklist][table.getn(tLZOrWZData[M28Map.subrefBuildLocationBlacklist])][M28Map.subrefBlacklistLocation]
+                                            local iDistThreshold = tLZOrWZData[M28Map.subrefBuildLocationBlacklist][table.getn(tLZOrWZData[M28Map.subrefBuildLocationBlacklist])][M28Map.subrefBlacklistSize] + iSize * 0.5
+                                            if math.abs(tLocation[1] - tBlacklistLocation[1]) <= iDistThreshold and math.abs(tLocation[3] - tBlacklistLocation[3]) <= iDistThreshold then
+                                                return false
+                                            end
+                                        end--]]
+                                        return true
+                                    else return true
+                                    end
+                                else
+                                    return false
                                 end
-                            else
-                                return false
                             end
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': tOldBuildableLocations='..repru(tOldBuildableLocations)) end
-                        M28Utilities.RemoveEntriesFromArrayBasedOnCondition(tOldBuildableLocations, StillKeepLocation)    --Done instead of table.gen to avoid reindexing array multiple times in the same cycle
+
+
+                        iRevisedIndex = 1
+                        iTableSize = table.getn(tOldBuildableLocations)
+
+                        for iOrigIndex=1, iTableSize do
+                            if tOldBuildableLocations[iOrigIndex] then
+                                if StillKeepLocation(tOldBuildableLocations, iOrigIndex) then --I.e. this should run the logic to decide whether we want to keep this entry of the table or remove it
+                                    --We want to keep the entry; Move the original index to be the revised index number (so if e.g. a table of 1,2,3 removed 2, then this would've resulted in the revised index being 2 (i.e. it starts at 1, then icnreases by 1 for the first valid entry); this then means we change the table index for orig index 3 to be 2
+                                    if (iOrigIndex ~= iRevisedIndex) then
+                                        tOldBuildableLocations[iRevisedIndex] = tOldBuildableLocations[iOrigIndex];
+                                        tOldBuildableLocations[iOrigIndex] = nil;
+                                    end
+                                    iRevisedIndex = iRevisedIndex + 1; --i.e. this will be the position of where the next value that we keep will be located
+                                else
+                                    tOldBuildableLocations[iOrigIndex] = nil;
+                                end
+                            end
+                        end
+
+
+                        --if bDebugMessages == true then LOG(sFunctionRef..': tOldBuildableLocations='..repru(tOldBuildableLocations)) end
+                        --M28Utilities.RemoveEntriesFromArrayBasedOnCondition(tOldBuildableLocations, StillKeepLocation)    --Done instead of table.gen to avoid reindexing array multiple times in the same cycle
                     end
                 end
             end
-            --Search for more building locations for every building where we havent considered the full amount
+            --Search for more building locations for every building where we havent considered the full amount if we havent considered any this cycle
             local iTotalSegmentCount, sBlueprintSizeRef
             if iPlateauOrZero == 0 then
                 iTotalSegmentCount = table.getn(tLZOrWZData[M28Map.subrefWZSegments])
@@ -479,8 +511,8 @@ function CheckIfBuildableLocationsNearPositionStillValid(aiBrain, tLocation, bCh
             end
             if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefBuildLocationsBySize]) == false then
                 for iSize, tOldBuildableLocations in tLZOrWZData[M28Map.subrefBuildLocationsBySize] do
-                    if iPlateauOrZero > (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] or 0) then
-                        SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, iSize, sBlueprintSizeRef[iSize], nil, (iPlateauOrZero == 0))
+                    if (tLZOrWZData[M28Map.subrefTimesSearchedForLocationsBySize] or 0) <= 5 then
+                        SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, iSize, sBlueprintSizeRef[iSize], 10, (iPlateauOrZero == 0))
                     end
                 end
             end
@@ -656,8 +688,12 @@ function GetAvailableLandOrWaterZoneBuildLocations(aiBrain, tLocation, sBlueprin
         end
         --Have we tried to get a location for this size before?
         if bDebugMessages == true then LOG(sFunctionRef..': tLocation='..repru(tLocation)..'; sBlueprint='..sBlueprint..'; iSize='..iSize..'; bIsWaterZone='..tostring(bIsWaterZone or false)..'; iPlateau='..iPlateau..'; iLandOrWaterZone='..iLandOrWaterZone..'; tLZOrWZData[M28Map.subrefBuildLocationsBySize][iSize]='..repru(tLZOrWZData[M28Map.subrefBuildLocationsBySize][iSize])..'; Segments considered for build locations='..repru(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize])..'; iTotalSegmentCount='..(iTotalSegmentCount or 'nil')) end
-        if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefBuildLocationsBySize][iSize]) or (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize] or 0) < iTotalSegmentCount then
-            SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateau, iLandOrWaterZone, iSize, sBlueprint, nil, bIsWaterZone)
+        if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefBuildLocationsBySize][iSize]) or ((tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize] or 0) < iTotalSegmentCount and (tLZOrWZData[M28Map.subrefTimesSearchedForLocationsBySize][iSize] or 0) <= 50) then
+            if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefBuildLocationsBySize][iSize]) then
+                SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateau, iLandOrWaterZone, iSize, sBlueprint, nil, bIsWaterZone)
+            else
+                SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateau, iLandOrWaterZone, iSize, sBlueprint, 50, bIsWaterZone)
+            end
             if bDebugMessages == true then LOG(sFunctionRef..': Finished searching for more buildable locations, result of locations for this size='..repru(tLZOrWZData[M28Map.subrefBuildLocationsBySize][iSize])..'; Segments considered='..(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] or 'nil')) end
         end
 
@@ -2020,7 +2056,10 @@ function SlowlyRefreshBuildableLandZoneLocations(oOrigBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     local iSearchesConsideredThisTick
     local iTicksWaitedThisCycle
-    local iSegmentsBeforeWaiting = 32 --Must be a multiple of 2, i.e. 2^x results in this
+    local iSegmentsBeforeWaiting
+    if GetGameTimeSeconds() >= 600 or M28Overseer.refiRoughTotalUnitsInGame >= 500 then iSegmentsBeforeWaiting = 16 --Must be a multiple of 2, i.e. 2^x results in this
+    else iSegmentsBeforeWaiting = 32
+    end
     local aiBrain = oOrigBrain
 
     --First update every start position that has an M28 brain to make sure we have a decent number of options recorded for a land factory and smaller
@@ -3251,7 +3290,7 @@ function MonitorEngineerForBlacklistLocation(oEngineer)
                                 end
 
                                 --Update existing build locations to remove if they are near here
-                                CheckIfBuildableLocationsNearPositionStillValid(oEngineer:GetAIBrain(), tOrigBuildLocation, true)
+                                CheckIfBuildableLocationsNearPositionStillValid(oEngineer:GetAIBrain(), tOrigBuildLocation, true, M28UnitInfo.GetBuildingSize(sOrigBlueprint) * 0.5)
 
                                 --Clear this engineer and any assisting engineers (assisting engineers are cleared via ClearEngineerTracking)
                                 M28Orders.IssueTrackedClearCommands(oEngineer)
@@ -3424,8 +3463,10 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
         if not(iActionToAssign == refActionBuildMex) and not(iActionToAssign == refActionBuildHydro) then
             local iPlateauOrZero
             if bIsWaterZone then iPlateauOrZero = 0 else iPlateauOrZero = iPlateauOrPond end
-            SearchForBuildableLocationsForLandOrWaterZone(M28Team.GetFirstActiveBrain(iTeam), iPlateauOrZero, iLandOrWaterZone, iExpectedBuildingSize, tsBlueprintsBySize[iExpectedBuildingSize], 10)
-            iTotalBuildPowerWanted = 0
+            if (tLZOrWZData[M28Map.subrefTimesSearchedForLocationsBySize][iExpectedBuildingSize] or 0) < 20 then
+                SearchForBuildableLocationsForLandOrWaterZone(M28Team.GetFirstActiveBrain(iTeam), iPlateauOrZero, iLandOrWaterZone, iExpectedBuildingSize, tsBlueprintsBySize[iExpectedBuildingSize], 10)
+                iTotalBuildPowerWanted = 0
+            end
         end
     end
 

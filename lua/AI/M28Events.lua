@@ -224,6 +224,8 @@ function OnUnitDeath(oUnit)
             else
                 if oUnit.GetAIBrain then
                     --------Non-M28 Specific logic------
+                    --Rough unit count
+                    if not(oUnit['M28Dead']) then oUnit['M28Dead'] = true M28Overseer.refiRoughTotalUnitsInGame = M28Overseer.refiRoughTotalUnitsInGame - 1 end
 
                     --TMD protection logic - refresh land zone TMD entries
                     if oUnit[M28Building.refbUnitWantsMoreTMD] then M28Building.UpdateLZUnitsWantingTMDForUnitDeath(oUnit) end
@@ -703,7 +705,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
 
                     --Buildable locations - update for unit construction started
                     if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oConstruction.UnitId) then
-                        ForkThread(M28Engineer.CheckIfBuildableLocationsNearPositionStillValid, oEngineer:GetAIBrain(), oConstruction:GetPosition())
+                        ForkThread(M28Engineer.CheckIfBuildableLocationsNearPositionStillValid, oEngineer:GetAIBrain(), oConstruction:GetPosition(), false, M28UnitInfo.GetBuildingSize(oConstruction.UnitId) * 0.5)
                     end
                     --Both structures and experimentals - clear any engineers trying to build something else that will be blocked by this
                     ForkThread(M28Engineer.ClearEngineersWhoseTargetIsNowBlockedByUnitConstructionStarted, oEngineer, oConstruction)
@@ -797,7 +799,9 @@ function OnConstructed(oEngineer, oJustBuilt)
 
                 --Check build locations for units not built at a factory
                 if EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId) then
-                    M28Engineer.CheckIfBuildableLocationsNearPositionStillValid(oJustBuilt:GetAIBrain(), oJustBuilt:GetPosition())
+                    if not(oJustBuilt[M28UnitInfo.refbConstructionStart]) then
+                        M28Engineer.CheckIfBuildableLocationsNearPositionStillValid(oJustBuilt:GetAIBrain(), oJustBuilt:GetPosition(), false, M28UnitInfo.GetBuildingSize(oJustBuilt.UnitId) * 0.5)
+                    end
                     M28Economy.UpdateHighestFactoryTechLevelForBuiltUnit(oJustBuilt) --includes a check to see if are dealing with a factory HQ
                     if EntityCategoryContains(M28UnitInfo.refCategoryMex, oJustBuilt.UnitId) then
                         M28Team.tTeamData[oJustBuilt:GetAIBrain().M28Team][M28Team.refiUpgradedMexCount] = (M28Team.tTeamData[oJustBuilt:GetAIBrain().M28Team][M28Team.refiUpgradedMexCount] or 0) + 1
@@ -1089,6 +1093,7 @@ function OnCreate(oUnit)
         else
             if not(oUnit['M28OnCrRn']) then
                 oUnit['M28OnCrRn'] = true
+                M28Overseer.refiRoughTotalUnitsInGame = M28Overseer.refiRoughTotalUnitsInGame + 1
                 M28UnitInfo.GetUnitLifetimeCount(oUnit) --essential so lifetimecount logic works
 
                 M28Team.ConsiderAssigningUnitToZoneForBrain(oUnit:GetAIBrain(), oUnit) --This function includes check of whether this is an M28 brain

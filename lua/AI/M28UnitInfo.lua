@@ -974,7 +974,10 @@ function GetCurrentAndMaximumShield(oUnit, bDontTreatLowPowerShieldAsZero)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetCurrentAndMaximumShield'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if (M28Profiler.tProfilerCountByTickByFunction[(math.floor(GetGameTimeSeconds()*10) - 1) ][sFunctionRef] or 0) >= 5000 then
+        --Audit trail every 100 cycles
+        M28Utilities.ErrorHandler('Audit trail', true, false, 100)
+    end
     if oUnit.MyShield then
         local iCurShield = 0
         local iMaxShield = 0

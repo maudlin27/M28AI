@@ -725,10 +725,12 @@ function ConsiderAssigningUnitToZoneForBrain(aiBrain, oUnit)
 
 
         if bDebugMessages == true then LOG(sFunctionRef..': Checking if should assign unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to a plateau/other table. Considered for assignment repru='..repru(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam])..'; Unit brain team='..(oUnit:GetAIBrain().M28Team or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
-        if (not(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam]) or not(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][aiBrain.M28Team])) and M28UnitInfo.IsUnitValid(oUnit) and not(aiBrain.M28IsDefeated) then
-            AssignUnitToLandZoneOrPond(aiBrain, oUnit)
-        else
-            UpdateUnitLastKnownPosition(aiBrain, oUnit, true)
+        if M28UnitInfo.IsUnitValid(oUnit) then --redundancy
+            if (not(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam]) or not(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][aiBrain.M28Team])) and M28UnitInfo.IsUnitValid(oUnit) and not(aiBrain.M28IsDefeated) then
+                AssignUnitToLandZoneOrPond(aiBrain, oUnit)
+            else
+                UpdateUnitLastKnownPosition(aiBrain, oUnit, true)
+            end
         end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
