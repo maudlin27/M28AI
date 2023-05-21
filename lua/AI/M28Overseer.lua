@@ -418,6 +418,11 @@ function TestCustom(aiBrain)
     ScenarioInfo.Options.CheatMult = tostring(10.0)
     ScenarioInfo.Options.BuildMult = tostring(10.0)
 
+    while true do
+        WaitSeconds(10)
+
+    end
+
     --Hook assist order
     --[[local M28OldIssueGuard = _G.IssueGuard
     _G.IssueGuard = function(units, target)

@@ -783,8 +783,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                 if EntityCategoryContains(M28UnitInfo.refCategoryWall, oJustBuilt.UnitId) and not(oJustBuilt:GetAIBrain().M28AI) then
                     M28Land.TrackWallSegment(oJustBuilt, true)
                 end
-
-
+            elseif EntityCategoryContains(categories.EXPERIMENTAL - M28UnitInfo.refCategoryExperimentalArti, oJustBuilt.UnitId) then
+                --Treat area around experimental under construction as available again
+                M28Engineer.SearchForBuildableLocationsNearDestroyedBuilding(oJustBuilt)
             end
 
             --M28 specific
