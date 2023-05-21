@@ -153,6 +153,7 @@ tiActionCategory = {
     [refActionBuildT1Sonar] = M28UnitInfo.refCategoryT1Sonar,
     [refActionBuildT2Sonar] = M28UnitInfo.refCategoryT2Sonar,
     [refActionBuildShield] = M28UnitInfo.refCategoryFixedShield,
+    [refActionBuildSecondShield] = M28UnitInfo.refCategoryFixedShield,
     [refActionBuildNavalFactory] = M28UnitInfo.refCategoryNavalFactory,
     [refActionAssistNavalFactory] = M28UnitInfo.refCategoryNavalFactory,
     [refActionBuildTMD] = M28UnitInfo.refCategoryTMD,
@@ -199,6 +200,7 @@ tiActionOrder = {
     [refActionBuildT1Sonar] = M28Orders.refiOrderIssueBuild,
     [refActionBuildT2Sonar] = M28Orders.refiOrderIssueBuild,
     [refActionBuildShield] = M28Orders.refiOrderIssueBuild,
+    [refActionBuildSecondShield] = M28Orders.refiOrderIssueBuild,
     [refActionBuildNavalFactory] = M28Orders.refiOrderIssueBuild,
     [refActionAssistNavalFactory] = M28Orders.refiOrderIssueGuard,
     [refActionBuildTMD] = M28Orders.refiOrderIssueBuild,
@@ -256,6 +258,7 @@ tbIgnoreUnderConstructionActions = { --Any actions that are building something w
     [refActionBuildSecondPower] = true,
     [refActionBuildThirdPower] = true,
     [refActionBuildSecondExperimental] = true, --have a manual override for this where we are building t3 arti or g ameender
+    [refActionBuildSecondShield] = true,
 }
 
 tbIgnoreEngineerAssistance = { --Any actions where we dont want to assist an engineer already constructiong the building should go here; main purpose is building a mex
@@ -1006,6 +1009,14 @@ function DrawBlacklistedLocations(tLZData)
     end
 end
 
+function DrawBuildableLocations(tLZData, iSize)
+    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefBuildLocationsBySize][iSize]) == false then
+        for iEntry, tLocation in tLZData[M28Map.subrefBuildLocationsBySize][iSize] do
+            M28Utilities.DrawLocation(tLocation)
+        end
+    end
+end
+
 function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAction, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy, tAlternativePositionToLookFrom, bLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZTeamData, bCalledFromGetBestLocation, sBlueprintOverride)
     --Returns blueprint and location for oEngineer to build at and returns these or nil if no suitable locations can be found
     --iCatToBuildBy: Optional, specify if want to look for adjacency locations; Note to factor in 50% of the builder's size and 50% of the likely adjacency building size
@@ -1254,7 +1265,7 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
     local sFunctionRef = 'GetBestBuildLocationForTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, sBlueprintToBuild) and GetGameTimeSeconds() >= 492.8 then bDebugMessages = true end
 
     local iHighestPriority = -100
     local iCurPriority, iCurDistance
@@ -1344,7 +1355,7 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
             end
             if not(M28Conditions.AreMobileLandUnitsInRect(rBuildAreaRect)) then
                 if bDebugMessages == true then LOG(sFunctionRef..': No units in rect so increasing priority by 3') end
-                iCurPriority = iCurPriority + 3
+                iCurPriority = iCurPriority + 4
             else
                 bLocationBuildableImmediately = false
             end
@@ -1369,8 +1380,7 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
             --Adjust if can build immediately
             if bLocationBuildableImmediately then
                 iCurPriority = iCurPriority + 1
-                if EntityCategoryContains(M28UnitInfo.refCategorySMD + M28UnitInfo.refCategoryFixedShield + M28Unitinfo.refCategoryTMD, oUnit.UnitId) then iCurPriority = iCurPriority + 4 end
-            else
+                if EntityCategoryContains(M28UnitInfo.refCategorySMD + M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryTMD, sBlueprintToBuild) then iCurPriority = iCurPriority + 4 end
             end
 
             --Adjust if was location of our last build order
@@ -2287,6 +2297,16 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
             local iEnemyLandExperimentalCount = table.getn(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftEnemyLandExperimentals])
             local iTeam = aiBrain.M28Team
             local iDistToNearestEnemyBase = M28Utilities.GetDistanceBetweenPositions(tLZOrWZTeamData[M28Map.reftClosestEnemyBase], tLZOrWZData[M28Map.subrefMidpoint])
+            local bCanPathByLand
+            local bCanPathAmphibiously
+            if NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZOrWZData[M28Map.subrefMidpoint]) == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZOrWZTeamData[M28Map.reftClosestEnemyBase]) then
+                bCanPathByLand = true
+            else bCanPathByLand = false
+            end
+            if NavUtils.GetLabel(M28Map.refPathingTypeAmphibious, tLZOrWZData[M28Map.subrefMidpoint]) == NavUtils.GetLabel(M28Map.refPathingTypeAmphibious, tLZOrWZTeamData[M28Map.reftClosestEnemyBase]) then
+                bCanPathAmphibiously = true
+            else bCanPathAmphibiously = false
+            end
 
             --Non-faction specific logic:
 
@@ -2295,8 +2315,8 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
             for iBrain, oBrain in M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subreftoFriendlyM28Brains] do
                 iTeamLandExperimentals = iTeamLandExperimentals + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandExperimental)
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': iTeamLandExperimentals='..iTeamLandExperimentals..'; aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]='..tostring(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] or false)) end
-            if iTeamLandExperimentals == 0 and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] then
+            if bDebugMessages == true then LOG(sFunctionRef..': iTeamLandExperimentals='..iTeamLandExperimentals..'; bCanPathByLand='..tostring(bCanPathByLand)..'; bCanPathAmphibiously='..tostring(bCanPathAmphibiously)) end
+            if iTeamLandExperimentals == 0 and bCanPathByLand then
                 iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
                 if bDebugMessages == true then LOG(sFunctionRef..': Is Cybran engineers of faction available='..tostring(tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionCybran] or false)..'; Lifetime land experimental count='..M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandExperimental)) end
                 if tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionCybran] then
@@ -2349,7 +2369,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                         iCurT3ArtiCount = iCurT3ArtiCount + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryFixedT3Arti) + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryExperimentalArti) * 3
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering UEF specific, iCurFatboyCount='..iCurFatboyCount..'; iCurNovaxCount='..iCurNovaxCount..'; iCurT3AritCount='..iCurT3ArtiCount) end
-                    if aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] then
+                    if bCanPathByLand then
                         if iCurFatboyCount == 0 then
                             iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
                         elseif iCurNovaxCount == 0 then
@@ -2397,7 +2417,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                 elseif tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionSeraphim] then
                     iFactionRequired = M28UnitInfo.refFactionSeraphim
                     --Build ahwassa if have air contorl or cant path to enemy with land
-                    if not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) or M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbHaveAirControl] or (not(M28Team.tTeamData[iTeam][M28Team.refbFarBehindOnAir]) and iTeamLandExperimentals >= math.max(1, iEnemyLandExperimentalCount)) or (iTeamLandExperimentals > iEnemyLandExperimentalCount + 2) then
+                    if not(bCanPathByLand) or M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbHaveAirControl] or (not(M28Team.tTeamData[iTeam][M28Team.refbFarBehindOnAir]) and iTeamLandExperimentals >= math.max(1, iEnemyLandExperimentalCount)) or (iTeamLandExperimentals > iEnemyLandExperimentalCount + 2) then
                         if iDistToNearestEnemyBase >= 300 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 90 then
                             iCategoryWanted = M28UnitInfo.refCategorySML * categories.EXPERIMENTAL
                         else
@@ -2424,7 +2444,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                 elseif tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionCybran] then
                     iFactionRequired = M28UnitInfo.refFactionCybran
                     --If cant path to enemy with amphibious (rather than land) then consider T3 arti
-                    if not(aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious]) or iTeamLandExperimentals >=  math.max(5, iEnemyLandExperimentalCount + 1) then
+                    if not(bCanPathAmphibiously) or iTeamLandExperimentals >=  math.max(5, iEnemyLandExperimentalCount + 1) then
                         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 80 and iDistToNearestEnemyBase <= 750 then
                             if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFixedT3Arti) < 4 then
                                 iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti
@@ -2436,7 +2456,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                             iCategoryWanted = M28UnitInfo.refCategoryExperimentalStructure --this includes scathis
                         end
                     else
-                        if not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) then
+                        if not(bCanPathByLand) then
                             iCategoryWanted = M28UnitInfo.refCategoryMegalith --megalith has better torps
                         else
                             if iTeamLandExperimentals == 0 then
@@ -2448,7 +2468,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                     end
                 elseif tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionAeon] then
                     iFactionRequired = M28UnitInfo.refFactionAeon
-                    if not(aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious]) or (not(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) and iDistToNearestEnemyBase >= 350 and iEnemyLandExperimentalCount == 0) or iTeamLandExperimentals >= math.max(5, iEnemyLandExperimentalCount + 1) then
+                    if not(bCanPathAmphibiously) or (not(bCanPathByLand) and iDistToNearestEnemyBase >= 350 and iEnemyLandExperimentalCount == 0) or iTeamLandExperimentals >= math.max(5, iEnemyLandExperimentalCount + 1) then
                         if iDistToNearestEnemyBase <= 750 then
                             if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFixedT3Arti) < 4 then
                                 iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti
@@ -2465,7 +2485,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                     end
                 else
                     --Not dealing with standard faction - basic choice between land and T3 arti/experimental structure, since unlikely to have hte logic in place for other units
-                    if not(aiBrain[M28Map.refbCanPathToEnemyBaseWithAmphibious]) then
+                    if not(bCanPathAmphibiously) then
                         iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalStructure
                     else
                         --can path to enemy with land
@@ -3468,6 +3488,8 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     local sFunctionRef = 'ConsiderActionToAssign'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    if (iActionToAssign == refActionBuildShield or iActionToAssign == refActionBuildSecondShield) and iLandOrWaterZone == 14 and GetGameTimeSeconds() >= 540 then bDebugMessages = true  DrawBuildableLocations(tLZOrWZData, 6) end
+
     --Dont try getting any mroe BP for htis action if have run out of buildable locations
     local iExpectedBuildingSize = tiLastBuildingSizeFromActionForTeam[iTeam][iActionToAssign]
     if bDebugMessages == true then
@@ -3484,15 +3506,20 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
             if bIsWaterZone then iPlateauOrZero = 0 else iPlateauOrZero = iPlateauOrPond end
             if (tLZOrWZData[M28Map.subrefTimesSearchedForLocationsBySize][iExpectedBuildingSize] or 0) < 20 then
                 --SearchForBuildableLocationsForLandOrWaterZone(aiBrain,                            iPlateau,   iLandOrWaterZone,   iSize,                  sBlueprint,                                 iOptionalMaxSegmentsToConsider, bIsWaterZone)
-                SearchForBuildableLocationsForLandOrWaterZone(M28Team.GetFirstActiveBrain(iTeam), iPlateauOrZero, iLandOrWaterZone, iExpectedBuildingSize, tsBlueprintsBySize[iExpectedBuildingSize], 10, bIsWaterZone)
+                SearchForBuildableLocationsForLandOrWaterZone(M28Team.GetFirstActiveBrain(iTeam), iPlateauOrZero, iLandOrWaterZone, iExpectedBuildingSize, tsBlueprintsBySize[iExpectedBuildingSize], 20, bIsWaterZone)
                 iTotalBuildPowerWanted = 0
+                if bDebugMessages == true then LOG(sFunctionRef..': Setting build power to 0 as no buildable locations') end
             end
         end
     end
 
     if iTotalBuildPowerWanted < 0 then M28Utilities.ErrorHandler('Have negative BP wanted')
     elseif iTotalBuildPowerWanted > 0 then
-
+        --Reduce BP for high modifiers where we have at least 50% mass stored and dont have spare engineers
+        if iTotalBuildPowerWanted > 60 and M28Team.tTeamData[iTeam][M28Team.refiHighestBrainMultipler] >= 1.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 and tLZOrWZTeamData[M28Map.subrefTbWantBP] and (tLZOrWZTeamData[M28Map.subrefSpareBPByTech][1] == 0 and tLZOrWZTeamData[M28Map.subrefSpareBPByTech][2] == 0 and tLZOrWZTeamData[M28Map.subrefSpareBPByTech][3] == 0) then
+            iTotalBuildPowerWanted = iTotalBuildPowerWanted * math.max(1 / M28Team.tTeamData[iTeam][M28Team.refiHighestBrainMultipler], 0.4)
+            if bDebugMessages == true then LOG(sFunctionRef..': Halfing build power wanted') end
+        end
         --Reduce the build power wanted by the existing build power assigned to that action for the LZ, unless bBPIsInAdditionToExisting is true
         local bAlreadyHaveTechLevelWanted = false
         if M28Utilities.IsTableEmpty(toAssignedEngineers) == false then
@@ -3763,7 +3790,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                 local oFirstEngineer = tEngineersOfTechWanted[iEngiCount]
                                 local sBlueprint, tBuildLocation
                                 if bDebugMessages == true then LOG(sFunctionRef..': About to get the blueprint and build location, oFirstEngineer='..oFirstEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFirstEngineer)) end
-                                if iActionToAssign == refActionBuildShield then
+                                if iActionToAssign == refActionBuildShield or iActionToAssign == refActionBuildSecondShield then
                                     GetMaxShieldSearchRangeForEngineer(oFirstEngineer, iCategoryWanted)
                                     sBlueprint, tBuildLocation = GetBlueprintAndLocationToBuild(aiBrain, oFirstEngineer, iActionToAssign, iCategoryWanted, iMaxSearchRange, tiActionAdjacentCategory[iActionToAssign], vOptionalVariable:GetPosition(), false, nil, nil, false, tLZOrWZTeamData)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Finished getting blueprint and build location for shield, sBlueprint='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation)..'; vOptionalVariable='..(vOptionalVariable.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(vOptionalVariable) or 'nil')..'; iMaxSearchRange='..iMaxSearchRange) end
@@ -4199,19 +4226,22 @@ function GetBPForShieldAssistance(tLZTeamData, iTeam)
     return iBPWanted
 end
 
-function GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, bCoreZone, bHaveLowMass, bWantMorePower)
+function GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, bCoreZone, bHaveLowMass, bWantMorePower, bConsideringSecondShield, iLandZoneRef)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetBPMinTechAndUnitForFixedShields'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if iLandZoneRef == 1 then bDebugMessages = true end
 
     local iBPWanted = 0
     local iTechLevelWanted = 2
     local oUnitToShield
     local iHighestMassValue = 0
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; Is table of units wanting fixed shields empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitWantingFixedShield]))) end
+    local iHighMassThreshold = 15000
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; Is table of units wanting fixed shields empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitWantingFixedShield]))..'; bConsideringSecondShield='..tostring(bConsideringSecondShield or false)) end
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitWantingFixedShield]) == false then
         --Shield the highest value unit in this LZ that wants a shield
-
+        if bConsideringSecondShield then iHighestMassValue = iHighMassThreshold end --will only try shielding if we have very high value target (e.g. t3 arti or experimental) that is unshielded
         local iCurMass
         for iUnit, oUnit in tLZTeamData[M28Map.reftoLZUnitWantingFixedShield] do
             iCurMass = oUnit:GetBlueprint().Economy.BuildCostMass
@@ -4222,10 +4252,10 @@ function GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, bCoreZone, bHave
                     oUnitToShield = oUnit
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurMass='..iCurMass..'; iHighestMassValue='..iHighestMassValue) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurMass='..iCurMass..'; iHighestMassValue='..iHighestMassValue..'; Failed shield build distance='..(oUnit[refiFailedShieldBuildDistance] or 0)) end
         end
         if oUnitToShield then
-            if iHighestMassValue >= 15000 or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 12000 then
+            if iHighestMassValue >= iHighMassThreshold or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 12000 then
                 iTechLevelWanted = 3
                 --Think have logic elsewhere which will make a T3 shield be built if nowhere for T2 shield that will cover it
 
@@ -4681,6 +4711,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             if bAssistSMD then
                 HaveActionToAssign(refActionAssistSMD, 1, iBPWanted)
             else
+                if bDebugMessages == true then LOG(sFunctionRef..': Want to build SMD') end
                 HaveActionToAssign(refActionBuildSMD, 3, iBPWanted)
             end
         end
@@ -4718,6 +4749,22 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             if not(bHaveLowMass) then iBPWanted = iBPWanted * 2 end
             HaveActionToAssign(refActionBuildAirStaging, 1, iBPWanted, nil, false)
         end
+    end
+
+    --Shielding in a high mass scenario
+    iCurPriority = iCurPriority + 1
+    if (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 500 then
+        if iLandZone == 1 then bDebugMessages = true end
+        local iBPWanted, iTechLevelWanted, oUnitToShield = GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, true, bHaveLowMass, bWantMorePower, false, iLandZone)
+        if iBPWanted > 0 then
+            iBPWanted = math.min(iBPWanted, 40)
+
+            HaveActionToAssign(refActionBuildShield, iTechLevelWanted, iBPWanted, oUnitToShield)
+            if bDebugMessages == true then LOG(sFunctionRef..': High priority shield builder, iBPWanted='..iBPWanted) end
+        else
+            if bDebugMessages == true then LOG(sFunctionRef..': Dont want to assign any BP to high priority shield builder') end
+        end
+        bDebugMessages = false
     end
 
     --Adjacent zones wanting mexes:
@@ -4942,6 +4989,22 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
+    --Extra (second) shielding in a high mass scenario - will only try to shield t3 arti/game ender
+    iCurPriority = iCurPriority + 1
+    if (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 500 then
+        if iLandZone == 1 then bDebugMessages = true end
+        local iBPWanted, iTechLevelWanted, oUnitToShield = GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, true, bHaveLowMass, bWantMorePower, true, iLandZone)
+        if iBPWanted > 0 then
+            iBPWanted = math.min(iBPWanted, 40)
+
+            HaveActionToAssign(refActionBuildSecondShield, iTechLevelWanted, iBPWanted, oUnitToShield)
+            if bDebugMessages == true then LOG(sFunctionRef..': Second shield builder, iBPWanted='..iBPWanted..'; iLandZone='..iLandZone) end
+        else
+            if bDebugMessages == true then LOG(sFunctionRef..': Dont want to assign any BP to second shield builder, LZ='..iLandZone) end
+        end
+        bDebugMessages = false
+    end
+
 
     --Preemptive fixed AA if we have T2+ air fac and no fixed T2+ ground AA and dont have much MAA threat here either
     iCurPriority = iCurPriority + 1
@@ -5122,7 +5185,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     --Shielding
     iCurPriority = iCurPriority + 1
     local iTechlevelWanted, oUnitToShield
-    iBPWanted, iTechLevelWanted, oUnitToShield = GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, true, bHaveLowMass, bWantMorePower)
+    iBPWanted, iTechLevelWanted, oUnitToShield = GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, true, bHaveLowMass, bWantMorePower, false, iLandZone)
     if iBPWanted > 0 then
         if bDebugMessages == true then LOG(sFunctionRef..': Want to build a shield, iBPWanted='..iBPWanted..'; bHaveLowMass='..tostring(bHaveLowMass)..'; bWantMorePower='..tostring(bWantMorePower)..'; oUnitToShield='..oUnitToShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToShield)..'; iTechLevelWanted='..iTechLevelWanted) end
         HaveActionToAssign(refActionBuildShield, iTechLevelWanted, iBPWanted, oUnitToShield)
@@ -5900,7 +5963,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     --Shielding
     iCurPriority = iCurPriority + 1
     local iTechlevelWanted, oUnitToShield
-    iBPWanted, iTechlevelWanted, oUnitToShield = GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, false, bHaveLowMass, bWantMorePower)
+    iBPWanted, iTechlevelWanted, oUnitToShield = GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, false, bHaveLowMass, bWantMorePower, false, iLandZone)
     if iBPWanted > 0 then
         HaveActionToAssign(refActionBuildShield, iTechLevelWanted, iBPWanted, oUnitToShield)
         if bDebugMessages == true then LOG(sFunctionRef..': Have just tried to assign an action to shield unit '..oUnitToShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToShield)) end
@@ -6255,6 +6318,22 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         end
     end
 
+    --Extra (second) shielding in a high mass scenario - will only try to shield t3 arti/game ender
+    iCurPriority = iCurPriority + 1
+    if (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 500 then
+        bDebugMessages = true
+        local iBPWanted, iTechLevelWanted, oUnitToShield = GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, true, bHaveLowMass, bWantMorePower, true, iLandZone)
+        if iBPWanted > 0 then
+            iBPWanted = math.min(iBPWanted, 40)
+
+            HaveActionToAssign(refActionBuildSecondShield, iTechLevelWanted, iBPWanted, oUnitToShield)
+            if bDebugMessages == true then LOG(sFunctionRef..': High priority shield builder, iBPWanted='..iBPWanted) end
+        else
+            if bDebugMessages == true then LOG(sFunctionRef..': Dont want to assign any BP to high priority shield builder') end
+        end
+        bDebugMessages = false
+    end
+
     --Dont have low mass and have a navla fac in a WZ that wants more BP and is near enough for engineers to be sent to assist, then send BP here
 
 
@@ -6309,9 +6388,7 @@ end
 function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZone, tEngineers)
     --Called from ConsiderLandOrWaterZoneEngineerAssignment
     local bDebugMessages = false
-    if M28Profiler.bGlobalDebugOverride == true then
-        bDebugMessages = true
-    end
+    if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderWaterZoneEngineerAssignment'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -6782,13 +6859,10 @@ end
 function ConsiderLandOrWaterZoneEngineerAssignment(tLZOrWZTeamData, iTeam, iPlateauOrPond, iLandOrWaterZone, tEngineers, bIsWaterZone)
     --tEngineers might be empty if e.g. we just want to record how much build power the land zone wants
     local bDebugMessages = false
-    if M28Profiler.bGlobalDebugOverride == true then
-        bDebugMessages = true
-    end
+    if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderLandOrWaterZoneEngineerAssignment'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    tLZOrWZTeamData[M28Map.subrefTbWantBP] = false --set to true later if any BP wanted
 
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Start of code, iTeam=' .. iTeam .. '; iPlateauOrPond=' .. iPlateauOrPond .. '; iLandOrWaterZone=' .. iLandOrWaterZone .. '; is tEngineers empty=' .. tostring(M28Utilities.IsTableEmpty(tEngineers)) .. '; Is this a core base LZ=' .. tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or false) .. '; bIsWaterZone=' .. tostring(bIsWaterZone or false))
@@ -6802,6 +6876,7 @@ function ConsiderLandOrWaterZoneEngineerAssignment(tLZOrWZTeamData, iTeam, iPlat
         ConsiderMinorLandZoneEngineerAssignment(tLZOrWZTeamData, iTeam, iPlateauOrPond, iLandOrWaterZone, tEngineers)
     end
 
+    tLZOrWZTeamData[M28Map.subrefTbWantBP] = false --set to true later if any BP wanted
     --Reduce BP wanted by any engineers assigned to this LZ from another LZ
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Checking if engineers already assigned here, Is table of traveling engis empty=' .. tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEngineersTravelingHere])) .. '; BP wanted pre update for traveling engis=' .. repru(tLZOrWZTeamData[M28Map.subrefTBuildPowerByTechWanted]))
@@ -6930,9 +7005,7 @@ end
 
 function GetBPToAssignToBuildingTML(tLZData, tLZTeamData, iPlateau, iLandZone, iTeam, bHaveLowMass)
     local bDebugMessages = false
-    if M28Profiler.bGlobalDebugOverride == true then
-        bDebugMessages = true
-    end
+    if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetBPToAssignToBuildingTML'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -7012,9 +7085,7 @@ end
 
 function GetStartSearchPositionForEmergencyPD(tTargetBuildLocation, tLZMidpoint, iPlateau, iLandZone)
     local bDebugMessages = false
-    if M28Profiler.bGlobalDebugOverride == true then
-        bDebugMessages = true
-    end
+    if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetStartSearchPositionForEmergencyPD'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -7050,9 +7121,7 @@ end
 function GetMaxShieldSearchRangeForEngineer(oFirstEngineer, iCategoryWanted)
     --Sets max search range to ensure we dont go outside the max shield radius available to oFirstEngineer
     local bDebugMessages = false
-    if M28Profiler.bGlobalDebugOverride == true then
-        bDebugMessages = true
-    end
+    if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetMaxShieldSearchRangeForEngineer'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -7102,9 +7171,7 @@ end
 function ClearEngineersWhoseTargetIsNowBlockedByUnitConstructionStarted(oEngineer, oConstruction)
     --Idea is to prevent scenarios where two units get queued orders for the same location - once construction is started for one, it wont be possible for the other
     local bDebugMessages = false
-    if M28Profiler.bGlobalDebugOverride == true then
-        bDebugMessages = true
-    end
+    if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ClearEngineersWhoseTargetIsNowBlockedByUnitConstructionStarted'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -7153,9 +7220,7 @@ end
 function ConsiderDestroyingLowTechEngineers(oJustBuilt)
     --Intended late game where lots of low tech engis in a core base
     local bDebugMessages = false
-    if M28Profiler.bGlobalDebugOverride == true then
-        bDebugMessages = true
-    end
+    if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderDestroyingLowTechEngineers'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

@@ -65,6 +65,7 @@ function CheckIfUnitWantsFixedShield(oUnit, bCheckForNearbyShields)
     local sFunctionRef = 'CheckIfUnitWantsFixedShield'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalArti, oUnit.UnitId) then bDebugMessages = true end
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at game time '..GetGameTimeSeconds()..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bCheckForNearbyShields='..tostring(bCheckForNearbyShields or false)..'; oUnit[refbUnitWantsShielding] before update='..tostring(oUnit[refbUnitWantsShielding] or false)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
 
@@ -141,7 +142,7 @@ function CheckIfUnitWantsFixedShield(oUnit, bCheckForNearbyShields)
         local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
         LOG(sFunctionRef..': Is table of units wanting fixed shield empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.reftoLZUnitWantingFixedShield])))
         if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.reftoLZUnitWantingFixedShield]) == false then
-            for iUnit, oUnit in M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.reftoLZUnitWantingFixedShield]) do
+            for iUnit, oUnit in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.reftoLZUnitWantingFixedShield] do
                 LOG(sFunctionRef..': Listing out each unit wanting shielding for iLandZOne '..iLandZone..'; iUnit '..iUnit..' is oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit))
             end
         end
@@ -1872,7 +1873,19 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                     oBestTarget = oAltTarget
                 end
             end
-            if not(oBestTarget) then M28Utilities.ErrorHandler('No target found for T3 arti', true)
+            if not(oBestTarget) then
+                M28Utilities.ErrorHandler('No target found for T3 arti, will fire at closest enemy base instead if we can hit it', true)
+                local bGivenAltTarget = false
+                local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+                local iDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], oArti:GetPosition())
+                if iDistToEnemyBase <= iMaxRange and iDistToEnemyBase >= iMinRange then
+                    local iDamage = M28Logic.GetDamageFromBomb(aiBrain, tLZTeamData[M28Map.reftClosestEnemyBase], iAOE, iDamage, iFriendlyUnitReductionFactor, iFriendlyUnitAOEFactor, false, iSizeAdjust, iMultipleShotMod, iMobileValueFactorInner, true, iShieldReductionFactor)
+                    if iDamage >= 0 then --should mean dont have much in way of friendly forces there
+                        M28Orders.IssueTrackedGroundAttack(oArti, tLZTeamData[M28Map.reftClosestEnemyBase], 1, false, 'ArtiEB'..'ALZ'..iLandZone, false)
+                        bGivenAltTarget = true
+                    end
+                end
+                if not(bGivenAltTarget) then M28Orders.IssueTrackedClearCommands(oArti) end
             else
                 local tActualTarget = M28Logic.GetBestAOETarget(aiBrain, oBestTarget:GetPosition(), iAOE, iDamage, false, nil, nil, nil, iFriendlyUnitReductionFactor, iFriendlyUnitAOEFactor, nil, iMobileValueFactorInner, iShieldReductionFactor)
                 --Double check are still in range
@@ -1883,7 +1896,7 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                 end
 
                 --Issue attack order
-                M28Orders.IssueTrackedGroundAttack(oArti, tActualTarget, 1, false, 'ArtiGF', false)
+                M28Orders.IssueTrackedGroundAttack(oArti, tActualTarget, 1, false, 'ArtiGF'..'ALZ'..iLandZone, false)
 
                 --Increase shot count
                 local iAltPlateauOrZero, iAltLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tActualTarget)

@@ -36,6 +36,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefiActiveM28BrainCount = 'ActiveM28Count' --number of active m28 brains we have in the team
     subreftoFriendlyActiveBrains = 'M28TeamFriendlyBrains' --as above, but all friendly brains on this team, tTeamData[brain.M28Team][subreftoFriendlyActiveBrains]
     subreftoEnemyBrains = 'M28TeamEnemyBrains'
+    refiHighestBrainMultipler = 'M28HighestMult' --Highest AiX on team (as a number)
 
     --Team economy subrefs
     subrefiTeamGrossEnergy = 'M28TeamGrossEnergy'
@@ -473,6 +474,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][refiLastFailedIslandDropTime] = {}
     tTeamData[iTotalTeamCount][subrefbUseFrigatesAsScoutsByPond] = {}
     M28Engineer.tiLastBuildingSizeFromActionForTeam[iTotalTeamCount] = {}
+    tTeamData[iTotalTeamCount][refiHighestBrainMultipler] = 1
 
 
 
@@ -494,6 +496,7 @@ function CreateNewTeam(aiBrain)
             if oBrain.M28AI then
                 table.insert(tTeamData[iTotalTeamCount][subreftoFriendlyActiveM28Brains], oBrain)
                 tTeamData[iTotalTeamCount][subrefiActiveM28BrainCount] = tTeamData[iTotalTeamCount][subrefiActiveM28BrainCount] + 1
+                if oBrain.CheatEnabled then tTeamData[iTotalTeamCount][refiHighestBrainMultipler] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainMultipler], tonumber(ScenarioInfo.Options.CheatMult or 1.5)) end
             end
             bHaveM28BrainInTeam = true
             --Check if we have omni vision for the team

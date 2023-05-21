@@ -4659,7 +4659,6 @@ function CreateWaterZones()
         end
     end
 
-    bDebugMessages = true
 
 
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, finished recording segments in water zone, iTotalWaterZoneRecordedSegmentCount='..iTotalWaterZoneRecordedSegmentCount..'; iTotalSegmentsInPonds='..iTotalSegmentsInPonds..'; iTotalWaterZoneCount='..iTotalWaterZoneCount..'; will draw all water zones. Time taken to run water zone logic='..GetSystemTimeSecondsOnlyForProfileUse() - iSystemTimeStart) end
