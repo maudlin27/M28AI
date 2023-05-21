@@ -2960,7 +2960,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
     tLZTeamData[M28Map.refbLZWantsMobileStealth] = false --will change later
 
     --Build location tracker
-    tLZData[M28Map.subrefTimesSearchedForLocationsBySize] = {}
+    tLZData[M28Map.subrefSegmentsConsideredThisTick] = {}
 
     local tEngineers, tScouts, tMobileShields, tMobileStealths, tOtherUnitsToRetreat, tRASSACU
     local iCurShield, iMaxShield
