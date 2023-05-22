@@ -2003,7 +2003,7 @@ function SlowlyRefreshBuildableLandZoneLocations(oOrigBrain)
             for iLandZone, tLandZoneInfo in tPlateauSubtable[M28Map.subrefPlateauLandZones] do
                 if bDebugMessages == true then LOG(sFunctionRef..': Updating for iPlateau='..iPlateau..'; iLandZone='..iLandZone) end
                 if tLandZoneInfo[M28Map.subrefBuildLocationsBySizeAndSegment] then
-                    if tLandZoneInfo[M28Map.subrefLZTotalSegmentCount] >= 80 or tLZData[M28Map.subrefLZMexCount] > 0 then
+                    if tLandZoneInfo[M28Map.subrefLZTotalSegmentCount] >= 80 or tLandZoneInfo[M28Map.subrefLZMexCount] > 0 then
                         --SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, iOptionalMaxSegmentsToConsider)
                         SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateau, iLandZone, iSegmentsBeforeWaiting)
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

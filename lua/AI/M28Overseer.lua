@@ -419,14 +419,14 @@ function TestCustom(aiBrain)
     ScenarioInfo.Options.BuildMult = tostring(10.0)
 
     --Four corners - draw buildable locations in bottom-right
-    while true do
+    --[[while true do
         WaitSeconds(20)
         if GetGameTimeSeconds() >= 152 then
             local tLZData = M28Map.tAllPlateaus[7][M28Map.subrefPlateauLandZones][2]
             M28Engineer.DrawBuildableLocations(tLZData, 8)
             LOG('TestCustom - about to do repru of segmentcount by size='..repru(tLZData[M28Map.subrefBuildLocationSegmentCountBySize]))
         end
-    end
+    end--]]
 
     --Hook assist order
     --[[local M28OldIssueGuard = _G.IssueGuard
