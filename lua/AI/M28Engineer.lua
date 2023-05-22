@@ -603,8 +603,8 @@ function CheckIfSegmentsStillBuildable(aiBrain, iPlateauOrZero, iLandOrWaterZone
                                 if iRemoveSize > iLastValidSize then
                                     if tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iRemoveSize][iSegmentX][iSegmentZ] then
                                         tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iRemoveSize][iSegmentX][iSegmentZ] = nil
+                                        tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iRemoveSize] = math.max(0, (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] or 1) - 1)
                                     end
-                                    tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iRemoveSize] = math.max(0, (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] or 1) - 1)
                                 end
                             end
                             tLZOrWZData[M28Map.subrefBuildableSizeBySegment][iSegmentX][iSegmentZ] = iLastValidSize
@@ -615,6 +615,24 @@ function CheckIfSegmentsStillBuildable(aiBrain, iPlateauOrZero, iLandOrWaterZone
                 end
             end
         end
+    end
+    if tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][2] <= 0 and tLZOrWZData[M28Map.subrefLZTotalSegmentCount] >= 50 and GetGameTimeSeconds() >= 60 then
+        M28Utilities.ErrorHandler('Dont have any locations that even a 2x2 building in P'..(iPlateauOrZero or 'nil')..'Z'..(iLandOrWaterZone or 'nil')..' can build in so likely something has gone wrong, will refresh the build count')
+        LOG('Count by size before update='..repru(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize]))
+        local iCurCount
+        for iSize, sBlueprint in sBlueprintTable do
+            iCurCount = 0
+
+            if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize]) == false then
+                for iSegmentX, tSubtable in tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize] do
+                    for iSegmentZ, bValid in tSubtable do
+                        iCurCount = iCurCount + 1
+                    end
+                end
+            end
+            tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] = iCurCount
+        end
+        LOG('Count by size after update='..repru(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize]))
     end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -1086,9 +1104,8 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
                     tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
                 end
                 local iSize = M28UnitInfo.GetBuildingSize(sBlueprintToBuild)
-                if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have searched all segments in the land zone before, tLocation='..repru(tTargetLocation)..'; sBlueprintToBuild='..sBlueprintToBuild..'; iSize='..iSize..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize]='..repru(tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize])..'; Segments considered for build locations='..repru(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize])..'; Total segments in LZ (nil if wZ)='..(tLZOrWZData[M28Map.subrefLZTotalSegmentCount] or 'nil')..'; Is table of build locations empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize]))) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have searched all segments in the land zone before, tLocation='..repru(tTargetLocation)..'; sBlueprintToBuild='..sBlueprintToBuild..'; iSize='..iSize..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize]='..repru(tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize])..'; Segments considered for build locations='..repru(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize])..'; Total segments in LZ (nil if wZ)='..(tLZOrWZData[M28Map.subrefLZTotalSegmentCount] or 'nil')..'; Is table of build locations empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize]))) end
                 tPotentialBuildLocations = GetPotentialBuildLocationsNearLocation(aiBrain, tLZOrWZData, iPlateauOrZero, iLandOrWaterZone, iSize)
-
                 if M28Utilities.IsTableEmpty(tPotentialBuildLocations) then
                     if tLZOrWZData[M28Map.subrefLZbCoreBase] then
                         M28Utilities.ErrorHandler('Run out of build locations for iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iSize='..iSize, true)
@@ -1106,6 +1123,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': No adjacency locations or not looking for adjacency; tPotentialBuildLocations based on land zone build locations for iSize='..M28UnitInfo.GetBuildingSize(sBlueprintToBuild)..'='..repru(tPotentialBuildLocations)..'; will draw each location in light blue; Is tPotentialBuildLocations empty='..tostring(M28Utilities.IsTableEmpty(tPotentialBuildLocations)))
                     if M28Utilities.IsTableEmpty(tPotentialBuildLocations) == false then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Total number of potential build locations='..table.getn(tPotentialBuildLocations)) end
                         for iEntry, tEntry in tPotentialBuildLocations do
                             M28Utilities.DrawLocation(tEntry, 5)
                         end
@@ -1119,6 +1137,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
         if M28Utilities.IsTableEmpty(tPotentialBuildLocations) == false then
             --GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLocation, tPotentialBuildLocations, iOptionalMaxDistanceFromTargetLocation)
             local tBestLocation = GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLocation, tPotentialBuildLocations, iMaxAreaToSearch, bCalledFromGetBestLocation)
+            if bDebugMessages == true then LOG(sFunctionRef..': Just got best location to build at, tBestLocation='..repru(tBestLocation)) end
             if tBestLocation then
                 --TMD check - if too far away to proect the unit we are interested in, then flag that dont want to try building tmd for the unit anymore
                 if oClosestUnitToTML then
@@ -1131,6 +1150,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
             else
                 if bDebugMessages == true then LOG(sFunctionRef..': We couldnt find any suitable best location for sBlueprintToBuild='..sBlueprintToBuild..'; so will abort') end
             end
+        elseif bDebugMessages == true then LOG(sFunctionRef..': No build locations found')
         end
     end
     return nil, nil
@@ -3409,7 +3429,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     local iExpectedBuildingSize = tiLastBuildingSizeFromActionForTeam[iTeam][iActionToAssign]
     if bDebugMessages == true then
         if iExpectedBuildingSize then
-            LOG(sFunctionRef..': iExpectedBuildingSize='..(iExpectedBuildingSize or 'nil')..';  tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize]='..( tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] or 'nil'))
+            LOG(sFunctionRef..': iExpectedBuildingSize='..(iExpectedBuildingSize or 'nil')..';  tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize]='..( tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iExpectedBuildingSize] or 'nil'))
         else
             LOG(sFunctionRef..': iExpectedBuildingSize is nil,='..(iExpectedBuildingSize or 'nil'))
         end
@@ -3431,8 +3451,8 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     if iTotalBuildPowerWanted < 0 then M28Utilities.ErrorHandler('Have negative BP wanted')
     elseif iTotalBuildPowerWanted > 0 then
         --Reduce BP for high modifiers where we have at least 50% mass stored and dont have spare engineers
-        if iTotalBuildPowerWanted > 60 and M28Team.tTeamData[iTeam][M28Team.refiHighestBrainMultipler] >= 1.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 and tLZOrWZTeamData[M28Map.subrefTbWantBP] and (tLZOrWZTeamData[M28Map.subrefSpareBPByTech][1] == 0 and tLZOrWZTeamData[M28Map.subrefSpareBPByTech][2] == 0 and tLZOrWZTeamData[M28Map.subrefSpareBPByTech][3] == 0) then
-            iTotalBuildPowerWanted = iTotalBuildPowerWanted * math.max(1 / M28Team.tTeamData[iTeam][M28Team.refiHighestBrainMultipler], 0.4)
+        if iTotalBuildPowerWanted > 60 and M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] >= 1.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 and tLZOrWZTeamData[M28Map.subrefTbWantBP] and (tLZOrWZTeamData[M28Map.subrefSpareBPByTech][1] == 0 and tLZOrWZTeamData[M28Map.subrefSpareBPByTech][2] == 0 and tLZOrWZTeamData[M28Map.subrefSpareBPByTech][3] == 0) then
+            iTotalBuildPowerWanted = iTotalBuildPowerWanted * math.max(1 / M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier], 0.4)
             if bDebugMessages == true then LOG(sFunctionRef..': Halfing build power wanted') end
         end
         --Reduce the build power wanted by the existing build power assigned to that action for the LZ, unless bBPIsInAdditionToExisting is true
@@ -6161,9 +6181,9 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 --Build land experimental if enemy base is pathable by land from here and we have high gross mass
                 if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 60 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= 6 then
                     if (NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) or 0) == (NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint]) or -1) then
-                        HaveActionToAssign(refActionBuildLandExperimental, 1, 60, nil, false, true)
+                        HaveActionToAssign(refActionBuildLandExperimental, 3, 60, nil, false, true)
                     else
-                        HaveActionToAssign(refActionBuildExperimental, 1, 60, nil, false, true)
+                        HaveActionToAssign(refActionBuildExperimental, 3, 60, nil, false, true)
                     end
                 end
             end

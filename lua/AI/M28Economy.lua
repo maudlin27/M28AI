@@ -826,6 +826,7 @@ function ManageMassStalls(iTeam)
                 local iKillCount = 0
                 local iCurPlateau, iCurLandZone
                 local bPausedUnitsTableIsEmptyForAllBrains = true
+                local iBuildRateMod
 
                 if bPauseNotUnpause then
                     iCategoryStartPoint = 1
@@ -887,6 +888,10 @@ function ManageMassStalls(iTeam)
                     local bFirstEngiCategoryRefBrain = true
 
                     for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                        if oBrain.CheatEnabled then iBuildRateMod = M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier]
+                        else iBuildRateMod = 1
+                        end
+
                         if iCategoryRef == iSpecialSurplusUpgradeCategory then
                             --Pause all but 1 upgrade per brain, pausing the lowest progress first, if we have multiple upgrades
                             tRelevantUnits = {}
@@ -1075,7 +1080,7 @@ function ManageMassStalls(iTeam)
                                                     if tWeapon.MaxProjectileStorage and tWeapon.ProjectileId then
                                                         local oProjectileBP = __blueprints[tWeapon.ProjectileId]
                                                         if oProjectileBP.Economy and oProjectileBP.Economy.BuildCostMass and oProjectileBP.Economy.BuildTime > 0 and oBP.Economy.BuildRate > 0 then
-                                                            iCurUnitMassUsage = oProjectileBP.Economy.BuildCostMass * oBP.Economy.BuildRate / oProjectileBP.Economy.BuildTime
+                                                            iCurUnitMassUsage = oProjectileBP.Economy.BuildCostMass * oBP.Economy.BuildRate * iBuildRateMod / oProjectileBP.Economy.BuildTime
                                                             --If are power stalling then assume we only save 80% of this, as might have adjacency
                                                             if bPauseNotUnpause then iCurUnitMassUsage = iCurUnitMassUsage * 0.8 end
                                                             break
@@ -1091,22 +1096,21 @@ function ManageMassStalls(iTeam)
                                                 end
 
                                                 if oBP.Economy.BuildRate then
-                                                    --iCurUnitEnergyUsage = oBP.Economy.BuildRate * iEnergyPerBP
                                                     --Reduce this massively if unit isn't actually building anything
                                                     if bPauseNotUnpause then
                                                         if (not(oUnit:IsUnitState('Building')) and not(oUnit:IsUnitState('Repairing')) and not(oUnit.GetWorkProgress and oUnit:GetWorkProgress() > 0)) then
-                                                            iCurUnitMassUsage = oBP.Economy.BuildRate * 0.01
+                                                            iCurUnitMassUsage = oBP.Economy.BuildRate * iBuildRateMod * 0.01
                                                         else
                                                             if M28UnitInfo.IsUnitValid(oUnit:GetFocusUnit()) then
                                                                 oFocusUnitBP = oUnit:GetFocusUnit():GetBlueprint()
-                                                                iCurUnitMassUsage = oBP.Economy.BuildRate / oFocusUnitBP.Economy.BuildTime * oFocusUnitBP.Economy.BuildCostMass * 0.1
+                                                                iCurUnitMassUsage = oBP.Economy.BuildRate * iBuildRateMod / oFocusUnitBP.Economy.BuildTime * oFocusUnitBP.Economy.BuildCostMass * 0.1
                                                                 oUnit[refiLastMassUsage] = iCurUnitMassUsage
                                                             else
-                                                                iCurUnitMassUsage = oBP.Economy.BuildRate * iMassPerBP
+                                                                iCurUnitMassUsage = oBP.Economy.BuildRate * iBuildRateMod *  iMassPerBP
                                                             end
                                                         end
                                                     else
-                                                        iCurUnitMassUsage = (oUnit[refiLastMassUsage] or oBP.Economy.BuildRate * iMassPerBP)
+                                                        iCurUnitMassUsage = (oUnit[refiLastMassUsage] or oBP.Economy.BuildRate * iBuildRateMod * iMassPerBP)
                                                     end
                                                 end
                                             end
@@ -1359,6 +1363,7 @@ function ManageEnergyStalls(iTeam)
                 local iEngineerSubtableCount = 0
                 local tEngineerActionSubtable
                 local tRelevantUnits, oUnit
+                local iBuildRateMod
 
                 local bAbort = false
                 local iTotalUnits = 0
@@ -1405,6 +1410,9 @@ function ManageEnergyStalls(iTeam)
                     local bFirstEngiCategoryRefBrain = true
 
                     for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                        if oBrain.CheatEnabled then iBuildRateMod = M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier]
+                        else iBuildRateMod = 1
+                        end
                         if iCategoryRef == iSpecialSurplusUpgradeCategory then
                             --Pause all but 1 upgrade per brain, pausing the lowest progress first, if we have multiple upgrades
                             tRelevantUnits = {}
@@ -1582,7 +1590,7 @@ function ManageEnergyStalls(iTeam)
                                                         local oProjectileBP = __blueprints[tWeapon.ProjectileId]
                                                         if oProjectileBP.Economy and oProjectileBP.Economy.BuildCostEnergy and oProjectileBP.Economy.BuildTime > 0 and oBP.Economy.BuildRate > 0 then
                                                             --(will multiply cost by 10% in later step)
-                                                            iCurUnitEnergyUsage = oProjectileBP.Economy.BuildCostEnergy * oBP.Economy.BuildRate / oProjectileBP.Economy.BuildTime
+                                                            iCurUnitEnergyUsage = oProjectileBP.Economy.BuildCostEnergy * oBP.Economy.BuildRate * iBuildRateMod / oProjectileBP.Economy.BuildTime
                                                             --If are power stalling then assume we only save 80% of this, as might have adjacency
                                                             if bPauseNotUnpause then iCurUnitEnergyUsage = iCurUnitEnergyUsage * 0.8 end
                                                             break
@@ -1605,18 +1613,18 @@ function ManageEnergyStalls(iTeam)
                                                     --Reduce this massively if unit isn't actually building anything
                                                     if bPauseNotUnpause then
                                                         if (not(oUnit:IsUnitState('Building')) and not(oUnit:IsUnitState('Repairing')) and not(oUnit.GetWorkProgress and oUnit:GetWorkProgress() > 0)) then
-                                                            iCurUnitEnergyUsage = oBP.Economy.BuildRate * 0.01
+                                                            iCurUnitEnergyUsage = oBP.Economy.BuildRate * iBuildRateMod * 0.01
                                                         else
                                                             if M28UnitInfo.IsUnitValid(oUnit:GetFocusUnit()) then
                                                                 oFocusUnitBP = oUnit:GetFocusUnit():GetBlueprint()
-                                                                iCurUnitEnergyUsage = oBP.Economy.BuildRate / oFocusUnitBP.Economy.BuildTime * oFocusUnitBP.Economy.BuildCostEnergy * 0.1
+                                                                iCurUnitEnergyUsage = oBP.Economy.BuildRate * iBuildRateMod / oFocusUnitBP.Economy.BuildTime * oFocusUnitBP.Economy.BuildCostEnergy * 0.1
                                                                 oUnit[refiLastEnergyUsage] = iCurUnitEnergyUsage
                                                             else
-                                                                iCurUnitEnergyUsage = oBP.Economy.BuildRate * iEnergyPerBP
+                                                                iCurUnitEnergyUsage = oBP.Economy.BuildRate * iBuildRateMod * iEnergyPerBP
                                                             end
                                                         end
                                                     else
-                                                        iCurUnitEnergyUsage = (oUnit[refiLastEnergyUsage] or oBP.Economy.BuildRate * iEnergyPerBP)
+                                                        iCurUnitEnergyUsage = (oUnit[refiLastEnergyUsage] or oBP.Economy.BuildRate * iBuildRateMod * iEnergyPerBP)
                                                     end
                                                 end
                                             end

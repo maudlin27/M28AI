@@ -418,15 +418,17 @@ function TestCustom(aiBrain)
     ScenarioInfo.Options.CheatMult = tostring(10.0)
     ScenarioInfo.Options.BuildMult = tostring(10.0)
 
-    --Four corners - draw buildable locations in bottom-right
-    --[[while true do
+    --Four corners - draw buildable locations in bottom-right with plateau 7 LZ2
+    --Island zero - P218 LZ1
+    while true do
         WaitSeconds(20)
-        if GetGameTimeSeconds() >= 152 then
-            local tLZData = M28Map.tAllPlateaus[7][M28Map.subrefPlateauLandZones][2]
+        local iTeam = aiBrain.M28Team
+        if GetGameTimeSeconds() >= 152 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.9 then
+            local tLZData = M28Map.tAllPlateaus[218][M28Map.subrefPlateauLandZones][1]
             M28Engineer.DrawBuildableLocations(tLZData, 8)
             LOG('TestCustom - about to do repru of segmentcount by size='..repru(tLZData[M28Map.subrefBuildLocationSegmentCountBySize]))
         end
-    end--]]
+    end
 
     --Hook assist order
     --[[local M28OldIssueGuard = _G.IssueGuard
@@ -553,7 +555,13 @@ function CheckUnitCap(aiBrain)
     if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    local iUnitCap = tonumber(ScenarioInfo.Options.UnitCap)
+    --local iUnitCap = tonumber(ScenarioInfo.Options.UnitCap)
+    --Use below method in case a mod has changed this
+    local oArmy = aiBrain:GetArmyIndex()
+    local iUnitCap = GetArmyUnitCap(oArmy)
+    --local armies = ListArmies()
+    --for i, army in armies do
+    --end
     local iCurUnits = aiBrain:GetCurrentUnits(categories.ALLUNITS - M28UnitInfo.refCategoryWall) + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryWall) * 0.25
     local iThreshold = math.max(math.ceil(iUnitCap * 0.02), 10)
     local iCurUnitsDestroyed = 0
@@ -605,7 +613,7 @@ function CheckUnitCap(aiBrain)
     else
         if aiBrain[refbCloseToUnitCap] then
             --Only reset cap if we have a bit of leeway
-            if iCurUnits < 10 + (iUnitCap - iThreshold * 5) then
+            if iCurUnits < (iUnitCap - iThreshold * 5) - 20 then
                 aiBrain[refbCloseToUnitCap] = false
             end
         end
