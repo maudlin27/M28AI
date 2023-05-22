@@ -551,8 +551,7 @@ end
 
 function CheckUnitCap(aiBrain)
     local sFunctionRef = 'CheckUnitCap'
-    local bDebugMessages = false
-    if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --local iUnitCap = tonumber(ScenarioInfo.Options.UnitCap)

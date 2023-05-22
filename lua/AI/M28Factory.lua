@@ -1510,6 +1510,7 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
             iTicksWaited = iTicksWaited + iTicksToWait
             if M28UnitInfo.IsUnitValid(oFactory) == false then
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return nil
             end
             bProceed = IsFactoryReadyToBuild(oFactory)

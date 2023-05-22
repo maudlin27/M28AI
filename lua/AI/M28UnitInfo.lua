@@ -368,6 +368,16 @@ function GetUnitTechLevel(oUnit)
     return iTechLevel
 end
 
+function GetBlueprintTechLevel(sUnitId)
+    local iTechLevel = 1
+    if EntityCategoryContains(categories.TECH1, sUnitId) then iTechLevel = 1
+    elseif EntityCategoryContains(categories.TECH2, sUnitId) then iTechLevel = 2
+    elseif EntityCategoryContains(categories.TECH3, sUnitId) then iTechLevel = 3
+    elseif EntityCategoryContains(categories.EXPERIMENTAL, sUnitId) then iTechLevel = 4
+    end
+    return iTechLevel
+end
+
 function GetUpgradeCombatWeighting(sEnhancementRef)
     --Returns the combat mass mod to apply to an enhancement
     --Obtain using aiBrain:GetFactionIndex()

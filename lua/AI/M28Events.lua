@@ -292,7 +292,7 @@ function OnUnitDeath(oUnit)
                     if EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental * categories.SERAPHIM, oUnit.UnitId) then
                         OnYthothaDeath(oUnit)
                     end
-                    if EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oUnit.UnitId) and (EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) or oUnit:GetFractionComplete() < 1) then
+                    if EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL -M28UnitInfo.refCategoryMex -M28UnitInfo.refCategoryHydro, oUnit.UnitId) and (EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) or oUnit:GetFractionComplete() < 1) then
                         if oUnit[M28Engineer.reftUnitBlacklistSegmentXZ] then --EntityCategoryContains(categories.EXPERIMENTAL * categories.MOBILE - M28UnitInfo.refCategoryExperimentalArti, oJustBuilt.UnitId) then
                             --Treat area around experimental under construction as available again
                             M28Engineer.ClearBlacklistForUnitConstructed(oUnit)
@@ -708,14 +708,16 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                     end
 
                     --Buildable locations - update for unit construction started (do form obile experimentals since the location is temporarily not buildable)
-                    if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oConstruction.UnitId) then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Just started construction of unit '..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..'; Is it valid to build a T1 pgen at this location='..tostring(oEngineer:GetAIBrain():CanBuildStructureAt('ueb1101', oConstruction:GetPosition()))) end
-                        ForkThread(M28Engineer.CheckIfBuildableLocationsNearPositionStillValid, oEngineer:GetAIBrain(), oConstruction:GetPosition(), false, M28UnitInfo.GetBuildingSize(oConstruction.UnitId) * 0.5)
-                    else
-                        --i.e. experimentalal started, the CanBuildStructureAt check doesnt work properly for this so first need to record a blacklist (will only have recorded for 4m) and then check for this
-                        if bDebugMessages == true then LOG(sFunctionRef..': Just started construction of experimental mobile unit='..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..'; Is it valid to build a T1 pgen at this location='..tostring(oEngineer:GetAIBrain():CanBuildStructureAt('ueb1101', oConstruction:GetPosition()))) end
-                        M28Engineer.RecordBlacklistLocation(oConstruction:GetPosition(), M28UnitInfo.GetBuildingSize(oConstruction.UnitId) * 0.5, 240, oConstruction)
-                        ForkThread(M28Engineer.CheckIfBuildableLocationsNearPositionStillValid, oEngineer:GetAIBrain(), oConstruction:GetPosition(), true, M28UnitInfo.GetBuildingSize(oConstruction.UnitId) * 0.5)
+                    if EntityCategoryContains(M28UnitInfo.refCategoryStructure + categories.MOBILE - M28UnitInfo.refCategoryMex - M28UnitInfo.refCategoryHydro, oConstruction.UnitId) then
+                        if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oConstruction.UnitId) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Just started construction of unit '..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..'; Is it valid to build a T1 pgen at this location='..tostring(oEngineer:GetAIBrain():CanBuildStructureAt('ueb1101', oConstruction:GetPosition()))) end
+                            ForkThread(M28Engineer.CheckIfBuildableLocationsNearPositionStillValid, oEngineer:GetAIBrain(), oConstruction:GetPosition(), false, M28UnitInfo.GetBuildingSize(oConstruction.UnitId) * 0.5)
+                        else
+                            --i.e. experimentalal started, the CanBuildStructureAt check doesnt work properly for this so first need to record a blacklist (will only have recorded for 4m) and then check for this
+                            if bDebugMessages == true then LOG(sFunctionRef..': Just started construction of experimental mobile unit='..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..'; Is it valid to build a T1 pgen at this location='..tostring(oEngineer:GetAIBrain():CanBuildStructureAt('ueb1101', oConstruction:GetPosition()))) end
+                            M28Engineer.RecordBlacklistLocation(oConstruction:GetPosition(), M28UnitInfo.GetBuildingSize(oConstruction.UnitId) * 0.5, 240, oConstruction)
+                            ForkThread(M28Engineer.CheckIfBuildableLocationsNearPositionStillValid, oEngineer:GetAIBrain(), oConstruction:GetPosition(), true, M28UnitInfo.GetBuildingSize(oConstruction.UnitId) * 0.5)
+                        end
                     end
                     --end
                     --Both structures and experimentals - clear any engineers trying to build something else that will be blocked by this

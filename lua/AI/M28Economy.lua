@@ -474,7 +474,7 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed)
                 aiBrain[refiNetMassBaseIncome] = aiBrain[refiNetMassBaseIncome] + iMassGen
 
                 if iEnergyGen >= 25 then
-                    ConsiderReclaimingPower(aiBrain.M28Team, oUnit)
+                    ForkThread(ConsiderReclaimingPower, aiBrain.M28Team, oUnit)
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Updated gross and net resources for iMassGen='..iMassGen..'; iEnergyGen='..iEnergyGen..'; aiBrain[refiNetMassBaseIncome]='..aiBrain[refiNetMassBaseIncome]..'; aiBrain[refiGrossMassBaseIncome]='..aiBrain[refiGrossMassBaseIncome]) end
             end
