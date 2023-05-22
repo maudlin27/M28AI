@@ -2653,7 +2653,7 @@ function ManageGunships(iTeam, iAirSubteam)
         end
 
         if M28Utilities.IsTableEmpty(tEnemyGroundTargets) then
-            M28Team.tAirSubteamData[iTeam][M28Team.refbGunshipsHadAttackOrderLastCycle] = false
+            M28Team.tAirSubteamData[iAirSubteam][M28Team.refbGunshipsHadAttackOrderLastCycle] = false
             --Return available gunships to rally point
             if bDebugMessages == true then LOG(sFunctionRef..': Finished considering gunships targets for all land and water zones, will send any remaining gunships to refuel or go to rally') end
             if M28Utilities.IsTableEmpty(tAvailableGunships) == false then --redundancy
@@ -2668,7 +2668,7 @@ function ManageGunships(iTeam, iAirSubteam)
                 end
             end
         else
-            M28Team.tAirSubteamData[iTeam][M28Team.refbGunshipsHadAttackOrderLastCycle] = true
+            M28Team.tAirSubteamData[iAirSubteam][M28Team.refbGunshipsHadAttackOrderLastCycle] = true
             --Have targets for gunships, and have available gunships - send orders for targeting
             local oClosestEnemy
             --Get the closest enemy unit to the front gunship; first filter to only consider AA, then (if no AA) consider experimentals and mexes; then (if none of these consider other units
@@ -2693,7 +2693,7 @@ function ManageGunships(iTeam, iAirSubteam)
             GetGunshipsToMoveToTarget(tAvailableGunships, oClosestEnemy:GetPosition())
         end
     else
-        M28Team.tAirSubteamData[iTeam][M28Team.refbGunshipsHadAttackOrderLastCycle] = false
+        M28Team.tAirSubteamData[iAirSubteam][M28Team.refbGunshipsHadAttackOrderLastCycle] = false
     end
 
     --Clear assignment flags for any refueling gunships
