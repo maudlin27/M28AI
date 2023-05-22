@@ -543,6 +543,7 @@ function GetACUUpgradeWanted(oACU)
             --Do we have the eco to support the upgrade?
             if bDebugMessages == true then LOG(sFunctionRef..': Considering sPotentialUpgrade='..sPotentialUpgrade..'; for ACU '..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' for brain '..oACU:GetAIBrain().Nickname..'; tEnhancement='..reprs(tEnhancement)) end
             local iBuildRate = oACU:GetBlueprint().Economy.BuildRate
+            if aiBrain.CheatEnabled then iBuildRate = iBuildRate * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] end
             local iMassCostPerTick = 0.1 * tEnhancement.BuildCostMass / (tEnhancement.BuildTime / iBuildRate)
             local iEnergyCostPerTick = 0.1 * tEnhancement.BuildCostEnergy / (tEnhancement.BuildTime / iBuildRate)
             --Do we have enough gross energy?
