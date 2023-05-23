@@ -983,7 +983,7 @@ function ManageMassStalls(iTeam)
                                                     bApplyActionToUnit = true
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Have an action match, iActionRef='..iActionRef..'; will apply action to unitunless have an override such as priamry power builder, oUnit[M28Engineer.refbPrimaryBuilder]='..tostring(oUnit[M28Engineer.refbPrimaryBuilder])) end
                                                     --Dont pause the last engi building power, and also dont pause if are building PD/T2 Arti/Shield/Experimental and have a fraction complete of at least 70%
-                                                    if bPauseNotUnpause and iActionRef == M28Engineer.refActionBuildPower and oUnit[M28Engineer.refbPrimaryBuilder] then
+                                                    if bPauseNotUnpause and (iActionRef == M28Engineer.refActionBuildPower or iActionRef == M28Engineer.refActionBuildSecondPower) and oUnit[M28Engineer.refbPrimaryBuilder] then
                                                         bApplyActionToUnit = false
                                                     elseif bPauseNotUnpause and oUnit.GetFocusUnit then
                                                         local oFocusUnit = oUnit:GetFocusUnit()

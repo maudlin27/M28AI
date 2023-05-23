@@ -93,7 +93,10 @@ function IssueTrackedClearCommands(oUnit)
                         break
                     end
                 end
-                if iRefToRemove then table.remove(tLastOrder[subrefoOrderUnitTarget][M28UnitInfo.reftoUnitsAssistingThis], iRefToRemove) end
+                if iRefToRemove then
+                    table.remove(tLastOrder[subrefoOrderUnitTarget][M28UnitInfo.reftoUnitsAssistingThis], iRefToRemove)
+                    --LOG('Just cleared unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' from being recorded as assistin unit '..tLastOrder[subrefoOrderUnitTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(tLastOrder[subrefoOrderUnitTarget]))
+                end
             end
         end
     end
@@ -132,6 +135,7 @@ function IssueTrackedClearCommands(oUnit)
 
     --Clear orders:
     IssueClearCommands({oUnit})
+    --if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'url03092' then LOG('Just issuedclearcommands to unit url03092') end
 
     --Unit name
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit) end
@@ -484,6 +488,7 @@ function IssueTrackedGuard(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalOr
         if not(oOrderTarget[M28UnitInfo.reftoUnitsAssistingThis]) then oOrderTarget[M28UnitInfo.reftoUnitsAssistingThis] = {} end
         table.insert(oOrderTarget[M28UnitInfo.reftoUnitsAssistingThis], oUnit)
         IssueGuard({oUnit}, oOrderTarget)
+        --LOG('Just told unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to assists target '..oOrderTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOrderTarget))
     end
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 end

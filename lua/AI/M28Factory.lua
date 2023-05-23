@@ -1492,6 +1492,8 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    if EntityCategoryContains(M28UnitInfo.refCategoryAirFactory * categories.TECH3, oFactory.UnitId) then bDebugMessages = true end
+
     if not (oFactory['M28ActiveBuilderCheck']) then
         oFactory['M28ActiveBuilderCheck'] = true
         local iTicksWaited = 0
@@ -1540,6 +1542,23 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                     M28Orders.IssueTrackedFactoryBuild(oFactory, sBPToBuild, bDontWait)
                 end
             else
+                --Clear any assisting engineers
+                if bDebugMessages == true then LOG(sFunctionRef..': We dont have anything to build, will wait 10 ticks and try again.  In the meantime will clear all assisting engineers. Is table of assisting units empty='..tostring(M28Utilities.IsTableEmpty(oFactory[M28UnitInfo.reftoUnitsAssistingThis]))) end
+                if M28Utilities.IsTableEmpty(oFactory[M28UnitInfo.reftoUnitsAssistingThis]) == false then
+                    local tUnitsToClear = {}
+                    for iUnit, oUnit in oFactory[M28UnitInfo.reftoUnitsAssistingThis] do
+                        if M28UnitInfo.IsUnitValid(oUnit) then
+                            table.insert(tUnitsToClear, oUnit)
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is tUnitsToClear empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToClear))) end
+                    if M28Utilities.IsTableEmpty(tUnitsToClear) == false then
+                        for iUnit, oUnit in tUnitsToClear do
+                            M28Orders.IssueTrackedClearCommands(oUnit)
+                        end
+                    end
+                    oFactory[M28UnitInfo.reftoUnitsAssistingThis] = {}
+                end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 WaitTicks(10)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)

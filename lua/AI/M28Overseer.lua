@@ -420,7 +420,7 @@ function TestCustom(aiBrain)
 
     --Four corners - draw buildable locations in bottom-right with plateau 7 LZ2
     --Island zero - P218 LZ1
-    while true do
+    --[[while true do
         WaitSeconds(20)
         local iTeam = aiBrain.M28Team
         if GetGameTimeSeconds() >= 152 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.9 then
@@ -428,7 +428,7 @@ function TestCustom(aiBrain)
             M28Engineer.DrawBuildableLocations(tLZData, 8)
             LOG('TestCustom - about to do repru of segmentcount by size='..repru(tLZData[M28Map.subrefBuildLocationSegmentCountBySize]))
         end
-    end
+    end--]]
 
     --Hook assist order
     --[[local M28OldIssueGuard = _G.IssueGuard
