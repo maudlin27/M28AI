@@ -381,9 +381,11 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
+
     --Track team total threat - first remove the previous entry, then add in the new entry
     M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] - tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]
     M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] - tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]
+    M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] - tLZTeamData[M28Map.subrefLZThreatAllyMAA]
     M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] - tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]
 
 
@@ -473,7 +475,9 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         local tStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tLZTeamData[M28Map.subrefLZTAlliedUnits])
         tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] = M28UnitInfo.GetCombatThreatRating(tLZTeamData[M28Map.subrefLZTAlliedUnits], false)
         tLZTeamData[M28Map.subrefLZThreatAllyStructureIndirect] = M28UnitInfo.GetCombatThreatRating(tStructures, false, false, true)
-        tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] = M28UnitInfo.GetAirThreatLevel(tLZTeamData[M28Map.subrefLZTAlliedUnits], false, false, true, false, false, false)
+        tLZTeamData[M28Map.subrefLZThreatAllyMAA] = M28UnitInfo.GetAirThreatLevel(tMobileUnits, false, false, true, false, false, false)
+        tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] = M28UnitInfo.GetAirThreatLevel(tStructures, false, false, true, false, false, false) + tLZTeamData[M28Map.subrefLZThreatAllyMAA]
+
         tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange] = nil
         tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange] = nil
         tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange] = nil
@@ -522,6 +526,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
 
         M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] + tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]
         M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] + tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]
+        M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] + tLZTeamData[M28Map.subrefLZThreatAllyMAA]
         M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedGroundAAThreat] + tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]
 
     end
@@ -614,8 +619,8 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         end
     end
 
-    if bDebugMessages == true then LOG(sFunctionRef..': End of code, tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]='..repru(tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange])..'; bNearbyEnemies='..tostring(bNearbyEnemies)..'; Allied combat='..(tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 'nil')..'; tLZTeamData[M28Map.subrefLZMAAThreatWanted]='..tLZTeamData[M28Map.subrefLZMAAThreatWanted]..'; tLZTeamData[M28Map.refiEnemyAirToGroundThreat]='..tLZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; tLZTeamData[M28Map.refiEnemyAirOtherThreat]='..tLZTeamData[M28Map.refiEnemyAirOtherThreat]) end
     tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] = bNearbyEnemies
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]='..repru(tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange])..'; bNearbyEnemies='..tostring(bNearbyEnemies)..'; Allied combat='..(tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 'nil')..'; tLZTeamData[M28Map.subrefLZMAAThreatWanted]='..tLZTeamData[M28Map.subrefLZMAAThreatWanted]..'; tLZTeamData[M28Map.refiEnemyAirToGroundThreat]='..tLZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; tLZTeamData[M28Map.refiEnemyAirOtherThreat]='..tLZTeamData[M28Map.refiEnemyAirOtherThreat]) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -1953,6 +1958,85 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tRASSACU)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ManageRASSACUsInLandZone'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --If have mass stored then find the nearest quantum gatway and assist it for now, otherwise do nothing (if enemies in this LZ then will have been sent to the combat unit management already)
+    local tQuantumGateways = EntityCategoryFilterDown(M28UnitInfo.refCategoryQuantumGateway, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+    local oGateway
+    local bNotAssistingGateway = true
+
+    if M28Utilities.IsTableEmpty( tQuantumGateways) == false then
+        for iUnit, oUnit in tQuantumGateways do
+            oGateway = oUnit
+            break
+        end
+    end
+    if oGateway then
+        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.05 and not(M28Conditions.HaveLowPower(iTeam)) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 80 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+            if M28Map.bIsCampaignMap or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 100 then
+                bNotAssistingGateway = false
+                for iUnit, oUnit in tRASSACU do
+                    M28Orders.IssueTrackedGuard(oUnit, oGateway, false, 'RASQG', false)
+                end
+            end
+        end
+    end
+    if bNotAssistingGateway then
+        local tUnitsToAssist = {}
+        --If building an experimental and dont have low mass then assist it
+        if not(M28Conditions.TeamHasLowMass(iTeam)) and not(M28Conditions.HaveLowPower(iTeam)) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals]) == false then
+
+            local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
+            local tExperimentalLevelUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryExperimentalLevel, tLZData[M28Map.subrefMidpoint], 100, 'Ally')
+            if M28Utilities.IsTableEmpty( tExperimentalLevelUnits) == false then
+                for iUnit, oUnit in tExperimentalLevelUnits do
+                    if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() < 1 then
+                        table.insert(tUnitsToAssist, oUnit)
+                    end
+                end
+            end
+        end
+        if M28Utilities.IsTableEmpty(tUnitsToAssist) then
+            --If have upgrading unit then assist this
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]) == false then tUnitsToAssist = tLZTeamData[M28Map.subrefActiveUpgrades]
+            else
+                --Assist shield if need to defend from arti
+                if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]) == false then
+                    tUnitsToAssist = tLZTeamData[M28Map.reftPriorityShieldsToAssist]
+                else
+                    --otherwise assist an air factory if we have one
+                    tUnitsToAssist = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                end
+            end
+        end
+
+        if M28Utilities.IsTableEmpty(tUnitsToAssist) == false then
+            local tStartPoint
+            if oGateway then tStartPoint = oGateway:GetPosition()
+            else tStartPoint = tLZData[M28Map.subrefMidpoint]
+            end
+            local oClosestUnitToAssist = M28Utilities.GetNearestUnit(tRASSACU, tStartPoint)
+            if not(M28UnitInfo.IsUnitValid(oClosestUnitToAssist)) then M28Utilities.ErrorHandler('No unit to assist for RAS', true)
+            else
+                for iUnit, oUnit in tRASSACU do
+                    M28Orders.IssueTrackedGuard(oUnit, oClosestUnitToAssist, false, 'RASAs', false)
+                end
+            end
+
+        else
+            --Othewrise clear orders if nothing to assist
+            for iUnit, oUnit in tRASSACU do
+                M28Orders.IssueTrackedClearCommands(oUnit)
+            end
+        end
+    end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tAvailableCombatUnits, iFriendlyBestMobileDFRange, iFriendlyBestMobileIndirectRange, bWantIndirectReinforcements, tUnavailableUnitsInThisLZ)
     --Handles logic for main combat units (direct and indirect fire mobile units) that are noted as available to the land zone
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -2411,12 +2495,14 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 end
 
                 if bUpdateNearestUnit then
-                    local aiBrain
-                    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-                        aiBrain = oBrain
-                        break
+                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+                        local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
+                        if aiBrain then
+                            M28Team.UpdateUnitLastKnownPosition(aiBrain, oNearestEnemyToMidpoint, true)
+                        end
+                    else
+                        M28Utilities.ErrorHandler('No active M28 brain')
                     end
-                    M28Team.UpdateUnitLastKnownPosition(aiBrain, oNearestEnemyToMidpoint, true)
                 end
             else
                 --SCENARIO 2 - we dont outrange enemy with DF, but have slightly more threat than them
@@ -2626,12 +2712,14 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 end
 
                 if bUpdateNearestUnit then
-                    local aiBrain
-                    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-                        aiBrain = oBrain
-                        break
+                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+                        local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
+                        if aiBrain then
+                            M28Team.UpdateUnitLastKnownPosition(aiBrain, oNearestEnemyToMidpoint, true)
+                        end
+                    else
+                        M28Utilities.ErrorHandler('No active M28 brain')
                     end
-                    M28Team.UpdateUnitLastKnownPosition(aiBrain, oNearestEnemyToMidpoint, true)
                 end
             end
         end
@@ -2872,7 +2960,10 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
     tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth] = {}
     tLZTeamData[M28Map.refbLZWantsMobileStealth] = false --will change later
 
-    local tEngineers, tScouts, tMobileShields, tMobileStealths, tOtherUnitsToRetreat
+    --Build location tracker
+    tLZData[M28Map.subrefSegmentsConsideredThisTick] = 0
+
+    local tEngineers, tScouts, tMobileShields, tMobileStealths, tOtherUnitsToRetreat, tRASSACU
     local iCurShield, iMaxShield
     local bLandZoneOrAdjHasUnitsWantingScout = false
     if bDebugMessages == true then LOG(sFunctionRef..': Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]))) end
@@ -2883,7 +2974,10 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
         tScouts = {}
         tMobileShields = {}
         tMobileStealths = {}
+        tRASSACU = {}
         tOtherUnitsToRetreat = {} --Intended for e.g. fatboys and units with personal shield
+        local bUseRASInCombat = false
+        if tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 0 then bUseRASInCombat = true end
         local tAvailableCombatUnits = {}
         local tUnavailableUnitsInThisLZ = {}
         local tTempOtherUnits = {}
@@ -2920,7 +3014,9 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                     table.insert(tMobileShields, oUnit)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileLandStealth, oUnit.UnitId) then
                     table.insert(tMobileStealths, oUnit)
-                elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryMobileLand - categories.COMMAND - M28UnitInfo.refCategoryRASSACU, oUnit.UnitId) then
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryRASSACU, oUnit.UnitId) and not(bUseRASInCombat) then
+                    table.insert(tRASSACU, oUnit)
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryMobileLand - categories.COMMAND, oUnit.UnitId) then
                     --Tanks, skirmishers, and indirect fire units - handled by main combat unit manager
                     bIncludeUnit = false
                     bLandZoneOrAdjHasUnitsWantingScout = true
@@ -2931,7 +3027,8 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                         if (oUnit[refiCurrentAssignmentValue] or 0) < iCurLZValue or (oUnit[refiCurrentAssignmentPlateauAndLZ][1] == iPlateau and (oUnit[refiCurrentAssignmentPlateauAndLZ][2] == iLandZone or (GetGameTimeSeconds() - (oUnit[refiTimeOfLastAssignment] or 0) >= 5))) then
                             --Is it a unit with a shield that wants to retreat so its shield can regen?
                             iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, true)
-                            if iMaxShield > 0 and iCurShield < iMaxShield * 0.35 and iMaxShield > oUnit:GetMaxHealth() * 0.8 then --primarily fatboy, but in theory could affect SACUs
+                            if bDebugMessages == true then LOG(sFunctionRef..': iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; Unit max health='..oUnit:GetMaxHealth()) end
+                            if iMaxShield > 0 and iCurShield < iMaxShield * 0.35 and (iCurShield == 0 or iMaxShield > oUnit:GetMaxHealth() * 0.8 or iCurShield < iMaxShield * 0.05) then --Fatboy and in theory SACUs retreat when shield is low; titans etc. retreat when shield is almost gone
                                 table.insert(tOtherUnitsToRetreat, oUnit)
                                 RecordUnitAsReceivingLandZoneAssignment(oUnit, iPlateau, iLandZone, 100000)
                             else
@@ -3111,9 +3208,12 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
         if M28Utilities.IsTableEmpty(tAvailableMAA) == false then
             ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tAvailableMAA)
         end
-
+        if bDebugMessages == true then LOG(sFunctionRef..': Will retreat other units if any, is table empty='..tostring(M28Utilities.IsTableEmpty(tOtherUnitsToRetreat))) end
         if M28Utilities.IsTableEmpty(tOtherUnitsToRetreat) == false then
             RetreatOtherUnits(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tOtherUnitsToRetreat)
+        end
+        if M28Utilities.IsTableEmpty(tRASSACU) == false then
+            ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tRASSACU)
         end
 
         if M28Utilities.IsTableEmpty(tTempOtherUnits) == false then
@@ -3233,90 +3333,93 @@ function AssignValuesToLandZones(iTeam)
     local sFunctionRef = 'AssignValuesToLandZones'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
+    if aiBrain then
 
-    local aiBrain = GetFirstActiveBrain(iTeam)
-
-    if bDebugMessages == true then
-        LOG(sFunctionRef..': About to start the main loop for assigning values to land zones provided we have friendly M28 brains in the team '..iTeam..'; is table empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))..'; will list out the plateau and LZ for each member of the team')
-        local iStartPlateau, iStartLZ
-        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-            iStartPlateau, iStartLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
-            LOG(sFunctionRef..': Brain '..oBrain.Nickname..' has start position '..repru(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])..' with iStartPlateau='..(iStartPlateau or 'nil')..' and iStartLZ='..(iStartLZ or 'nil'))
-        end
-    end
-    local iCurValue
-    local tFriendlyNonPDBuildings
-    local bAdjacentToCoreFactory
-    local iFriendlyBuildingValue
-    while M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false do
-        local tiPlateauAndLZWithFriendlyStartPosition = {}
-        local iBaseCategory
-        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering iBrain='..iBrain..'; oBrain='..oBrain.Nickname..'; Army index='..oBrain:GetArmyIndex()..'; Player start point='..repru(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])..'; Plateau and LZ of this start point='..iPlateau..'-'..iLandZone) end
-            if not(tiPlateauAndLZWithFriendlyStartPosition[iPlateau]) then tiPlateauAndLZWithFriendlyStartPosition[iPlateau] = {} end
-            if (iLandZone or 0) > 0 then
-                tiPlateauAndLZWithFriendlyStartPosition[iPlateau][iLandZone] = true
+        if bDebugMessages == true then
+            LOG(sFunctionRef..': About to start the main loop for assigning values to land zones provided we have friendly M28 brains in the team '..iTeam..'; is table empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))..'; will list out the plateau and LZ for each member of the team')
+            local iStartPlateau, iStartLZ
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                iStartPlateau, iStartLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+                LOG(sFunctionRef..': Brain '..oBrain.Nickname..' has start position '..repru(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])..' with iStartPlateau='..(iStartPlateau or 'nil')..' and iStartLZ='..(iStartLZ or 'nil'))
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Finished recording the friendly start positions for each brain, tiPlateauAndLZWithFriendlyStartPosition='..repru(tiPlateauAndLZWithFriendlyStartPosition)) end
-        if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 then iBaseCategory = categories.TECH3 * M28UnitInfo.refCategoryFactory
-        elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 then iBaseCategory = M28UnitInfo.refCategoryFactory - categories.TECH1
-        else iBaseCategory = M28UnitInfo.refCategoryFactory
-        end
-
-        for iPlateau, tPlateauData in M28Map.tAllPlateaus do
-            if M28Utilities.IsTableEmpty(tPlateauData[M28Map.subrefPlateauLandZones]) == false then
-                --tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
-                for iLandZone, tLandZoneData in tPlateauData[M28Map.subrefPlateauLandZones] do
-                    if bDebugMessages == true then LOG(sFunctionRef..': About to refresh value of iPlateau='..iPlateau..'; iLandZone='..iLandZone..' for team '..iTeam) end
-                    --Decide on value of the land zone ignoring distance:
-                    --Treat each mex position as being worth 250 mass, value reclaim at 25% of the total value, and reflect the value of all non-PD in the area
-                    iCurValue = tLandZoneData[M28Map.subrefLZMexCount] * 250 + (tLandZoneData[M28Map.subrefTotalMassReclaim] or 0) * 0.25
-                    if M28Utilities.IsTableEmpty(tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedUnits]) == false then
-                        tFriendlyNonPDBuildings = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure - M28UnitInfo.refCategoryPD, tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedUnits])
-                        iFriendlyBuildingValue = M28UnitInfo.GetCombatThreatRating(tFriendlyNonPDBuildings, false, true)
-                        iCurValue = iCurValue + iFriendlyBuildingValue
-                    else
-                        iFriendlyBuildingValue = 0
-                    end
-
-                    --Record the value
-                    tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTValue] = iCurValue
-                    tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZSValue] = iFriendlyBuildingValue
-                    tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] = nil
-                    --Is this a core base land zone?
-                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if we are a friendly land zone - tiPlateauAndLZWithFriendlyStartPosition='..repru(tiPlateauAndLZWithFriendlyStartPosition)..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedUnits]))) end
-                    if tiPlateauAndLZWithFriendlyStartPosition[iPlateau][iLandZone] or tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbCoreBaseOverride] then
-                        tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] = true
-                        if bDebugMessages == true then LOG(sFunctionRef..': Core LZ='..iLandZone..'; All adjacent zones='..repru(tLandZoneData[M28Map.subrefLZAdjacentLandZones])) end
-                    elseif M28Utilities.IsTableEmpty(tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedUnits]) == false then
-                        --Are we adjacent to a core zone and we contain a factory or high value unit? If so then treat us as a core LZ
-                        bAdjacentToCoreFactory = false
-                        if M28Utilities.IsTableEmpty(tLandZoneData[M28Map.subrefLZAdjacentLandZones]) == false then
-                            for iEntry, iAdjLZ in tLandZoneData[M28Map.subrefLZAdjacentLandZones] do
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering if we are adjacent to a core LZ, iAdjLZ='..iAdjLZ..'; Is AdjLZ a core LZ='..tostring(tPlateauData[M28Map.subrefPlateauLandZones][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase])) end
-                                if tPlateauData[M28Map.subrefPlateauLandZones][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] then
-                                    bAdjacentToCoreFactory = true
-                                    break
-                                end
-                            end
-                            if bAdjacentToCoreFactory and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(iBaseCategory, tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedUnits])) == false then
-                                tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] = true
-                            end
-                        end
-
-                    end
-
-                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                    WaitTicks(1)
-                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        local iCurValue
+        local tFriendlyNonPDBuildings
+        local bAdjacentToCoreFactory
+        local iFriendlyBuildingValue
+        while M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false do
+            local tiPlateauAndLZWithFriendlyStartPosition = {}
+            local iBaseCategory
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering iBrain='..iBrain..'; oBrain='..oBrain.Nickname..'; Army index='..oBrain:GetArmyIndex()..'; Player start point='..repru(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])..'; Plateau and LZ of this start point='..iPlateau..'-'..iLandZone) end
+                if not(tiPlateauAndLZWithFriendlyStartPosition[iPlateau]) then tiPlateauAndLZWithFriendlyStartPosition[iPlateau] = {} end
+                if (iLandZone or 0) > 0 then
+                    tiPlateauAndLZWithFriendlyStartPosition[iPlateau][iLandZone] = true
                 end
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished recording the friendly start positions for each brain, tiPlateauAndLZWithFriendlyStartPosition='..repru(tiPlateauAndLZWithFriendlyStartPosition)) end
+            if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 then iBaseCategory = categories.TECH3 * M28UnitInfo.refCategoryFactory
+            elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 then iBaseCategory = M28UnitInfo.refCategoryFactory - categories.TECH1
+            else iBaseCategory = M28UnitInfo.refCategoryFactory
+            end
+
+            for iPlateau, tPlateauData in M28Map.tAllPlateaus do
+                if M28Utilities.IsTableEmpty(tPlateauData[M28Map.subrefPlateauLandZones]) == false then
+                    --tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
+                    for iLandZone, tLandZoneData in tPlateauData[M28Map.subrefPlateauLandZones] do
+                        if bDebugMessages == true then LOG(sFunctionRef..': About to refresh value of iPlateau='..iPlateau..'; iLandZone='..iLandZone..' for team '..iTeam) end
+                        --Decide on value of the land zone ignoring distance:
+                        --Treat each mex position as being worth 250 mass, value reclaim at 25% of the total value, and reflect the value of all non-PD in the area
+                        iCurValue = tLandZoneData[M28Map.subrefLZMexCount] * 250 + (tLandZoneData[M28Map.subrefTotalMassReclaim] or 0) * 0.25
+                        if M28Utilities.IsTableEmpty(tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedUnits]) == false then
+                            tFriendlyNonPDBuildings = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure - M28UnitInfo.refCategoryPD, tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedUnits])
+                            iFriendlyBuildingValue = M28UnitInfo.GetCombatThreatRating(tFriendlyNonPDBuildings, false, true)
+                            iCurValue = iCurValue + iFriendlyBuildingValue
+                        else
+                            iFriendlyBuildingValue = 0
+                        end
+
+                        --Record the value
+                        tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTValue] = iCurValue
+                        tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZSValue] = iFriendlyBuildingValue
+                        tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] = nil
+                        --Is this a core base land zone?
+                        if bDebugMessages == true then LOG(sFunctionRef..': Checking if we are a friendly land zone - tiPlateauAndLZWithFriendlyStartPosition='..repru(tiPlateauAndLZWithFriendlyStartPosition)..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedUnits]))) end
+                        if tiPlateauAndLZWithFriendlyStartPosition[iPlateau][iLandZone] or tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbCoreBaseOverride] then
+                            tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] = true
+                            if bDebugMessages == true then LOG(sFunctionRef..': Core LZ='..iLandZone..'; All adjacent zones='..repru(tLandZoneData[M28Map.subrefLZAdjacentLandZones])) end
+                        elseif M28Utilities.IsTableEmpty(tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedUnits]) == false then
+                            --Are we adjacent to a core zone and we contain a factory or high value unit? If so then treat us as a core LZ
+                            bAdjacentToCoreFactory = false
+                            if M28Utilities.IsTableEmpty(tLandZoneData[M28Map.subrefLZAdjacentLandZones]) == false then
+                                for iEntry, iAdjLZ in tLandZoneData[M28Map.subrefLZAdjacentLandZones] do
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we are adjacent to a core LZ, iAdjLZ='..iAdjLZ..'; Is AdjLZ a core LZ='..tostring(tPlateauData[M28Map.subrefPlateauLandZones][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase])) end
+                                    if tPlateauData[M28Map.subrefPlateauLandZones][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] then
+                                        bAdjacentToCoreFactory = true
+                                        break
+                                    end
+                                end
+                                if bAdjacentToCoreFactory and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(iBaseCategory, tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedUnits])) == false then
+                                    tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] = true
+                                end
+                            end
+
+                        end
+
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        WaitTicks(1)
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                    end
+                end
+            end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitTicks(1) --Needed to avoid infinite loop if are no LZs (e.g. on a water map)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         end
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        WaitTicks(1) --Needed to avoid infinite loop if are no LZs (e.g. on a water map)
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    else
+        M28Utilities.ErrorHandler('No active M28 brain')
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -3360,7 +3463,6 @@ function ManageAllLandZones(aiBrain, iTeam)
                 local tLZTeamData = tLandZoneDataByTeam[M28Map.subrefLZTeamData][iTeam]
                 if bDebugMessages == true then
                     LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is table of enemey units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]))..'; Is table of friendly units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits])))
-                    if iPlateau == 12 and iLandZone == 2 then LOG(sFunctionRef..': Will do reprs of tLZTeamData='..reprs(tLZTeamData)..'; reprs of same table via full ref='..reprs(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam])..'; Is table empty for team '..aiBrain.M28Team..' doing full ref='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTAlliedUnits]))) end
                 end
                 --First check all units in here are alive
                 if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
@@ -3406,14 +3508,6 @@ function ManageAllLandZones(aiBrain, iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function GetFirstActiveBrain(iTeam)
-    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-        if not(oBrain.M28IsDefeated) then
-            return oBrain
-        end
-    end
-end
-
 function LandZoneOverseer(iTeam)
     --Periodically cycles through every land zone and refreshes the unit details
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -3421,33 +3515,32 @@ function LandZoneOverseer(iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
-    local aiBrain = GetFirstActiveBrain(iTeam)
+    local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
+    if aiBrain then
 
-    if bDebugMessages == true then LOG(sFunctionRef..': About to start the main loop for land zones provided we have friendly M28 brains in the team '..iTeam..'; is table empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))) end
-
-    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+        if bDebugMessages == true then LOG(sFunctionRef..': About to start the main loop for land zones provided we have friendly M28 brains in the team '..iTeam..'; is table empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))) end
         ForkThread(AssignValuesToLandZones, iTeam)
-    end
 
-    local iWaitCount = 0
-    while not(M28Map.bMapLandSetupComplete) or GetGameTimeSeconds() <= 4 do
-        iWaitCount = iWaitCount + 1
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        WaitSeconds(1)
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-        if iWaitCount >= 200 then M28Utilities.ErrorHandler('Have waited more than '..iWaitCount..' and map setup not complete, will proceed but likely AI wont work') break end
-    end
-
-    while M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false do
-        if bDebugMessages == true then LOG(sFunctionRef..': Will call logic to refresh every unit in a land zone') end
-        ForkThread(ManageAllLandZones, aiBrain, iTeam)
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        WaitSeconds(1)
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-        if aiBrain.M28IsDefeated and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
-            aiBrain = GetFirstActiveBrain(iTeam)
+        local iWaitCount = 0
+        while not(M28Map.bMapLandSetupComplete) or GetGameTimeSeconds() <= 4 do
+            iWaitCount = iWaitCount + 1
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitSeconds(1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            if iWaitCount >= 200 then M28Utilities.ErrorHandler('Have waited more than '..iWaitCount..' and map setup not complete, will proceed but likely AI wont work') break end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': About to restart the loop for team '..iTeam..'; aiBrain referred to='..(aiBrain.Nickname or 'nil')..'; Is table of active m28 brains='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))) end
+
+        while M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false do
+            if bDebugMessages == true then LOG(sFunctionRef..': Will call logic to refresh every unit in a land zone') end
+            ForkThread(ManageAllLandZones, aiBrain, iTeam)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitSeconds(1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            if aiBrain.M28IsDefeated and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+                aiBrain = M28Team.GetFirstActiveBrain(iTeam)
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': About to restart the loop for team '..iTeam..'; aiBrain referred to='..(aiBrain.Nickname or 'nil')..'; Is table of active m28 brains='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))) end
+        end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -3474,10 +3567,12 @@ function GetLandZoneToRunTo(iTeam, iPlateau, iCurLandZone, sPathing, tOptionalSt
     if M28Utilities.IsTableEmpty(tLZShortlist) then
         --Add each team start point on the same plateau
         local iPotentialPlateau, iPotentialLZ
-        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-            iPotentialPlateau, iPotentialLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
-            if iPotentialPlateau == iPlateau and not(iPotentialLZ == iCurLandZone) then
-                table.insert(tLZShortlist, iPotentialLZ)
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                iPotentialPlateau, iPotentialLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+                if iPotentialPlateau == iPlateau and not(iPotentialLZ == iCurLandZone) then
+                    table.insert(tLZShortlist, iPotentialLZ)
+                end
             end
         end
     end
@@ -3609,12 +3704,8 @@ function UpdateRadarCoverageForDestroyedRadar(oRadar)
         for iTeam, tRadarData in oRadar[reftiRadarPlateauAndLandZonesCoveredByTeam] do
             --local aiBrain = oRadar:GetAIBrain()
             --local iTeam = aiBrain.M28Team
-            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
-                local aiBrain
-                for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-                    aiBrain = oBrain
-                    break
-                end
+            local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
+            if aiBrain then
                 for iEntry, tiPlateauAndLZ in tRadarData do
                     local tLZData = M28Map.tAllPlateaus[tiPlateauAndLZ[1]][M28Map.subrefPlateauLandZones][tiPlateauAndLZ[2]]
                     if tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar] == oRadar then
@@ -3662,12 +3753,9 @@ function UpdateRadarCoverageForDestroyedRadar(oRadar)
         for iTeam, tRadarData in oRadar[M28Navy.reftiRadarWaterZonesCoveredByTeam] do
             --local aiBrain = oRadar:GetAIBrain()
             --local iTeam = aiBrain.M28Team
-            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
-                local aiBrain
-                for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-                    aiBrain = oBrain
-                    break
-                end
+
+            local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
+            if aiBrain then
                 local iPond
                 for iEntry, iWaterZone in tRadarData do
                     iPond = M28Map.tiPondByWaterZone[iWaterZone]

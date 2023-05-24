@@ -224,6 +224,8 @@ function OnUnitDeath(oUnit)
             else
                 if oUnit.GetAIBrain then
                     --------Non-M28 Specific logic------
+                    --Rough unit count
+                    if not(oUnit['M28Dead']) then oUnit['M28Dead'] = true M28Overseer.refiRoughTotalUnitsInGame = M28Overseer.refiRoughTotalUnitsInGame - 1 end
 
                     --TMD protection logic - refresh land zone TMD entries
                     if oUnit[M28Building.refbUnitWantsMoreTMD] then M28Building.UpdateLZUnitsWantingTMDForUnitDeath(oUnit) end
@@ -290,7 +292,11 @@ function OnUnitDeath(oUnit)
                     if EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental * categories.SERAPHIM, oUnit.UnitId) then
                         OnYthothaDeath(oUnit)
                     end
-                    if EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oUnit.UnitId) and (EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) or oUnit:GetFractionComplete() < 1) then
+                    if EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL -M28UnitInfo.refCategoryMex -M28UnitInfo.refCategoryHydro, oUnit.UnitId) and (EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) or oUnit:GetFractionComplete() < 1) then
+                        if oUnit[M28Engineer.reftUnitBlacklistSegmentXZ] then --EntityCategoryContains(categories.EXPERIMENTAL * categories.MOBILE - M28UnitInfo.refCategoryExperimentalArti, oJustBuilt.UnitId) then
+                            --Treat area around experimental under construction as available again
+                            M28Engineer.ClearBlacklistForUnitConstructed(oUnit)
+                        end
                         M28Engineer.SearchForBuildableLocationsNearDestroyedBuilding(oUnit)
                     end
 
@@ -387,6 +393,10 @@ function OnEnhancementComplete(oUnit, sEnhancement)
         --Update ACU upgrade count
         if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
             oUnit[M28ACU.refiUpgradeCount] = (oUnit[M28ACU.refiUpgradeCount] or 0) + 1
+        end
+        --Fix AiX modifier
+        if oUnit:GetAIBrain().CheatEnabled then
+            M28UnitInfo.FixUnitResourceCheatModifiers(oUnit)
         end
         if oUnit:GetAIBrain().M28AI then
             if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
@@ -609,7 +619,7 @@ function OnMissileBuilt(self, weapon)
             M28Utilities.DelayChangeVariable(self, M28Building.refbMissileRecentlyBuilt, false, 5)
 
 
-            --Pause if we already have 2 missiles
+            --Pause if we already have 2 missiles (mroe if smd and enemy has nukes)
             if bDebugMessages == true then
                 if M28UnitInfo.IsUnitValid(self) then
                     LOG(sFunctionRef..': Have valid unit='..self.UnitId..M28UnitInfo.GetUnitLifetimeCount(self))
@@ -641,13 +651,14 @@ function OnMissileBuilt(self, weapon)
 
                 --If 2+ missiles then pause, and consider unpausing later
                 if iMissiles >= 2 and not(EntityCategoryContains(categories.EXPERIMENTAL, self.UnitId)) then
+                    if iMissiles >= 4 or not(EntityCategoryContains(M28UnitInfo.refCategorySMD, self.UnitId)) or M28Utilities.IsTableEmpty(M28Team.tTeamData[self:GetAIBrain().M28Team][M28Team.reftEnemyNukeLaunchers]) or iMissiles >= 2 + table.getn(M28Team.tTeamData[self:GetAIBrain().M28Team][M28Team.reftEnemyNukeLaunchers]) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have at least 2 missiles so will set paused to true on unit '..self.UnitId..M28UnitInfo.GetUnitLifetimeCount(self)) end
+                        self:SetPaused(true)
+                        if self.SetAutoMode then self:SetAutoMode(false) end
 
-                    if bDebugMessages == true then LOG(sFunctionRef..': Have at least 2 missiles so will set paused to true on unit '..self.UnitId..M28UnitInfo.GetUnitLifetimeCount(self)) end
-                    self:SetPaused(true)
-                    if self.SetAutoMode then self:SetAutoMode(false) end
-
-                    --Recheck every minute
-                    ForkThread(M28Building.CheckIfWantToBuildAnotherMissile, self)
+                        --Recheck every minute
+                        ForkThread(M28Building.CheckIfWantToBuildAnotherMissile, self)
+                    end
                 end
             end
 
@@ -694,17 +705,26 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                 end
 
                 --Decide if want to shield this construction and update buildable location
-                if EntityCategoryContains(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryExperimentalStructure, oConstruction.UnitId) then
+                if EntityCategoryContains(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryExperimentalLevel, oConstruction.UnitId) then
                     M28Building.CheckIfUnitWantsFixedShield(oConstruction, true)
                     --If this is a fixed shield then instead update shield coverage
                     if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oConstruction.UnitId) then
                         M28Building.UpdateShieldCoverageOfUnits(oConstruction, false)
                     end
 
-                    --Buildable locations - update for unit construction started
-                    if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oConstruction.UnitId) then
-                        ForkThread(M28Engineer.CheckIfBuildableLocationsNearPositionStillValid, oEngineer:GetAIBrain(), oConstruction:GetPosition())
+                    --Buildable locations - update for unit construction started (do form obile experimentals since the location is temporarily not buildable)
+                    if EntityCategoryContains(M28UnitInfo.refCategoryStructure + categories.MOBILE - M28UnitInfo.refCategoryMex - M28UnitInfo.refCategoryHydro, oConstruction.UnitId) then
+                        if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oConstruction.UnitId) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Just started construction of unit '..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..'; Is it valid to build a T1 pgen at this location='..tostring(oEngineer:GetAIBrain():CanBuildStructureAt('ueb1101', oConstruction:GetPosition()))) end
+                            ForkThread(M28Engineer.CheckIfBuildableLocationsNearPositionStillValid, oEngineer:GetAIBrain(), oConstruction:GetPosition(), false, M28UnitInfo.GetBuildingSize(oConstruction.UnitId) * 0.5)
+                        else
+                            --i.e. experimentalal started, the CanBuildStructureAt check doesnt work properly for this so first need to record a blacklist (will only have recorded for 4m) and then check for this
+                            if bDebugMessages == true then LOG(sFunctionRef..': Just started construction of experimental mobile unit='..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..'; Is it valid to build a T1 pgen at this location='..tostring(oEngineer:GetAIBrain():CanBuildStructureAt('ueb1101', oConstruction:GetPosition()))) end
+                            M28Engineer.RecordBlacklistLocation(oConstruction:GetPosition(), M28UnitInfo.GetBuildingSize(oConstruction.UnitId) * 0.5, 240, oConstruction)
+                            ForkThread(M28Engineer.CheckIfBuildableLocationsNearPositionStillValid, oEngineer:GetAIBrain(), oConstruction:GetPosition(), true, M28UnitInfo.GetBuildingSize(oConstruction.UnitId) * 0.5)
+                        end
                     end
+                    --end
                     --Both structures and experimentals - clear any engineers trying to build something else that will be blocked by this
                     ForkThread(M28Engineer.ClearEngineersWhoseTargetIsNowBlockedByUnitConstructionStarted, oEngineer, oConstruction)
                 end
@@ -781,8 +801,10 @@ function OnConstructed(oEngineer, oJustBuilt)
                 if EntityCategoryContains(M28UnitInfo.refCategoryWall, oJustBuilt.UnitId) and not(oJustBuilt:GetAIBrain().M28AI) then
                     M28Land.TrackWallSegment(oJustBuilt, true)
                 end
-
-
+            elseif oJustBuilt[M28Engineer.reftUnitBlacklistSegmentXZ] then --EntityCategoryContains(categories.EXPERIMENTAL * categories.MOBILE - M28UnitInfo.refCategoryExperimentalArti, oJustBuilt.UnitId) then
+                --Treat area around experimental under construction as available again
+                M28Engineer.ClearBlacklistForUnitConstructed(oJustBuilt)
+                M28Engineer.SearchForBuildableLocationsNearDestroyedBuilding(oJustBuilt)
             end
 
             --M28 specific
@@ -797,7 +819,9 @@ function OnConstructed(oEngineer, oJustBuilt)
 
                 --Check build locations for units not built at a factory
                 if EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId) then
-                    M28Engineer.CheckIfBuildableLocationsNearPositionStillValid(oJustBuilt:GetAIBrain(), oJustBuilt:GetPosition())
+                    if not(oJustBuilt[M28UnitInfo.refbConstructionStart]) then
+                        M28Engineer.CheckIfBuildableLocationsNearPositionStillValid(oJustBuilt:GetAIBrain(), oJustBuilt:GetPosition(), false, M28UnitInfo.GetBuildingSize(oJustBuilt.UnitId) * 0.5)
+                    end
                     M28Economy.UpdateHighestFactoryTechLevelForBuiltUnit(oJustBuilt) --includes a check to see if are dealing with a factory HQ
                     if EntityCategoryContains(M28UnitInfo.refCategoryMex, oJustBuilt.UnitId) then
                         M28Team.tTeamData[oJustBuilt:GetAIBrain().M28Team][M28Team.refiUpgradedMexCount] = (M28Team.tTeamData[oJustBuilt:GetAIBrain().M28Team][M28Team.refiUpgradedMexCount] or 0) + 1
@@ -889,7 +913,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                 --Logic based on the engineer
                 if EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
                     M28ACU.GetACUOrder(oEngineer:GetAIBrain(), oEngineer)
-                elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory, oEngineer.UnitId) then
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway, oEngineer.UnitId) then
                     if bDebugMessages == true then LOG(sFunctionRef..': A factory has just built a unit so will get the next order for the factory') end
                     ForkThread(M28Factory.DecideAndBuildUnitForFactory, oEngineer:GetAIBrain(), oEngineer)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEngineer.UnitId) then
@@ -900,7 +924,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                 end
 
                 --Logic based on the type of unit built
-                if EntityCategoryContains(M28UnitInfo.refCategoryFactory, oJustBuilt.UnitId) then
+                if EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway, oJustBuilt.UnitId) then
                     if bDebugMessages == true then LOG(sFunctionRef..': A factory has just been built so will get the next order for the factory') end
                     ForkThread(M28Factory.DecideAndBuildUnitForFactory, oJustBuilt:GetAIBrain(), oJustBuilt)
                     if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oJustBuilt.UnitId) then
@@ -1078,14 +1102,20 @@ function OnCreate(oUnit)
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time'..GetGameTimeSeconds()..'; oUnit[M28OnCrRn]='..tostring(oUnit['M28OnCrRn'] or false)..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete or false)..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
         if not(M28Map.bMapLandSetupComplete) then --Start of game ACU creation happens before we have setup the map
             while not(M28Map.bMapLandSetupComplete) do
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 WaitTicks(1)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
             end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitTicks(1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
             if M28UnitInfo.IsUnitValid(oUnit) then OnCreate(oUnit) end
         else
             if not(oUnit['M28OnCrRn']) then
                 oUnit['M28OnCrRn'] = true
+                M28Overseer.refiRoughTotalUnitsInGame = M28Overseer.refiRoughTotalUnitsInGame + 1
                 M28UnitInfo.GetUnitLifetimeCount(oUnit) --essential so lifetimecount logic works
+
                 M28Team.ConsiderAssigningUnitToZoneForBrain(oUnit:GetAIBrain(), oUnit) --This function includes check of whether this is an M28 brain
 
                 --All units (not just M28 specific):
@@ -1108,7 +1138,10 @@ function OnCreate(oUnit)
                     if M28Config.M28ShowUnitNames then oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..sWZOrLZRef) end
                 end
                 --Units with upgrade - update the base threat value
-                if EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit) end --Will check if unit has enhancements as part of this
+                if EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then
+                    M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit) --Will check if unit has enhancements as part of this
+                    if oUnit:GetAIBrain().CheatEnabled then ForkThread(M28UnitInfo.FixUnitResourceCheatModifiers, oUnit) end
+                end
 
                 --Hydro resource locations
                 if EntityCategoryContains(M28UnitInfo.refCategoryHydro, oUnit.UnitId) then
@@ -1161,6 +1194,12 @@ function OnCreate(oUnit)
                     M28UnitInfo.SetUnitTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityMissileShip, true)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryBattleship, oUnit.UnitId) then
                     M28UnitInfo.SetUnitTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityBattleShip, true)
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway, oUnit.UnitId) then
+                    --If have been gifted factory or created via cheat then want to start building something
+                    if oUnit:GetFractionComplete() >= 1 then
+                        ForkThread(M28Factory.DecideAndBuildUnitForFactory, oUnit:GetAIBrain(), oUnit)
+                    end
+
                 end
                 --Check unit cap
                 if (oUnit[M28Overseer.refiExpectedRemainingCap] or 0) <= 100 then
@@ -1254,4 +1293,48 @@ end
 
 function OnPlayableAreaChange(rect, voFlag)
     M28Map.SetupPlayableAreaAndSegmentSizes()
+end
+
+function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
+    local sFunctionRef = 'ObjectiveAdded'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    --Wait until map setup complete
+    while not(M28Map.bMapLandSetupComplete) or not(M28Map.bWaterZoneInitialCreation) do
+        if GetGameTimeSeconds() >= 10 then break end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    end
+
+
+
+    --Record capture missions
+    if bDebugMessages == true then LOG('Have a mission, Title='..Title..'; Description='..Description..'; Target.captured='..(Target.captured or 'nil')) end
+    if Target.captured == 0 then
+        if bDebugMessages == true then  LOG('Have a capture mission, is target empty='..tostring(M28Utilities.IsTableEmpty(Target))) end
+        --Record every unit to be captured
+        if M28Utilities.IsTableEmpty(Target.Units) == false then
+            local iPlateauOrZero, iLandOrWaterZone
+            for iEntry, oUnit in Target.Units do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering iEntry='..iEntry..' in Target; Is valid unit='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
+                if M28UnitInfo.IsUnitValid(oUnit) then
+                    iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                    local tLZOrWZData
+                    if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; Unit position='..repru(oUnit:GetPosition())) end
+                    if iLandOrWaterZone > 0 then
+                        if iPlateauOrZero == 0 then
+                            tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+                        else
+                            tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+                        end
+                        if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToCapture]) then tLZOrWZData[M28Map.subreftoUnitsToCapture] = {} end
+                        table.insert(tLZOrWZData[M28Map.subreftoUnitsToCapture], oUnit)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of units to capture') end
+                    end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

@@ -368,6 +368,16 @@ function GetUnitTechLevel(oUnit)
     return iTechLevel
 end
 
+function GetBlueprintTechLevel(sUnitId)
+    local iTechLevel = 1
+    if EntityCategoryContains(categories.TECH1, sUnitId) then iTechLevel = 1
+    elseif EntityCategoryContains(categories.TECH2, sUnitId) then iTechLevel = 2
+    elseif EntityCategoryContains(categories.TECH3, sUnitId) then iTechLevel = 3
+    elseif EntityCategoryContains(categories.EXPERIMENTAL, sUnitId) then iTechLevel = 4
+    end
+    return iTechLevel
+end
+
 function GetUpgradeCombatWeighting(sEnhancementRef)
     --Returns the combat mass mod to apply to an enhancement
     --Obtain using aiBrain:GetFactionIndex()
@@ -969,12 +979,15 @@ function GetUnitHealthPercent(oUnit)
     return oUnit:GetHealth() / oUnit:GetMaxHealth()
 end
 
-function GetCurrentAndMaximumShield(oUnit, bIgnoreIfShieldFailedFromLowPower)
+function GetCurrentAndMaximumShield(oUnit, bDontTreatLowPowerShieldAsZero)
     --Returns 0, 0 if unit has no shield, or 0, [max shield] if it has a shield but it is depleted
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetCurrentAndMaximumShield'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if (M28Profiler.tProfilerCountByTickByFunction[(math.floor(GetGameTimeSeconds()*10) - 1) ][sFunctionRef] or 0) >= 5000 then
+        --Audit trail every 100 cycles
+        M28Utilities.ErrorHandler('Audit trail', true, false, 100)
+    end
     if oUnit.MyShield then
         local iCurShield = 0
         local iMaxShield = 0
@@ -988,7 +1001,7 @@ function GetCurrentAndMaximumShield(oUnit, bIgnoreIfShieldFailedFromLowPower)
             end
         end
         if iCurShield > 0 then
-            if not(bIgnoreIfShieldFailedFromLowPower) then
+            if not(bDontTreatLowPowerShieldAsZero) then
                 --GetHealth doesnt look like it factors in power stall
                 if not(oUnit.MyShield.Enabled) or oUnit.MyShield.DepletedByEnergy or (oUnit:GetAIBrain():GetEconomyStored('ENERGY') == 0) then iCurShield = 0 end
             end
@@ -1157,13 +1170,16 @@ function RecordUnitRange(oUnit)
                         oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
                         if (oCurWeapon.DamageRadius or 0) > 0 then oUnit[refiDFAOE] = math.max((oUnit[refiDFAOE] or 0), oCurWeapon.DamageRadius) end
                         if oCurWeapon.RateOfFire then oUnit[refiTimeBetweenDFShots] = math.max((oUnit[refiTimeBetweenDFShots] or 0), 1 / oCurWeapon.RateOfFire) end
+                    elseif oCurWeapon.WeaponCategory == 'Indirect Fire' then
+                        oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
                     elseif (oCurWeapon.Damage or 0) == 0 or (oCurWeapon.MaxRadius or 0) <= 1 then
                         --Ignore
                     elseif oUnit.UnitId == 'uab4201' then
                         --Aeon TMD - ignore as it has a rangecategory for the weapon that uses the correct range so want to ignore the other waepon anyway
                     else
                         M28Utilities.ErrorHandler('Unrecognised range category for unit '..oUnit.UnitId)
-                        --If this triggers do a reprs of the weapon to figure out why
+                        --If this triggers do a reprs of the weapon to figure out why (i.e. uncomment out the below)
+                        --LOG('reprs of oCurWeapon='..reprs(oCurWeapon))
                     end
                 else
                     M28Utilities.ErrorHandler('Unrecognised range category '..oCurWeapon.RangeCategory..' for unit '..oUnit.UnitId)
@@ -1399,7 +1415,7 @@ function PauseOrUnpauseMassUsage(oUnit, bPauseNotUnpause)
         --Normal logic - just pause unit - exception if are dealing with a factory whose workcomplete is 100% and want to pause it
         if (not(bPauseNotUnpause) or not(oUnit:IsPaused())) and (not(EntityCategoryContains(refCategoryFactory, oUnit.UnitId)) or (oUnit.GetWorkProgress and oUnit:GetWorkProgress() > 0 and oUnit:GetWorkProgress() < 1) or (oUnit:IsPaused() and not(bPauseNotUnpause))) then
 
-            if oUnit.UnitId == 'xsb2401' then M28Utilities.ErrorHandler('Pausing Yolona') end
+            if oUnit.UnitId == 'xsb2401' and bPauseNotUnpause then M28Utilities.ErrorHandler('Pausing Yolona') end
             if bDebugMessages == true then LOG(sFunctionRef..': About to set paused to '..tostring(bPauseNotUnpause)..' for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..' Unit state='..GetUnitState(oUnit))
                 if oUnit.GetWorkProgress then LOG(sFunctionRef..': Unit work progress='..oUnit:GetWorkProgress()) end
             end
@@ -1469,7 +1485,7 @@ function PauseOrUnpauseEnergyUsage(oUnit, bPauseNotUnpause)
         end
         --Normal logic - just pause unit - exception if are dealing with a factory whose workcomplete is 100%
         if oUnit.SetPaused and (not(bPauseNotUnpause) or not(oUnit:IsPaused())) and (not(EntityCategoryContains(refCategoryFactory, oUnit.UnitId)) or (oUnit.GetWorkProgress and oUnit:GetWorkProgress() > 0 and oUnit:GetWorkProgress() < 1)) then
-            if oUnit.UnitId == 'xsb2401' then M28Utilities.ErrorHandler('Pausing Yolona') end
+            if oUnit.UnitId == 'xsb2401'  and bPauseNotUnpause then M28Utilities.ErrorHandler('Pausing Yolona') end
             if bDebugMessages == true then LOG(sFunctionRef..': About to set paused to '..tostring(bPauseNotUnpause)..' for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; Unit state='..GetUnitState(oUnit))
                 if oUnit.GetWorkProgress then LOG(sFunctionRef..': Unit work progress='..oUnit:GetWorkProgress()) end
             end
@@ -1795,9 +1811,62 @@ end
 
 function ToggleUnitDiveOrSurfaceStatus(oUnit)
     --Assumes have already checked that the unit is or isnt underwater
-    local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
-    M28Orders.IssueTrackedClearCommands(oUnit)
-    IssueDive({oUnit})
-    local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
-    M28Micro.TrackTemporaryUnitMicro(oUnit, 1)
+    if not(oUnit[refbSpecialMicroActive]) or GetGameTimeSeconds() > oUnit[refiGameTimeToResetMicroActive] then
+        local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
+        M28Orders.IssueTrackedClearCommands(oUnit)
+        IssueDive({oUnit})
+        local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
+        M28Micro.TrackTemporaryUnitMicro(oUnit, 3)
+    end
+end
+
+function FixUnitResourceCheatModifiers(oUnit)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'FixUnitResourceCheatModifiers'
+
+    --As of May 2023, AiX resource multipliers dont apply to upgrades such as for RAS SACUs.  The below attempts to fix this.
+    WaitTicks(1)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if IsUnitValid(oUnit) and oUnit:GetAIBrain().CheatEnabled then
+        local FAFBuffs = import('/lua/sim/Buff.lua')
+        --local iBuildModifier = tonumber(ScenarioInfo.Options.BuildMult or 1.5)
+        local iResourceModifier = tonumber(ScenarioInfo.Options.CheatMult or 1.5)
+        if iResourceModifier > 0 then
+            local oBP = oUnit:GetBlueprint()
+            local iBaseMassPerSec = (oBP.Economy.ProductionPerSecondMass or 0)
+            local iBaseEnergyPerSec = (oBP.Economy.ProductionPerSecondEnergy or 0)
+            local iUpgradeMassPerSec = 0
+            local iUpgradeEnergyPerSec = 0
+
+            local tPossibleUpgrades = oBP.Enhancements
+            if M28Utilities.IsTableEmpty(tPossibleUpgrades) == false then
+                local iCurMassValue
+                local iCurMassMod
+                local iBaseMassValue = 1000 --Approx 20 tanks
+                local iTotalMassValue = iBaseMassValue
+                if bDebugMessages == true then LOG(sFunctionRef..': tPossibleUpgrades size='..table.getn(tPossibleUpgrades)) end
+                if tPossibleUpgrades then
+                    for sCurUpgrade, tUpgrade in tPossibleUpgrades do
+                        if oUnit:HasEnhancement(sCurUpgrade) then
+                            iUpgradeMassPerSec = iUpgradeMassPerSec + (tUpgrade.ProductionPerSecondMass or 0)
+                            iUpgradeEnergyPerSec = iUpgradeEnergyPerSec + (tUpgrade.ProductionPerSecondEnergy or 0)
+                        end
+                    end
+                end
+            end
+            if iUpgradeMassPerSec > 0 or iUpgradeEnergyPerSec > 0 or iBaseMassPerSec > 0 or iBaseEnergyPerSec > 0 then
+                --Buffs['CheatBuildRate'].Affects.BuildRate.Mult = iBuildModifier
+                Buffs['CheatIncome'].Affects.EnergyProduction.Mult = iResourceModifier
+                Buffs['CheatIncome'].Affects.MassProduction.Mult = iResourceModifier
+                FAFBuffs.RemoveBuff(oUnit, 'CheatIncome', true)
+                FAFBuffs.ApplyBuff(oUnit, 'CheatIncome')
+                oUnit:SetProductionPerSecondMass((iBaseMassPerSec + iUpgradeMassPerSec) * iResourceModifier)
+                oUnit:SetProductionPerSecondEnergy((iBaseEnergyPerSec + iUpgradeEnergyPerSec) * iResourceModifier)
+                --FAFBuffs.RemoveBuff(oUnit, 'CheatBuildRate', true)
+                --FAFBuffs.ApplyBuff(oUnit, 'CheatBuildRate')
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished setting build and resource cheat modifiers for unit '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..', iBaseMassPerSec='..iBaseMassPerSec..'; iUpgradeMassPerSec='..iUpgradeMassPerSec..'; iResourceModifier='..iResourceModifier) end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

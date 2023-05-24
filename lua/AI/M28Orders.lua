@@ -39,6 +39,7 @@ refiOrderReleaseStoredUnits = 18 --e.g. for air staging to release units; uses t
 refiOrderUnloadTransport = 19
 refiOrderLoadOntoTransport = 20
 refiOrderIssueTMLMissile = 21
+refiOrderIssueCapture = 22
 
 --Other tracking: Against units
 toUnitsOrderedToRepairThis = 'M28OrderRepairing' --Table of units given an order to repair the unit
@@ -92,7 +93,10 @@ function IssueTrackedClearCommands(oUnit)
                         break
                     end
                 end
-                if iRefToRemove then table.remove(tLastOrder[subrefoOrderUnitTarget][M28UnitInfo.reftoUnitsAssistingThis], iRefToRemove) end
+                if iRefToRemove then
+                    table.remove(tLastOrder[subrefoOrderUnitTarget][M28UnitInfo.reftoUnitsAssistingThis], iRefToRemove)
+                    --LOG('Just cleared unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' from being recorded as assistin unit '..tLastOrder[subrefoOrderUnitTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(tLastOrder[subrefoOrderUnitTarget]))
+                end
             end
         end
     end
@@ -131,6 +135,7 @@ function IssueTrackedClearCommands(oUnit)
 
     --Clear orders:
     IssueClearCommands({oUnit})
+    --if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'url03092' then LOG('Just issuedclearcommands to unit url03092') end
 
     --Unit name
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit) end
@@ -465,6 +470,7 @@ function IssueTrackedGroundAttack(oUnit, tOrderPosition, iDistanceToReissueOrder
 end
 
 function IssueTrackedGuard(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
+
     UpdateRecordedOrders(oUnit)
     --Issue order if we arent already trying to attack them
     local tLastOrder
@@ -482,6 +488,7 @@ function IssueTrackedGuard(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalOr
         if not(oOrderTarget[M28UnitInfo.reftoUnitsAssistingThis]) then oOrderTarget[M28UnitInfo.reftoUnitsAssistingThis] = {} end
         table.insert(oOrderTarget[M28UnitInfo.reftoUnitsAssistingThis], oUnit)
         IssueGuard({oUnit}, oOrderTarget)
+        --LOG('Just told unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to assists target '..oOrderTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOrderTarget))
     end
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 end
@@ -501,6 +508,7 @@ function IssueTrackedRepair(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalO
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueRepair, [subrefoOrderUnitTarget] = oOrderTarget})
+
         IssueRepair({oUnit}, oOrderTarget)
         --Track against the unit we are repairing if it is under construction
         if oOrderTarget:GetFractionComplete() < 1 then
@@ -749,6 +757,28 @@ function IssueTrackedTMLMissileLaunch(oUnit, tOrderPosition, iDistanceToReissueO
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueTMLMissile, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
         IssueTactical({oUnit}, tOrderPosition)
+    end
+    if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
+end
+
+function IssueTrackedCapture(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
+    UpdateRecordedOrders(oUnit)
+    --Issue order if we arent already trying to attack them
+    local tLastOrder
+    if oUnit[reftiLastOrders] then
+        if bAddToExistingQueue then
+            tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]]
+        else tLastOrder = oUnit[reftiLastOrders][1]
+        end
+    end
+
+
+    if not(tLastOrder[subrefiOrderType] == refiOrderIssueCapture and oOrderTarget == tLastOrder[subrefoOrderUnitTarget]) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
+        if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
+        if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
+        oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
+        table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueCapture, [subrefoOrderUnitTarget] = oOrderTarget})
+        IssueCapture({oUnit}, oOrderTarget)
     end
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 end

@@ -91,7 +91,7 @@ function IsCivilianBrain(aiBrain)
     if aiBrain.M28IsCivilian == nil then
         local bIsCivilian = false
         if bDebugMessages == true then
-            LOG(sFunctionRef..': Brain index='..aiBrain:GetArmyIndex()..'; BrainType='..(aiBrain.BrainType or 'nil')..'; Personality='..ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality..'; reprs of brain='..reprs(aiBrain))
+            LOG(sFunctionRef..': Brain index='..aiBrain:GetArmyIndex()..'; BrainType='..(aiBrain.BrainType or 'nil')..'; Personality='..ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality..'; Nickname='..(aiBrain.Nickname or 'nil')..'; reprs of brain='..reprs(aiBrain))
         end
         --Basic check that it appears to have the values we'd expect
         --if aiBrain.BrainType and aiBrain.Name then
@@ -101,7 +101,7 @@ function IsCivilianBrain(aiBrain)
             if not(ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality) or ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality == "" then
                 if bDebugMessages == true then LOG(sFunctionRef..': Index='..aiBrain:GetArmyIndex()..'; Has no AI personality so will treat as being a civilian brain unless nickname contains AI or AIX and doesnt contain civilian') end
                 bIsCivilian = true
-                if string.find(aiBrain.Nickname, '%(AI') and not(string.find(aiBrain.Nickname, "civilian")) then
+                if string.find(aiBrain.Nickname or aiBrain.Name, '%(AI') and not(string.find(aiBrain.Nickname or aiBrain.Name, "civilian")) then
                     if bDebugMessages == true then LOG(sFunctionRef..': AI nickanme suggests its an actual AI and the developer has forgotten to give it a personality') end
                     bIsCivilian = false
                 end
@@ -289,6 +289,9 @@ function IsEngineerAvailable(oEngineer)
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         return true
                     end
+                elseif (iLastOrderType == M28Orders.refiOrderIssueGuard or iLastOrderType == M28Orders.refiOrderIssueCapture) and not(M28UnitInfo.IsUnitValid(oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.subrefoOrderUnitTarget]])) then
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    return true
                 else
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     return false
@@ -485,6 +488,8 @@ function WantMorePower(iTeam)
     local bWantMorePower = true
     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 1.25 * (M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir] or 0) then
         --No change - want more power
+    elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= (30 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] + 160 * math.max(0, (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] - 2))) * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultipler] then
+        --We dont have 1 pgen of our cur tech level (roughly) so want more; i.e. no change
     elseif M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower] then
         bWantMorePower = false
     else
@@ -509,9 +514,9 @@ function WantMorePower(iTeam)
             end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': End of code, bWantMorePower='..tostring(bWantMorePower)..'; Just built lots of power='..tostring(M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower] or false)..'; HaveLowPower='..tostring(HaveLowPower(iTeam))..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] or 'nil')..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]) end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    return bWantMorePower
+        if bDebugMessages == true then LOG(sFunctionRef..': End of code, bWantMorePower='..tostring(bWantMorePower)..'; Just built lots of power='..tostring(M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower] or false)..'; HaveLowPower='..tostring(HaveLowPower(iTeam))..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] or 'nil')..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]) end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return bWantMorePower
 end
 
 function WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone)
@@ -614,6 +619,8 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
     end
     local iCurAirAndLandFactories = (M28Team.tTeamData[iTeam][M28Team.subrefiTotalFactoryCountByType][M28Factory.refiFactoryTypeLand] or 0) + (M28Team.tTeamData[iTeam][M28Team.subrefiTotalFactoryCountByType][M28Factory.refiFactoryTypeAir] or 0)
 
+
+
     local bWantMoreFactories = false
     --Unit cap - want max of 2 factories in the core LZ and no more factories in non-core LZs
     if M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap] then
@@ -658,40 +665,44 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
             end
         end
     else
-        if bDebugMessages == true then LOG(sFunctionRef..': Checking if want more factories at gamttime '..GetGameTimeSeconds()..' for iTeam='..iTeam..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; Mass % stored='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] or 'nil')..'; Land fac count='..(M28Team.tTeamData[iTeam][M28Team.subrefiTotalFactoryCountByType][M28Factory.refiFactoryTypeLand] or 'nil')..'; Gross mass count='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] or 'nil')..'; Highest factory tech='..(M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 'nil')..'; iCurAirAndLandFactories='..(iCurAirAndLandFactories or 'nil')..'; Factories wanted based on gross mass='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] or 0) * (tiFactoryToMassByTechRatioWanted[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] or 0)..'; iCurIsland='..(iCurIsland or 0)..'; iEnemyIsland='..(iEnemyIsland or 0)) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Checking if want more factories at gamttime '..GetGameTimeSeconds()..' for iTeam='..iTeam..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; Mass % stored='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] or 'nil')..'; Land fac count='..(M28Team.tTeamData[iTeam][M28Team.subrefiTotalFactoryCountByType][M28Factory.refiFactoryTypeLand] or 'nil')..'; Gross mass count='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] or 'nil')..'; Highest factory tech='..(M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 'nil')..'; iCurAirAndLandFactories='..(iCurAirAndLandFactories or 'nil')..'; Factories wanted based on gross mass='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] or 0) * (tiFactoryToMassByTechRatioWanted[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] or 0)..'; iCurIsland='..(iCurIsland or 0)..'; iEnemyIsland='..(iEnemyIsland or 0)..'; Time since air fac last failed to have osmething to build='..(GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForAirFactory] or -100))..'; Time since land fac last failed to have something to build='..(GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForLandFactory] or -100))) end
+        --Failure to build and have a significant number of factories already (at least 5)
+        if iCurAirAndLandFactories >= 5 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForAirFactory] or -100) <= 10 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForLandFactory] or -100) <= 10 then
+            --Dont want more factories
+        else
+            if (iCurIsland == iEnemyIsland or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 or iCurAirAndLandFactories <= (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] or 0) * (tiFactoryToMassByTechRatioWanted[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] or 0))
+                    and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.05 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.01 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) == false and table.getn(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) >= 3))  and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.4 or (iCurAirAndLandFactories <= math.max(4 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount], M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * tiFactoryToMassByTechRatioWanted[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]])) or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 and GetGameTimeSeconds() <= 600)) then
+                --If enemy has a firebase then dont want more factories if dont have lots of mass
+                if not(WantToEcoDueToEnemyFirebase(iTeam, tLZTeamData, iPlateau)) then
+                    --Do we have the energy to support another factory?
+                    if bDebugMessages == true then LOG(sFunctionRef..': iCurAirAndLandFactories='..iCurAirAndLandFactories..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]..'; Playable area iMapSize='..M28Map.iMapSize..' Team mass stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]) end
 
-        if (iCurIsland == iEnemyIsland or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 or iCurAirAndLandFactories <= (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] or 0) * (tiFactoryToMassByTechRatioWanted[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] or 0))
-                and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.05 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.01 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) == false and table.getn(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) >= 3))  and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.4 or (iCurAirAndLandFactories <= math.max(4 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount], M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * tiFactoryToMassByTechRatioWanted[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]])) or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 and GetGameTimeSeconds() <= 600)) then
-            --If enemy has a firebase then dont want more factories if dont have lots of mass
-            if not(WantToEcoDueToEnemyFirebase(iTeam, tLZTeamData, iPlateau)) then
-                --Do we have the energy to support another factory?
-                if bDebugMessages == true then LOG(sFunctionRef..': iCurAirAndLandFactories='..iCurAirAndLandFactories..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]..'; Playable area iMapSize='..M28Map.iMapSize..' Team mass stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]) end
+                    --Small map specific - want loads of land factories
+                    if M28Map.iMapSize <= 256 and iCurAirAndLandFactories <= M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * tiFactoryToMassByTechRatioWanted[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 30 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0) then
+                        bWantMoreFactories = true
 
-                --Small map specific - want loads of land factories
-                if M28Map.iMapSize <= 256 and iCurAirAndLandFactories <= M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * tiFactoryToMassByTechRatioWanted[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 30 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0) then
-                    bWantMoreFactories = true
+                    elseif iCurAirAndLandFactories >= 2 and iCurIsland == iEnemyIsland and ((M28Team.tTeamData[iTeam][M28Team.subrefiTotalFactoryCountByType][M28Factory.refiFactoryTypeAir] or 0) > 0 and HaveLowPower(iTeam)) then
+                        --Dont want more factories
 
-                elseif iCurAirAndLandFactories >= 2 and iCurIsland == iEnemyIsland and ((M28Team.tTeamData[iTeam][M28Team.subrefiTotalFactoryCountByType][M28Factory.refiFactoryTypeAir] or 0) > 0 and HaveLowPower(iTeam)) then
-                    --Dont want more factories
+                        --Cap on no. of factories on larger maps
+                    elseif iCurAirAndLandFactories >= 4 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] > 0 and M28Map.iMapSize > 256 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] < 8000 then
+                        --Dont want more factories
 
-                    --Cap on no. of factories on larger maps
-                elseif iCurAirAndLandFactories >= 4 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] > 0 and M28Map.iMapSize > 256 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] < 8000 then
-                    --Dont want more factories
-
-                    --If we dont have at least 25% mass stored, do we have an enemy in the same plateau as us who is within 300 land travel distance?
-                elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] < 0.25 or (iCurAirAndLandFactories == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] < 0.4 and GetGameTimeSeconds() <= 300) then
-                    local iStartPlateau, iStartLandZone
-                    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
-                        iStartPlateau, iStartLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
-                        if iStartPlateau == iPlateau and iStartLandZone > 0 then
-                            if M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iStartLandZone) <= 350 then
-                                bWantMoreFactories = true
-                                break
+                        --If we dont have at least 25% mass stored, do we have an enemy in the same plateau as us who is within 300 land travel distance?
+                    elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] < 0.25 or (iCurAirAndLandFactories == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] < 0.4 and GetGameTimeSeconds() <= 300) then
+                        local iStartPlateau, iStartLandZone
+                        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
+                            iStartPlateau, iStartLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+                            if iStartPlateau == iPlateau and iStartLandZone > 0 then
+                                if M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iStartLandZone) <= 350 then
+                                    bWantMoreFactories = true
+                                    break
+                                end
                             end
                         end
+                    else
+                        bWantMoreFactories = true
                     end
-                else
-                    bWantMoreFactories = true
                 end
             end
         end
@@ -810,126 +821,132 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return false
     else
-        --Norush
-        if M28Overseer.bNoRushActive and M28Overseer.iNoRushTimer - GetGameTimeSeconds() >= 30 then
-            local iLandFactoriesHave = 0
-            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
-                local tLandFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
-                if bDebugMessages == true then LOG(sFunctionRef..': Is tLandFactories empty='..tostring(M28Utilities.IsTableEmpty(tLandFactories))) end
-                if M28Utilities.IsTableEmpty(tLandFactories) == false then
-                    iLandFactoriesHave = table.getn(tLandFactories)
-                end
-            end
-            if bDebugMessages == true then LOG(sFunctionRef..': No rush mode is active, iLandFactories='..iLandFactoriesHave) end
+        --Recently failed to build anything at air fac
+        if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForAirFactory] or -100) <= 10 then
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-            if iLandFactoriesHave >= 1 then return true else return false end
+            return false
         else
-            local iOurIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])
-            if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Is this core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false)..'; iOurIsland='..iOurIsland..'; Closest friendly base island='..NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase])) end
-            if tLZTeamData[M28Map.subrefLZbCoreBase] or iOurIsland == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase]) then
-                --If are low on power and can path to enemy with land that isn't far away and dont have T2 air yet then get land factory; also get land if air facs arent able to build air units and we have lots of mass
-                local iEnemyIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase])
-                local iOurPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tLZData[M28Map.subrefMidpoint])
-                local iEnemyPlateau = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase])
-                if bDebugMessages == true then LOG(sFunctionRef..': iOurIsland='..iOurIsland..'; iEnemyIsland='..iEnemyIsland..'; iOurPlateau='..iOurPlateau..'; iEnemyPlateau='..iEnemyPlateau) end
-                if (iOurIsland == iEnemyIsland and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] <= 0.8) or (iOurPlateau == iEnemyPlateau and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= (M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir] or 0) * 1.1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.4)) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': We want land fac1') end
-                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                    return false
-                else
-                    --Are in core base or we are in same island as core base
-                    local iLandFactoriesWantedBeforeAir = 1
-                    local iLandFactoriesHave = 0
-                    local iAirFactoriesForEveryLandFactory = 1
-                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
-                        local tLandFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
-                        if M28Utilities.IsTableEmpty(tLandFactories) == false then
-                            iLandFactoriesHave = table.getn(tLandFactories)
-                        end
+            --Norush
+            if M28Overseer.bNoRushActive and M28Overseer.iNoRushTimer - GetGameTimeSeconds() >= 30 then
+                local iLandFactoriesHave = 0
+                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
+                    local tLandFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is tLandFactories empty='..tostring(M28Utilities.IsTableEmpty(tLandFactories))) end
+                    if M28Utilities.IsTableEmpty(tLandFactories) == false then
+                        iLandFactoriesHave = table.getn(tLandFactories)
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': iLandFactoriesHave='..iLandFactoriesHave) end
-                    if iLandFactoriesHave < 1 then
-                        if bDebugMessages == true then LOG(sFunctionRef..': We want land fac2') end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': No rush mode is active, iLandFactories='..iLandFactoriesHave) end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                if iLandFactoriesHave >= 1 then return true else return false end
+            else
+                local iOurIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])
+                if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Is this core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false)..'; iOurIsland='..iOurIsland..'; Closest friendly base island='..NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase])) end
+                if tLZTeamData[M28Map.subrefLZbCoreBase] or iOurIsland == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase]) then
+                    --If are low on power and can path to enemy with land that isn't far away and dont have T2 air yet then get land factory; also get land if air facs arent able to build air units and we have lots of mass
+                    local iEnemyIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase])
+                    local iOurPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tLZData[M28Map.subrefMidpoint])
+                    local iEnemyPlateau = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase])
+                    if bDebugMessages == true then LOG(sFunctionRef..': iOurIsland='..iOurIsland..'; iEnemyIsland='..iEnemyIsland..'; iOurPlateau='..iOurPlateau..'; iEnemyPlateau='..iEnemyPlateau) end
+                    if (iOurIsland == iEnemyIsland and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] <= 0.8) or (iOurPlateau == iEnemyPlateau and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= (M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir] or 0) * 1.1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.4)) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': We want land fac1') end
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         return false
                     else
-                        --How many land factories do we want
-                        if not(iOurIsland == iEnemyIsland) then
-                            if not(iOurPlateau == iEnemyPlateau) and iLandFactoriesHave >= 2 then
-                                --cant path to enemy even with amphibious so land facs are only for engis, so want max of 2
-                                if bDebugMessages == true then LOG(sFunctionRef..': We want air fac1') end
-                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                                return true
-                            else
-                                --Cant path to enemy except with amphibious, so dont want lots of land factories
-                                iLandFactoriesWantedBeforeAir = 1
-                                --Exception if low gross power
-                                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 22 then
-                                    iLandFactoriesWantedBeforeAir = 2
-                                end
-                                iAirFactoriesForEveryLandFactory = 5
-                            end
-                        else
-                            --Can path to enemy with land, base number of factories wanted on distance to enemy base
-                            local iEnemyBaseDist = M28Utilities.GetDistanceBetweenPositions(  tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])
-
-                            if iEnemyBaseDist >= 500 then
-                                iLandFactoriesWantedBeforeAir = 1
-                                iAirFactoriesForEveryLandFactory = 4
-                            elseif iEnemyBaseDist >= 350 then
-                                iLandFactoriesWantedBeforeAir = 2
-                                if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] <= 1 then
-                                    iAirFactoriesForEveryLandFactory = 1
-                                else
-                                    iAirFactoriesForEveryLandFactory = 4
-                                end
-                            else
-                                iLandFactoriesWantedBeforeAir = 3
-                                if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] <= 1 then
-                                    iAirFactoriesForEveryLandFactory = 0.25
-                                    if M28Map.iMapSize <= 256 and iEnemyBaseDist <= 210 then
-                                        iLandFactoriesWantedBeforeAir = 7
-                                    end
-                                else
-                                    if iEnemyBaseDist <= 250 then
-                                        iAirFactoriesForEveryLandFactory = 0.5
-                                    else
-                                        iAirFactoriesForEveryLandFactory = 3
-                                    end
-                                end
+                        --Are in core base or we are in same island as core base
+                        local iLandFactoriesWantedBeforeAir = 1
+                        local iLandFactoriesHave = 0
+                        local iAirFactoriesForEveryLandFactory = 1
+                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
+                            local tLandFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                            if M28Utilities.IsTableEmpty(tLandFactories) == false then
+                                iLandFactoriesHave = table.getn(tLandFactories)
                             end
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': iAirFactoriesForEveryLandFactory='..iAirFactoriesForEveryLandFactory..'; iLandFactoriesWantedBeforeAir='..iLandFactoriesWantedBeforeAir..'; iLandFactoriesHave='..iLandFactoriesHave) end
-                        if iLandFactoriesHave < iLandFactoriesWantedBeforeAir then
-                            if bDebugMessages == true then LOG(sFunctionRef..': We want land fac3') end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iLandFactoriesHave='..iLandFactoriesHave) end
+                        if iLandFactoriesHave < 1 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': We want land fac2') end
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             return false
                         else
-                            --Have min number of land factories, now check how many air factories we have
-                            local iAirFactoriesHave = 0
-                            local tAirFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
-                            if M28Utilities.IsTableEmpty(tAirFactories) == false then
-                                iAirFactoriesHave = table.getn(tAirFactories)
-                            end
-                            local iAirFactoriesWanted = math.ceil(iLandFactoriesHave * iAirFactoriesForEveryLandFactory)
-                            if bDebugMessages == true then LOG(sFunctionRef..': iAirFactoriesWanted='..iAirFactoriesWanted..'; iAirFactoriesHave='..iAirFactoriesHave) end
-                            if iAirFactoriesWanted > iAirFactoriesHave then
-                                if bDebugMessages == true then LOG(sFunctionRef..': We want air fac2') end
-                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                                return true
+                            --How many land factories do we want
+                            if not(iOurIsland == iEnemyIsland) then
+                                if not(iOurPlateau == iEnemyPlateau) and iLandFactoriesHave >= 2 then
+                                    --cant path to enemy even with amphibious so land facs are only for engis, so want max of 2
+                                    if bDebugMessages == true then LOG(sFunctionRef..': We want air fac1') end
+                                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                    return true
+                                else
+                                    --Cant path to enemy except with amphibious, so dont want lots of land factories
+                                    iLandFactoriesWantedBeforeAir = 1
+                                    --Exception if low gross power
+                                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 22 then
+                                        iLandFactoriesWantedBeforeAir = 2
+                                    end
+                                    iAirFactoriesForEveryLandFactory = 5
+                                end
                             else
-                                if bDebugMessages == true then LOG(sFunctionRef..': We want land fac4') end
+                                --Can path to enemy with land, base number of factories wanted on distance to enemy base
+                                local iEnemyBaseDist = M28Utilities.GetDistanceBetweenPositions(  tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])
+
+                                if iEnemyBaseDist >= 500 then
+                                    iLandFactoriesWantedBeforeAir = 1
+                                    iAirFactoriesForEveryLandFactory = 4
+                                elseif iEnemyBaseDist >= 350 then
+                                    iLandFactoriesWantedBeforeAir = 2
+                                    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] <= 1 then
+                                        iAirFactoriesForEveryLandFactory = 1
+                                    else
+                                        iAirFactoriesForEveryLandFactory = 4
+                                    end
+                                else
+                                    iLandFactoriesWantedBeforeAir = 3
+                                    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] <= 1 then
+                                        iAirFactoriesForEveryLandFactory = 0.25
+                                        if M28Map.iMapSize <= 256 and iEnemyBaseDist <= 210 then
+                                            iLandFactoriesWantedBeforeAir = 7
+                                        end
+                                    else
+                                        if iEnemyBaseDist <= 250 then
+                                            iAirFactoriesForEveryLandFactory = 0.5
+                                        else
+                                            iAirFactoriesForEveryLandFactory = 3
+                                        end
+                                    end
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': iAirFactoriesForEveryLandFactory='..iAirFactoriesForEveryLandFactory..'; iLandFactoriesWantedBeforeAir='..iLandFactoriesWantedBeforeAir..'; iLandFactoriesHave='..iLandFactoriesHave) end
+                            if iLandFactoriesHave < iLandFactoriesWantedBeforeAir then
+                                if bDebugMessages == true then LOG(sFunctionRef..': We want land fac3') end
                                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                                 return false
+                            else
+                                --Have min number of land factories, now check how many air factories we have
+                                local iAirFactoriesHave = 0
+                                local tAirFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                                if M28Utilities.IsTableEmpty(tAirFactories) == false then
+                                    iAirFactoriesHave = table.getn(tAirFactories)
+                                end
+                                local iAirFactoriesWanted = math.ceil(iLandFactoriesHave * iAirFactoriesForEveryLandFactory)
+                                if bDebugMessages == true then LOG(sFunctionRef..': iAirFactoriesWanted='..iAirFactoriesWanted..'; iAirFactoriesHave='..iAirFactoriesHave) end
+                                if iAirFactoriesWanted > iAirFactoriesHave then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': We want air fac2') end
+                                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                    return true
+                                else
+                                    if bDebugMessages == true then LOG(sFunctionRef..': We want land fac4') end
+                                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                    return false
+                                end
                             end
                         end
                     end
+                else
+                    --Dif island to nearest start position so presumably want land factories to take contorl of island/plateau
+                    if bDebugMessages == true then LOG(sFunctionRef..': Different island to start position so want land factories to take control of the island, we want land fac5') end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    return false
                 end
-            else
-                --Dif island to nearest start position so presumably want land factories to take contorl of island/plateau
-                if bDebugMessages == true then LOG(sFunctionRef..': Different island to start position so want land factories to take control of the island, we want land fac5') end
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                return false
             end
         end
     end

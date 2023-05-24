@@ -118,14 +118,19 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         subrefLZMaxSegZ = 'LZMaxSegZ'
         subrefHydroLocations = 'HydroLoc' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of hydro locations in the LZ
         subrefHydroUnbuiltLocations = 'HydroAvailLoc' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], returns table of hydro locations in the LZ that dont have buildings on them
-        subrefBuildLocationsBySize = 'BuildLoc' --contains a table, with the index being the unit's highest footprint size, which returns a location that should be buildable in this zone;  only populated on demand (i.e. if we want to try and build something there by references to the predefined location), e.g. tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefBuildLocationsBySize][iSize]
+        subrefBuildLocationsBySizeAndSegment = 'BuildLoc' --contains a table, [buildingsize][SegX][SegZ], returns true if can build on the location
+        subrefBuildableSizeBySegment = 'BuildSizSeg' --Table, [x] segment, [z] segment, returns highest size of building that can be built from the segment midpoint
+        subrefSegmentsConsideredThisTick = 'BuildSTisT' --Number of segments that have been through to analyse the largest build size available
         subrefBuildLocationSegmentCountBySize = 'BuildSegment' --[x] is the building size considered, returns Number of segments that we have considered when identifying segment build locations for the land zone for that particular size
-        subrefBuildLocationBlacklist = 'Blacklst' --[x] is the entry, returns a subtable
-            subrefBlacklistLocation = 1
-            subrefBlacklistSize = 2 --radius of the square, i.e. if do a square around the location where eaech side is this * 2 in length, then will cover the blacklist location
-            subrefBlacklistType = 3
-                BlacklistTimeout = 1 --i.e. we have tried building something for ages and have failed
-                BlacklistReserved = 2 --i.e. we dont want to build anything here because it's being saved for something
+        subrefiLastSegmentEntryConsideredForBuilding = 'BuildLastSeg' --returns the segment ref in the LZ valid segment listings (i.e. subrefLZSegments) that we last considered
+        subrefQueuedLocationsByPosition = 'BuildQu' --[x] is floor(x), y is floor(z), returns true if queued
+        subrefBuildLocationBlacklistByPosition = 'Blacklst' --[x] is floor(x), [y] is floor(z), returns true if blacklisted
+        --subrefBuildLocationBlacklist = 'Blacklst' --[x] is the entry, returns the location
+            --subrefBlacklistLocation = 1
+            --subrefBlacklistSize = 2 --radius of the square, i.e. if do a square around the location where eaech side is this * 2 in length, then will cover the blacklist location
+            --subrefBlacklistType = 3
+                --BlacklistTimeout = 1 --i.e. we have tried building something for ages and have failed
+                --BlacklistReserved = 2 --i.e. we dont want to build anything here because it's being saved for something--]]
         subrefLZMassStorageLocationsAvailable = 'MassStorageLocations' --Against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], Returns table of locations which should be valid to build on for mass storage
         subrefLZSegments = 'Segments' --Contains a table which returns the X and Z segment values for every segment assigned to this land zone
         subrefLZTotalSegmentCount = 'SegCount' --Number of segments in a land zone, against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
@@ -162,6 +167,9 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
 
         --Island related
         subrefLZIslandRef = 'Island' --the island ref of the land zone (can also get by using NavUtils.GetLabel(refPathingTypeHover) for the midpoint
+
+        --Capture (done on zone rather than team basis, since intended for civilian targets and/or objectives so want to consider for all M28 teams; same ref used for water zones
+        subreftoUnitsToCapture = 'UnitsToCap'
 
         --Land zone subteam data (update M28Teams.TeamInitialisation function to include varaibles here so dont have to check if they exist each time)
         subrefLZTeamData = 'Subteam' --tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData] - Table for all the data by team for a plateau's land zone
@@ -203,6 +211,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZThreatAllyStructureIndirect = 'ASITotal'
             subrefLZThreatEnemyGroundAA = 'EAATotal'
             subrefLZThreatAllyGroundAA = 'AAATotal'
+            subrefLZThreatAllyMAA = 'MAATotal' --only MAA, excludes structure
             subrefbEnemiesInThisOrAdjacentLZ = 'NearbyEnemies' --true if this LZ or adjacent LZ have nearby enemies
             subrefbDangerousEnemiesInThisLZ = 'HasDangEnemy' --true if combat units in this LZ
             subrefbDangerousEnemiesInAdjacentWZ = 'WZNearEnemies' --true if there is an adjacent water zone that has dangerous enemies
@@ -655,7 +664,7 @@ function SetupPlayableAreaAndSegmentSizes()
     local sFunctionRef = 'DetermineReclaimAndLandSegmentSizes'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': About to set playable area at time='..GetGameTimeSeconds()..'; ScenarioInfo.MapData.PlayableRect='..repru(ScenarioInfo.MapData.PlayableRect)..'; bMapLandSetupComplete='..tostring(bMapLandSetupComplete or false)..'; bIsCampaignMap='..tostring(bIsCampaignMap or false)) end
-    if ScenarioInfo.MapData.PlayableRect and (bMapLandSetupComplete or not(bIsCampaignMap)) then
+    if ScenarioInfo.MapData.PlayableRect then --and (bMapLandSetupComplete or not(bIsCampaignMap)) then
         rMapPlayableArea = ScenarioInfo.MapData.PlayableRect
     else
         rMapPlayableArea = {0, 0, ScenarioInfo.size[1], ScenarioInfo.size[2]}
@@ -671,10 +680,11 @@ function SetupPlayableAreaAndSegmentSizes()
 
     --Decide on land zone segment sizes
     local iHighestSize = math.max(rMapPlayableArea[3] - rMapPlayableArea[1], rMapPlayableArea[4] - rMapPlayableArea[2])
-    local iTableSizeCap = 125000 --e.g. 1x1 resolution on a 10km, 3x3 resolution on a 20km
+    local iTableSizeCap = 125000 --e.g. 1x1 resolution on a 10km, 3x3 resolution on a 20km (athough changed to 2x2 resolution on 10km per the below)
     if not(bMapLandSetupComplete) then --e.g. if this is a campaign we may want to change playable area size
         --iTableSizeCap = SegmentCount^2; SegmentCount = iTotalSize / SegmentSize; (TotalSize/SegmentSize)^2 = iTableSizeCap; SemgentSize = TotalSize/Sqrt(iTableSizeCap)
         iLandZoneSegmentSize = math.ceil(iHighestSize / math.sqrt(iTableSizeCap))
+        if iMapSize > 256 then ilandZoneSegmentSize = math.max(iLandZoneSegmentSize, 2) end --otherwise get too many building locations
 
         --Record the max values
         iMaxLandSegmentX, iMaxLandSegmentZ = GetPathingSegmentFromPosition({rMapPotentialPlayableArea[3], 0, rMapPotentialPlayableArea[4]})
@@ -992,8 +1002,9 @@ local function AddNewLandZoneReferenceToPlateau(iPlateau)
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefHydroLocations] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefHydroUnbuiltLocations] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefTotalMassReclaim] = 0
-    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefBuildLocationsBySize] = {}
-    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefBuildLocationBlacklist] = {}
+    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefBuildLocationsBySizeAndSegment] = {}
+    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefBuildLocationBlacklistByPosition] = {}
+    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefQueuedLocationsByPosition] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefBuildLocationSegmentCountBySize] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZSegments] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTotalSegmentCount] = 0
@@ -2604,9 +2615,9 @@ local function RecordPathingBetweenZones()
     --For each zone that is where a player starts, record pathing to every other zone; for other zones, record pathing to up to 3 layers of adjacency
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordPathingBetweenZones'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     WaitTicks(1) --To ensure all brains will be setup
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     for iCurPlateau, tPlateauSubtable in tAllPlateaus do
         for iCurLandZone, tLandZoneInfo in tPlateauSubtable[subrefPlateauLandZones] do
             if bDebugMessages == true then LOG(sFunctionRef..': Considering iCurLandZone='..iCurLandZone..' for plateau '..iCurPlateau..'; will go through every other LZ in the plateau and consider adding to the table of other land zones near this') end
@@ -2714,7 +2725,9 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     while not(bMapLandSetupComplete) do
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
 
     local tEnemyBases = {}
@@ -2727,19 +2740,26 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
             tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
         end
     end
+    function IsInPlayableArea(tLocation)
+        if tLocation[1] >= rMapPlayableArea[1] and tLocation[1] <= rMapPlayableArea[3] and tLocation[2] >= rMapPlayableArea[2] and tLocation[4] <= rMapPlayableArea[4] then
+            return true
+        end
+        return false
+    end
     for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains] do
-        if bDebugMessages == true then LOG(sFunctionRef..': Cycling through friedly active brains in iTeam='..iTeam..'; oBrain.Nickname='..oBrain.Nickname) end
-        tAllyBases[oBrain:GetArmyIndex()] = PlayerStartPoints[oBrain:GetArmyIndex()]
-        tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
+        if bDebugMessages == true then LOG(sFunctionRef..': Cycling through friedly active brains in iTeam='..iTeam..'; oBrain.Nickname='..(oBrain.Nickname or 'nil')..' with start position '..repru(PlayerStartPoints[oBrain:GetArmyIndex()])..'; bIsCampaignMap='..tostring(bIsCampaignMap)..'; Land result for brain start='..(NavUtils.GetTerrainLabel(refPathingTypeLand, PlayerStartPoints[oBrain:GetArmyIndex()]) or 'nil')..'; Brain type='..(oBrain.BrainType or 'nil')..'; Playable area='..repru(rMapPlayableArea)) end
+        --Campaign specific - check this is on a valid land zone
+        if not(bIsCampaignMap) or not(oBrain.BrainType == "AI") or oBrain.M28AI or ((NavUtils.GetTerrainLabel(refPathingTypeLand, PlayerStartPoints[oBrain:GetArmyIndex()]) or 0) > 0 and IsInPlayableArea(PlayerStartPoints[oBrain:GetArmyIndex()])) then
+            tAllyBases[oBrain:GetArmyIndex()] = PlayerStartPoints[oBrain:GetArmyIndex()]
+            tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
+        end
     end
 
     if M28Utilities.IsTableEmpty(tEnemyBases) then
-        local aiBrain
-        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-            aiBrain = oBrain
-            break
+        local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
+        if aiBrain then
+            table.insert(tEnemyBases, GetPrimaryEnemyBaseLocation(aiBrain))
         end
-        table.insert(tEnemyBases, GetPrimaryEnemyBaseLocation(aiBrain))
     end
 
     local iCurBrainDist
@@ -2771,65 +2791,75 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam)
     local sFunctionRef = 'RecordClosestAllyAndEnemyBaseForEachWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    while not(bWaterZoneInitialCreation) do
-        WaitTicks(1)
-        if GetGameTimeSeconds() >= 5 then break end
-    end
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
 
-    local tEnemyBases = {}
-    local tAllyBases = {}
-    local tBrainsByIndex = {}
-
-    local iCurBrainDist
-    local iClosestBrainDist
-    local iClosestBrainRef
-
-    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains]) == false then
-        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
-            tEnemyBases[oBrain:GetArmyIndex()] = PlayerStartPoints[oBrain:GetArmyIndex()]
-            tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
+        while not(bWaterZoneInitialCreation) do
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitTicks(1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            if GetGameTimeSeconds() >= 5 then break end
         end
-    end
-    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains] do
-        tAllyBases[oBrain:GetArmyIndex()] = PlayerStartPoints[oBrain:GetArmyIndex()]
-        tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
-    end
 
-    if M28Utilities.IsTableEmpty(tEnemyBases) then
-        local aiBrain
-        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-            aiBrain = oBrain
-            break
-        end
-        table.insert(tEnemyBases, GetPrimaryEnemyBaseLocation(aiBrain))
-    end
+        local tEnemyBases = {}
+        local tAllyBases = {}
+        local tBrainsByIndex = {}
 
-    --Update water zones
-    if bDebugMessages == true then LOG(sFunctionRef..': About to start with updating water zone information, GameTime='..GetGameTimeSeconds()..'; bMapLandSetupComplete='..tostring(bMapLandSetupComplete or false)..'; bHaveConsideredPreferredPondForM28AI='..tostring(bHaveConsideredPreferredPondForM28AI or false)) end
-    for iPond, tPondSubtable in tPondDetails do
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering iPond='..iPond..'; reprs of tPondSubtable='..reprs(tPondSubtable)) end
-        for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
-            if not(tWZData[subrefWZTeamData]) then tWZData[subrefWZTeamData] = {} end
-            if not(tWZData[subrefWZTeamData][iTeam]) then tWZData[subrefWZTeamData][iTeam] = {} end
-            local tWZTeamData = tWZData[subrefWZTeamData][iTeam]
+        local iCurBrainDist
+        local iClosestBrainDist
+        local iClosestBrainRef
 
-            iClosestBrainDist = 100000
-            for iBrain, tStartPoint in tAllyBases do
-                iCurBrainDist = M28Utilities.GetDistanceBetweenPositions(tWZData[subrefMidpoint], tStartPoint)
-                if iCurBrainDist < iClosestBrainDist then
-                    iClosestBrainRef = iBrain
-                    iClosestBrainDist = iCurBrainDist
-                end
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains]) == false then
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
+                tEnemyBases[oBrain:GetArmyIndex()] = PlayerStartPoints[oBrain:GetArmyIndex()]
+                tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
             end
-
-            tWZTeamData[reftClosestFriendlyBase] = {PlayerStartPoints[iClosestBrainRef][1], PlayerStartPoints[iClosestBrainRef][2], PlayerStartPoints[iClosestBrainRef][3]}
-            if bDebugMessages == true then LOG(sFunctionRef..': Recorded closest friendly base '..repru(tWZTeamData[reftClosestFriendlyBase])..' for iWaterZone='..iWaterZone..'; iPond='..iPond) end
-            tWZTeamData[reftClosestEnemyBase] = GetPrimaryEnemyBaseLocation(tBrainsByIndex[iClosestBrainRef])
-            tWZTeamData[refiModDistancePercent] = GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tWZData[subrefMidpoint], false)
-
         end
+        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains] do
+            if bDebugMessages == true then LOG(sFunctionRef..': Cycling through friedly active brains in iTeam='..iTeam..'; oBrain.Nickname='..(oBrain.Nickname or 'nil')..' with start position '..repru(PlayerStartPoints[oBrain:GetArmyIndex()])..'; bIsCampaignMap='..tostring(bIsCampaignMap)..'; Navy result for brain start='..(NavUtils.GetTerrainLabel(refPathingTypeNavy, PlayerStartPoints[oBrain:GetArmyIndex()]) or 'nil')..'; Brain type='..(oBrain.BrainType or 'nil')..'; Playable area='..repru(rMapPlayableArea)) end
+            --Campaign specific - check this is on a valid land zone
+            if not(bIsCampaignMap) or not(oBrain.BrainType == "AI") or oBrain.M28AI or ((NavUtils.GetTerrainLabel(refPathingTypeNavy, PlayerStartPoints[oBrain:GetArmyIndex()]) or 0) > 0 and IsInPlayableArea(PlayerStartPoints[oBrain:GetArmyIndex()])) then
+                tAllyBases[oBrain:GetArmyIndex()] = PlayerStartPoints[oBrain:GetArmyIndex()]
+                tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
+            end
+        end
+
+        if M28Utilities.IsTableEmpty(tEnemyBases) then
+            local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
+            if aiBrain then
+
+                table.insert(tEnemyBases, GetPrimaryEnemyBaseLocation(aiBrain))
+            end
+        end
+
+        --Update water zones
+        if bDebugMessages == true then LOG(sFunctionRef..': About to start with updating water zone information, GameTime='..GetGameTimeSeconds()..'; bMapLandSetupComplete='..tostring(bMapLandSetupComplete or false)..'; bHaveConsideredPreferredPondForM28AI='..tostring(bHaveConsideredPreferredPondForM28AI or false)) end
+        for iPond, tPondSubtable in tPondDetails do
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering iPond='..iPond) end
+            for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
+                if not(tWZData[subrefWZTeamData]) then tWZData[subrefWZTeamData] = {} end
+                if not(tWZData[subrefWZTeamData][iTeam]) then tWZData[subrefWZTeamData][iTeam] = {} end
+                local tWZTeamData = tWZData[subrefWZTeamData][iTeam]
+
+                iClosestBrainDist = 100000
+                for iBrain, tStartPoint in tAllyBases do
+                    iCurBrainDist = M28Utilities.GetDistanceBetweenPositions(tWZData[subrefMidpoint], tStartPoint)
+                    if iCurBrainDist < iClosestBrainDist then
+                        iClosestBrainRef = iBrain
+                        iClosestBrainDist = iCurBrainDist
+                    end
+                end
+
+                tWZTeamData[reftClosestFriendlyBase] = {PlayerStartPoints[iClosestBrainRef][1], PlayerStartPoints[iClosestBrainRef][2], PlayerStartPoints[iClosestBrainRef][3]}
+                if bDebugMessages == true then LOG(sFunctionRef..': Recorded closest friendly base '..repru(tWZTeamData[reftClosestFriendlyBase])..' for iWaterZone='..iWaterZone..'; iPond='..iPond) end
+                tWZTeamData[reftClosestEnemyBase] = GetPrimaryEnemyBaseLocation(tBrainsByIndex[iClosestBrainRef])
+                tWZTeamData[refiModDistancePercent] = GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tWZData[subrefMidpoint], false)
+
+            end
+        end
+        ForkThread(M28Team.WaterZoneTeamInitialisation, iTeam)
+    else
+        M28Utilities.ErrorHandler('No M28 active brain')
     end
-    ForkThread(M28Team.WaterZoneTeamInitialisation, iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -3208,12 +3238,15 @@ local function SetupLandZones()
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     WaitTicks(1)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then
         LOG(sFunctionRef..': Finished assining area aound mexes, will now draw resulting land zones, system time='..GetSystemTimeSecondsOnlyForProfileUse())
         DrawLandZones()
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(5)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
 
     --Now look for empty spots on the map without land zones and assign them a land zone, creating new ones (that have no mexes in them) where they are far from any existing land zone:
     AssignRemainingSegmentsToLandZones()
@@ -3597,7 +3630,10 @@ function UpdateNewPrimaryBaseLocation(aiBrain)
 
 
     --LOG(sFunctionRef..': aiBrain='..aiBrain:GetArmyIndex()..'; Start position='..(aiBrain:GetArmyIndex() or 'nil'))
-    if bDebugMessages == true then LOG(sFunctionRef..': About to get new primary base location for brain '..aiBrain.Nickname..' unless it is civilian or defeated. IsCivilian='..tostring(M28Conditions.IsCivilianBrain(aiBrain))..'; .M28IsDefeated='..tostring((aiBrain.M28IsDefeated or false))) end
+    if bDebugMessages == true then
+        LOG(sFunctionRef..': About to get new primary base location for brain '..(aiBrain.Nickname or 'nil')..' unless it is civilian or defeated')
+        LOG(sFunctionRef..': IsCivilian='..tostring(M28Conditions.IsCivilianBrain(aiBrain))..'; .M28IsDefeated='..tostring((aiBrain.M28IsDefeated or false)))
+    end
     if not(M28Conditions.IsCivilianBrain(aiBrain)) and not(aiBrain.M28IsDefeated) and not(aiBrain:IsDefeated()) then
         local tPrevPosition
         if aiBrain[reftPrimaryEnemyBaseLocation] then tPrevPosition = {aiBrain[reftPrimaryEnemyBaseLocation][1], aiBrain[reftPrimaryEnemyBaseLocation][2], aiBrain[reftPrimaryEnemyBaseLocation][3]} end
@@ -3625,9 +3661,11 @@ function UpdateNewPrimaryBaseLocation(aiBrain)
             if M28Utilities.GetDistanceBetweenPositions(tAverageTeamPosition, {rMapPotentialPlayableArea[1] + (rMapPotentialPlayableArea[3] - rMapPotentialPlayableArea[1])*0.5, 0, rMapPotentialPlayableArea[2] + (rMapPotentialPlayableArea[4] - rMapPotentialPlayableArea[2])*0.5}) <= 50 then
                 --Average is really close to middle of the map, so just  assume enemy base is in the opposite direction to us
                 aiBrain[reftPrimaryEnemyBaseLocation] = GetOppositeLocation(PlayerStartPoints[aiBrain:GetArmyIndex()])
+                if bDebugMessages == true then LOG(sFunctionRef..': Average close to middle of map so assuming enemy base is opposite direction to us') end
             else
                 --Average isnt really close to mid of map, so assume enemy base is in opposite directino to average
                 aiBrain[reftPrimaryEnemyBaseLocation] = GetOppositeLocation(tAverageTeamPosition)
+                if bDebugMessages == true then LOG(sFunctionRef..': Assuming enemy base is opposite direction to average allied position') end
             end
         else --Still have enemies that are alive
             local tEnemyBase = PlayerStartPoints[M28Logic.GetNearestEnemyIndex(aiBrain)]
@@ -4623,6 +4661,7 @@ function CreateWaterZones()
             end
         end
     end
+
 
 
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, finished recording segments in water zone, iTotalWaterZoneRecordedSegmentCount='..iTotalWaterZoneRecordedSegmentCount..'; iTotalSegmentsInPonds='..iTotalSegmentsInPonds..'; iTotalWaterZoneCount='..iTotalWaterZoneCount..'; will draw all water zones. Time taken to run water zone logic='..GetSystemTimeSecondsOnlyForProfileUse() - iSystemTimeStart) end

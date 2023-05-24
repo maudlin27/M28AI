@@ -13,15 +13,15 @@ tErrorCountByMessage = {} --WHenever we have an error, then the error message is
 bM28AIInGame = false --true if have M28 AI in the game (used to avoid considering callback logic further)
 
 
-function ErrorHandler(sErrorMessage, bWarningNotError, bIgnoreCount)
+function ErrorHandler(sErrorMessage, bWarningNotError, bIgnoreCount, iIntervalOverride)
     --Intended to be put in code wherever a condition isn't met that should be, so can debug it without the code crashing
     --Search for "error " in the log to find both these errors and normal lua errors, while not bringing up warnings
     if sErrorMessage == nil then sErrorMessage = 'Not specified' end
     local iCount = (tErrorCountByMessage[sErrorMessage] or 0) + 1
     tErrorCountByMessage[sErrorMessage] = iCount
-    local iInterval = 1
+    local iInterval = iIntervalOverride or 1
     local bShowError = true
-    if iCount >= 3 then
+    if not(iIntervalOverride) and iCount >= 3 then
         bShowError = false
         if bIgnoreCount then bShowError = true
         else
