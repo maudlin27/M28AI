@@ -1811,9 +1811,11 @@ end
 
 function ToggleUnitDiveOrSurfaceStatus(oUnit)
     --Assumes have already checked that the unit is or isnt underwater
-    local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
-    M28Orders.IssueTrackedClearCommands(oUnit)
-    IssueDive({oUnit})
-    local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
-    M28Micro.TrackTemporaryUnitMicro(oUnit, 1)
+    if not(oUnit[refbSpecialMicroActive]) or GetGameTimeSeconds() > oUnit[refiGameTimeToResetMicroActive] then
+        local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
+        M28Orders.IssueTrackedClearCommands(oUnit)
+        IssueDive({oUnit})
+        local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
+        M28Micro.TrackTemporaryUnitMicro(oUnit, 3)
+    end
 end

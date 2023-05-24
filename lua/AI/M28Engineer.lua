@@ -954,7 +954,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
 
         --If trying to build experimental, then just build any kind of experimental
         if M28Overseer.bUnitRestrictionsArePresent and M28Utilities.DoesCategoryContainCategory(iCategoryToBuild, M28UnitInfo.refCategoryExperimentalLevel) and aiBrain:GetEconomyStoredRatio('MASS') >= 0.35 then
-            sBlueprintToBuild = M28Factory.GetBlueprintsThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryExperimentalLevel, oEngineer, false, false, nil, nil)
+            sBlueprintToBuild = M28Factory.GetBlueprintsThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryExperimentalLevel -categories.TRANSPORTATION - categories.TRANSPORTFOCUS, oEngineer, false, false, nil, nil)
         end
     end
     if sBlueprintToBuild == nil then
@@ -2386,7 +2386,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
     local sFunctionRef = 'FilterToAvailableEngineersByTech'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iPlateauOrPond == 107 and iLandZone == 9 and GetGameTimeSeconds() >= 360 then bDebugMessages = true end
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..' for iPlateauOrPond='..iPlateauOrPond..'; iLandZone='..iLandZone..'; reprs of tEngineers='..reprs(tEngineers)) end
 
@@ -2444,6 +2444,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
     local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
 
     if tEngineers then
+        if bDebugMessages == true then LOG(sFunctionRef..': iEnemyUnitSearchRange='..iEnemyUnitSearchRange..'; iThresholdToRunFromMobileEnemies='..iThresholdToRunFromMobileEnemies) end
         for iEngineer, oEngineer in tEngineers do
             if bDebugMessages == true then LOG(sFunctionRef..': Considering engineer '..(oEngineer.UnitId or 'nil')..'; iEngineer='..iEngineer..' with unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; refiAssignedAction='..(oEngineer[refiAssignedAction] or 'nil')) end
             bWantEngiToRun = false
@@ -2455,10 +2456,11 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                     if not(oEngineer[refiAssignedAction] == refActionBuildEmergencyPD or oEngineer[refiAssignedAction] == refActionBuildEmergencyArti) then
                         --Is the engineer reclaiming, or alternatively building something whose fraction complete is almost done?
                         if not(oEngineer:IsUnitState('Reclaiming') or ((oEngineer:IsUnitState('Repairing') or oEngineer:IsUnitState('Building')) and oEngineer:GetFocusUnit() and oEngineer:GetFocusUnit():GetFractionComplete() >= 0.9 and oEngineer:GetFocusUnit():GetFractionComplete() < 1) or (oEngineer:IsUnitState('Capturing') and oEngineer:GetWorkProgress() >= 0.75)) then
-                            local tNearbyEnemiesByZone = aiBrain:GetUnitsAroundPoint(categories.RECLAIMABLE - categories.AIR * categories.MOBILE, oEngineer:GetPosition(), iEnemyUnitSearchRange, 'Enemy')
+                            local tNearbyEnemiesByZone = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryNavalSurface + M28UnitInfo.refCategorySubmarine, oEngineer:GetPosition(), iEnemyUnitSearchRange, 'Enemy')
                             --for iSubtable, tSubtable in tNearbyEnemiesByZone do
-                                --if M28Utilities.IsTableEmpty(tSubtable) == false then
-                                    --for iUnit, oUnit in tSubtable do
+                            --if M28Utilities.IsTableEmpty(tSubtable) == false then
+                            --for iUnit, oUnit in tSubtable do
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is table of nearby enemies empty for engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'='..tostring(M28Utilities.IsTableEmpty(tNearbyEnemiesByZone))) end
                             if M28Utilities.IsTableEmpty(tNearbyEnemiesByZone) == false then
                                 for iUnit, oUnit in tNearbyEnemiesByZone do
                                     if not(oUnit.Dead) then
@@ -3430,7 +3432,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     local sFunctionRef = 'ConsiderActionToAssign'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iActionToAssign == refActionAssistAirFactory and GetGameTimeSeconds() >= 360 then bDebugMessages = true end
+
 
     --Dont try getting any mroe BP for htis action if have run out of buildable locations
     local iExpectedBuildingSize = tiLastBuildingSizeFromActionForTeam[iTeam][iActionToAssign]
@@ -4378,7 +4380,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     local sFunctionRef = 'ConsiderCoreBaseLandZoneEngineerAssignment'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 360 then bDebugMessages = true end
+
 
     --For land zones in the core base
     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]

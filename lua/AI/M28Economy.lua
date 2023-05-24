@@ -821,7 +821,7 @@ function ManageMassStalls(iTeam)
                 local bAbort = false
                 local iTotalUnits = 0
                 local iCategoryStartPoint, iIntervalChange, iCategoryEndPoint, iCategoryRef
-                local bWasUnitPaused
+                local bWasUnitAlreadyPaused
                 local bConsiderReclaimingEngineer = false
                 local iKillCount = 0
                 local iCurPlateau, iCurLandZone
@@ -1065,11 +1065,11 @@ function ManageMassStalls(iTeam)
                                     --Pause the unit
 
                                     if bApplyActionToUnit then
-                                        bWasUnitPaused = oUnit[M28UnitInfo.refbPaused] --Means we will ignore the mass usage when calculating how much we have saved
+                                        bWasUnitAlreadyPaused = oUnit[M28UnitInfo.refbPaused] --Means we will ignore the mass usage when calculating how much we have saved
                                         oBP = oUnit:GetBlueprint()
                                         iCurUnitMassUsage = oBP.Economy.MaintenanceConsumptionPerSecondMass
 
-                                        if (iCurUnitMassUsage or 0) == 0 or iCategoryRef == M28UnitInfo.refCategoryEngineer or iCategoryRef == M28UnitInfo.refCategoryMex or iCategoryRef == categories.COMMAND then
+                                        if (iCurUnitMassUsage or 0) == 0 or EntityCategoryContains(M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryMex + categories.COMMAND, oUnit.UnitId) then
                                             --Approximate mass usage based on build rate as a very rough guide
                                             --examples: Upgrading mex to T3 costs 11E per BP; T3 power is 8.4; T1 power is 6; Guncom is 30; Laser is 178; Strat bomber is 15
                                             local iMassPerBP = 0.25 --e.g. building t1 land factory uses 4; building a titan uses 1.1; divide by 10 as dealing with values per tick
@@ -1098,17 +1098,19 @@ function ManageMassStalls(iTeam)
                                                 if oBP.Economy.BuildRate then
                                                     --Reduce this massively if unit isn't actually building anything
                                                     if bPauseNotUnpause then
-                                                        if (not(oUnit:IsUnitState('Building')) and not(oUnit:IsUnitState('Repairing')) and not(oUnit.GetWorkProgress and oUnit:GetWorkProgress() > 0)) then
+                                                        if (not(oUnit:IsUnitState('Building')) and not(oUnit:IsUnitState('Repairing')) and not(oUnit.GetWorkProgress and oUnit:GetWorkProgress() > 0) and not(oUnit:IsUnitState('Upgrading'))) then
                                                             iCurUnitMassUsage = oBP.Economy.BuildRate * iBuildRateMod * 0.01
                                                         else
                                                             if M28UnitInfo.IsUnitValid(oUnit:GetFocusUnit()) then
                                                                 oFocusUnitBP = oUnit:GetFocusUnit():GetBlueprint()
-                                                                iCurUnitMassUsage = oBP.Economy.BuildRate * iBuildRateMod / oFocusUnitBP.Economy.BuildTime * oFocusUnitBP.Economy.BuildCostMass * 0.1
+                                                                iCurUnitMassUsage = oBP.Economy.BuildRate * iBuildRateMod / oFocusUnitBP.Economy.BuildTime * oFocusUnitBP.Economy.BuildCostMass
                                                                 oUnit[refiLastMassUsage] = iCurUnitMassUsage
+                                                                if bDebugMessages == true then LOG(sFunctionRef..': Setting unit last mass usage to '..oUnit[refiLastMassUsage]..'; Build rate='..oBP.Economy.BuildRate..'; Focus unit build time='..oFocusUnitBP.Economy.BuildTime..'; Focus unit build cost mass='..oFocusUnitBP.Economy.BuildCostMass..'; Build rate mod='..iBuildRateMod) end
                                                             else
                                                                 iCurUnitMassUsage = oBP.Economy.BuildRate * iBuildRateMod *  iMassPerBP
                                                             end
                                                         end
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Checking for what the unit is building or upgrading to get more accurate calculation, unit state='..M28UnitInfo.GetUnitState(oUnit)..'; mass usage after check='..iCurUnitMassUsage..'; Is focus unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit:GetFocusUnit()))) end
                                                     else
                                                         iCurUnitMassUsage = (oUnit[refiLastMassUsage] or oBP.Economy.BuildRate * iBuildRateMod * iMassPerBP)
                                                     end
@@ -1127,13 +1129,15 @@ function ManageMassStalls(iTeam)
                                         --Have made localised variable which looks to fix the issue
                                     end
                                 end
-                                if not (bWasUnitPaused) and bPauseNotUnpause then
-                                    iMassSavingManaged = iMassSavingManaged + iCurUnitMassUsage
-                                elseif bWasUnitPaused and not (bPauseNotUnpause) then
-                                    iMassSavingManaged = iMassSavingManaged - iCurUnitMassUsage
+                                if bApplyActionToUnit then
+                                    if bPauseNotUnpause and not(bWasUnitAlreadyPaused) then
+                                        iMassSavingManaged = iMassSavingManaged + iCurUnitMassUsage
+                                    elseif bWasUnitAlreadyPaused and not (bPauseNotUnpause) then
+                                        iMassSavingManaged = iMassSavingManaged - iCurUnitMassUsage
+                                    end
                                 end
                                 if bDebugMessages == true then
-                                    LOG(sFunctionRef .. ': iMassSavingManaged=' .. iMassSavingManaged .. '; iMassPerTickSavingNeeded=' .. iMassPerTickSavingNeeded .. '; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]))
+                                    LOG(sFunctionRef .. ': iMassSavingManaged=' .. iMassSavingManaged .. '; iMassPerTickSavingNeeded=' .. iMassPerTickSavingNeeded .. '; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; bWasUnitAlreadyPaused='..tostring(bWasUnitAlreadyPaused)..'; bApplyActionToUnit='..tostring(bApplyActionToUnit)..'; iCurUnitMassUsage='..iCurUnitMassUsage)
                                 end
 
                                 if bPauseNotUnpause then
@@ -1368,7 +1372,7 @@ function ManageEnergyStalls(iTeam)
                 local bAbort = false
                 local iTotalUnits = 0
                 local iCategoryStartPoint, iIntervalChange, iCategoryEndPoint, iCategoryRef
-                local bWasUnitPaused
+                local bWasUnitAlreadyPaused
                 if bPauseNotUnpause then
                     iCategoryStartPoint = 1
                     iIntervalChange = 1
@@ -1574,11 +1578,11 @@ function ManageEnergyStalls(iTeam)
                                     if bDebugMessages == true then LOG(sFunctionRef..': bApplyActionToUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'='..tostring(bApplyActionToUnit)) end
 
                                     if bApplyActionToUnit then
-                                        bWasUnitPaused = oUnit[M28UnitInfo.refbPaused] --Means we will ignore the energy usage when calculating how much we have saved
+                                        bWasUnitAlreadyPaused = oUnit[M28UnitInfo.refbPaused] --Means we will ignore the energy usage when calculating how much we have saved
                                         oBP = oUnit:GetBlueprint()
                                         iCurUnitEnergyUsage = oBP.Economy.MaintenanceConsumptionPerSecondEnergy
 
-                                        if (iCurUnitEnergyUsage or 0) == 0 or iCategoryRef == M28UnitInfo.refCategoryEngineer or iCategoryRef == M28UnitInfo.refCategoryMex or iCategoryRef == categories.COMMAND then
+                                        if (iCurUnitEnergyUsage or 0) == 0 or EntityCategoryContains(M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryMex + categories.COMMAND, oUnit.UnitId) then
                                             --Approximate energy usage based on build rate as a very rough guide
                                             --examples: Upgrading mex to T3 costs 11E per BP; T3 power is 8.4; T1 power is 6; Guncom is 30; Laser is 178; Strat bomber is 15
                                             local iEnergyPerBP = 9
@@ -1617,7 +1621,7 @@ function ManageEnergyStalls(iTeam)
                                                         else
                                                             if M28UnitInfo.IsUnitValid(oUnit:GetFocusUnit()) then
                                                                 oFocusUnitBP = oUnit:GetFocusUnit():GetBlueprint()
-                                                                iCurUnitEnergyUsage = oBP.Economy.BuildRate * iBuildRateMod / oFocusUnitBP.Economy.BuildTime * oFocusUnitBP.Economy.BuildCostEnergy * 0.1
+                                                                iCurUnitEnergyUsage = oBP.Economy.BuildRate * iBuildRateMod / oFocusUnitBP.Economy.BuildTime * oFocusUnitBP.Economy.BuildCostEnergy
                                                                 oUnit[refiLastEnergyUsage] = iCurUnitEnergyUsage
                                                             else
                                                                 iCurUnitEnergyUsage = oBP.Economy.BuildRate * iBuildRateMod * iEnergyPerBP
@@ -1671,13 +1675,13 @@ function ManageEnergyStalls(iTeam)
                                     end
                                 elseif bDebugMessages == true then LOG(sFunctionRef..': Unit entry='..iUnit..'; Unit isnt valid')
                                 end
-                                if not (bWasUnitPaused) and bPauseNotUnpause then
+                                if not (bWasUnitAlreadyPaused) and bPauseNotUnpause then
                                     iEnergySavingManaged = iEnergySavingManaged + iCurUnitEnergyUsage
-                                elseif bWasUnitPaused and not (bPauseNotUnpause) then
+                                elseif bWasUnitAlreadyPaused and not (bPauseNotUnpause) then
                                     iEnergySavingManaged = iEnergySavingManaged - iCurUnitEnergyUsage
                                 end
                                 if bDebugMessages == true then
-                                    LOG(sFunctionRef .. ': iEnergySavingManaged=' .. iEnergySavingManaged .. '; iEnergyPerTickSavingNeeded=' .. iEnergyPerTickSavingNeeded .. '; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; bWasUnitPaused='..tostring(bWasUnitPaused)..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; iCurUnitEnergyUsage='..iCurUnitEnergyUsage)
+                                    LOG(sFunctionRef .. ': iEnergySavingManaged=' .. iEnergySavingManaged .. '; iEnergyPerTickSavingNeeded=' .. iEnergyPerTickSavingNeeded .. '; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])..'; bWasUnitAlreadyPaused='..tostring(bWasUnitAlreadyPaused)..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; iCurUnitEnergyUsage='..iCurUnitEnergyUsage)
                                 end
 
                                 if bPauseNotUnpause then

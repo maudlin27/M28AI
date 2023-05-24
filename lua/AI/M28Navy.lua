@@ -1283,10 +1283,10 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                                 oUnit[refiCurrentWZAssignmentValue] = 100000
                             else
                                 bIncludeUnit = true
-                                if EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryNavalAA, oUnit.UnitId) then
-                                    table.insert(tAvailableMAA, oUnit)
-                                elseif EntityCategoryContains(M28UnitInfo.refCategorySubmarine - M28UnitInfo.refCategorySeraphimDestroyer, oUnit.UnitId) then
+                                if EntityCategoryContains(M28UnitInfo.refCategorySubmarine - M28UnitInfo.refCategorySeraphimDestroyer, oUnit.UnitId) then
                                     table.insert(tAvailableSubmarines, oUnit)
+                                elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryNavalAA, oUnit.UnitId) then
+                                    table.insert(tAvailableMAA, oUnit)
                                 elseif ((oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) > 0) and EntityCategoryContains(M28UnitInfo.refCategoryNavalSurface + categories.HOVER - M28UnitInfo.refCategoryLandExperimental * categories.AMPHIBIOUS - M28UnitInfo.refCategoryLandCombat * categories.AMPHIBIOUS, oUnit.UnitId) then
                                     table.insert(tAvailableCombatUnits, oUnit)
                                     table.insert(tWZTeamData[M28Map.subrefWZTAlliedCombatUnits], oUnit)
@@ -1437,7 +1437,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
             end
         end
 
-        if M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false then
+        if M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false or M28Utilities.IsTableEmpty(tAvailableSubmarines) == false then
             if bDebugMessages == true then LOG(sFunctionRef..': About to manage combat units in the WZ') end
             local tRemainingLandUnits = ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableCombatUnits, tAvailableSubmarines, tUnavailableUnitsInThisWZ)
             if M28Utilities.IsTableEmpty(tRemainingLandUnits) == false then
@@ -2215,6 +2215,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
     local iEnemyAdjacentAirToGroundThreat = tWZTeamData[M28Map.refiEnemyAirToGroundThreat]
     local iFriendlyAdjacentAAThreat = tWZTeamData[M28Map.subrefWZThreatAlliedAA]
 
+
     if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
         for _, iAltWZ in tWZData[M28Map.subrefWZAdjacentWaterZones] do
             local tAltWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAltWZ][M28Map.subrefWZTeamData][iTeam]
@@ -2222,7 +2223,26 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
             iFriendlyAdjacentAAThreat = iFriendlyAdjacentAAThreat + tAltWZTeamData[M28Map.subrefWZThreatAlliedAA] * 0.5 --Only factor in part of threat of nearby allied navy
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Checking if want to run from enemy AA, iEnemyAdjacentAirToGroundThreat='..iEnemyAdjacentAirToGroundThreat..'; iFriendlyAdjacentAAThreat='..iFriendlyAdjacentAAThreat) end
+
+    --Surface subs if enemy has airtoground in this zone (or nearby if it's a large threat)
+    if bDebugMessages == true then LOG(sFunctionRef..': Checking if should surface AA subs, iEnemyAdjacentAirToGroundThreat just from this zone='..iEnemyAdjacentAirToGroundThreat..'; Is table of available subs empty='..tostring(M28Utilities.IsTableEmpty(tAvailableSubmarines))) end
+    if (iEnemyAdjacentAirToGroundThreat > 2000 or tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0) and M28Utilities.IsTableEmpty(tAvailableSubmarines) == false then
+        local tAASubs = EntityCategoryFilterDown(categories.ANTIAIR, tAvailableSubmarines)
+        if bDebugMessages == true then LOG(sFunctionRef..': Is table of AA subs empty='..tostring(M28Utilities.IsTableEmpty(tAASubs))) end
+        if M28Utilities.IsTableEmpty(tAASubs) == false then
+            for iUnit, oUnit in tAASubs do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to surface unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is unit underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))) end
+                if M28UnitInfo.IsUnitUnderwater(oUnit) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will try and surface the unit, is special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive])..'; Cur time='..GetGameTimeSeconds()..'; Time for micro to reset='..(oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')) end
+                    M28UnitInfo.ToggleUnitDiveOrSurfaceStatus(oUnit) --wont do anything if special micro is active, and will set special micro to active if it does give the order
+                end
+            end
+        end
+    end
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Checking if want to run from enemy AA iEnemyAdjacentAirToGroundThreat='..iEnemyAdjacentAirToGroundThreat..'; iFriendlyAdjacentAAThreat='..iFriendlyAdjacentAAThreat) end
+
+
     if iEnemyAdjacentAirToGroundThreat > math.max(50, iFriendlyAdjacentAAThreat * 1.5) and iFriendlyAdjacentAAThreat < 1500 then
         --Retreat to rally point
         if M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false then
@@ -2234,12 +2254,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
             for iUnit, oUnit in tAvailableSubmarines do
                 --Only retreat units from this WZ
                 if oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][iTeam] == iWaterZone then
-                    --If seraphim subs them surface so can shoot with AA gun
-                    if EntityCategoryContains(categories.ANTIAIR, oUnit.UnitId) and M28UnitInfo.IsUnitUnderwater(oUnit) and not(oUnit[M28UnitInfo.refbSpecialMicroActive]) then
-                        M28UnitInfo.ToggleUnitDiveOrSurfaceStatus(oUnit)
-                    else
-                        M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'WSRetrFrA'..iWaterZone)
-                    end
+                    M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'WSRetrFrA'..iWaterZone)
                 end
             end
         end
@@ -2349,7 +2364,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                 for iUnit, oUnit in tAvailableSubmarines do
                     if oUnit[M28UnitInfo.refiAntiNavyRange] > iEnemyBestAntiNavyRange then
                         table.insert(tUnitsToSupport, oUnit)
-                        --Seraphim sub and atlantis - make sure are submerged
+                        --Seraphim sub and atlantis - make sure are submerged if no enemy AA threat
                         if EntityCategoryContains(categories.ANTIAIR, oUnit.UnitId) and not(oUnit[M28UnitInfo.refbSpecialMicroActive]) and ((tWZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 and not(M28UnitInfo.IsUnitUnderwater(oUnit))) or (tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 and M28UnitInfo.IsUnitUnderwater(oUnit))) then
                             M28UnitInfo.ToggleUnitDiveOrSurfaceStatus(oUnit)
                             --Consider kiting logic unless want to use shot blocked override logic
