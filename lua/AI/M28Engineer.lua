@@ -2386,7 +2386,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
     local sFunctionRef = 'FilterToAvailableEngineersByTech'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iPlateauOrPond == 107 and iLandZone == 9 and GetGameTimeSeconds() >= 360 then bDebugMessages = true end
+
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..' for iPlateauOrPond='..iPlateauOrPond..'; iLandZone='..iLandZone..'; reprs of tEngineers='..reprs(tEngineers)) end
 
@@ -2394,9 +2394,10 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
     local toAvailableEngineersByTech = {[1]= { },[2]={},[3]={}}
     local toAssignedEngineers = {}
     local bHaveAvailableEngi = false
+    local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
     --local tNearbyEnemiesByZone = {}
     local bCheckForEnemies = false
-    if tLZData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] then --M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+    if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] then --M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
         --table.insert(tNearbyEnemiesByZone, tLZTeamData[M28Map.subrefTEnemyUnits])
         bCheckForEnemies = true
     end
@@ -2422,7 +2423,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
         end
     end--]]
     --if bDebugMessages == true then LOG(sFunctionRef..': Finished deciding if should check for enemies (based on if enemy threats in this or nearby LZ), bCheckForEnemies='..tostring(bCheckForEnemies)..'; Is table of enemy units for this LZ empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]))..'; is tNearbyEnemiesByZone empty='..tostring(M28Utilities.IsTableEmpty(tNearbyEnemiesByZone))..'; subrefLZThreatEnemyMobileDFTotalin this LZ='..(tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0)) end
-    if bDebugMessages == true then LOG(sFunctionRef..': Finished deciding if should check for enemies (based on if enemy threats in this or nearby LZ), bCheckForEnemies='..tostring(bCheckForEnemies)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished deciding if should check for enemies (based on if enemy threats in this or nearby LZ), bCheckForEnemies='..tostring(bCheckForEnemies)..'; If get units aroundpoint with radius of 30 is the table of units empty='..tostring(M28Utilities.IsTableEmpty(aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryNavalSurface + M28UnitInfo.refCategorySubmarine, tLZData[M28Map.subrefMidpoint], 30, 'Enemy')))) end
 
     local iClosestDistUntilInRangeOfMobileEnemy = 100000
     local iClosestDistUntilInRangeOfStaticEnemy = 100000
@@ -2441,7 +2442,6 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
     if bInCoreZone then iThresholdToRunFromMobileEnemies = 10 end
 
     local iEnemyUnitSearchRange = iThresholdToRunFromMobileEnemies + math.max(10, (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0), (tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0), (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] or 0), (tLZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0), (tLZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0))
-    local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
 
     if tEngineers then
         if bDebugMessages == true then LOG(sFunctionRef..': iEnemyUnitSearchRange='..iEnemyUnitSearchRange..'; iThresholdToRunFromMobileEnemies='..iThresholdToRunFromMobileEnemies) end

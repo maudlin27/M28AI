@@ -381,6 +381,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
+
     --Track team total threat - first remove the previous entry, then add in the new entry
     M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] - tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]
     M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] - tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]
@@ -618,8 +619,8 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         end
     end
 
-    if bDebugMessages == true then LOG(sFunctionRef..': End of code, tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]='..repru(tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange])..'; bNearbyEnemies='..tostring(bNearbyEnemies)..'; Allied combat='..(tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 'nil')..'; tLZTeamData[M28Map.subrefLZMAAThreatWanted]='..tLZTeamData[M28Map.subrefLZMAAThreatWanted]..'; tLZTeamData[M28Map.refiEnemyAirToGroundThreat]='..tLZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; tLZTeamData[M28Map.refiEnemyAirOtherThreat]='..tLZTeamData[M28Map.refiEnemyAirOtherThreat]) end
     tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] = bNearbyEnemies
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]='..repru(tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange])..'; bNearbyEnemies='..tostring(bNearbyEnemies)..'; Allied combat='..(tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 'nil')..'; tLZTeamData[M28Map.subrefLZMAAThreatWanted]='..tLZTeamData[M28Map.subrefLZMAAThreatWanted]..'; tLZTeamData[M28Map.refiEnemyAirToGroundThreat]='..tLZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; tLZTeamData[M28Map.refiEnemyAirOtherThreat]='..tLZTeamData[M28Map.refiEnemyAirOtherThreat]) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -3462,7 +3463,6 @@ function ManageAllLandZones(aiBrain, iTeam)
                 local tLZTeamData = tLandZoneDataByTeam[M28Map.subrefLZTeamData][iTeam]
                 if bDebugMessages == true then
                     LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is table of enemey units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]))..'; Is table of friendly units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits])))
-                    if iPlateau == 12 and iLandZone == 2 then LOG(sFunctionRef..': Will do reprs of tLZTeamData='..reprs(tLZTeamData)..'; reprs of same table via full ref='..reprs(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam])..'; Is table empty for team '..aiBrain.M28Team..' doing full ref='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTAlliedUnits]))) end
                 end
                 --First check all units in here are alive
                 if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
