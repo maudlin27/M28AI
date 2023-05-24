@@ -394,6 +394,10 @@ function OnEnhancementComplete(oUnit, sEnhancement)
         if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
             oUnit[M28ACU.refiUpgradeCount] = (oUnit[M28ACU.refiUpgradeCount] or 0) + 1
         end
+        --Fix AiX modifier
+        if oUnit:GetAIBrain().CheatEnabled then
+            M28UnitInfo.FixUnitResourceCheatModifiers(oUnit)
+        end
         if oUnit:GetAIBrain().M28AI then
             if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
                 M28ACU.GetUpgradePathForACU(oUnit)
@@ -615,7 +619,7 @@ function OnMissileBuilt(self, weapon)
             M28Utilities.DelayChangeVariable(self, M28Building.refbMissileRecentlyBuilt, false, 5)
 
 
-            --Pause if we already have 2 missiles
+            --Pause if we already have 2 missiles (mroe if smd and enemy has nukes)
             if bDebugMessages == true then
                 if M28UnitInfo.IsUnitValid(self) then
                     LOG(sFunctionRef..': Have valid unit='..self.UnitId..M28UnitInfo.GetUnitLifetimeCount(self))
@@ -647,13 +651,14 @@ function OnMissileBuilt(self, weapon)
 
                 --If 2+ missiles then pause, and consider unpausing later
                 if iMissiles >= 2 and not(EntityCategoryContains(categories.EXPERIMENTAL, self.UnitId)) then
+                    if iMissiles >= 4 or not(EntityCategoryContains(M28UnitInfo.refCategorySMD, self.UnitId)) or M28Utilities.IsTableEmpty(M28Team.tTeamData[self:GetAIBrain().M28Team][M28Team.reftEnemyNukeLaunchers]) or iMissiles >= 2 + table.getn(M28Team.tTeamData[self:GetAIBrain().M28Team][M28Team.reftEnemyNukeLaunchers]) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have at least 2 missiles so will set paused to true on unit '..self.UnitId..M28UnitInfo.GetUnitLifetimeCount(self)) end
+                        self:SetPaused(true)
+                        if self.SetAutoMode then self:SetAutoMode(false) end
 
-                    if bDebugMessages == true then LOG(sFunctionRef..': Have at least 2 missiles so will set paused to true on unit '..self.UnitId..M28UnitInfo.GetUnitLifetimeCount(self)) end
-                    self:SetPaused(true)
-                    if self.SetAutoMode then self:SetAutoMode(false) end
-
-                    --Recheck every minute
-                    ForkThread(M28Building.CheckIfWantToBuildAnotherMissile, self)
+                        --Recheck every minute
+                        ForkThread(M28Building.CheckIfWantToBuildAnotherMissile, self)
+                    end
                 end
             end
 
@@ -1133,7 +1138,10 @@ function OnCreate(oUnit)
                     if M28Config.M28ShowUnitNames then oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..sWZOrLZRef) end
                 end
                 --Units with upgrade - update the base threat value
-                if EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit) end --Will check if unit has enhancements as part of this
+                if EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then
+                    M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit) --Will check if unit has enhancements as part of this
+                    if oUnit:GetAIBrain().CheatEnabled then ForkThread(M28UnitInfo.FixUnitResourceCheatModifiers, oUnit) end
+                end
 
                 --Hydro resource locations
                 if EntityCategoryContains(M28UnitInfo.refCategoryHydro, oUnit.UnitId) then

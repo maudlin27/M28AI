@@ -85,7 +85,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefiHighestFriendlyLandFactoryTech = 'M28TeamHighestFriendlyGround' --Returns the Highest M28Brain's highest tech of this type, i.e. if an M28 brain has a T1 and T2 land factory, and another has a T3 land factory, then this would return 3.
     subrefiHighestFriendlyAirFactoryTech = 'M28TeamHighestFriendlyAir' --Returns the Highest M28Brain's highest tech of this type, i.e. if an M28 brain has a T1 and T2 air factory, and another has a T3 air factory, then this would return 3.
     subrefiHighestFriendlyNavalFactoryTech = 'M28TeamHighestFriendlyNaval'
-    subrefiHighestEnemyMexTech = 'M28TeamHighestEnemyMex' --I.e. 1, 2 or 3
+    --subrefiHighestEnemyMexTech = 'M28TeamHighestEnemyMex' --I.e. 1, 2 or 3
     subrefiTotalFactoryCountByType = 'M28TeamFactoryByType' --[x] is the factory type, returns the number that our team has; factory type per M28Factory.refiFactoryType..., e.g. M28Factory.refiFactoryTypeLand
     refbBuiltLotsOfT3Combat = 'M28TeamBuiltLotsOfT3Combat' --true once we have reached a certain lifetime count of T3 combat units (used e.g. to decide if we want to build an experimental)
     refiTimeLastHadNothingToBuildForAirFactory = 'M28TeamAirFacTimNoBuild' --Gametimeseconds that failed to find something to do with air factory that was our highest tech level
@@ -827,6 +827,17 @@ function AddUnitToBigThreatTable(iTeam, oUnit)
                         elseif oUnit:GetFractionComplete() == 1 then oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - 180 - 60 * oUnit:GetWorkProgress()
                         else oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds() - 60 * oUnit:GetFractionComplete()
                         end
+                    elseif EntityCategoryContains(M28UnitInfo.refCategorySML, oUnit.UnitId) then
+                        --Unpause any paused SMD
+                        for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
+                            local tSMD = oBrain:GetListOfUnits(M28UnitInfo.refCategorySMD, false, true)
+                            if M28Utilities.IsTableEmpty(tSMD) == false then
+                                for iUnit, oUnit in tSMD do
+                                    M28UnitInfo.PauseOrUnpauseEnergyUsage(oUnit, false)
+                                    oUnit:SetAutoMode(true)
+                                end
+                            end
+                        end
 
                     end
 
@@ -1314,17 +1325,17 @@ function UpdateTeamHighestAndLowestFactories(iM28Team)
             oBrain[M28Economy.refiOurHighestNavalFactoryTech] = 0
         end
         if bDebugMessages == true then LOG(sFunctionRef..': subrefiLowestFriendlyLandFactoryTech before reducing='..tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech]..'; oBrain[M28Economy.refiOurHighestLandFactoryTech]='..oBrain[M28Economy.refiOurHighestLandFactoryTech]..'; lower of these two='..math.min(tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech], oBrain[M28Economy.refiOurHighestLandFactoryTech])) end
-        tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech] = math.min(tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech], oBrain[M28Economy.refiOurHighestLandFactoryTech])
+        tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech] = math.min(3, tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech], oBrain[M28Economy.refiOurHighestLandFactoryTech])
         if bDebugMessages == true then LOG(sFunctionRef..': tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech] after update='..tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech]) end
-        tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech] = math.min(tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech], oBrain[M28Economy.refiOurHighestAirFactoryTech])
-        tTeamData[iM28Team][subrefiLowestFriendlyNavalFactoryTech] = math.min(tTeamData[iM28Team][subrefiLowestFriendlyNavalFactoryTech], oBrain[M28Economy.refiOurHighestNavalFactoryTech])
+        tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech] = math.min(3, tTeamData[iM28Team][subrefiLowestFriendlyAirFactoryTech], oBrain[M28Economy.refiOurHighestAirFactoryTech])
+        tTeamData[iM28Team][subrefiLowestFriendlyNavalFactoryTech] = math.min(3, tTeamData[iM28Team][subrefiLowestFriendlyNavalFactoryTech], oBrain[M28Economy.refiOurHighestNavalFactoryTech])
 
-        tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] = math.max(tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech], oBrain[M28Economy.refiOurHighestLandFactoryTech])
-        tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech] = math.max(tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech], oBrain[M28Economy.refiOurHighestAirFactoryTech])
-        tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech] = math.max(tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech], oBrain[M28Economy.refiOurHighestNavalFactoryTech])
+        tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] = math.min(3, math.max(tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech], oBrain[M28Economy.refiOurHighestLandFactoryTech]))
+        tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech] = math.min(3, math.max(tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech], oBrain[M28Economy.refiOurHighestAirFactoryTech]))
+        tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech] = math.min(3, math.max(tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech], oBrain[M28Economy.refiOurHighestNavalFactoryTech]))
         if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..oBrain.Nickname..'; tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech]='..tTeamData[iM28Team][subrefiLowestFriendlyLandFactoryTech]..'; oBrain[M28Economy.refiOurHighestLandFactoryTech]='..oBrain[M28Economy.refiOurHighestLandFactoryTech]) end
     end
-    tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] = math.max(1, tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech], tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech], (tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech] or 0))
+    tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] = math.min(3, math.max(1, tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech], tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech], (tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech] or 0)))
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -1501,7 +1512,7 @@ function ConsiderPriorityMexUpgrades(iM28Team)
         if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have enough energy, tTeamData[iM28Team][subrefiTeamNetEnergy]='..tTeamData[iM28Team][subrefiTeamNetEnergy]..'; tTeamData[iM28Team][subrefiEnergyUpgradesStartedThisCycle]='..tTeamData[iM28Team][subrefiEnergyUpgradesStartedThisCycle]..'; tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored]='..tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored]) end
         if tTeamData[iM28Team][subrefiTeamNetEnergy] - tTeamData[iM28Team][subrefiEnergyUpgradesStartedThisCycle] > 0 and (tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] >= 0.75 or tTeamData[iM28Team][subrefiTeamNetEnergy] - tTeamData[iM28Team][subrefiEnergyUpgradesStartedThisCycle] >= 5) then
             --Do we have mexes in start positions that are lower than the enemy's highest tech, or 2 lower than the highest mex in that LZ? Or are in norush mode?
-            local iTechLevelToUpgrade = math.min(3, math.max(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech], (tTeamData[iM28Team][subrefiHighestEnemyMexTech] or 0))) - 1
+            local iTechLevelToUpgrade = math.min(3, (tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] or 1)) - 1 --, (tTeamData[iM28Team][subrefiHighestEnemyMexTech] or 0))) - 1
             if M28Overseer.bNoRushActive then iTechLevelToUpgrade = math.max(1, iTechLevelToUpgrade) end
             --Always be upgrading a mex at higher mass levels
             if iTechLevelToUpgrade <= 1 then
@@ -1511,7 +1522,7 @@ function ConsiderPriorityMexUpgrades(iM28Team)
                     iTechLevelToUpgrade = 1
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': iTechLevelToUpgrade='..iTechLevelToUpgrade..'; tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]='..tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]..'; tTeamData[iM28Team][subrefiHighestEnemyMexTech]='..(tTeamData[iM28Team][subrefiHighestEnemyMexTech] or 0)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': iTechLevelToUpgrade='..iTechLevelToUpgrade..'; tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]='..tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) end
             if iTechLevelToUpgrade >= 1 then
                 local iPlateau, iLandZone, tMexesToConsiderUpgrading
                 local bAbort = false
@@ -1777,8 +1788,7 @@ function HaveEcoToSupportUpgrades(iM28Team)
 
     --Do we have enough energy?
     tTeamData[iM28Team][subrefbTooLittleEnergyForUpgrade] = true --will change to false below if we have enough
-    if bDebugMessages == true then LOG(sFunctionRef..': Start, GameTime='..GetGameTimeSeconds()..'; Gross energy='..tTeamData[iM28Team][subrefiTeamGrossEnergy]..'; % stored='..tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored]..'; Net energy='..tTeamData[iM28Team][subrefiTeamNetEnergy]..'; tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]='..tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) end
-
+    if bDebugMessages == true then LOG(sFunctionRef..': Start, GameTime='..GetGameTimeSeconds()..'; Gross energy='..(tTeamData[iM28Team][subrefiTeamGrossEnergy] or 'nil')..'; % stored='..(tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] or 'nil')..'; Net energy='..(tTeamData[iM28Team][subrefiTeamNetEnergy] or 'nil')..'; tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]='..(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] or 'nil')..'; Active brain count='..(tTeamData[iM28Team][subrefiActiveM28BrainCount] or 'nil')..'; tTeamData[iM28Team][subrefiTeamGrossEnergy]='..(tTeamData[iM28Team][subrefiTeamGrossEnergy] or 'nil')..'; Net energy='..(tTeamData[iM28Team][subrefiTeamNetEnergy] or 'nil')..'; Min energy per tech='..(M28Economy.tiMinEnergyPerTech[tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]] or 'nil')) end
     if (tTeamData[iM28Team][subrefiTeamGrossEnergy] >= M28Economy.tiMinEnergyPerTech[tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]] * tTeamData[iM28Team][subrefiActiveM28BrainCount] or (tTeamData[iM28Team][subrefiTeamNetEnergy] > 5 * tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] * tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] and tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] >= 0.98)) and tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] >= 0.4 and (tTeamData[iM28Team][subrefiTeamGrossEnergy] >= 25 * tTeamData[iM28Team][subrefiActiveM28BrainCount] or tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] >= 0.9) and tTeamData[iM28Team][subrefiTeamNetEnergy] > 0 then
         --If already have active HQ upgrades, then double min energy wanted if net poweri sn't that high
         if tTeamData[iM28Team][subrefiTeamNetEnergy] > 15 or M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) or tTeamData[iM28Team][subrefiTeamGrossEnergy] >= M28Economy.tiMinEnergyPerTech[tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]] * 2 * tTeamData[iM28Team][subrefiActiveM28BrainCount] then

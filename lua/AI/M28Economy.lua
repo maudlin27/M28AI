@@ -40,7 +40,7 @@ refiLastEnergyUsage = 'M28EconomyLastEnergyUsage' --per tick energy usage of the
 refiLastMassUsage = 'M28EconomyLastMassUsage' --per tick massu sage of the unit set when unit is paused
 
 --global variables
-tiMinEnergyPerTech = {[1]=16,[2]=55,[3]=150}
+tiMinEnergyPerTech = {[1]=16,[2]=55,[3]=150,[3]=150}
 iSpecialHQCategory = 'M28EconomyFactoryHQ' --Used as a way of choosing to pause HQ
 iSpecialSurplusUpgradeCategory = 'M28EconomySurplusUpgrade' --used as a way of choosing to pause excess upgrades
 

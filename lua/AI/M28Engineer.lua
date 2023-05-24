@@ -177,7 +177,7 @@ tiActionCategory = {
     [refActionCompletePartBuiltMex] = M28UnitInfo.refCategoryT1Mex,
     [refActionBuildExperimentalNavy] = categories.NAVAL * categories.EXPERIMENTAL - categories.UNSELECTABLE - categories.UNTARGETABLE,
     [refActionBuildGameEnder] = M28UnitInfo.refCategoryGameEnder,
-    [refActionBuildExperimentalNavy] = M28UnitInfo.refCategoryLandExperimental,
+    [refActionBuildLandExperimental] = M28UnitInfo.refCategoryLandExperimental,
 }
 
 tiActionOrder = {
@@ -660,7 +660,7 @@ function SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, 
         iSegmentRef = M28Map.subrefLZSegments
     end
     if not(tLZOrWZData) then
-        M28Utilities.ErrorHandler('Dont have valid zone, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; bIsWaterZone='..tostring(bIsWaterZone or false))
+        M28Utilities.ErrorHandler('Dont have valid zone, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil'))
     else
         local iSegmentsToConsider
         if (tLZOrWZData[M28Map.subrefSegmentsConsideredThisTick] or 0) >= 50 and GetGameTimeSeconds() >= 60 then
@@ -3958,7 +3958,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                     end
                 else
                     if not(aiBrain[M28Overseer.refbCloseToUnitCap]) then
-                        M28Utilities.ErrorHandler('Unrecognised order, need to add logic')
+                        M28Utilities.ErrorHandler('Unrecognised order, need to add logic, iActionToAssign='..(iActionToAssign or 'nil'))
                     end
                     iTotalBuildPowerWanted = 0
                 end
@@ -3967,7 +3967,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
 
         --If we still have build power we want to assign, record in the land zone
         if bDebugMessages == true then LOG(sFunctionRef..': About to update BP wanted for iPlateauOrPond'..iPlateauOrPond..'; iLandOrWaterZone='..iLandOrWaterZone..'; iTeam='..iTeam..'; iTotalBuildPowerWanted='..iTotalBuildPowerWanted..'; tLZBuildPowerByTechWanted before update='..repru(tLZOrWZTeamData[M28Map.subrefTBuildPowerByTechWanted])) end
-        if iTotalBuildPowerWanted > 0 and not(bDontIncreaseLZBPWanted) then tLZOrWZTeamData[M28Map.subrefTBuildPowerByTechWanted][iMinTechWanted] = tLZOrWZTeamData[M28Map.subrefTBuildPowerByTechWanted][iMinTechWanted] + iTotalBuildPowerWanted end
+        if iTotalBuildPowerWanted > 0 and not(bDontIncreaseLZBPWanted) then tLZOrWZTeamData[M28Map.subrefTBuildPowerByTechWanted][iMinTechWanted] = (tLZOrWZTeamData[M28Map.subrefTBuildPowerByTechWanted][iMinTechWanted] or 0) + iTotalBuildPowerWanted end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -5545,22 +5545,25 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             if not(bHaveLowMass) then iBPWanted = 80 end
             if bDebugMessages == true then LOG(sFunctionRef..': Will try and build a quantum gateway') end
             --Do we already have a quantum gateway in this land zone?
-            local bHaveQuantumGateway = false
+            local iCurQuantumGateways = 0
             local tQuantumGateways = EntityCategoryFilterDown(M28UnitInfo.refCategoryQuantumGateway, tLZTeamData[M28Map.subrefLZTAlliedUnits])
             if M28Utilities.IsTableEmpty( tQuantumGateways) == false then
                 for iUnit, oUnit in tQuantumGateways do
                     if oUnit:GetFractionComplete() >= 1 then
-                        bHaveQuantumGateway = true
+                        iCurQuantumGateways = iCurQuantumGateways + 1
                     end
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': bHaveQuantumGateway='..tostring(bHaveQuantumGateway or false)) end
-            if not(bHaveQuantumGateway) then
+            --Get 1 quantumn gateway (or 2+ if we have 1.5+ AiX modifier)
+            if iCurQuantumGateways == 0 or (iCurQuantumGateways < 3 and iCurQuantumGateways < 0.4 + M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultipler]) then
                 HaveActionToAssign(refActionBuildQuantumGateway, 3, iBPWanted)
                 if bDebugMessages == true then LOG(sFunctionRef..': Will try and assign '..iBPWanted..' to building a quantum gateway') end
             end
         end
     end
+
+    --Low mass - mass fabs (number depends on AiX modifier)
 
 
     --Second experimental builder (for very high mass scenarios)

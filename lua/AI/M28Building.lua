@@ -1498,7 +1498,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                     end
                 else
                     --Disable autobuild and pause
-                    if not(oLauncher[refbPausedAsNoTargets]) then
+                    if not(oLauncher[refbPausedAsNoTargets]) and not(EntityCategoryContains(categories.EXPERIMENTAL, oLauncher.UnitId)) then
 
                         oLauncher[refbPausedAsNoTargets] = true
                         oLauncher:SetAutoMode(false)

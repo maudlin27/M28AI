@@ -2630,8 +2630,8 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
     local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory) --to be safe given we include it in adjustblueprintforoverrides
     local iCurrentConditionToTry = 0
 
-    function ConsiderBuildingCategory(iCategoryToBuild)
-        sBPIDToBuild = GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oFactory, nil, nil, nil, nil, false)
+    function ConsiderBuildingCategory(iCategoryToBuild, bOptionalGetCheapest)
+        sBPIDToBuild = GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oFactory, nil, nil, bOptionalGetCheapest, nil, false)
         if bDebugMessages == true then
             LOG(sFunctionRef .. ': Time=' .. GetGameTimeSeconds() .. ' Factory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; LZ=' .. iLandZone .. '; iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; sBPIDToBuild before adjusting for override=' .. (sBPIDToBuild or 'nil'))
         end
@@ -2644,12 +2644,16 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
         end
     end
 
-    --Build RAS SACUs
+    --Build RAS SACUs (note - FAF has bug as of May 2023 where SACUs dont benefit from AiX modifier - have added code in M28 to counteract/fix
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if not (bHaveLowPower) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 750 then
         if bDebugMessages == true then
             LOG(sFunctionRef .. ': Will try to build RAS SACU')
         end
+        --[[if aiBrain.CheatEnabled and M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultipler] >= 3.5 then
+            if ConsiderBuildingCategory(categories.SUBCOMMANDER, true) then
+                return sBPIDToBuild
+            end--]]
         if ConsiderBuildingCategory(M28UnitInfo.refCategoryRASSACU) then
             if bDebugMessages == true then
                 LOG(sFunctionRef .. ': Foudn a RAS SACU blueprint to build=' .. (sBPIDToBuild or 'nil'))
