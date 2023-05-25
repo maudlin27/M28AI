@@ -5949,6 +5949,23 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         end
     end
 
+    --Units to repair
+    if M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToRepair]) == false then
+        --Refresh the list
+        local iUnitCount = table.getn(tLZData[M28Map.subreftoUnitsToRepair])
+        for iCurCount = iUnitCount, 1, -1 do
+            if not(M28UnitInfo.IsUnitValid(tLZData[M28Map.subreftoUnitsToRepair][iCurCount])) then
+                table.remove(tLZData[M28Map.subreftoUnitsToRepair], iCurCount)
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Have units to repair for zone '..iLandZone..' after freshing them is table empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToRepair]))) end
+        if M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToRepair]) == false then
+            local oUnitToTarget = M28Utilities.GetNearestUnit(tLZData[M28Map.subreftoUnitsToRepair], tLZData[M28Map.subrefMidpoint])
+            if bDebugMessages == true then LOG(sFunctionRef..': Unit to repair='..oUnitToTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToTarget)) end
+            HaveActionToAssign(refActionRepairUnit, 1, 5, oUnitToTarget)
+        end
+    end
+
     --Shield assistance
     iCurPriority = iCurPriority + 1
     iBPWanted = GetBPForShieldAssistance(tLZTeamData, iTeam)
@@ -6785,6 +6802,23 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
         if M28Utilities.IsTableEmpty(tWZData[M28Map.subreftoUnitsToCapture]) == false then
             local oUnitToCapture = M28Utilities.GetNearestUnit(tWZData[M28Map.subreftoUnitsToCapture], tWZData[M28Map.subrefMidpoint])
             HaveActionToAssign(refActionCaptureUnit, 1, 25, oUnitToCapture)
+        end
+    end
+
+    --Units to repair
+    if M28Utilities.IsTableEmpty(tWZData[M28Map.subreftoUnitsToRepair]) == false then
+        --Refresh the list
+        local iUnitCount = table.getn(tWZData[M28Map.subreftoUnitsToRepair])
+        for iCurCount = iUnitCount, 1, -1 do
+            if not(M28UnitInfo.IsUnitValid(tWZData[M28Map.subreftoUnitsToRepair][iCurCount])) then
+                table.remove(tWZData[M28Map.subreftoUnitsToRepair], iCurCount)
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Have units to repair for water zone '..iWaterZone..' after freshing them is table empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subreftoUnitsToRepair]))) end
+        if M28Utilities.IsTableEmpty(tWZData[M28Map.subreftoUnitsToRepair]) == false then
+            local oUnitToTarget = M28Utilities.GetNearestUnit(tWZData[M28Map.subreftoUnitsToRepair], tWZData[M28Map.subrefMidpoint])
+            if bDebugMessages == true then LOG(sFunctionRef..': Unit to repair='..oUnitToTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToTarget)) end
+            HaveActionToAssign(refActionRepairUnit, 1, 5, oUnitToTarget)
         end
     end
 

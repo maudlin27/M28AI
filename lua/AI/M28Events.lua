@@ -1297,7 +1297,7 @@ end
 
 function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
     local sFunctionRef = 'ObjectiveAdded'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --Wait until map setup complete
     while not(M28Map.bMapLandSetupComplete) or not(M28Map.bWaterZoneInitialCreation) do
@@ -1310,7 +1310,7 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
 
 
     --Record capture missions
-    if bDebugMessages == true then LOG('Have a mission, Title='..Title..'; Description='..Description..'; Target.captured='..(Target.captured or 'nil')) end
+    if bDebugMessages == true then LOG('Have a mission, Title='..Title..'; Description='..Description..'; Target.captured='..(Target.captured or 'nil')..'; reprs of Target='..reprs(Target)) end
     if Target.captured == 0 then
         if bDebugMessages == true then  LOG('Have a capture mission, is target empty='..tostring(M28Utilities.IsTableEmpty(Target))) end
         --Record every unit to be captured
@@ -1335,6 +1335,48 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                 end
             end
         end
+    elseif M28Utilities.IsTableEmpty(Target.Units) == false then
+        local bHaveLowHealthAlly = true
+        local oFirstM28Brain
+        for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
+            oFirstM28Brain = oBrain
+            break
+        end
+        local tUnitsToRepair = {}
+        for iUnit, oUnit in Target.Units do
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Health%='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; Is enemy='..tostring(IsEnemy(oFirstM28Brain:GetArmyIndex(),  oUnit:GetAIBrain():GetArmyIndex()))..'; IsAlly='..tostring(IsAlly(oFirstM28Brain:GetArmyIndex(),  oUnit:GetAIBrain():GetArmyIndex()))) end
+            if M28UnitInfo.IsUnitValid(oUnit) and M28UnitInfo.GetUnitHealthPercent(oUnit) < 1 and IsAlly(oFirstM28Brain:GetArmyIndex(),  oUnit:GetAIBrain():GetArmyIndex()) then
+                table.insert(tUnitsToRepair, oUnit)
+            else
+                bHaveLowHealthAlly = false
+                break
+            end
+        end
+        if bHaveLowHealthAlly and M28Utilities.IsTableEmpty(tUnitsToRepair) == false then
+            local iPlateauOrZero, iLandOrWaterZone
+            for iEntry, oUnit in tUnitsToRepair do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering iEntry='..iEntry..' in tUnitsToRepair; Is valid unit='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
+                if M28UnitInfo.IsUnitValid(oUnit) then
+                    iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                    local tLZOrWZData
+                    if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; Unit position='..repru(oUnit:GetPosition())) end
+                    if iLandOrWaterZone > 0 then
+                        if iPlateauOrZero == 0 then
+                            tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+                        else
+                            tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+                        end
+                        if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToRepair]) then tLZOrWZData[M28Map.subreftoUnitsToRepair] = {} end
+                        table.insert(tLZOrWZData[M28Map.subreftoUnitsToRepair], oUnit)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of units to repair') end
+                    end
+                end
+            end
+        end
     end
+
+
+
+
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
