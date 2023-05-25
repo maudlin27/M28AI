@@ -1352,7 +1352,6 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
 
         --Update the recorded support rally point to reflect the above, and record pathing of other land and air zones to it if havent previously
         local tStartLZOrWZData
-        bDebugMessages = true
         if bDebugMessages == true then LOG(sFunctionRef..': About to get the plateau and zone for air support point='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])..'; Zone midpoint='..repru(tStartLZOrWZData[M28Map.subrefMidpoint])..'; ') end
         if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]) then
             M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint] = {tStartLZOrWZData[M28Map.subrefMidpoint][1], tStartLZOrWZData[M28Map.subrefMidpoint][2], tStartLZOrWZData[M28Map.subrefMidpoint][3]}

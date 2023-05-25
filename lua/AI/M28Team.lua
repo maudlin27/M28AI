@@ -2397,7 +2397,7 @@ function RefreshActiveBrainListForBrainDeath(oDefeatedBrain)
     if M28Utilities.IsTableEmpty(M28Overseer.tAllActiveM28Brains) == false then
         for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
             if oBrain[M28Overseer.refoNearestEnemyBrain].M28IsDefeated then
-                UpdateNewPrimaryBaseLocation(oBrain)
+                M28Map.UpdateNewPrimaryBaseLocation(oBrain)
             end
         end
     end
