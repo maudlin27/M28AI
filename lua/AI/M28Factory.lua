@@ -1662,7 +1662,6 @@ end
 
 function IdleFactoryMonitor(aiBrain)
     --Cycles through every factory owned by aiBrain, max of 1 factory per tick, to check if it is idle
-    local bDebugMessages = false
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'IdleFactoryMonitor'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -1671,20 +1670,31 @@ function IdleFactoryMonitor(aiBrain)
         local tOurFactories = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway, false, true)
         local tCommandQueue
         local sBPToBuild
+        local iTeam
         if M28Utilities.IsTableEmpty(tOurFactories) == false then
             for iFactory, oFactory in tOurFactories do
                 if M28UnitInfo.IsUnitValid(oFactory) and oFactory:GetFractionComplete() == 1 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering factory'..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' at time '..GetGameTimeSeconds()..'; Is factory ready to build='..tostring(IsFactoryReadyToBuild(oFactory))..'; oFactory[M28UnitInfo.refbPaused]='..tostring(oFactory[M28UnitInfo.refbPaused] or false)..'; oFactory:IsPaused()='..tostring(oFactory:IsPaused())) end
                     tCommandQueue = oFactory:GetCommandQueue()
                     if IsFactoryReadyToBuild(oFactory) and GetGameTimeSeconds() - (oFactory[refiTimeSinceLastOrderCheck] or 0) >= 5 then
-
                         oFactory[refiTimeSinceLastOrderCheck] = GetGameTimeSeconds()
                         ForkThread(DecideAndBuildUnitForFactory, aiBrain, oFactory, nil, true)
+                    --Redundancy for paused factories (in theory shouldnt be needed)
+                    elseif oFactory[M28UnitInfo.refbPaused] or oFactory:IsPaused() then
+                        iTeam = oFactory:GetAIBrain().M28Team
+                        if bDebugMessages == true then LOG(sFunctionRef..': M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or false)..'; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] or false)..'; M28Team.tTeamData[M28Team.subrefiTeamNetMass]='..(M28Team.tTeamData[M28Team.subrefiTeamNetMass] or 'nil')..'; M28Team.tTeamData[M28Team.subrefiTeamNetEnergy]='..(M28Team.tTeamData[M28Team.subrefiTeamNetEnergy] or 'nil')) end
+                        if not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > 0 then
+                            M28UnitInfo.PauseOrUnpauseMassUsage(oFactory, false)
+                            bDebugMessages = true
+                            if bDebugMessages == true then LOG(sFunctionRef..': Unpause override for factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)) end
+                            bDebugMessages = false
+                        end
                     end
                 end
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                WaitTicks(1)
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-            end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    WaitTicks(1)
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                end
         end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
