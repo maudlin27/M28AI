@@ -4719,6 +4719,7 @@ function RecordWaterZoneMidpointAndMinMaxPositions()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iMinX, iMaxX, iMinZ, iMaxZ, iAveragePond, iAverageWaterZone
+    local iMinSegmentX, iMinSegmentZ, iMaxSegmentX, iMaxSegmentZ
     local iAverageSegmentX, iAverageSegmentZ
     for iPond, tPondSubtable in tPondDetails do
         --Go through any mexes near a pond, and record against a waterzone if they're in water
@@ -4741,16 +4742,27 @@ function RecordWaterZoneMidpointAndMinMaxPositions()
             iMinZ = 100000
             iMaxX = 0
             iMaxZ = 0
+            iMinSegmentX = 100000
+            iMinSegmentZ = 100000
+            iMaxSegmentX = 0
+            iMaxSegmentZ = 0
+
             for iEntry, tiSegmentXZ in tWZData[subrefWZSegments] do
-                iMinX = math.min(tiSegmentXZ[1], iMinX)
-                iMinZ = math.min(tiSegmentXZ[2], iMinZ)
-                iMaxX = math.max(tiSegmentXZ[1], iMaxX)
-                iMaxZ = math.max(tiSegmentXZ[2], iMaxZ)
+                iMinSegmentX = math.min(tiSegmentXZ[1], iMinSegmentX)
+                iMinSegmentZ = math.min(tiSegmentXZ[2], iMinSegmentZ)
+                iMaxSegmentX = math.max(tiSegmentXZ[1], iMaxSegmentX)
+                iMaxSegmentZ = math.max(tiSegmentXZ[2], iMaxSegmentZ)
             end
-            tWZData[subrefWZMinSegX] = iMinX
-            tWZData[subrefWZMinSegZ] = iMinZ
-            tWZData[subrefWZMaxSegX] = iMaxX
-            tWZData[subrefWZMaxSegZ] = iMaxZ
+            local tMinPos = GetPositionFromPathingSegments(iMinSegmentX, iMinSegmentZ)
+            local tMaxPos = GetPositionFromPathingSegments(iMaxSegmentX, iMaxSegmentZ)
+            iMinX = tMinPos[1]
+            iMinZ = tMinPos[3]
+            iMaxX = tMaxPos[1]
+            iMaxZ = tMaxPos[3]
+            tWZData[subrefWZMinSegX] = iMinSegmentX
+            tWZData[subrefWZMinSegZ] = iMinSegmentZ
+            tWZData[subrefWZMaxSegX] = iMaxSegmentX
+            tWZData[subrefWZMaxSegZ] = iMaxSegmentZ
 
             --Record midpoint
             local tAverage = {(iMinX + iMaxX)*0.5, 0, (iMinZ + iMaxZ) * 0.5}
@@ -4760,46 +4772,65 @@ function RecordWaterZoneMidpointAndMinMaxPositions()
 
 
             --Move the midpoint if nav utils doesnt work for this position (to reduce the amount of grief we might have later)
-            if not(iPond == iAveragePond) or not(iAverageWaterZone == iWaterZone) then
+            if bDebugMessages == true then
+                LOG(sFunctionRef .. ': Considering iWaterZone=' .. iWaterZone .. '; MinX=' .. iMinX .. 'Z' .. iMinZ .. '; iMaxX' .. iMaxX .. 'Z' .. iMaxZ .. '; iMinSegmentX=' .. iMinSegmentX .. 'Z' .. iMinSegmentZ .. '; iMaxSegmentX=' .. iMaxSegmentX .. iMaxSegmentZ)
+            end
+            if not (iPond == iAveragePond) or not (iAverageWaterZone == iWaterZone) then
                 local tAltMidpoint
                 local iAdjustedSegmentX, iAdjustedSegmentZ
                 local bHaveValidAltMidpoint = false
                 for iAdjust = 1, 50 do
                     for iXAdjust = -iAdjust, iAdjust, 1 do
                         for iZAdjust = -iAdjust, iAdjust, 1 do
-                            if not(iXAdjust == 0 and iZAdjust == 0) then
+                            if not (iXAdjust == 0 and iZAdjust == 0) then
                                 iAdjustedSegmentX = iAverageSegmentX + iAdjust * iXAdjust
                                 iAdjustedSegmentZ = iAverageSegmentZ + iAdjust * iZAdjust
                                 if iAdjustedSegmentX > 0 and iAdjustedSegmentZ > 0 then
                                     iAverageWaterZone = tWaterZoneBySegment[iAdjustedSegmentX][iAdjustedSegmentZ]
                                     if iAverageWaterZone == iWaterZone then
                                         tAltMidpoint = GetPositionFromPathingSegments(iAdjustedSegmentX, iAdjustedSegmentZ)
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering adjusted segment X-Z='..iAdjustedSegmentX..'-'..iAdjustedSegmentZ..'; with water zone '..tWaterZoneBySegment[iAdjustedSegmentX][iAdjustedSegmentZ]..'; tAltMidpoint='..repru(tAltMidpoint)..'; Pond from navutils='..(NavUtils.GetTerrainLabel(refPathingTypeNavy, tAltMidpoint) or 'nil')) end
+                                        if bDebugMessages == true then
+                                            LOG(sFunctionRef .. ': Considering adjusted segment X-Z=' .. iAdjustedSegmentX .. '-' .. iAdjustedSegmentZ .. '; with water zone ' .. tWaterZoneBySegment[iAdjustedSegmentX][iAdjustedSegmentZ] .. '; tAltMidpoint=' .. repru(tAltMidpoint) .. '; Pond from navutils=' .. (NavUtils.GetTerrainLabel(refPathingTypeNavy, tAltMidpoint) or 'nil'))
+                                        end
                                         if NavUtils.GetTerrainLabel(refPathingTypeNavy, tAltMidpoint) == iPond then
                                             --Have a valid midpoint; as this is water, see whether if we move further in the adjust direction we can still have a vlid point (so we arent as likely to be on the shore/by a cliff):
                                             local iXNewAdjust = 0
                                             local iZNewAdjust = 0
                                             local iXSizeAdjust = math.ceil(10 / iLandZoneSegmentSize)
                                             local iZSizeAdjust = math.ceil(10 / iLandZoneSegmentSize)
-                                            if math.abs(iXAdjust) >= 10 then iXSizeAdjust = iXSizeAdjust * 2 end
-                                            if math.abs(iZAdjust) >= 10 then iZSizeAdjust = iZSizeAdjust * 2 end
-                                            if iXAdjust < 0 then iXNewAdjust = - iXSizeAdjust
-                                            elseif iXAdjust > 0 then iXNewAdjust = iXSizeAdjust end
-                                            if iZNewAdjust < 0 then iZNewAdjust = - iZSizeAdjust
-                                            elseif iZNewAdjust > 0 then iZNewAdjust = iZSizeAdjust end
+                                            if math.abs(iXAdjust) >= 10 then
+                                                iXSizeAdjust = iXSizeAdjust * 2
+                                            end
+                                            if math.abs(iZAdjust) >= 10 then
+                                                iZSizeAdjust = iZSizeAdjust * 2
+                                            end
+                                            if iXAdjust < 0 then
+                                                iXNewAdjust = -iXSizeAdjust
+                                            elseif iXAdjust > 0 then
+                                                iXNewAdjust = iXSizeAdjust
+                                            end
+                                            if iZNewAdjust < 0 then
+                                                iZNewAdjust = -iZSizeAdjust
+                                            elseif iZNewAdjust > 0 then
+                                                iZNewAdjust = iZSizeAdjust
+                                            end
                                             if tWaterZoneBySegment[iAdjustedSegmentX + iXNewAdjust][iAdjustedSegmentZ + iZNewAdjust] == iAverageWaterZone and NavUtils.GetTerrainLabel(refPathingTypeNavy, GetPositionFromPathingSegments(iAdjustedSegmentX + iXNewAdjust, iAdjustedSegmentZ + iZNewAdjust)) == iPond then
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Will go with adjusted segment value, tAltMidpoint before adjust='..repru(tAltMidpoint)..'; tAltMidpoint after adjust='..repru(GetPositionFromPathingSegments(iAdjustedSegmentX + iXNewAdjust, iAdjustedSegmentZ + iZNewAdjust))..'; iXNewAdjust='..iXNewAdjust..'; iZNewAdjust='..iZNewAdjust) end
+                                                if bDebugMessages == true then
+                                                    LOG(sFunctionRef .. ': Will go with adjusted segment value, tAltMidpoint before adjust=' .. repru(tAltMidpoint) .. '; tAltMidpoint after adjust=' .. repru(GetPositionFromPathingSegments(iAdjustedSegmentX + iXNewAdjust, iAdjustedSegmentZ + iZNewAdjust)) .. '; iXNewAdjust=' .. iXNewAdjust .. '; iZNewAdjust=' .. iZNewAdjust)
+                                                end
                                                 tAltMidpoint = GetPositionFromPathingSegments(iAdjustedSegmentX + iXNewAdjust, iAdjustedSegmentZ + iZNewAdjust)
                                             end
 
                                             bHaveValidAltMidpoint = true
                                             iAveragePond = iPond
-                                            tAverage = {tAltMidpoint[1], tAltMidpoint[2], tAltMidpoint[3]}
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Have valid alternative midpoint which will now record and use, tAverage after update='..repru(tAverage)..'; will see if can adjust slightly to be more in the water') end
+                                            tAverage = { tAltMidpoint[1], tAltMidpoint[2], tAltMidpoint[3] }
+                                            if bDebugMessages == true then
+                                                LOG(sFunctionRef .. ': Have valid alternative midpoint which will now record and use, tAverage after update=' .. repru(tAverage) .. '; will see if can adjust slightly to be more in the water')
+                                            end
                                             break
                                         end
                                     elseif bDebugMessages == true then
-                                        LOG(sFunctionRef..': Adjusted semgnet X-Z='..iAdjustedSegmentX..'-'..iAdjustedSegmentZ..'; didnt have the right Water zone, was '..(tWaterZoneBySegment[iAdjustedSegmentX][iAdjustedSegmentZ] or 'nil')..'; will draw segment midpoint in red if its in playaable area')
+                                        LOG(sFunctionRef .. ': Adjusted semgnet X-Z=' .. iAdjustedSegmentX .. '-' .. iAdjustedSegmentZ .. '; didnt have the right Water zone, was ' .. (tWaterZoneBySegment[iAdjustedSegmentX][iAdjustedSegmentZ] or 'nil') .. '; will draw segment midpoint in red if its in playaable area')
                                         local tAltLocation = GetPositionFromPathingSegments(iAdjustedSegmentX, iAdjustedSegmentZ)
                                         if tAltLocation and tAltLocation[1] > rMapPotentialPlayableArea[1] and tAltLocation[1] < rMapPotentialPlayableArea[3] and tAltLocation[3] > rMapPotentialPlayableArea[2] and tAltLocation[3] < rMapPotentialPlayableArea[4] then
                                             M28Utilities.DrawLocation(tAltLocation, 2)
@@ -4808,43 +4839,57 @@ function RecordWaterZoneMidpointAndMinMaxPositions()
                                 end
                             end
                         end
-                        if bHaveValidAltMidpoint then break end
+                        if bHaveValidAltMidpoint then
+                            break
+                        end
                     end
-                    if bHaveValidAltMidpoint then break end
+                    if bHaveValidAltMidpoint then
+                        break
+                    end
                 end
 
                 --If still dont have a valid location, then just try any segment recorded in the land zone (this wont be in the middle of the land zone, but is better than having an unpathable midpoint)
-                if not(bHaveValidAltMidpoint) then
+                if not (bHaveValidAltMidpoint) then
                     for iSegment, tSegmentXZ in tWZData[subrefWZSegments] do
                         if tWaterZoneBySegment[tSegmentXZ[1]][tSegmentXZ[2]] == iWaterZone then
                             tAltMidpoint = GetPositionFromPathingSegments(tSegmentXZ[1], tSegmentXZ[2])
-                            if bDebugMessages == true then LOG(sFunctionRef..': Cycling through recorded segments for this LZ, and considering segment X-Z='..tSegmentXZ[1]..'-'..tSegmentXZ[2]..'; with land zone '..tLandZoneBySegment[tSegmentXZ[1]][tSegmentXZ[2]]..'; tAltMidpoint='..repru(tAltMidpoint)..'; Plateau from navutils='..(NavUtils.GetTerrainLabel(refPathingTypeHover, tAltMidpoint) or 'nil')..'; Island from navutils='..(NavUtils.GetTerrainLabel(refPathingTypeLand, tAltMidpoint) or 'nil')) end
+                            if bDebugMessages == true then
+                                LOG(sFunctionRef .. ': Cycling through recorded segments for this LZ, and considering segment X-Z=' .. tSegmentXZ[1] .. '-' .. tSegmentXZ[2] .. '; with land zone ' .. tLandZoneBySegment[tSegmentXZ[1]][tSegmentXZ[2]] .. '; tAltMidpoint=' .. repru(tAltMidpoint) .. '; Plateau from navutils=' .. (NavUtils.GetTerrainLabel(refPathingTypeHover, tAltMidpoint) or 'nil') .. '; Island from navutils=' .. (NavUtils.GetTerrainLabel(refPathingTypeLand, tAltMidpoint) or 'nil'))
+                            end
                             if NavUtils.GetTerrainLabel(refPathingTypeNavy, tAltMidpoint) == iPond then
                                 bHaveValidAltMidpoint = true
                                 iAveragePond = NavUtils.GetTerrainLabel(refPathingTypeNavy, tAltMidpoint)
-                                tAverage = {tAltMidpoint[1], tAltMidpoint[2], tAltMidpoint[3]}
-                                if bDebugMessages == true then LOG(sFunctionRef..': Have valid alternative midpoint which will now record and use, tAverage after update='..repru(tAverage)) end
+                                tAverage = { tAltMidpoint[1], tAltMidpoint[2], tAltMidpoint[3] }
+                                if bDebugMessages == true then
+                                    LOG(sFunctionRef .. ': Have valid alternative midpoint which will now record and use, tAverage after update=' .. repru(tAverage))
+                                end
                                 break
                             end
                         end
                     end
-                    if not(bHaveValidAltMidpoint) then
-                        M28Utilities.ErrorHandler(' dont have valid midpoint even after checking every water zone segment for iPond='..iPond..'; will just use the first WZSegment')
+                    if not (bHaveValidAltMidpoint) then
+                        M28Utilities.ErrorHandler(' dont have valid midpoint even after checking every water zone segment for iPond=' .. iPond .. '; will just use the first WZSegment')
                         if bDebugMessages == true then
-                            LOG(sFunctionRef..': iWaterZone='..iWaterZone..'; tWZData[subrefWZSegments]='..repru(tWZData[subrefWZSegments] or 'nil')..'; First segment position='..repru(GetPositionFromPathingSegments(tWZData[subrefWZSegments][1][1], tWZData[subrefWZSegments][1][2]))..'; playable area='..repru(rMapPotentialPlayableArea)..'; GetTerrainLabel navy pathing result for the first segment position='..(NavUtils.GetTerrainLabel(refPathingTypeNavy, GetPositionFromPathingSegments(tWZData[subrefWZSegments][1][1], tWZData[subrefWZSegments][1][2])) or 'nil')..'; water zone of this segment position='..(tWaterZoneBySegment[tWZData[subrefWZSegments][1][1]][tWZData[subrefWZSegments][1][2]] or 'nil')..'; will draw the water zone')
+                            LOG(sFunctionRef .. ': iWaterZone=' .. iWaterZone .. '; tWZData[subrefWZSegments]=' .. repru(tWZData[subrefWZSegments] or 'nil') .. '; First segment position=' .. repru(GetPositionFromPathingSegments(tWZData[subrefWZSegments][1][1], tWZData[subrefWZSegments][1][2])) .. '; playable area=' .. repru(rMapPotentialPlayableArea) .. '; GetTerrainLabel navy pathing result for the first segment position=' .. (NavUtils.GetTerrainLabel(refPathingTypeNavy, GetPositionFromPathingSegments(tWZData[subrefWZSegments][1][1], tWZData[subrefWZSegments][1][2])) or 'nil') .. '; water zone of this segment position=' .. (tWaterZoneBySegment[tWZData[subrefWZSegments][1][1]][tWZData[subrefWZSegments][1][2]] or 'nil') .. '; will draw the water zone')
                             DrawSpecificWaterZone(iWaterZone, math.random(1, 8))
                         end
                     end
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': iAveragePond='..(iAveragePond or 'nil')..'; iPond='..(iPond or 'nil')..'; iAverageWaterZone='..(iAverageWaterZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; tAverage='..repru(tAverage)) end
+            if bDebugMessages == true then
+                LOG(sFunctionRef .. ': iAveragePond=' .. (iAveragePond or 'nil') .. '; iPond=' .. (iPond or 'nil') .. '; iAverageWaterZone=' .. (iAverageWaterZone or 'nil') .. '; iWaterZone=' .. (iWaterZone or 'nil') .. '; tAverage=' .. repru(tAverage))
+            end
             if (iAveragePond == iPond and iAverageWaterZone == iWaterZone) then
-                tWZData[subrefMidpoint] = {tAverage[1], tAverage[2], tAverage[3]}
-                if bDebugMessages == true then LOG(sFunctionRef..': Will use the average position as the midpoint') end
+                tWZData[subrefMidpoint] = { tAverage[1], tAverage[2], tAverage[3] }
+                if bDebugMessages == true then
+                    LOG(sFunctionRef .. ': Will use the average position as the midpoint, tWZData[subrefMidpoint] for iWaterZone '..iWaterZone..'='..repru(tWZData[subrefMidpoint])..'; iPond='..iPond..'; Pond by water zone='..(tiPondByWaterZone[iWaterZone] or 'nil'))
+                end
             else
                 --Just use the first recorded segment of the water zone as the midpoint
                 tWZData[subrefMidpoint] = GetPositionFromPathingSegments(tWZData[subrefWZSegments][1][1], tWZData[subrefWZSegments][1][2])
-                if bDebugMessages == true then LOG(sFunctionRef..': WIll use the first recorded segment as the midpoint, tWZData[subrefMidpoint]='..repru(tWZData[subrefMidpoint])) end
+                if bDebugMessages == true then
+                    LOG(sFunctionRef .. ': WIll use the first recorded segment as the midpoint, tWZData[subrefMidpoint]=' .. repru(tWZData[subrefMidpoint]))
+                end
             end
             tWZData[refiMidpointAmphibiousLabel] = (NavUtils.GetTerrainLabel(refPathingTypeAmphibious, tWZData[subrefMidpoint]) or 0)
         end

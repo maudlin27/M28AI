@@ -1104,15 +1104,19 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
         local iCurRallyValue
         for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
             iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..oBrain.Nickname..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; Start point='..repru(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])) end
             if (iLandZone or 0) == 0 then
                 iWaterZone = M28Map.GetWaterZoneFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+                if bDebugMessages == true then LOG(sFunctionRef..': iWaterZone='..(iWaterZone or 'nil')) end
                 if (iWaterZone or 0) > 0 then
-                    local tWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iPossibleWaterZone]][M28Map.subrefPondWaterZones][iPossibleWaterZone]
+                    local tWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone]
                     local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
                     iCurRallyValue = GetRallyPointValueOfWaterZone(iTeam, tWZData, tWZTeamData)
+                    if bDebugMessages == true then LOG(sFunctionRef..': iCurRallyValue='..(iCurRallyValue)) end
                     if iCurRallyValue > iBestRallyValue then
                         iBestRallyValue = iCurRallyValue
                         tPreferredRallyPoint = {tWZData[M28Map.subrefMidpoint][1], tWZData[M28Map.subrefMidpoint][2], tWZData[M28Map.subrefMidpoint][3]}
+                        if bDebugMessages == true then LOG(sFunctionRef..': Updating preferred rally point to water zone '..iWaterZone..' start point, rally point='..repru(tPreferredRallyPoint)) end
                     end
                 end
             else
@@ -1123,10 +1127,12 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                 if iCurRallyValue > iBestRallyValue then
                     iBestRallyValue = iCurRallyValue
                     tPreferredRallyPoint = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
+                    if bDebugMessages == true then LOG(sFunctionRef..': Updating preferred rally point to land zone start point '..repru(tPreferredRallyPoint)) end
                 end
             end
         end
         M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint] = tPreferredRallyPoint
+        if bDebugMessages == true then LOG(sFunctionRef..': Set air rally point to rpeferred rally point for now='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])) end
 
         --Support rally point - move closer to units to support (if we have any)
         local tSupportRallyPoint
@@ -1149,11 +1155,13 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
             for iUnit, oUnit in tUnitsToProtect do
                 iCurDistToEnemyBase = 100000
                 iCurPlateauOrZero, iCurLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                if bDebugMessages == true then LOG(sFunctionRef..': COnsidering unit to protect='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurLZOrWZ='..(iCurLZOrWZ or 'nil')..'; position='..repru(oUnit:GetPosition())) end
                 if (iCurPlateauOrZero or 0) == 0 then
                     if (iCurLZOrWZ or 0) > 0 then
                         local tWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iCurLZOrWZ]][M28Map.subrefPondWaterZones][iCurLZOrWZ]
                         local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
                         iCurDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], tWZTeamData[M28Map.reftClosestEnemyBase])
+                        if bDebugMessages == true then LOG(sFunctionRef..': Unit is in a water zone, iCurDistToEnemyBase='..(iCurDistToEnemyBase or 'nil')..'; tWZTeamData[M28Map.reftClosestEnemyBase]='..repru(tWZTeamData[M28Map.reftClosestEnemyBase])..'; WZ midpoint='..repru(tWZData[M28Map.subrefMidpoint])) end
                         if iCurDistToEnemyBase <   iClosestDistToEnemyBase then
                             iClosestDistToEnemyBase = iCurDistToEnemyBase
                             tClosestMidpoint = {tWZData[M28Map.subrefMidpoint][1], tWZData[M28Map.subrefMidpoint][2], tWZData[M28Map.subrefMidpoint][3]}
@@ -1344,7 +1352,12 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
 
         --Update the recorded support rally point to reflect the above, and record pathing of other land and air zones to it if havent previously
         local tStartLZOrWZData
-        if bDebugMessages == true then LOG(sFunctionRef..': About to get the plateau and zone for air support point='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])) end
+        bDebugMessages = true
+        if bDebugMessages == true then LOG(sFunctionRef..': About to get the plateau and zone for air support point='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])..'; Zone midpoint='..repru(tStartLZOrWZData[M28Map.subrefMidpoint])..'; ') end
+        if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]) then
+            M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint] = {tStartLZOrWZData[M28Map.subrefMidpoint][1], tStartLZOrWZData[M28Map.subrefMidpoint][2], tStartLZOrWZData[M28Map.subrefMidpoint][3]}
+            if bDebugMessages == true then LOG(sFunctionRef..': Updated air support point to zone midpoint') end
+        end
         local tStartMidpoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]
         local iStartPlateau, iStartLZOrWZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tStartMidpoint)
         if (iStartPlateau or 0) > 0 and (iStartLZOrWZ or 0) == 0 then

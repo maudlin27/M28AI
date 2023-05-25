@@ -748,7 +748,7 @@ function ManageMassStalls(iTeam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageMassStalls'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if bDebugMessages == true then LOG(sFunctionRef..': Start at time'..GetGameTimeSeconds()..'; Is table of active M28 brains empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))) end
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
 
         local bPauseNotUnpause = true
@@ -764,7 +764,7 @@ function ManageMassStalls(iTeam)
             end
             --First consider unpausing
             if bDebugMessages == true then
-                LOG(sFunctionRef .. ': If we have flagged that we are stalling mass then will check if we have enough to start unpausing things')
+                LOG(sFunctionRef .. ': If we have flagged that we are stalling mass then will check if we have enough to start unpausing things. M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]..'; iMassStallPercentAdjust='..iMassStallPercentAdjust)
             end
 
             if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] > (0.005 + iMassStallPercentAdjust) then
