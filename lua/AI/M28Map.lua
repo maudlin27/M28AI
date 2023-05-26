@@ -2132,6 +2132,8 @@ function RecordMidpointAndOtherDataForZone(iPlateau, iZone, tLZData)
     local sFunctionRef = 'RecordMidpointAndOtherDataForZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     local tAverage, iAveragePlateau, iAverageLandZone
 
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Considering iPlateau='..iPlateau..'; iZone='..iZone..'; Is table of mex locations empty='..tostring(M28Utilities.IsTableEmpty(tLZData[subrefLZMexLocations]))) end
@@ -2281,6 +2283,55 @@ function RecordMidpointAndOtherDataForZone(iPlateau, iZone, tLZData)
         tLZData[subrefMidpoint] = {tLZData[subrefLZMexLocations][1][1], tLZData[subrefLZMexLocations][1][2], tLZData[subrefLZMexLocations][1][3]}
     end
     tLZData[refiMidpointAmphibiousLabel] = (NavUtils.GetTerrainLabel(refPathingTypeAmphibious, tLZData[subrefMidpoint]) or 0)
+    if bDebugMessages == true then LOG(sFunctionRef..': Checking the midpoint is pathable by amphibious, tLZData[refiMidpointAmphibiousLabel]='..(tLZData[refiMidpointAmphibiousLabel] or 'nil')..'; Midpoint='..repru(tLZData[subrefMidpoint])) end
+    if tLZData[refiMidpointAmphibiousLabel] == 0 then
+        --Further redundancy - try and move the midpoint to a nearby segment to get a valid point - do by moving outwards in hollow boxes based on iAdjustBase
+        local iBaseSegmentX, iBaseSegmentZ = GetPathingSegmentFromPosition(tLZData[subrefMidpoint])
+        local iAdjustedSegmentX, iAdjustedSegmentZ
+        local bHaveValidMidpoint
+        for iAdjustBase = 1, 25 do
+            for iAdjustedSegmentX = iBaseSegmentX - iAdjustBase, iBaseSegmentX + iAdjustBase, 1 do
+                for iAdjustedSegmentZ = iBaseSegmentZ - iAdjustBase, iBaseSegmentZ + iAdjustBase, iAdjustBase * 2 do
+                    if tLandZoneBySegment[iAdjustedSegmentX][iAdjustedSegmentZ] == iZone and (NavUtils.GetTerrainLabel(refPathingTypeAmphibious, GetPositionFromPathingSegments(iAdjustedSegmentX, iAdjustedSegmentZ)) or 0) > 0 then
+                        bHaveValidMidpoint = true
+                        local tNewMidpoint = GetPositionFromPathingSegments(iAdjustedSegmentX, iAdjustedSegmentZ)
+                        tLZData[subrefMidpoint] = {tNewMidpoint[1], tNewMidpoint[2], tNewMidpoint[3]}
+                        break
+                    end
+                end
+                if  bHaveValidMidpoint then break end
+            end
+            if bHaveValidMidpoint then break end
+            --Then do the left and right row (excl corners which ahve already done per the above)
+            for iAdjustedSegmentX = iBaseSegmentX - iAdjustBase, iBaseSegmentX + iAdjustBase, iAdjustBase * 2 do
+                for iAdjustedSegmentZ = iBaseSegmentZ - iAdjustBase + 1, iBaseSegmentZ + iAdjustBase - 1, 1 do
+                    if tLandZoneBySegment[iAdjustedSegmentX][iAdjustedSegmentZ] == iZone and (NavUtils.GetTerrainLabel(refPathingTypeAmphibious, GetPositionFromPathingSegments(iAdjustedSegmentX, iAdjustedSegmentZ)) or 0) > 0 then
+                        bHaveValidMidpoint = true
+                        local tNewMidpoint = GetPositionFromPathingSegments(iAdjustedSegmentX, iAdjustedSegmentZ)
+                        tLZData[subrefMidpoint] = {tNewMidpoint[1], tNewMidpoint[2], tNewMidpoint[3]}
+                        break
+                    end
+                end
+                if bHaveValidMidpoint then break end
+            end
+            if bHaveValidMidpoint then break end
+        end
+        if not(bHaveValidMidpoint) then
+            --Try the first segment
+            local iAdjustedSegmentX, iAdjustedSegmentZ
+            for iEntry, tSegmentsXZ in tLZData[subrefLZSegments] do
+                iAdjustedSegmentX = tSegmentsXZ[1]
+                iAdjustedSegmentZ = tSegmentsXZ[2]
+                if (NavUtils.GetTerrainLabel(refPathingTypeAmphibious, GetPositionFromPathingSegments(iAdjustedSegmentX, iAdjustedSegmentZ)) or 0) > 0 then
+                    bHaveValidMidpoint = true
+                    local tNewMidpoint = GetPositionFromPathingSegments(iAdjustedSegmentX, iAdjustedSegmentZ)
+                    tLZData[subrefMidpoint] = {tNewMidpoint[1], tNewMidpoint[2], tNewMidpoint[3]}
+                    break
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished trying to adjust midpoint to amphibious pathable location, bHaveValidMidpoint='..tostring(bHaveValidMidpoint or false)..'; tLZData[subrefMidpoint]='..repru(tLZData[subrefMidpoint])) end
+    end
 
     if bDebugMessages == true then
         local iColour = iPlateau
@@ -2290,7 +2341,7 @@ function RecordMidpointAndOtherDataForZone(iPlateau, iZone, tLZData)
         M28Utilities.DrawRectangle(Rect(iMinX, iMinZ, iMaxX, iMaxZ), iColour, 1000, 10)
         if iColour <= 1 then iColour = 8 end
         M28Utilities.DrawLocation(tLZData[subrefMidpoint], iColour, 1000)
-        if bDebugMessages == true then LOG(sFunctionRef..': Midpoint after adjustment for iPlateau='..iPlateau..' and zone='..iZone..' = '..repru(tLZData[subrefMidpoint])..'; iBaseIslandWanted='..(iBaseIslandWanted or 'nil')) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Midpoint after adjustment for iPlateau='..iPlateau..' and zone='..iZone..' = '..repru(tLZData[subrefMidpoint])..'; iBaseIslandWanted='..(iBaseIslandWanted or 'nil')..'; NavUtils result for label='..(NavUtils.GetLabel(refPathingTypeAmphibious, tLZData[subrefMidpoint]) or 'nil')) end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

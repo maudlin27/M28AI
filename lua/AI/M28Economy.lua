@@ -347,7 +347,7 @@ function UpdateHighestFactoryTechLevelForDestroyedUnit(oUnitJustDestroyed)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateHighestFactoryTechLevelForDestroyedUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if EntityCategoryContains(M28UnitInfo.refCategoryAirHQ * categories.TECH3, oUnitJustDestroyed.UnitId) then bDebugMessages = true end
+
     if EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUnitJustDestroyed.UnitId) then
         UpdateFactoryCountForFactoryKilledOrBuilt(oUnitJustDestroyed, true)
         if bDebugMessages == true then LOG(sFunctionRef..': Factory was destroyed, oUnitJustDestroyed='..oUnitJustDestroyed.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitJustDestroyed)..'; is this an HQ factory='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnitJustDestroyed.UnitId))) end

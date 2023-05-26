@@ -1030,10 +1030,9 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
     end
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code for the game time='..GetGameTimeSeconds()..' and iWaterZone='..iWaterZone..', is tAmphibiousUnits empty='..tostring(M28Utilities.IsTableEmpty(tAmphibiousUnits))) end
-
     for iUnit, oUnit in tAmphibiousUnits do
         if oUnit[refiCurrentAssignmentWaterZone] == iWaterZone then
-            if bAmphibiousCheck and EntityCategoryContains(categories.AMPHIBIOUS, oUnit.UnitId) then iCurLabel = (0 or NavUtils.GetLabel(M28Map.refPathingTypeAmphibious, oUnit:GetPosition()))
+            if bAmphibiousCheck and EntityCategoryContains(categories.AMPHIBIOUS, oUnit.UnitId) then iCurLabel = (NavUtils.GetLabel(M28Map.refPathingTypeAmphibious, oUnit:GetPosition()) or tWZData[M28Map.refiMidpointAmphibiousLabel] or 0)
             else
                 iCurLabel = tWZData[M28Map.refiMidpointAmphibiousLabel]
             end
@@ -1044,6 +1043,7 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
     end
     if M28Utilities.IsTableEmpty(tiUnitsInZoneByAmphibiousLabel) == false then
         for iAmphibiousLabel, tAmphibiousLabelUnits in tiUnitsInZoneByAmphibiousLabel do
+
             --Find the nearest land zone wanting support:
             local iPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tWZData[M28Map.subrefMidpoint])
             if not(iPlateau) then
@@ -1065,25 +1065,39 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                     end
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Dealing with iAmphibiousLabel='..iAmphibiousLabel..'; iLZToSupport after checking adjacent LZ to this WZ='..(iLZToSupport or 'nil')..'; did this WZ have adjacent LZ? is table empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subrefAdjacentLandZones]))) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Dealing with iAmphibiousLabel='..iAmphibiousLabel..'; iLZToSupport after checking adjacent LZ to this WZ='..(iLZToSupport or 'nil')..'; did this WZ have adjacent LZ? is table empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subrefAdjacentLandZones]))..'; Time='..GetGameTimeSeconds()) end
             if not(iLZToSupport) then
                 --Cycle through every other water zone and try the same thing
+                local iCloserPlateauToEnemy, iCloserLandZoneToEnemy
+                local iEnemyPlateau, iEnemyZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tWZTeamData[M28Map.reftClosestEnemyBase])
+                local iMaxDistWantedToEnemyBase = math.max(50, M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], tWZTeamData[M28Map.reftClosestEnemyBase]) - 50)
                 if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZOtherWaterZones]) == false then
                     for iWZEntry, tWZSubtable in tWZData[M28Map.subrefWZOtherWaterZones] do
                         local tAltWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][tWZSubtable[M28Map.subrefWZAWZRef]]
+                        if bDebugMessages == true then LOG(sFunctionRef..'; Considering alt WZ='..tWZSubtable[M28Map.subrefWZAWZRef]..'; Is table of adjacent land zones empty='..tostring(M28Utilities.IsTableEmpty(tAltWZData[M28Map.subrefAdjacentLandZones]))) end
                         if M28Utilities.IsTableEmpty(tAltWZData[M28Map.subrefAdjacentLandZones]) == false then
                             for iEntry, tSubtable in tAltWZData[M28Map.subrefAdjacentLandZones] do
                                 local tAltLZ = M28Map.tAllPlateaus[tSubtable[M28Map.subrefWPlatAndLZNumber][1]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefWPlatAndLZNumber][2]]
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering adjacent land zone '..tSubtable[M28Map.subrefWPlatAndLZNumber][2]..' in plateau '..tSubtable[M28Map.subrefWPlatAndLZNumber][1]..'; Does this zone want support='..tostring(tAltLZ[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsSupport])..'; Dist to enemy base='..M28Utilities.GetDistanceBetweenPositions(tWZTeamData[M28Map.reftClosestEnemyBase], tAltLZ[M28Map.subrefMidpoint])..'; iMaxDistWantedToEnemyBase='..iMaxDistWantedToEnemyBase) end
                                 if tAltLZ[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsSupport] then
                                     if iAmphibiousLabel == tAltLZ[M28Map.refiMidpointAmphibiousLabel] then
                                         iLZToSupport = tSubtable[M28Map.subrefWPlatAndLZNumber][2]
                                         iPlateau = tSubtable[M28Map.subrefWPlatAndLZNumber][1]
                                         break
                                     end
+                                    --redundancy - if we dont have any adjacent land zones wanting support, then just pick a land zone that is closer to the enemy base than the curent water zone (and just want the nearest ot this zone to avoid crossing most of the map just to turn up righta t the enem ybase)
+                                elseif not(iCloserLandZoneToEnemy) and not(iLZToSupport) and iEnemyPlateau == tSubtable[M28Map.subrefWPlatAndLZNumber][1] and M28Utilities.GetDistanceBetweenPositions(tWZTeamData[M28Map.reftClosestEnemyBase], tAltLZ[M28Map.subrefMidpoint]) < iMaxDistWantedToEnemyBase then
+                                    iCloserPlateauToEnemy = tSubtable[M28Map.subrefWPlatAndLZNumber][1]
+                                    iCloserLandZoneToEnemy = tSubtable[M28Map.subrefWPlatAndLZNumber][2]
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Recording backup land zone to travel to='..tSubtable[M28Map.subrefWPlatAndLZNumber][2]..' in plateau '..tSubtable[M28Map.subrefWPlatAndLZNumber][1]) end
                                 end
                             end
                         end
                         if iLZToSupport then break end
+                    end
+                    if not(iLZToSupport) and iCloserLandZoneToEnemy then
+                        iLZToSupport = iCloserLandZoneToEnemy
+                        iPlateau = iCloserPlateauToEnemy
                     end
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': iLZToSupport after checking adjacent LZ to all other WZ='..(iLZToSupport or 'nil')) end
@@ -1140,7 +1154,7 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                 end
 
                 --Move units to the LZ to support if we outrange or have sufficient threat
-                if bDebugMessages == true then LOG(sFunctionRef..': Will tell units to move to iLZToSupport='..iLZToSupport..'; on Plateau '..iPlateau..'; Dist to WZ midpoint='..M28Utilities.GetDistanceBetweenPositions(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLZToSupport][M28Map.subrefMidpoint], tWZData[M28Map.subrefMidpoint])..'; bAttackWithEverything='..tostring(bAttackWithEverything)..'; iBestEnemyDFRange='..iBestEnemyDFRange) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Will tell units to move to iLZToSupport='..iLZToSupport..'; on Plateau '..iPlateau..'; Dist to WZ midpoint='..M28Utilities.GetDistanceBetweenPositions(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLZToSupport][M28Map.subrefMidpoint], tWZData[M28Map.subrefMidpoint])..'; bAttackWithEverything='..tostring(bAttackWithEverything)..'; iBestEnemyDFRange='..iBestEnemyDFRange..'; tLZData[M28Map.subrefMidpoint]='..repru(tLZData[M28Map.subrefMidpoint])..'; iAmphibiousLabel='..iAmphibiousLabel..'; NavUtils result for amphibious label='..(NavUtils.GetLabel(M28Map.refPathingTypeAmphibious, tLZData[M28Map.subrefMidpoint]) or 'nil')..'; tLZData[M28Map.refiMidpointAmphibiousLabel]='..(tLZData[M28Map.refiMidpointAmphibiousLabel] or 'nil')..'; tLZTeamData[M28Map.reftClosestEnemyBase]='..repru(tLZTeamData[M28Map.reftClosestEnemyBase])) end
                 local tHoverDestination = tLZData[M28Map.subrefMidpoint]
                 local tAmphibiousDestination
                 if iAmphibiousLabel == tLZData[M28Map.refiMidpointAmphibiousLabel] then
@@ -1168,7 +1182,7 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                         tHoverRallyPoint = tAmphibiousRallyPoint
                     end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': About to give units orders to advance ore retreat or consolidate, bAttackWithEverything='..tostring(bAttackWithEverything)..'; tAmphibiousRallyPoint='..repru(tAmphibiousRallyPoint)..'; tHoverRallyPoint='..repru(tHoverRallyPoint)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': About to give units orders to advance ore retreat or consolidate, bAttackWithEverything='..tostring(bAttackWithEverything)..'; tAmphibiousRallyPoint='..repru(tAmphibiousRallyPoint)..'; tHoverRallyPoint='..repru(tHoverRallyPoint)..'; tAmphibiousDestination='..repru(tAmphibiousDestination)..'; tHoverDestination='..repru(tHoverDestination)..'; rMapPlayableArea='..repru(M28Map.rMapPlayableArea)..'; Amphibious label for amphibious destination='..(NavUtils.GetLabel(M28Map.refPathingTypeAmphibious, tAmphibiousDestination) or 'nil')..'; Amphibious label of WZ midpoint='..(NavUtils.GetLabel('Amphibious', tWZData[M28Map.subrefMidpoint]) or 'nil')) end
                 local iOrderReissueDistToUse
                 local iResisueOrderDistanceHover = 16
                 local iReissueOrderDistanceStandard = 6
@@ -1180,16 +1194,19 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
 
                     if bAttackWithEverything or ((oUnit[M28UnitInfo.refiDFRange] or 0) > iBestEnemyDFRange and not(EntityCategoryContains(categories.AMPHIBIOUS, oUnit.UnitId))) then
                         if EntityCategoryContains(categories.AMPHIBIOUS, oUnit.UnitId) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Sending amphibious unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to amphibious destination; Unit last orders='..reprs(oUnit[M28Orders.reftiLastOrders])..'; Is command queue empty='..tostring(M28Utilities.IsTableEmpty(oUnit:GetCommandQueue()))) end
                             M28Orders.IssueTrackedMove(oUnit, tAmphibiousDestination, iOrderReissueDistToUse, false, 'NMAToLZ'..iLZToSupport..'Fr'..iWaterZone)
                         else
-
+                            if bDebugMessages == true then LOG(sFunctionRef..': Sending hover unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to hover destination') end
                             M28Orders.IssueTrackedMove(oUnit, tHoverDestination, iOrderReissueDistToUse, false, 'NMHToLZ'..iLZToSupport..'Fr'..iWaterZone)
                         end
                     else
                         --Move to WZ midpoint
                         if EntityCategoryContains(categories.AMPHIBIOUS, oUnit.UnitId) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Sending amphibious unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to amphibious rally point') end
                             M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, iOrderReissueDistToUse, false, 'NACons'..iWaterZone)
                         else
+                            if bDebugMessages == true then LOG(sFunctionRef..': Sending hover unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to hover rally point') end
                             M28Orders.IssueTrackedMove(oUnit, tHoverRallyPoint, iOrderReissueDistToUse, false, 'NHCons'..iWaterZone)
                         end
                     end
@@ -1469,7 +1486,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
         end
 
         --Decide where to send any unassigned land pathable units
-        if bDebugMessages == true then LOG(sFunctionRef..': Is tAmphibiousUnits empty='..tostring(M28Utilities.IsTableEmpty(tAmphibiousUnits))) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Checking if have unassigned land pathable units, Is tAmphibiousUnits empty='..tostring(M28Utilities.IsTableEmpty(tAmphibiousUnits))) end
         if M28Utilities.IsTableEmpty(tAmphibiousUnits) == false then
             MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam, tAmphibiousUnits)
         end

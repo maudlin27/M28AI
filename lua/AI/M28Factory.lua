@@ -34,7 +34,7 @@ function GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFacto
     local sFunctionRef = 'GetBlueprintsThatCanBuildOfCategory'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iCategoryCondition == M28UnitInfo.refCategoryAirAA and M28UnitInfo.GetUnitTechLevel(oFactory) == 3 then bDebugMessages = true end
+
 
     local tBlueprints = EntityCategoryGetUnitList(iCategoryCondition)
     local tAllBlueprints = __blueprints
@@ -1735,7 +1735,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
     --subfunctions to mean we can do away with the 'current condition == 1, == 2.....==999 type approach making it much easier to add to
     function ConsiderBuildingCategory(iCategoryToBuild)
         sBPIDToBuild = GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oFactory, nil, nil, nil, nil, false)
-        if EntityCategoryContains(M28UnitInfo.refCategoryAirAA * categories.TECH1, sBPIDToBuild) then bDebugMessages = true end
+
         if bDebugMessages == true then
             LOG(sFunctionRef .. ': Time=' .. GetGameTimeSeconds() .. ' Factory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; LZ=' .. iLandZone .. '; iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; sBPIDToBuild before adjusting for override=' .. (sBPIDToBuild or 'nil'))
         end
@@ -1978,12 +1978,10 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 LOG(sFunctionRef .. ': Minimum level of AirAA wanted: Number we have currently=' .. aiBrain:GetCurrentUnits(iAirAASearchCategory))
             end
             if aiBrain:GetCurrentUnits(iAirAASearchCategory) < 3 then
-                bDebugMessages = true
                 if bDebugMessages == true then LOG(sFunctionRef..': We have fewer than 3 of AirAA search category, iFactoryTechLevel='..iFactoryTechLevel) end
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA) then
                     return sBPIDToBuild
                 end
-                bDebugMessages = false
             end
 
             --Torpedo bombers if nearby navy
