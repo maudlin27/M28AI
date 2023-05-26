@@ -387,26 +387,31 @@ function OnEnhancementComplete(oUnit, sEnhancement)
         local sFunctionRef = 'OnEnhancementComplete'
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-        if bDebugMessages == true then LOG(sFunctionRef..': Enhancement completed for self='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; sEnhancement='..reprs(sEnhancement)) end
-        M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit)
-        M28UnitInfo.RecordUnitRange(oUnit) --Refresh the range incase enhancement has increased anything
-        --Update ACU upgrade count
-        if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
-            oUnit[M28ACU.refiUpgradeCount] = (oUnit[M28ACU.refiUpgradeCount] or 0) + 1
-        end
-        --Fix AiX modifier
-        if oUnit:GetAIBrain().CheatEnabled then
-            M28UnitInfo.FixUnitResourceCheatModifiers(oUnit)
-        end
-        if oUnit:GetAIBrain().M28AI then
+        --Check we haven't just run this
+        if GetGameTimeSeconds() - (oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete][sEnhancement] or -100) >= 0.5 then
+            if not(oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete]) then oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete] = {} end
+            oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete][sEnhancement] = GetGameTimeSeconds()
+            if bDebugMessages == true then LOG(sFunctionRef..': Enhancement completed for self='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..'; sEnhancement='..reprs(sEnhancement)..'; Has enhancement for this='..tostring(oUnit:HasEnhancement(sEnhancement))) end
+            M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit)
+            M28UnitInfo.RecordUnitRange(oUnit) --Refresh the range incase enhancement has increased anything
+            --Update ACU upgrade count
             if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
-                M28ACU.GetUpgradePathForACU(oUnit)
+                oUnit[M28ACU.refiUpgradeCount] = (oUnit[M28ACU.refiUpgradeCount] or 0) + 1
             end
-            --Remove any upgrade tracking
-            M28Team.UpdateUpgradeTrackingOfUnit(oUnit, true, sEnhancement)
+            --Fix AiX modifier
+            if oUnit:GetAIBrain().CheatEnabled then
+                M28UnitInfo.FixUnitResourceCheatModifiers(oUnit)
+            end
+            if oUnit:GetAIBrain().M28AI then
+                if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+                    M28ACU.GetUpgradePathForACU(oUnit)
+                end
+                --Remove any upgrade tracking
+                M28Team.UpdateUpgradeTrackingOfUnit(oUnit, true, sEnhancement)
+            end
+            M28UnitInfo.RecordUnitRange(oUnit)
+            if bDebugMessages == true then LOG(sFunctionRef..': Unit DF range after updating recorded range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')) end
         end
-        M28UnitInfo.RecordUnitRange(oUnit)
-        if bDebugMessages == true then LOG(sFunctionRef..': Unit DF range after updating recorded range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')) end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
 end
