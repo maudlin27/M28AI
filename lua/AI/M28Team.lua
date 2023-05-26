@@ -382,7 +382,6 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Updated this cycle check, tTeamData[iTeam][subrefiMassUpgradesStartedThisCycle]='..tTeamData[iTeam][subrefiMassUpgradesStartedThisCycle]) end
             end
-
             local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnitDoingUpgrade:GetPosition(), true, oUnitDoingUpgrade)
             local iWaterZone, iPond
             local tLZOrWZTeamData
@@ -394,13 +393,28 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
                     tLZOrWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][iTeam]
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': tTeamData[iTeam][M28Map.subrefActiveUpgrades] before adding unit='..reprs(tTeamData[iTeam][M28Map.subrefActiveUpgrades])) end
-            if not(tLZOrWZTeamData[M28Map.subrefActiveUpgrades]) then
-                tLZOrWZTeamData[M28Map.subrefActiveUpgrades] = {}
-                if bDebugMessages == true then LOG(sFunctionRef..': LZ Upgrade was nil so making it a table, reprs='..reprs(tLZOrWZTeamData[M28Map.subrefActiveUpgrades])) end
+            if not(tLZOrWZTeamData) then
+                local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnitDoingUpgrade:GetPosition())
+                if (iPlateauOrZero or -1) >= 0 then
+                    if iPlateauOrZero == 0 then
+                        tLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone][M28Map.subrefWZTeamData][iTeam]
+                        iWaterZone = iLandOrWaterZone
+                    else
+                        iLandZone = iLandOrWaterZone
+                        iPlateau = iPlateauOrZero
+                        tLZOrWZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
+                    end
+                end
             end
-            table.insert(tLZOrWZTeamData[M28Map.subrefActiveUpgrades], oUnitDoingUpgrade)
-            if bDebugMessages == true then LOG(sFunctionRef..': Just added unit to the upgrade table for the team '..iTeam..'; Plateau '..iPlateau..'; LZ='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Is table of active upgrades empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefActiveUpgrades]))..'; Reprs of tLZOrWZTeamData[activeupgrades]='..reprs(tLZOrWZTeamData[M28Map.subrefActiveUpgrades])) end
+            if bDebugMessages == true then LOG(sFunctionRef..': tTeamData[iTeam][M28Map.subrefActiveUpgrades] before adding unit='..reprs(tTeamData[iTeam][M28Map.subrefActiveUpgrades])) end
+            if tLZOrWZTeamData then
+                if not(tLZOrWZTeamData[M28Map.subrefActiveUpgrades]) then
+                    tLZOrWZTeamData[M28Map.subrefActiveUpgrades] = {}
+                    if bDebugMessages == true then LOG(sFunctionRef..': LZ Upgrade was nil so making it a table, reprs='..reprs(tLZOrWZTeamData[M28Map.subrefActiveUpgrades])) end
+                end
+                table.insert(tLZOrWZTeamData[M28Map.subrefActiveUpgrades], oUnitDoingUpgrade)
+                if bDebugMessages == true then LOG(sFunctionRef..': Just added unit to the upgrade table for the team '..iTeam..'; Plateau '..iPlateau..'; LZ='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Is table of active upgrades empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefActiveUpgrades]))..'; Reprs of tLZOrWZTeamData[activeupgrades]='..reprs(tLZOrWZTeamData[M28Map.subrefActiveUpgrades])) end
+            end
         elseif bDebugMessages == true then LOG(sFunctionRef..': Unit dead or compelted, but not in the table so no need to remove it')
         end
     end
