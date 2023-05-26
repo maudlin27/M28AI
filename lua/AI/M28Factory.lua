@@ -2063,7 +2063,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
 
             --Gunships subject to mass and existing number
             iCurrentConditionToTry = iCurrentConditionToTry + 1
-            if iCurGunships < 5 or (not (bHaveLowMass) and iCurGunships < 22) then
+            if iCurGunships < 5 or (not (bHaveLowMass) and iCurGunships < 40 and (not(M28Map.bIsCampaignMap) or iCurGunships < 100) and (iCurGunships < 22 or (iFactoryTechLevel >= 3 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 20))) then
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then
                     return sBPIDToBuild
                 end

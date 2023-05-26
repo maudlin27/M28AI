@@ -3432,7 +3432,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     local sFunctionRef = 'ConsiderActionToAssign'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iActionToAssign == refActionBuildAirStaging then bDebugMessages = true end
+
 
     --Dont try getting any mroe BP for htis action if have run out of buildable locations
     local iExpectedBuildingSize = tiLastBuildingSizeFromActionForTeam[iTeam][iActionToAssign]
@@ -4699,7 +4699,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --Units needing air staging
     iCurPriority = iCurPriority + 1
-    bDebugMessages = true
     if bDebugMessages == true then LOG(sFunctionRef..': About to check if we need air staging for core zone, Time='..GetGameTimeSeconds()..'; Time of last shortage='..(M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastAirStagingShortage] or 'nil')) end
     if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastAirStagingShortage] or 0) <= 1.1 then
         --Limit of 3 air staging in a LZ
@@ -4720,7 +4719,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             if bDebugMessages == true then LOG(sFunctionRef..': Have flagged we want air staging with iBPWanted='..iBPWanted) end
         end
     end
-    bDebugMessages = false
+
 
     --Shielding in a high mass scenario
     iCurPriority = iCurPriority + 1
@@ -6375,6 +6374,48 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     end--]]
         HaveActionToAssign(refActionBuildPower, iMinTechLevelForPower, tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 6)
     end
+
+    --Low priority air staging, if we have T3 mex, decent intel coverage, no nearby enemies, and need air staging
+    iCurPriority = iCurPriority + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': About to check if we need air staging for core zone, Time='..GetGameTimeSeconds()..'; Time of last shortage='..(M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastAirStagingShortage] or 'nil')) end
+    if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastAirStagingShortage] or 0) <= 1.1 and not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and (tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][2] >= 3) and tLZTeamData[M28Map.refiRadarCoverage] >= 100 then
+        local tExistingAirStaging = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirStaging, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+        local iExistingAirStaging = 0
+        if M28Utilities.IsTableEmpty(tExistingAirStaging) == false then
+            for iStaging, oStaging in tExistingAirStaging do
+                if oStaging:GetFractionComplete() == 1 and oStaging:GetAIBrain().M28AI then
+                    iExistingAirStaging = iExistingAirStaging + 1
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': iExistingAirStaging='..iExistingAirStaging..'; bHaveLowMass='..tostring(bHaveLowMass)) end
+        if iExistingAirStaging < 1 then
+            iBPWanted = 5
+            if not(bHaveLowMass) then iBPWanted = iBPWanted * 2 end
+            HaveActionToAssign(refActionBuildAirStaging, 1, iBPWanted, nil, false)
+            if bDebugMessages == true then LOG(sFunctionRef..': Have flagged we want air staging for minor zone with iBPWanted='..iBPWanted) end
+        end
+    end
+
+    --Low priority T2 radar creep
+    iCurPriority = iCurPriority + 1
+    if not(bHaveLowMass) and not(bWantMorePower) and tLZTeamData[M28Map.refiRadarCoverage] < 100 and M28Map.iMapSize > 512 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 18 and (tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][2] >= 2) then
+        --Check we dont have any radar here already (redundancy for radar coverage)
+        local tExistingRadar = EntityCategoryFilterDown(M28UnitInfo.refCategoryRadar, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+        local bHaveRadar = false
+        if M28Utilities.IsTableEmpty(tExistingRadar) == false then
+            for iUnit, oUnit in tExistingRadar do
+                if oUnit:GetFractionComplete() >= 1 then
+                    bHaveRadar = true
+                    break
+                end
+            end
+        end
+        if not(bHaveRadar) then
+            HaveActionToAssign(refActionBuildT2Radar, 2, 10)
+        end
+    end
+
 
     --If still have an engineer available and there is reclaim in the LZ of any kind, and we arent overflowing, then reclaim
     iCurPriority = iCurPriority + 1

@@ -1533,7 +1533,6 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam)
         end
     end
     --Send any units that couldnt be refueld to the air rally point
-    bDebugMessages = true
     if M28Utilities.IsTableEmpty(tUnitsUnableToRefuel) == false then
         M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastAirStagingShortage] = GetGameTimeSeconds()
         if bDebugMessages == true then LOG(sFunctionRef..': Flagged that we want air staging for units on team '..iTeam..' at time '..GetGameTimeSeconds()) end
