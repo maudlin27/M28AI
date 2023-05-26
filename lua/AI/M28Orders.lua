@@ -556,9 +556,10 @@ function IssueTrackedEnhancement(oUnit, sUpgradeRef, bAddToExistingQueue, sOptio
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderEnhancement, [subrefsOrderBlueprint] = sUpgradeRef})
+        LOG('About ot tell unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; owned by '..oUnit:GetAIBrain().Nickname..' to get enhancement upgrade '..sUpgradeRef..'; ACU upgrade count='..(oUnit[import('/mods/M28AI/lua/AI/M28ACU.lua').refiUpgradeCount] or 'nil'))
         IssueScript({oUnit}, {TaskName = 'EnhanceTask', Enhancement = sUpgradeRef})
         M28Team.UpdateUpgradeTrackingOfUnit(oUnit, false, sUpgradeRef)
-    end
+end
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 end
 

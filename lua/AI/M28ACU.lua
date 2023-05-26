@@ -418,9 +418,9 @@ end
 function GetUpgradePathForACU(oACU)
     --Records the order of upgrades we will want for the ACU
     local sFunctionRef = 'GetUpgradePathForACU'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; oACU='..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' owned by brain '..oACU:GetAIBrain().Nickname..'; oACU[refbStartedUnderwater]='..tostring(oACU[refbStartedUnderwater] or false)) end
     if oACU[refbStartedUnderwater] then
 
         if EntityCategoryContains(categories.UEF, oACU.UnitId) then
@@ -475,18 +475,19 @@ function GetUpgradePathForACU(oACU)
 
     --Remove any upgrades that we already have
     if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) == false then
-        local tPreRequisites = {}
-        local bCheckForPrerequisites
+        local tObsoletePreRequisites = {}
+        local bCheckForObsoletePrerequisites
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering upgrades already have for oACU '..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' owned by '..oACU:GetAIBrain().Nickname..'; Upgrade count='..(oACU[refiUpgradeCount] or 'nil')) end
         if oACU[refiUpgradeCount] > 0 then
             for iEntry, sEnhancement in oACU[reftPreferredUpgrades] do
                 if oBP.Enhancements[sEnhancement].Prerequisite and oACU:HasEnhancement(sEnhancement) then
-                    table.insert(tPreRequisites, oBP.Enhancements[sEnhancement].Prerequisite)
-                    bCheckForPrerequisites = true
+                    table.insert(tObsoletePreRequisites, oBP.Enhancements[sEnhancement].Prerequisite)
+                    bCheckForObsoletePrerequisites = true
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering if sEnhancement '..sEnhancement..' has prerequisite, BP Preq val='..(oBP.Enhancements[sEnhancement].Prerequisite or 'nil')) end
             end
         end
-        local bHavePrerequisite
+        local bUpgradeIsObsolete
 
         local iRevisedIndex = 1
         local iTableSize = table.getn(oACU[reftPreferredUpgrades])
@@ -495,17 +496,17 @@ function GetUpgradePathForACU(oACU)
         for iOrigIndex=1, iTableSize do
             if oACU[reftPreferredUpgrades][iOrigIndex] then
                 if not(oACU:HasEnhancement(oACU[reftPreferredUpgrades][iOrigIndex])) then --I.e. this should run the logic to decide whether we want to keep this entry of the table or remove it
-                    --Check this isnt a prerequisite of an enhancement we have
-                    bHavePrerequisite = false
-                    if bCheckForPrerequisites then
-                        for iEntry, sPreRequisite in tPreRequisites do
+                    --We dont have this enhancement; however we might have one that supercedes this, in which case also want to remove it
+                    bUpgradeIsObsolete = false
+                    if bCheckForObsoletePrerequisites then
+                        for iEntry, sPreRequisite in tObsoletePreRequisites do
                             if sPreRequisite == oACU[reftPreferredUpgrades][iOrigIndex] then
-                                bHavePrerequisite = true
+                                bUpgradeIsObsolete = true
                                 break
                             end
                         end
                     end
-                    if bHavePrerequisite then
+                    if bUpgradeIsObsolete then
                         oACU[reftPreferredUpgrades][iOrigIndex] = nil;
                     else
 

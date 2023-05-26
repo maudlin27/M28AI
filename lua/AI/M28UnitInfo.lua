@@ -34,7 +34,7 @@ refbLastShotBlocked = 'M28UnitLastShotBlocked' --Used for DF units to indicate i
 refiTimeOfLastOverchargeShot = 'M28UnitTimeLastOvercharge' --Gametimeseconds
 reftbInArmyIndexBigThreatTable = 'M28UnitInBigThreatTable' --[x] is army index; true if have added unit to table of big threats for that army index
 refbConstructionStart = 'M28UnitConStrt' --True if constructionstarted event logic has been run for this unit
-
+reftiTimeOfLastEnhancementComplete = 'M28TLstECmpl' --table, [x] = enhancement ID, gametimeseconds that the upgrade completed
 
     --Unit micro related
 refiGameTimeMicroStarted = 'M28UnitTimeMicroStarted' --Gametimeseconds that started special micro
