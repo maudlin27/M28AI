@@ -3432,7 +3432,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     local sFunctionRef = 'ConsiderActionToAssign'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iActionToAssign == refActionBuildAirStaging then bDebugMessages = true end
 
     --Dont try getting any mroe BP for htis action if have run out of buildable locations
     local iExpectedBuildingSize = tiLastBuildingSizeFromActionForTeam[iTeam][iActionToAssign]
@@ -3443,7 +3443,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
             LOG(sFunctionRef..': iExpectedBuildingSize is nil,='..(iExpectedBuildingSize or 'nil'))
         end
     end
-    if iExpectedBuildingSize and (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iExpectedBuildingSize] or 0) > 0 then
+    if iExpectedBuildingSize and (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iExpectedBuildingSize] or 0) == 0 then
         if not(iActionToAssign == refActionBuildMex) and not(iActionToAssign == refActionBuildHydro) then
             local iPlateauOrZero
 
@@ -3451,8 +3451,10 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
             if (tLZOrWZData[M28Map.subrefSegmentsConsideredThisTick] or 0) < 20 then
                 --SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, iOptionalMaxSegmentsToConsider)
                 SearchForBuildableLocationsForLandOrWaterZone(M28Team.GetFirstActiveBrain(iTeam), iPlateauOrZero, iLandOrWaterZone, 20)
-                iTotalBuildPowerWanted = 0
+            end
+            if (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iExpectedBuildingSize] or 0) == 0 then
                 if bDebugMessages == true then LOG(sFunctionRef..': Setting build power to 0 as no buildable locations') end
+                iTotalBuildPowerWanted = 0
             end
         end
     end
@@ -4697,6 +4699,8 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --Units needing air staging
     iCurPriority = iCurPriority + 1
+    bDebugMessages = true
+    if bDebugMessages == true then LOG(sFunctionRef..': About to check if we need air staging for core zone, Time='..GetGameTimeSeconds()..'; Time of last shortage='..(M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastAirStagingShortage] or 'nil')) end
     if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastAirStagingShortage] or 0) <= 1.1 then
         --Limit of 3 air staging in a LZ
         local tExistingAirStaging = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirStaging, tLZTeamData[M28Map.subrefLZTAlliedUnits])
@@ -4708,12 +4712,15 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 end
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': iExistingAirStaging='..iExistingAirStaging..'; bHaveLowMass='..tostring(bHaveLowMass)) end
         if iExistingAirStaging <= 1 or (iExistingAirStaging < 3 and not(bHaveLowMass)) then
             iBPWanted = tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]]
             if not(bHaveLowMass) then iBPWanted = iBPWanted * 2 end
             HaveActionToAssign(refActionBuildAirStaging, 1, iBPWanted, nil, false)
+            if bDebugMessages == true then LOG(sFunctionRef..': Have flagged we want air staging with iBPWanted='..iBPWanted) end
         end
     end
+    bDebugMessages = false
 
     --Shielding in a high mass scenario
     iCurPriority = iCurPriority + 1
@@ -5630,7 +5637,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
---SPARE ENGINEER ACTIONS----->
+    --SPARE ENGINEER ACTIONS----->
     UpdateSpareEngineerNumber(tLZTeamData, toAvailableEngineersByTech)
 
     --Spare engi - assist any upgrading unit
