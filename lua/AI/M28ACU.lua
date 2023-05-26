@@ -418,7 +418,7 @@ end
 function GetUpgradePathForACU(oACU)
     --Records the order of upgrades we will want for the ACU
     local sFunctionRef = 'GetUpgradePathForACU'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; oACU='..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' owned by brain '..oACU:GetAIBrain().Nickname..'; oACU[refbStartedUnderwater]='..tostring(oACU[refbStartedUnderwater] or false)) end
     if oACU[refbStartedUnderwater] then
@@ -495,7 +495,7 @@ function GetUpgradePathForACU(oACU)
         --First check if we have any upgrades that have prerequiites, in which case we want to remove those prerequisites first
         for iOrigIndex=1, iTableSize do
             if oACU[reftPreferredUpgrades][iOrigIndex] then
-                if not(oACU:HasEnhancement(oACU[reftPreferredUpgrades][iOrigIndex])) then --I.e. this should run the logic to decide whether we want to keep this entry of the table or remove it
+                if not(oACU:HasEnhancement(oACU[reftPreferredUpgrades][iOrigIndex])) and (not(oACU[M28UnitInfo.reftiTimeOfLastEnhancementComplete][reftPreferredUpgrades[iOrigIndex]]) or GetGameTimeSeconds() - (oACU[M28UnitInfo.reftiTimeOfLastEnhancementComplete][reftPreferredUpgrades[iOrigIndex]] or -1) >= 0.5) then --I.e. this should run the logic to decide whether we want to keep this entry of the table or remove it
                     --We dont have this enhancement; however we might have one that supercedes this, in which case also want to remove it
                     bUpgradeIsObsolete = false
                     if bCheckForObsoletePrerequisites then
