@@ -57,7 +57,7 @@ refbCanKite = 'M28CanKite' --true unless weapon unpacks or experimental with a w
 refiTimeBetweenDFShots = 'M28DFTime'
 refiTimeBetweenIFShots = 'M28IFTime'
 
-refbSniperRifleEnabled = 'M27UnitSniperRifleEnabled' --True if seraphim sniperbot has its long range sniperrifle enabled
+refbSniperRifleEnabled = 'M28UnitSniperRifleEnabled' --True if seraphim sniperbot has its long range sniperrifle enabled
 
 --Weapon priorities
 refWeaponPriorityGunship = {'MOBILE SHIELD', 'MOBILE ANTIAIR CRUISER', 'MOBILE ANTIAIR', 'ANTIAIR', 'STRUCTURE SHIELD', 'VOLATILE', 'MASSEXTRACTION', 'GROUNDATTACK', 'TECH3 MOBILE', 'TECH2 MOBILE', 'TECH1 MOBILE', 'ALLUNITS'}

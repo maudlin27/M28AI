@@ -3330,9 +3330,9 @@ function NovaxCoreTargetLoop(aiBrain, oNovax, bCalledFromUnitDeath)
             local oTarget
 
             local iOrderType
-            local refiLastIssuedOrderType = 'M27NovaxLastOrderType'
-            local refoLastIssuedOrderUnit = 'M27NovaxLastOrderUnit'
-            local reftLastIssuedOrderLocation = 'M27NovaxLastOrderLocation'
+            local refiLastIssuedOrderType = 'M28NovaxLastOrderType'
+            local refoLastIssuedOrderUnit = 'M28NovaxLastOrderUnit'
+            local reftLastIssuedOrderLocation = 'M28NovaxLastOrderLocation'
             local refOrderAttack = 1
             local refOrderMove = 2
             oTarget = GetNovaxTarget(aiBrain, oNovax)
