@@ -1018,7 +1018,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
                 end
                 local iDistToMoveAway = 10
                 if EntityCategoryContains(categories.AEON, sBlueprintToBuild) then iDistToMoveAway = 6 end
-                tTargetLocation = M28Utilities.MoveInDirection(oClosestUnitToTML:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestUnitToTML:GetPosition(), tClosestTMLLocation), 10, true)
+                tTargetLocation = M28Utilities.MoveInDirection(oClosestUnitToTML:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestUnitToTML:GetPosition(), tClosestTMLLocation), 10, true, false, true)
                 if iStartingPlateau > 0 and iStartingLZ > 0 then
                     --Check the new target location is in the same LZ, if not then change distance to 0
                     local iNewPlateau, iNewLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
@@ -1377,7 +1377,7 @@ function GetLocationToMoveForConstruction(oUnit, tTargetLocation, sBlueprintID, 
     end
     if sBlueprintID then iDistanceWantedFromTarget = iDistanceWantedFromTarget + M28UnitInfo.GetBuildingSize(sBlueprintID) * 0.5 end
     for iDistanceToMove = iDistanceWantedFromTarget, 1, -1 do
-        tPotentialMoveLocation = M28Utilities.MoveInDirection(tTargetLocation,iAngleFromTargetToBuilder, iDistanceToMove, true, false)
+        tPotentialMoveLocation = M28Utilities.MoveInDirection(tTargetLocation,iAngleFromTargetToBuilder, iDistanceToMove, true, false, true)
         if NavUtils.GetLabel(sPathing, tPotentialMoveLocation) == iPathingGroupWanted then
             if bDebugMessages == true then LOG(sFunctionRef..': Have a valid location engi can move to='..repru(tPotentialMoveLocation)..'; Dist from target='..M28Utilities.GetDistanceBetweenPositions(tPotentialMoveLocation, tTargetLocation)..'; iDistanceToMove='..(iDistanceToMove or 'nil')..'; will check no buildings in a radius of 5 that are blocking this location') end
             local rRectangleToSearch = M28Utilities.GetRectAroundLocation(tPotentialMoveLocation, 5)
@@ -4703,7 +4703,9 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         local iExistingAirStaging = 0
         if M28Utilities.IsTableEmpty(tExistingAirStaging) == false then
             for iStaging, oStaging in tExistingAirStaging do
-                iExistingAirStaging = iExistingAirStaging + 1
+                if oStaging:GetFractionComplete() == 1 and oStaging:GetAIBrain().M28AI then
+                    iExistingAirStaging = iExistingAirStaging + 1
+                end
             end
         end
         if iExistingAirStaging <= 1 or (iExistingAirStaging < 3 and not(bHaveLowMass)) then
@@ -5591,6 +5593,44 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 125 then iBPWanted = 90 end
         HaveActionToAssign(refActionBuildGameEnder, 3,                     iBPWanted,      nil,                false,                      true)
     end
+
+    --Units to capture
+    iCurPriority = iCurPriority + 1
+    if M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]) == false then
+        --Refresh the list
+        local iCaptureCount = table.getn(tLZData[M28Map.subreftoUnitsToCapture])
+        for iCurCount = iCaptureCount, 1, -1 do
+            if not(M28UnitInfo.IsUnitValid(tLZData[M28Map.subreftoUnitsToCapture][iCurCount])) then
+                table.remove(tLZData[M28Map.subreftoUnitsToCapture], iCurCount)
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Have units to capture for zone '..iLandZone..' after freshing them is table empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]))) end
+        if M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]) == false then
+            local oUnitToCapture = M28Utilities.GetNearestUnit(tLZData[M28Map.subreftoUnitsToCapture], tLZData[M28Map.subrefMidpoint])
+            if bDebugMessages == true then LOG(sFunctionRef..': Unit to cpature='..oUnitToCapture.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToCapture)) end
+            HaveActionToAssign(refActionCaptureUnit, 1, 25, oUnitToCapture)
+        end
+    end
+
+    --Units to repair
+    iCurPriority = iCurPriority + 1
+    if M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToRepair]) == false then
+        --Refresh the list
+        local iUnitCount = table.getn(tLZData[M28Map.subreftoUnitsToRepair])
+        for iCurCount = iUnitCount, 1, -1 do
+            if not(M28UnitInfo.IsUnitValid(tLZData[M28Map.subreftoUnitsToRepair][iCurCount])) then
+                table.remove(tLZData[M28Map.subreftoUnitsToRepair], iCurCount)
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Have units to repair for zone '..iLandZone..' after freshing them is table empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToRepair]))) end
+        if M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToRepair]) == false then
+            local oUnitToTarget = M28Utilities.GetNearestUnit(tLZData[M28Map.subreftoUnitsToRepair], tLZData[M28Map.subrefMidpoint])
+            if bDebugMessages == true then LOG(sFunctionRef..': Unit to repair='..oUnitToTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToTarget)) end
+            HaveActionToAssign(refActionRepairUnit, 1, 5, oUnitToTarget)
+        end
+    end
+
+--SPARE ENGINEER ACTIONS----->
     UpdateSpareEngineerNumber(tLZTeamData, toAvailableEngineersByTech)
 
     --Spare engi - assist any upgrading unit
@@ -5933,6 +5973,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     end
 
     --Units to capture
+    iCurPriority = iCurPriority + 1
     if M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]) == false then
         --Refresh the list
         local iCaptureCount = table.getn(tLZData[M28Map.subreftoUnitsToCapture])
@@ -5950,6 +5991,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     end
 
     --Units to repair
+    iCurPriority = iCurPriority + 1
     if M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToRepair]) == false then
         --Refresh the list
         local iUnitCount = table.getn(tLZData[M28Map.subreftoUnitsToRepair])
@@ -6791,6 +6833,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     end
 
     --Units to capture
+    iCurPriority = iCurPriority + 1
     if M28Utilities.IsTableEmpty(tWZData[M28Map.subreftoUnitsToCapture]) == false then
         --Refresh the list
         local iCaptureCount = table.getn(tWZData[M28Map.subreftoUnitsToCapture])
@@ -6806,6 +6849,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     end
 
     --Units to repair
+    iCurPriority = iCurPriority + 1
     if M28Utilities.IsTableEmpty(tWZData[M28Map.subreftoUnitsToRepair]) == false then
         --Refresh the list
         local iUnitCount = table.getn(tWZData[M28Map.subreftoUnitsToRepair])
@@ -7174,7 +7218,7 @@ function GetStartSearchPositionForEmergencyPD(tTargetBuildLocation, tLZMidpoint,
     if iDistToTarget - iDistToMove >= 60 then
         iDistToMove = iDistToTarget - 60
     end
-    local tTargetLocation = M28Utilities.MoveInDirection(tTargetBuildLocation, iAngleFromTargetToMidpoint, iDistToMove, true)
+    local tTargetLocation = M28Utilities.MoveInDirection(tTargetBuildLocation, iAngleFromTargetToMidpoint, iDistToMove, true, false, true)
     --Adjust if we end up out of the zone
     local iTargetPlateau, iTargetLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
     if bDebugMessages == true then
@@ -7186,7 +7230,7 @@ function GetStartSearchPositionForEmergencyPD(tTargetBuildLocation, tLZMidpoint,
             tTargetLocation = tLZMidpoint
             break
         end
-        tTargetLocation = M28Utilities.MoveInDirection(tTargetBuildLocation, iAngleFromTargetToMidpoint, iDistToMove, true)
+        tTargetLocation = M28Utilities.MoveInDirection(tTargetBuildLocation, iAngleFromTargetToMidpoint, iDistToMove, true, false, true)
         iTargetPlateau, iTargetLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
     end
 

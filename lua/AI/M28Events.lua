@@ -1336,6 +1336,7 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
             end
         end
     elseif M28Utilities.IsTableEmpty(Target.Units) == false then
+        local bOnlyHaveAllies = true
         local bHaveLowHealthAlly = true
         local oFirstM28Brain
         for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
@@ -1349,7 +1350,10 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                 table.insert(tUnitsToRepair, oUnit)
             else
                 bHaveLowHealthAlly = false
-                break
+
+                if not(IsAlly(oFirstM28Brain:GetArmyIndex(),  oUnit:GetAIBrain():GetArmyIndex())) then
+                    bOnlyHaveAllies = false
+                end
             end
         end
         if bHaveLowHealthAlly and M28Utilities.IsTableEmpty(tUnitsToRepair) == false then
@@ -1370,6 +1374,12 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                         table.insert(tLZOrWZData[M28Map.subreftoUnitsToRepair], oUnit)
                         if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of units to repair') end
                     end
+                end
+            end
+        elseif bOnlyHaveAllies then
+            for iUnit, oUnit in Target.Units do
+                if M28UnitInfo.IsUnitValid(oUnit) then
+                    M28Air.AddPriorityAirDefenceTarget(oUnit)
                 end
             end
         end

@@ -403,16 +403,16 @@ function GetRectAroundLocation(tLocation, iRadius)
     return Rect(tLocation[1] - iRadius, tLocation[3] - iRadius, tLocation[1] + iRadius, tLocation[3] + iRadius)
 end
 
-function MoveInDirection(tStart, iAngle, iDistance, bKeepInMapBounds, bTravelUnderwater)
+function MoveInDirection(tStart, iAngle, iDistance, bKeepInMapBounds, bTravelUnderwater, bKeepInCampaignPlayableArea)
     --iAngle: 0 = north, 90 = east, etc.; use GetAngleFromAToB if need angle from 2 positions
     --tStart = {x,y,z} (y isnt used)
     --if bKeepInMapBounds is true then will limit to map bounds
     --bTravelUnderwater - if true then will get the terrain height instead of the surface height
 
-    --local bDebugMessages = false if bGlobalDebugOverride == true then   bDebugMessages = true end
+    --local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     --local sFunctionRef = 'MoveInDirection'
     local iTheta = ConvertAngleToRadians(iAngle)
-    --if bDebugMessages == true then LOG(sFunctionRef..': iAngle='..(iAngle or 'nil')..'; iTheta='..(iTheta or 'nil')..'; iDistance='..(iDistance or 'nil')) end
+    --if bDebugMessages == true then LOG(sFunctionRef..': iAngle='..(iAngle or 'nil')..'; iTheta='..(iTheta or 'nil')..'; iDistance='..(iDistance or 'nil')..'; M28Map.rMapPotentialPlayableArea='..repru(M28Map.rMapPotentialPlayableArea)..'; tStart='..repru(tStart)) end
     local iXAdj = math.sin(iTheta) * iDistance
     local iZAdj = -(math.cos(iTheta) * iDistance)
 
@@ -424,6 +424,10 @@ function MoveInDirection(tStart, iAngle, iDistance, bKeepInMapBounds, bTravelUnd
             return {tStart[1] + iXAdj, GetSurfaceHeight(tStart[1] + iXAdj, tStart[3] + iZAdj), tStart[3] + iZAdj}
         end
     else
+        local rPlayableArea
+        if bKeepInCampaignPlayableArea then rPlayableArea = M28Map.rMapPlayableArea
+        else rPlayableArea = M28Map.rMapPotentialPlayableArea
+        end
         local tTargetPosition
         if bTravelUnderwater then
             tTargetPosition = {tStart[1] + iXAdj, GetTerrainHeight(tStart[1] + iXAdj, tStart[3] + iZAdj), tStart[3] + iZAdj}
@@ -432,15 +436,17 @@ function MoveInDirection(tStart, iAngle, iDistance, bKeepInMapBounds, bTravelUnd
         end
         --Get actual distance required to keep within map bounds
         local iNewDistWanted = 10000
-        if tTargetPosition[1] < M28Map.rMapPlayableArea[1] then iNewDistWanted = iDistance * (tStart[1] - M28Map.rMapPlayableArea[1]) / (tStart[1] - tTargetPosition[1]) end
-        if tTargetPosition[3] < M28Map.rMapPlayableArea[2] then iNewDistWanted = math.min(iNewDistWanted, iDistance * (tStart[3] - M28Map.rMapPlayableArea[2]) / (tStart[3] - tTargetPosition[3])) end
-        if tTargetPosition[1] > M28Map.rMapPlayableArea[3] then iNewDistWanted = math.min(iNewDistWanted, iDistance * (M28Map.rMapPlayableArea[3] - tStart[1]) / (tTargetPosition[1] - tStart[1])) end
-        if tTargetPosition[3] > M28Map.rMapPlayableArea[4] then iNewDistWanted = math.min(iNewDistWanted, iDistance * (M28Map.rMapPlayableArea[4] - tStart[3]) / (tTargetPosition[3] - tStart[3])) end
+        if tTargetPosition[1] < rPlayableArea[1] then iNewDistWanted = iDistance * (tStart[1] - rPlayableArea[1]) / (tStart[1] - tTargetPosition[1]) end
+        if tTargetPosition[3] < rPlayableArea[2] then iNewDistWanted = math.min(iNewDistWanted, iDistance * (tStart[3] - rPlayableArea[2]) / (tStart[3] - tTargetPosition[3])) end
+        if tTargetPosition[1] > rPlayableArea[3] then iNewDistWanted = math.min(iNewDistWanted, iDistance * (rPlayableArea[3] - tStart[1]) / (tTargetPosition[1] - tStart[1])) end
+        if tTargetPosition[3] > rPlayableArea[4] then iNewDistWanted = math.min(iNewDistWanted, iDistance * (rPlayableArea[4] - tStart[3]) / (tTargetPosition[3] - tStart[3])) end
 
         if iNewDistWanted == 10000 then
+            --if bDebugMessages == true then LOG(sFunctionRef..': Are inside playable area, returning tTargetPosition='..repru(tTargetPosition)) end
             return tTargetPosition
         else
             --Are out of playable area, so adjust the position; Can use the ratio of the amount we have moved left/right or top/down vs the long line length to work out the long line length if we reduce the left/right so its within playable area
+            --if bDebugMessages == true then LOG(sFunctionRef..': Outside playable area, iNewDistWanted='..iNewDistWanted..'; iXAdj='..iXAdj..'; iZAdj='..iZAdj..'; iDistance='..iDistance..'; tTargetPosition after updating for x and z adj='..repru(tTargetPosition)..'; rPlayableArea='..repru(rPlayableArea)) end
             return MoveInDirection(tStart, iAngle, iNewDistWanted - 0.1, false)
         end
     end

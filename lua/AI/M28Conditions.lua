@@ -1018,3 +1018,11 @@ function NoRushPreventingHydro(tLZOrWZData)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return false
 end
+
+function IsLocationInPlayableArea(tLocation)
+    if tLocation[1] >= M28Map.rMapPlayableArea[1] and  tLocation[1] <= M28Map.rMapPlayableArea[3] and tLocation[3] >= M28Map.rMapPlayableArea[2] and  tLocation[3] <= M28Map.rMapPlayableArea[4] then
+        return true
+    else
+        return false
+    end
+end

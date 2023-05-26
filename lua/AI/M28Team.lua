@@ -1152,7 +1152,7 @@ function HaveGroundUnitWithNoPlateau(oTrackingBrain, oUnit)
                     iPlateauToTryAndFind = NavUtils.GetLabel(sPathing, oUnit:GetPosition())
                     if not(iPlateauToTryAndFind > 0) then iPlateauToTryAndFind = nil end
                     for iAngleAdjust = 0, 45, 360 do
-                        tPotentialTempMoveLocation = M28Utilities.MoveInDirection(oUnit:GetPosition(), iBaseAngle + iAngleAdjust, iBaseDistance, true, false)
+                        tPotentialTempMoveLocation = M28Utilities.MoveInDirection(oUnit:GetPosition(), iBaseAngle + iAngleAdjust, iBaseDistance, true, false, true)
 
                         if not(iPlateauToTryAndFind) or NavUtils.GetLabel(sPathing, tPotentialTempMoveLocation) == iPlateauToTryAndFind then
                             break --Use this as the move location

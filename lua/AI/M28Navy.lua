@@ -70,7 +70,7 @@ function GetNearestWaterRallyPoint(tWZData, iTeam, iPond, iWaterZone)
         if M28Utilities.IsTableEmpty(tRallyWZTeamData[M28Map.subrefWZTAlliedUnits]) == false then
             local tFriendlyFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryAllHQFactories,     tRallyWZTeamData[M28Map.subrefWZTAlliedUnits])
             if M28Utilities.IsTableEmpty(tFriendlyFactories) == false then
-                return M28Utilities.MoveInDirection(tFriendlyFactories[1]:GetPosition(), M28Utilities.GetAngleFromAToB(tFriendlyFactories[1]:GetPosition(), tRallyWZData[M28Map.subrefMidpoint]), 8, true, false)
+                return M28Utilities.MoveInDirection(tFriendlyFactories[1]:GetPosition(), M28Utilities.GetAngleFromAToB(tFriendlyFactories[1]:GetPosition(), tRallyWZData[M28Map.subrefMidpoint]), 8, true, false, true)
             end
         end
 
@@ -558,14 +558,14 @@ function MoveToShieldTarget(oShield, tEnemyBase)
     local iShieldDistanceWanted = math.max(3, oBP.Defense.Shield.ShieldSize * 0.5 - 1 - oBP.Physics.MaxSpeed - (oShield[M28Land.refoMobileShieldTarget]:GetBlueprint().Physics.MaxSpeed or 0))
     --Have an issue with larger shields like shield boats where the shield isn't maintained all the time; can afford to be a bit closer with a larger shield
     if iShieldDistanceWanted >= 10 then iShieldDistanceWanted = math.max(10, iShieldDistanceWanted * 0.66) end
-    M28Orders.IssueTrackedMove(oShield, M28Utilities.MoveInDirection(oShield[M28Land.refoMobileShieldTarget]:GetPosition(), M28Utilities.GetAngleFromAToB(tEnemyBase,oShield[M28Land.refoMobileShieldTarget]:GetPosition()), iShieldDistanceWanted, true, false), math.min(4, iShieldDistanceWanted - 1), false, 'WShU'..oShield[M28Land.refoMobileShieldTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield[M28Land.refoMobileShieldTarget]))
+    M28Orders.IssueTrackedMove(oShield, M28Utilities.MoveInDirection(oShield[M28Land.refoMobileShieldTarget]:GetPosition(), M28Utilities.GetAngleFromAToB(tEnemyBase,oShield[M28Land.refoMobileShieldTarget]:GetPosition()), iShieldDistanceWanted, true, false, true), math.min(4, iShieldDistanceWanted - 1), false, 'WShU'..oShield[M28Land.refoMobileShieldTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield[M28Land.refoMobileShieldTarget]))
 end
 
 function MoveToStealthTarget(oStealth, tEnemyBase)
     local oBP = oStealth:GetBlueprint()
     local iStealthDistanceWanted = math.max(8, oBP.Intel.RadarStealthFieldRadius - 1 - oBP.Physics.MaxSpeed - (oStealth[M28Land.refoMobileStealthTarget]:GetBlueprint().Physics.MaxSpeed or 0))
     if iStealthDistanceWanted >= 10 then iStealthDistanceWanted = math.max(10, iStealthDistanceWanted * 0.66) end
-    M28Orders.IssueTrackedMove(oStealth, M28Utilities.MoveInDirection(oStealth[M28Land.refoMobileStealthTarget]:GetPosition(), M28Utilities.GetAngleFromAToB(tEnemyBase,oStealth[M28Land.refoMobileStealthTarget]:GetPosition()), iStealthDistanceWanted, true, false), math.min(4, iStealthDistanceWanted - 1), false, 'StU'..oStealth[M28Land.refoMobileStealthTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oStealth[M28Land.refoMobileStealthTarget]))
+    M28Orders.IssueTrackedMove(oStealth, M28Utilities.MoveInDirection(oStealth[M28Land.refoMobileStealthTarget]:GetPosition(), M28Utilities.GetAngleFromAToB(tEnemyBase,oStealth[M28Land.refoMobileStealthTarget]:GetPosition()), iStealthDistanceWanted, true, false, true), math.min(4, iStealthDistanceWanted - 1), false, 'StU'..oStealth[M28Land.refoMobileStealthTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oStealth[M28Land.refoMobileStealthTarget]))
 end
 
 function ShieldUnitsInWaterZone(tTeamTargetWZData, tShieldsToAssign, bAssignAllShields)
@@ -1838,7 +1838,7 @@ function AssignBombardmentActions(tWZData, iPond, iTeam, tPotentialBombardmentUn
             end
         end
     end
-    local tNonBombardmentRallyPoint = M28Utilities.MoveInDirection(oClosestFriendlyUnitToEnemyBase:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestFriendlyUnitToEnemyBase:GetPosition(), tWZTeamData[M28Map.reftClosestFriendlyBase]), 20, true, false)
+    local tNonBombardmentRallyPoint = M28Utilities.MoveInDirection(oClosestFriendlyUnitToEnemyBase:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestFriendlyUnitToEnemyBase:GetPosition(), tWZTeamData[M28Map.reftClosestFriendlyBase]), 20, true, false, true)
     --Update the range to search for enemy units
     local iBombardmentSearchRange = math.max(22, (tWZTeamData[M28Map.refiLastBombardmentSearchRange] or 1))
     if iOurBestDFRange >= 60 then iBombardmentSearchRange = math.max(50, iBombardmentSearchRange) end
@@ -2049,10 +2049,10 @@ function AssignBombardmentActions(tWZData, iPond, iTeam, tPotentialBombardmentUn
                                 local iDistToBlocked = M28Utilities.GetDistanceBetweenPositions(tBlockedShotActualMoveLocation, oUnit:GetPosition())
                                 if bDebugMessages == true then LOG(sFunctionRef..': iDistToBlocked='..iDistToBlocked..'; tPondDetails[iPond][subrefPondMexInfo][iClosestMexRef][subrefMexDFDistance]='..M28Map.tPondDetails[iPond][M28Map.subrefPondMexInfo][iClosestMexRef][M28Map.subrefMexDFDistance]..'; iBlockedDistanceFromMex (ie distance from the location to move to if shot is blocked, and the mex)='..iBlockedDistanceFromMex) end
                                 if iDistToBlocked <= 5 then
-                                    local tPotentialUnblockedLocation = M28Utilities.MoveInDirection(tClosestMex, iBlockedAngleFromMex, math.max(iBlockedDistanceFromMex + 2, M28Map.tPondDetails[iPond][M28Map.subrefPondMexInfo][iClosestMexRef][M28Map.subrefMexDFDistance]), true, false)
+                                    local tPotentialUnblockedLocation = M28Utilities.MoveInDirection(tClosestMex, iBlockedAngleFromMex, math.max(iBlockedDistanceFromMex + 2, M28Map.tPondDetails[iPond][M28Map.subrefPondMexInfo][iClosestMexRef][M28Map.subrefMexDFDistance]), true, false, true)
                                     while not(NavUtils.GetLabel(M28Map.refPathingTypeNavy, tPotentialUnblockedLocation) == iPond) do
                                         M28Map.tPondDetails[iPond][M28Map.subrefPondMexInfo][iClosestMexRef][M28Map.subrefMexDFDistance] = M28Map.tPondDetails[iPond][M28Map.subrefPondMexInfo][iClosestMexRef][M28Map.subrefMexDFDistance] + 2
-                                        tPotentialUnblockedLocation = M28Utilities.MoveInDirection(tClosestMex, iBlockedAngleFromMex, M28Map.tPondDetails[iPond][M28Map.subrefPondMexInfo][iClosestMexRef][M28Map.subrefMexDFDistance], true, false)
+                                        tPotentialUnblockedLocation = M28Utilities.MoveInDirection(tClosestMex, iBlockedAngleFromMex, M28Map.tPondDetails[iPond][M28Map.subrefPondMexInfo][iClosestMexRef][M28Map.subrefMexDFDistance], true, false, true)
 
                                         if M28Map.tPondDetails[iPond][M28Map.subrefPondMexInfo][iClosestMexRef][M28Map.subrefMexDFDistance] >= 200 then break end
                                     end
@@ -2423,7 +2423,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                                         oClosestUnit = oLRUnit
                                     end
                                 end
-                                M28Orders.IssueTrackedMove(oSRUnit, M28Utilities.MoveInDirection(oClosestUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tRallyPoint), 5, true, false), 5, false, 'WSSRSup'..iWaterZone)
+                                M28Orders.IssueTrackedMove(oSRUnit, M28Utilities.MoveInDirection(oClosestUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tRallyPoint), 5, true, false, true), 5, false, 'WSSRSup'..iWaterZone)
                             end
                         else
                             M28Utilities.ErrorHandler('We somehow think we outrange the enemy with subs, but have no subs units with a long range')
@@ -2589,7 +2589,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                                         oClosestUnit = oLRUnit
                                     end
                                 end
-                                M28Orders.IssueTrackedMove(oSRUnit, M28Utilities.MoveInDirection(oClosestUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tRallyPoint), 5, true, false), iOrderReissueDistToUse, false, 'WSRSup'..iWaterZone)
+                                M28Orders.IssueTrackedMove(oSRUnit, M28Utilities.MoveInDirection(oClosestUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tRallyPoint), 5, true, false, true), iOrderReissueDistToUse, false, 'WSRSup'..iWaterZone)
                             end
                         else
                             --Presumably we outrange if we include surface and antinavy but enemy only has submersed?
@@ -3046,7 +3046,7 @@ function ManageWaterZoneScouts(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, t
                                     GetUnitToTravelToWaterZone(tAvailableScouts[1], iPond, tWZData[M28Map.subrefWZOtherWaterZones][1][M28Map.subrefWZAWZRef], M28Map.subrefTScoutsTravelingHere)
                                 else
                                     --No adjacent WZs, and no mexes in this WZ, so just move randomly
-                                    M28Orders.IssueTrackedMove(oScout, M28Utilities.MoveInDirection(oScout:GetPosition(), math.random(1, 360), math.random(10, 30), true, false), 10, false, 'NBackupRnd')
+                                    M28Orders.IssueTrackedMove(oScout, M28Utilities.MoveInDirection(oScout:GetPosition(), math.random(1, 360), math.random(10, 30), true, false, true), 10, false, 'NBackupRnd')
                                 end
                             end
                         end
