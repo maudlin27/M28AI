@@ -725,6 +725,16 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
             if iAirFacsInLZ >= 1 then bWantMoreFactories = false end
         end
     end
+
+    --Override - if we dont have a HQ for the factory type then want to rebuild it
+    if not(bWantMoreFactories) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] == 0 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] == 0) then
+        --Is it likely we have built and then lost the factory?
+        if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] == 0 and (M28Team.tTeamData[iTeam][M28Team.subrefiTotalFactoryCountByType][M28Factory.refiFactoryTypeAir] or 0) > 0 then
+            bWantMoreFactories = true
+        elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] == 0 and (M28Team.tTeamData[iTeam][M28Team.subrefiTotalFactoryCountByType][M28Factory.refiFactoryTypeLand] or 0) > 0 then
+            bWantMoreFactories = true
+        end
+    end
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, bWantMoreFactories='..tostring(bWantMoreFactories)) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return bWantMoreFactories
@@ -822,14 +832,14 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
         return false
     else
         --Recently failed to build anything at air fac
-        if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForAirFactory] or -100) <= 10 then
+        if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForAirFactory] or -100) <= 10 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] or 0) > 0 then
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return false
         else
             --Norush
             if M28Overseer.bNoRushActive and M28Overseer.iNoRushTimer - GetGameTimeSeconds() >= 30 then
                 local iLandFactoriesHave = 0
-                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
+                if (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] or 0) > 0 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
                     local tLandFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
                     if bDebugMessages == true then LOG(sFunctionRef..': Is tLandFactories empty='..tostring(M28Utilities.IsTableEmpty(tLandFactories))) end
                     if M28Utilities.IsTableEmpty(tLandFactories) == false then
@@ -923,9 +933,11 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                             else
                                 --Have min number of land factories, now check how many air factories we have
                                 local iAirFactoriesHave = 0
-                                local tAirFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
-                                if M28Utilities.IsTableEmpty(tAirFactories) == false then
-                                    iAirFactoriesHave = table.getn(tAirFactories)
+                                if (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] or 0) > 0 then
+                                    local tAirFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                                    if M28Utilities.IsTableEmpty(tAirFactories) == false then
+                                        iAirFactoriesHave = table.getn(tAirFactories)
+                                    end
                                 end
                                 local iAirFactoriesWanted = math.ceil(iLandFactoriesHave * iAirFactoriesForEveryLandFactory)
                                 if bDebugMessages == true then LOG(sFunctionRef..': iAirFactoriesWanted='..iAirFactoriesWanted..'; iAirFactoriesHave='..iAirFactoriesHave) end

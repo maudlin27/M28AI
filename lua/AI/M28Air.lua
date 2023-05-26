@@ -369,6 +369,16 @@ function AddPriorityAirDefenceTarget(oUnit)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iAirSubteam = oUnit:GetAIBrain().M28AirSubteam
+    if not(iAirSubteam) or (not(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftACUAndExpOnSubteam]) and not(oUnit:GetAIBrain().M28AI)) then
+        --Search for M28 brain that is an ally
+        local aiBrain = oUnit:GetAIBrain()
+        for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
+            if IsAlly(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) then
+                iAirSubteam = oBrain.M28AirSubteam
+                if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftACUAndExpOnSubteam]) then M28Team.tAirSubteamData[iAirSubteam][M28Team.reftACUAndExpOnSubteam] = {} end
+            end
+        end
+    end
     --Check not already in table
     local bInTableAlready = false
     if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftACUAndExpOnSubteam]) == false then
@@ -380,6 +390,7 @@ function AddPriorityAirDefenceTarget(oUnit)
         end
     end
     if not(bInTableAlready) then
+        if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftACUAndExpOnSubteam]) then M28Team.tAirSubteamData[iAirSubteam][M28Team.reftACUAndExpOnSubteam] = {} end --redundancy - above should already cover
         table.insert(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftACUAndExpOnSubteam], oUnit)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -1537,9 +1548,25 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam)
         M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastAirStagingShortage] = GetGameTimeSeconds()
         if bDebugMessages == true then LOG(sFunctionRef..': Flagged that we want air staging for units on team '..iTeam..' at time '..GetGameTimeSeconds()) end
         local tRallyPoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
-        for iUnit, oUnit in tUnitsUnableToRefuel do
-            M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 10, false, 'WntStgn', false)
+        --If close to unit cap consider ctrl-King unit if it is close to the rally point
+        if (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) == 0 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap] or -100) <= 10 then
+            --Ctrlk units if close to rally point and aibrain owner is close to unit cap
+            for iUnit, oUnit in tUnitsUnableToRefuel do
+                if oUnit:GetAIBrain()[M28Overseer.refbCloseToUnitCap] and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 10 then
+                    M28Orders.IssueTrackedKillUnit(oUnit)
+                else
+                    M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 10, false, 'UCWntStgn', false)
+                end
+            end
+        else
+            --Send units to rally point
+            for iUnit, oUnit in tUnitsUnableToRefuel do
+                M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 10, false, 'WntStgn', false)
+            end
         end
+
+
+
     end
     if bDebugMessages == true then LOG(sFunctionRef .. ': Finished giving orders for refueling, was tUnitsUnableToRefuel empty='..tostring(M28Utilities.IsTableEmpty(tUnitsUnableToRefuel))) end
     --end

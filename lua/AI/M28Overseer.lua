@@ -572,7 +572,7 @@ function CheckUnitCap(aiBrain)
         if iUnitCap - iCurUnits < 10 then iMaxToDestroy = math.max(10, iMaxToDestroy) end
         local tUnitsToDestroy
         local tiCategoryToDestroy = {
-            [0] = categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryT1Mex + M28UnitInfo.refCategoryAllAir * categories.TECH2,
+            [0] = categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryAirStaging - M28UnitInfo.refCategoryT1Mex + M28UnitInfo.refCategoryAllAir * categories.TECH2 - M28UnitInfo.refCategoryTransport * categories.TECH2,
             [1] = M28UnitInfo.refCategoryAllAir * categories.TECH1 + categories.NAVAL * categories.MOBILE * categories.TECH1,
             [2] = M28UnitInfo.refCategoryMobileLand * categories.TECH2 - categories.COMMAND - M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryAirScout + M28UnitInfo.refCategoryAirAA * categories.TECH1,
             [3] = M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND,
@@ -589,6 +589,7 @@ function CheckUnitCap(aiBrain)
             if iCurUnits > (iUnitCap - iThreshold * iAdjustmentLevel) or iCurUnitsDestroyed == 0 then
                 tUnitsToDestroy = aiBrain:GetListOfUnits(tiCategoryToDestroy[iAdjustmentLevel], false, false)
                 if M28Utilities.IsTableEmpty(tUnitsToDestroy) == false then
+                    M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] = math.min((M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100), iAdjustmentLevel)
                     for iUnit, oUnit in tUnitsToDestroy do
                         if oUnit.Kill then
                             if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitsDestroyed so far='..iCurUnitsDestroyed..'; Will destroy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to avoid going over unit cap') end
@@ -610,7 +611,8 @@ function CheckUnitCap(aiBrain)
         aiBrain[refiUnitCapCategoriesDestroyed] = iCumulativeCategory
         if bDebugMessages == true then LOG(sFunctionRef..': FInished destroying units, iCurUnitsDestroyed='..iCurUnitsDestroyed) end
     else
-        if aiBrain[refbCloseToUnitCap] then
+        --Only reset cap if we havent reached the higher ctrlk thresholds, unless we have a massive amount of headroom
+        if aiBrain[refbCloseToUnitCap] and (iCurUnits < iUnitCap * 0.5 - 25 or (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) > 1) then
             --Only reset cap if we have a bit of leeway
             if iCurUnits < (iUnitCap - iThreshold * 5) - 20 then
                 aiBrain[refbCloseToUnitCap] = false
