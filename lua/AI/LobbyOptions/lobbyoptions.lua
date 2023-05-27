@@ -5,7 +5,17 @@
 ---
 
 AIOpts = {
-
+    {
+        default = 8,
+        label = "<LOC lobui_0102>Unit Cap",
+        help = "<LOC lobui_0103>Set the maximum number of units that can be in play",
+        key = 'UnitCap',
+        value_text = "<LOC lobui_0719>%s",
+        value_help = "<LOC lobui_0171>%s units per player may be in play",
+        values = {
+            '125','250', '375', '500', '625', '750', '875', '1000', '1250', '1500', '2000', '2500', '3000', '4000', '5000', '7500', '10000'
+        },
+    },
     {
         default = 11,
         label = "<LOC aisettings_0001>>AIx Cheat Multiplier",
@@ -40,4 +50,5 @@ AIOpts = {
             '10.0',
         },
     },
+
 }

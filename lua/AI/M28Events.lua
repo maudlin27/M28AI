@@ -332,7 +332,7 @@ function OnUnitDeath(oUnit)
                         --Run unit type specific on death logic where the unit is completed
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering if need to run certain M28AI on death logic, unit fraction ocmplete='..oUnit:GetFractionComplete()) end
                         if oUnit:GetFractionComplete() == 1 then
-                            M28Economy.UpdateGrossIncomeForUnit(oUnit, true)
+                            M28Economy.UpdateGrossIncomeForUnit(oUnit, true) --Dont fork thread
                             if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
                                 M28Engineer.ClearEngineerTracking(oUnit)
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryScathis, oUnit.UnitId) then
@@ -1302,6 +1302,7 @@ function OnPlayableAreaChange(rect, voFlag)
         rect = ScenarioUtils.AreaToRect(rect)
     end
     M28Map.SetupPlayableAreaAndSegmentSizes(rect)
+    ForkThread(M28Overseer.UpdateMaxUnitCapForRelevantBrains)
 end
 
 function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
@@ -1402,8 +1403,7 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
         end
     end
 
-
-
+    ForkThread(M28Overseer.UpdateMaxUnitCapForRelevantBrains)
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

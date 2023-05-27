@@ -331,6 +331,7 @@ function M28BrainCreated(aiBrain)
         M28Chat.SendForkedMessage(aiBrain, 'LoadingMap', 'Analysing map, this will freeze the game for a while.  Contact maudlin27 on discord if the freeze lasts more than 2 minutes', 0, 10000, false)
         ForkThread(GameSettingWarningsAndChecks, aiBrain)
         ForkThread(M28Map.SetupMap)
+        ForkThread(UpdateMaxUnitCapForRelevantBrains)
 
         local sStartMessage
 
@@ -530,7 +531,38 @@ function TestCustom(aiBrain)
     M28Utilities.ErrorHandler('Disable testcustom code for final')
 end
 
+function UpdateMaxUnitCapForRelevantBrains()
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'UpdateMaxUnitCapForRelevantBrains'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    for iBrain, oBrain in tAllAIBrainsByArmyIndex do
+        if not(M28Map.bIsCampaignMap) or not(oBrain.BrainType == 'AI') or oBrain.M28AI or oBrain.M27AI then
+            if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; About to update max unit cap for brian '..oBrain.Nickname..'; Brain type='..(oBrain.BrainType or 'nil')) end
+            RefreshMaxUnitCap(oBrain)
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function RefreshMaxUnitCap(aiBrain)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RefreshUnitCap'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; About to set max unit cap for brain '..aiBrain.Nickname..'; Unit cap per scenarioInfo='..(ScenarioInfo.Options.UnitCap or 'nil')..'; Unit cap before update='..aiBrain:GetArmyStat("UnitCap_MaxCap", 0).Value) end
+    if ScenarioInfo.Options.UnitCap then
+        local iUnitCap = tonumber(ScenarioInfo.Options.UnitCap)
+        local iIndex = aiBrain:GetArmyIndex()
+        --SetIgnoreArmyUnitCap(iIndex, true) --Use this and below commented line to ignore unit cap altogther I think based on usage in base FAF code
+        --aiBrain.IgnoreArmyCaps = true
+        SetArmyUnitCap(iIndex, iUnitCap)
+        if bDebugMessages == true then LOG(sFunctionRef..': Brian unit cap after update='..aiBrain:GetArmyStat("UnitCap_MaxCap", 0).Value) end
+    else
+        M28Utilities.ErrorHandler('No unit cap specified', true)
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
 
 
 function Initialisation(aiBrain)
@@ -546,6 +578,7 @@ function Initialisation(aiBrain)
     ForkThread(M28Map.RecordPondToExpandTo, aiBrain)
     --ForkThread(RevealCiviliansToAI, aiBrain)
     ForkThread(RevealCivilainsToAIByGivingVision, aiBrain)
+    ForkThread(RefreshMaxUnitCap, aiBrain) --This logic is  called from a number of palces to try and ensure it overrides things that might be set elsewhere
 
 end
 
