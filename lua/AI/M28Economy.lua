@@ -493,6 +493,11 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed)
                         if bDebugMessages == true then LOG(sFunctionRef..': iUpgradeMassPerSec='..iUpgradeMassPerSec..'; iMassGen per tick='..iMassGen) end
                     end
 
+                    --Mass storage - assume we are adjacent to a T2 mex as a basic approximation
+                    if iMassGen == 0 and iEnergyGen == 0 and EntityCategoryContains(M28UnitInfo.refCategoryMassStorage, oUnit.UnitId) then
+                        iMassGen = 0.05
+                    end
+
                     --Adjust for AiX
                     if aiBrain.CheatEnabled then
                         local iAiXMod = tonumber(ScenarioInfo.Options.CheatMult or 1.5)
