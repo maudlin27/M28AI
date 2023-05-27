@@ -2477,7 +2477,7 @@ function ManageGunships(iTeam, iAirSubteam)
         --GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo, bBlueprintThreat)
         local iOurGunshipAA = M28UnitInfo.GetAirThreatLevel(tAvailableGunships, false,  true,               false,              false, false, false)
 
-        if iOurGunshipThreat >= 10000 then bDebugMessages = true end
+
         --Prioroity targets to attack - search for enemies around start positions (ignore AA):
         local tEnemyGroundTargets = {}
         --Get the gunship nearest to an enemy base and record this as the front gunship

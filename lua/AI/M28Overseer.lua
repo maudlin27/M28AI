@@ -532,7 +532,7 @@ function TestCustom(aiBrain)
 end
 
 function UpdateMaxUnitCapForRelevantBrains()
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateMaxUnitCapForRelevantBrains'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -546,7 +546,7 @@ function UpdateMaxUnitCapForRelevantBrains()
 end
 
 function RefreshMaxUnitCap(aiBrain)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RefreshUnitCap'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

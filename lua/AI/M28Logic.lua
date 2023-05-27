@@ -402,7 +402,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
     local sFunctionRef = 'GetDamageFromBomb'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iDamage >= 10000 then bDebugMessages = true end
+
 
     local iTotalDamage = 0
     local bCheckForShields = true
@@ -445,7 +445,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
                 if M28UnitInfo.IsUnitValid(oUnit) and not(M28UnitInfo.CanSeeUnit(aiBrain, oUnit, true)) then
                     if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBaseLocation) <= iAOE + 4 then
                         if bDebugMessages == true then LOG(sFunctionRef..': Adding unseen unit to enemies in range') end
-                        table.insert(tEnemiesInRange)
+                        table.insert(tEnemiesInRange, oUnit)
                     end
                 end
             end

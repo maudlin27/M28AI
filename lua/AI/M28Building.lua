@@ -1668,7 +1668,7 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
     local sFunctionRef = 'GetT3ArtiTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if EntityCategoryContains(categories.EXPERIMENTAL, oArti.UnitId) then bDebugMessages = true end
+
 
     if bCalledFromSalvoSize then oArti[refbSalvoDelayActive] = false end
     if not(oArti[refbSalvoDelayActive]) then
@@ -1862,7 +1862,7 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
                             iCurValue = M28Logic.GetDamageFromBomb(aiBrain, oUnit:GetPosition(), iAOE, iDamage, iFriendlyUnitReductionFactor,       iFriendlyUnitAOEFactor,     false,                      iSizeAdjust,        iMultipleShotMod,                   iMobileValueFactorInner,                true,                   iShieldReductionFactor,         true)
                             if bDebugMessages == true then LOG(sFunctionRef..': Damage from bomb if we target it at unit='..iCurValue..'; iBestValue='..(iBestValue or 'nil')) end
                             local iMinValue = 0
-                            if M28UnitInfo.IsUnitValid(oUnit) and oUnit.GetFractionComplete and oUnit:GetFractonComplete() < 1 or EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) then
+                            if M28UnitInfo.IsUnitValid(oUnit) and oUnit.GetFractionComplete and oUnit:GetFractionComplete() < 1 or EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) then
                                 --redundancy for buildings and under construction units
                                 iMinValue = (M28UnitInfo.GetCombatThreatRating({ oUnit }, true, true) or 0) * oUnit:GetFractionComplete()
                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering increasing cur value to min basic value based on the unit target, iCurValue='..(iCurValue or 'nil')..'; iBestValue='..(iBestValue or 'nil')..'; iMinValue='..(iMinValue or 'nil')) end

@@ -423,7 +423,6 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         if M28Utilities.IsTableEmpty(tExperimentals) == false then
             for iUnit, oUnit in tExperimentals do
                 if oUnit:GetFractionComplete() < 1 then
-                    bDebugMessages = true
                     tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] = tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] + M28UnitInfo.GetCombatThreatRating({ oUnit }, true, true) * oUnit:GetFractionComplete()
                     if bDebugMessages == true then LOG(sFunctionRef..': Have under construction experimental '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' in Plateau '..iPlateau..' Zone '..iZone..'; will increase threat for this, fraction complete='..oUnit:GetFractionComplete()..'; structure threat after increase='..tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass]) end
                 end
@@ -1975,6 +1974,8 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
     local sFunctionRef = 'ManageRASSACUsInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     --If have mass stored then find the nearest quantum gatway and assist it for now, otherwise do nothing (if enemies in this LZ then will have been sent to the combat unit management already)
     local tQuantumGateways = EntityCategoryFilterDown(M28UnitInfo.refCategoryQuantumGateway, tLZTeamData[M28Map.subrefLZTAlliedUnits])
     local oGateway
@@ -1996,52 +1997,65 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
             end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': oGateway='..(oGateway.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oGateway) or 'nil')..'; bNotAssistingGateway='..tostring(bNotAssistingGateway)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Have low power='..tostring(M28Conditions.HaveLowPower(iTeam))) end
     if bNotAssistingGateway then
         local tUnitsToAssist = {}
         --If building an experimental and dont have low mass then assist it
+        if bDebugMessages == true then LOG(sFunctionRef..': Does team have low mass='..tostring(M28Conditions.TeamHasLowMass(iTeam))..'; Is table of engineers building experimentals empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals]))..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone) end
         if not(M28Conditions.TeamHasLowMass(iTeam)) and not(M28Conditions.HaveLowPower(iTeam)) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals]) == false then
 
             local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
             local tExperimentalLevelUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryExperimentalLevel, tLZData[M28Map.subrefMidpoint], 100, 'Ally')
+            if bDebugMessages == true then LOG(sFunctionRef..': Is table of experimental level units empty='..tostring(M28Utilities.IsTableEmpty( tExperimentalLevelUnits))) end
             if M28Utilities.IsTableEmpty( tExperimentalLevelUnits) == false then
                 for iUnit, oUnit in tExperimentalLevelUnits do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering nearby experimental '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fraction complete='..oUnit:GetFractionComplete()) end
                     if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() < 1 then
                         table.insert(tUnitsToAssist, oUnit)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to table of units to assist') end
                     end
                 end
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': Do we have any units to assist? is table empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToAssist))) end
         if M28Utilities.IsTableEmpty(tUnitsToAssist) then
             --If have upgrading unit then assist this
+            if bDebugMessages == true then LOG(sFunctionRef..': Is table of active upgrades empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]))) end
             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]) == false then tUnitsToAssist = tLZTeamData[M28Map.subrefActiveUpgrades]
             else
                 --Assist shield if need to defend from arti
+                if bDebugMessages == true then LOG(sFunctionRef..': Is table of priority shields to assist empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]))..'; Defending against arti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])) end
                 if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]) == false then
                     tUnitsToAssist = tLZTeamData[M28Map.reftPriorityShieldsToAssist]
                 else
                     --otherwise assist an air factory if we have one
                     tUnitsToAssist = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                    if bDebugMessages == true then LOG(sFunctionRef..': Setting unit to assist to be an air factory, is tUnitsToAssist empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToAssist))) end
                 end
             end
         end
-
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished saerching for potential units to assist, is table empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToAssist))) end
         if M28Utilities.IsTableEmpty(tUnitsToAssist) == false then
             local tStartPoint
             if oGateway then tStartPoint = oGateway:GetPosition()
             else tStartPoint = tLZData[M28Map.subrefMidpoint]
             end
-            local oClosestUnitToAssist = M28Utilities.GetNearestUnit(tRASSACU, tStartPoint)
+            local oClosestUnitToAssist = M28Utilities.GetNearestUnit(tUnitsToAssist, tStartPoint)
+            if bDebugMessages == true then LOG(sFunctionRef..': oClosestUnitToAssist='..(oClosestUnitToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestUnitToAssist) or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oClosestUnitToAssist))) end
             if not(M28UnitInfo.IsUnitValid(oClosestUnitToAssist)) then M28Utilities.ErrorHandler('No unit to assist for RAS', true)
             else
                 for iUnit, oUnit in tRASSACU do
                     M28Orders.IssueTrackedGuard(oUnit, oClosestUnitToAssist, false, 'RASAs', false)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Telling RAS '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to assist unit') end
                 end
             end
 
         else
             --Othewrise clear orders if nothing to assist
             for iUnit, oUnit in tRASSACU do
-                M28Orders.IssueTrackedClearCommands(oUnit)
+                if not(oUnit[M28UnitInfo.refbSpecialMicroActive]) and not(oUnit:IsUnitState('Moving')) and (oUnit:IsUnitState('Repairing') or oUnit:IsUnitState('Building') or oUnit:IsUnitState('Guarding')) then
+                    M28Orders.IssueTrackedClearCommands(oUnit)
+                end
             end
         end
     end
