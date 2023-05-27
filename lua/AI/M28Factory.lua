@@ -217,6 +217,10 @@ end
 
 function AdjustBlueprintForOverrides(aiBrain, sBPIDToBuild, tLZTeamData, iFactoryTechLevel)
     --Blacklisted units (done on land subteam basis - in theory should work ok if use naval units or air units here as well)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AdjustBlueprintForOverrides'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     if M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subrefBlueprintBlacklist][sBPIDToBuild] then
         sBPIDToBuild = nil
     else
@@ -269,6 +273,13 @@ function AdjustBlueprintForOverrides(aiBrain, sBPIDToBuild, tLZTeamData, iFactor
                 sBPIDToBuild = nil
             end
         end
+        if sBPIDToBuild and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] <= 1 and (aiBrain[M28Overseer.refiExpectedRemainingCap] < 40 or (aiBrain[M28Overseer.refiExpectedRemainingCap] < 70 and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] == 0)) then
+            --Dont build anything if already have lots of it
+            if bDebugMessages == true then LOG(sFunctionRef..': Are close to unit cap, sBPIDToBuild after initial close to unit override='..(sBPIDToBuild or 'nil')..'; Current units owned of this already='..aiBrain:GetCurrentUnits(sBPIDToBuild)) end
+            if aiBrain:GetCurrentUnits(sBPIDToBuild) >= 50 then
+                sBPIDToBuild = nil
+            end
+        end
     end
 
     --NoRush
@@ -279,6 +290,7 @@ function AdjustBlueprintForOverrides(aiBrain, sBPIDToBuild, tLZTeamData, iFactor
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return sBPIDToBuild
 end
 
@@ -1526,7 +1538,9 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                 break
             end
             if iTicksWaited >= 200 then
-                M28Utilities.ErrorHandler('oFactory has waited more than 200 ticks and still isnt showing as ready to build, oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; brain nickname=' .. oFactory:GetAIBrain().Nickname .. '; Work progress=' .. oFactory:GetWorkProgress() .. '; Factory fraction complete=' .. oFactory:GetFractionComplete() .. '; Factory status=' .. M28UnitInfo.GetUnitState(oFactory) .. '; Is command queue empty=' .. tostring(M28Utilities.IsTableEmpty(oFactory:GetCommandQueue())) .. '; iWorkProgressStart=' .. (iWorkProgressStart or 'nil'), true)
+                if not(oFactory:GetAIBrain()[M28Overseer.refbCloseToUnitCap]) then
+                    M28Utilities.ErrorHandler('oFactory has waited more than 200 ticks and still isnt showing as ready to build, oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; brain nickname=' .. oFactory:GetAIBrain().Nickname .. '; Work progress=' .. oFactory:GetWorkProgress() .. '; Factory fraction complete=' .. oFactory:GetFractionComplete() .. '; Factory status=' .. M28UnitInfo.GetUnitState(oFactory) .. '; Is command queue empty=' .. tostring(M28Utilities.IsTableEmpty(oFactory:GetCommandQueue())) .. '; iWorkProgressStart=' .. (iWorkProgressStart or 'nil'), true)
+                end
                 break
             elseif iTicksWaited >= 40 then
                 iTicksToWait = math.min(iTicksToWait + 1, 10)

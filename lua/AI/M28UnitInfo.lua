@@ -984,10 +984,6 @@ function GetCurrentAndMaximumShield(oUnit, bDontTreatLowPowerShieldAsZero)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetCurrentAndMaximumShield'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if (M28Profiler.tProfilerCountByTickByFunction[(math.floor(GetGameTimeSeconds()*10) - 1) ][sFunctionRef] or 0) >= 5000 then
-        --Audit trail every 100 cycles
-        M28Utilities.ErrorHandler('Audit trail', true, false, 100)
-    end
     if oUnit.MyShield then
         local iCurShield = 0
         local iMaxShield = 0
@@ -1869,4 +1865,30 @@ function FixUnitResourceCheatModifiers(oUnit)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function IsUnitVisibleSEEBELOW()  end --To help with finding canseeunit
+function CanSeeUnit(aiBrain, oUnit, bReturnTrueIfOnlySeeBlip)
+    --returns true if aiBrain can see oUnit
+    --bReturnTrueIfOnlySeeBlip - returns true if can see a blip
+    if bReturnTrueIfOnlySeeBlip == nil then bReturnTrueIfOnlySeeBlip = false end
+    local iUnitBrain = oUnit:GetAIBrain()
+    if iUnitBrain == aiBrain then return true
+    else
+        local bCanSeeUnit = false
+        local iArmyIndex = aiBrain:GetArmyIndex()
+        if not(oUnit.Dead) then
+            if not(oUnit.GetBlip) then
+                ErrorHandler('oUnit with UnitID='..(oUnit.UnitId or 'nil')..' has no blip, will assume can see it')
+                return true
+            else
+                local oBlip = oUnit:GetBlip(iArmyIndex)
+                if oBlip then
+                    if bReturnTrueIfOnlySeeBlip then return true
+                    elseif oBlip:IsSeenEver(iArmyIndex) then return true end
+                end
+            end
+        end
+    end
+    return false
 end

@@ -570,6 +570,9 @@ function GetClosestPlateauOrZeroAndZoneToPosition(tPosition)
     local sFunctionRef = 'GetClosestPlateauOrZeroAndZoneToPosition'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
+
     local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tPosition)
 
     if bDebugMessages == true then LOG(sFunctionRef..': tPosition='..repru(tPosition)..'; iSegmentX='..iSegmentX..' iSegmentZ='..iSegmentZ..'; Is override for this nil='..tostring(tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX][iSegmentZ] == nil)) end
@@ -660,12 +663,12 @@ function GetReclaimLocationFromSegment(iReclaimSegmentX, iReclaimSegmentZ)
     end
 end
 
-function SetupPlayableAreaAndSegmentSizes()
+function SetupPlayableAreaAndSegmentSizes(rCampaignPlayableAreaOverride)
     --Sets up key values needed to divide the map up into segments (small squares) for both land zone segments and reclaim segments - should be called as one of the first pieces of code
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'DetermineReclaimAndLandSegmentSizes'
+    local sFunctionRef = 'SetupPlayableAreaAndSegmentSizes'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if bDebugMessages == true then LOG(sFunctionRef..': About to set playable area at time='..GetGameTimeSeconds()..'; ScenarioInfo.MapData.PlayableRect='..repru(ScenarioInfo.MapData.PlayableRect)..'; bMapLandSetupComplete='..tostring(bMapLandSetupComplete or false)..'; bIsCampaignMap='..tostring(bIsCampaignMap or false)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': About to set playable area at time='..GetGameTimeSeconds()..'; ScenarioInfo.MapData.PlayableRect='..repru(ScenarioInfo.MapData.PlayableRect)..'; bMapLandSetupComplete='..tostring(bMapLandSetupComplete or false)..'; bIsCampaignMap='..tostring(bIsCampaignMap or false)..'; rCampaignPlayableAreaOverride='..repru(rCampaignPlayableAreaOverride)) end
     if ScenarioInfo.MapData.PlayableRect then --and (bMapLandSetupComplete or not(bIsCampaignMap)) then
         rMapPlayableArea = ScenarioInfo.MapData.PlayableRect
     else
@@ -675,6 +678,21 @@ function SetupPlayableAreaAndSegmentSizes()
         rMapPotentialPlayableArea = {0, 0, ScenarioInfo.size[1], ScenarioInfo.size[2]}
     else
         rMapPotentialPlayableArea = rMapPlayableArea
+    end
+    if rCampaignPlayableAreaOverride and M28Utilities.IsTableEmpty(rCampaignPlayableAreaOverride) == false then
+        local rNewRect = {}
+        if rCampaignPlayableAreaOverride['x0'] then
+            rNewRect = {rCampaignPlayableAreaOverride['x0'], rCampaignPlayableAreaOverride['y0'], rCampaignPlayableAreaOverride['x1'], rCampaignPlayableAreaOverride['y1']}
+        else
+            for iEntry, tPosition in rCampaignPlayableAreaOverride do
+                table.insert(rNewRect, tPosition)
+            end
+        end
+        if bDebugMessages == true then
+            LOG(sFunctionRef..': Updating playable rect for override, rCampaignPlayableAreaOverride='..repru(rCampaignPlayableAreaOverride)..'; rNewRect='..repru(rNewRect))
+            M28Utilities.DrawRectangle(rCampaignPlayableAreaOverride, 2, 1000, 0)
+        end
+        rMapPlayableArea = rNewRect
     end
 
     iMapSize = (rMapPlayableArea[3] - rMapPlayableArea[1] + rMapPlayableArea[4] - rMapPlayableArea[2]) * 0.5
@@ -700,7 +718,7 @@ function SetupPlayableAreaAndSegmentSizes()
         iReclaimSegmentSizeX = math.max(iMinReclaimSegmentSize, iLandZoneSegmentSize)
         iReclaimSegmentSizeZ = math.max(iMinReclaimSegmentSize, iLandZoneSegmentSize)
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': End of code, rMapPotentialPlayableArea='..repru(rMapPotentialPlayableArea)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, rMapPotentialPlayableArea='..repru(rMapPotentialPlayableArea)..'; actual playable area='..repru(rMapPlayableArea)) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -985,6 +1003,8 @@ local function AddNewLandZoneReferenceToPlateau(iPlateau)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AddNewLandZoneReferenceToPlateau'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
 
     if not(tAllPlateaus[iPlateau]) then
         --Presumably we have a plateau with no mexes so add this plateau to the table of plateaus
@@ -2073,7 +2093,7 @@ function DrawSpecificLandZone(iPlateau, iLandZone, iColour)
     end
 end
 
-function DrawSpecificWaterZone(iWaterZone, iOptionalColour)
+function DrawSpecificWaterZone(iWaterZone, iOptionalColour, iOptionalTime)
     local tLocation
     local iPond = tiPondByWaterZone[iWaterZone]
     local tWZData = tPondDetails[iPond][subrefPondWaterZones][iWaterZone]
@@ -2082,11 +2102,15 @@ function DrawSpecificWaterZone(iWaterZone, iOptionalColour)
         while iOptionalColour > 8 do
             iOptionalColour = iOptionalColour - 8
         end
+        if iOptionalColour == 2 then iOptionalColour = iOptionalColour + 1 end
     end
+
     for iSegmentRef, tSegmentXZ in tWZData[subrefWZSegments] do
         tLocation = GetPositionFromPathingSegments(tSegmentXZ[1], tSegmentXZ[2])
-        M28Utilities.DrawLocation(tLocation, iOptionalColour, nil, iLandZoneSegmentSize - 0.1)
+        M28Utilities.DrawLocation(tLocation, iOptionalColour, iOptionalTime, iLandZoneSegmentSize - 0.1)
     end
+    --Draw midpoint in red
+    M28Utilities.DrawLocation(tWZData[subrefMidpoint], 2, iOptionalTime, iLandZoneSegmentSize - 0.05)
 end
 
 local function DrawLandZones()
@@ -4037,7 +4061,7 @@ function RecordPondToExpandTo(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     bHaveConsideredPreferredPondForM28AI = true
-    if bDebugMessages == true then LOG(sFunctionRef..': Starting RecordPondToExpandTo at '..GetGameTimeSeconds()..', Is table of pond details empty='..tostring(M28Utilities.IsTableEmpty(tPondDetails))..'; bHaveRecordedPonds='..tostring(bHaveRecordedPonds)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Starting RecordPondToExpandTo at '..GetGameTimeSeconds()..' for brain '..aiBrain.Nickname..', Is table of pond details empty='..tostring(M28Utilities.IsTableEmpty(tPondDetails))..'; bHaveRecordedPonds='..tostring(bHaveRecordedPonds)) end
     local iWaitCount = 0
     while not(bHaveRecordedPonds) do
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -4929,6 +4953,42 @@ function RecordWaterZoneMidpointAndMinMaxPositions()
                     end
                 end
             end
+
+            --Campaign override - change midpoint if outside playable area but zone itself isnt
+            if bDebugMessages == true then LOG(sFunctionRef..': Is this a campaign map='..tostring(bIsCampaignMap or false)..'; Playable area='..repru(rMapPlayableArea)..'; tverage='..repru(tAverage)..'; is this in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tAverage))) end
+            if bIsCampaignMap and not(M28Conditions.IsLocationInPlayableArea(tAverage)) then
+                --Are we likely in the playable area?
+                if ((iMinX >= rMapPlayableArea[1] and iMinX <= rMapPlayableArea[3]) or (iMaxX >= rMapPlayableArea[1] and iMaxX <= rMapPlayableArea[3])) and ((iMinZ >= rMapPlayableArea[2] and iMinZ <= rMapPlayableArea[4]) or (iMaxZ >= rMapPlayableArea[2] and iMaxZ <= rMapPlayableArea[4])) then
+                    --Cycle through each segment in water zone and record the one closest to the current average
+                    local iMinPlayableSegmentX, iMinPlayableSegmentZ = GetPathingSegmentFromPosition({rMapPlayableArea[1], 0, rMapPlayableArea[2]})
+                    iMinPlayableSegmentX = iMinPlayableSegmentX  +1
+                    iMinPlayableSegmentZ = iMinPlayableSegmentZ + 1
+                    local iMaxPlayableSegmentX, iMaxPlayableSegmentZ = GetPathingSegmentFromPosition({rMapPlayableArea[3], 0, rMapPlayableArea[4]})
+                    iMaxPlayableSegmentX = iMaxPlayableSegmentX - 1
+                    iMaxPlayableSegmentZ = iMaxPlayableSegmentZ - 1
+                    local iOriginalMidpointSegmentX, iOriginalMidpointSegmentZ = GetPathingSegmentFromPosition(tAverage)
+                    local iLowestDif = 100000
+                    local iCurDif
+                    local iClosestSegmentX, iClosestSegmentZ
+                    for iEntry, tSegmentXZ in tWZData[subrefWZSegments] do
+                        if tSegmentXZ[1] >= iMinPlayableSegmentX and tSegmentXZ[1] <= iMaxPlayableSegmentX and tSegmentXZ[2] >= iMinPlayableSegmentZ and tSegmentXZ[2] <= iMaxPlayableSegmentZ then
+                            iCurDif = math.abs(tSegmentXZ[1] - iOriginalMidpointSegmentX) + math.abs(tSegmentXZ[2] - iOriginalMidpointSegmentZ)
+                            if iCurDif < iLowestDif then
+                                iLowestDif = iCurDif
+                                iClosestSegmentX = tSegmentXZ[1]
+                                iClosestSegmentZ = tSegmentXZ[2]
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iLowestDif='..iLowestDif..'; iClosestSegmentXZ='..(iClosestSegmentX or 'nil')..'Z'..(iClosestSegmentZ or 'nil')) end
+                    if iClosestSegmentX then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will move the midpoint for the water zone to reflect the playable area, previous location='..repru(tAverage)..'; New location='..repru(GetPositionFromPathingSegments(iClosestSegmentX, iClosestSegmentZ))..'; Playable area='..repru(rMapPlayableArea)) end
+                        local tNewLocation = GetPositionFromPathingSegments(iClosestSegmentX, iClosestSegmentZ)
+                        tAverage = {tNewLocation[1], tNewLocation[2], tNewLocation[3]}
+                    end
+                end
+            end
+
             if bDebugMessages == true then
                 LOG(sFunctionRef .. ': iAveragePond=' .. (iAveragePond or 'nil') .. '; iPond=' .. (iPond or 'nil') .. '; iAverageWaterZone=' .. (iAverageWaterZone or 'nil') .. '; iWaterZone=' .. (iWaterZone or 'nil') .. '; tAverage=' .. repru(tAverage))
             end
@@ -4945,6 +5005,9 @@ function RecordWaterZoneMidpointAndMinMaxPositions()
                 end
             end
             tWZData[refiMidpointAmphibiousLabel] = (NavUtils.GetTerrainLabel(refPathingTypeAmphibious, tWZData[subrefMidpoint]) or 0)
+            if bDebugMessages == true then
+                DrawSpecificWaterZone(iWaterZone, nil, 60)
+            end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

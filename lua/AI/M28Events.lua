@@ -1297,7 +1297,11 @@ function OnMissileImpactTerrain(self, target, position)
 end
 
 function OnPlayableAreaChange(rect, voFlag)
-    M28Map.SetupPlayableAreaAndSegmentSizes()
+    local ScenarioUtils = import("/lua/sim/scenarioutilities.lua")
+    if type(rect) == 'string' then
+        rect = ScenarioUtils.AreaToRect(rect)
+    end
+    M28Map.SetupPlayableAreaAndSegmentSizes(rect)
 end
 
 function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
@@ -1351,13 +1355,21 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
         local tUnitsToRepair = {}
         for iUnit, oUnit in Target.Units do
             if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Health%='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; Is enemy='..tostring(IsEnemy(oFirstM28Brain:GetArmyIndex(),  oUnit:GetAIBrain():GetArmyIndex()))..'; IsAlly='..tostring(IsAlly(oFirstM28Brain:GetArmyIndex(),  oUnit:GetAIBrain():GetArmyIndex()))) end
-            if M28UnitInfo.IsUnitValid(oUnit) and M28UnitInfo.GetUnitHealthPercent(oUnit) < 1 and IsAlly(oFirstM28Brain:GetArmyIndex(),  oUnit:GetAIBrain():GetArmyIndex()) then
-                table.insert(tUnitsToRepair, oUnit)
-            else
-                bHaveLowHealthAlly = false
-
-                if not(IsAlly(oFirstM28Brain:GetArmyIndex(),  oUnit:GetAIBrain():GetArmyIndex())) then
+            if M28UnitInfo.IsUnitValid(oUnit) then
+                if IsAlly(oFirstM28Brain:GetArmyIndex(),  oUnit:GetAIBrain():GetArmyIndex()) then
+                    if M28UnitInfo.GetUnitHealthPercent(oUnit) < 1 then
+                        table.insert(tUnitsToRepair, oUnit)
+                    else
+                        bHaveLowHealthAlly = false
+                    end
+                else
                     bOnlyHaveAllies = false
+                    if IsEnemy(oFirstM28Brain:GetArmyIndex(),  oUnit:GetAIBrain():GetArmyIndex()) then
+                        --Make sure we are tracking this unit
+                        if bDebugMessages == true then LOG(sFunctionRef..': Sent enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to be recorded in case we lack intel of it, is oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam] true for first M28brain='..tostring(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][oFirstM28Brain.M28Team] or false)) end
+                        M28Team.AssignUnitToLandZoneOrPond(oFirstM28Brain, oUnit, nil, nil, true)
+
+                    end
                 end
             end
         end

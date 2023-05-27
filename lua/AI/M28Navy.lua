@@ -1531,6 +1531,7 @@ function AssignValuesToWaterZones(iTeam)
         if M28Utilities.IsTableEmpty(M28Map.tPondDetails) == false then
             for iPond, tPondSubtable in M28Map.tPondDetails do
                 for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iPond='..iPond..'; oBrain='..oBrain.Nickname..'; Does this brain have a build location for this pond='..repru(tPondSubtable[M28Map.subrefBuildLocationByStartPosition][oBrain:GetArmyIndex()])) end
                     if tPondSubtable[M28Map.subrefBuildLocationByStartPosition][oBrain:GetArmyIndex()] then
                         iBuildLocationSegmentX, iBuildLocationSegmentZ = M28Map.GetPathingSegmentFromPosition(tPondSubtable[M28Map.subrefBuildLocationByStartPosition][oBrain:GetArmyIndex()])
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering oBrain='..oBrain.Nickname..' on iTeam='..iTeam..'; iBuildLocationSegmentX='..iBuildLocationSegmentX..'; iBuildLocationSegmentZ='..iBuildLocationSegmentZ..'; Water zone for these segments='..M28Map.tWaterZoneBySegment[iBuildLocationSegmentX][iBuildLocationSegmentZ]) end

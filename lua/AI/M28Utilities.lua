@@ -153,8 +153,11 @@ end
 
 function DrawRectangle(rRectangle, iOptionalColour, iOptionalTimeInTicks, iOptionalSizeIncrease)
     local iRadiusIncrease = (iOptionalSizeIncrease or 0) * 0.5
-    LOG('reprs of rRectangle='..reprs(rRectangle))
-    LOG('x0='..rRectangle['x0'])
+    LOG('DrawRectangle: reprs of rRectangle='..reprs(rRectangle))
+    --LOG('x0='..rRectangle['x0'])
+    --NOTE: Some rectangles are in the format {[1]=x1,[2]=z1,[3]=x2,[4]=z2}
+    --Others are in the format ['x0']=x1, ['y0'] = z1.... (although order of x0, y0, x1, y1 may change?)
+    --so if get error with below probably because it was only written with the one format in mind
     ForkThread(ForkedDrawRectangle, Rect(rRectangle['x0'] - iRadiusIncrease, rRectangle['y0'] - iRadiusIncrease, rRectangle['x1'] + iRadiusIncrease, rRectangle['y1'] + iRadiusIncrease), (iOptionalColour or 1), (iOptionalTimeInTicks or 200))
 end
 
@@ -514,6 +517,7 @@ function DoesCategoryContainCategory(iCategoryWanted, iCategoryToSearch, bOnlyCo
             if EntityCategoryContains(iCategoryWanted, sRef) then return true end
         end
     end
+    return false
 end
 
 function spairs(t, order)

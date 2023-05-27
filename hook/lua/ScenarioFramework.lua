@@ -16,5 +16,11 @@ function ForkedPlayableAreaChange(rect, voFlag)
     while GetGameTimeSeconds() < 3 do
         WaitTicks(1)
     end
+    local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ForkedPlayableAreaChange'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': rect='..repru(rect)..'; voFlag='..reprs(voFlag)) end
     ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').OnPlayableAreaChange, rect, voFlag)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

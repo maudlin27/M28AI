@@ -486,16 +486,22 @@ function WantMorePower(iTeam)
     local sFunctionRef = 'WantMorePower'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     local bWantMorePower = true
-    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 1.25 * (M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir] or 0) then
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Energy when last unable to build air='..(M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir] or 0)..'; Highest factory tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultipler]='..M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultipler]..'; M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower]='..tostring(M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower] or false)..'; HaveLowPower(iTeam)='..tostring(HaveLowPower(iTeam))..'; M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled]='..(M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] or 'nil')) end
+    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 1.25 * (M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir] or 0) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < math.max(250, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.25) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < (M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir] or 0) + 150) then
         --No change - want more power
+        if bDebugMessages == true then LOG(sFunctionRef..': Want more given amount we had when unable to build air units') end
     elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= (30 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] + 160 * math.max(0, (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] - 2))) * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultipler] then
         --We dont have 1 pgen of our cur tech level (roughly) so want more; i.e. no change
+        if bDebugMessages == true then LOG(sFunctionRef..': Want base level of power given our tech level') end
     elseif M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower] then
         bWantMorePower = false
+        if bDebugMessages == true then LOG(sFunctionRef..': Just built lots of power so dont want more') end
     else
-        if HaveLowPower(iTeam) then bWantMorePower = true
+        if HaveLowPower(iTeam) then
+            bWantMorePower = true
+            if bDebugMessages == true then LOG(sFunctionRef..': Have low power') end
         else
-            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] * 1.1 then bWantMorePower = true
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < (M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] or 0) * 1.1 then bWantMorePower = true
             else
                 local iNetPowerWanted
                 local iHighestTeamTech = M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]
@@ -508,15 +514,25 @@ function WantMorePower(iTeam)
                 else
                     iNetPowerWanted = 2
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': iNetPowerWanted='..iNetPowerWanted..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]) end
                 if M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < iNetPowerWanted then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Want more net power') end
                     bWantMorePower = true
+                else
+                    bWantMorePower = false
                 end
             end
         end
     end
-        if bDebugMessages == true then LOG(sFunctionRef..': End of code, bWantMorePower='..tostring(bWantMorePower)..'; Just built lots of power='..tostring(M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower] or false)..'; HaveLowPower='..tostring(HaveLowPower(iTeam))..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] or 'nil')..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]) end
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        return bWantMorePower
+    --Override if close to the unit cap and have good net energy already
+    if bDebugMessages == true then LOG(sFunctionRef..': Checking if should hold off building due to unit cap, bWantMorePower='..tostring(bWantMorePower)..'; Time since near unit cap='..(GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap] or -100))..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]) end
+    if bWantMorePower and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap] or -100) < 60 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > math.min(250, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.4) then
+        bWantMorePower = false
+        if bDebugMessages == true then LOG(sFunctionRef..': Dont want more power due to unit cap') end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, bWantMorePower='..tostring(bWantMorePower)..'; Just built lots of power='..tostring(M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower] or false)..'; HaveLowPower='..tostring(HaveLowPower(iTeam))..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] or 'nil')..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return bWantMorePower
 end
 
 function WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone)

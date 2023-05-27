@@ -418,6 +418,18 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange] = nil
         tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] = 0
         tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] = M28UnitInfo.GetCombatThreatRating(tStructures, true, true)
+        --Increase structure value for under construction experimentals
+        local tExperimentals = EntityCategoryFilterDown(categories.EXPERIMENTAL * categories.MOBILE, tLZTeamData[M28Map.subrefTEnemyUnits])
+        if M28Utilities.IsTableEmpty(tExperimentals) == false then
+            for iUnit, oUnit in tExperimentals do
+                if oUnit:GetFractionComplete() < 1 then
+                    bDebugMessages = true
+                    tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] = tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] + M28UnitInfo.GetCombatThreatRating({ oUnit }, true, true) * oUnit:GetFractionComplete()
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have under construction experimental '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' in Plateau '..iPlateau..' Zone '..iZone..'; will increase threat for this, fraction complete='..oUnit:GetFractionComplete()..'; structure threat after increase='..tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass]) end
+                end
+            end
+        end
+
         if bDebugMessages == true then LOG(sFunctionRef..': Plateau '..iPlateau..' LZ '..iLandZone..' has enemy units, Enemy combat total='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Is table of enemy structures empty='..tostring(M28Utilities.IsTableEmpty(tStructures))) end
         local iCurThreat
         if M28Utilities.IsTableEmpty(tMobileUnits) == false then
