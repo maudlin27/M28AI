@@ -331,6 +331,7 @@ function M28BrainCreated(aiBrain)
         M28Chat.SendForkedMessage(aiBrain, 'LoadingMap', 'Analysing map, this will freeze the game for a while.  Contact maudlin27 on discord if the freeze lasts more than 2 minutes', 0, 10000, false)
         ForkThread(GameSettingWarningsAndChecks, aiBrain)
         ForkThread(M28Map.SetupMap)
+        ForkThread(UpdateMaxUnitCapForRelevantBrains)
 
         local sStartMessage
 
@@ -530,7 +531,38 @@ function TestCustom(aiBrain)
     M28Utilities.ErrorHandler('Disable testcustom code for final')
 end
 
+function UpdateMaxUnitCapForRelevantBrains()
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'UpdateMaxUnitCapForRelevantBrains'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    for iBrain, oBrain in tAllAIBrainsByArmyIndex do
+        if not(M28Map.bIsCampaignMap) or not(oBrain.BrainType == 'AI') or oBrain.M28AI or oBrain.M27AI then
+            if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; About to update max unit cap for brian '..oBrain.Nickname..'; Brain type='..(oBrain.BrainType or 'nil')) end
+            RefreshMaxUnitCap(oBrain)
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function RefreshMaxUnitCap(aiBrain)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RefreshUnitCap'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; About to set max unit cap for brain '..aiBrain.Nickname..'; Unit cap per scenarioInfo='..(ScenarioInfo.Options.UnitCap or 'nil')..'; Unit cap before update='..aiBrain:GetArmyStat("UnitCap_MaxCap", 0).Value) end
+    if ScenarioInfo.Options.UnitCap then
+        local iUnitCap = tonumber(ScenarioInfo.Options.UnitCap)
+        local iIndex = aiBrain:GetArmyIndex()
+        --SetIgnoreArmyUnitCap(iIndex, true) --Use this and below commented line to ignore unit cap altogther I think based on usage in base FAF code
+        --aiBrain.IgnoreArmyCaps = true
+        SetArmyUnitCap(iIndex, iUnitCap)
+        if bDebugMessages == true then LOG(sFunctionRef..': Brian unit cap after update='..aiBrain:GetArmyStat("UnitCap_MaxCap", 0).Value) end
+    else
+        M28Utilities.ErrorHandler('No unit cap specified', true)
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
 
 
 function Initialisation(aiBrain)
@@ -546,6 +578,7 @@ function Initialisation(aiBrain)
     ForkThread(M28Map.RecordPondToExpandTo, aiBrain)
     --ForkThread(RevealCiviliansToAI, aiBrain)
     ForkThread(RevealCivilainsToAIByGivingVision, aiBrain)
+    ForkThread(RefreshMaxUnitCap, aiBrain) --This logic is  called from a number of palces to try and ensure it overrides things that might be set elsewhere
 
 end
 
@@ -572,7 +605,7 @@ function CheckUnitCap(aiBrain)
         if iUnitCap - iCurUnits < 10 then iMaxToDestroy = math.max(10, iMaxToDestroy) end
         local tUnitsToDestroy
         local tiCategoryToDestroy = {
-            [0] = categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryT1Mex + M28UnitInfo.refCategoryAllAir * categories.TECH2,
+            [0] = categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryAirStaging - M28UnitInfo.refCategoryT1Mex + M28UnitInfo.refCategoryAllAir * categories.TECH2 - M28UnitInfo.refCategoryTransport * categories.TECH2,
             [1] = M28UnitInfo.refCategoryAllAir * categories.TECH1 + categories.NAVAL * categories.MOBILE * categories.TECH1,
             [2] = M28UnitInfo.refCategoryMobileLand * categories.TECH2 - categories.COMMAND - M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryAirScout + M28UnitInfo.refCategoryAirAA * categories.TECH1,
             [3] = M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND,
@@ -589,6 +622,7 @@ function CheckUnitCap(aiBrain)
             if iCurUnits > (iUnitCap - iThreshold * iAdjustmentLevel) or iCurUnitsDestroyed == 0 then
                 tUnitsToDestroy = aiBrain:GetListOfUnits(tiCategoryToDestroy[iAdjustmentLevel], false, false)
                 if M28Utilities.IsTableEmpty(tUnitsToDestroy) == false then
+                    M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] = math.min((M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100), iAdjustmentLevel)
                     for iUnit, oUnit in tUnitsToDestroy do
                         if oUnit.Kill then
                             if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitsDestroyed so far='..iCurUnitsDestroyed..'; Will destroy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to avoid going over unit cap') end
@@ -610,7 +644,8 @@ function CheckUnitCap(aiBrain)
         aiBrain[refiUnitCapCategoriesDestroyed] = iCumulativeCategory
         if bDebugMessages == true then LOG(sFunctionRef..': FInished destroying units, iCurUnitsDestroyed='..iCurUnitsDestroyed) end
     else
-        if aiBrain[refbCloseToUnitCap] then
+        --Only reset cap if we havent reached the higher ctrlk thresholds, unless we have a massive amount of headroom
+        if aiBrain[refbCloseToUnitCap] and (iCurUnits < iUnitCap * 0.5 - 25 or (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) > 1) then
             --Only reset cap if we have a bit of leeway
             if iCurUnits < (iUnitCap - iThreshold * 5) - 20 then
                 aiBrain[refbCloseToUnitCap] = false

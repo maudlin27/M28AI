@@ -163,7 +163,7 @@ function GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFacto
             elseif EntityCategoryContains(categories.TECH2, sBlueprint) then iCurrentTech = 2
             else iCurrentTech = 1
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': sBlueprint='..sBlueprint..': Considering whether we have high enough tech to consider') end
+            if bDebugMessages == true then LOG(sFunctionRef..': Cycling through each blueprint in valid blueprints, sBlueprint='..sBlueprint..': Considering whether we have high enough tech to consider, iCurrentTech='..iCurrentTech..'; iMinTechToUse='..iMinTechToUse) end
             if iCurrentTech >= iMinTechToUse then
                 if not(bGetFastest) and not(bGetSlowest) and not(bGetCheapest) then iCurrentPriority = aiBrain[reftBlueprintPriorityOverride][sBlueprint] end
                 if iCurrentPriority == nil then iCurrentPriority = 0 end
@@ -205,6 +205,9 @@ function GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFacto
         end
 
         local iBPToBuild = math.random(1, iBestBlueprints)
+        if bDebugMessages == true then
+            LOG(sFunctionRef..': End of code, iBestBlueprints='..iBestBlueprints..'; Will return random number if this is more than 1, tBestBlueprints[iBPToBuild]='..(tBestBlueprints[iBPToBuild] or 'nil'))
+        end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return tBestBlueprints[iBPToBuild]
     end
@@ -214,6 +217,10 @@ end
 
 function AdjustBlueprintForOverrides(aiBrain, sBPIDToBuild, tLZTeamData, iFactoryTechLevel)
     --Blacklisted units (done on land subteam basis - in theory should work ok if use naval units or air units here as well)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AdjustBlueprintForOverrides'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     if M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subrefBlueprintBlacklist][sBPIDToBuild] then
         sBPIDToBuild = nil
     else
@@ -266,6 +273,13 @@ function AdjustBlueprintForOverrides(aiBrain, sBPIDToBuild, tLZTeamData, iFactor
                 sBPIDToBuild = nil
             end
         end
+        if sBPIDToBuild and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] <= 1 and (aiBrain[M28Overseer.refiExpectedRemainingCap] < 40 or (aiBrain[M28Overseer.refiExpectedRemainingCap] < 70 and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] == 0)) then
+            --Dont build anything if already have lots of it
+            if bDebugMessages == true then LOG(sFunctionRef..': Are close to unit cap, sBPIDToBuild after initial close to unit override='..(sBPIDToBuild or 'nil')..'; Current units owned of this already='..aiBrain:GetCurrentUnits(sBPIDToBuild)) end
+            if aiBrain:GetCurrentUnits(categories[sBPIDToBuild]) >= 50 then
+                sBPIDToBuild = nil
+            end
+        end
     end
 
     --NoRush
@@ -276,6 +290,7 @@ function AdjustBlueprintForOverrides(aiBrain, sBPIDToBuild, tLZTeamData, iFactor
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return sBPIDToBuild
 end
 
@@ -1523,7 +1538,9 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                 break
             end
             if iTicksWaited >= 200 then
-                M28Utilities.ErrorHandler('oFactory has waited more than 200 ticks and still isnt showing as ready to build, oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; brain nickname=' .. oFactory:GetAIBrain().Nickname .. '; Work progress=' .. oFactory:GetWorkProgress() .. '; Factory fraction complete=' .. oFactory:GetFractionComplete() .. '; Factory status=' .. M28UnitInfo.GetUnitState(oFactory) .. '; Is command queue empty=' .. tostring(M28Utilities.IsTableEmpty(oFactory:GetCommandQueue())) .. '; iWorkProgressStart=' .. (iWorkProgressStart or 'nil'), true)
+                if not(oFactory:GetAIBrain()[M28Overseer.refbCloseToUnitCap]) then
+                    M28Utilities.ErrorHandler('oFactory has waited more than 200 ticks and still isnt showing as ready to build, oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; brain nickname=' .. oFactory:GetAIBrain().Nickname .. '; Work progress=' .. oFactory:GetWorkProgress() .. '; Factory fraction complete=' .. oFactory:GetFractionComplete() .. '; Factory status=' .. M28UnitInfo.GetUnitState(oFactory) .. '; Is command queue empty=' .. tostring(M28Utilities.IsTableEmpty(oFactory:GetCommandQueue())) .. '; iWorkProgressStart=' .. (iWorkProgressStart or 'nil'), true)
+                end
                 break
             elseif iTicksWaited >= 40 then
                 iTicksToWait = math.min(iTicksToWait + 1, 10)
@@ -1732,6 +1749,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
     --subfunctions to mean we can do away with the 'current condition == 1, == 2.....==999 type approach making it much easier to add to
     function ConsiderBuildingCategory(iCategoryToBuild)
         sBPIDToBuild = GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oFactory, nil, nil, nil, nil, false)
+
         if bDebugMessages == true then
             LOG(sFunctionRef .. ': Time=' .. GetGameTimeSeconds() .. ' Factory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; LZ=' .. iLandZone .. '; iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; sBPIDToBuild before adjusting for override=' .. (sBPIDToBuild or 'nil'))
         end
@@ -1974,6 +1992,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 LOG(sFunctionRef .. ': Minimum level of AirAA wanted: Number we have currently=' .. aiBrain:GetCurrentUnits(iAirAASearchCategory))
             end
             if aiBrain:GetCurrentUnits(iAirAASearchCategory) < 3 then
+                if bDebugMessages == true then LOG(sFunctionRef..': We have fewer than 3 of AirAA search category, iFactoryTechLevel='..iFactoryTechLevel) end
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA) then
                     return sBPIDToBuild
                 end
@@ -2063,7 +2082,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
 
             --Gunships subject to mass and existing number
             iCurrentConditionToTry = iCurrentConditionToTry + 1
-            if iCurGunships < 5 or (not (bHaveLowMass) and iCurGunships < 22) then
+            if iCurGunships < 5 or (not (bHaveLowMass) and iCurGunships < 40 and (not(M28Map.bIsCampaignMap) or iCurGunships < 100) and (iCurGunships < 22 or (iFactoryTechLevel >= 3 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 20))) then
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then
                     return sBPIDToBuild
                 end

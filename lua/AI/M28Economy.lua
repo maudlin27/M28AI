@@ -418,6 +418,7 @@ function UpdateHighestFactoryTechLevelForDestroyedUnit(oUnitJustDestroyed)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+
 function UpdateGrossIncomeForUnit(oUnit, bDestroyed)
     --Logs are enabled below
 
@@ -442,6 +443,61 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed)
                     local oBP = oUnit:GetBlueprint()
                     iMassGen = math.max(oBP.Economy.ProductionPerSecondMass or 0) * 0.1
                     iEnergyGen = math.max(oBP.Economy.ProductionPerSecondEnergy or 0) * 0.1
+                    --Adjust for RAS upgrade
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is this an ACU or SACU='..tostring(EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId))) end
+                    if EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then
+                        local iUpgradeMassPerSec = 0
+                        local iUpgradeEnergyPerSec = 0
+
+                        local tPossibleUpgrades = oBP.Enhancements
+                        if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; is tPossibleUpgrades empty='..tostring(M28Utilities.IsTableEmpty(tPossibleUpgrades))) end
+                        if M28Utilities.IsTableEmpty(tPossibleUpgrades) == false then
+                            local tbIncludedUpgrade = {}
+                            for sCurUpgrade, tUpgrade in tPossibleUpgrades do
+                                if oUnit:HasEnhancement(sCurUpgrade) then
+                                    tbIncludedUpgrade[sCurUpgrade] = true
+                                    iUpgradeMassPerSec = iUpgradeMassPerSec + (tUpgrade.ProductionPerSecondMass or 0)
+                                    iUpgradeEnergyPerSec = iUpgradeEnergyPerSec + (tUpgrade.ProductionPerSecondEnergy or 0)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Unit has enhancement '..sCurUpgrade..'; tUpgrade.ProductionPerSecondMass='..(tUpgrade.ProductionPerSecondMass or 'nil')) end
+                                end
+                            end
+
+
+                            --Include built in enhancements (i.e. RAS presets) as there is a delay with onbuilt units showing as having active enhancements
+                            if oBP.EnhancementPresetAssigned.Enhancements then
+                                for iCurUpgrade, sCurUpgrade in oBP.EnhancementPresetAssigned.Enhancements do
+                                    if not(tbIncludedUpgrade[sCurUpgrade]) then
+                                        iUpgradeMassPerSec = iUpgradeMassPerSec + (tPossibleUpgrades[sCurUpgrade].ProductionPerSecondMass or 0)
+                                        iUpgradeEnergyPerSec = iUpgradeEnergyPerSec + (tPossibleUpgrades[sCurUpgrade].ProductionPerSecondEnergy or 0)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Unit has preset enhancement '..sCurUpgrade..'; tUpgrade.ProductionPerSecondMass='..(tPossibleUpgrades[sCurUpgrade].ProductionPerSecondMass or 'nil')..'; reprs='..reprs(tPossibleUpgrades[sCurUpgrade])) end
+                                    end
+                                end
+                            end
+                            --[[local activeEnhancements = SimUnitEnhancements[oUnit.EntityId]
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is activeEnhancements nil='..tostring(activeEnhancements == nil)) end
+                            if activeEnhancements then
+                                local presetEnhancements = oBP.EnhancementPresetAssigned.Enhancements
+                                for _, enhName in activeEnhancements do
+                                    if not(tbIncludedUpgrade[enhName]) then
+                                        tbIncludedUpgrade[enhName] = true
+                                        local enh = tPossibleUpgrades[enhName]
+                                        iUpgradeMassPerSec = iUpgradeMassPerSec + (enh.ProductionPerSecondMass or 0)
+                                        iUpgradeEnergyPerSec = iUpgradeEnergyPerSec + (enh.ProductionPerSecondEnergy or 0)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Unit has preset enhancement '..enhName..'; enh.ProductionPerSecondMass='..(enh.ProductionPerSecondMass or 'nil')) end
+                                    end
+                                end
+                            end--]]
+                        end
+                        iMassGen = iMassGen + iUpgradeMassPerSec * 0.1
+                        iEnergyGen = iEnergyGen + iUpgradeEnergyPerSec * 0.1
+                        if bDebugMessages == true then LOG(sFunctionRef..': iUpgradeMassPerSec='..iUpgradeMassPerSec..'; iMassGen per tick='..iMassGen) end
+                    end
+
+                    --Mass storage - assume we are adjacent to a T2 mex as a basic approximation
+                    if iMassGen == 0 and iEnergyGen == 0 and EntityCategoryContains(M28UnitInfo.refCategoryMassStorage, oUnit.UnitId) then
+                        iMassGen = 0.05
+                    end
+
                     --Adjust for AiX
                     if aiBrain.CheatEnabled then
                         local iAiXMod = tonumber(ScenarioInfo.Options.CheatMult or 1.5)
@@ -495,7 +551,7 @@ function RefreshEconomyGrossValues(aiBrain)
     if bDebugMessages == true then LOG(sFunctionRef..': refreshing gross income for every unit we own time='..GetGameTimeSeconds()..'; size of tEconomyUnits='..table.getn(tEconomyUnits)) end
     for iUnit, oUnit in tEconomyUnits do
         if oUnit:GetFractionComplete() == 1 then
-            UpdateGrossIncomeForUnit(oUnit)
+            UpdateGrossIncomeForUnit(oUnit) --Redundancy
         end
     end
 

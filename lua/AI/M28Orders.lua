@@ -139,6 +139,7 @@ function IssueTrackedClearCommands(oUnit)
 
     --Unit name
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit) end
+    --if oUnit.UnitId == 'xel0305' then LOG('Just cleared orders for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds()) end
 end
 
 function RefreshUnitOrderTracking()  end --Just used to easily find UpdateRecordedOrders
@@ -186,6 +187,7 @@ function UpdateRecordedOrders(oUnit)
             end
         end
     end
+    --if oUnit.UnitId == 'xel0305' then LOG('Just updated orders for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; reprs of last orders='..reprs(oUnit[reftiLastOrders])..'; Is command queue empty='..tostring(M28Utilities.IsTableEmpty(oUnit:GetCommandQueue()))) end
 end
 
 function IssueTrackedMove(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
@@ -206,6 +208,10 @@ function IssueTrackedMove(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddTo
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueMove, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
         IssueMove({oUnit}, tOrderPosition)
+        --[[if oUnit.UnitId == 'xel0305' then
+            LOG('Just sent issuemove order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds()..' to move to '..repru(tOrderPosition)..'; rMapPlayableArea='..repru(M28Map.rMapPlayableArea))
+            M28Utilities.DrawLocation(tOrderPosition)
+        end--]]
     end
     if M28Config.M28ShowUnitNames and tLastOrder[subrefiOrderType] then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 
@@ -556,9 +562,10 @@ function IssueTrackedEnhancement(oUnit, sUpgradeRef, bAddToExistingQueue, sOptio
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderEnhancement, [subrefsOrderBlueprint] = sUpgradeRef})
+        LOG('About ot tell unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; owned by '..oUnit:GetAIBrain().Nickname..' to get enhancement upgrade '..sUpgradeRef..'; ACU upgrade count='..(oUnit[import('/mods/M28AI/lua/AI/M28ACU.lua').refiUpgradeCount] or 'nil'))
         IssueScript({oUnit}, {TaskName = 'EnhanceTask', Enhancement = sUpgradeRef})
         M28Team.UpdateUpgradeTrackingOfUnit(oUnit, false, sUpgradeRef)
-    end
+end
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 end
 

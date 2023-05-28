@@ -418,6 +418,17 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange] = nil
         tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] = 0
         tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] = M28UnitInfo.GetCombatThreatRating(tStructures, true, true)
+        --Increase structure value for under construction experimentals
+        local tExperimentals = EntityCategoryFilterDown(categories.EXPERIMENTAL * categories.MOBILE, tLZTeamData[M28Map.subrefTEnemyUnits])
+        if M28Utilities.IsTableEmpty(tExperimentals) == false then
+            for iUnit, oUnit in tExperimentals do
+                if oUnit:GetFractionComplete() < 1 then
+                    tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] = tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] + M28UnitInfo.GetCombatThreatRating({ oUnit }, true, true) * oUnit:GetFractionComplete()
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have under construction experimental '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' in Plateau '..iPlateau..' Zone '..iZone..'; will increase threat for this, fraction complete='..oUnit:GetFractionComplete()..'; structure threat after increase='..tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass]) end
+                end
+            end
+        end
+
         if bDebugMessages == true then LOG(sFunctionRef..': Plateau '..iPlateau..' LZ '..iLandZone..' has enemy units, Enemy combat total='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Is table of enemy structures empty='..tostring(M28Utilities.IsTableEmpty(tStructures))) end
         local iCurThreat
         if M28Utilities.IsTableEmpty(tMobileUnits) == false then
@@ -634,7 +645,7 @@ function RunFromEnemy(oUnitToRun, oEnemy, iTeam, iPlateau, iDistanceToRun)
 
     local iAngleFromEnemy = M28Utilities.GetAngleFromAToB(oUnitToRun:GetPosition(), oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) - 180
     if iAngleFromEnemy < 0 then iAngleFromEnemy = iAngleFromEnemy + 360 end
-    local tPotentialRunPosition = M28Utilities.MoveInDirection(oUnitToRun:GetPosition(), iAngleFromEnemy, iDistanceToRun, true, false)
+    local tPotentialRunPosition = M28Utilities.MoveInDirection(oUnitToRun:GetPosition(), iAngleFromEnemy, iDistanceToRun, true, false, true)
     --If target not in same plateau then try moving further away by 5 and 10; if still not in same plateau then move back to start position
     local iCurPlateau, iCurLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tPotentialRunPosition)
     local iAlternativeCount = 0
@@ -646,7 +657,7 @@ function RunFromEnemy(oUnitToRun, oEnemy, iTeam, iPlateau, iDistanceToRun)
             break
         else
             iDistanceToRun = iDistanceToRun + 4
-            tPotentialRunPosition = M28Utilities.MoveInDirection(oUnitToRun:GetPosition(), iAngleFromEnemy, iDistanceToRun, true, false)
+            tPotentialRunPosition = M28Utilities.MoveInDirection(oUnitToRun:GetPosition(), iAngleFromEnemy, iDistanceToRun, true, false, true)
             iCurPlateau, iCurLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tPotentialRunPosition)
         end
     end
@@ -866,7 +877,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                                             GetUnitToTravelToLandZone(tAvailableScouts[1], iPlateau, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZAdjacentLandZones][1], M28Map.subrefTScoutsTravelingHere)
                                         else
                                             --No adjacent LZs, and no mexes in this LZ, so just move randomly
-                                            M28Orders.IssueTrackedMove(oScout, M28Utilities.MoveInDirection(oScout:GetPosition(), math.random(1, 360), math.random(10, 30), true, false), 5, false, 'BackupRnd')
+                                            M28Orders.IssueTrackedMove(oScout, M28Utilities.MoveInDirection(oScout:GetPosition(), math.random(1, 360), math.random(10, 30), true, false, true), 5, false, 'BackupRnd')
                                         end
                                     end
                                 end
@@ -1468,13 +1479,13 @@ function MoveToShieldTarget(oShield, tEnemyBase)
     local oBP = oShield:GetBlueprint()
     local iShieldDistanceWanted = math.max(3, oBP.Defense.Shield.ShieldSize * 0.5 - 1 - oBP.Physics.MaxSpeed - (oShield[refoMobileShieldTarget]:GetBlueprint().Physics.MaxSpeed or 0))
     --if oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield) == 'ual030728' and GetGameTimeSeconds() >= 1740 then M28Utilities.ErrorHandler('Audit trail; iShieldDistanceWanted='..iShieldDistanceWanted..'; Shield position='..repru(oShield:GetPosition())..'; Target position='..repru(oShield[refoMobileShieldTarget]:GetPosition())..'; Target='..oShield[refoMobileShieldTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield[refoMobileShieldTarget])..'; Is target valid='..tostring(M28UnitInfo.IsUnitValid(oShield[refoMobileShieldTarget]))..'; Angle from enemy base to unit to shield='..M28Utilities.GetAngleFromAToB(tEnemyBase,oShield[refoMobileShieldTarget]:GetPosition())..'; Desired target position='..repru(M28Utilities.MoveInDirection(oShield[refoMobileShieldTarget]:GetPosition(), M28Utilities.GetAngleFromAToB(tEnemyBase,oShield[refoMobileShieldTarget]:GetPosition()), iShieldDistanceWanted, true, false))) end
-    M28Orders.IssueTrackedMove(oShield, M28Utilities.MoveInDirection(oShield[refoMobileShieldTarget]:GetPosition(), M28Utilities.GetAngleFromAToB(tEnemyBase,oShield[refoMobileShieldTarget]:GetPosition()), iShieldDistanceWanted, true, false), math.min(5, iShieldDistanceWanted - 1), false, 'ShU'..oShield[refoMobileShieldTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield[refoMobileShieldTarget]))
+    M28Orders.IssueTrackedMove(oShield, M28Utilities.MoveInDirection(oShield[refoMobileShieldTarget]:GetPosition(), M28Utilities.GetAngleFromAToB(tEnemyBase,oShield[refoMobileShieldTarget]:GetPosition()), iShieldDistanceWanted, true, false, true), math.min(5, iShieldDistanceWanted - 1), false, 'ShU'..oShield[refoMobileShieldTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield[refoMobileShieldTarget]))
 end
 
 function MoveToStealthTarget(oStealth, tEnemyBase)
     local oBP = oStealth:GetBlueprint()
     local iStealthDistanceWanted = math.max(8, oBP.Intel.RadarStealthFieldRadius - 1 - oBP.Physics.MaxSpeed - (oStealth[refoMobileStealthTarget]:GetBlueprint().Physics.MaxSpeed or 0))
-    M28Orders.IssueTrackedMove(oStealth, M28Utilities.MoveInDirection(oStealth[refoMobileStealthTarget]:GetPosition(), M28Utilities.GetAngleFromAToB(tEnemyBase,oStealth[refoMobileStealthTarget]:GetPosition()), iStealthDistanceWanted, true, false), math.min(5, iStealthDistanceWanted - 1), false, 'StU'..oStealth[refoMobileStealthTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oStealth[refoMobileStealthTarget]))
+    M28Orders.IssueTrackedMove(oStealth, M28Utilities.MoveInDirection(oStealth[refoMobileStealthTarget]:GetPosition(), M28Utilities.GetAngleFromAToB(tEnemyBase,oStealth[refoMobileStealthTarget]:GetPosition()), iStealthDistanceWanted, true, false, true), math.min(5, iStealthDistanceWanted - 1), false, 'StU'..oStealth[refoMobileStealthTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oStealth[refoMobileStealthTarget]))
 end
 
 function ManageMobileShieldsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tMobileShields)
@@ -1963,6 +1974,8 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
     local sFunctionRef = 'ManageRASSACUsInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     --If have mass stored then find the nearest quantum gatway and assist it for now, otherwise do nothing (if enemies in this LZ then will have been sent to the combat unit management already)
     local tQuantumGateways = EntityCategoryFilterDown(M28UnitInfo.refCategoryQuantumGateway, tLZTeamData[M28Map.subrefLZTAlliedUnits])
     local oGateway
@@ -1976,7 +1989,7 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
     end
     if oGateway then
         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.05 and not(M28Conditions.HaveLowPower(iTeam)) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 80 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
-            if M28Map.bIsCampaignMap or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 100 then
+            if (M28Map.bIsCampaignMap or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 100) and oGateway:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryRASSACU) < 50 then
                 bNotAssistingGateway = false
                 for iUnit, oUnit in tRASSACU do
                     M28Orders.IssueTrackedGuard(oUnit, oGateway, false, 'RASQG', false)
@@ -1984,52 +1997,65 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
             end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': oGateway='..(oGateway.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oGateway) or 'nil')..'; bNotAssistingGateway='..tostring(bNotAssistingGateway)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Have low power='..tostring(M28Conditions.HaveLowPower(iTeam))) end
     if bNotAssistingGateway then
         local tUnitsToAssist = {}
         --If building an experimental and dont have low mass then assist it
+        if bDebugMessages == true then LOG(sFunctionRef..': Does team have low mass='..tostring(M28Conditions.TeamHasLowMass(iTeam))..'; Is table of engineers building experimentals empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals]))..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone) end
         if not(M28Conditions.TeamHasLowMass(iTeam)) and not(M28Conditions.HaveLowPower(iTeam)) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals]) == false then
 
             local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
             local tExperimentalLevelUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryExperimentalLevel, tLZData[M28Map.subrefMidpoint], 100, 'Ally')
+            if bDebugMessages == true then LOG(sFunctionRef..': Is table of experimental level units empty='..tostring(M28Utilities.IsTableEmpty( tExperimentalLevelUnits))) end
             if M28Utilities.IsTableEmpty( tExperimentalLevelUnits) == false then
                 for iUnit, oUnit in tExperimentalLevelUnits do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering nearby experimental '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fraction complete='..oUnit:GetFractionComplete()) end
                     if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() < 1 then
                         table.insert(tUnitsToAssist, oUnit)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to table of units to assist') end
                     end
                 end
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': Do we have any units to assist? is table empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToAssist))) end
         if M28Utilities.IsTableEmpty(tUnitsToAssist) then
             --If have upgrading unit then assist this
+            if bDebugMessages == true then LOG(sFunctionRef..': Is table of active upgrades empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]))) end
             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]) == false then tUnitsToAssist = tLZTeamData[M28Map.subrefActiveUpgrades]
             else
                 --Assist shield if need to defend from arti
+                if bDebugMessages == true then LOG(sFunctionRef..': Is table of priority shields to assist empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]))..'; Defending against arti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])) end
                 if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]) == false then
                     tUnitsToAssist = tLZTeamData[M28Map.reftPriorityShieldsToAssist]
                 else
                     --otherwise assist an air factory if we have one
                     tUnitsToAssist = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                    if bDebugMessages == true then LOG(sFunctionRef..': Setting unit to assist to be an air factory, is tUnitsToAssist empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToAssist))) end
                 end
             end
         end
-
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished saerching for potential units to assist, is table empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToAssist))) end
         if M28Utilities.IsTableEmpty(tUnitsToAssist) == false then
             local tStartPoint
             if oGateway then tStartPoint = oGateway:GetPosition()
             else tStartPoint = tLZData[M28Map.subrefMidpoint]
             end
-            local oClosestUnitToAssist = M28Utilities.GetNearestUnit(tRASSACU, tStartPoint)
+            local oClosestUnitToAssist = M28Utilities.GetNearestUnit(tUnitsToAssist, tStartPoint)
+            if bDebugMessages == true then LOG(sFunctionRef..': oClosestUnitToAssist='..(oClosestUnitToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestUnitToAssist) or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oClosestUnitToAssist))) end
             if not(M28UnitInfo.IsUnitValid(oClosestUnitToAssist)) then M28Utilities.ErrorHandler('No unit to assist for RAS', true)
             else
                 for iUnit, oUnit in tRASSACU do
                     M28Orders.IssueTrackedGuard(oUnit, oClosestUnitToAssist, false, 'RASAs', false)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Telling RAS '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to assist unit') end
                 end
             end
 
         else
             --Othewrise clear orders if nothing to assist
             for iUnit, oUnit in tRASSACU do
-                M28Orders.IssueTrackedClearCommands(oUnit)
+                if not(oUnit[M28UnitInfo.refbSpecialMicroActive]) and not(oUnit:IsUnitState('Moving')) and (oUnit:IsUnitState('Repairing') or oUnit:IsUnitState('Building') or oUnit:IsUnitState('Guarding')) then
+                    M28Orders.IssueTrackedClearCommands(oUnit)
+                end
             end
         end
     end
@@ -2266,10 +2292,10 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             if tLZTeamData[M28Map.subrefLZbCoreBase] then
                 --Adjust rally points for core base if nearby enemy in case we end up going closer to the enemy instead of furhter away
                 if M28Utilities.GetDistanceBetweenPositions(tAmphibiousRallyPoint, tLZData[M28Map.subrefMidpoint]) <= 5 then
-                    tAmphibiousRallyPoint = M28Utilities.MoveInDirection(tLZData[M28Map.subrefMidpoint], M28Utilities.GetAngleFromAToB(oNearestEnemyToMidpoint:GetPosition(), tLZData[M28Map.subrefMidpoint]), 40, true, false)
+                    tAmphibiousRallyPoint = M28Utilities.MoveInDirection(tLZData[M28Map.subrefMidpoint], M28Utilities.GetAngleFromAToB(oNearestEnemyToMidpoint:GetPosition(), tLZData[M28Map.subrefMidpoint]), 40, true, false, true)
                 end
                 if M28Utilities.GetDistanceBetweenPositions(tRallyPoint, tLZData[M28Map.subrefMidpoint]) <= 5 then
-                    tRallyPoint = M28Utilities.MoveInDirection(tLZData[M28Map.subrefMidpoint], M28Utilities.GetAngleFromAToB(oNearestEnemyToMidpoint:GetPosition(), tLZData[M28Map.subrefMidpoint]), 40, true, false)
+                    tRallyPoint = M28Utilities.MoveInDirection(tLZData[M28Map.subrefMidpoint], M28Utilities.GetAngleFromAToB(oNearestEnemyToMidpoint:GetPosition(), tLZData[M28Map.subrefMidpoint]), 40, true, false, true)
                 end
             end
 
@@ -2470,16 +2496,16 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 end
                                 if EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oSRUnit.UnitId) then
                                     if oSRUnit[M28UnitInfo.refbCanKite] then
-                                        M28Orders.IssueTrackedMove(oSRUnit, M28Utilities.MoveInDirection(oClosestUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tAmphibiousRallyPoint), 5, true, false), 5, false, 'ASRSup'..iLandZone)
+                                        M28Orders.IssueTrackedMove(oSRUnit, M28Utilities.MoveInDirection(oClosestUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tAmphibiousRallyPoint), 5, true, false, true), 5, false, 'ASRSup'..iLandZone)
                                     else
-                                        M28Orders.IssueTrackedAttackMove(oSRUnit, M28Utilities.MoveInDirection(oClosestUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tAmphibiousRallyPoint), 5, true, false), 5, false, 'AASRSup'..iLandZone)
+                                        M28Orders.IssueTrackedAttackMove(oSRUnit, M28Utilities.MoveInDirection(oClosestUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tAmphibiousRallyPoint), 5, true, false, true), 5, false, 'AASRSup'..iLandZone)
                                     end
 
                                 else
                                     if oSRUnit[M28UnitInfo.refbCanKite] then
-                                        M28Orders.IssueTrackedMove(oSRUnit, M28Utilities.MoveInDirection(oClosestUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tRallyPoint), 5, true, false), 5, false, 'SRSup'..iLandZone)
+                                        M28Orders.IssueTrackedMove(oSRUnit, M28Utilities.MoveInDirection(oClosestUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tRallyPoint), 5, true, false, true), 5, false, 'SRSup'..iLandZone)
                                     else
-                                        M28Orders.IssueTrackedAttackMove(oSRUnit, M28Utilities.MoveInDirection(oClosestUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tRallyPoint), 5, true, false), 5, false, 'SRSup'..iLandZone)
+                                        M28Orders.IssueTrackedAttackMove(oSRUnit, M28Utilities.MoveInDirection(oClosestUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), tRallyPoint), 5, true, false, true), 5, false, 'SRSup'..iLandZone)
                                     end
                                 end
                             end
@@ -2682,7 +2708,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
                     if bConsolidateAtMidpoint then
                         if oClosestFriendlyUnitToAnEnemyFirebase then
-                            tRallyPoint = M28Utilities.MoveInDirection(oClosestFriendlyUnitToAnEnemyFirebase:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestFriendlyUnitToAnEnemyFirebase:GetPosition(), tLZData[M28Map.subrefMidpoint]), math.min(M28Utilities.GetDistanceBetweenPositions(oClosestFriendlyUnitToAnEnemyFirebase:GetPosition(), tRallyPoint), 15), true, false)
+                            tRallyPoint = M28Utilities.MoveInDirection(oClosestFriendlyUnitToAnEnemyFirebase:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestFriendlyUnitToAnEnemyFirebase:GetPosition(), tLZData[M28Map.subrefMidpoint]), math.min(M28Utilities.GetDistanceBetweenPositions(oClosestFriendlyUnitToAnEnemyFirebase:GetPosition(), tRallyPoint), 15), true, false, true)
                             local iAltPlateau, iAltLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tRallyPoint)
                             if not(iAltPlateau == iPlateau) then
                                 tRallyPoint = GetPositionAtOrNearTargetInPathingGroup(oClosestFriendlyUnitToAnEnemyFirebase:GetPosition(), tRallyPoint, 0, 0, oClosestFriendlyUnitToAnEnemyFirebase, false, false, nil)

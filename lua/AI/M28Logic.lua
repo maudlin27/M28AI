@@ -101,7 +101,7 @@ function IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, iAOE, bRet
         for iPointToTarget = 1, iEndPoint do
             --math.min(math.floor(iFlatDistance), math.max(math.floor(iStartDistance or 1),1)), math.floor(iFlatDistance) do
             --MoveTowardsTarget(tStartPos, tTargetPos, iDistanceToTravel, iAngle)
-            tTerrainPositionAtPoint = M28Utilities.MoveInDirection(tShotStartPosition, M28Utilities.GetAngleFromAToB(tShotStartPosition, tShotEndPosition), iPointToTarget, false, false)
+            tTerrainPositionAtPoint = M28Utilities.MoveInDirection(tShotStartPosition, M28Utilities.GetAngleFromAToB(tShotStartPosition, tShotEndPosition), iPointToTarget, false, false, false)
             if bDebugMessages == true then LOG(sFunctionRef..': iPointToTarget='..iPointToTarget..'; tTerrainPositionAtPoint='..repru(tTerrainPositionAtPoint)) end
             if bStartHigherThanEnd then iShotHeightAtPoint = tShotStartPosition[2] - math.sin(iAngleInRadians) * iPointToTarget
             else iShotHeightAtPoint = tShotStartPosition[2] + math.sin(iAngleInRadians) * iPointToTarget
@@ -388,7 +388,7 @@ function GetDamageFromOvercharge(aiBrain, oTargetUnit, iAOE, iDamage, bTargetWal
 end
 
 
-function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor)
+function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies)
     --Below is largely a copy of M27 logic
     --iFriendlyUnitDamageReductionFactor - optional, assumed to be 0 if not specified; will reduce the damage from the bomb by any friendly units in the aoe
     --iFriendlyUnitAOEFactor - e.g. if 2, then will search for friendly units in 2x the aoe
@@ -401,6 +401,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetDamageFromBomb'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
 
 
     local iTotalDamage = 0
@@ -416,7 +417,40 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
     else
         iCategoryToSearch = M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryAllNavy + M28UnitInfo.refCategoryAllAir * categories.EXPERIMENTAL
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start, Time='..GetGameTimeSeconds()..'; bCheckForShields='..tostring(bCheckForShields)..'; tBaseLocation='..repru(tBaseLocation)..'; iAOE='..iAOE..'; iDamage='..iDamage..'; bCumulativeShieldHealthCheck='..tostring(bCumulativeShieldHealthCheck or false)..'; iOptionalSizeAdjust='..(iOptionalSizeAdjust or 'nil')..'; iOptionalModIfNeedMultipleShots='..(iOptionalModIfNeedMultipleShots or 'nil')..'; iMobileValueOverrideFactorWithin75Percent='..(iMobileValueOverrideFactorWithin75Percent or 'nil')..'; bT3ArtiShotReduction='..tostring(bT3ArtiShotReduction or false)..'; iOptionalShieldReductionFactor='..(iOptionalShieldReductionFactor or 'nil')) end
     local tEnemiesInRange = aiBrain:GetUnitsAroundPoint(iCategoryToSearch, tBaseLocation, iAOE + 4, 'Enemy')
+    --Expand enemies in range with any unseen enemies (e.g. these will be enemies that are firing at us or we have intel of previously but have now lost)
+    if bIncludePreviouslySeenEnemies then
+        local tLZOrWZData
+        local tLZOrWZTeamData
+        local iPlateauOrZero, iLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tBaseLocation)
+
+        if (iLZOrWZ or 0) > 0 then
+            if iPlateauOrZero == 0 then
+                tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLZOrWZ]][M28Map.subrefPondWaterZones][iLZOrWZ]
+                tLZOrWZTeamData = tLZOrWZData[M28Map.subrefWZTeamData][aiBrain.M28Team]
+            else
+                tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLZOrWZ]
+                tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][aiBrain.M28Team]
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering unseen enemies, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLZOrWZ='..(iLZOrWZ or 'nil')..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]))) end
+        if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+            for iUnit, oUnit in tLZOrWZTeamData[M28Map.subrefTEnemyUnits] do
+                if bDebugMessages == true then
+                    if M28UnitInfo.IsUnitValid(oUnit) then
+                        LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Can see unit='..tostring(M28UnitInfo.CanSeeUnit(aiBrain, oUnit, true))..'; Unit pos='..repru(oUnit:GetPosition())..'; Dist to base location='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBaseLocation))
+                    end
+                end
+                if M28UnitInfo.IsUnitValid(oUnit) and not(M28UnitInfo.CanSeeUnit(aiBrain, oUnit, true)) then
+                    if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBaseLocation) <= iAOE + 4 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Adding unseen unit to enemies in range') end
+                        table.insert(tEnemiesInRange, oUnit)
+                    end
+                end
+            end
+        end
+    end
     local oCurBP
     local iMassFactor
     local iCurHealth, iMaxHealth
@@ -469,7 +503,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
             end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemies in range empty='..tostring(M28Utilities.IsTableEmpty(tEnemiesInRange))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemies in range empty='..tostring(M28Utilities.IsTableEmpty(tEnemiesInRange))..'; tBaselocation='..repru(tBaseLocation)) end
     if M28Utilities.IsTableEmpty(tEnemiesInRange) == false then
         local iShieldThreshold = math.max(iDamage * 0.9, iDamage - 500)
         local iCurDist
@@ -505,7 +539,12 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
         end
 
         for iUnit, oUnit in tEnemiesInRange do
-            if oUnit.GetBlueprint and not(oUnit.Dead) and oUnit:GetFractionComplete() == 1 or not(EntityCategoryContains(categories.AIR * categories.MOBILE, oUnit.UnitId)) then
+            if bDebugMessages == true then
+                if M28UnitInfo.IsUnitValid(oUnit) then
+                    LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fraction complete='..oUnit:GetFractionComplete()..'; Is unit mobile air='..tostring(EntityCategoryContains(categories.AIR * categories.MOBILE, oUnit.UnitId))..'; Distance to tBaseLocation='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBaseLocation))
+                end
+            end
+            if oUnit.GetBlueprint and not(oUnit.Dead) and (oUnit:GetFractionComplete() < 1 or not(EntityCategoryContains(categories.AIR * categories.MOBILE, oUnit.UnitId))) then
                 iMassFactor = 1
                 oCurBP = oUnit:GetBlueprint()
                 --Is the unit within range of the aoe?
@@ -515,7 +554,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
                     --Is the unit shielded by more than 90% of our damage?
                     --IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisHealth, bReturnShieldHealthInstead, bIgnoreMobileShields, bTreatPartCompleteAsComplete, bCumulativeShieldHealth)
                     if bCheckForShields and IsTargetUnderShield(aiBrain, oUnit, iShieldThreshold, false, false, nil, bCumulativeShieldHealthCheck) then iMassFactor = (iOptionalShieldReductionFactor or 0) end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Mass factor after considering if under shield='..iMassFactor) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Mass factor after considering if under shield='..iMassFactor..'; iOptionalShieldReductionFactor='..(iOptionalShieldReductionFactor or 'nil')..'; Is target under shield='..tostring(IsTargetUnderShield(aiBrain, oUnit, iShieldThreshold, false, false, nil, bCumulativeShieldHealthCheck))) end
                     if iMassFactor > 0 then
                         if bCheckForShields then
                             iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit)

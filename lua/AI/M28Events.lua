@@ -332,7 +332,7 @@ function OnUnitDeath(oUnit)
                         --Run unit type specific on death logic where the unit is completed
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering if need to run certain M28AI on death logic, unit fraction ocmplete='..oUnit:GetFractionComplete()) end
                         if oUnit:GetFractionComplete() == 1 then
-                            M28Economy.UpdateGrossIncomeForUnit(oUnit, true)
+                            M28Economy.UpdateGrossIncomeForUnit(oUnit, true) --Dont fork thread
                             if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
                                 M28Engineer.ClearEngineerTracking(oUnit)
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryScathis, oUnit.UnitId) then
@@ -387,26 +387,31 @@ function OnEnhancementComplete(oUnit, sEnhancement)
         local sFunctionRef = 'OnEnhancementComplete'
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-        if bDebugMessages == true then LOG(sFunctionRef..': Enhancement completed for self='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; sEnhancement='..reprs(sEnhancement)) end
-        M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit)
-        M28UnitInfo.RecordUnitRange(oUnit) --Refresh the range incase enhancement has increased anything
-        --Update ACU upgrade count
-        if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
-            oUnit[M28ACU.refiUpgradeCount] = (oUnit[M28ACU.refiUpgradeCount] or 0) + 1
-        end
-        --Fix AiX modifier
-        if oUnit:GetAIBrain().CheatEnabled then
-            M28UnitInfo.FixUnitResourceCheatModifiers(oUnit)
-        end
-        if oUnit:GetAIBrain().M28AI then
+        --Check we haven't just run this
+        if GetGameTimeSeconds() - (oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete][sEnhancement] or -100) >= 0.5 then
+            if not(oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete]) then oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete] = {} end
+            oUnit[M28UnitInfo.reftiTimeOfLastEnhancementComplete][sEnhancement] = GetGameTimeSeconds()
+            if bDebugMessages == true then LOG(sFunctionRef..': Enhancement completed for self='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..'; sEnhancement='..reprs(sEnhancement)..'; Has enhancement for this='..tostring(oUnit:HasEnhancement(sEnhancement))) end
+            M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit)
+            M28UnitInfo.RecordUnitRange(oUnit) --Refresh the range incase enhancement has increased anything
+            --Update ACU upgrade count
             if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
-                M28ACU.GetUpgradePathForACU(oUnit)
+                oUnit[M28ACU.refiUpgradeCount] = (oUnit[M28ACU.refiUpgradeCount] or 0) + 1
             end
-            --Remove any upgrade tracking
-            M28Team.UpdateUpgradeTrackingOfUnit(oUnit, true, sEnhancement)
+            --Fix AiX modifier
+            if oUnit:GetAIBrain().CheatEnabled then
+                M28UnitInfo.FixUnitResourceCheatModifiers(oUnit)
+            end
+            if oUnit:GetAIBrain().M28AI then
+                if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+                    M28ACU.GetUpgradePathForACU(oUnit)
+                end
+                --Remove any upgrade tracking
+                M28Team.UpdateUpgradeTrackingOfUnit(oUnit, true, sEnhancement)
+            end
+            M28UnitInfo.RecordUnitRange(oUnit)
+            if bDebugMessages == true then LOG(sFunctionRef..': Unit DF range after updating recorded range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')) end
         end
-        M28UnitInfo.RecordUnitRange(oUnit)
-        if bDebugMessages == true then LOG(sFunctionRef..': Unit DF range after updating recorded range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')) end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
 end
@@ -1292,7 +1297,12 @@ function OnMissileImpactTerrain(self, target, position)
 end
 
 function OnPlayableAreaChange(rect, voFlag)
-    M28Map.SetupPlayableAreaAndSegmentSizes()
+    local ScenarioUtils = import("/lua/sim/scenarioutilities.lua")
+    if type(rect) == 'string' then
+        rect = ScenarioUtils.AreaToRect(rect)
+    end
+    M28Map.SetupPlayableAreaAndSegmentSizes(rect)
+    ForkThread(M28Overseer.UpdateMaxUnitCapForRelevantBrains)
 end
 
 function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
@@ -1310,7 +1320,7 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
 
 
     --Record capture missions
-    if bDebugMessages == true then LOG('Have a mission, Title='..Title..'; Description='..Description..'; Target.captured='..(Target.captured or 'nil')) end
+    if bDebugMessages == true then LOG('Have a mission, Title='..Title..'; Description='..Description..'; Target.captured='..(Target.captured or 'nil')..'; reprs of Target='..reprs(Target)) end
     if Target.captured == 0 then
         if bDebugMessages == true then  LOG('Have a capture mission, is target empty='..tostring(M28Utilities.IsTableEmpty(Target))) end
         --Record every unit to be captured
@@ -1335,6 +1345,65 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                 end
             end
         end
+    elseif M28Utilities.IsTableEmpty(Target.Units) == false then
+        local bOnlyHaveAllies = true
+        local bHaveLowHealthAlly = true
+        local oFirstM28Brain
+        for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
+            oFirstM28Brain = oBrain
+            break
+        end
+        local tUnitsToRepair = {}
+        for iUnit, oUnit in Target.Units do
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Health%='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; Is enemy='..tostring(IsEnemy(oFirstM28Brain:GetArmyIndex(),  oUnit:GetAIBrain():GetArmyIndex()))..'; IsAlly='..tostring(IsAlly(oFirstM28Brain:GetArmyIndex(),  oUnit:GetAIBrain():GetArmyIndex()))) end
+            if M28UnitInfo.IsUnitValid(oUnit) then
+                if IsAlly(oFirstM28Brain:GetArmyIndex(),  oUnit:GetAIBrain():GetArmyIndex()) then
+                    if M28UnitInfo.GetUnitHealthPercent(oUnit) < 1 then
+                        table.insert(tUnitsToRepair, oUnit)
+                    else
+                        bHaveLowHealthAlly = false
+                    end
+                else
+                    bOnlyHaveAllies = false
+                    if IsEnemy(oFirstM28Brain:GetArmyIndex(),  oUnit:GetAIBrain():GetArmyIndex()) then
+                        --Make sure we are tracking this unit
+                        if bDebugMessages == true then LOG(sFunctionRef..': Sent enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to be recorded in case we lack intel of it, is oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam] true for first M28brain='..tostring(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][oFirstM28Brain.M28Team] or false)) end
+                        M28Team.AssignUnitToLandZoneOrPond(oFirstM28Brain, oUnit, nil, nil, true)
+
+                    end
+                end
+            end
+        end
+        if bHaveLowHealthAlly and M28Utilities.IsTableEmpty(tUnitsToRepair) == false then
+            local iPlateauOrZero, iLandOrWaterZone
+            for iEntry, oUnit in tUnitsToRepair do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering iEntry='..iEntry..' in tUnitsToRepair; Is valid unit='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
+                if M28UnitInfo.IsUnitValid(oUnit) then
+                    iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                    local tLZOrWZData
+                    if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; Unit position='..repru(oUnit:GetPosition())) end
+                    if iLandOrWaterZone > 0 then
+                        if iPlateauOrZero == 0 then
+                            tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+                        else
+                            tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+                        end
+                        if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToRepair]) then tLZOrWZData[M28Map.subreftoUnitsToRepair] = {} end
+                        table.insert(tLZOrWZData[M28Map.subreftoUnitsToRepair], oUnit)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of units to repair') end
+                    end
+                end
+            end
+        elseif bOnlyHaveAllies then
+            for iUnit, oUnit in Target.Units do
+                if M28UnitInfo.IsUnitValid(oUnit) then
+                    M28Air.AddPriorityAirDefenceTarget(oUnit)
+                end
+            end
+        end
     end
+
+    ForkThread(M28Overseer.UpdateMaxUnitCapForRelevantBrains)
+
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
