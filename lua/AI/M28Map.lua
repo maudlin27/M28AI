@@ -191,6 +191,8 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZTThreatAllyCombatTotal = 'ACTotal'
             subrefLZDFThreatWanted = 'DFWanted'
             subrefLZMAAThreatWanted = 'MAAThreatWanted'
+            subrefiNearbyEnemyLongRangeThreat = 'NrEnLRT' --Number equalling the threat value; intended for fatboys who can outrange adjacent land zones - for enemies that arent in this zone but have a long range and are close to being in range of this zone
+            subrefoNearbyEnemyLongRangeThreats = 'NrEnLRU' --As above, but a table of the units (likely a table of fatboys)
             subrefLZThreatEnemyMobileDFByRange = 'EMDFByRange'
             subrefLZThreatEnemyMobileDFTotal = 'EMDFTo'
             subrefLZThreatAllyMobileDFByRange = 'AMDFByRange'
@@ -2833,7 +2835,7 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
     end
 
     if M28Utilities.IsTableEmpty(tEnemyBases) then
-        local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
+        local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
         if aiBrain then
             table.insert(tEnemyBases, GetPrimaryEnemyBaseLocation(aiBrain))
         end
@@ -2901,7 +2903,7 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam)
         end
 
         if M28Utilities.IsTableEmpty(tEnemyBases) then
-            local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
+            local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
             if aiBrain then
 
                 table.insert(tEnemyBases, GetPrimaryEnemyBaseLocation(aiBrain))

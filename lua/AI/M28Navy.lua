@@ -1615,7 +1615,7 @@ function WaterZoneOverseer(iTeam)
     WaitSeconds(1) --make sure other code such as team initialisation has run
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
+    local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
 
     if bDebugMessages == true then LOG(sFunctionRef..': About to start the main loop for water zones provided we have friendly M28 brains in the team '..iTeam..'; is table empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))) end
 
@@ -1630,7 +1630,7 @@ function WaterZoneOverseer(iTeam)
         WaitSeconds(1)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         if aiBrain.M28IsDefeated and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
-            aiBrain = M28Team.GetFirstActiveBrain(iTeam)
+            aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
         end
         if bDebugMessages == true then LOG(sFunctionRef..': About to restart the loop for team '..iTeam..'; aiBrain referred to='..(aiBrain.Nickname or 'nil')..'; Is table of active m28 brains='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))) end
     end
@@ -1871,7 +1871,7 @@ function AssignBombardmentActions(tWZData, iPond, iTeam, tPotentialBombardmentUn
         iBombardmentBuildingCategory = iBombardmentBuildingCategory - categories.TECH1 + M28UnitInfo.refCategoryTorpedoLauncher
     end
 
-    local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
+    local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
     if aiBrain then
 
         local iCurDist
@@ -2347,7 +2347,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
 
 
         if bUpdateNearestUnit and oNearestEnemyToMidpoint then
-            local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
+            local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
             if aiBrain then
                 M28Team.UpdateUnitLastKnownPosition(aiBrain, oNearestEnemyToMidpoint, true)
                 if oNearestEnemyNonHoverToMidpoint and not(oNearestEnemyNonHoverToMidpoint == oNearestEnemyToMidpoint) then M28Team.UpdateUnitLastKnownPosition(aiBrain, oNearestEnemyNonHoverToMidpoint, true) end
@@ -2357,7 +2357,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
 
         local bMoveAntiNavyForwardsAsCantSee = false
         if oNearestEnemyNonHoverToMidpoint and tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] and tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] < tWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy] then
-            local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
+            local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
             if aiBrain then
                 if not(M28Conditions.CanSeeUnit(aiBrain, oNearestEnemyNonHoverToMidpoint, false)) then
                     bMoveAntiNavyForwardsAsCantSee = true
@@ -3144,7 +3144,7 @@ function UpdateSonarCoverageForDestroyedSonar(oSonar)
         for iTeam, tSonarData in oSonar[reftiSonarWaterZonesCoveredByTeam] do
             --local aiBrain = oSonar:GetAIBrain()
             --local iTeam = aiBrain.M28Team
-            local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
+            local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
             if aiBrain then
                 local iPond
                 for iEntry, iWaterZone in tSonarData do

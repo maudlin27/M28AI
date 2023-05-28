@@ -61,7 +61,7 @@ function RecordNewAirUnitForTeam(iTeam, oUnit)
         table.insert(M28Team.tTeamData[iTeam][M28Team.reftoAllEnemyAir], oUnit)
 
         local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
-        local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
+        local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
         if aiBrain then
 
             if iPlateauOrZero == 0 then
@@ -121,7 +121,7 @@ function RefreshZonelessAir(iTeam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoEnemyUnitsWithNoLZ]) == false and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
-        local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
+        local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
 
         if aiBrain then
             --UpdateUnitPositionsAndLandZone(aiBrain, tUnits,                                                       iTeam, iRecordedPlateau, iRecordedLandZone, bUseLastKnownPosition, bAreAirUnits)

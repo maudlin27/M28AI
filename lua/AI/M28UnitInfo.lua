@@ -44,7 +44,7 @@ refbSpecialMicroActive = 'M28UnitSpecialMicroActive'
 refiGameTimeToResetMicroActive = 'M28UnitTimeToResetMicro' --Gametimeseconds
 
     --Ranges and weapon details
-refiDFRange = 'M28UDFR'
+refiDFRange = 'M28UDFR' --(fatboy df range gets treated as range of its indirect cannons)
 refiDFAOE = 'M28AOEDF' --aoe of a df weapon of a unit
 refiIndirectAOE = 'M28AOEIn' --aoe of an indirect weapon of a unit; includes manual ranges
 refiIndirectRange = 'M28UIR' --for non-manual fire weapons
