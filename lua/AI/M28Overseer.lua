@@ -157,9 +157,9 @@ function GetNearestEnemyBrain(aiBrain)
     return aiBrain[refoNearestEnemyBrain]
 end
 
-function GameSettingWarningsAndChecks(aiBrain)
+function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
     --One once at start of the game if an M28 brain is present
-    local sFunctionRef = 'GameSettingWarningsAndChecks'
+    local sFunctionRef = 'GameSettingWarningsChecksAndInitialChatMessages'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -218,6 +218,7 @@ function GameSettingWarningsAndChecks(aiBrain)
 
     local iSimModCount = 0
     local bFlyingEngineers
+    local bM27InGame = false
     for iMod, tModData in tSimMods do
         if not (tModIsOk[tModData.name]) and tModData.enabled and not (tModData.ui_only) then
             iSimModCount = iSimModCount + 1
@@ -242,6 +243,7 @@ function GameSettingWarningsAndChecks(aiBrain)
                 for iAIMod, sAIMod in tAIModNameWhereExpectAI do
                     if sAIMod == tModData.name then
                         bHaveOtherAIMod = true
+                        if sAIMod == 'M27AI' then bM27InGame = true end
                         break
                     end
                 end
@@ -281,6 +283,20 @@ function GameSettingWarningsAndChecks(aiBrain)
     if iSimModCount > 0 then
         sIncompatibleMessage = sIncompatibleMessage .. '. '
     end
+    local bDontPlayWithM27 = false
+    local iHumans = 0
+    for iBrain, oBrain in ArmyBrains do
+        if oBrain.BrainType == 'Human' then
+            iHumans = iHumans + 1
+        end
+    end
+    if bM27InGame then
+        --Count how many players - if more than 1 then desync risk
+        if iHumans >= 1 then
+            bDontPlayWithM27 = true --Azraeel came across desyncs when playing with M27 and M28 together
+            bIncompatible = true
+        end
+    end
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Finished checking compatibility; compatibility message=' .. sIncompatibleMessage .. '; iSimModCount=' .. iSimModCount)
     end
@@ -296,10 +312,47 @@ function GameSettingWarningsAndChecks(aiBrain)
     end
 
     if bIncompatible then
-        M28Chat.SendMessage(aiBrain, 'SendGameCompatibilityWarning', 'Detected '..sIncompatibleMessage .. ' if you come across M28AI issues with these settings/mods let maudlin27 know via Discord', 0, 10)
+        if bDontPlayWithM27 then
+            if sUnnecessaryAIMod and not(bHaveOtherAI) then
+                M28Chat.SendMessage(aiBrain, 'SendGameCompatibilityWarning', 'Sorry I don’t like it when M28AI is watching and adults are around - he teases me about how much better he is and sometimes the game desyncs.  Please disable the M27AI mod.', 15, 15)
+            else
+                M28Chat.SendMessage(aiBrain, 'SendGameCompatibilityWarning', 'Sorry I don’t get on well with my brother M27 when adults are around – he teases me about how much better he is and sometimes the game desyncs', 15, 15)
+            end
+        else
+            M28Chat.SendMessage(aiBrain, 'SendGameCompatibilityWarning', 'Detected '..sIncompatibleMessage .. ' if you come across M28AI issues with these settings/mods let maudlin27 know via Discord', 0, 10)
+        end
     end
-    if bHaveOtherAIMod and not(bHaveOtherAI) and sUnnecessaryAIMod then
+    if not(bDontPlayWithM27) and bHaveOtherAIMod and not(bHaveOtherAI) and sUnnecessaryAIMod then
         M28Chat.SendMessage(aiBrain, 'UnnecessaryMods', 'No other AI detected, These AI mods can be disabled: '..sUnnecessaryAIMod, 1, 10)
+    end
+
+    if not(bDontPlayWithM27) then
+        local sStartMessage
+
+        if M28Map.bIsCampaignMap then
+            local iRand = math.random(1,5)
+            if iRand == 1 then sStartMessage = 'Lets do this!'
+            elseif iRand == 2 then sStartMessage = 'Time to foil their plans'
+            elseif iRand == 3 then sStartMessage = 'I didnt ask for this...'
+            elseif iRand == 4 then sStartMessage = 'Its time to end this'
+            elseif iRand == 5 then sStartMessage = 'I hope youve got my back commander'
+            elseif iRand == 6 then sStartMessage = 'So...I just need to eco right?'
+            elseif iRand == 7 then sStartMessage = 'This doesnt look as easy as the simulation...'
+            end
+        else
+            local iRand = math.random(1,3)
+            if iRand == 1 then sStartMessage = 'gl hf'
+            elseif iRand == 2 then sStartMessage = 'gl'
+            elseif iRand == 3 then
+                if iHumans > 1 and math.random(1,2) == 1 then
+                    sStartMessage = 'Time to separate the wheat from the chaff'
+                else
+                    sStartMessage = '/82' -- QAI: If you destroy this ACU, another shall rise in its place. I am endless.
+                end
+            end
+        end
+        --SendMessage(aiBrain, sMessageType, sMessage, iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU)
+        M28Chat.SendMessage(aiBrain, 'Start', sStartMessage, 40,                     60,                                false,          M28Map.bIsCampaignMap)
     end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -329,31 +382,9 @@ function M28BrainCreated(aiBrain)
 
         --Send a message warning players this could take a while
         M28Chat.SendForkedMessage(aiBrain, 'LoadingMap', 'Analysing map, this will freeze the game for a while.  Contact maudlin27 on discord if the freeze lasts more than 2 minutes', 0, 10000, false)
-        ForkThread(GameSettingWarningsAndChecks, aiBrain)
+        ForkThread(GameSettingWarningsChecksAndInitialChatMessages, aiBrain)
         ForkThread(M28Map.SetupMap)
         ForkThread(UpdateMaxUnitCapForRelevantBrains)
-
-        local sStartMessage
-
-        if M28Map.bIsCampaignMap then
-            local iRand = math.random(1,5)
-            if iRand == 1 then sStartMessage = 'Lets do this!'
-            elseif iRand == 2 then sStartMessage = 'Time to foil the Seraphim plans'
-            elseif iRand == 3 then sStartMessage = 'For the coalition!'
-            elseif iRand == 4 then sStartMessage = 'Its time to end this'
-            elseif iRand == 5 then sStartMessage = 'I hope youve got my back commander'
-            elseif iRand == 6 then sStartMessage = 'So...I just need to eco right?'
-            elseif iRand == 7 then sStartMessage = 'This doesnt look as easy as the simulation...'
-            end
-        else
-            local iRand = math.random(1,3)
-            if iRand == 1 then sStartMessage = 'gl hf'
-            elseif iRand == 2 then sStartMessage = 'gl'
-            elseif iRand == 3 then sStartMessage = '/82' -- QAI: If you destroy this ACU, another shall rise in its place. I am endless.
-            end
-        end
-        --SendMessage(aiBrain, sMessageType, sMessage, iOptionalDelayBeforeSending, iOptionalTimeBetweenMessageType, bOnlySendToTeam, bWaitUntilHaveACU)
-        M28Chat.SendMessage(aiBrain, 'Start', sStartMessage, 40,                     60,                                false,          M28Map.bIsCampaignMap)
 
     end
 

@@ -35,6 +35,8 @@ refiTimeOfLastOverchargeShot = 'M28UnitTimeLastOvercharge' --Gametimeseconds
 reftbInArmyIndexBigThreatTable = 'M28UnitInBigThreatTable' --[x] is army index; true if have added unit to table of big threats for that army index
 refbConstructionStart = 'M28UnitConStrt' --True if constructionstarted event logic has been run for this unit
 reftiTimeOfLastEnhancementComplete = 'M28TLstECmpl' --table, [x] = enhancement ID, gametimeseconds that the upgrade completed
+refoClosestEnemyFromLastCloseToEnemyUnitCheck = 'M28ClEnU' --If running the 'close to enemy unit' check, this will retunr the closest enemy unit before the code aborts
+refbUnitIsCloaked = 'M28UnitIsCloaked' --true if have triggered the 'cloaked unit identified' logic
 
     --Unit micro related
 refiGameTimeMicroStarted = 'M28UnitTimeMicroStarted' --Gametimeseconds that started special micro
@@ -639,12 +641,13 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                                     elseif EntityCategoryContains(categories.INDIRECTFIRE * categories.ARTILLERY * categories.STRUCTURE * categories.TECH2, oUnit.UnitId) then iMassMod = 0.1 --Gets doubled as its a structure
                                     elseif EntityCategoryContains(categories.INDIRECTFIRE * categories.ARTILLERY * categories.MOBILE * categories.TECH1, oUnit.UnitId) then iMassMod = 0.9
                                     elseif EntityCategoryContains(categories.INDIRECTFIRE * categories.ARTILLERY * categories.MOBILE * categories.TECH3, oUnit.UnitId) then iMassMod = 0.5
+                                    elseif EntityCategoryContains(refCategoryMobileLand * categories.INDIRECTFIRE * categories.SILO, oUnit.UnitId) then iMassMod = 0.1
                                     elseif EntityCategoryContains(categories.SHIELD, oUnit.UnitId) then iMassMod = 0.75 --will be doubled for structures
                                     elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then iMassMod = 1 --Put in just in case - code was working before this, but dont want it to be affected yb more recenlty added engineer category
                                     elseif EntityCategoryContains(categories.ENGINEER,oUnit.UnitId) then iMassMod = 0.01 --Engis can reclaim and capture so can't just e.g. beat with a scout, but also dont want a combat unit to run from engineers as they could still harm them; alot of logic uses a threshold of 10 for threats, which would be c.3 T3 engineers, so will go with this
                                     end
                                     if bAddAntiNavy and iMassMod < 1 and EntityCategoryContains(categories.ANTINAVY  + categories.OVERLAYANTINAVY, oUnit.UnitId) then
-                                        --Increase mass mod for certain units
+                                    --Increase mass mod for certain units
                                         if iMassMod < 0.25 then iMassMod = 0.25 end
                                         if EntityCategoryContains(categories.SUBMERSIBLE + categories.ANTINAVY, oUnit.UnitId) then
                                             iMassMod = 1 --Subs

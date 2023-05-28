@@ -18,6 +18,7 @@ local M28Logic = import('/mods/M28AI/lua/AI/M28Logic.lua')
 local NavUtils = import("/lua/sim/navutils.lua")
 local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
 local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
+local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 
 function AreMobileLandUnitsInRect(rRectangleToSearch)
     --returns true if have mobile land units in rRectangleToSearch
@@ -375,12 +376,13 @@ end
 function SafeToUpgradeUnit(oUnit)
     --Returns true if safe to upgrade oUnit:
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
+    local bSafeZone = false
     if (iLandZone or 'nil') > 0 then
         local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team]
         if not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) then
-            return true
+            bSafeZone = true
         elseif tLZTeamData[M28Map.subrefLZbCoreBase] and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < 150 then
-            return true
+            bSafeZone = true
         end
     else
         --probably have a water zone - consider if safe to upgrade
@@ -388,11 +390,53 @@ function SafeToUpgradeUnit(oUnit)
         if (iWaterZone or 0) > 0 then
             local iPond = M28Map.tiPondByWaterZone[iWaterZone]
             local tWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][oUnit:GetAIBrain().M28Team]
-            if not(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]) then return true end
+            if not(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]) then bSafeZone = true end
         end
     end
     if M28Overseer.bNoRushActive then
         if M28Overseer.iNoRushTimer - GetGameTimeSeconds() > 60 then
+            bSafeZone = true
+        end
+    end
+    if bSafeZone then
+        local bDangerousTML = false
+        --TML adjust
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.reftEnemyTML]) == false then
+            --Buildings alreayd record TML in range and if covered by TMD
+            if EntityCategoryContains(M28UnitInfo.refCategoryProtectFromTML, oUnit.UnitId) then
+                if M28Utilities.IsTableEmpty(oUnit[M28Building.reftTMDCoveringThisUnit]) and M28Utilities.IsTableEmpty(oUnit[M28Building.reftTMLInRangeOfThisUnit]) == false then
+                    bDangerousTML = true
+                end
+            end
+        else
+            --Is this an ACU? If so dont want to upgrade in range of enemy TML unless we have TMD nearby
+            if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+                local bTMLInRange = false
+                for iTML, oTML in M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.reftEnemyTML] do
+                    if M28UnitInfo.IsUnitValid(oTML) and M28Utilities.GetDistanceBetweenPositions(oTML:GetPosition(), oUnit:GetPosition()) <= M28Building.iTMLMissileRange + 2 then
+                        bTMLInRange = true
+                        break
+                    end
+                end
+                if bTMLInRange then
+                    --Do we have TMD nearby?
+                    local tNearbyTMD = oUnit:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryTMD, oUnit:GetPosition(), 25, 'Ally')
+                    local bNearbyTMD = false
+                    if M28Utilities.IsTableEmpty(tNearbyTMD) == false then
+                        for iTMD, oTMD in tNearbyTMD do
+                            if M28Utilities.GetDistanceBetweenPositions(oTMD:GetPosition(), oUnit:GetPosition()) <= math.max(12, (oTMD[M28UnitInfo.refiMissileDefenceRange] or 12.5) - 5) then
+                                bNearbyTMD = true
+                                break
+                            end
+                        end
+                    end
+                    if not(bNearbyTMD) then
+                        bDangerousTML = true
+                    end
+                end
+            end
+        end
+        if not(bDangerousTML) then
             return true
         end
     end
@@ -559,7 +603,7 @@ function HaveFactionTech(iSubteam, iFactoryType, iFactionWanted, iMinTechLevelNe
     return false
 end
 
-function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot)
+function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy)
     --Returns true if our distance to any of tUnitsToCheck is <= iDistThreshold; if bIncludeEnemyDFRange is true then our distance to the units is reduced by the enemy unit's DF range (meaning it returns true if we are within iDistThreshold of the enemy unit being able to shoot at us)
     --iAltThresholdToDFRange - if bIncludeEnemyDFRange is true and this also has a value specified, then if we are within iAltThresholdToDFRange will return true regardless of the iDistThreshold test
     --oUnitIfConsideringAngleAndLastShot - if we have a unit that is very vulnerable at lcose range (e.g. a skirmisher unit), then including this here will mean a check is done of the enemy unit facing angle and unit state (to factor in how easily it could close in to us) to decide whether to run or not
@@ -577,6 +621,7 @@ function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, 
         end
     end
     local bIncludeAngleChecks, iAngleDistMod, iAngleDifferenceThreshold
+    local bAreCloseToUnit = false
     if M28UnitInfo.IsUnitValid(oUnitIfConsideringAngleAndLastShot) then
         bIncludeAngleChecks = true
         iAngleDistMod = -3 --i.e. will decrease enemy unit range to us by this amount if they are facing a similar angle to us
@@ -590,9 +635,18 @@ function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, 
         else iDistThreshold = iDistThreshold * 0.94
         end
     end
+    local iClosestEnemyDist
+    if oOptionalFriendlyUnitToRecordClosestEnemy then
+        iClosestEnemyDist = 100000
+        oOptionalFriendlyUnitToRecordClosestEnemy[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] = nil
+    end
     for iUnit, oUnit in tUnitsToCheck do
         if M28UnitInfo.IsUnitValid(oUnit) then
             iCurDist = M28Utilities.GetDistanceBetweenPositions(tStartPosition, oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])
+            if oOptionalFriendlyUnitToRecordClosestEnemy and iCurDist < iClosestEnemyDist then
+                iClosestEnemyDist = iCurDist
+                oOptionalFriendlyUnitToRecordClosestEnemy[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] = oUnit
+            end
             if bIncludeAngleChecks and EntityCategoryContains(categories.MOBILE, oUnit.UnitId) and M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tStartPosition), M28UnitInfo.GetUnitFacingAngle(oUnit)) <= iAngleDifferenceThreshold then
                 if bDebugMessages == true then LOG(sFunctionRef..': Unit facing angle='..M28UnitInfo.GetUnitFacingAngle(oUnit)..'; Angle to start position='..M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tStartPosition)..'; so will adjust iCurDist '..iCurDist..' by iAngleDistMod='..iAngleDistMod) end
                 iCurDist = iCurDist + iAngleDistMod
@@ -600,13 +654,17 @@ function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, 
             if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bIncludeEnemyDFRange='..tostring(bIncludeEnemyDFRange or false)..'; Unit range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; iCurDist='..iCurDist..'; iDistThreshold='..iDistThreshold..'; iAltThresholdToDFRange='..(iAltThresholdToDFRange or 'nil')) end
             if (bIncludeEnemyDFRange and (iCurDist - (oUnit[M28UnitInfo.refiDFRange] or 0) <= iDistThreshold or iCurDist <= (iAltThresholdToDFRange or 0))) or (not(bIncludeEnemyDFRange) and iCurDist <= iDistThreshold) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Are close to unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                return true
+                bAreCloseToUnit = true
+                --Want to keep searching to get the closest enemy unit if dont have one in range and have specified the closest unit be recorded
+                if not(oOptionalFriendlyUnitToRecordClosestEnemy) or iClosestEnemyDist <= -5 + math.max((oOptionalFriendlyUnitToRecordClosestEnemy[M28UnitInfo.refiDFRange] or 0), (oOptionalFriendlyUnitToRecordClosestEnemy[M28UnitInfo.refiIndirectRange] or 0)) then
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    return true
+                end
             end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    return false
+    return bAreCloseToUnit
 end
 
 function WantMoreFactories(iTeam, iPlateau, iLandZone)

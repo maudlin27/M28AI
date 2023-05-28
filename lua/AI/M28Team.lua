@@ -30,6 +30,8 @@ bRecordedAllPlayers = false
 iPlayersAtGameStart = 0
 iTotalTeamCount = 0 --Increased by 1 each time we create a new team
 tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide information
+    --Subteam details
+    subrefAirSubteamsInTeam = 'M28AirSubteamInT' --returns table of air subteam numbers in this team
     --Brain details
     subrefbAllEnemiesDefeated = 'M28TeamAllEnemiesDefeated' --true if all enemies of the team have been defeated
     subreftoFriendlyActiveM28Brains = 'M28TeamFriendlyM28Brains' --Stored against tTeamData[brain.M28Team], in sequential order (1,2,3...) rather than the key being any other value (i.e. its not army index), returns table of all M28 brains on the same team (including this one)
@@ -113,6 +115,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     reftEnemyACUs = 'M28EnemyACUs' --Table of all enemy ACUs
     refbEnemyHasUpgradedACU = 'M28TeamEnUpgACU' --true if enemy has an ACU that is upgrading or upgraded
     reftCoreLZsTimeOfApproachingACUByPlateauAndZone = 'M28TApprACULZ' --table, entry [iPlateau][iLandZoneRef], returns gametimeseconds that flagged as having an approaching ACU
+    reftCloakedEnemyUnits = 'M28CloakedE'
 
     subrefiAlliedDFThreat = 'M28TeamDFThreat' --Total DF threat
     subrefiAlliedIndirectThreat = 'M28TeamIndirectThreat' --Total indirect threat
@@ -185,6 +188,7 @@ tAirSubteamData = {}
     refoFrontGunship = 'M28ASTFrntGshp' --Front available gunship
     refiTimeLastTriedBuildingTransport = 'M28TimeLastTrns' --Gametimeseconds that someone on air subteam tried building an air transport
     refbGunshipsHadAttackOrderLastCycle = 'M28GunshipAtck' --True if the last time we ran gunship cycle we had a unit to attack (to reduce likelihood gunships appraoch somewhere then upon entering a new zone with slightly different adjacent enemy zones we decide to retreat)
+    reftPriorityUnitsWantingScout = 'M28PriUnFrSct' --e.g. if gunship wants an air scout to help reveal cloaked units, this would include the gunship to shadow
 
 
 --Land subteam data varaibles (used for factory production logic)
@@ -251,6 +255,8 @@ function CreateNewAirSubteam(aiBrain)
     tAirSubteamData[aiBrain.M28AirSubteam] = {}
     tAirSubteamData[aiBrain.M28AirSubteam][subreftoFriendlyM28Brains] = {}
     tAirSubteamData[aiBrain.M28AirSubteam][reftACUAndExpOnSubteam] = {}
+    if not(tTeamData[aiBrain.M28Team][subrefAirSubteamsInTeam]) then tTeamData[aiBrain.M28Team][subrefAirSubteamsInTeam] = {} end
+    table.insert(tTeamData[aiBrain.M28Team][subrefAirSubteamsInTeam], iTotalAirSubteamCount)
 
     table.insert(tAirSubteamData[aiBrain.M28AirSubteam][subreftoFriendlyM28Brains], aiBrain)
     local tNearestEnemyBase = M28Map.GetPrimaryEnemyBaseLocation(aiBrain)
@@ -965,6 +971,23 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                             if iPlateauOrZero > 0 and iLandOrWaterZone > 0 then
                                 local tLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][aiBrain.M28Team]
                                 table.insert(tLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets], oUnit)
+                            end
+                        end
+
+                        --Cloaked units
+                        if EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then
+                            if oUnit:HasEnhancement('CloakingGenerator') then
+                                M28Events.CloakedUnitIdentified(oUnit)
+                            else
+                                local oBP = oUnit:GetBlueprint()
+                                if oBP.Enhancements and oBP.EnhancementPresetAssigned.Enhancements then
+                                    for iCurUpgrade, sCurUpgrade in oBP.EnhancementPresetAssigned.Enhancements do
+                                        if sCurUpgrade == 'CloakingGenerator' then
+                                            M28Events.CloakedUnitIdentified(oUnit)
+                                            break
+                                        end
+                                    end
+                                end
                             end
                         end
                     else

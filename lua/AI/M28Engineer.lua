@@ -4984,6 +4984,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
 
     --Preemptive fixed AA if we have T2+ air fac and no fixed T2+ ground AA and dont have much MAA threat here either
+        --Also includes T3 SAM preemptive builder in greater numbers if we lack air control and have at least 10 mass per tick and not low mass
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if want fixed AA due to haveing T2+ air, iCurPriority='..iCurPriority..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]..'; tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]='..tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]) end
     if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 2 and tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] < 800 * (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] - 1) then
@@ -5008,6 +5009,9 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             end
             HaveActionToAssign(refActionBuildAA, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech], iBPWanted)
             if bDebugMessages == true then LOG(sFunctionRef..': T2 plus preemptive AA builder, iBPWanted='..iBPWanted) end
+        elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and not(bHaveLowMass) and not(M28Team.tTeamData[iTeam][M28Team.refbHaveAirControl]) and table.getn(tExistingFixedAA) < 4 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Want to get T3 AA preemptively') end
+            HaveActionToAssign(refActionBuildAA, 3, 30)
         end
     end
 
@@ -5172,12 +5176,24 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Do we want more airaa? iNearbyEnemyAirToGroundThreat='..iNearbyEnemyAirToGroundThreat..'; tLZTeamData[M28Map.refiEnemyAirToGroundThreat]='..tLZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; tLZTeamData[M28Map.refiEnemyAirToGroundThreat]='..tLZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]='..tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]) end
     if iNearbyEnemyAirToGroundThreat > 0 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= math.max(tLZTeamData[M28Map.subrefLZThreatAllyGroundAA], 800) then
-        if tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] < M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.5 + iNearbyEnemyAirToGroundThreat * 2 + tLZTeamData[M28Map.refiEnemyAirAAThreat] * 0.5 or (tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] <= 1600 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 or (tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] < 1200 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2) or tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] < 120)) then
+        local iGroundAAThreatWanted
+        if M28Team.tTeamData[iTeam][M28Team.refbHaveAirControl] then
+            iGroundAAThreatWanted = M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.4 + M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * 0.15
+        elseif M28Team.tTeamData[iTeam][M28Team.refbFarBehindOnAir] then
+            iGroundAAThreatWanted = M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.8 + M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * 0.3
+            if M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] >= 2000 then iGroundAAThreatWanted = iGroundAAThreatWanted + math.min(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * 0.15, M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat]) end
+        else
+            iGroundAAThreatWanted = M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.6 + M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * 0.225
+            if M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] >= 2000 then iGroundAAThreatWanted = iGroundAAThreatWanted + math.min(M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * 0.1, M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat]) end
+        end
+        iGroundAAThreatWanted = math.max(iNearbyEnemyAirToGroundThreat * 2, iNearbyEnemyAirToGroundThreat + iGroundAAThreatWanted)
+        --= M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]
+        if tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] < iGroundAAThreatWanted or (tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] <= 1600 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3 or (tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] < 1200 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2) or tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] < 120)) then
             --Do we already have fixed AA in this LZ?
             local iAACategory = M28UnitInfo.refCategoryStructureAA
             if M28Team.subrefiHighestFriendlyFactoryTech >= 3 then iAACategory = iAACategory * categories.TECH3 end
             local tExistingFixedAA = EntityCategoryFilterDown(iAACategory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
-            if M28Utilities.IsTableEmpty(tExistingFixedAA) or tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] < math.max(1500 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech], tLZTeamData[M28Map.refiEnemyAirToGroundThreat] * 3 + tLZTeamData[M28Map.refiEnemyAirAAThreat], M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.25) then
+            if M28Utilities.IsTableEmpty(tExistingFixedAA) or tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] < math.max(1500 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech], tLZTeamData[M28Map.refiEnemyAirToGroundThreat] * 3 + tLZTeamData[M28Map.refiEnemyAirAAThreat], iGroundAAThreatWanted) then
                 iBPWanted = tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]]
                 if iNearbyEnemyAirToGroundThreat > 0 then iBPWanted = iBPWanted * 2 end
                 if not(bHaveLowPower) then
@@ -6181,17 +6197,24 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         HaveActionToAssign(refActionReclaimArea, 1, math.min(100, math.max(5, iBPWanted)), false)
     end
 
-    --SAMs
+    --SAMs for minor zones
     iCurPriority = iCurPriority + 1
     if tLZTeamData[M28Map.subrefLZSValue] >= 1500 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 and (tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] > 0 or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 1000 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] >= 3) then
+        local iGroundAAWanted = math.max(1600, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.2)
+        if (not(M28Team.tTeamData[iTeam][M28Team.refbHaveAirControl] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 8) or (not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 20 and M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] >= 2000)) and tLZTeamData[M28Map.subrefLZSValue] >= 1500 then
+            iGroundAAWanted = math.max(3200, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.25 + M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * 0.05)
+        end
+        if iGroundAAWanted > math.max(7000, tLZTeamData[M28Map.subrefLZSValue] * 0.5) then
+            iGroundAAWanted = math.max(7000, math.min(iGroundAAWanted, tLZTeamData[M28Map.subrefLZSValue] * 0.5, 4000 * tLZTeamData[M28Map.subrefMexCountByTech][3]  + 1000 * tLZTeamData[M28Map.subrefMexCountByTech][2]))
+        end
 
-        if tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] < math.max(1600, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.2) then
+        if tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] < iGroundAAWanted then
             --Do we already have fixed AA in this LZ?
             local iAACategory = M28UnitInfo.refCategoryStructureAA
             if M28Team.subrefiHighestFriendlyFactoryTech >= 3 then iAACategory = iAACategory * categories.TECH3 end
             local tExistingFixedAA = EntityCategoryFilterDown(iAACategory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
-            --Max of 1 sam per 1 T3 mex (approx)
-            if M28Utilities.IsTableEmpty(tExistingFixedAA) or tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] < math.max(iNearbyEnemyAirToGroundThreat * 2, math.min(7000, tLZTeamData[M28Map.subrefLZSValue] * 0.3)) then
+            --Max of 1 sam per 1 T3 mex (approx), more if we have large gunship threat and lack air control
+            if M28Utilities.IsTableEmpty(tExistingFixedAA) or tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] < math.max(iNearbyEnemyAirToGroundThreat * 2, iGroundAAWanted) then
                 iBPWanted = tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]]
                 if iNearbyEnemyAirToGroundThreat > 0 then iBPWanted = iBPWanted * 2 end
                 if not(M28Conditions.HaveLowPower(iTeam)) then

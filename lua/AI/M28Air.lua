@@ -35,6 +35,7 @@ tDistanceAdjustXZ = {} --Used for gunships to space out
     refiTimeOfLastOverride = 'M28TimLastOvrd' --e.g. could be used against novax satellite in combination with above - see M27 logic
     refoNovaxLastTarget = 'M28NovLastTarget' --needed in addition to order tracking since we only track if doing an issueattack
 
+
 function RecordNewAirUnitForTeam(iTeam, oUnit)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordNewAirUnitForTeam'
@@ -152,6 +153,13 @@ function UpdateEnemyAirThreats(iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function UpdateTeamAirThreats(iTeam)
+    M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] = 0
+    for iEntry, iAirSubteam in M28Team.tTeamData[iTeam][M28Team.subrefAirSubteamsInTeam] do
+        M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] + (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] or 0)
+    end
+end
+
 function AirTeamOverseer(iTeam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AirTeamOverseer'
@@ -174,7 +182,11 @@ function AirTeamOverseer(iTeam)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         ForkThread(UpdateEnemyAirThreats, iTeam)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        WaitTicks(8)
+        WaitTicks(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        ForkThread(UpdateTeamAirThreats, iTeam)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitTicks(7)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         --NOTE: Other logic is done on air subteam basis
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -2472,6 +2484,7 @@ function ManageGunships(iTeam, iAirSubteam)
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; Is tAvailableGunships empty='..tostring(M28Utilities.IsTableEmpty(tAvailableGunships))) end
     M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] = M28UnitInfo.GetAirThreatLevel(tAvailableGunships, false, false, false, true, false, false) + M28UnitInfo.GetAirThreatLevel(tGunshipsForRefueling, false, false, false, true, false, false) + M28UnitInfo.GetAirThreatLevel(tUnavailableUnits, false, false, false, true, false, false)
     local oFrontGunship
+    local bGunshipWantsAirScout = false
     if M28Utilities.IsTableEmpty(tAvailableGunships) == false then
         local iOurGunshipThreat = M28UnitInfo.GetAirThreatLevel(tAvailableGunships, false, false, false, true, false, false)
         --GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo, bBlueprintThreat)
@@ -2482,6 +2495,23 @@ function ManageGunships(iTeam, iAirSubteam)
         local tEnemyGroundTargets = {}
         --Get the gunship nearest to an enemy base and record this as the front gunship
         oFrontGunship = GetUnitNearestEnemyBase(tAvailableGunships, iTeam)
+
+        --Cloaked nearby enemy ACU - want gunship to be a priority
+        if M28UnitInfo.IsUnitValid(oFrontGunship) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftCloakedEnemyUnits]) == false then
+            --Refresh list
+            local iCloakedUnits = table.getn(M28Team.tTeamData[iTeam][M28Team.reftCloakedEnemyUnits])
+
+            for iCurEntry = iCloakedUnits, 1, -1 do
+                if not(M28UnitInfo.IsUnitValid(M28Team.tTeamData[iTeam][M28Team.reftCloakedEnemyUnits][iCurEntry])) then
+                    table.remove(M28Team.tTeamData[iTeam][M28Team.reftCloakedEnemyUnits], iCurEntry)
+                else
+                    if M28Utilities.GetDistanceBetweenPositions(oFrontGunship:GetPosition(), M28Team.tTeamData[iTeam][M28Team.reftCloakedEnemyUnits][iCurEntry]:GetPosition()) <= 200 then
+                        bGunshipWantsAirScout = true
+                    end
+                end
+            end
+        end
+
         local iGunshipPlateauOrZero, iGunshipLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oFrontGunship:GetPosition())
         local tGunshipLandOrWaterZoneData, tGunshipMidpoint, tGunshipLandOrWaterZoneTeamData
         if iGunshipPlateauOrZero == 0 then
@@ -2781,6 +2811,21 @@ function ManageGunships(iTeam, iAirSubteam)
     --Update front gunship (or set to nilif none available)
     M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship] = oFrontGunship
 
+    --Update if gunship wants scout (for cloaked neemies)
+    --First remove any existing assignment
+    if M28Utilities.IsTableEmpty( M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout]) == false then
+        local iExistingEntries = table.getn(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout])
+        for iCurEntry = iExistingEntries, 1, -1 do
+            if not(M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout][iCurEntry])) or EntityCategoryContains(M28UnitInfo.refCategoryGunship, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout].UnitId) then
+                table.remove(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout], iCurEntry)
+            end
+        end
+    end
+    if bGunshipWantsAirScout and oFrontGunship then
+        if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout]) then M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout] = {} end
+        table.insert(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout], oFrontGunship)
+    end
+
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -2867,55 +2912,90 @@ function ManageAirScouts(iTeam, iAirSubteam)
     if M28Utilities.IsTableEmpty(tAvailableScouts) == false then
         local tScoutsWithNoDestination = {}
         local tRallyPoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
-        --Do we have locations available for scouting?
-        if bDebugMessages == true then LOG(sFunctionRef..': Do we have locations available for scouting - is table empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftLandAndWaterZoneScoutingShortlist]))) end
-        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftLandAndWaterZoneScoutingShortlist]) == false then
-            local tiScoutRefByDistance = {}
-            for iUnit, oUnit in tAvailableScouts do
-                tiScoutRefByDistance[iUnit] = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint)
-            end
-            --Sort through scouts by distance and find the nearest location overdue for scouting
-            local iCurDist, iClosestDist, iClosestPlateauOrZero, iClosestLZOrWZRef, tClosestMidpoint, iClosestShortlistRef
-            for iUnit, iDistance in M28Utilities.SortTableByValue(tiScoutRefByDistance, false) do
-                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftLandAndWaterZoneScoutingShortlist]) == false then
-
-
-                    iClosestDist = 100000
-                    for iEntry, tPlateauAndZoneRef in M28Team.tTeamData[iTeam][M28Team.subreftLandAndWaterZoneScoutingShortlist] do
-                        local tMidpoint
-                        if tPlateauAndZoneRef[1] == 0 then
-                            --Waterzone
-                            tMidpoint = M28Map.tPondDetails[M28Map.tiPondByWaterZone[tPlateauAndZoneRef[2]]][M28Map.subrefPondWaterZones][tPlateauAndZoneRef[2]][M28Map.subrefMidpoint]
-                        else
-                            tMidpoint = M28Map.tAllPlateaus[tPlateauAndZoneRef[1]][M28Map.subrefPlateauLandZones][tPlateauAndZoneRef[2]][M28Map.subrefMidpoint]
-                        end
-                        iCurDist = M28Utilities.GetDistanceBetweenPositions(tMidpoint, tAvailableScouts[iUnit]:GetPosition())
-                        if iCurDist < iClosestDist then
-                            iClosestDist = iCurDist
-                            iClosestPlateauOrZero = tPlateauAndZoneRef[1]
-                            iClosestLZOrWZRef = tPlateauAndZoneRef[2]
-                            tClosestMidpoint = {tMidpoint[1], tMidpoint[2], tMidpoint[3]}
-                            iClosestShortlistRef = iEntry
-                        end
-                    end
-                    M28Orders.IssueTrackedMove(tAvailableScouts[iUnit], tClosestMidpoint, 10, false, 'ASP'..iClosestPlateauOrZero..'Z'..iClosestLZOrWZRef, false)
-                    --Update tracking
-                    tAvailableScouts[iUnit][reftScoutAssignedPlateauAndZoneRef] = {[1] = iClosestPlateauOrZero, [2] = iClosestLZOrWZRef}
-                    table.remove(M28Team.tTeamData[iTeam][M28Team.subreftLandAndWaterZoneScoutingShortlist], iClosestShortlistRef)
-                else
-                    table.insert(tScoutsWithNoDestination, tAvailableScouts[iUnit])
+        --First assign any priority scouts
+        if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout]) == false then
+            --Refresh the list
+            local iPriorityUnitsToScout = table.getn(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout])
+            for iEntry = iPriorityUnitsToScout, 1, -1 do
+                if not(M28UnitInfo.IsUnitValid(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout][iEntry])) then
+                    table.remove(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout], iEntry)
                 end
             end
-        else
-            tScoutsWithNoDestination = tAvailableScouts
+            if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout]) == false then
+                local iCurDist, iClosestDist
+                for iUnitToScout, oUnitToScout in M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout] do
+                    --Find the nearest spy plane
+                    iClosestDist = 100000
+                    local iClosestRef
+                    for iUnit, oUnit in tAvailableScouts do
+                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oUnitToScout:GetPosition())
+                        if iCurDist < iClosestDist then
+                            iClosestRef = iUnit
+                            iClosestDist = iCurDist
+                        end
+                    end
+                    if iClosestRef then
+                        M28Orders.IssueTrackedMove(tAvailableScouts[iClosestRef], oUnitToScout:GetPosition(), 10, false, 'PrASc', false)
+                        table.remove(tAvailableScouts, iClosestRef)
+                    end
+                    if M28Utilities.IsTableEmpty(tAvailableScouts) then
+                        break
+                    end
+                end
+            end
         end
-        if M28Utilities.IsTableEmpty(tScoutsWithNoDestination) == false then
-            for iUnit, oUnit in tScoutsWithNoDestination do
-                --If still have remaining available scouts send for refueling with lower threshold
-                if oUnit:GetFuelRatio() < 0.6 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.7 then
-                    table.insert(tScoutsForRefueling, oUnit)
-                else
-                    M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 10, false, 'ASIdle', false)
+
+        if M28Utilities.IsTableEmpty(tAvailableScouts) == false then
+            --Do we have locations available for scouting?
+            if bDebugMessages == true then LOG(sFunctionRef..': Do we have locations available for scouting - is table empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftLandAndWaterZoneScoutingShortlist]))) end
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftLandAndWaterZoneScoutingShortlist]) == false then
+                local tiScoutRefByDistance = {}
+                for iUnit, oUnit in tAvailableScouts do
+                    tiScoutRefByDistance[iUnit] = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint)
+                end
+                --Sort through scouts by distance and find the nearest location overdue for scouting
+                local iCurDist, iClosestDist, iClosestPlateauOrZero, iClosestLZOrWZRef, tClosestMidpoint, iClosestShortlistRef
+                for iUnit, iDistance in M28Utilities.SortTableByValue(tiScoutRefByDistance, false) do
+                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftLandAndWaterZoneScoutingShortlist]) == false then
+
+
+                        iClosestDist = 100000
+                        for iEntry, tPlateauAndZoneRef in M28Team.tTeamData[iTeam][M28Team.subreftLandAndWaterZoneScoutingShortlist] do
+                            local tMidpoint
+                            if tPlateauAndZoneRef[1] == 0 then
+                                --Waterzone
+                                tMidpoint = M28Map.tPondDetails[M28Map.tiPondByWaterZone[tPlateauAndZoneRef[2]]][M28Map.subrefPondWaterZones][tPlateauAndZoneRef[2]][M28Map.subrefMidpoint]
+                            else
+                                tMidpoint = M28Map.tAllPlateaus[tPlateauAndZoneRef[1]][M28Map.subrefPlateauLandZones][tPlateauAndZoneRef[2]][M28Map.subrefMidpoint]
+                            end
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(tMidpoint, tAvailableScouts[iUnit]:GetPosition())
+                            if iCurDist < iClosestDist then
+                                iClosestDist = iCurDist
+                                iClosestPlateauOrZero = tPlateauAndZoneRef[1]
+                                iClosestLZOrWZRef = tPlateauAndZoneRef[2]
+                                tClosestMidpoint = {tMidpoint[1], tMidpoint[2], tMidpoint[3]}
+                                iClosestShortlistRef = iEntry
+                            end
+                        end
+                        M28Orders.IssueTrackedMove(tAvailableScouts[iUnit], tClosestMidpoint, 10, false, 'ASP'..iClosestPlateauOrZero..'Z'..iClosestLZOrWZRef, false)
+                        --Update tracking
+                        tAvailableScouts[iUnit][reftScoutAssignedPlateauAndZoneRef] = {[1] = iClosestPlateauOrZero, [2] = iClosestLZOrWZRef}
+                        table.remove(M28Team.tTeamData[iTeam][M28Team.subreftLandAndWaterZoneScoutingShortlist], iClosestShortlistRef)
+                    else
+                        table.insert(tScoutsWithNoDestination, tAvailableScouts[iUnit])
+                    end
+                end
+            else
+                tScoutsWithNoDestination = tAvailableScouts
+            end
+            if M28Utilities.IsTableEmpty(tScoutsWithNoDestination) == false then
+                for iUnit, oUnit in tScoutsWithNoDestination do
+                    --If still have remaining available scouts send for refueling with lower threshold
+                    if oUnit:GetFuelRatio() < 0.6 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.7 then
+                        table.insert(tScoutsForRefueling, oUnit)
+                    else
+                        M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 10, false, 'ASIdle', false)
+                    end
                 end
             end
         end

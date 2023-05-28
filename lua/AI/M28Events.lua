@@ -410,10 +410,30 @@ function OnEnhancementComplete(oUnit, sEnhancement)
                 M28Team.UpdateUpgradeTrackingOfUnit(oUnit, true, sEnhancement)
             end
             M28UnitInfo.RecordUnitRange(oUnit)
+            if sEnhancement == 'CloakingGenerator' then
+                --Record in table for enemy teams
+                CloakedUnitIdentified(oUnit)
+            end
             if bDebugMessages == true then LOG(sFunctionRef..': Unit DF range after updating recorded range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')) end
         end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
+end
+
+function CloakedUnitIdentified(oUnit)
+    local iUnitBrainIndex = oUnit:GetAIBrain():GetArmyIndex()
+    local tbTeamsConsidered = {}
+    for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
+        if IsEnemy(oBrain:GetArmyIndex(), iUnitBrainIndex) and not(tbTeamsConsidered[oBrain.M28Team]) then
+            local iTeam = oBrain.M28Team
+            tbTeamsConsidered[iTeam] = true
+            if not(M28Team.tTeamData[iTeam][M28Team.reftCloakedEnemyUnits]) then
+                M28Team.tTeamData[iTeam][M28Team.reftCloakedEnemyUnits] = {}
+            end
+            table.insert(M28Team.tTeamData[iTeam][M28Team.reftCloakedEnemyUnits], oUnit)
+        end
+    end
+    oUnit[M28UnitInfo.refbUnitIsCloaked] = true
 end
 
 function OnShieldBubbleDamaged(self, instigator)
@@ -481,6 +501,17 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
                         end
                     end
                 end
+
+                --Logic specific to M28 units dealt damage
+                if self:GetAIBrain().M28AI and EntityCategoryContains(categories.COMMAND, self.UnitId) then
+                    if self:IsUnitState('Upgrading') then
+                        --Do we want to cancel the upgrade? If were hit by a TML then want to
+                        if M28UnitInfo.IsUnitValid(oUnitCausingDamage) and EntityCategoryContains(M28UnitInfo.refCategoryTML, oUnitCausingDamage.UnitId) then
+                            M28Micro.MoveAwayFromTargetTemporarily(self, 5, oUnitCausingDamage:GetPosition())
+                        end
+                    end
+                end
+
             end
 
         end
