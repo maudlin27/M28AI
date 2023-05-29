@@ -556,7 +556,7 @@ function AlliedTMDFirstRecorded(iTeam, oTMD)
 
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyTML]) == false then
         if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
-            local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
+            local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
             if aiBrain then
                 local tUnitsToProtect = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryProtectFromTML, oTMD:GetPosition(), iTMLMissileRange + 20, 'Ally')
                 if M28Utilities.IsTableEmpty(tUnitsToProtect) == false then
@@ -1571,7 +1571,7 @@ end
 function GetHighestNukeTargetValue(tLZOrWZData, tLZOrWZTeamData, iTeam)
     --Refresh list if havent calcualted before or SMD has been refreshed; returns highest value target
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
-        local aiBrain = M28Team.GetFirstActiveBrain(iTeam)
+        local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
         if aiBrain then
             local iBestValue = 0
             local iCurValue

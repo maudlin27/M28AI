@@ -30,6 +30,8 @@ bRecordedAllPlayers = false
 iPlayersAtGameStart = 0
 iTotalTeamCount = 0 --Increased by 1 each time we create a new team
 tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide information
+    --Subteam details
+    subrefAirSubteamsInTeam = 'M28AirSubteamInT' --returns table of air subteam numbers in this team
     --Brain details
     subrefbAllEnemiesDefeated = 'M28TeamAllEnemiesDefeated' --true if all enemies of the team have been defeated
     subreftoFriendlyActiveM28Brains = 'M28TeamFriendlyM28Brains' --Stored against tTeamData[brain.M28Team], in sequential order (1,2,3...) rather than the key being any other value (i.e. its not army index), returns table of all M28 brains on the same team (including this one)
@@ -113,6 +115,8 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     reftEnemyACUs = 'M28EnemyACUs' --Table of all enemy ACUs
     refbEnemyHasUpgradedACU = 'M28TeamEnUpgACU' --true if enemy has an ACU that is upgrading or upgraded
     reftCoreLZsTimeOfApproachingACUByPlateauAndZone = 'M28TApprACULZ' --table, entry [iPlateau][iLandZoneRef], returns gametimeseconds that flagged as having an approaching ACU
+    reftCloakedEnemyUnits = 'M28CloakedE'
+    reftLongRangeEnemyUnits = 'M28LREUn'
 
     subrefiAlliedDFThreat = 'M28TeamDFThreat' --Total DF threat
     subrefiAlliedIndirectThreat = 'M28TeamIndirectThreat' --Total indirect threat
@@ -185,6 +189,7 @@ tAirSubteamData = {}
     refoFrontGunship = 'M28ASTFrntGshp' --Front available gunship
     refiTimeLastTriedBuildingTransport = 'M28TimeLastTrns' --Gametimeseconds that someone on air subteam tried building an air transport
     refbGunshipsHadAttackOrderLastCycle = 'M28GunshipAtck' --True if the last time we ran gunship cycle we had a unit to attack (to reduce likelihood gunships appraoch somewhere then upon entering a new zone with slightly different adjacent enemy zones we decide to retreat)
+    reftPriorityUnitsWantingScout = 'M28PriUnFrSct' --e.g. if gunship wants an air scout to help reveal cloaked units, this would include the gunship to shadow
 
 
 --Land subteam data varaibles (used for factory production logic)
@@ -251,6 +256,8 @@ function CreateNewAirSubteam(aiBrain)
     tAirSubteamData[aiBrain.M28AirSubteam] = {}
     tAirSubteamData[aiBrain.M28AirSubteam][subreftoFriendlyM28Brains] = {}
     tAirSubteamData[aiBrain.M28AirSubteam][reftACUAndExpOnSubteam] = {}
+    if not(tTeamData[aiBrain.M28Team][subrefAirSubteamsInTeam]) then tTeamData[aiBrain.M28Team][subrefAirSubteamsInTeam] = {} end
+    table.insert(tTeamData[aiBrain.M28Team][subrefAirSubteamsInTeam], iTotalAirSubteamCount)
 
     table.insert(tAirSubteamData[aiBrain.M28AirSubteam][subreftoFriendlyM28Brains], aiBrain)
     local tNearestEnemyBase = M28Map.GetPrimaryEnemyBaseLocation(aiBrain)
@@ -606,7 +613,7 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
 
 
 
-    if EntityCategoryContains(categories.MOBILE * categories.AIR, oUnit.UnitId) and not(bIsEnemyAirUnit) and not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId)) then M28Utilities.ErrorHandler('Havent flagged that an air unit is an air unit') end
+    if EntityCategoryContains(categories.MOBILE * categories.AIR, oUnit.UnitId) and not(bIsEnemyAirUnit) and not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer + categories.EXPERIMENTAL, oUnit.UnitId)) then M28Utilities.ErrorHandler('Havent flagged that an air unit is an air unit') end
 
 
     local bAddToZone = true
@@ -798,11 +805,123 @@ function RemoveUnitFromBigThreatTable(oDeadUnit)
         end
     end
 end
+function LongRangeThreatMonitor(iTeam)
+    --Call via forkthread
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'LongRangeThreatMonitor'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    local iTableSize
+    local sreftiLastPlateauAndZone = 'M28LRLstPZ'
+    local iPlateauOrZero, iLandOrWaterZone
+    if bDebugMessages == true then LOG(sFunctionRef..': About to start long range enemy unit monitor for team '..iTeam..'; Is table empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iTeam][reftLongRangeEnemyUnits]))) end
+    while M28Utilities.IsTableEmpty(tTeamData[iTeam][reftLongRangeEnemyUnits]) == false do
+        --Check all units still alive
+        iTableSize = table.getn(tTeamData[iTeam][reftLongRangeEnemyUnits])
+        if bDebugMessages == true then LOG(sFunctionRef..': Size of table at time '..GetGameTimeSeconds()..'='..iTableSize) end
+        for iCurEntry = iTableSize, 1, -1 do
+            local oUnit = tTeamData[iTeam][reftLongRangeEnemyUnits][iCurEntry]
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
+            if not(M28UnitInfo.IsUnitValid(oUnit)) then
+                table.remove(tTeamData[iTeam][reftLongRangeEnemyUnits], iCurEntry)
+            else
+                iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                --Has this changed from last time? if so need to refresh
+                if bDebugMessages == true then LOG(sFunctionRef..': iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; sreftiLastPlateauAndZone='..repru( oUnit[sreftiLastPlateauAndZone])) end
+                if iPlateauOrZero == oUnit[sreftiLastPlateauAndZone][1] and iLandOrWaterZone == oUnit[sreftiLastPlateauAndZone][2] then
+                    --Do nothing - no change
+                else
+                    --has changed - remove from previous entries if it had any
+                    if (oUnit[sreftiLastPlateauAndZone][2] or 0) > 0 then
+                        --Remove previous entries if was land zone
+                        if (oUnit[sreftiLastPlateauAndZone][1] or 0) > 0 then
+                            local tLZData = M28Map.tAllPlateaus[oUnit[sreftiLastPlateauAndZone][1]][M28Map.subrefPlateauLandZones][oUnit[sreftiLastPlateauAndZone][2]]
+                            subrefLZPathingToOtherLandZones = 'PathLZ' --table containing the land zone ref of some (but not all) other LZs where have recorded the paths and time taken, sorted by closest LZ first
+                            subrefLZNumber = 1 --Land zone reference number
+                            subrefLZPath = 2 --against subrefLZPathingToOtherLandZones subtable
+                            subrefLZTravelDist = 3 --against subrefLZPathingToOtherLandZones subtable
+                            local iAdjLZ
+                            if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
+                                for iEntry, tSubtable in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
+                                    iAdjLZ = tSubtable[M28Map.subrefLZNumber]
+                                    local tAdjLZTeamData = M28Map.tAllPlateaus[oUnit[sreftiLastPlateauAndZone][1]][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                                    if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats]) == false then
+                                        for iRecordedUnit, oRecordedUnit in tAdjLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats] do
+                                            if oUnit == oRecordedUnit then
+                                                table.remove(tAdjLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats], iRecordedUnit)
+                                                break
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+
+                    --Add to nearby zones
+                    oUnit[sreftiLastPlateauAndZone] = {[1]=iPlateauOrZero,[2]=iLandOrWaterZone}
+                    local iMaxDist = oUnit[M28UnitInfo.refiDFRange] + 40
+                    local iMaxTravelDist = iMaxDist * 2
+                    local tLZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+                    local iAdjLZ
+                    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
+                        for iEntry, tSubtable in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
+                            if tSubtable[M28Map.subrefLZTravelDist] > iMaxTravelDist then break end
+                            iAdjLZ = tSubtable[M28Map.subrefLZNumber]
+                            local tAdjLZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ]
+                            if bDebugMessages == true then LOG(sFunctionRef..': Checking if we are close to zone '..iAdjLZ..'; Dist to this='..M28Utilities.GetDistanceBetweenPositions(tAdjLZData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint])..'; iMaxDist='..iMaxDist) end
+                            if M28Utilities.GetDistanceBetweenPositions(tAdjLZData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint]) <= iMaxDist then
+                                local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
+                                local bInclude = true
+                                if not(tAdjLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats]) then
+                                    tAdjLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats] = {}
+                                else
+                                    --Redundancy - make sure not already here
+                                    if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats]) == false then
+                                        for iRecordedUnit, oRecordedUnit in tAdjLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats] do
+                                            if oUnit == oRecordedUnit then
+                                                bInclude = false
+                                                break
+                                            end
+                                        end
+                                    end
+                                end
+                                if bInclude then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Just added unit to table of long range threats for zone '..iAdjLZ..' on plateau '..iPlateauOrZero) end
+                                    table.insert(tAdjLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats], oUnit)
+                                end
+                            end
+                        end
+                    end
+
+                end
+            end
+        end
+
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    end
+    --Reset (so the monitor gets restarted next time there is a long range enemy threat)
+    tTeamData[iTeam][reftLongRangeEnemyUnits] = nil
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function AddUnitToLongRangeThreatTable(oUnit, iTeam)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AddUnitToLongRangeThreatTable'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if not(tTeamData[iTeam][reftLongRangeEnemyUnits]) then
+        tTeamData[iTeam][reftLongRangeEnemyUnits] = {}
+        ForkThread(LongRangeThreatMonitor, iTeam)
+    end
+    table.insert(tTeamData[iTeam][reftLongRangeEnemyUnits], oUnit)
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code at time '..GetGameTimeSeconds()..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Added to table of long range units and started a monitor if one wasnt already started') end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
 
 function AddUnitToBigThreatTable(iTeam, oUnit)
-    local bDebugMessages = false
-    if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AddUnitToBigThreatTable'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Considering ouNIt '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' for iTeam='..iTeam..'; oUnit[M28UnitInfo.reftbInArmyIndexBigThreatTable][iTeam]='..(oUnit[M28UnitInfo.reftbInArmyIndexBigThreatTable][iTeam] or 'nil')) end
@@ -853,7 +972,8 @@ function AddUnitToBigThreatTable(iTeam, oUnit)
                                 end
                             end
                         end
-
+                    elseif (oUnit[M28UnitInfo.refiDFRange] or 0) >= 80 then
+                        AddUnitToLongRangeThreatTable(oUnit, iTeam)
                     end
 
                     --Track T3 arti
@@ -967,6 +1087,23 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                 table.insert(tLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets], oUnit)
                             end
                         end
+
+                        --Cloaked units
+                        if EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then
+                            if oUnit:HasEnhancement('CloakingGenerator') then
+                                M28Events.CloakedUnitIdentified(oUnit)
+                            else
+                                local oBP = oUnit:GetBlueprint()
+                                if oBP.Enhancements and oBP.EnhancementPresetAssigned.Enhancements then
+                                    for iCurUpgrade, sCurUpgrade in oBP.EnhancementPresetAssigned.Enhancements do
+                                        if sCurUpgrade == 'CloakingGenerator' then
+                                            M28Events.CloakedUnitIdentified(oUnit)
+                                            break
+                                        end
+                                    end
+                                end
+                            end
+                        end
                     else
                         --Allied unit - dont record if it isnt owned by M28AI brain (so we dont control allied non-M28 units)
                         if not(oUnit:GetAIBrain().M28AI) then
@@ -989,7 +1126,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                     UpdateUnitLastKnownPosition(aiBrain, oUnit, true)
                     if IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) and aiBrain.M28AI then UpdateEnemyTechTracking(aiBrain.M28Team, oUnit) end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': aiBrain '..aiBrain.Nickname..' is Considering how to assign unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' that is owned by brain '..oUnit:GetAIBrain().Nickname..' at time '..GetGameTimeSeconds()) end
+                if bDebugMessages == true then LOG(sFunctionRef..': aiBrain '..aiBrain.Nickname..' is Considering how to assign unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' that is owned by brain '..oUnit:GetAIBrain().Nickname..' at time '..GetGameTimeSeconds()..'; bPreviouslyConsidered='..tostring(bPreviouslyConsidered or false)) end
 
 
                 --Air units - always assign to air groups, and also to land zones if in one
@@ -2490,7 +2627,7 @@ function ConsiderGiftingStorageToTeammate(oEnergyStorage)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function GetFirstActiveBrain(iTeam)
+function GetFirstActiveM28Brain(iTeam)
     if M28Utilities.IsTableEmpty(tTeamData[iTeam][subreftoFriendlyActiveM28Brains]) == false then
         for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
             if not(oBrain.M28IsDefeated) then

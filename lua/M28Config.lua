@@ -9,4 +9,4 @@ M28ShowEnemyUnitNames = false --Will rename enemy units to reflect their ID and 
 
 M28RunVeryFast = false --Game starts off at +15 speed if set to adjustable
 M28RunProfiling = false --If turning to true-part way through the game then also run ForkThread(M28Profiler.ProfilerActualTimePerTick); Records data on how long most functions are taking
-M28ProfilerIgnoreFirst2Seconds = false --Means logic relating to pathing generation gets ignored
+M28ProfilerIgnoreFirst2Seconds = true --Means logic relating to pathing generation gets ignored
