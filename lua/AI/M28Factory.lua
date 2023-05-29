@@ -1014,6 +1014,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         end
     end
 
+
     --Other actions - dont do unless we have lots of mass if this is lower than our highest tech level
     if bHaveHighestLZTech and (iFactoryTechLevel >= aiBrain[M28Economy.refiOurHighestLandFactoryTech] or not (bHaveLowMass)) then
 
@@ -1358,6 +1359,40 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 end
             end
         end
+    end
+
+    --Different island to nearest friendly base - ensure we have some DF and indirect fire threat nearby
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if not(NavUtils.GetLabel(M28Map.refPathingTypeLand, oFactory:GetPosition()) == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.reftClosestFriendlyBase])) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Closest base is in a different island, so will get base level of tanks') end
+        local iNearbyDFThreat = tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]
+        local iNearbyIFThreat = tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]
+        local iNearbyGroundAAThreat = tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]
+
+        if iNearbyDFThreat < 100 or iNearbyIFThreat < 50 or iNearbyGroundAAThreat < 100 then
+            if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                    local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                    iNearbyDFThreat = iNearbyDFThreat + tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]
+                    iNearbyIFThreat = iNearbyIFThreat + tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]
+                    iNearbyGroundAAThreat = iNearbyGroundAAThreat + tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]
+                end
+            end
+            if iNearbyDFThreat < 100 or iNearbyIFThreat < 50 or iNearbyGroundAAThreat < 100 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will get basic level of combat threat as are on an island') end
+                if iNearbyDFThreat < 100 then
+                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat * categories.DIRECTFIRE) then return sBPIDToBuild end
+                end
+                if iNearbyGroundAAThreat < 100 then
+                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryMAA) then return sBPIDToBuild end
+                end
+                if iNearbyIFThreat < 50 then
+                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect) then return sBPIDToBuild end
+                end
+            end
+        end
+
+
     end
 
     --Engineers if we have mass and dont have spare engineers

@@ -384,6 +384,10 @@ function SafeToUpgradeUnit(oUnit)
         elseif tLZTeamData[M28Map.subrefLZbCoreBase] and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < 150 then
             bSafeZone = true
         end
+        --If this mex has survived 5 mins and has no enemies in this zone itself, then treat as safe
+        if not(bSafeZone) and EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeCreated] or 0) >= 300 then
+            bSafeZone = true
+        end
     else
         --probably have a water zone - consider if safe to upgrade
         local iWaterZone = M28Map.GetWaterZoneFromPosition(oUnit:GetPosition())

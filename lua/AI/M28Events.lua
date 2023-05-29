@@ -1149,6 +1149,7 @@ function OnCreate(oUnit)
         else
             if not(oUnit['M28OnCrRn']) then
                 oUnit['M28OnCrRn'] = true
+                oUnit[M28UnitInfo.refiTimeCreated] = math.floor(GetGameTimeSeconds())
                 M28Overseer.refiRoughTotalUnitsInGame = M28Overseer.refiRoughTotalUnitsInGame + 1
                 M28UnitInfo.GetUnitLifetimeCount(oUnit) --essential so lifetimecount logic works
 
