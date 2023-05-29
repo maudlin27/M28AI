@@ -95,6 +95,22 @@ function RecordNewAirUnitForTeam(iTeam, oUnit)
             end
             M28Team.AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, true)
         end--]]
+    else
+        --Friendly unit
+        local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering if this is an under construction air experimental, fraction complete='..oUnit:GetFractionComplete()..'; Is enemy='..tostring(IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()))) end
+        if EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) and oUnit:GetFractionComplete() < 1 then
+            --Record against list of units in the zone while under construction
+            local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+            if (iLandOrWaterZone or 0) > 0 then
+                if iPlateauOrZero == 0 then
+                    M28Team.AddUnitToWaterZoneForBrain(aiBrain, oUnit, iLandOrWaterZone, false)
+                else
+                    if bDebugMessages == true then LOG(sFunctionRef..': Added unit to land zone '..iLandOrWaterZone) end
+                    M28Team.AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateauOrZero, iLandOrWaterZone, false)
+                end
+            end
+        end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

@@ -447,20 +447,21 @@ end
 
 function TestCustom(aiBrain)
     --AiX 10.0
-    ScenarioInfo.Options.CheatMult = tostring(10.0)
-    ScenarioInfo.Options.BuildMult = tostring(10.0)
+    --ScenarioInfo.Options.CheatMult = tostring(10.0)
+    --ScenarioInfo.Options.BuildMult = tostring(10.0)
 
     --Four corners - draw buildable locations in bottom-right with plateau 7 LZ2
     --Island zero - P218 LZ1
-    --[[while true do
+    --Twin rivers - bottomright core base: P117LZ3
+    while true do
         WaitSeconds(20)
         local iTeam = aiBrain.M28Team
-        if GetGameTimeSeconds() >= 152 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.9 then
-            local tLZData = M28Map.tAllPlateaus[218][M28Map.subrefPlateauLandZones][1]
-            M28Engineer.DrawBuildableLocations(tLZData, 8)
+        if GetGameTimeSeconds() >= 240 then
+            local tLZData = M28Map.tAllPlateaus[218][M28Map.subrefPlateauLandZones][3]
+            M28Engineer.DrawBuildableLocations(tLZData, 1)
             LOG('TestCustom - about to do repru of segmentcount by size='..repru(tLZData[M28Map.subrefBuildLocationSegmentCountBySize]))
         end
-    end--]]
+    end
 
     --Hook assist order
     --[[local M28OldIssueGuard = _G.IssueGuard

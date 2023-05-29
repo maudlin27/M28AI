@@ -756,7 +756,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                         else
                             --i.e. experimentalal started, the CanBuildStructureAt check doesnt work properly for this so first need to record a blacklist (will only have recorded for 4m) and then check for this
                             if bDebugMessages == true then LOG(sFunctionRef..': Just started construction of experimental mobile unit='..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..'; Is it valid to build a T1 pgen at this location='..tostring(oEngineer:GetAIBrain():CanBuildStructureAt('ueb1101', oConstruction:GetPosition()))) end
-                            M28Engineer.RecordBlacklistLocation(oConstruction:GetPosition(), M28UnitInfo.GetBuildingSize(oConstruction.UnitId) * 0.5, 240, oConstruction)
+                            M28Engineer.RecordBlacklistLocation(oConstruction:GetPosition(), M28UnitInfo.GetBuildingSize(oConstruction.UnitId) * 0.5, 420, oConstruction)
                             ForkThread(M28Engineer.CheckIfBuildableLocationsNearPositionStillValid, oEngineer:GetAIBrain(), oConstruction:GetPosition(), true, M28UnitInfo.GetBuildingSize(oConstruction.UnitId) * 0.5)
                         end
                     end
@@ -843,6 +843,8 @@ function OnConstructed(oEngineer, oJustBuilt)
                 M28Engineer.SearchForBuildableLocationsNearDestroyedBuilding(oJustBuilt)
             end
 
+
+
             --M28 specific
             if oJustBuilt:GetAIBrain().M28AI and not(oJustBuilt.M28OnConstructedCalled) then
                 local sFunctionRef = 'OnConstructed'
@@ -851,10 +853,41 @@ function OnConstructed(oEngineer, oJustBuilt)
                 oJustBuilt.M28OnConstructedCalled = true
                 if bDebugMessages == true then LOG(sFunctionRef..': oEngineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' has just built '..oJustBuilt.UnitId) end
 
+                --Experimental air - no longer record in land/water zone
+                if EntityCategoryContains(M28UnitInfo.refCategoryAllAir, oJustBuilt.UnitId) then
+                    local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oJustBuilt:GetPosition())
+                    local aiBrain = oJustBuilt:GetAIBrain()
+                    if (iLandOrWaterZone or 0) > 0 then
+                        local tLZOrWZData
+                        local tLZOrWZTeamData
+                        local sUnitTableRef
+                        local iTeam = aiBrain.M28Team
+                        if iPlateauOrZero == 0 then
+                            tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+                            tLZOrWZTeamData = tLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                            sUnitTableRef = M28Map.subrefWZTAlliedUnits
+                        else
+                            tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+                            tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                            sUnitTableRef = M28Map.subrefLZTAlliedUnits
+                        end
+                        if M28Utilities.IsTableEmpty(tLZOrWZTeamData[sUnitTableRef]) == false then
+                            for iUnit, oUnit in tLZOrWZTeamData[sUnitTableRef] do
+                                if oUnit == oJustBuilt then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Removing unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' from zone '..iLandOrWaterZone..' as it is a construction completed experimental') end
+                                    table.remove(tLZOrWZTeamData[sUnitTableRef], iUnit)
+                                    break
+                                end
+                            end
+                        end
+                    end
+                end
+
                 --Logic based on the unit that was just built:
 
                 --Check build locations for units not built at a factory
                 if EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId) then
+
                     if not(oJustBuilt[M28UnitInfo.refbConstructionStart]) then
                         M28Engineer.CheckIfBuildableLocationsNearPositionStillValid(oJustBuilt:GetAIBrain(), oJustBuilt:GetPosition(), false, M28UnitInfo.GetBuildingSize(oJustBuilt.UnitId) * 0.5)
                     end
