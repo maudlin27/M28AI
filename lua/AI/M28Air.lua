@@ -2360,7 +2360,7 @@ function GetUnitNearestEnemyBase(tUnitsToConsider, iTeam)
             else
                 tLZOrWZTeamData = M28Map.tAllPlateaus[iCurPlateauOrZero][M28Map.subrefPlateauLandZones][iCurLZOrWZ][M28Map.subrefLZTeamData][iTeam]
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Checking unit distance for oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurLZOrWZ='..(iCurLZOrWZ or 'nil')..'; iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; tLZOrWZTeamData[M28Map.reftClosestEnemyBase]='..repru(tLZOrWZTeamData[M28Map.reftClosestEnemyBase])) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Checking unit distance, iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurLZOrWZ='..(iCurLZOrWZ or 'nil')..' for oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; iCurLZOrWZ='..(iCurLZOrWZ or 'nil')..'; iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; tLZOrWZTeamData[M28Map.reftClosestEnemyBase]='..repru(tLZOrWZTeamData[M28Map.reftClosestEnemyBase])) end
 
             iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(),  tLZOrWZTeamData[M28Map.reftClosestEnemyBase])
             if iCurDist < iClosestDist then

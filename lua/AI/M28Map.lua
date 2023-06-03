@@ -577,7 +577,7 @@ function GetClosestPlateauOrZeroAndZoneToPosition(tPosition)
 
     local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tPosition)
 
-    if bDebugMessages == true then LOG(sFunctionRef..': tPosition='..repru(tPosition)..'; iSegmentX='..iSegmentX..' iSegmentZ='..iSegmentZ..'; Is override for this nil='..tostring(tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX][iSegmentZ] == nil)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': tPosition='..repru(tPosition)..'; iSegmentX='..(iSegmentX or 'nil')..' iSegmentZ='..(iSegmentZ or 'nil')..'; Is override for this nil='..tostring(tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX][iSegmentZ] == nil)..'; GetPositionFromPathingSegments(iSegmentX, iSegmentZ)='..repru(GetPositionFromPathingSegments(iSegmentX, iSegmentZ))..'; Hover nav utils for segment midpoint='..(NavUtils.GetLabel(refPathingTypeHover, GetPositionFromPathingSegments(iSegmentX, iSegmentZ)) or 'nil')..'; Hover nav utils for tPosition='..(NavUtils.GetLabel(refPathingTypeHover, tPosition) or 'nil')..'; tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX][iSegmentZ]='..repru(tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX][iSegmentZ])..'; tLandZoneBySegment[iSegmentX][iSegmentZ]='..(tLandZoneBySegment[iSegmentX][iSegmentZ] or 'nil')..'; tWaterZoneBySegment[iSegmentX][iSegmentZ]='..(tWaterZoneBySegment[iSegmentX][iSegmentZ] or 'nil')) end
 
     if tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX][iSegmentZ] then
         if bDebugMessages == true then LOG(sFunctionRef..': Returning override, which is:'..repru(tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX][iSegmentZ])) end
@@ -596,30 +596,39 @@ function GetClosestPlateauOrZeroAndZoneToPosition(tPosition)
                     for iZAdjust = -iAdjust, iAdjust, 1 do
                         if not(iXAdjust == 0 and iZAdjust == 0) then
                             if tLandZoneBySegment[iSegmentX+ iXAdjust][iSegmentZ+ iZAdjust] or tWaterZoneBySegment[iSegmentX+ iXAdjust][iSegmentZ+ iZAdjust] then
-                                iAltPlateau = NavUtils.GetLabel(refPathingTypeHover, GetPositionFromPathingSegments(iSegmentX + iXAdjust, iSegmentZ + iZAdjust))
-                                if (iAltPlateau or 0) > 0 then
-                                    iAltLZOrWZ = tLandZoneBySegment[iSegmentX+ iXAdjust][iSegmentZ+ iZAdjust]
-                                    if (iAltLZOrWZ or 0) == 0 then
-                                        iAltLZOrWZ = tWaterZoneBySegment[iSegmentX+ iXAdjust][iSegmentZ+ iZAdjust]
-                                        iAltPlateau = 0
-                                    end
-                                    if (iAltLZOrWZ or 0) > 0 then
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Have adjusted segments which have valid values, iAltLZOrWZ='..iAltLZOrWZ..'; iXAdjust='..iXAdjust..'; iZAdjust='..iZAdjust) end
-                                        tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX][iSegmentZ] = {[1] = iAltPlateau, [2] = iAltLZOrWZ}
-                                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                                        return iAltPlateau, iAltLZOrWZ
+                                local tMidpoint = GetPositionFromPathingSegments(iSegmentX + iXAdjust, iSegmentZ + iZAdjust)
+                                tMidpoint = {math.floor(tMidpoint[1]), tMidpoint[2], math.floor(tMidpoint[3])}
+                                if tPathingPlateauAndLZOverride[tMidpoint[1]][tMidpoint[3]][2] then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': We already recorded an override for this position') end
+                                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                    return tPathingPlateauAndLZOverride[tMidpoint[1]][tMidpoint[3]][1], tPathingPlateauAndLZOverride[tMidpoint[1]][tMidpoint[3]][2]
+                                else
+                                    iAltPlateau = NavUtils.GetLabel(refPathingTypeHover, tMidpoint)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjust='..iAdjust..'; iXAdjust='..iXAdjust..'; iZAdjust='..iZAdjust..'; iAltPlateau='..(iAltPlateau or 'nil')..'; LandZoneBySegment='..(tLandZoneBySegment[iSegmentX+ iXAdjust][iSegmentZ+ iZAdjust] or 'nil')..'; Water zone by segment='..(tWaterZoneBySegment[iSegmentX+ iXAdjust][iSegmentZ+ iZAdjust] or 'nil')) end
+                                    if (iAltPlateau or 0) > 0 then
+                                        iAltLZOrWZ = tLandZoneBySegment[iSegmentX+ iXAdjust][iSegmentZ+ iZAdjust]
+                                        if (iAltLZOrWZ or 0) == 0 then
+                                            iAltLZOrWZ = tWaterZoneBySegment[iSegmentX+ iXAdjust][iSegmentZ+ iZAdjust]
+                                            iAltPlateau = 0
+                                        end
+                                        if (iAltLZOrWZ or 0) > 0 then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Have adjusted segments which have valid values, iAltLZOrWZ='..iAltLZOrWZ..'; iXAdjust='..iXAdjust..'; iZAdjust='..iZAdjust) end
+                                            tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX][iSegmentZ] = {[1] = iAltPlateau, [2] = iAltLZOrWZ}
+                                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                            return iAltPlateau, iAltLZOrWZ
+                                        else
+                                            --Redundancy
+                                            iFailureCount = iFailureCount + 1
+                                            if iFailureCount >= 20 then
+                                                M28Utilities.ErrorHandler('Have a valid plateau for SegmentX-Z='..(iSegmentX + iXAdjust)..'-'..(iSegmentZ + iZAdjust)..' but not a valid land or water zone, and have failed '..iFailureCount..' times now (will reset count after this)')
+                                                iFailureCount = 0
+                                            end
+                                        end
                                     else
-                                        --Redundancy
-                                        iFailureCount = iFailureCount + 1
                                         if iFailureCount >= 20 then
-                                            M28Utilities.ErrorHandler('Have a valid plateau for SegmentX-Z='..(iSegmentX + iXAdjust)..'-'..(iSegmentZ + iZAdjust)..' but not a valid land or water zone, and have failed '..iFailureCount..' times now (will reset count after this)')
+                                            M28Utilities.ErrorHandler('Have a valid land or WZ for SegmentX-Z='..(iSegmentX + iXAdjust)..'-'..(iSegmentZ + iZAdjust)..' but not a valid plateau, and have failed '..iFailureCount..' times now (will reset count after this)')
                                             iFailureCount = 0
                                         end
-                                    end
-                                else
-                                    if iFailureCount >= 20 then
-                                        M28Utilities.ErrorHandler('Have a valid land or WZ for SegmentX-Z='..(iSegmentX + iXAdjust)..'-'..(iSegmentZ + iZAdjust)..' but not a valid plateau, and have failed '..iFailureCount..' times now (will reset count after this)')
-                                        iFailureCount = 0
                                     end
                                 end
                             end
@@ -1062,6 +1071,15 @@ function RecordSegmentLandZone(iSegmentX, iSegmentZ, iPlateau, iLandZone)
     else
         table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZSegments], {iSegmentX, iSegmentZ})
         tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTotalSegmentCount] = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTotalSegmentCount] + 1
+    end
+    if not(NavUtils.GetLabel(refPathingTypeHover, GetPositionFromPathingSegments(iSegmentX, iSegmentZ)) == iPlateau) then
+        --Record an override to avoid issues later on when using getlabel
+        local tMidpoint = GetPositionFromPathingSegments(iSegmentX, iSegmentZ)
+        AddLocationToPlateauExceptions(tMidpoint, iPlateau, iLandZone)
+        if not(tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX]) then tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX] = {} end
+        tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX][iSegmentZ] = {[1] = iPlateau, [2] = iLandZone}
+
+        --LOG('Warning - navutils hover label='..(NavUtils.GetLabel(refPathingTypeHover, GetPositionFromPathingSegments(iSegmentX, iSegmentZ)) or 'nil')..'; iSegmentXZ='..iSegmentX..'Z'..iSegmentZ..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil'))
     end
 end
 
