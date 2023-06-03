@@ -1142,6 +1142,7 @@ function RecordUnitRange(oUnit)
     local oBP = oUnit:GetBlueprint()
     local bWeaponUnpacks = false
     local bWeaponIsFixed = false
+    local bReplaceValues, bIgnoreValues
     if oBP.Weapon then
         for iCurWeapon, oCurWeapon in oBP.Weapon do
             if not(oCurWeapon.EnabledByEnhancement) or (oCurWeapon.EnabledByEnhancement and oUnit:HasEnhancement(oCurWeapon.EnabledByEnhancement)) then
@@ -1151,9 +1152,26 @@ function RecordUnitRange(oUnit)
                 elseif oCurWeapon.RangeCategory == 'UWRC_Countermeasure' then
                     oUnit[refiMissileDefenceRange] = math.max((oUnit[refiMissileDefenceRange] or 0), oCurWeapon.MaxRadius)
                 elseif oCurWeapon.RangeCategory == 'UWRC_DirectFire' or (oCurWeapon.RangeCategory == 'UWRC_IndirectFire' and oCurWeapon.WeaponCategory == 'Direct Fire') then --Sera sniper bots have an 'indirectfire' range category that is actually DF
-                    oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius or 0)
-                    if (oCurWeapon.DamageRadius or 0) > 0 then oUnit[refiDFAOE] = math.max((oUnit[refiDFAOE] or 0), oCurWeapon.DamageRadius) end
-                    if oCurWeapon.RateOfFire then oUnit[refiTimeBetweenDFShots] = math.max((oUnit[refiTimeBetweenDFShots] or 0), 1 / oCurWeapon.RateOfFire) end
+                    bReplaceValues = false
+                    bIgnoreValues = false
+                    --Monkeylord special - use main laser weapon values only
+                    if oUnit.UnitId == 'url0402' and oUnit:GetAIBrain().M28AI then
+                        if (not(oUnit[refiDFRange]) or oCurWeapon.Label == 'MainGun') then
+                            bReplaceValues = true
+                        else
+                            bIgnoreValues = true
+                        end
+                    end
+                    if bReplaceValues then
+                        oUnit[refiDFRange] = (oCurWeapon.MaxRadius or 0)
+                        if (oCurWeapon.DamageRadius or 0) > 0 then oUnit[refiDFAOE] = oCurWeapon.DamageRadius end
+                        if oCurWeapon.RateOfFire then oUnit[refiTimeBetweenDFShots] = 1 / oCurWeapon.RateOfFire end
+                    elseif not(bIgnoreValues) then
+                        oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius or 0)
+                        if (oCurWeapon.DamageRadius or 0) > 0 then oUnit[refiDFAOE] = math.max((oUnit[refiDFAOE] or 0), oCurWeapon.DamageRadius) end
+                        if oCurWeapon.RateOfFire then oUnit[refiTimeBetweenDFShots] = math.max((oUnit[refiTimeBetweenDFShots] or 0), 1 / oCurWeapon.RateOfFire) end
+                    end
+
                 elseif oCurWeapon.RangeCategory == 'UWRC_AntiNavy' then
                     oUnit[refiAntiNavyRange] = math.max((oUnit[refiAntiNavyRange] or 0), oCurWeapon.MaxRadius)
                 elseif oCurWeapon.RangeCategory == 'UWRC_AntiAir' or oCurWeapon.WeaponCategory == 'Anti Air' then
@@ -1215,7 +1233,6 @@ function RecordUnitRange(oUnit)
         --LOG('Considering unitID '..(oUnit.UnitId or 'nil')..'; is unit valid='..tostring(IsUnitValid(oUnit)))
     end
     oUnit[refiStrikeDamage] = GetUnitStrikeDamage(oUnit)
-
 end
 
 function ConvertTechLevelToCategory(iTechLevel)

@@ -314,7 +314,7 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
     if bIncompatible then
         if bDontPlayWithM27 then
             if sUnnecessaryAIMod and not(bHaveOtherAI) then
-                M28Chat.SendMessage(aiBrain, 'SendGameCompatibilityWarning', 'Sorry I don’t like it when M28AI is watching and adults are around - he teases me about how much better he is and sometimes the game desyncs.  Please disable the M27AI mod.', 15, 15)
+                M28Chat.SendMessage(aiBrain, 'SendGameCompatibilityWarning', 'Sorry I don’t like it when M27AI is watching and adults are around - he teases me about how much better he is and sometimes the game desyncs.  Please disable the M27AI mod.', 15, 15)
             else
                 M28Chat.SendMessage(aiBrain, 'SendGameCompatibilityWarning', 'Sorry I don’t get on well with my brother M27 when adults are around – he teases me about how much better he is and sometimes the game desyncs', 15, 15)
             end
