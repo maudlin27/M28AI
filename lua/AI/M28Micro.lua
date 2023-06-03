@@ -603,7 +603,7 @@ function MoveInCircleTemporarily(oUnit, iTimeToRun, bDontTreatAsMicroAction, bDo
     ForkThread(ForkedMoveInCircle, oUnit, iTimeToRun, bDontTreatAsMicroAction, bDontClearCommandsFirst, iCircleSizeOverride, iTickWaitOverride)
 end
 
-function GetOverchargeTarget(tLZData, aiBrain, oUnitWithOvercharge)
+function GetOverchargeTarget(tLZData, aiBrain, oUnitWithOvercharge, bOnlyConsiderEnemiesInRange)
     --should have already confirmed overcharge action is available using CanUnitUseOvercharge
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetOverchargeTarget'
@@ -655,7 +655,11 @@ function GetOverchargeTarget(tLZData, aiBrain, oUnitWithOvercharge)
     local iOverchargeArea = 2.5
 
     --First locate where any blocking units are - will assume non-wall structures larger than a T1 pgen will block the shot, and ACUs will block
-    toStructuresAndACU = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryStructure - categories.SIZE4 + categories.COMMAND, tUnitPosition, 50, 'Enemy')
+    local iMaxSearchDistance
+    if bOnlyConsiderEnemiesInRange then iMaxSearchDistance = iACURange - 1
+    else iMaxSearchDistance = 50
+    end
+    toStructuresAndACU = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryStructure - categories.SIZE4 + categories.COMMAND, tUnitPosition, iMaxSearchDistance, 'Enemy')
 
     if bDebugMessages == true then LOG(sFunctionRef..': First locating blocking units; is table empty='..tostring(M28Utilities.IsTableEmpty(toStructuresAndACU))..'; iACURange='..iACURange..'; iOverchargeArea='..iOverchargeArea) end
     if M28Utilities.IsTableEmpty(toStructuresAndACU) == false then
@@ -712,7 +716,7 @@ function GetOverchargeTarget(tLZData, aiBrain, oUnitWithOvercharge)
                 --No decent combat targets; Check for lots of walls that might be blocking our path (dont reduce ACU range given these are structures)
                 --Only consider overcharging walls if no enemies within our combat range + 3
                 if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPlayerWallSegments]) == false and table.getn(tLZData[M28Map.subrefLZPlayerWallSegments]) >= 9 then
-                    local tAllEnemies = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryNavalSurface, tUnitPosition, iACURange + 3, 'Enemy')
+                    local tAllEnemies = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryNavalSurface, tUnitPosition, math.min(iMaxSearchDistance, iACURange + 3), 'Enemy')
                     if M28Utilities.IsTableEmpty(tAllEnemies) then
                         tEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryWall, tUnitPosition, iACURange, 'Enemy')
                         if bDebugMessages == true then LOG(sFunctionRef..': iMostMassDamage='..iMostMassDamage..'; so will check for walls and other structure targets; is table of wall units empty='..tostring(M28Utilities.IsTableEmpty(tEnemyUnits))) end
@@ -770,7 +774,7 @@ function GetOverchargeTarget(tLZData, aiBrain, oUnitWithOvercharge)
                 if not(oOverchargeTarget) then
                     --Check further away incase enemy has T2 PD that can see us
                     if bDebugMessages == true then LOG(sFunctionRef..': Checking if any T2 PD further away') end
-                    tEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryT2PlusPD, tUnitPosition, 50, 'Enemy')
+                    tEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryT2PlusPD, tUnitPosition, iMaxSearchDistance, 'Enemy')
                     if M28Utilities.IsTableEmpty(tEnemyUnits) == false then
                         if bDebugMessages == true then LOG(sFunctionRef..': Have enemy T2 defence that can hit us but is out of our range - considering if OC it will bring us in range of T1 PD, and/or if shot is blocked, and/or if the T2PD cant even see us') end
                         local tNearbyT1PD
