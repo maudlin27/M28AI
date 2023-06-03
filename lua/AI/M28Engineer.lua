@@ -4675,7 +4675,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
-    --Need SMD
+    --Need SMD as enemy has nuke launcher
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': iCurPriority='..iCurPriority..'; About to consider if want SMD, is table of enemy nukes empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]))) end
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false then
@@ -5340,10 +5340,13 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     if tLZTeamData[M28Map.subrefLZSValue] >= 20000 and not(bHaveLowPower) and (tLZTeamData[M28Map.subrefLZSValue] >= 30000 or not(bHaveLowMass)) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 then
         --Only build SMD if we have built a lot of T3 units or have built experimentals or have very high eco
         if tLZTeamData[M28Map.subrefLZSValue] >= 45000 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 30 or M28Conditions.GetTeamLifetimeBuildCount(iTeam, categories.TECH3 - categories.STRUCTURE) >= 20 then
-            local bAssistSMD = false
-            iBPWanted, bAssistSMD = GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, false, bHaveLowMass, bWantMorePower)
-            if iBPWanted > 0 and not(bAssistSMD) then --Since htis is precautionary not worried about rushing the SMD
-                HaveActionToAssign(refActionBuildSMD, 3, iBPWanted)
+            --Also require several T3 mexes
+            if (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 1 and tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 25)) then
+                local bAssistSMD = false
+                iBPWanted, bAssistSMD = GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, false, bHaveLowMass, bWantMorePower)
+                if iBPWanted > 0 and not(bAssistSMD) then --Since htis is precautionary not worried about rushing the SMD
+                    HaveActionToAssign(refActionBuildSMD, 3, iBPWanted)
+                end
             end
         end
     end
@@ -5422,12 +5425,15 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
         --T3 radar
         iCurPriority = iCurPriority + 1
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to build T3 radar, tLZTeamData[M28Map.refiRadarCoverage]='..tLZTeamData[M28Map.refiRadarCoverage]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Closest enemy base dist to midpoint='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to build T3 radar, tLZTeamData[M28Map.refiRadarCoverage]='..tLZTeamData[M28Map.refiRadarCoverage]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Closest enemy base dist to midpoint='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])..'; tLZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZTeamData[M28Map.subrefMexCountByTech])) end
         if tLZTeamData[M28Map.refiRadarCoverage] <= 300 and ((M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 500 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 200) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 350 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 100 and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryMobileLand * categories.TECH3 - M28UnitInfo.refCategoryEngineer) >= 40) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10 and (M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]) > tLZTeamData[M28Map.refiRadarCoverage] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 20) then
-            iBPWanted = 30
-            if not(bHaveLowMass) then iBPWanted = 100 end
-            if bDebugMessages == true then LOG(sFunctionRef..': Will build T3 radar, iBPWanted='..iBPWanted..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]) end
-            HaveActionToAssign(refActionBuildT3Radar, 3, iBPWanted)
+            --Require T3 mexes before building T3 radar
+            if tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or (tLZTeamData[M28Map.subrefMexCountByTech][3] == 1 and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][1] == 0) then
+                iBPWanted = 30
+                if not(bHaveLowMass) then iBPWanted = 100 end
+                if bDebugMessages == true then LOG(sFunctionRef..': Will build T3 radar, iBPWanted='..iBPWanted..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]) end
+                HaveActionToAssign(refActionBuildT3Radar, 3, iBPWanted)
+            end
         end
     end
 
@@ -5665,7 +5671,8 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 95 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.55 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= 20 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 10000)
             or (M28Map.bIsCampaignMap and ((M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) <= 2 or (not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 60 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
         local bAlreadyHaveGameEnderUnderConstruction = false
-        local aiBrain = M28Team.GetFirstActiveM28Brain[iTeam]
+        local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
+        if bDebugMessages == true then LOG(sFunctionRef..': About to check for nearby gameenders for team '..(iTeam or 'nil')..'; First active M28brain aibrain='..(aiBrain.Nickanme or 'nil')..'; LZ midpoint='..repru(tLZData[M28Map.subrefMidpoint])) end
         local tNearbyGameEnders = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryGameEnder, tLZData[M28Map.subrefMidpoint], 1000, 'Ally')
 
         if M28Utilities.IsTableEmpty(tNearbyGameEnders) == false then
@@ -5722,10 +5729,10 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --Localised mex upgrade logic (this is in addition to centralised logic) - intended for games on larger maps - but only if no enemies in adjacent zone
     if bDebugMessages == true then LOG(sFunctionRef..': Considering engineer based mex upgrade logic for zone '..iLandZone..', bHaveLowPower='..tostring(bHaveLowPower)..'; mex count by tech='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; Map size='..M28Map.iMapSize..'; Enemies in adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; Is Active upgrades in this LZ table empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]))..'; Team gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; bHaveLowMass='..tostring(bHaveLowMass)..'; Is table of mexes on team empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]))..'; Team factory tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
-    if not(bHaveLowPower) and (tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] > 0) and M28Map.iMapSize >= 512 and not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10 or not(bHaveLowMass) or tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or (tLZTeamData[M28Map.subrefMexCountByTech][2] >= 2 and tLZTeamData[M28Map.subrefMexCountByTech][1] > 0)) then
+    if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 100 or not(bHaveLowPower)) and iActiveMexUpgrades == 0 and (tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] > 0) and M28Map.iMapSize >= 256 and (not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) or (not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 5) and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 8) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10 or not(bHaveLowMass) or tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][1] > 0)) then
         --Do we have T3 factory (or T2 if we have t1 mexes) and either we aren't mass stalling, or we have no mex upgrades at a team level?
         if bDebugMessages == true then LOG(sFunctionRef..': Passed initial checks, checking further') end
-        if (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 or (tLZTeamData[M28Map.subrefMexCountByTech][1] > 1 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2)) and (not(bHaveLowMass) or not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes])) then
+        if (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 or (tLZTeamData[M28Map.subrefMexCountByTech][1] > 1 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2)) and (not(bHaveLowMass) or not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) or tLZTeamData[M28Map.subrefMexCountByTech][1] > 0 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 20) then
             --Find a mex to upgrade - first try T1 mexes
             local tPotentialMexes
             if tLZTeamData[M28Map.subrefMexCountByTech][1] then
@@ -6000,15 +6007,19 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         HaveActionToAssign(refActionBuildHydro, 1, 10)
     end
 
-    --SMD if very high value
-    if tLZTeamData[M28Map.subrefLZSValue] >= 20000 then
-        local bAssistSMD = false
-        iBPWanted, bAssistSMD = GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, false, bHaveLowMass, bWantMorePower)
-        if iBPWanted > 0 then
-            if bAssistSMD then
-                HaveActionToAssign(refActionAssistSMD, 1, iBPWanted)
-            else
-                HaveActionToAssign(refActionBuildSMD, 3, iBPWanted)
+    --SMD if very high value and enemy has nukes
+    if tLZTeamData[M28Map.subrefLZSValue] >= 60000 or (tLZTeamData[M28Map.subrefLZSValue] >= 20000 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false) then
+        --Make sure we have at least 2 T3 mex in this zone (or no T2 and T1 mexes)
+        if tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10) then
+
+            local bAssistSMD = false
+            iBPWanted, bAssistSMD = GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, false, bHaveLowMass, bWantMorePower)
+            if iBPWanted > 0 then
+                if bAssistSMD then
+                    HaveActionToAssign(refActionAssistSMD, 1, iBPWanted)
+                else
+                    HaveActionToAssign(refActionBuildSMD, 3, iBPWanted)
+                end
             end
         end
     end

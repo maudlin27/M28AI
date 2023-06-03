@@ -314,7 +314,7 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
     if bIncompatible then
         if bDontPlayWithM27 then
             if sUnnecessaryAIMod and not(bHaveOtherAI) then
-                M28Chat.SendMessage(aiBrain, 'SendGameCompatibilityWarning', 'Sorry I don’t like it when M28AI is watching and adults are around - he teases me about how much better he is and sometimes the game desyncs.  Please disable the M27AI mod.', 15, 15)
+                M28Chat.SendMessage(aiBrain, 'SendGameCompatibilityWarning', 'Sorry I don’t like it when M27AI is watching and adults are around - he teases me about how much better he is and sometimes the game desyncs.  Please disable the M27AI mod.', 15, 15)
             else
                 M28Chat.SendMessage(aiBrain, 'SendGameCompatibilityWarning', 'Sorry I don’t get on well with my brother M27 when adults are around – he teases me about how much better he is and sometimes the game desyncs', 15, 15)
             end
@@ -448,12 +448,13 @@ end
 function TestCustom(aiBrain)
     --AiX 10.0
     --ScenarioInfo.Options.CheatMult = tostring(10.0)
-    --ScenarioInfo.Options.BuildMult = tostring(10.0)
+    --ScenarioInfo.Options.BuildMult = tostring(10.0)#
+
 
     --Four corners - draw buildable locations in bottom-right with plateau 7 LZ2
     --Island zero - P218 LZ1
     --Twin rivers - bottomright core base: P117LZ3
-    while true do
+    --[[while true do
         WaitSeconds(20)
         local iTeam = aiBrain.M28Team
         if GetGameTimeSeconds() >= 240 then
@@ -461,7 +462,7 @@ function TestCustom(aiBrain)
             M28Engineer.DrawBuildableLocations(tLZData, 1)
             LOG('TestCustom - about to do repru of segmentcount by size='..repru(tLZData[M28Map.subrefBuildLocationSegmentCountBySize]))
         end
-    end
+    end--]]
 
     --Hook assist order
     --[[local M28OldIssueGuard = _G.IssueGuard
@@ -887,6 +888,7 @@ function OverseerManager(aiBrain)
     end
     local bSetHook = false --Used for debugging
     while not(aiBrain:IsDefeated()) and not(aiBrain.M28IsDefeated) do
+        --if GetGameTimeSeconds() >= 2700 then import('/mods/M28AI/lua/M28Config.lua').M28ShowUnitNames = true end
         --TestCustom(aiBrain)
         --Enable below to help figure out infinite loops
         --[[if GetGameTimeSeconds() >= 173 and not(bSetHook) then

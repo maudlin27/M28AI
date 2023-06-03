@@ -449,6 +449,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     end
 
 
+
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] .. '; Allied ground MAA threat=' .. (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat] or 'nil') .. '; Is factory paused=' .. tostring(oFactory:IsPaused()) .. '; IsPaused value=' .. tostring(oFactory[M28UnitInfo.refbPaused]) .. '; Does LZ factory is in need BP=' .. tostring(tLZTeamData[M28Map.subrefTbWantBP]) .. '; Core LZ=' .. tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false) .. '; Core expansion=' .. tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false))
     end
@@ -765,9 +766,15 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     end
     if iFactoryTechLevel == 2 and iFactoryTechLevel == M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat - categories.TECH1) < math.min(3, aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer - categories.TECH1)) then
         if bDebugMessages == true then
-            LOG(sFunctionRef .. ': Cur skirmishers=' .. aiBrain:GetCurrentUnits(M28UnitInfo.refCategorySkirmisher * categories.TECH2) .. '; Cur DF tnaks=' .. ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat * categories.TECH2))
+            LOG(sFunctionRef .. ': Cur skirmishers=' .. aiBrain:GetCurrentUnits(M28UnitInfo.refCategorySkirmisher * categories.TECH2) .. '; Cur DF tnaks=' .. ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat * categories.TECH2)..'; subrefbLZWantsIndirectSupport='..tostring(tLZTeamData[M28Map.subrefbLZWantsIndirectSupport] or false))
         end
         if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and aiBrain:GetCurrentUnits(M28UnitInfo.refCategorySkirmisher * categories.TECH2) > math.max(2, aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat * categories.TECH2)) then
+            --Does enemy have structure threat in this or adjacent LZ? if so then prioritise MML instead unless we already have at least 5
+            if tLZTeamData[M28Map.subrefbLZWantsIndirectSupport] and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryIndirect * categories.TECH2) < 5 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Want more MML') end
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect * categories.TECH2) then return sBPIDToBuild end
+            end
+
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat * categories.TECH2) then
                 return sBPIDToBuild
             else

@@ -1,6 +1,6 @@
 name = "M28AI"
-uid = "fnewm028-v006-55b4-92b6-64398e7ge43f"
-version = 6
+uid = "fnewm028-v007-55b4-92b6-64398e7ge43f"
+version = 7
 copyright = "MIT License"
 description = "Work in progress AI, weaker than M27 but faster to run, expected to provide a challenge similar to a 500-800 rated player. Recent changes: Partial FAF campaign support, misc improvements"
 author = "maudlin27"
