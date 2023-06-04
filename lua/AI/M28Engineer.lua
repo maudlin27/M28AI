@@ -4287,14 +4287,15 @@ function GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjL
 
     local tiBPWantedByTech
     local tAltLZ = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
+    local tAltLZTeamData = tAltLZ[M28Map.subrefLZTeamData][iTeam]
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, Does iAdjLZ '..iAdjLZ..' for plateau '..iPlateau..' want BP='..tostring(tAltLZ[M28Map.subrefLZTeamData][iTeam][M28Map.subrefTbWantBP])..'; bIslandPathing='..tostring(bIslandPathing or false)..'; base tLZData[M28Map.subrefLZIslandRef]='..(tLZData[M28Map.subrefLZIslandRef] or 'nil')..'; iAdjLZ tAltLZ[M28Map.subrefLZIslandRef]='..(tAltLZ[M28Map.subrefLZIslandRef] or 'nil')..'; Is table of unbuilt mexes empty='..tostring(M28Utilities.IsTableEmpty(tAltLZ[M28Map.subrefMexUnbuiltLocations]))..'; bRequireUnbuiltMexes='..tostring(bRequireUnbuiltMexes or false)) end
-    if not(bRequireUnbuiltMexes) or M28Utilities.IsTableEmpty(tAltLZ[M28Map.subrefMexUnbuiltLocations]) == false then
+    if not(bRequireUnbuiltMexes) or (M28Utilities.IsTableEmpty(tAltLZ[M28Map.subrefMexUnbuiltLocations]) == false and (not(tAltLZ[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase]) or M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subrefLZTAlliedUnits]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryEngineer, tAltLZTeamData[M28Map.subrefLZTAlliedUnits])))) then
         local iTotalBPWanted = 0
         --Do we need unbuilt mexes?
 
 
         --Does the LZ want BP?
-        if tAltLZ[M28Map.subrefLZTeamData][iTeam][M28Map.subrefTbWantBP] or bIslandPathing then
+        if tAltLZTeamData[M28Map.subrefTbWantBP] or bIslandPathing then
             --Do we have engis of the right tech level to give to the LZ? (ignore this check if we are trying to move engineers to an island for which the closest LZ doesnt want engineers
             local bHaveSufficientTech = false
             if tAltLZ[M28Map.subrefLZTeamData][iTeam][M28Map.subrefTbWantBP] then
