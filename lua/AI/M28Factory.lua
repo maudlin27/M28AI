@@ -432,7 +432,7 @@ end
 
 function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     local sFunctionRef = 'GetBlueprintToBuildForLandFactory'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iCategoryToBuild
@@ -893,10 +893,10 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
     --Initiail combat
     if bDebugMessages == true then
-        LOG(sFunctionRef .. ': Considering initial combat units, lifetime count=' .. M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat))
+        LOG(sFunctionRef .. ': Considering initial combat units, lifetime count=' .. M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat))
     end
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if bCanPathToEnemyWithLand and iFactoryTechLevel == 1 and bHaveHighestLZTech and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat) < 3 then
+    if bCanPathToEnemyWithLand and iFactoryTechLevel == 1 and bHaveHighestLZTech and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandCombat) < 3 then
         if ConsiderBuildingCategory(M28UnitInfo.refCategoryDFTank) then
             return sBPIDToBuild
         end
@@ -932,7 +932,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         if bDebugMessages == true then
             LOG(sFunctionRef .. ': iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; iCurIsland=' .. iCurIsland .. '; iEnemyIsland=' .. iEnemyIsland .. '; iFactoryTechLevel=' .. iFactoryTechLevel .. '; Cur engineers of this tech level=' .. aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) .. '; Cur DF units of this tech level=' .. aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMobileLand * categories.DIRECTFIRE * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)))
         end
-        if iCurIsland == iEnemyIsland and math.min(8, aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))) > math.max(1, aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMobileLand * categories.DIRECTFIRE * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))) then
+        if iCurIsland == iEnemyIsland and math.min(8 - M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount], aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))) > math.max(1, aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMobileLand * categories.DIRECTFIRE * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))) then
             if bCanPathToEnemyWithLand then
                 if ConsiderBuildingCategory(M28UnitInfo.refCategorySkirmisher * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) then
                     return sBPIDToBuild
@@ -961,7 +961,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         end
     end
 
-    --Combat units in proportion to tanks at T1 if enemy relatively nearby spawn
+    --Combat units in proportion to engineers at T1 if enemy relatively nearby spawn
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if iFactoryTechLevel == 1 and GetGameTimeSeconds() <= 480 and tLZTeamData[M28Map.subrefLZbCoreBase] and (aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]) and M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefMidpoint]) < 450 then
         local iLifetimeEngineers = M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer)
@@ -1072,10 +1072,17 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             if bDebugMessages == true then
                 LOG(sFunctionRef .. ': Have fewer DF tanks than engineers so want to get more skirmishers or (if cant build any) DF tanks')
             end
+
+
             if ConsiderBuildingCategory(M28UnitInfo.refCategorySkirmisher * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) then
                 return sBPIDToBuild
-            elseif ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) then
-                return sBPIDToBuild
+            else
+                --Cant get skirmishers, so get indirect fire if we have none before getting normal tnaks
+                if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryIndirect * categories.MOBILE * categories.LAND * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) == 0 and ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) then
+                    return sBPIDToBuild
+                elseif ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) then
+                    return sBPIDToBuild
+                end
             end
         end
 
@@ -1086,9 +1093,9 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         if not (bSaveMassDueToEnemyFirebaseOrOurExperimental) then
             local iIndirectRatioWanted
             if iFactoryTechLevel == 1 then
-                iIndirectRatioWanted = 8
+                iIndirectRatioWanted = 6
             elseif iFactoryTechLevel == 2 then
-                iIndirectRatioWanted = 12
+                iIndirectRatioWanted = 9
             elseif iFactoryTechLevel == 3 then
                 if aiBrain:GetCurrentUnits((M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategorySkirmisher) * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) >= 60 then
                     if EntityCategoryContains(categories.AEON, oFactory.UnitId) then
@@ -1100,7 +1107,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                     if EntityCategoryContains(categories.AEON, oFactory.UnitId) then
                         iIndirectRatioWanted = 7
                     else
-                        iIndirectRatioWanted = 10
+                        iIndirectRatioWanted = 9
                     end
                 end
             end
