@@ -4283,7 +4283,7 @@ function GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjL
     local sFunctionRef = 'GetBPByTechWantedForAlternativeLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iPlateau == 33 and (iAdjLZ == 27 or iAdjLZ == 7) then bDebugMessages = true end
+
 
     local tiBPWantedByTech
     local tAltLZ = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
@@ -4396,7 +4396,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     local sFunctionRef = 'ConsiderCoreBaseLandZoneEngineerAssignment'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iLandZone == 9 then bDebugMessages = true end
+
 
     --For land zones in the core base
     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
