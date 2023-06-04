@@ -611,7 +611,7 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
     local sFunctionRef = 'AddUnitToLandZoneForBrain'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oUnit.UnitId == 'ueb2303' then bDebugMessages = true end
 
     if EntityCategoryContains(categories.MOBILE * categories.AIR, oUnit.UnitId) and not(bIsEnemyAirUnit) and not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer + categories.EXPERIMENTAL, oUnit.UnitId)) then M28Utilities.ErrorHandler('Havent flagged that an air unit is an air unit') end
 
@@ -640,7 +640,7 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
             if bIsEnemyAirUnit then
                 table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.reftLZEnemyAirUnits], oUnit)
             else
-                if bDebugMessages == true then LOG(sFunctionRef..': About to add enemy to table of enemy units, iPlateau='..(iPlateau or 'nil')..'; iLandZOne='..(iLandZone or 'nil')..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': About to add enemy to table of enemy units, iPlateau='..(iPlateau or 'nil')..'; iLandZOne='..(iLandZone or 'nil')..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is this a T2 arti unit='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId))) end
                 table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefTEnemyUnits], oUnit)
                 --T2 arti tracking - consider firebase
                 if EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) then
@@ -1108,6 +1108,10 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                         --Allied unit - dont record if it isnt owned by M28AI brain (so we dont control allied non-M28 units)
                         if not(oUnit:GetAIBrain().M28AI) then
                             bIgnore = true
+                        end
+                        --Update intel coverage for units being constructed and/or allied units (in addition when a radar/sonar is constructed it will also trigger the below if it hasnt already run as a redundancy)
+                        if EntityCategoryContains(M28UnitInfo.refCategoryRadar, oUnit.UnitId) then M28Land.UpdateZoneIntelForRadar(oUnit)
+                        elseif EntityCategoryContains(M28UnitInfo.refCategorySonar, oUnit.UnitId) then M28Navy.UpdateZoneIntelForSonar(oUnit)
                         end
                     end
                 end
