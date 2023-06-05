@@ -3929,7 +3929,7 @@ end
 
 function UpdateZoneIntelForRadar(oRadar)
     --If just built radar then want to update all land zones for the team to indicate the intel coverage
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateZoneIntelForRadar'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -4159,11 +4159,20 @@ end
 
 function ConsiderIfHaveEnemyFirebase(iTeam, oT2Arti)
     --Considers if hte land zone that oT2Arti is in has enough T2 arti threat to justify being a firebase
+    --Idea is to only flag a firebase for something that MML are not expected to be able to break through - e.g. 3+ T2 arti; for smaller amounts the hope is that the arti can be overwhelmed
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderIfHaveEnemyFirebase'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oT2Arti:GetPosition())
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
     if (iLandZone or 0) > 0 then
         local bHaveFirebase = false
         local tAllT2Arti = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTEnemyUnits])
+        if bDebugMessages == true then LOG(sFunctionRef..': Is table of all T2 arti for this zone empty='..tostring(M28Utilities.IsTableEmpty(tAllT2Arti))) end
         if M28Utilities.IsTableEmpty(tAllT2Arti) == false then
+            if bDebugMessages == true then LOG(sFunctionRef..': Table size='.. table.getn(tAllT2Arti)) end
             if table.getn(tAllT2Arti) >= 3 then bHaveFirebase = true
             else
                 local iTotalKills = 0
@@ -4177,6 +4186,7 @@ function ConsiderIfHaveEnemyFirebase(iTeam, oT2Arti)
         end
         if bHaveFirebase then
             --If we dont have a firebase recorded already then record one
+            if bDebugMessages == true then LOG(sFunctionRef..': Will record firebase if havent already, is it nil for this plateau and zone='..tostring(M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau][iLandZone] == nil)) end
             if not(M28Team.tTeamData[iTeam][M28Team.reftEnemyFirebaseByPlateauAndLZ][iPlateau][iLandZone]) then
                 RecordEnemyFirebase(iTeam, iPlateau, iLandZone)
             end
@@ -4185,6 +4195,7 @@ function ConsiderIfHaveEnemyFirebase(iTeam, oT2Arti)
             RemoveEnemyFirebase(iTeam, iPlateau, iLandZone)
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function ConsiderIfAnyEnemyTeamsStillHaveFirebaseOnT2ArtiDeath(oT2Arti)

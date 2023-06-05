@@ -826,7 +826,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                     if M28Config.M28ShowUnitNames then oJustBuilt:SetCustomName(oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..sWZOrLZRef..': Built') end
                 end
 
-                --If we have just built a radar then update radar logic
+                --Redundnacy - If we have just built a radar then update radar logic (note that AssignUnitToLandZoneOrPond should already cover this when construction is started)
                 if EntityCategoryContains(M28UnitInfo.refCategoryRadar, oJustBuilt.UnitId) then
                     ForkThread(M28Land.UpdateZoneIntelForRadar, oJustBuilt)
                 elseif EntityCategoryContains(M28UnitInfo.refCategorySonar, oJustBuilt.UnitId) then

@@ -384,9 +384,16 @@ function SafeToUpgradeUnit(oUnit)
         elseif tLZTeamData[M28Map.subrefLZbCoreBase] and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < 150 then
             bSafeZone = true
         end
-        --ACU specific - dont treat as safe if low health unless close to a base
-        if bSafeZone and EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and M28UnitInfo.GetUnitHealthPercent(oUnit) < 0.5 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]) > 10 then
-            bSafeZone = false
+        --ACU specific:
+        if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+            -- dont treat as safe if low health unless close to a base
+            if bSafeZone and M28UnitInfo.GetUnitHealthPercent(oUnit) < 0.5 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]) > 10 then
+                bSafeZone = false
+            end
+            --Treat as safe if are near T2 PD and have at least 40% health
+            if not(bSafeZone) and M28UnitInfo.GetUnitHealthPercent(oUnit) >= 0.4 and M28Utilities.IsTableEmpty(oUnit:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryT2PlusPD, oUnit:GetPosition(), 15, 'Ally')) == false then
+                bSafeZone = true
+            end
         end
 
         --If this mex has survived 5 mins and has no enemies in this zone itself, then treat as safe
