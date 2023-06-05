@@ -1918,7 +1918,7 @@ local function AssignMexesALandZone()
         for iAltMex, tAltMex in tAllPlateaus[iPlateau][subrefPlateauMexes] do
             if not(tiPlateauLandZoneByMexRef[iPlateau][iAltMex]) then
                 if NavUtils.GetTerrainLabel(refPathingTypeLand, tAltMex) == iLandGroupWanted and not(IsUnderwater(tAltMex, false, 0.1)) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iAltMex='..iAltMex..'; Distance straight line='..M28Utilities.GetDistanceBetweenPositions(tAltMex, tMex)..'; Travel distance='..M28Utilities.GetTravelDistanceBetweenPositions(tAltMex, tMex)) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iAltMex='..iAltMex..' for zone '..iCurLandZone..'; Distance straight line='..M28Utilities.GetDistanceBetweenPositions(tAltMex, tMex)..'; Travel distance='..M28Utilities.GetTravelDistanceBetweenPositions(tAltMex, tMex)) end
                     if M28Utilities.GetTravelDistanceBetweenPositions(tAltMex, tMex) <= iMaxRange then
                         AddMexToLandZone(iPlateau, iCurLandZone, iAltMex, tiPlateauLandZoneByMexRef)
                         if bDebugMessages == true then LOG(sFunctionRef..': Added mex '..iAltMex..' with position '..repru(tAltMex)..' to land zone, tiPlateauLandZoneByMexRef='..(tiPlateauLandZoneByMexRef[iAltMex] or 'nil')..'; Distance in straight line='..M28Utilities.GetDistanceBetweenPositions(tAltMex, tMex)..'; Travel distance='..M28Utilities.GetTravelDistanceBetweenPositions(tAltMex, tMex)) end
@@ -1940,7 +1940,7 @@ local function AssignMexesALandZone()
         end
     end
 
-    bDebugMessages = true
+
 
     local tiStartIndexPlateauAndLZ = {} --[x] is the player index, returns the land zone to use
     local iLZToUse
@@ -2019,7 +2019,7 @@ local function AssignMexesALandZone()
         end
     end
 
-    --Debug - draw the groupings of mexes with rectangles around them to show how they've been grouped, with a different colour for each plateau group:
+    --Debug - draw the groupings of mexes with black rectangles around them to show how they've been grouped
     if bDebugMessages == true then
         local iColour = 0
         for iPlateau, tPlateauSubtable in tAllPlateaus do
@@ -2047,15 +2047,43 @@ local function AssignMexesALandZone()
 
     --Now add any mexes near these resource locations to the same land zone
     if bDebugMessages == true then LOG(sFunctionRef..': Will now add mexes near the start position resources to the same land zone, tiStartResourcesByBrainIndex='..repru(tiStartResourcesByBrainIndex)) end
+    local iStartRecursiveCountToUse
     for iBrainIndex, tResources in tiStartResourcesByBrainIndex do
+        iStartRecursiveCountToUse = 1
+        if table.getn(tResources) >= 3 then iStartRecursiveCountToUse = table.getn(tResources) - 2 end
         for iResource, tResourceLocation in tResources do
             if (tiStartIndexPlateauAndLZ[iBrainIndex][2] or 0) > 0 then
-                AddNearbyMexesToLandZone(tiStartIndexPlateauAndLZ[iBrainIndex][1], tiStartIndexPlateauAndLZ[iBrainIndex][2], tResourceLocation, 1)
+                AddNearbyMexesToLandZone(tiStartIndexPlateauAndLZ[iBrainIndex][1], tiStartIndexPlateauAndLZ[iBrainIndex][2], tResourceLocation, iStartRecursiveCountToUse)
             end
         end
     end
 
 
+    --Debug - draw the groupings of mexes with gold rectangles around them to show how they've been grouped following the above
+    if bDebugMessages == true then
+        local iColour = 0
+        for iPlateau, tPlateauSubtable in tAllPlateaus do
+            LOG(sFunctionRef..': About to draw results of land zones for iPlateau='..iPlateau..'; tiPlateauLandZoneByMexRef[iPlateau]='..repru(tiPlateauLandZoneByMexRef[iPlateau])..'; tAllPlateaus[iPlateau][subrefPlateauLandZones]='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones]))
+            iColour = 4
+            --Draw the mex groupings
+            if M28Utilities.IsTableEmpty(tAllPlateaus[iPlateau][subrefPlateauLandZones]) == false then
+                for iZone, tZone in tAllPlateaus[iPlateau][subrefPlateauLandZones] do
+                    local iMinX = 100000
+                    local iMaxX = 0
+                    local iMinZ = 100000
+                    local iMaxZ = 0
+
+                    for iMex, tMex in tZone[subrefLZMexLocations] do
+                        iMinX = math.min(tMex[1], iMinX)
+                        iMaxX = math.max(tMex[1], iMaxX)
+                        iMinZ = math.min(tMex[3], iMinZ)
+                        iMaxZ = math.max(tMex[3], iMaxZ)
+                    end
+                    M28Utilities.DrawRectangle(Rect(iMinX - 0.1, iMinZ - 0.1, iMaxX + 0.1, iMaxZ + 0.1), iColour, 1000, 10)
+                end
+            end
+        end
+    end
 
     --Assign assign zones to mex locations - group mexes that are near each other in the same zone
     local iCurLandZone
@@ -2078,6 +2106,7 @@ local function AssignMexesALandZone()
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Finished recording land zone mexes for iPlateau='..iPlateau..'; Size of land zones table='..table.getn(tAllPlateaus[iPlateau][subrefPlateauLandZones])) end
     end
+
 
     --Debug - draw the groupings of mexes with rectangles around them to show how they've been grouped, with a different colour for each plateau group:
     if bDebugMessages == true then
