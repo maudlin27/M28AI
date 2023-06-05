@@ -3335,6 +3335,8 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
         --if oEngBP.Economy.MaxBuildDistance >= 10 then iSegmentSearchSize = math.max(1, math.ceil((oEngBP.Economy.MaxBuildDistance + 2) / math.min(M28Map.iReclaimSegmentSizeX, M28Map.iReclaimSegmentSizeZ))) end
         --local iMoveSpeed = oEngBP.Physics.MaxSpeed
         local iMaxDistanceToEngineer = oEngBP.Economy.MaxBuildDistance + math.min(oEngBP.SizeX, oEngBP.SizeZ) * 0.5 - 0.1
+        local bCheckTerrain = false
+        if iMaxDistanceToEngineer < math.min(M28Map.iReclaimSegmentSizeX, M28Map.iReclaimSegmentSizeZ) then bCheckTerrain = true end
         local sReclaimTableRef
         if bWantEnergyNotMass then sReclaimTableRef = M28Map.refSegmentReclaimTotalEnergy
         else sReclaimTableRef = M28Map.refReclaimTotalMass
@@ -3389,6 +3391,9 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
                 local iNearestReclaim = 10000
                 local iNearestReclaimWithAnyValue = 10000
                 local oNearestAnyValueReclaim
+                local iReclaimRadius
+
+                local iEngiTerrainLabel = NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oEngineer:GetPosition())
 
                 for iReclaim, oReclaim in tNearbyReclaim do
                     --is this valid reclaim within our build area?
@@ -3403,8 +3408,13 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
                         end
                     end
                     if oReclaim.CachePosition and ((not(bWantEnergyNotMass) and oReclaim.MaxMassReclaim >= iMinReclaimIndividualValue) or (bWantEnergyNotMass and oReclaim.MaxEnergyReclaim >= iMinReclaimIndividualValue)) and not(oReclaim:BeenDestroyed()) then
-                        iCurDistToTargetPos = math.max(0, M28Utilities.GetDistanceBetweenPositions(tTargetPos, oReclaim.CachePosition) - math.min(oReclaim:GetBlueprint().SizeX, oReclaim:GetBlueprint().SizeZ)*0.5)
-                        if iCurDistToTargetPos < iNearestReclaim then iNearestReclaim = iCurDistToTargetPos oNearestReclaim = oReclaim end
+                        iReclaimRadius = math.min(oReclaim:GetBlueprint().SizeX, oReclaim:GetBlueprint().SizeZ)*0.5
+                        iCurDistToTargetPos = math.max(0, M28Utilities.GetDistanceBetweenPositions(tTargetPos, oReclaim.CachePosition) - iReclaimRadius)
+                        --Can we path to it?
+                        if iCurDistToTargetPos < iNearestReclaim and (not(bCheckTerrain) or (NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oReclaim.CachePosition) == iEngiTerrainLabel or (iCurDistToTargetPos <= 12 and M28Utilities.GetDistanceBetweenPositions(oReclaim.CachePosition, oEngineer:GetPosition()) <= iReclaimRadius + iMaxDistanceToEngineer))) then
+                            iNearestReclaim = iCurDistToTargetPos
+                            oNearestReclaim = oReclaim
+                        end
                         --Backup e.g. if looking for energy reclaim but only have mass available
                         if not(oNearestReclaim) then
                             if iCurDistToTargetPos < iNearestReclaimWithAnyValue and (oReclaim.MaxMassReclaim or 0) + (oReclaim.MaxEnergyReclaim or 0) > 0 then
@@ -3414,7 +3424,18 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
                         end
                     end
                 end
-                if not(oNearestReclaim) then oNearestReclaim = oNearestAnyValueReclaim end
+                if not(oNearestReclaim) then
+                    oNearestReclaim = oNearestAnyValueReclaim
+                    --Check this is in the same zone
+                    if oNearestReclaim and bCheckTerrain then
+                        if not(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oNearestReclaim.CachePosition) == NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oEngineer:GetPosition()) and M28Utilities.GetDistanceBetweenPositions(oNearestReclaim.CachePosition, oEngineer:GetPosition()) > iMaxDistanceToEngineer + math.min(oNearestReclaim:GetBlueprint().SizeX, oNearestReclaim:GetBlueprint().SizeZ)*0.5) then
+                            bDebugMessages = true
+                            if bDebugMessages == true then LOG(sFunctionRef..': Ignoring reclaim as we cant path to it') end
+                            oNearestReclaim = nil
+                        end
+                    end
+                end
+
                 if oNearestReclaim then
                     bGivenOrder = true
                     M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaim, false, 'ReclLZSeg')
