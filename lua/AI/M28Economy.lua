@@ -816,14 +816,14 @@ function ManageMassStalls(iTeam)
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code, GetGameTimeSeconds='..GetGameTimeSeconds()..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Team stalling mass already='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass])..'; Team stalling energy='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) end
         if M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass] or (GetGameTimeSeconds() >= 120 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 3 and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or -100) >= 10 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] >= 0.99) then
             if bDebugMessages == true then
-                LOG(sFunctionRef .. ': About to consider if we have a mass stall or not. aiBrain:GetEconomyStoredRatio(MASS)=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] .. '; M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] .. '; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]))
+                LOG(sFunctionRef .. ': About to consider if we have a mass stall or not. Team lowest mass percent stored=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] .. '; M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] .. '; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]))
             end
             --First consider unpausing
             if bDebugMessages == true then
                 LOG(sFunctionRef .. ': If we have flagged that we are stalling mass then will check if we have enough to start unpausing things. M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]..'; iMassStallPercentAdjust='..iMassStallPercentAdjust)
             end
 
-            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] > (0.005 + iMassStallPercentAdjust) then
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] > (0.005 + iMassStallPercentAdjust) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 2000 then
                 --aiBrain[refbStallingEnergy] = false
                 if bDebugMessages == true then
                     LOG(sFunctionRef .. ': Have enough mass stored or income to start unpausing things')
@@ -861,7 +861,7 @@ function ManageMassStalls(iTeam)
                     else
                         iMassPerTickSavingNeeded = math.min(-1, -M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] * 1.2, -M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] / 20)
                     end
-                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.15 then
+                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.15 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 4000 then
                         iMassPerTickSavingNeeded = iMassPerTickSavingNeeded * 1.2 - 0.5
                         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 4000 then iMassPerTickSavingNeeded = iMassPerTickSavingNeeded - 1 end
                     end
@@ -1945,7 +1945,7 @@ function AllocateTeamEnergyAndMassResources(iTeam)
             elseif iCurMassSpare > 0 then
                 table.insert(tDetailsOfBrainsWithMass, {[subrefoBrain] = oBrain, [subrefiResourceToGive] = iCurMassSpare})
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..oBrain.Nickname..': iCurEnergySpare='..iCurEnergySpare..'; iCurMassSpare='..iCurMassSpare) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..oBrain.Nickname..': iCurEnergySpare='..iCurEnergySpare..'; iCurMassSpare='..iCurMassSpare..'; Actual mass stored='..oBrain:GetEconomyStored('MASS')..'; Actual energy stored='..oBrain:GetEconomyStored('ENERGY')..'; iAverageMassStored='..iAverageMassStored) end
         end
 
         --Allocate resources:
@@ -1955,15 +1955,19 @@ function AllocateTeamEnergyAndMassResources(iTeam)
             if iResourceType == refiResourceEnergy then
                 tBrainsNeedingResource = tDetailsOfBrainsNeedingEnergy
                 tBrainsWithResource = tDetailsOfBrainsWithEnergy
+                if bDebugMessages == true then LOG(sFunctionRef..': Allcoating energy') end
             else
                 tBrainsNeedingResource = tDetailsOfBrainsNeedingMass
                 tBrainsWithResource = tDetailsOfBrainsWithMass
+                if bDebugMessages == true then LOG(sFunctionRef..': Allcoating mass') end
             end
-
+            if bDebugMessages == true then LOG(sFunctionRef..': Is table of brains needing this resource empty='..tostring(M28Utilities.IsTableEmpty(tBrainsNeedingResource))..'; Is table of brains with this resource available empty='..tostring(M28Utilities.IsTableEmpty(tBrainsWithResource))) end
             if M28Utilities.IsTableEmpty(tBrainsNeedingResource) == false and M28Utilities.IsTableEmpty(tBrainsWithResource) == false then
                 for iBrainWithResource, tBrainWithResourceSubtable in tBrainsWithResource do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Deciding which brain '..tBrainWithResourceSubtable[subrefoBrain].Nickname..' should give its resources to') end
                     for iBrainNeedingResource, tBrainNeedingResourceSubtable in tBrainsNeedingResource do
                         iResourceToGive = math.min(-tBrainNeedingResourceSubtable[subrefiRemainingResourceNeeded], tBrainWithResourceSubtable[subrefiResourceToGive])
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to give resources to brain '..tBrainNeedingResourceSubtable[subrefoBrain].Nickname..'; iResourceToGive='..iResourceToGive..'; tBrainNeedingResourceSubtable[subrefiRemainingResourceNeeded]='..tBrainNeedingResourceSubtable[subrefiRemainingResourceNeeded]..'; tBrainWithResourceSubtable[subrefiResourceToGive]='..tBrainWithResourceSubtable[subrefiResourceToGive]) end
                         if iResourceToGive > 0 then
                             if iResourceType == refiResourceEnergy then
                                 GiveResourcesToPlayer(tBrainWithResourceSubtable[subrefoBrain], tBrainNeedingResourceSubtable[subrefoBrain], 0, iResourceToGive)
@@ -1972,8 +1976,9 @@ function AllocateTeamEnergyAndMassResources(iTeam)
                                 GiveResourcesToPlayer(tBrainWithResourceSubtable[subrefoBrain], tBrainNeedingResourceSubtable[subrefoBrain], iResourceToGive, 0)
                             end
                             tBrainNeedingResourceSubtable[subrefiRemainingResourceNeeded] = tBrainNeedingResourceSubtable[subrefiRemainingResourceNeeded] + iResourceToGive
-                            tBrainWithResourceSubtable[subrefiRemainingResourceNeeded] = tBrainNeedingResourceSubtable[subrefiRemainingResourceNeeded] - iResourceToGive
-                            if tBrainWithResourceSubtable[subrefiRemainingResourceNeeded] <= 0 then
+                            tBrainWithResourceSubtable[subrefiResourceToGive] = tBrainWithResourceSubtable[subrefiResourceToGive] - iResourceToGive
+                            if tBrainWithResourceSubtable[subrefiResourceToGive] <= 0 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Remaining resource available for brain '..tBrainWithResourceSubtable[subrefoBrain].Nickname..' to give='..tBrainWithResourceSubtable[subrefiResourceToGive]..' so will break') end
                                 break
                             end
                         end
