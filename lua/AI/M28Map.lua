@@ -1940,6 +1940,8 @@ local function AssignMexesALandZone()
         end
     end
 
+    bDebugMessages = true
+
     local tiStartIndexPlateauAndLZ = {} --[x] is the player index, returns the land zone to use
     local iLZToUse
     local iCurPlateau
