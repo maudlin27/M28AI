@@ -174,7 +174,7 @@ function UpdateLandZoneM28AllMexByTech(aiBrain, iPlateau, iLandZone, oOptionalUn
         tMexesByTech[1] = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex * categories.TECH1, tAllMexes)
         tMexesByTech[2] = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex * categories.TECH2, tAllMexes)
         tMexesByTech[3] = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex * categories.TECH3, tAllMexes)
-        if bDebugMessages == true and oOptionalUnitThatDied then LOG(sFunctionRef..': oOptionalUnitThatDied='..oOptionalUnitThatDied.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOptionalUnitThatDied)) end
+        if bDebugMessages == true then LOG(sFunctionRef..': oOptionalUnitThatDied='..(oOptionalUnitThatDied.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oOptionalUnitThatDied) or 'nil')..'; Is tAllMexes empty='..tostring(M28Utilities.IsTableEmpty(tAllMexes))) end
 
         for iTech = 1, 3 do
             if M28Utilities.IsTableEmpty(tMexesByTech[iTech]) == false then
@@ -211,7 +211,7 @@ function UpdateLandZoneM28MexByTechCount(oMexJustBuiltOrDied, bJustDied, iOption
         if aiBrain.M28AI then
             local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oMexJustBuiltOrDied:GetPosition())
             --should be called whenever a mex is created or destroyed in a land zone; ideally call via fork thread so reduced risk of it being called inbetween a mex say upgrading from one to another and being claled before both the creation and destroy events have happened
-            if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; oMexJustBuiltOrDied='..oMexJustBuiltOrDied.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMexJustBuiltOrDied)..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; Mex position='..repru(oMexJustBuiltOrDied:GetPosition())..'; iMapWaterHeight='..M28Map.iMapWaterHeight) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; oMexJustBuiltOrDied='..(oMexJustBuiltOrDied.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oMexJustBuiltOrDied) or 'nil')..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; Mex position='..repru(oMexJustBuiltOrDied:GetPosition())..'; iMapWaterHeight='..M28Map.iMapWaterHeight..'; iOptionalWait='..(iOptionalWait or 'nil')..'; bJustDied='..tostring(bJustDied or false)) end
             if (iLandZone or 0) > 0 then
                 if not(iOptionalWait) then
                     if bJustDied then

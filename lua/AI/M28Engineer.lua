@@ -3429,7 +3429,6 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
                     --Check this is in the same zone
                     if oNearestReclaim and bCheckTerrain then
                         if not(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oNearestReclaim.CachePosition) == NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oEngineer:GetPosition()) and M28Utilities.GetDistanceBetweenPositions(oNearestReclaim.CachePosition, oEngineer:GetPosition()) > iMaxDistanceToEngineer + math.min(oNearestReclaim:GetBlueprint().SizeX, oNearestReclaim:GetBlueprint().SizeZ)*0.5) then
-                            bDebugMessages = true
                             if bDebugMessages == true then LOG(sFunctionRef..': Ignoring reclaim as we cant path to it') end
                             oNearestReclaim = nil
                         end
@@ -5253,7 +5252,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --T2 arti if enemy has sniper bots or fatboy, or a firebase that threatens this zone
     iCurPriority = iCurPriority + 1
-    bDebugMessages = true
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want emergency T2 arti, iCurPriority='..iCurPriority..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]..'; Friendly tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Is table of pathing to other zones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]))..'; Is tLZTeamData[M28Map.subreftEnemyFirebasesInRange] empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]))) end
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 5 then
         local iRangeThreshold = 65
@@ -5336,7 +5334,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
         end
     end
-    bDebugMessages = false
 
     --More power
     iCurPriority = iCurPriority + 1
@@ -5457,7 +5454,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
         --T2 radar
         iCurPriority = iCurPriority + 1
-        bDebugMessages = true
         if bDebugMessages == true then LOG(sFunctionRef..': Considering if want T2 radar, tLZTeamData[M28Map.refiRadarCoverage]='..tLZTeamData[M28Map.refiRadarCoverage]..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]) end
         if tLZTeamData[M28Map.refiRadarCoverage] <= 130 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 100 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 5 then
             --Check we dont already have t2 radar in the land zone
