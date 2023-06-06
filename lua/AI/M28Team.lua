@@ -1292,7 +1292,6 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                 end
             end
         else
-            bDebugMessages = true
             if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Have unit that cant take damage or be killed so ignoring, unit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' owned by '..(oUnit:GetAIBrain().Nickname or 'nil')..'; reprs='..reprs(oUnit)) end
         end
     end
