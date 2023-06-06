@@ -114,7 +114,8 @@ function SendForkedMessage(aiBrain, sMessageType, sMessage, iOptionalDelayBefore
                 WaitSeconds(1)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                 iCount = iCount + 1
-                if iCount >= 300 then M28Utilities.ErrorHandler('Waited '..iCount..' times so wont send chat message '..sMessage)
+                --FA Mission 6 - end up waiting more than 6m, so changed to 400s
+                if iCount >= 400 then M28Utilities.ErrorHandler('Waited '..iCount..' times so wont send chat message '..sMessage)
                     bAbort = true
                     break
                 end

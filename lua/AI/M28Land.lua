@@ -17,6 +17,7 @@ local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
 local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
+local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
 
 --Global
 tLZRefreshCountByTeam = {}
@@ -3126,12 +3127,14 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                 if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
                     table.insert(tEngineers, oUnit)
                     bLandZoneOrAdjHasUnitsWantingScout = true
-                elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+                elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) or oUnit[M28ACU.refbTreatingAsACU] then
                     --ACU logic - handled via M28ACU file, as amy not want to kite with it; acu is still stored in list of allied units for a land zone though
                     if bDebugMessages == true then LOG(sFunctionRef..': ACU is in list of allied units for iPlateau'..iPlateau..'; iLandZone='..iLandZone) end
                     bLandZoneOrAdjHasUnitsWantingScout = true
                     table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
                     table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth], oUnit)
+
+                    if not(oUnit[M28ACU.refbTreatingAsACU]) and oUnit:GetAIBrain().M28AI then ForkThread(M28ACU.ManageACU, oUnit:GetAIBrain(), oUnit) end --redundancy, wouldnt expect this to normally trigger
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryLandScout, oUnit.UnitId) then
                     table.insert(tScouts, oUnit)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileLandShield, oUnit.UnitId) then

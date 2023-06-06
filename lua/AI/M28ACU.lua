@@ -18,6 +18,7 @@ local NavUtils = import("/lua/sim/navutils.lua")
 local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 
 --ACU specific variables against the ACU
+refbTreatingAsACU = 'M28ACUTreatACU' --true if are running ACU logic on this unit - e.g. for campagins where are given SACU but not an ACU
 refbDoingInitialBuildOrder = 'M28ACUInitialBO'
 reftPreferredUpgrades = 'M28ACUPreferredUpgrades' --table of the enhancement IDs in the order that we want to get them (which is updated to remove any upgrades we already have as and when we get them)
 refiUpgradeCount = 'M28ACUUpgradeCount' --Number of upgrades the ACU has
@@ -31,6 +32,9 @@ refiTimeLastToldToAttackUnitInOtherZone = 'M28ACUTimeLastAttackUnit'
 refiLastPlateauAndZoneToAttackUnitIn = 'M28ACULastZoneToAttack' --PlateauOrZero and Land/Water zone ref if given move to zone order in order to attack a unit
 reftiTimeLastRanFromZoneByPlateau = 'M28ACUTimeLastRanByZone' --[x] is plateau or zero, [y] is the zone (currently only have logic for LZs though), returns gametimeseconds that last ran when in that zone
 refbUseACUAggressively = true
+
+--ACU related variables against the ACU's brain
+refoPrimaryACU = 'M28PrimACU' --ACU unit for the brain; recorded against aibrain
 
 function ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearchForAdjacencyAndUnderConstruction, iMaxAreaToSearchForBuildLocation, iOptionalAdjacencyCategory, iOptionalCategoryBuiltUnitCanBuild)
     local sFunctionRef = 'ACUBuildUnit'
@@ -1755,15 +1759,17 @@ function DoWeStillWantToBeAggressiveWithACU(oACU)
     return bStillBeAggressive
 end
 
-function ManageACU(aiBrain)
+function ManageACU(aiBrain, oACUOverride)
     local sFunctionRef = 'ManageACU'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --First get our ACU
-    local oACU
+    local oACU = oACUOverride
+    local iWaitCount = 0
+    local iACUSearchCategory = categories.COMMAND
     while not(oACU) do
-        local tOurACU = aiBrain:GetListOfUnits(categories.COMMAND, false, true)
+        local tOurACU = aiBrain:GetListOfUnits(iACUSearchCategory, false, true)
         if M28Utilities.IsTableEmpty(tOurACU) == false then
             for _, oUnit in tOurACU do
                 oACU = oUnit
@@ -1775,9 +1781,20 @@ function ManageACU(aiBrain)
             oACU[refbDoingInitialBuildOrder] = true
             break
         end
+        iWaitCount = iWaitCount + 1
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        if iWaitCount >= 360 then --No ACU after 6m, see if we have any SACU we could use instead
+            iACUSearchCategory = iACUSearchCategory + categories.SUBCOMMANDER
+            if iWaitCount >= 480 then
+                iACUSearchCategory = iACUSearchCategory + M28UnitInfo.refCategoryEngineer
+                if iWaitCount >= 600 then
+                    M28Utilities.ErrorHandler('No ACU, SACU or engineer after '..iWaitCount..' ticks so will abort')
+                    break
+                end
+            end
+        end
     end
 
     --Wait until ok for us to give orders
@@ -1792,11 +1809,16 @@ function ManageACU(aiBrain)
         ForkThread(M28Overseer.CheckForAlliedCampaignUnitsToShareAtGameStart, oACU:GetAIBrain())
     end
 
+    if M28UnitInfo.IsUnitValid(oACU) and not(M28UnitInfo.IsUnitValid(aiBrain[refoPrimaryACU])) then
+        aiBrain[refoPrimaryACU] = oACU
+    end
+
     --Make sure ACU is recorded
     M28Team.AssignUnitToLandZoneOrPond(aiBrain, oACU, false, false, true)
     oACU[refiUpgradeCount] = 0
     oACU[refbUseACUAggressively] = true
     while M28UnitInfo.IsUnitValid(oACU) do
+        oACU[refbTreatingAsACU] = true
         if oACU[refbUseACUAggressively] then
             oACU[refbUseACUAggressively] = DoWeStillWantToBeAggressiveWithACU(oACU)
         end
