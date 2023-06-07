@@ -3565,7 +3565,6 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                 local oHighestPriorityEngi
                 for iEngi, oEngi in toAssignedEngisOfTechLevel do
                     if not(oEngi[refbPrimaryBuilder]) and not(oEngi[refiAssignedAction] == iActionToAssign) and oEngi[refiAssignedActionPriority] > iHighestPriorityEngi and not(oEngi:IsUnitState('Reclaiming')) and not(oEngi:IsUnitState('Attached')) and not(oEngi:IsUnitState('Capturing')) then
-                        if oEngi[refiAssignedAction] == refActionBuildMassStorage then bDebugMessages = true else bDebugMessages = false end
                         iHighestPriorityEngi = oEngi[refiAssignedActionPriority]
                         oHighestPriorityEngi = oEngi
                     end
@@ -3813,6 +3812,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                 end
                                 local oFirstEngineer = tEngineersOfTechWanted[iEngiCount]
                                 local sBlueprint, tBuildLocation
+                                local iAdjacencyCategory
                                 if bDebugMessages == true then LOG(sFunctionRef..': About to get the blueprint and build location, oFirstEngineer='..oFirstEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFirstEngineer)) end
                                 if iActionToAssign == refActionBuildShield or iActionToAssign == refActionBuildSecondShield then
                                     GetMaxShieldSearchRangeForEngineer(oFirstEngineer, iCategoryWanted)
@@ -3827,7 +3827,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                     --Build near the unit we want to protect (get blueprint will also factor in maxsearchrange based on the TMD range)
                                     sBlueprint, tBuildLocation = GetBlueprintAndLocationToBuild(aiBrain, oFirstEngineer, iActionToAssign, iCategoryWanted, iMaxSearchRange, tiActionAdjacentCategory[iActionToAssign], vOptionalVariable:GetPosition(), false, nil, nil, false, tLZOrWZTeamData)
                                 else
-                                    local iAdjacencyCategory = tiActionAdjacentCategory[iActionToAssign]
+                                    iAdjacencyCategory = tiActionAdjacentCategory[iActionToAssign]
                                     if not(iAdjacencyCategory) and (iActionToAssign == refActionBuildExperimental or iActionToAssign == refActionBuildSecondExperimental) then
                                         if M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti * categories.STRUCTURE + M28UnitInfo.refCategorySML, iCategoryWanted) then
                                             iAdjacencyCategory = M28UnitInfo.refCategoryT3Power
