@@ -5744,7 +5744,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
         if bDebugMessages == true then LOG(sFunctionRef..': About to check for nearby gameenders for team '..(iTeam or 'nil')..'; First active M28brain aibrain='..(aiBrain.Nickanme or 'nil')..'; LZ midpoint='..repru(tLZData[M28Map.subrefMidpoint])) end
         local tNearbyGameEnders = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryGameEnder, tLZData[M28Map.subrefMidpoint], 1000, 'Ally')
-
+        local iCompletedGameEnders = 0
         if M28Utilities.IsTableEmpty(tNearbyGameEnders) == false then
             for iExperimental, oExperimental in tNearbyGameEnders do
                 if oExperimental:GetFractionComplete() < 1 then
@@ -5752,8 +5752,9 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     local iGameEnderPlateau, iGameEnderZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oExperimental:GetPosition())
                     if not(iGameEnderZone == iLandZone and iGameEnderPlateau == iPlateau) then
                         bAlreadyHaveGameEnderUnderConstruction = true
-                        break
                     end
+                else
+                    iCompletedGameEnders = iCompletedGameEnders + 1
                 end
             end
         end
