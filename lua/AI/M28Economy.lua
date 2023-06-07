@@ -38,6 +38,7 @@ reftPausedUnits = 'M28EconomyPausedUnits' --against aibrain, table of paused uni
 refoBrainRecordedForEconomy = 'M28EconomyBrainRecordedUnit' --Stores the M28 brain that has factored in this unit's mass and energy income
 refiLastEnergyUsage = 'M28EconomyLastEnergyUsage' --per tick energy usage of the unit (set when the unit is paused)
 refiLastMassUsage = 'M28EconomyLastMassUsage' --per tick massu sage of the unit set when unit is paused
+refiStorageMassAdjacencyBonus = 'M28EMassStorAdj' --Adjacency bonus from a mass storage
 
 --global variables
 tiMinEnergyPerTech = {[1]=16,[2]=55,[3]=150,[3]=150}
@@ -418,15 +419,68 @@ function UpdateHighestFactoryTechLevelForDestroyedUnit(oUnitJustDestroyed)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function UpdateMassStorageAdjacencyValues(oStorage, bDestroyed)
+    --Updates gross income for the mass storage
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'UpdateMassStorageAdjacencyValues'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iMassChange = -(oStorage[refiStorageMassAdjacencyBonus] or 0)
+    local aiBrain = oStorage:GetAIBrain()
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, Time='..GetGameTimeSeconds()..'; About to update for oStorage='..oStorage.UnitId..M28UnitInfo.GetUnitLifetimeCount(oStorage)..' owned by brain '..aiBrain.Nickname..'; bDestroyed='..tostring(bDestroyed or false)..'; oStorage[refiStorageMassAdjacencyBonus]='..(oStorage[refiStorageMassAdjacencyBonus] or 'nil')..'; aiBrain[refiGrossMassBaseIncome]='..(aiBrain[refiGrossMassBaseIncome] or 'nil')) end
+    if not(bDestroyed) then
+        oStorage[refiStorageMassAdjacencyBonus] = 0
+        if oStorage:GetFractionComplete() >= 1 then
+            local iBaseMassGen
+            local iAiXMod = 1
+            local iAdjacencyMassGen
+            local oGenBP
+            local iBPMassGen
+            local iGenUnitSize
+            local iStorageSize = M28UnitInfo.GetBuildingSize(oStorage.UnitId)
+            --Adjust for AiX
+            if aiBrain.CheatEnabled then
+                iAiXMod = tonumber(ScenarioInfo.Options.CheatMult or 1.5)
+            end
+            oStorage[refiStorageMassAdjacencyBonus] = 0
+            --Get all adjacent mexes
+            if bDebugMessages == true then LOG(sFunctionRef..': iAiXMod='..iAiXMod..'; Is table of adjacent units empty='..tostring(M28Utilities.IsTableEmpty(oStorage.AdjacentUnits))) end
+            if M28Utilities.IsTableEmpty(oStorage.AdjacentUnits) == false then
+                --Cant use filterdown a doesnt work with .adjacentunits
+                for iMassGenUnit, oMassGenUnit in oStorage.AdjacentUnits do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering oMassGenUnit='..oMassGenUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMassGenUnit)..' owned by '..oMassGenUnit:GetAIBrain().Nickname) end
+                    if EntityCategoryContains(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryMassFab, oMassGenUnit.UnitId) and oMassGenUnit:GetAIBrain() == aiBrain then --Wont get adjacency unless are on the same team
+                        oGenBP = oMassGenUnit:GetBlueprint()
+                        iBaseMassGen = (oGenBP.Economy.ProductionPerSecondMass or 0)
+                        if iBaseMassGen > 0 then
+                            iGenUnitSize = M28UnitInfo.GetBuildingSize(oMassGenUnit.UnitId)
+                            --Mass storage adjacency - if covers all of the resource generation on all 4 sides, gives a 50% boost, so is giving 12.5% boost for each side fully covered
+                            --Also want to measure in mass per tick not per second, so *0.0125
+                            iAdjacencyMassGen = iBaseMassGen * iAiXMod * 0.0125 * math.min(1, iStorageSize / iGenUnitSize)
+                            oStorage[refiStorageMassAdjacencyBonus] = oStorage[refiStorageMassAdjacencyBonus] + iAdjacencyMassGen
+                            iMassChange = iMassChange + iAdjacencyMassGen
+                            if bDebugMessages == true then LOG(sFunctionRef..': Are adjacent to oMassGenUnit='..(oMassGenUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMassGenUnit)..'; iAdjacencyMassGen for this unit='..(iAdjacencyMassGen or 'nil'))) end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    aiBrain[refiGrossMassBaseIncome] = aiBrain[refiGrossMassBaseIncome] + iMassChange
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, iMassChange='..iMassChange..'; aiBrain[refiGrossMassBaseIncome]='..aiBrain[refiGrossMassBaseIncome]) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
 
 function UpdateGrossIncomeForUnit(oUnit, bDestroyed)
     --Logs are enabled below
 
-    if oUnit.GetAIBrain and EntityCategoryContains(M28UnitInfo.refCategoryResourceUnit, oUnit.UnitId) then
+    if oUnit.GetAIBrain and EntityCategoryContains(M28UnitInfo.refCategoryResourceUnit + M28UnitInfo.refCategoryMassStorage, oUnit.UnitId) then
         --Does the unit have an M28 aiBrain?
         local aiBrain = oUnit:GetAIBrain()
         if aiBrain.M28AI then
-            local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+            local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
             local sFunctionRef = 'UpdateGrossIncomeForUnit'
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -494,8 +548,29 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed)
                     end
 
                     --Mass storage - assume we are adjacent to a T2 mex as a basic approximation
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to check for mass storage, iMassGen='..iMassGen..'; iEnergyGen='..iEnergyGen..'; Does unit contain mass storage='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryMassStorage, oUnit.UnitId))) end
                     if iMassGen == 0 and iEnergyGen == 0 and EntityCategoryContains(M28UnitInfo.refCategoryMassStorage, oUnit.UnitId) then
-                        iMassGen = 0.05
+                        if bDebugMessages == true then LOG(sFunctionRef..': Dealing with mass storage so will update for adjacency value gained or lost') end
+                        UpdateMassStorageAdjacencyValues(oUnit, bDestroyed) --Will update mass income values as part of this function
+                    elseif iMassGen > 0 then
+                        --Update adjacency values for any nearby mass storage
+                        local tMexLocation = oUnit:GetPosition()
+                        local rSearchRectangle = M28Utilities.GetRectAroundLocation(tMexLocation, 2.749) --If changing this also change M28Events similar value
+                        local tNearbyUnits = GetUnitsInRect(rSearchRectangle) --at 1.5 end up with storage thats not adjacent being gifted in some cases but not in others; at 1 none of it gets gifted; the mass storage should be exactly 2 from the mex; however even at 2.1, 2.25 and 2.499 had cases where the mex wasnt identified so will try 2.75 since distances can vary/be snapped to the nearest 0.5 I think
+                        if bDebugMessages == true then LOG(sFunctionRef..': Checking if have any nearby units in a rectangle to this mex/mass fab, is tNearbyUnits empty='..tostring(M28Utilities.IsTableEmpty(tNearbyUnits))) end
+                        if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
+                            local tNearbyStorage = EntityCategoryFilterDown(M28UnitInfo.refCategoryMassStorage, tNearbyUnits)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is table of nearby storage empty='..tostring(M28Utilities.IsTableEmpty(tNearbyStorage))) end
+                            if M28Utilities.IsTableEmpty(tNearbyStorage) == false then
+                                for iStorage, oStorage in tNearbyStorage do
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Have oStorage='..oStorage.UnitId..M28UnitInfo.GetUnitLifetimeCount(oStorage)..'; will update if it is close to here, distance='..M28Utilities.GetDistanceBetweenPositions(oStorage:GetPosition(), tMexLocation)) end
+                                    if M28Utilities.GetDistanceBetweenPositions(oStorage:GetPosition(), tMexLocation) <= 2.25 then
+                                        --Fork thread in case have just been destroyed/is a delay in reflecting
+                                        ForkThread(UpdateMassStorageAdjacencyValues, oUnit, false)
+                                    end
+                                end
+                            end
+                        end
                     end
 
                     --Adjust for AiX

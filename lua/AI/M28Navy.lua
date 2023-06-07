@@ -1110,7 +1110,6 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
             end
             if not(iLZToSupport) then M28Utilities.ErrorHandler('Unable to find a LZ needing support for water zone '..iWaterZone..'; Pond '..iPond..'; only expected on maps with naval start points', true)
             else
-                bDebugMessages = true
                 --We have a LZ to support - decide if we want to send our units there, or if we want to keep them in the water and build up forces
                 --If the LZ is a core base LZ or adjacent to a LZ then support
                 local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLZToSupport]

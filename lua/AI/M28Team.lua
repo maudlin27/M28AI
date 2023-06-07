@@ -2196,7 +2196,7 @@ function ConsiderGettingUpgrades(iM28Team)
 end
 
 function TeamEconomyRefresh(iM28Team)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'TeamEconomyRefresh'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -2248,7 +2248,7 @@ function TeamEconomyRefresh(iM28Team)
         tTeamData[iM28Team][subreftiPrevTeamNetMass][iLastEntry] = (tTeamData[iM28Team][subreftiPrevTeamNetMass][iLastEntry-1] or 0)
     end
     tTeamData[iM28Team][subreftiPrevTeamNetMass][1] = tTeamData[iM28Team][subrefiTeamNetMass]
-    if bDebugMessages == true then LOG(sFunctionRef..': Prev team net mass after update='..repru(tTeamData[iM28Team][subreftiPrevTeamNetMass])..'; team net mass='..tTeamData[iM28Team][subrefiTeamNetMass]) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Prev team net mass after update='..repru(tTeamData[iM28Team][subreftiPrevTeamNetMass])..'; team net mass='..tTeamData[iM28Team][subrefiTeamNetMass]..'; Team new gross mass='..tTeamData[iM28Team][subrefiTeamGrossMass]) end
 
     ForkThread(ConsiderGettingUpgrades, iM28Team)
 
