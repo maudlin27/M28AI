@@ -421,7 +421,7 @@ end
 
 function UpdateMassStorageAdjacencyValues(oStorage, bDestroyed)
     --Updates gross income for the mass storage
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateMassStorageAdjacencyValues'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -450,7 +450,7 @@ function UpdateMassStorageAdjacencyValues(oStorage, bDestroyed)
                 --Cant use filterdown a doesnt work with .adjacentunits
                 for iMassGenUnit, oMassGenUnit in oStorage.AdjacentUnits do
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering oMassGenUnit='..oMassGenUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMassGenUnit)..' owned by '..oMassGenUnit:GetAIBrain().Nickname) end
-                    if EntityCategoryContains(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryMassFab, oMassGenUnit.UnitId) and oMassGenUnit:GetAIBrain() == aiBrain then --Wont get adjacency unless are on the same team
+                    if EntityCategoryContains(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryMassFab, oMassGenUnit.UnitId) and oMassGenUnit:GetAIBrain() == aiBrain and M28UnitInfo.IsUnitValid(oMassGenUnit) then --Wont get adjacency unless are on the same team
                         oGenBP = oMassGenUnit:GetBlueprint()
                         iBaseMassGen = (oGenBP.Economy.ProductionPerSecondMass or 0)
                         if iBaseMassGen > 0 then
@@ -480,7 +480,7 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed)
         --Does the unit have an M28 aiBrain?
         local aiBrain = oUnit:GetAIBrain()
         if aiBrain.M28AI then
-            local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+            local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
             local sFunctionRef = 'UpdateGrossIncomeForUnit'
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -565,8 +565,8 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed)
                                 for iStorage, oStorage in tNearbyStorage do
                                     if bDebugMessages == true then LOG(sFunctionRef..': Have oStorage='..oStorage.UnitId..M28UnitInfo.GetUnitLifetimeCount(oStorage)..'; will update if it is close to here, distance='..M28Utilities.GetDistanceBetweenPositions(oStorage:GetPosition(), tMexLocation)) end
                                     if M28Utilities.GetDistanceBetweenPositions(oStorage:GetPosition(), tMexLocation) <= 2.25 then
-                                        --Fork thread in case have just been destroyed/is a delay in reflecting
-                                        ForkThread(UpdateMassStorageAdjacencyValues, oUnit, false)
+                                        --Cant fork thread or else lose the aiBrain info if were just destroyed
+                                        UpdateMassStorageAdjacencyValues(oStorage, false)
                                     end
                                 end
                             end
