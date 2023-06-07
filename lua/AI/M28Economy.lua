@@ -555,7 +555,7 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed)
                     elseif iMassGen > 0 then
                         --Update adjacency values for any nearby mass storage
                         local tMexLocation = oUnit:GetPosition()
-                        local rSearchRectangle = M28Utilities.GetRectAroundLocation(tMexLocation, 2.749) --If changing this also change M28Events similar value
+                        local rSearchRectangle = M28Utilities.GetRectAroundLocation(tMexLocation, 2.749) --If changing this also change M28Events and M28Engineer similar value
                         local tNearbyUnits = GetUnitsInRect(rSearchRectangle) --at 1.5 end up with storage thats not adjacent being gifted in some cases but not in others; at 1 none of it gets gifted; the mass storage should be exactly 2 from the mex; however even at 2.1, 2.25 and 2.499 had cases where the mex wasnt identified so will try 2.75 since distances can vary/be snapped to the nearest 0.5 I think
                         if bDebugMessages == true then LOG(sFunctionRef..': Checking if have any nearby units in a rectangle to this mex/mass fab, is tNearbyUnits empty='..tostring(M28Utilities.IsTableEmpty(tNearbyUnits))) end
                         if M28Utilities.IsTableEmpty(tNearbyUnits) == false then

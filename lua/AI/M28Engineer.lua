@@ -1231,6 +1231,8 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
     end
     if tLocationToBuildTowards then tiClosestDistByPriorityAndCount = {} end
 
+    local bCheckForStorageAdjacency = EntityCategoryContains(M28UnitInfo.refCategoryMassStorage, sBlueprintToBuild)
+
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; sBLueprintToBuild='..(sBlueprintToBuild or 'nil')..'; tTargetLocation='..repru(tTargetLocation)..'; tPotentialBuildLocations='..repru(tPotentialBuildLocations)..'; iOptionalMaxDistanceFromTargetLocation='..(iOptionalMaxDistanceFromTargetLocation or 'nil')..'; iMaxRange='..iMaxRange..'; iBuilderRange='..iBuilderRange..'; iNewBuildingRadius='..iNewBuildingRadius..'; bBuildTowardsHydro='..tostring(bBuildTowardsHydro)..'; tLocationToBuildTowards (e.g. for hydro)='..repru(tLocationToBuildTowards)..'; Engineer position='..repru(oEngineer:GetPosition())) end
     for iCurLocation, tCurLocation in tPotentialBuildLocations do
         bLocationBuildableImmediately = true
@@ -1292,6 +1294,31 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
                 iCurPriority = iCurPriority + 1
                 if bDebugMessages == true then LOG(sFunctionRef..': Are close to our last build order location so increasing priority by 1') end
             end
+
+            --Mass s torage specific - value higher mexes (wont bother with mass fabs)
+            if bCheckForStorageAdjacency then
+                local rAdjacencyRect = M28Utilities.GetRectAroundLocation(tCurLocation, 2.749) --If changing here also update m28events and m28economy
+                local tPotentiallyAdjacentMexes = GetUnitsInRect(rAdjacencyRect)
+                local iAdjacencyValue = 0
+                local iConstructionFactor
+                if M28Utilities.IsTableEmpty(tPotentiallyAdjacentMexes) == false then
+                    tPotentiallyAdjacentMexes = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tPotentiallyAdjacentMexes)
+                    if M28Utilities.IsTableEmpty(tPotentiallyAdjacentMexes) == false then
+                        for iMex, oMex in tPotentiallyAdjacentMexes do
+                            if M28Utilities.GetDistanceBetweenPositions(oMex:GetPosition(), tCurLocation) <= 2.25 then
+                                if oMex:GetFractionComplete() < 1 then
+                                    iConstructionFactor = oMex:GetFractionComplete() * 0.75
+                                else
+                                    iConstructionFactor = 1
+                                end
+                                iAdjacencyValue = iAdjacencyValue + (oMex:GetBlueprint().Economy.ProductionPerSecondMass or 0) * iConstructionFactor
+                            end
+                        end
+                    end
+                end
+                iCurPriority = iCurPriority + iAdjacencyValue
+            end
+
 
 
             --Build towards hydro adjust
@@ -3538,14 +3565,16 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                 local oHighestPriorityEngi
                 for iEngi, oEngi in toAssignedEngisOfTechLevel do
                     if not(oEngi[refbPrimaryBuilder]) and not(oEngi[refiAssignedAction] == iActionToAssign) and oEngi[refiAssignedActionPriority] > iHighestPriorityEngi and not(oEngi:IsUnitState('Reclaiming')) and not(oEngi:IsUnitState('Attached')) and not(oEngi:IsUnitState('Capturing')) then
+                        if oEngi[refiAssignedAction] == refActionBuildMassStorage then bDebugMessages = true else bDebugMessages = false end
                         iHighestPriorityEngi = oEngi[refiAssignedActionPriority]
                         oHighestPriorityEngi = oEngi
                     end
                 end
                 if oHighestPriorityEngi then
                     table.insert(tEngineersOfTechWanted, oHighestPriorityEngi)
-                    if bDebugMessages == true then LOG(sFunctionRef..': iMinTechWanted='..iMinTechWanted..'; oHighestPriorityEngi='..oHighestPriorityEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oHighestPriorityEngi)..'; table size='..table.getn(tEngineersOfTechWanted)) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; iMinTechWanted='..iMinTechWanted..'; oHighestPriorityEngi='..oHighestPriorityEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oHighestPriorityEngi)..'; oHighestPriorityEngi action='..(oHighestPriorityEngi[refiAssignedAction] or 'nil')..' with a priority '..(oHighestPriorityEngi[refiAssignedActionPriority] or 'nil')..'; Is primary='..tostring(oEngi[refbPrimaryBuilder] or false)..'; table size='..table.getn(tEngineersOfTechWanted)) end
                 end
+                bDebugMessages = false
             end
         end
 
