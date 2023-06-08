@@ -240,6 +240,7 @@ refCategoryReclaimable = categories.RECLAIMABLE - refCategoryAllAir
 
 function GetUnitLifetimeCount(oUnit)
 --Returns what unique (for the unit's aiBrain) count the unit has, i.e. based on the number of previous units with the same blueprint ID
+--NOTE: If want a unique value for a unit (since this value is only unique to a brain) then do oUnit.EntityId instead
     local iCount = oUnit.M28LifetimeUnitCount
 
     if iCount == nil then

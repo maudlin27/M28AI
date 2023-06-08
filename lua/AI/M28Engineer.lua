@@ -2271,7 +2271,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                             iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
                         elseif iCurNovaxCount == 0 then
                             iCategoryWanted = M28UnitInfo.refCategoryNovaxCentre
-                        elseif iCurFatboyCount < math.max(math.min(3, 1 + iSubteamSize, 1 + iEnemyLandExperimentalCount), iCurT3ArtiCount) then
+                        elseif iCurFatboyCount < math.max(math.min(3, 1 + iSubteamSize, 1 + iEnemyLandExperimentalCount), iCurT3ArtiCount + math.max(0, iCurT3ArtiCount - 3)) then
                             iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
                         else
                             if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 80 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 20000 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 110) then
@@ -2314,15 +2314,21 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                 elseif tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionSeraphim] then
                     iFactionRequired = M28UnitInfo.refFactionSeraphim
                     --Build ahwassa if have air contorl or cant path to enemy with land
+                    local iYolonaCount = 0
+                    local iAhwassaCount = 0
+                    for iBrain, oBrain in M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subreftoFriendlyM28Brains] do
+                        iYolonaCount = iYolonaCount + oBrain:GetCurrentUnits(M28UnitInfo.refCategorySML * categories.EXPERIMENTAL)
+                        iAhwassaCount = iAhwassaCount + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL)
+                    end
                     if not(bCanPathByLand) or M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbHaveAirControl] or (not(M28Team.tTeamData[iTeam][M28Team.refbFarBehindOnAir]) and iTeamLandExperimentals >= math.max(1, iEnemyLandExperimentalCount)) or (iTeamLandExperimentals > iEnemyLandExperimentalCount + 2) then
-                        if iDistToNearestEnemyBase >= 300 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 90 then
+                        if (iYolonaCount == 0 or iYolonaCount * 3 <= iAhwassaCount) and (not(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbHaveAirControl]) and iDistToNearestEnemyBase >= 300 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 90) then
                             iCategoryWanted = M28UnitInfo.refCategorySML * categories.EXPERIMENTAL
                         else
                             iCategoryWanted = M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL
                         end
                     else
                         --Consider building a yolona instead of a ythotha
-                        if iTeamLandExperimentals >= 3 + 3 * (aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFixedT3Arti) + aiBrain:GetCurrentUnits(M28UnitInfo.refCategorySML * categories.EXPERIMENTAL) * 2) and ((iTeamLandExperimentals >= math.max(5, iEnemyLandExperimentalCount + 1) or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandExperimental) >= 3) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 80) then
+                        if iTeamLandExperimentals >= 3 + 3 * (aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFixedT3Arti) + iYolonaCount * 2) and ((iTeamLandExperimentals >= math.max(5, iEnemyLandExperimentalCount + 1) or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandExperimental) >= 3 + iYolonaCount) or (iYolonaCount == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 80)) then
                             if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 70 and iDistToNearestEnemyBase <= 750 then
                                 if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFixedT3Arti) < 4 then
                                     iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti
@@ -2341,7 +2347,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                 elseif tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionCybran] then
                     iFactionRequired = M28UnitInfo.refFactionCybran
                     --If cant path to enemy with amphibious (rather than land) then consider T3 arti
-                    if not(bCanPathAmphibiously) or iTeamLandExperimentals >=  math.max(5, iEnemyLandExperimentalCount + 1) then
+                    if not(bCanPathAmphibiously) or iTeamLandExperimentals >=  math.max(5, iEnemyLandExperimentalCount * 1.25) then
                         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 80 and iDistToNearestEnemyBase <= 750 then
                             if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFixedT3Arti) < 4 then
                                 iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti
@@ -2359,6 +2365,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                             if iTeamLandExperimentals == 0 then
                                 iCategoryWanted = M28UnitInfo.refCategoryMonkeylord
                             else
+                                --Get megalith
                                 iCategoryWanted = M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategoryMonkeylord --i.e. megalith (but slightly more helpful to mods doing it this way)
                             end
                         end
@@ -3053,7 +3060,7 @@ function TrackEngineerAction(oEngineer, iActionToAssign, bIsPrimaryBuilder, iCur
     oEngineer[refiAssignedActionPriority] = iCurPriority
 
     --Track experimental construction
-    if iActionToAssign == refActionBuildExperimental or iActionToAssign == refActionBuildSecondExperimental then
+    if iActionToAssign == refActionBuildExperimental or iActionToAssign == refActionBuildSecondExperimental or iActionToAssign == refActionBuildGameEnder or iActionToAssign == refActionBuildExperimentalNavy or iActionToAssign == refActionBuildLandExperimental then
         table.insert(M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subreftTeamEngineersBuildingExperimentals], oEngineer)
         oEngineer[refbBuildingExperimental] = true
     else
@@ -3523,9 +3530,52 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
             iTotalBuildPowerWanted = iTotalBuildPowerWanted * math.max(1 / M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier], 0.4)
             if bDebugMessages == true then LOG(sFunctionRef..': Halfing build power wanted') end
         end
+
+
+        --Experimental specific - Dont want to build if we have other engineers in a different zone building an experimental and we dont have the eco to support multiple ones - instead rely on separate engi transfer and mass transfer logic to get the experimental built
+        if (iActionToAssign == refActionBuildExperimental or iActionToAssign == refActionBuildSecondExperimental or iActionToAssign == refActionBuildGameEnder or iActionToAssign == refActionBuildExperimentalNavy or iActionToAssign == refActionBuildLandExperimental) then
+            bDebugMessages = true
+            if bDebugMessages == true then LOG(sFunctionRef..': About to remove BP wanted for experimental construction if we already have one under construction nearby that has recently started, or are about to start construction, and we cant support multiple at once, and dont have one in this zone') end
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals]) == false and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 350 then
+                local bHaveNoExperimentalForThisZone = true
+                local iMassToCompleteNearbyExperimentals = 0
+                local iMassToCompleteUnderConstructionExperimentals = 0
+                local iSearchRange = math.max(150, 400 - M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass])
+                for iEngi, oEngi in M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals] do
+                    if bDebugMessages == true then
+                        if M28UnitInfo.IsUnitValid(oEngi) then
+                            LOG(sFunctionRef..': Have a valid engi '..oEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngi)..'; Engi state='..M28UnitInfo.GetUnitState(oEngi)..'; Is focus unit valid='..tostring(M28UnitInfo.IsUnitValid(oEngi:GetFocusUnit()))..'; bOnlySearchUnderConstruction='..tostring(bOnlySearchUnderConstruction or false))
+                        end
+                    else
+                        LOG(sFunctionRef..': Engineer not valid so will ignore')
+                    end
+                    if M28UnitInfo.IsUnitValid(oEngi) then
+
+                        if ((oEngi:IsUnitState('Building') or oEngi:IsUnitState('Repairing')) and oEngi.GetFocusUnit and EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oEngi:GetFocusUnit())) then
+
+                            if not(bOnlySearchUnderConstruction) or EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oEngi:GetFoccusUnit()) then
+                                iCurUnitDist = M28Utilities.GetDistanceBetweenPositions(oEngi:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint])
+                                if iCurUnitDist < iClosestUnitToAssist then
+                                    if bOnlySearchUnderConstruction then oBuildingToAssist = oEngi:GetFoccusUnit()
+                                    else oEngineerToAssist = oEngi
+                                    end
+                                    iClosestUnitToAssist = iCurUnitDist
+                                end
+                            end
+                        end
+                    end
+                end
+
+                if bHaveNoExperimentalForThisZone and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] < iMassToCompleteNearbyExperimentals * 0.4 and iMassToCompleteNearbyExperimentals >= 40000 then
+                    iTotalBuildPowerWanted = 0
+                    if bDebugMessages == true then LOG(sFunctionRef..': iMassToCompleteNearbyExperimentals='..iMassToCompleteNearbyExperimentals..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; will set BPWanted to 0') end
+                end
+            end
+        end
+
         --Reduce the build power wanted by the existing build power assigned to that action for the LZ, unless bBPIsInAdditionToExisting is true
         local bAlreadyHaveTechLevelWanted = false
-        if M28Utilities.IsTableEmpty(toAssignedEngineers) == false then
+        if M28Utilities.IsTableEmpty(toAssignedEngineers) == false and iTotalBuildPowerWanted > 0 then
             for iEngi, oEngi in toAssignedEngineers do
                 if not(oEngi[M28UnitInfo.refbSpecialMicroActive]) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..': Considering if oEngi '..oEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngi)..' already has iActionToAssign '..iActionToAssign..'; oEngi[refiAssignedAction]='..(oEngi[refiAssignedAction] or 'nil')..'; Engi tech level='..M28UnitInfo.GetUnitTechLevel(oEngi)..'; iMinTechWanted='..iMinTechWanted) end
@@ -3547,10 +3597,12 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
         if bAlreadyHaveTechLevelWanted then iMinTechWanted = 1 end
 
         if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; iActionToAssign='..iActionToAssign..'; iTeam='..iTeam..'; iPlateauOrPond='..iPlateauOrPond..'; iLandOrWaterZone='..iLandOrWaterZone..'; Have just updated BP wanted for existing engineers with the same action, iTotalBuildPowerWanted='..iTotalBuildPowerWanted..'; Is toAvailableEngineersByTech empty='..tostring(M28Utilities.IsTableEmpty(toAvailableEngineersByTech))..'; iTotalBuildPowerWanted='..iTotalBuildPowerWanted) end
-        --Do we have an engineer of the tech level wanted? First assign any available engineers of the right tech level to the action
+
+
+            --Do we have an engineer of the tech level wanted? First assign any available engineers of the right tech level to the action
         --If we dont have any engineers of the right tech level available, then see if we have an engineer with a lower priority action
         local tEngineersOfTechWanted
-        if toAvailableEngineersByTech then tEngineersOfTechWanted = GetEngineersOfTechWanted(iMinTechWanted, toAvailableEngineersByTech) end
+        if toAvailableEngineersByTech and iTotalBuildPowerWanted > 0 then tEngineersOfTechWanted = GetEngineersOfTechWanted(iMinTechWanted, toAvailableEngineersByTech) end
         if M28Utilities.IsTableEmpty(toAvailableEngineersByTech) and iTotalBuildPowerWanted > 0 and M28Utilities.IsTableEmpty(toAssignedEngineers) == false then
             --Do we have already assigned engineers with a lower priority that we could use?
             local iEngiCategoryWanted
@@ -3578,7 +3630,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
         end
 
         if bDebugMessages == true then LOG(sFunctionRef..': Is tEngineersOfTechWanted empty='..tostring(M28Utilities.IsTableEmpty(tEngineersOfTechWanted))) end
-        if M28Utilities.IsTableEmpty(tEngineersOfTechWanted) == false then
+        if M28Utilities.IsTableEmpty(tEngineersOfTechWanted) == false and iTotalBuildPowerWanted > 0 then
 
             local sOrderRef = 'A'..iActionToAssign..'Pr'..iCurPriority --For debugging - if show unit names then will include this
             local iMaxSearchRange = 180 --Must be bigger than the largest land zone or else units wont be able to build, so can lead to engineers entering a land zone to build and then moving away to a different land zone
@@ -3726,6 +3778,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                             end
                         end
                     else
+
                         if tiActionOrder[iActionToAssign] == M28Orders.refiOrderIssueGuard then
                             --Want to assist something, and are just looking for a single predefined category (so dont need the  later on custom logic)
                             local oUnitToAssist
@@ -4302,20 +4355,40 @@ function GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, bCoreZone, bHave
     return iBPWanted, iTechLevelWanted, oUnitToShield
 end
 
-function GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone)
+function GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone, bOptionalReturnMassToCompleteOtherZoneUnderConstruction, iOptionalSearchRange, iOptionalCategoryFilter)
     --returns two variables, the first is true/false if iLandZone has a queued experimental to build; the second is the number of other land zones for iTeam that have queued experimentals to build
+    --Optional variables are all for if bOptionalReturnMassToCompleteOtherZoneUnderConstruction is true:
+        --will return the amount of mass needed to complete all under construction experimentals in other zones
+        --Will only include those within iOptionalSearchRange
+        --And also only if they meet any category specified by iOptionalCategoryFilter (will include everything if nil)
     local bHaveExperimentalForThisLandZone = false
     local iOtherLandZonesWithExperimental = 0
+    local iMassToComplete
+    if bOptionalReturnMassToCompleteOtherZoneUnderConstruction then iMassToComplete = 0 end
 
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals]) == false then
         local tiPlateauAndLZBuildingExperimental = {}
+        local toUnderConstructionExperimentalsInOtherZonesByUnitRef = {}
         local iCurPlateau, iCurLZ
         for iEngi, oEngi in M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals] do
             if oEngi[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam] then
                 iCurPlateau = oEngi[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]
                 iCurLZ = oEngi[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]
+                if bOptionalReturnMassToCompleteOtherZoneUnderConstruction then --Check if want to include this
+                    if not(iCurLZ == iLandZone) and not(iPlateau == iCurPlateau) then
+                        local oCurExperimental = oEngi:GetFocusUnit()
+                        if oCurExperimental and oCurExperimental:GetFractionComplete() < 1 then
+                            if not(iOptionalCategoryFilter) or EntityCategoryContains(iOptionalCategoryFilter, oCurExperimental.UnitId) then
+                                if not(toUnderConstructionExperimentalsInOtherZonesByUnitRef[oCurExperimental.EntityId]) then
+                                    toUnderConstructionExperimentalsInOtherZonesByUnitRef[oCurExperimental.EntityId] = oCurExperimental
+                                end
+                            end
+                        end
+                    end
+                end
                 if not(tiPlateauAndLZBuildingExperimental[iCurPlateau]) then tiPlateauAndLZBuildingExperimental[iCurPlateau] = {} end
                 tiPlateauAndLZBuildingExperimental[iCurPlateau][iCurLZ] = (tiPlateauAndLZBuildingExperimental[iCurPlateau][iCurLZ] or 0) + 1
+
             end
         end
         if M28Utilities.IsTableEmpty(tiPlateauAndLZBuildingExperimental) == false then
@@ -4327,6 +4400,11 @@ function GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLan
                         iOtherLandZonesWithExperimental = iOtherLandZonesWithExperimental + 1
                     end
                 end
+            end
+        end
+        if M28Utilities.IsTableEmpty(toUnderConstructionExperimentalsInOtherZonesByUnitRef) == false then
+            for iUnit, oUnit in toUnderConstructionExperimentalsInOtherZonesByUnitRef do
+                TODO
             end
         end
     end
@@ -5762,8 +5840,31 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         if not(bAlreadyHaveGameEnderUnderConstruction) then
             iBPWanted = 45
             if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 125 then iBPWanted = 90 end
-            HaveActionToAssign(refActionBuildGameEnder, 3,                     iBPWanted,      nil,                false,                      true)
-            if bDebugMessages == true then LOG(sFunctionRef..': iBPWanted for gameender='..iBPWanted) end
+            if iCompletedGameEnders < 1 then
+                HaveActionToAssign(refActionBuildGameEnder, 3,                     iBPWanted,      nil,                false,                      true)
+                if bDebugMessages == true then LOG(sFunctionRef..': iBPWanted for gameender='..iBPWanted) end
+            else
+                --Consider getting land experimental instead unless we have large number already
+                local iCompletedLandExperimentals = 0
+                local tNearbyLandExperimentals = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryLandExperimental, tLZData[M28Map.subrefMidpoint], 1000, 'Ally')
+                if M28Utilities.IsTableEmpty(tNearbyLandExperimentals) == false then
+                    for iUnit, oUnit in tNearbyLandExperimentals do
+                        if oUnit:GetFractionComplete() >= 1 then
+                            iCompletedLandExperimentals = iCompletedLandExperimentals + 1
+                        end
+                    end
+                end
+                local iLandExpeimentalsWantedPerGameEnder = 1
+                if NavUtils.GetLabel(M28Map.refPathingTypeHover, tLZTeamData[M28Map.reftClosestEnemyBase]) == NavUtils.GetLabel(M28Map.refPathingTypeHover, tLZData[M28Map.subrefMidpoint]) then iLandExpeimentalsWantedPerGameEnder = 5 end
+                bDebugMessages = true
+                if bDebugMessages == true then LOG(sFunctionRef..': Deciding if want gameender or land experimental, iCompletedLandExperimentals='..iCompletedLandExperimentals..'; iCompletedGameEnders='..iCompletedGameEnders..'; iLandExpeimentalsWantedPerGameEnder='..iLandExpeimentalsWantedPerGameEnder) end
+                if iCompletedLandExperimentals < iCompletedGameEnders * iLandExpeimentalsWantedPerGameEnder then
+                    HaveActionToAssign(refActionBuildLandExperimental, 3,                     iBPWanted,      nil,                false,                      true)
+                else
+                    HaveActionToAssign(refActionBuildGameEnder, 3,                     iBPWanted,      nil,                false,                      true)
+                end
+
+            end
         end
     end
 
