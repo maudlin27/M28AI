@@ -446,11 +446,7 @@ function NoRushMonitor()
 end
 
 function TestCustom(aiBrain)
-    --Do reprs of ACU
-    local tACU = aiBrain:GetListOfUnits(categories.COMMAND)
-    for iUnit, oUnit in tACU do
-        LOG('Reprs='..reprs(oUnit))
-    end
+
     --AiX 10.0
     --ScenarioInfo.Options.CheatMult = tostring(10.0)
     --ScenarioInfo.Options.BuildMult = tostring(10.0)#
@@ -894,7 +890,7 @@ function OverseerManager(aiBrain)
     local bSetHook = false --Used for debugging
     while not(aiBrain:IsDefeated()) and not(aiBrain.M28IsDefeated) do
         --if GetGameTimeSeconds() >= 2700 then import('/mods/M28AI/lua/M28Config.lua').M28ShowUnitNames = true end
-        TestCustom(aiBrain)
+        --TestCustom(aiBrain)
         --Enable below to help figure out infinite loops
         --[[if GetGameTimeSeconds() >= 173 and not(bSetHook) then
             bSetHook = true

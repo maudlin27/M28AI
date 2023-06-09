@@ -2030,6 +2030,14 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 end
             end
 
+            --Air scout if dont have any and havent built any at this factory
+            iCurrentConditionToTry = iCurrentConditionToTry + 1
+            if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirScout) == 0 and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryAirScout) == 0 then
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirScout) then
+                    return sBPIDToBuild
+                end
+            end
+
             --AirAA until have a minimum level
             iCurrentConditionToTry = iCurrentConditionToTry + 1
             local iAirAASearchCategory
