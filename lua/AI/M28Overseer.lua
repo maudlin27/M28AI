@@ -446,6 +446,7 @@ function NoRushMonitor()
 end
 
 function TestCustom(aiBrain)
+
     --AiX 10.0
     --ScenarioInfo.Options.CheatMult = tostring(10.0)
     --ScenarioInfo.Options.BuildMult = tostring(10.0)#

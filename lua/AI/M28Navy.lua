@@ -16,6 +16,7 @@ local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 local NavUtils = import("/lua/sim/navutils.lua")
 local M28Logic = import('/mods/M28AI/lua/AI/M28Logic.lua')
 local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
+local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
 
 --Unit variables
 refiTimeOfLastWZAssignment = 'M28WZLastAssignmentTime' --GameTimeSeconds
@@ -1109,7 +1110,6 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
             end
             if not(iLZToSupport) then M28Utilities.ErrorHandler('Unable to find a LZ needing support for water zone '..iWaterZone..'; Pond '..iPond..'; only expected on maps with naval start points', true)
             else
-
                 --We have a LZ to support - decide if we want to send our units there, or if we want to keep them in the water and build up forces
                 --If the LZ is a core base LZ or adjacent to a LZ then support
                 local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLZToSupport]
@@ -1150,6 +1150,22 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                         end
                     end
                     bAttackWithEverything = M28Conditions.HaveEnoughThreatToAttack(tLZTeamData, iOurCombatThreat, iEnemyCombatThreat, 0, false)
+                    if not(bAttackWithEverything) then
+                        --Check if we include nearby units whether we have enough threat, if we have a high enough value that worth considering
+                        if iOurCombatThreat >= 500 then
+                            local oClosestAmphibiousToMidpoint = M28Utilities.GetNearestUnit(tAmphibiousLabelUnits, tWZData[M28Map.subrefMidpoint])
+                            if M28UnitInfo.IsUnitValid(oClosestAmphibiousToMidpoint) then --redundancy
+                                local tNearbyAmphibious = oClosestAmphibiousToMidpoint:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryAmphibiousCombat, oClosestAmphibiousToMidpoint:GetPosition(), 60, 'Ally')
+                                local iAltCombatThreat = M28UnitInfo.GetCombatThreatRating(tNearbyAmphibious)
+                                if bDebugMessages == true then LOG(sFunctionRef..': iOurCombatThreat='..iOurCombatThreat..'; iAltCombatThreat='..iAltCombatThreat) end
+                                if iAltCombatThreat > iOurCombatThreat then
+                                    bAttackWithEverything = M28Conditions.HaveEnoughThreatToAttack(tLZTeamData, iAltCombatThreat, iEnemyCombatThreat, 0, false)
+                                end
+                            end
+
+                        end
+
+                    end
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering if should attack with everything based on adjacent LZ threat, iOurCombatThreat='..iOurCombatThreat..'; iBestEnemyDFRange='..iBestEnemyDFRange..'; iEnemyCombatThreat='..iEnemyCombatThreat..'; bAttackWithEverything='..tostring(bAttackWithEverything)) end
                 end
 
@@ -1164,7 +1180,7 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                 end
                 local tHoverRallyPoint
                 local tAmphibiousRallyPoint
-                if iAmphibiousLabel == tWZData[M28Map.refiMidpointAmphibiousLabel] then tAmphibiousRallyPoint = {tWZData[M28Map.subrefMidpoint][1], tWZData[M28Map.subrefMidpoint][2], tWZData[M28Map.subrefMidpoint][3]}
+                if iAmphibiousLabel == tWZData[M28Map.refiMidpointAmphibiousLabel] and not(tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] > tWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy]) then tAmphibiousRallyPoint = {tWZData[M28Map.subrefMidpoint][1], tWZData[M28Map.subrefMidpoint][2], tWZData[M28Map.subrefMidpoint][3]}
                 else tAmphibiousRallyPoint = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
                 end
                 if not(bAttackWithEverything) then
@@ -1276,7 +1292,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                 if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
                     table.insert(tEngineers, oUnit)
                     bWaterZoneOrAdjHasUnitsWantingScout = true
-                elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+                elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) or oUnit[M28ACU.refbTreatingAsACU] then
                     --ACU logic - handled via M28ACU file, as amy not want to kite with it
                     bWaterZoneOrAdjHasUnitsWantingScout = true
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy * categories.MOBILE, oUnit.UnitId) then

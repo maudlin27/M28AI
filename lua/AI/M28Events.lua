@@ -727,42 +727,77 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
             M28Engineer.RemoveBuildingFromQueuedBuildings(oEngineer, oConstruction)
         end
 
-        --Record any mexes so we can repair them if construction gets interrupted
+        --M28 specific
         if oEngineer:GetAIBrain().M28AI then
-            --Track experimental construction and other special on construction logic
             if oConstruction.GetUnitId and not(oConstruction[M28UnitInfo.refbConstructionStart]) then
                 local sFunctionRef = 'OnConstructionStarted'
                 local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
                 oConstruction[M28UnitInfo.refbConstructionStart] = true
+
+
+                --Record any mexes so we can repair them if construction gets interrupted
                 if EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oConstruction.UnitId) then
                     M28Engineer.RecordPartBuiltMex(oEngineer, oConstruction)
                 end
 
-                --Decide if want to shield this construction and update buildable location
+                --Decide if want to shield this construction and update buildable location, or (in the case of experimentals) if we want to cancel the construction
                 if EntityCategoryContains(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryExperimentalLevel, oConstruction.UnitId) then
-                    M28Building.CheckIfUnitWantsFixedShield(oConstruction, true)
-                    --If this is a fixed shield then instead update shield coverage
-                    if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oConstruction.UnitId) then
-                        M28Building.UpdateShieldCoverageOfUnits(oConstruction, false)
-                    end
-
-                    --Buildable locations - update for unit construction started (do form obile experimentals since the location is temporarily not buildable)
-                    if EntityCategoryContains(M28UnitInfo.refCategoryStructure + categories.MOBILE - M28UnitInfo.refCategoryMex - M28UnitInfo.refCategoryHydro, oConstruction.UnitId) then
-                        if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oConstruction.UnitId) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Just started construction of unit '..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..'; Is it valid to build a T1 pgen at this location='..tostring(oEngineer:GetAIBrain():CanBuildStructureAt('ueb1101', oConstruction:GetPosition()))) end
-                            ForkThread(M28Engineer.CheckIfBuildableLocationsNearPositionStillValid, oEngineer:GetAIBrain(), oConstruction:GetPosition(), false, M28UnitInfo.GetBuildingSize(oConstruction.UnitId) * 0.5)
-                        else
-                            --i.e. experimentalal started, the CanBuildStructureAt check doesnt work properly for this so first need to record a blacklist (will only have recorded for 4m) and then check for this
-                            if bDebugMessages == true then LOG(sFunctionRef..': Just started construction of experimental mobile unit='..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..'; Is it valid to build a T1 pgen at this location='..tostring(oEngineer:GetAIBrain():CanBuildStructureAt('ueb1101', oConstruction:GetPosition()))) end
-                            M28Engineer.RecordBlacklistLocation(oConstruction:GetPosition(), M28UnitInfo.GetBuildingSize(oConstruction.UnitId) * 0.5, 420, oConstruction)
-                            ForkThread(M28Engineer.CheckIfBuildableLocationsNearPositionStillValid, oEngineer:GetAIBrain(), oConstruction:GetPosition(), true, M28UnitInfo.GetBuildingSize(oConstruction.UnitId) * 0.5)
+                    local bCancelBuilding = false
+                    if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti, oConstruction.UnitId) then
+                        local iTeam = oEngineer:GetAIBrain().M28Team
+                        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] < 0.9 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < 3 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] < 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] < 0.6)) then
+                            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oConstruction:GetPosition())
+                            if iPlateau > 0 and (iLandZone or 0) > 0 then
+                                --NOTE: If changing above thresholds then consider also changing M28Engineer ConsiderActionToAssign threshold (want above to be less likely to trigger to avoid constant loop of starting and cancelling)
+                                local iSearchRange = math.max(175, 450 - M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) --(slightly further search range than the M28Engineer approach)
+                                local iSearchCategory = nil --means will search for everything
+                                if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, oConstruction.UnitId) then iSearchCategory = M28UnitInfo.refCategoryGameEnder
+                                elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti, oConstruction.UnitId) then iSearchCategory = M28UnitInfo.refCategoryFixedT3Arti
+                                else
+                                    --Search for all experimentals  (so leave as nil) - however given the above restriction this is more for redundancy as would only expect to be here if are building game ender or t3 arti
+                                end
+                                local bHaveExperimentalForThisLandZone, iOtherLandZonesWithExperimental, iMassToComplete = M28Engineer.GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone, true, iSearchRange, iSearchCategory)
+                                if iMassToComplete >= math.max(17500, M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] * 1.3) then
+                                    --Estimate how long it will take to complete if we manage to spend 40% of gross mass on existing experimentals
+                                    if (iMassToComplete - M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]) / M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 0.4 > 40 then
+                                        bCancelBuilding = true
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Want to cancel construction that we just started, iMassToComplete='..iMassToComplete..'; Mass stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) end
+                                    end
+                                end
+                            end
                         end
                     end
-                    --end
-                    --Both structures and experimentals - clear any engineers trying to build something else that will be blocked by this
-                    ForkThread(M28Engineer.ClearEngineersWhoseTargetIsNowBlockedByUnitConstructionStarted, oEngineer, oConstruction)
+                    if bCancelBuilding then
+                        --Clear all engineeres trying to build this
+                        M28Engineer.ClearEngineersBuildingUnit(oEngineer, oConstruction)
+                        --Tell the engi that just constructed to reclaim
+                        M28Orders.IssueTrackedReclaim(oEngineer, oConstruction, false, 'AbrtNRec', true)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have told engineer to abort consturction of '..oConstruction.UnitId..' and to reclaim it instead') end
+                    else
+                        M28Building.CheckIfUnitWantsFixedShield(oConstruction, true)
+                        --If this is a fixed shield then instead update shield coverage
+                        if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oConstruction.UnitId) then
+                            M28Building.UpdateShieldCoverageOfUnits(oConstruction, false)
+                        end
+
+                        --Buildable locations - update for unit construction started (do form obile experimentals since the location is temporarily not buildable)
+                        if EntityCategoryContains(M28UnitInfo.refCategoryStructure + categories.MOBILE - M28UnitInfo.refCategoryMex - M28UnitInfo.refCategoryHydro, oConstruction.UnitId) then
+                            if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oConstruction.UnitId) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Just started construction of unit '..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..'; Is it valid to build a T1 pgen at this location='..tostring(oEngineer:GetAIBrain():CanBuildStructureAt('ueb1101', oConstruction:GetPosition()))) end
+                                ForkThread(M28Engineer.CheckIfBuildableLocationsNearPositionStillValid, oEngineer:GetAIBrain(), oConstruction:GetPosition(), false, M28UnitInfo.GetBuildingSize(oConstruction.UnitId) * 0.5)
+                            else
+                                --i.e. experimentalal started, the CanBuildStructureAt check doesnt work properly for this so first need to record a blacklist (will only have recorded for 4m) and then check for this
+                                if bDebugMessages == true then LOG(sFunctionRef..': Just started construction of experimental mobile unit='..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..'; Is it valid to build a T1 pgen at this location='..tostring(oEngineer:GetAIBrain():CanBuildStructureAt('ueb1101', oConstruction:GetPosition()))) end
+                                M28Engineer.RecordBlacklistLocation(oConstruction:GetPosition(), M28UnitInfo.GetBuildingSize(oConstruction.UnitId) * 0.5, 420, oConstruction)
+                                ForkThread(M28Engineer.CheckIfBuildableLocationsNearPositionStillValid, oEngineer:GetAIBrain(), oConstruction:GetPosition(), true, M28UnitInfo.GetBuildingSize(oConstruction.UnitId) * 0.5)
+                            end
+                        end
+                        --end
+                        --Both structures and experimentals - clear any engineers trying to build something else that will be blocked by this
+                        ForkThread(M28Engineer.ClearEngineersWhoseTargetIsNowBlockedByUnitConstructionStarted, oEngineer, oConstruction)
+                    end
                 end
 
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -898,7 +933,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                         --If have storage owned by M28 on same team by this mex, gift it over
                         --All mexes - on construction check if we have allied M28 mass storage nearby (e.g. we have rebuilt on a mex that they used to have) and if so then have that M28 gift over their mass storage
                         local tMexLocation = oJustBuilt:GetPosition()
-                        local rSearchRectangle = M28Utilities.GetRectAroundLocation(tMexLocation, 2.749)
+                        local rSearchRectangle = M28Utilities.GetRectAroundLocation(tMexLocation, 2.749) --If changing this also change M28Economy and M28Engineer similar value
                         local tNearbyUnits = GetUnitsInRect(rSearchRectangle) --at 1.5 end up with storage thats not adjacent being gifted in some cases but not in others; at 1 none of it gets gifted; the mass storage should be exactly 2 from the mex; however even at 2.1, 2.25 and 2.499 had cases where the mex wasnt identified so will try 2.75 since distances can vary/be snapped to the nearest 0.5 I think
                         if bDebugMessages == true then LOG(sFunctionRef..': Storage gifting where built mex - oJustBuilt='..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..'; owner='..oJustBuilt:GetAIBrain().Nickname..'; is tNearbyUnits empty='..tostring(M28Utilities.IsTableEmpty(tNearbyUnits))) end
                         if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
@@ -988,7 +1023,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEngineer.UnitId) then
                     --Clear any engineers trying to build this unit if we just built a building or experimental
                     if EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId) then
-                        M28Engineer.ClearEngineersForUnitJustBuilt(oEngineer, oJustBuilt)
+                        M28Engineer.ClearEngineersBuildingUnit(oEngineer, oJustBuilt)
                     end
                 end
 
