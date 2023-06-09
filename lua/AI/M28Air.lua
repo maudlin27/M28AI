@@ -3877,7 +3877,7 @@ function GetNovaxTarget(aiBrain, oNovax)
 end
 
 function ManageExperimentalBomber(iTeam, iAirSubteam)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageExperimentalBomber'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -3985,6 +3985,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                     end
                 end
                 if (iCurLZOrWZ or 0) > 0 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Emergency response for ground threats in a start position, iCurLZOrWZ='..iCurLZOrWZ..'; will look to add targets') end
                     AddEnemyGroundUnitsToTargetsSubjectToAA(iCurPlateauOrZero, iCurLZOrWZ, false)
                 end
             end
@@ -3998,17 +3999,18 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                     --First consider the land/water zone the bomber is in at the moment
                     AddEnemyGroundUnitsToTargetsSubjectToAA(iBomberPlateauOrZero, iBomberLandOrWaterZone, true)
 
-                    if bDebugMessages == true then LOG(sFunctionRef..': Is tEnemyGroundTargets empty after considering enemies in the same LZ/WZ as gunship='..tostring(M28Utilities.IsTableEmpty(tEnemyGroundTargets))) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is tEnemyGroundTargets empty after considering enemies in the same LZ/WZ as experimental bomber='..tostring(M28Utilities.IsTableEmpty(tEnemyGroundTargets))) end
                     if M28Utilities.IsTableEmpty(tEnemyGroundTargets) then
                         --Is there groundAA in the current plateau/water zone (i.e. there are enemies but we have chosen not to attack due to the threat)?
                         if (tBomberLandOrWaterZoneData[M28Map.subrefLZThreatEnemyGroundAA] or 0) > 0 or (tBomberLandOrWaterZoneData[M28Map.subrefWZThreatEnemyAA] or 0) > 0 then
                             --Enemy has AA in the same LZ as our gunships and we dont want to attack enemies, so retreat
-                            if bDebugMessages == true then LOG(sFunctionRef..': Enemy GroundAA threat exists in same zone as gunships and we have no targets so want to retreat') end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Enemy GroundAA threat exists in same zone as exp bomber and we have no targets so want to retreat') end
                         else
 
                             if bDebugMessages == true then LOG(sFunctionRef..': oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; iBomberPlateauOrZero='..(iBomberPlateauOrZero or 'nil')..'; iBomberLandOrWaterZone='..(iBomberLandOrWaterZone or 'nil')..'; tBomberZoneMidpoint='..repru(tBomberZoneMidpoint)) end
                             RecordOtherLandAndWaterZonesByDistance(tBomberLandOrWaterZoneData, tBomberZoneMidpoint)
                             if M28Utilities.IsTableEmpty(tBomberLandOrWaterZoneData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
+                                if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through each other zone by distance and consider the best target') end
                                 for iEntry, tSubtable in tBomberLandOrWaterZoneData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
                                     if tSubtable[M28Map.subrefbIsWaterZone] then
                                         AddEnemyGroundUnitsToTargetsSubjectToAA(0, tSubtable[M28Map.subrefiLandOrWaterZoneRef],  true)
@@ -4031,7 +4033,6 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
             else
                 --Have targets for bomber, send orders for targeting
                 local oBestEnemyTarget
-                --Get the closest enemy unit to the front gunship
                 local iCurDamage
                 local iHighestDamage = 0
                 local aiBrain = oBomber:GetAIBrain()
