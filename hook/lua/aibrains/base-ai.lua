@@ -4,6 +4,7 @@
 --- DateTime: 17/05/2023 08:04
 ---
 --Note - this file only exists in FAF-Develop as of May 2023 (at later point expect this may replace lua\aibrain.lua)
+--In theory the below shouldt be needed once the FAF-Develop changes are integrated into FAF (expected June 2023), although probably no harm leaving for backwards compatibility
 local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 
 local M28OldAIBrain = AIBrain

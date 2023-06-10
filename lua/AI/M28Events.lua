@@ -538,7 +538,7 @@ function OnBombFired(oWeapon, projectile)
                 else
                     --Experimental bomber - micro to turn around and go to rally point
                     if oUnit:GetAIBrain().M28AI then
-                        ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit:GetAIBrain(), oUnit, M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint], 15)
+                        ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit:GetAIBrain(), oUnit, M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint], 15, 3)
                     end
                 end
             end
@@ -1506,4 +1506,25 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
     ForkThread(M28Overseer.UpdateMaxUnitCapForRelevantBrains)
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function OnMissileIntercepted(oLauncher, target, oTMD, position)
+    --M28AI specific
+    if oLauncher:GetAIBrain().M28AI then
+        --MML - record time that were last intercepted if dealing with non-aeo TMD (used to build more MML) for both the MML and the TMD land zones
+        if EntityCategoryContains(M28UnitInfo.refCategoryMML, oLauncher.UnitId) and not(EntityCategoryContains(categories.AEON, oTMD.UnitId)) and EntityCategoryContains(M28UnitInfo.refCategoryTMD, oTMD.UnitId) then
+            local iTeam = oLauncher:GetAIBrain().M28Team
+            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oLauncher:GetPosition(), true, oLauncher)
+            if (iLandZone or 0) > 0 and iPlateau > 0 then
+                local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
+                tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMD] = GetGameTimeSeconds()
+            end
+            local iTMDPlateau, iTMDLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oTMD:GetPosition())
+            if (iTMDLandZone or 0) > 0 and iTMDPlateau > 0 and not(iTMDLandZone == iLandZone and iTMDPlateau == iPlateau) then
+                local tLZTeamData = M28Map.tAllPlateaus[iTMDPlateau][M28Map.subrefPlateauLandZones][iTMDLandZone][M28Map.subrefLZTeamData][iTeam]
+                tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMD] = GetGameTimeSeconds()
+            end
+        end
+    end
+
 end

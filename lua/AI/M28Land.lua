@@ -18,6 +18,7 @@ local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
 local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
+local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 
 --Global
 tLZRefreshCountByTeam = {}
@@ -434,7 +435,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         if M28Utilities.IsTableEmpty(tMobileUnits) == false then
             for iUnit, oUnit in tMobileUnits do
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; Indirect range='..(oUnit[M28UnitInfo.refiIndirectRange] or 'nil')..'; Combat threat rating='..M28UnitInfo.GetCombatThreatRating({ oUnit }, true)) end
-                if oUnit[M28UnitInfo.refiDFRange] > 0 or oUnit[M28UnitInfo.refiIndirectRange] then
+                if (oUnit[M28UnitInfo.refiDFRange] > 0 or oUnit[M28UnitInfo.refiIndirectRange]) and oUnit:GetFractionComplete() >= 0.9 then
                     iCurThreat = M28UnitInfo.GetCombatThreatRating({ oUnit }, true)
                     if iCurThreat > 0 then
                         if oUnit[M28UnitInfo.refiDFRange] > 0 then
@@ -451,12 +452,12 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
                     end
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Enemy mobile indirect range after updating all units='..repru(tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange])..'; tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]='..repru(tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange])) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Enemy mobile indirect range after updating all units='..repru(tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange])..'; tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]='..repru(tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange])..'; subrefLZThreatEnemyMobileDFTotal='..(tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 'nil')) end
         end
         if M28Utilities.IsTableEmpty(tStructures) == false then
             for iUnit, oUnit in tStructures do
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; with DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')) end
-                if oUnit[M28UnitInfo.refiDFRange] > 0 then
+                if oUnit[M28UnitInfo.refiDFRange] > 0 and oUnit:GetFractionComplete() >= 0.9 then
                     iCurThreat = M28UnitInfo.GetCombatThreatRating({ oUnit }, true)
                     if bDebugMessages == true then LOG(sFunctionRef..': Structure iCurThreat='..iCurThreat) end
                     if iCurThreat > 0 then
@@ -503,17 +504,19 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         if bDebugMessages == true then LOG(sFunctionRef..': Calculating threat by range for allied units, is tMobileUnits empty='..tostring(M28Utilities.IsTableEmpty(tMobileUnits))..'; is tStructures empty='..tostring(M28Utilities.IsTableEmpty(tStructures))) end
         if M28Utilities.IsTableEmpty(tMobileUnits) == false then
             for iUnit, oUnit in tMobileUnits do
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; refiDFRange='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; IndirectRange='..(oUnit[M28UnitInfo.refiIndirectRange] or 'nil')..'; Unit combat rating='..M28UnitInfo.GetCombatThreatRating({ oUnit }, false)) end
-                if oUnit[M28UnitInfo.refiDFRange] > 0 or oUnit[M28UnitInfo.refiIndirectRange] > 0 then
-                    iCurThreat = M28UnitInfo.GetCombatThreatRating({ oUnit }, false)
-                    if iCurThreat > 0 then
-                        if oUnit[M28UnitInfo.refiDFRange] > 0 then
-                            if not(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange]) then tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange] = {} end
-                            tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange][oUnit[M28UnitInfo.refiDFRange]] = (tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange][oUnit[M28UnitInfo.refiDFRange]] or 0) + iCurThreat
-                        end
-                        if oUnit[M28UnitInfo.refiIndirectRange] > 0 then
-                            if not(tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange]) then tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange] = {} end
-                            tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange][oUnit[M28UnitInfo.refiIndirectRange]] = (tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange][oUnit[M28UnitInfo.refiIndirectRange]] or 0) + iCurThreat
+                if oUnit:GetFractionComplete() >= 1 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; refiDFRange='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; IndirectRange='..(oUnit[M28UnitInfo.refiIndirectRange] or 'nil')..'; Unit combat rating='..M28UnitInfo.GetCombatThreatRating({ oUnit }, false)) end
+                    if oUnit[M28UnitInfo.refiDFRange] > 0 or oUnit[M28UnitInfo.refiIndirectRange] > 0 then
+                        iCurThreat = M28UnitInfo.GetCombatThreatRating({ oUnit }, false)
+                        if iCurThreat > 0 then
+                            if oUnit[M28UnitInfo.refiDFRange] > 0 then
+                                if not(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange]) then tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange] = {} end
+                                tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange][oUnit[M28UnitInfo.refiDFRange]] = (tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange][oUnit[M28UnitInfo.refiDFRange]] or 0) + iCurThreat
+                            end
+                            if oUnit[M28UnitInfo.refiIndirectRange] > 0 then
+                                if not(tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange]) then tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange] = {} end
+                                tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange][oUnit[M28UnitInfo.refiIndirectRange]] = (tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange][oUnit[M28UnitInfo.refiIndirectRange]] or 0) + iCurThreat
+                            end
                         end
                     end
                 end
@@ -521,7 +524,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         end
         if M28Utilities.IsTableEmpty(tStructures) == false then
             for iUnit, oUnit in tStructures do
-                if oUnit[M28UnitInfo.refiDFRange] > 0 then
+                if oUnit[M28UnitInfo.refiDFRange] > 0 and oUnit:GetFractionComplete() >= 1 then
                     iCurThreat = M28UnitInfo.GetCombatThreatRating({ oUnit }, true)
                     if iCurThreat > 0 then
                         if not(tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange]) then tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange] = {} end
@@ -1983,87 +1986,128 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
     local sFunctionRef = 'ManageRASSACUsInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
-
-    --If have mass stored then find the nearest quantum gatway and assist it for now, otherwise do nothing (if enemies in this LZ then will have been sent to the combat unit management already)
-    local tQuantumGateways = EntityCategoryFilterDown(M28UnitInfo.refCategoryQuantumGateway, tLZTeamData[M28Map.subrefLZTAlliedUnits])
-    local oGateway
-    local bNotAssistingGateway = true
-
-    if M28Utilities.IsTableEmpty( tQuantumGateways) == false then
-        for iUnit, oUnit in tQuantumGateways do
-            oGateway = oUnit
-            break
+    --Defending against arti - if have T3 arti or gameender then want to assist the shield with RAS SACUs (in addition to any engineers that are assisting it)
+    local tPriorityUnitsToShield
+    local oShieldToAssist
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for zone '..iLandZone..'; at time '..GetGameTimeSeconds()..'; DefendAgainstArti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])) end
+    if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then
+        local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
+        tPriorityUnitsToShield = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryGameEnder, tLZData[M28Map.subrefMidpoint], 250, 'Ally')
+        if M28Utilities.IsTableEmpty(tPriorityUnitsToShield) then
+            tPriorityUnitsToShield = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedT3Arti, tLZData[M28Map.subrefMidpoint], 150, 'Ally')
         end
     end
-    if oGateway then
-        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.05 and not(M28Conditions.HaveLowPower(iTeam)) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < math.min(100, 40 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
-            if (M28Map.bIsCampaignMap or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 100) and oGateway:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryRASSACU) < 50 then
-                bNotAssistingGateway = false
-                for iUnit, oUnit in tRASSACU do
-                    M28Orders.IssueTrackedGuard(oUnit, oGateway, false, 'RASQG', false)
-                end
-            end
-        end
-    end
-    if bDebugMessages == true then LOG(sFunctionRef..': oGateway='..(oGateway.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oGateway) or 'nil')..'; bNotAssistingGateway='..tostring(bNotAssistingGateway)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Have low power='..tostring(M28Conditions.HaveLowPower(iTeam))) end
-    if bNotAssistingGateway then
-        local tUnitsToAssist = {}
-        --If building an experimental and dont have low mass then assist it
-        if bDebugMessages == true then LOG(sFunctionRef..': Does team have low mass='..tostring(M28Conditions.TeamHasLowMass(iTeam))..'; Is table of engineers building experimentals empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals]))..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone) end
-        if not(M28Conditions.TeamHasLowMass(iTeam)) and not(M28Conditions.HaveLowPower(iTeam)) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals]) == false then
-
-            local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
-            local tExperimentalLevelUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryExperimentalLevel, tLZData[M28Map.subrefMidpoint], 100, 'Ally')
-            if bDebugMessages == true then LOG(sFunctionRef..': Is table of experimental level units empty='..tostring(M28Utilities.IsTableEmpty( tExperimentalLevelUnits))) end
-            if M28Utilities.IsTableEmpty( tExperimentalLevelUnits) == false then
-                for iUnit, oUnit in tExperimentalLevelUnits do
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering nearby experimental '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fraction complete='..oUnit:GetFractionComplete()) end
-                    if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() < 1 then
-                        table.insert(tUnitsToAssist, oUnit)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to table of units to assist') end
+    if bDebugMessages == true then LOG(sFunctionRef..': Is table of priority units to shield empty='..tostring(M28Utilities.IsTableEmpty(tPriorityUnitsToShield))) end
+    if M28Utilities.IsTableEmpty(tPriorityUnitsToShield) == false then
+        --Get closest of these that has a shield
+        local iCurDist
+        local iClosestDist = 100000
+        local iCurShield, iMaxShield
+        for iUnit, oUnit in tPriorityUnitsToShield do
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering priority unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fraction compelte='..oUnit:GetFractionComplete()..'; Does it have a shield providing coverage='..tostring(M28UnitInfo.IsUnitValid(oUnit[M28Building.refoPriorityShieldProvidingCoverage]))) end
+            if oUnit:GetFractionComplete() >= 0.35 then
+                if M28UnitInfo.IsUnitValid(oUnit[M28Building.refoPriorityShieldProvidingCoverage]) then
+                    iCurDist = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], oUnit[M28Building.refoPriorityShieldProvidingCoverage]:GetPosition())
+                    if bDebugMessages == true then LOG(sFunctionRef..': Shield='..oUnit[M28Building.refoPriorityShieldProvidingCoverage].UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit[M28Building.refoPriorityShieldProvidingCoverage])..'; iCurDist='..iCurDist..'; iCloestDist='..iClosestDist) end
+                    if iCurDist < iClosestDist then
+                        --Is the shield still active?
+                        iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit[M28Building.refoPriorityShieldProvidingCoverage], true)
+                        if bDebugMessages == true then LOG(sFunctionRef..': iCurShield='..iCurShield) end
+                        if iCurShield > 0 or oUnit[M28Building.refoPriorityShieldProvidingCoverage]:GetFractionComplete() < 1 then
+                            iClosestDist = iCurDist
+                            oShieldToAssist = oUnit[M28Building.refoPriorityShieldProvidingCoverage]
+                        end
                     end
                 end
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Do we have any units to assist? is table empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToAssist))) end
-        if M28Utilities.IsTableEmpty(tUnitsToAssist) then
-            --If have upgrading unit then assist this
-            if bDebugMessages == true then LOG(sFunctionRef..': Is table of active upgrades empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]))) end
-            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]) == false then tUnitsToAssist = tLZTeamData[M28Map.subrefActiveUpgrades]
-            else
-                --Assist shield if need to defend from arti
-                if bDebugMessages == true then LOG(sFunctionRef..': Is table of priority shields to assist empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]))..'; Defending against arti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])) end
-                if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]) == false then
-                    tUnitsToAssist = tLZTeamData[M28Map.reftPriorityShieldsToAssist]
-                else
-                    --otherwise assist an air factory if we have one
-                    tUnitsToAssist = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
-                    if bDebugMessages == true then LOG(sFunctionRef..': Setting unit to assist to be an air factory, is tUnitsToAssist empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToAssist))) end
+    end
+    if oShieldToAssist then
+        if bDebugMessages == true then LOG(sFunctionRef..': Have priority shield to assist') end
+        for iUnit, oUnit in tRASSACU do
+            M28Orders.IssueTrackedGuard(oUnit, oShieldToAssist, false, 'RASAGS', false)
+        end
+    else
+        --If have mass stored then find the nearest quantum gatway and assist it for now, otherwise do nothing (if enemies in this LZ then will have been sent to the combat unit management already)
+        local tQuantumGateways = EntityCategoryFilterDown(M28UnitInfo.refCategoryQuantumGateway, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+        local oGateway
+        local bNotAssistingGateway = true
+
+        if M28Utilities.IsTableEmpty( tQuantumGateways) == false then
+            for iUnit, oUnit in tQuantumGateways do
+                oGateway = oUnit
+                break
+            end
+        end
+        if oGateway then
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.05 and not(M28Conditions.HaveLowPower(iTeam)) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < math.min(100, 40 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
+                if (M28Map.bIsCampaignMap or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 100) and oGateway:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryRASSACU) < 50 then
+                    bNotAssistingGateway = false
+                    for iUnit, oUnit in tRASSACU do
+                        M28Orders.IssueTrackedGuard(oUnit, oGateway, false, 'RASQG', false)
+                    end
                 end
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Finished saerching for potential units to assist, is table empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToAssist))) end
-        if M28Utilities.IsTableEmpty(tUnitsToAssist) == false then
-            local tStartPoint
-            if oGateway then tStartPoint = oGateway:GetPosition()
-            else tStartPoint = tLZData[M28Map.subrefMidpoint]
-            end
-            local oClosestUnitToAssist = M28Utilities.GetNearestUnit(tUnitsToAssist, tStartPoint)
-            if bDebugMessages == true then LOG(sFunctionRef..': oClosestUnitToAssist='..(oClosestUnitToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestUnitToAssist) or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oClosestUnitToAssist))) end
-            if not(M28UnitInfo.IsUnitValid(oClosestUnitToAssist)) then M28Utilities.ErrorHandler('No unit to assist for RAS', true)
-            else
-                for iUnit, oUnit in tRASSACU do
-                    M28Orders.IssueTrackedGuard(oUnit, oClosestUnitToAssist, false, 'RASAs', false)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Telling RAS '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to assist unit') end
+        if bDebugMessages == true then LOG(sFunctionRef..': oGateway='..(oGateway.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oGateway) or 'nil')..'; bNotAssistingGateway='..tostring(bNotAssistingGateway)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Have low power='..tostring(M28Conditions.HaveLowPower(iTeam))) end
+        if bNotAssistingGateway then
+            local tUnitsToAssist = {}
+            --If building an experimental and dont have low mass then assist it
+            if bDebugMessages == true then LOG(sFunctionRef..': Does team have low mass='..tostring(M28Conditions.TeamHasLowMass(iTeam))..'; Is table of engineers building experimentals empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals]))..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone) end
+            if not(M28Conditions.TeamHasLowMass(iTeam)) and not(M28Conditions.HaveLowPower(iTeam)) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals]) == false then
+
+                local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
+                local tExperimentalLevelUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryExperimentalLevel, tLZData[M28Map.subrefMidpoint], 100, 'Ally')
+                if bDebugMessages == true then LOG(sFunctionRef..': Is table of experimental level units empty='..tostring(M28Utilities.IsTableEmpty( tExperimentalLevelUnits))) end
+                if M28Utilities.IsTableEmpty( tExperimentalLevelUnits) == false then
+                    for iUnit, oUnit in tExperimentalLevelUnits do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering nearby experimental '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fraction complete='..oUnit:GetFractionComplete()) end
+                        if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() < 1 then
+                            table.insert(tUnitsToAssist, oUnit)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to table of units to assist') end
+                        end
+                    end
                 end
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': Do we have any units to assist? is table empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToAssist))) end
+            if M28Utilities.IsTableEmpty(tUnitsToAssist) then
+                --If have upgrading unit then assist this
+                if bDebugMessages == true then LOG(sFunctionRef..': Is table of active upgrades empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]))) end
+                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]) == false then tUnitsToAssist = tLZTeamData[M28Map.subrefActiveUpgrades]
+                else
+                    --Assist shield if need to defend from arti
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of priority shields to assist empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]))..'; Defending against arti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])) end
+                    if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]) == false then
+                        tUnitsToAssist = tLZTeamData[M28Map.reftPriorityShieldsToAssist]
+                    else
+                        --otherwise assist an air factory if we have one
+                        tUnitsToAssist = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                        if bDebugMessages == true then LOG(sFunctionRef..': Setting unit to assist to be an air factory, is tUnitsToAssist empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToAssist))) end
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished saerching for potential units to assist, is table empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToAssist))) end
+            if M28Utilities.IsTableEmpty(tUnitsToAssist) == false then
+                local tStartPoint
+                if oGateway then tStartPoint = oGateway:GetPosition()
+                else tStartPoint = tLZData[M28Map.subrefMidpoint]
+                end
+                local oClosestUnitToAssist = M28Utilities.GetNearestUnit(tUnitsToAssist, tStartPoint)
+                if bDebugMessages == true then LOG(sFunctionRef..': oClosestUnitToAssist='..(oClosestUnitToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestUnitToAssist) or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oClosestUnitToAssist))) end
+                if not(M28UnitInfo.IsUnitValid(oClosestUnitToAssist)) then M28Utilities.ErrorHandler('No unit to assist for RAS', true)
+                else
+                    for iUnit, oUnit in tRASSACU do
+                        M28Orders.IssueTrackedGuard(oUnit, oClosestUnitToAssist, false, 'RASAs', false)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Telling RAS '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to assist unit') end
+                    end
+                end
 
-        else
-            --Othewrise clear orders if nothing to assist
-            for iUnit, oUnit in tRASSACU do
-                if not(oUnit[M28UnitInfo.refbSpecialMicroActive]) and not(oUnit:IsUnitState('Moving')) and (oUnit:IsUnitState('Repairing') or oUnit:IsUnitState('Building') or oUnit:IsUnitState('Guarding')) then
-                    M28Orders.IssueTrackedClearCommands(oUnit)
+            else
+                --Othewrise clear orders if nothing to assist
+                for iUnit, oUnit in tRASSACU do
+                    if not(oUnit[M28UnitInfo.refbSpecialMicroActive]) and not(oUnit:IsUnitState('Moving')) and (oUnit:IsUnitState('Repairing') or oUnit:IsUnitState('Building') or oUnit:IsUnitState('Guarding')) then
+                        M28Orders.IssueTrackedClearCommands(oUnit)
+                    end
                 end
             end
         end
@@ -2317,7 +2361,12 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
             if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if should move blocked units, bMoveBlockedNotAttackMove='..tostring(bMoveBlockedNotAttackMove)..'; iFriendlyBestMobileIndirectRange='..(iFriendlyBestMobileIndirectRange or 'nil')..';  tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]='..(tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 'nil')..'; iFriendlyBestMobileDFRange='..(iFriendlyBestMobileDFRange or 'nil')..'; Enemy best DF range='..iEnemyBestDFRange..'; iFriendlyBestMobileIndirectRange='..(iFriendlyBestMobileIndirectRange or 'nil')..'; iEnemyBestStructureDFRange='..(iEnemyBestStructureDFRange or 'nil')..'; Enemy structure threat indirect='..(tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] or 'nil')..'; bEnemyHasNoDFUnits='..tostring(bEnemyHasNoDFUnits or false)..'; iEnemyBestDFRange='..(iEnemyBestDFRange or 'nil')..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]='..(tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] or 'nil')..'; tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal]='..(tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 'nil')) end
             --SCENARIO 1 - We outrange enemy DF units (mobile and fix), or have equal range but with significantly more threat at that range
-            if ((tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 or iFriendlyBestMobileDFRange >= 100) and iFirebaseThreatAdjust == 0 and ((iFriendlyBestMobileDFRange or 0) > (iEnemyBestDFRange or 0) or ((iFriendlyBestMobileIndirectRange or 0) > (iEnemyBestDFRange or 0) and ((iEnemyBestStructureDFRange or 0) > 0 or (tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] or 0) > 0 or (tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] or 0) > 1.4 * (tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 0)))) then
+            if ((tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 or iFriendlyBestMobileDFRange >= 100) and (iFirebaseThreatAdjust == 0 or (iFriendlyBestMobileDFRange >= 100 and iFirebaseThreatAdjust < 6000 and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 8000)) and ((iFriendlyBestMobileDFRange or 0) > (iEnemyBestDFRange or 0) or ((iFriendlyBestMobileIndirectRange or 0) > (iEnemyBestDFRange or 0) and ((iEnemyBestStructureDFRange or 0) > 0 or (tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] or 0) > 0 or (tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] or 0) > 1.4 * (tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 0)))) then
+                local bAttackWithSameRange = true
+                if (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 and iFirebaseThreatAdjust == 0 and ((iFriendlyBestMobileDFRange or 0) > (iEnemyBestDFRange or 0) or ((iFriendlyBestMobileIndirectRange or 0) > (iEnemyBestDFRange or 0))) then
+                    bAttackWithSameRange = false
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': In scenario 1, so we either outrange enemy, or we have significantly more threat at their best range - i.e. equal range, bAttackWithSameRange='..tostring(bAttackWithSameRange)) end
                 local tOutrangedCombatUnits = {}
                 local tUnitsToSupport = {}
                 local bAttackWithOutrangedDFUnits = false
@@ -2388,7 +2437,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 for iUnit, oUnit in tAvailableCombatUnits do
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit for scenario 1, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; iEnemyBestDFRange='..(iEnemyBestDFRange or 'nil')..'; bEnemyHasNoDFUnits='..tostring(bEnemyHasNoDFUnits or false)..'; Close to enemy unit (DF only) ='..tostring(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], (oUnit[M28UnitInfo.refiDFRange] or 0) * 0.94, iTeam, false))..'; Was last shot blocked='..tostring(oUnit[M28UnitInfo.refbLastShotBlocked] or false)..'; Is unit underwtaer='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; Can unit kite='..tostring(oUnit[M28UnitInfo.refbCanKite] or false)) end
 
-                    if oUnit[M28UnitInfo.refiDFRange] > iEnemyBestDFRange then
+                    if oUnit[M28UnitInfo.refiDFRange] > iEnemyBestDFRange or (bAttackWithSameRange and oUnit[M28UnitInfo.refiDFRange] >= iEnemyBestDFRange) then
                         table.insert(tUnitsToSupport, oUnit)
                         --Consider kiting logic unless want to use shot blocked override logic
                         if bMoveBlockedNotAttackMove and (oUnit[M28UnitInfo.refbLastShotBlocked] or M28UnitInfo.IsUnitUnderwater(oUnit)) and not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher, oUnit.UnitId)) then
@@ -2413,8 +2462,8 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                     if EntityCategoryContains(M28UnitInfo.refCategorySkirmisher, oUnit.UnitId) and M28UnitInfo.IsUnitValid(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]) and not(EntityCategoryContains(M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND, oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck].UnitId)) and M28UnitInfo.CanSeeUnit(oUnit:GetAIBrain(), oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], true) and M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition(), oUnit:GetPosition()) < oUnit[M28UnitInfo.refiDFRange] then
                                         M28Orders.IssueTrackedAttack(oUnit, oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], false, 'InRngEn', false)
                                     else
-                                        --Attackmove (unless we have far more threat in this zone)
-                                        if tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > 5000 and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 10 and not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryFatboy, oUnit.UnitID)) then
+                                        --Attackmove (unless we have far more threat in this zone and arent a megalith or fatboy)
+                                        if tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > 5000 and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 10 and not((oUnit[M28UnitInfo.refiDFRange] or 0) >= 64 or EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryFatboy, oUnit.UnitID)) then
                                             M28Orders.IssueTrackedMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], (oUnit[M28UnitInfo.refiDFRange] or oUnit[M28UnitInfo.refiIndirectRange]) * 0.5, false, 'KMve'..iLandZone, false)
                                         else
                                             M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], (oUnit[M28UnitInfo.refiDFRange] or oUnit[M28UnitInfo.refiIndirectRange]) * 0.5, false, 'KAMve'..iLandZone)
@@ -2554,7 +2603,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 if bCheckIfNearestUnitVisible and not(bUpdateNearestUnit) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) <= 18 then bUpdateNearestUnit = true end
                             else
                                 --Attackmove (unless we have far more threat in this zone)
-                                if tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > 5000 and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 10 and not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryFatboy, oUnit.UnitID)) then
+                                if tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > 5000 and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 10 and not((oUnit[M28UnitInfo.refiDFRange] or 0) >= 64 or EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryFatboy, oUnit.UnitID)) then
                                     M28Orders.IssueTrackedMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], (oUnit[M28UnitInfo.refiDFRange] or oUnit[M28UnitInfo.refiIndirectRange]) * 0.5, false, 'SRDFM'..iLandZone, false)
                                 else
                                     M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], (oUnit[M28UnitInfo.refiDFRange] or oUnit[M28UnitInfo.refiIndirectRange]) * 0.5, false, 'SRDFA'..iLandZone)
@@ -2776,7 +2825,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 if bCheckIfNearestUnitVisible and not(bUpdateNearestUnit) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) <= 18 then bUpdateNearestUnit = true end
                             else
                                 --Attackmove (unless we have far more threat in this zone)
-                                if tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > 5000 and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 10 and not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryFatboy, oUnit.UnitID)) then
+                                if tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > 5000 and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 10 and not((oUnit[M28UnitInfo.refiDFRange] or 0) >= 64 or EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryFatboy, oUnit.UnitID)) then
                                     M28Orders.IssueTrackedMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], (oUnit[M28UnitInfo.refiDFRange] or oUnit[M28UnitInfo.refiIndirectRange]) * 0.5, false, 'MWE'..iLandZone, false)
                                 else
                                     M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'AWE'..iLandZone)
@@ -2817,7 +2866,30 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; will only retreat with unit if it is from this LZ, iLandZone='..iLandZone..'; Unit assigned zone='..(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] or 'nil')) end
                         if oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone then
                             if bConsiderAttackingExperimental and oUnit[M28UnitInfo.refiDFRange] > 0 and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tNearbyEnemyExperimentals, 10, iTeam, true) then
-                                M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'ExpA'..iLandZone)
+                                --move to nearest enemy experimental if we arent in range of it yet but a friendly unit is, and we are an experimental level unit or it is a fatboy
+                                local bMoveTowardsExperimental = false
+                                --Want to move instead of attackmove if we are an experimental (or up against a fatboy) and aren't already in range (by a reasonable margin if against a fatboy)
+                                if EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oUnit.UnitId) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFatboy, tNearbyEnemyExperimentals)) == false then
+                                    local oNearestEnemyExp
+                                    local iClosestEnemyExpDist = 100000
+                                    local iCurExpDist
+                                    for iExperimental, oExperimental in tNearbyEnemyExperimentals do
+                                        iCurExpDist = M28Utilities.GetDistanceBetweenPositions(oExperimental:GetPosition(), oUnit:GetPosition())
+                                        if iCurExpDist < iClosestEnemyExpDist then
+                                            iClosestEnemyExpDist = iCurExpDist
+                                            oNearestEnemyExp = oExperimental
+                                        end
+                                    end
+                                    if iClosestEnemyExpDist > oUnit[M28UnitInfo.refiDFRange] - 3 then
+                                        bMoveTowardsExperimental = true
+                                    end
+                                end
+                                if bMoveTowardsExperimental then
+                                    M28Orders.IssueTrackedMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'ExpM'..iLandZone)
+                                else
+                                    --Attackmove towards the experimental
+                                    M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'ExpA'..iLandZone)
+                                end
                             else
                                 if not(bConsolidateAtMidpoint) and EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnit.UnitId) then
                                     M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'A'..sRetreatMessage..iLandZone)
@@ -3038,6 +3110,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             if bDebugMessages == true then LOG(sFunctionRef..': Finished checking override for reinforcement type, bWantDFReinforcements='..tostring(bWantDFReinforcements)..'; bWantIndirectReinforcements='..tostring(bWantIndirectReinforcements)..'; iEnemyStructureThreatTotal='..iEnemyStructureThreatTotal..'; tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]='..tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]='..tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]='..tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]) end
         end
     end
+    if not(bWantIndirectReinforcements) and GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMD] or -100) <= 10 then bWantIndirectReinforcements = true end
     UpdateIfLandZoneWantsSupport(tLZTeamData, iPlateau, iLandZone, iTeam, bWantDFReinforcements, bWantIndirectReinforcements)
     if bDebugMessages == true then LOG(sFunctionRef..': Just recorded if this LZ wants support, bWantDFReinforcements='..tostring(bWantDFReinforcements)..'; bWantIndirectReinforcements='..tostring(bWantIndirectReinforcements)..'; tLZTeamData[M28Map.subrefbLZWantsSupport] = '..tostring(tLZTeamData[M28Map.subrefbLZWantsSupport])..'; tLZTeamData[M28Map.subrefbLZWantsDFSupport]='..tostring(tLZTeamData[M28Map.subrefbLZWantsDFSupport])) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -3123,81 +3196,83 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
 
 
         for iUnit, oUnit in tLZTeamData[M28Map.subrefLZTAlliedUnits] do
-            if EntityCategoryContains(categories.MOBILE - M28UnitInfo.refCategoryScathis, oUnit.UnitId) then
-                if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
-                    table.insert(tEngineers, oUnit)
-                    bLandZoneOrAdjHasUnitsWantingScout = true
-                elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) or oUnit[M28ACU.refbTreatingAsACU] then
-                    --ACU logic - handled via M28ACU file, as amy not want to kite with it; acu is still stored in list of allied units for a land zone though
-                    if bDebugMessages == true then LOG(sFunctionRef..': ACU is in list of allied units for iPlateau'..iPlateau..'; iLandZone='..iLandZone) end
-                    bLandZoneOrAdjHasUnitsWantingScout = true
-                    table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
-                    table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth], oUnit)
+            if oUnit:GetFractionComplete() >= 1 then
+                if EntityCategoryContains(categories.MOBILE - M28UnitInfo.refCategoryScathis, oUnit.UnitId) then
+                    if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
+                        table.insert(tEngineers, oUnit)
+                        bLandZoneOrAdjHasUnitsWantingScout = true
+                    elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) or oUnit[M28ACU.refbTreatingAsACU] then
+                        --ACU logic - handled via M28ACU file, as amy not want to kite with it; acu is still stored in list of allied units for a land zone though
+                        if bDebugMessages == true then LOG(sFunctionRef..': ACU is in list of allied units for iPlateau'..iPlateau..'; iLandZone='..iLandZone) end
+                        bLandZoneOrAdjHasUnitsWantingScout = true
+                        table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
+                        table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth], oUnit)
 
-                    if not(oUnit[M28ACU.refbTreatingAsACU]) and oUnit:GetAIBrain().M28AI then ForkThread(M28ACU.ManageACU, oUnit:GetAIBrain(), oUnit) end --redundancy, wouldnt expect this to normally trigger
-                elseif EntityCategoryContains(M28UnitInfo.refCategoryLandScout, oUnit.UnitId) then
-                    table.insert(tScouts, oUnit)
-                elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileLandShield, oUnit.UnitId) then
-                    table.insert(tMobileShields, oUnit)
-                elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileLandStealth, oUnit.UnitId) then
-                    table.insert(tMobileStealths, oUnit)
-                elseif EntityCategoryContains(M28UnitInfo.refCategoryRASSACU, oUnit.UnitId) and not(bUseRASInCombat) then
-                    table.insert(tRASSACU, oUnit)
-                elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryMobileLand - categories.COMMAND, oUnit.UnitId) then
-                    --Tanks, skirmishers, and indirect fire units - handled by main combat unit manager
-                    bIncludeUnit = false
-                    bLandZoneOrAdjHasUnitsWantingScout = true
-                    --Is the unit available for use by this land zone?
-                    if oUnit:GetFractionComplete() == 1 then
-                        --Is the unit's priority lower than this?
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if have available combat unit, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oUnit[refiCurrentAssignmentValue]='..(oUnit[refiCurrentAssignmentValue] or 'nil')..'; oUnit[refiCurrentAssignmentPlateauAndLZ]='..repru(oUnit[refiCurrentAssignmentPlateauAndLZ])) end
-                        if (oUnit[refiCurrentAssignmentValue] or 0) < iCurLZValue or (oUnit[refiCurrentAssignmentPlateauAndLZ][1] == iPlateau and (oUnit[refiCurrentAssignmentPlateauAndLZ][2] == iLandZone or (GetGameTimeSeconds() - (oUnit[refiTimeOfLastAssignment] or 0) >= 5))) then
-                            --Is it a unit with a shield that wants to retreat so its shield can regen?
-                            iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, true)
-                            if bDebugMessages == true then LOG(sFunctionRef..': iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; Unit max health='..oUnit:GetMaxHealth()) end
-                            if iMaxShield > 0 and iCurShield < iMaxShield * 0.35 and (iCurShield == 0 or iMaxShield > oUnit:GetMaxHealth() * 0.8 or iCurShield < iMaxShield * 0.05) then --Fatboy and in theory SACUs retreat when shield is low; titans etc. retreat when shield is almost gone
-                                table.insert(tOtherUnitsToRetreat, oUnit)
-                                RecordUnitAsReceivingLandZoneAssignment(oUnit, iPlateau, iLandZone, 100000)
+                        if not(oUnit[M28ACU.refbTreatingAsACU]) and oUnit:GetAIBrain().M28AI then ForkThread(M28ACU.ManageACU, oUnit:GetAIBrain(), oUnit) end --redundancy, wouldnt expect this to normally trigger
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryLandScout, oUnit.UnitId) then
+                        table.insert(tScouts, oUnit)
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileLandShield, oUnit.UnitId) then
+                        table.insert(tMobileShields, oUnit)
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileLandStealth, oUnit.UnitId) then
+                        table.insert(tMobileStealths, oUnit)
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryRASSACU, oUnit.UnitId) and not(bUseRASInCombat) then
+                        table.insert(tRASSACU, oUnit)
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryMobileLand - categories.COMMAND, oUnit.UnitId) then
+                        --Tanks, skirmishers, and indirect fire units - handled by main combat unit manager
+                        bIncludeUnit = false
+                        bLandZoneOrAdjHasUnitsWantingScout = true
+                        --Is the unit available for use by this land zone?
+                        if oUnit:GetFractionComplete() == 1 then
+                            --Is the unit's priority lower than this?
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if have available combat unit, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oUnit[refiCurrentAssignmentValue]='..(oUnit[refiCurrentAssignmentValue] or 'nil')..'; oUnit[refiCurrentAssignmentPlateauAndLZ]='..repru(oUnit[refiCurrentAssignmentPlateauAndLZ])) end
+                            if (oUnit[refiCurrentAssignmentValue] or 0) < iCurLZValue or (oUnit[refiCurrentAssignmentPlateauAndLZ][1] == iPlateau and (oUnit[refiCurrentAssignmentPlateauAndLZ][2] == iLandZone or (GetGameTimeSeconds() - (oUnit[refiTimeOfLastAssignment] or 0) >= 5))) then
+                                --Is it a unit with a shield that wants to retreat so its shield can regen?
+                                iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, true)
+                                if bDebugMessages == true then LOG(sFunctionRef..': iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; Unit max health='..oUnit:GetMaxHealth()) end
+                                if iMaxShield > 0 and iCurShield < iMaxShield * 0.35 and (iCurShield == 0 or iMaxShield > oUnit:GetMaxHealth() * 0.8 or iCurShield < iMaxShield * 0.05) then --Fatboy and in theory SACUs retreat when shield is low; titans etc. retreat when shield is almost gone
+                                    table.insert(tOtherUnitsToRetreat, oUnit)
+                                    RecordUnitAsReceivingLandZoneAssignment(oUnit, iPlateau, iLandZone, 100000)
+                                else
+                                    if EntityCategoryContains(M28UnitInfo.refCategoryMAA, oUnit.UnitId) then
+                                        table.insert(tAvailableMAA, oUnit)
+                                        bIncludeUnit =  true
+                                    elseif ((oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or (oUnit[M28UnitInfo.refiIndirectRange] or 0) > 0) then
+                                        table.insert(tAvailableCombatUnits, oUnit)
+                                        table.insert(tLZTeamData[M28Map.subrefLZTAlliedCombatUnits], oUnit)
+                                        if oUnit[M28UnitInfo.refiDFRange] > iOurBestDFRange then iOurBestDFRange = oUnit[M28UnitInfo.refiDFRange] end
+                                        if oUnit[M28UnitInfo.refiIndirectRange] > iOurBestIndirectRange then iOurBestIndirectRange = oUnit[M28UnitInfo.refiIndirectRange] end
+                                        bIncludeUnit = true
+                                    end
+                                    if bIncludeUnit then
+                                        RecordUnitAsReceivingLandZoneAssignment(oUnit, iPlateau, iLandZone, iCurLZValue)
+                                    end
+                                end
                             else
-                                if EntityCategoryContains(M28UnitInfo.refCategoryMAA, oUnit.UnitId) then
-                                    table.insert(tAvailableMAA, oUnit)
-                                    bIncludeUnit =  true
-                                elseif ((oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or (oUnit[M28UnitInfo.refiIndirectRange] or 0) > 0) then
-                                    table.insert(tAvailableCombatUnits, oUnit)
-                                    table.insert(tLZTeamData[M28Map.subrefLZTAlliedCombatUnits], oUnit)
-                                    if oUnit[M28UnitInfo.refiDFRange] > iOurBestDFRange then iOurBestDFRange = oUnit[M28UnitInfo.refiDFRange] end
-                                    if oUnit[M28UnitInfo.refiIndirectRange] > iOurBestIndirectRange then iOurBestIndirectRange = oUnit[M28UnitInfo.refiIndirectRange] end
-                                    bIncludeUnit = true
-                                end
-                                if bIncludeUnit then
-                                    RecordUnitAsReceivingLandZoneAssignment(oUnit, iPlateau, iLandZone, iCurLZValue)
-                                end
+                                table.insert(tUnavailableUnitsInThisLZ, oUnit)
                             end
-                        else
-                            table.insert(tUnavailableUnitsInThisLZ, oUnit)
-                        end
-                        iUnitMassCost = oUnit:GetBlueprint().Economy.BuildCostMass
-                        if iUnitMassCost >= iMobileShieldMassThreshold and (iUnitMassCost >= iMobileShieldHigherMAAMassThreshold or iMobileShieldHigherMAAMassThreshold == iMobileShieldMassThreshold or not(EntityCategoryContains(M28UnitInfo.refCategoryMAA, oUnit.UnitId))) then
-                            table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
-                        end
-                        if iUnitMassCost >= iMobileStealthHigherMassThreshold then
-                            table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth], oUnit)
-                        elseif iUnitMassCost >= iMobileStealthMassThreshold and EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryIndirect - categories.TECH1, oUnit.UnitId) then
-                            --Only say we want a mobile shield if the unit doesnt have one assigned
-                            iMobileStealthLowerThresholdCount = iMobileStealthLowerThresholdCount + 1
-
-                            if iMobileStealthLowerThresholdCount >= 3 or oUnit[refoAssignedMobileStealth] then
-                                iMobileStealthLowerThresholdCount = 0
+                            iUnitMassCost = oUnit:GetBlueprint().Economy.BuildCostMass
+                            if iUnitMassCost >= iMobileShieldMassThreshold and (iUnitMassCost >= iMobileShieldHigherMAAMassThreshold or iMobileShieldHigherMAAMassThreshold == iMobileShieldMassThreshold or not(EntityCategoryContains(M28UnitInfo.refCategoryMAA, oUnit.UnitId))) then
+                                table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
+                            end
+                            if iUnitMassCost >= iMobileStealthHigherMassThreshold then
                                 table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth], oUnit)
+                            elseif iUnitMassCost >= iMobileStealthMassThreshold and EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryIndirect - categories.TECH1, oUnit.UnitId) then
+                                --Only say we want a mobile shield if the unit doesnt have one assigned
+                                iMobileStealthLowerThresholdCount = iMobileStealthLowerThresholdCount + 1
+
+                                if iMobileStealthLowerThresholdCount >= 3 or oUnit[refoAssignedMobileStealth] then
+                                    iMobileStealthLowerThresholdCount = 0
+                                    table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth], oUnit)
+                                end
                             end
                         end
+                    elseif EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) then
+                        --Structure logic - handled separately e.g. via M28Factory for factories
+                    else
+                        --Unexpected unit type - could e.g. be a naval unit on a location thought to be a land zone; only flag as error if unit has no orders
+                        table.insert(tTempOtherUnits, oUnit)
+                        bLandZoneOrAdjHasUnitsWantingScout = true
                     end
-                elseif EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) then
-                    --Structure logic - handled separately e.g. via M28Factory for factories
-                else
-                    --Unexpected unit type - could e.g. be a naval unit on a location thought to be a land zone; only flag as error if unit has no orders
-                    table.insert(tTempOtherUnits, oUnit)
-                    bLandZoneOrAdjHasUnitsWantingScout = true
                 end
             end
         end
@@ -3418,11 +3493,14 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                     local tAltLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
                     if tAltLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] > 0 then bWantIndirectSupport = true break end
                 end
+                if not(bWantIndirectSupport) and GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMD] or -100) <= 10 then bWantIndirectSupport = true end
             end
             UpdateIfLandZoneWantsSupport(tLZTeamData, iPlateau, iLandZone, iTeam, bWantDFSupport, bWantIndirectSupport)
             if bDebugMessages == true then LOG(sFunctionRef..': Will update if this land zone wants some DF support='..tostring(bWantDFSupport)..'; bWantIndirectSupport='..tostring(bWantIndirectSupport)) end
         else
-            UpdateIfLandZoneWantsSupport(tLZTeamData, iPlateau, iLandZone, iTeam, false, false)
+            local bWantIndirectSupport = false
+            if GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMD] or -100) <= 10 then bWantIndirectSupport = true end
+            UpdateIfLandZoneWantsSupport(tLZTeamData, iPlateau, iLandZone, iTeam, false, bWantIndirectSupport)
         end
     end
     --Handle engineers and even if no engineers still decide what engineers we would want for hte LZ

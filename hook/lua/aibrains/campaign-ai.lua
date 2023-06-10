@@ -3,6 +3,8 @@
 --- Created by maudlin27.
 --- DateTime: 17/05/2023 21:51
 ---
+--In theory the below shouldt be needed once the FAF-Develop changes are integrated into FAF (expected June 2023), although probably no harm leaving for backwards compatibility
+
 local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 
 local M28OldAIBrain = AIBrain
