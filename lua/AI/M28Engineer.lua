@@ -4373,7 +4373,7 @@ function GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLan
         local toUnderConstructionExperimentalsInOtherZonesByUnitRef = {}
         local iCurPlateau, iCurLZ
         for iEngi, oEngi in M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals] do
-            if oEngi[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam] then
+            if M28UnitInfo.IsUnitValid(oEngi) and oEngi[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam] then
                 iCurPlateau = oEngi[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]
                 iCurLZ = oEngi[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]
                 if bOptionalReturnMassToCompleteOtherZoneUnderConstruction then --Check if want to include this
@@ -4390,7 +4390,6 @@ function GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLan
                 end
                 if not(tiPlateauAndLZBuildingExperimental[iCurPlateau]) then tiPlateauAndLZBuildingExperimental[iCurPlateau] = {} end
                 tiPlateauAndLZBuildingExperimental[iCurPlateau][iCurLZ] = (tiPlateauAndLZBuildingExperimental[iCurPlateau][iCurLZ] or 0) + 1
-
             end
         end
         if M28Utilities.IsTableEmpty(tiPlateauAndLZBuildingExperimental) == false then

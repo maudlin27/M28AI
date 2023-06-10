@@ -6,6 +6,8 @@ local M28Config = import('/mods/M28AI/lua/M28Config.lua')
 local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 
 --Note - looks like this logic may be moved to lua\aibrains\base-ai.lua at some point based on FAF develop (as at May 2023)
+--In theory the below shouldt be needed once the FAF-Develop changes are integrated into FAF (expected June 2023), although probably no harm leaving for backwards compatibility
+--Superceded from the June 2023 changes by M28Brain.lua and index.lua
 M28AIBrainClass = AIBrain
 AIBrain = Class(M28AIBrainClass) {
 

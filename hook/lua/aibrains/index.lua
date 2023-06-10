@@ -3,6 +3,7 @@
 --- Created by maudlin27.
 --- DateTime: 10/06/2023 20:24
 ---
+local M28Brain = import('/mods/M28AI/lua/AI/M28Brain.lua')
 keyToBrain = keyToBrain or { }
-keyToBrain["m28ai"] = import("/lua/aibrain.lua").NewAIBrain -- <- make sure import path points to the brain instance
-keyToBrain["m28aicheat"] = import("/lua/aibrain.lua").NewAIBrain -- <- make sure import path points to the brain instance
+keyToBrain["m28ai"] = M28Brain.NewAIBrain -- <- make sure import path points to the brain instance
+keyToBrain["m28aicheat"] = M28Brain.NewAIBrain -- <- make sure import path points to the brain instance
