@@ -95,6 +95,9 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
             ForkThread(M28Events.OnMissileImpactTerrain, self, target, position)
             return M28OldUnit.OnMissileImpactTerrain(self, target, position)
         end,
+        OnMissileIntercepted = function(self, target, defense, position)
+            ForkThread(M28Events.OnMissileIntercepted, self, target, defense, position)
+        end,
     }
 end
 
