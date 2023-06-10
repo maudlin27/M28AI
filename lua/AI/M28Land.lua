@@ -434,7 +434,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         if M28Utilities.IsTableEmpty(tMobileUnits) == false then
             for iUnit, oUnit in tMobileUnits do
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; Indirect range='..(oUnit[M28UnitInfo.refiIndirectRange] or 'nil')..'; Combat threat rating='..M28UnitInfo.GetCombatThreatRating({ oUnit }, true)) end
-                if oUnit[M28UnitInfo.refiDFRange] > 0 or oUnit[M28UnitInfo.refiIndirectRange] then
+                if (oUnit[M28UnitInfo.refiDFRange] > 0 or oUnit[M28UnitInfo.refiIndirectRange]) and oUnit:GetFractionComplete() >= 0.9 then
                     iCurThreat = M28UnitInfo.GetCombatThreatRating({ oUnit }, true)
                     if iCurThreat > 0 then
                         if oUnit[M28UnitInfo.refiDFRange] > 0 then
@@ -456,7 +456,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         if M28Utilities.IsTableEmpty(tStructures) == false then
             for iUnit, oUnit in tStructures do
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; with DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')) end
-                if oUnit[M28UnitInfo.refiDFRange] > 0 then
+                if oUnit[M28UnitInfo.refiDFRange] > 0 and oUnit:GetFractionComplete() >= 0.9 then
                     iCurThreat = M28UnitInfo.GetCombatThreatRating({ oUnit }, true)
                     if bDebugMessages == true then LOG(sFunctionRef..': Structure iCurThreat='..iCurThreat) end
                     if iCurThreat > 0 then
@@ -503,17 +503,19 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         if bDebugMessages == true then LOG(sFunctionRef..': Calculating threat by range for allied units, is tMobileUnits empty='..tostring(M28Utilities.IsTableEmpty(tMobileUnits))..'; is tStructures empty='..tostring(M28Utilities.IsTableEmpty(tStructures))) end
         if M28Utilities.IsTableEmpty(tMobileUnits) == false then
             for iUnit, oUnit in tMobileUnits do
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; refiDFRange='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; IndirectRange='..(oUnit[M28UnitInfo.refiIndirectRange] or 'nil')..'; Unit combat rating='..M28UnitInfo.GetCombatThreatRating({ oUnit }, false)) end
-                if oUnit[M28UnitInfo.refiDFRange] > 0 or oUnit[M28UnitInfo.refiIndirectRange] > 0 then
-                    iCurThreat = M28UnitInfo.GetCombatThreatRating({ oUnit }, false)
-                    if iCurThreat > 0 then
-                        if oUnit[M28UnitInfo.refiDFRange] > 0 then
-                            if not(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange]) then tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange] = {} end
-                            tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange][oUnit[M28UnitInfo.refiDFRange]] = (tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange][oUnit[M28UnitInfo.refiDFRange]] or 0) + iCurThreat
-                        end
-                        if oUnit[M28UnitInfo.refiIndirectRange] > 0 then
-                            if not(tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange]) then tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange] = {} end
-                            tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange][oUnit[M28UnitInfo.refiIndirectRange]] = (tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange][oUnit[M28UnitInfo.refiIndirectRange]] or 0) + iCurThreat
+                if oUnit:GetFractionComplete() >= 1 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; refiDFRange='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; IndirectRange='..(oUnit[M28UnitInfo.refiIndirectRange] or 'nil')..'; Unit combat rating='..M28UnitInfo.GetCombatThreatRating({ oUnit }, false)) end
+                    if oUnit[M28UnitInfo.refiDFRange] > 0 or oUnit[M28UnitInfo.refiIndirectRange] > 0 then
+                        iCurThreat = M28UnitInfo.GetCombatThreatRating({ oUnit }, false)
+                        if iCurThreat > 0 then
+                            if oUnit[M28UnitInfo.refiDFRange] > 0 then
+                                if not(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange]) then tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange] = {} end
+                                tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange][oUnit[M28UnitInfo.refiDFRange]] = (tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange][oUnit[M28UnitInfo.refiDFRange]] or 0) + iCurThreat
+                            end
+                            if oUnit[M28UnitInfo.refiIndirectRange] > 0 then
+                                if not(tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange]) then tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange] = {} end
+                                tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange][oUnit[M28UnitInfo.refiIndirectRange]] = (tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange][oUnit[M28UnitInfo.refiIndirectRange]] or 0) + iCurThreat
+                            end
                         end
                     end
                 end
@@ -521,7 +523,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         end
         if M28Utilities.IsTableEmpty(tStructures) == false then
             for iUnit, oUnit in tStructures do
-                if oUnit[M28UnitInfo.refiDFRange] > 0 then
+                if oUnit[M28UnitInfo.refiDFRange] > 0 and oUnit:GetFractionComplete() >= 1 then
                     iCurThreat = M28UnitInfo.GetCombatThreatRating({ oUnit }, true)
                     if iCurThreat > 0 then
                         if not(tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange]) then tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange] = {} end
@@ -2078,7 +2080,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
     local sFunctionRef = 'ManageCombatUnitsInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if GetGameTimeSeconds() >= 1380 and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 10000 and M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFatboy,tAvailableCombatUnits)) == false then bDebugMessages = true end
 
     if bDebugMessages == true then LOG(sFunctionRef..': start of code, iTeam='..iTeam..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is table of available combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))..'; iFriendlyBestMobileDFRange='..iFriendlyBestMobileDFRange..'; iFriendlyBestMobileIndirectRange='..iFriendlyBestMobileIndirectRange..'; Are there enemy units in this or adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; bWantIndirectReinforcements='..tostring(bWantIndirectReinforcements or false)) end
 
@@ -2317,7 +2319,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
             if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if should move blocked units, bMoveBlockedNotAttackMove='..tostring(bMoveBlockedNotAttackMove)..'; iFriendlyBestMobileIndirectRange='..(iFriendlyBestMobileIndirectRange or 'nil')..';  tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]='..(tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 'nil')..'; iFriendlyBestMobileDFRange='..(iFriendlyBestMobileDFRange or 'nil')..'; Enemy best DF range='..iEnemyBestDFRange..'; iFriendlyBestMobileIndirectRange='..(iFriendlyBestMobileIndirectRange or 'nil')..'; iEnemyBestStructureDFRange='..(iEnemyBestStructureDFRange or 'nil')..'; Enemy structure threat indirect='..(tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] or 'nil')..'; bEnemyHasNoDFUnits='..tostring(bEnemyHasNoDFUnits or false)..'; iEnemyBestDFRange='..(iEnemyBestDFRange or 'nil')..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]='..(tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] or 'nil')..'; tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal]='..(tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 'nil')) end
             --SCENARIO 1 - We outrange enemy DF units (mobile and fix), or have equal range but with significantly more threat at that range
-            if ((tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 or iFriendlyBestMobileDFRange >= 100) and iFirebaseThreatAdjust == 0 and ((iFriendlyBestMobileDFRange or 0) > (iEnemyBestDFRange or 0) or ((iFriendlyBestMobileIndirectRange or 0) > (iEnemyBestDFRange or 0) and ((iEnemyBestStructureDFRange or 0) > 0 or (tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] or 0) > 0 or (tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] or 0) > 1.4 * (tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 0)))) then
+            if ((tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 or iFriendlyBestMobileDFRange >= 100) and (iFirebaseThreatAdjust == 0 or (iFriendlyBestMobileDFRange >= 100 and iFirebaseThreatAdjust < 6000 and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 8000)) and ((iFriendlyBestMobileDFRange or 0) > (iEnemyBestDFRange or 0) or ((iFriendlyBestMobileIndirectRange or 0) > (iEnemyBestDFRange or 0) and ((iEnemyBestStructureDFRange or 0) > 0 or (tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] or 0) > 0 or (tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] or 0) > 1.4 * (tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 0)))) then
                 local tOutrangedCombatUnits = {}
                 local tUnitsToSupport = {}
                 local bAttackWithOutrangedDFUnits = false
