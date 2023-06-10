@@ -1178,10 +1178,13 @@ function RecordUnitRange(oUnit)
                 elseif oCurWeapon.RangeCategory == 'UWRC_AntiAir' or oCurWeapon.WeaponCategory == 'Anti Air' then
                     oUnit[refiAARange] = math.max((oUnit[refiAARange] or 0), oCurWeapon.MaxRadius)
                 elseif oCurWeapon.RangeCategory == 'UWRC_IndirectFire' then
-                    oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
-                    if oCurWeapon.WeaponUnpacks then oUnit[refbWeaponUnpacks] = true end
-                    oUnit[refiIndirectAOE] = math.max((oUnit[refiIndirectAOE] or 0), oCurWeapon.MaxRadius or 0)
-                    if oCurWeapon.RateOfFire then oUnit[refiTimeBetweenIFShots] = math.max((oUnit[refiTimeBetweenIFShots] or 0), 1 / oCurWeapon.RateOfFire) end
+                    --GC tractor claws - dont want to include as indirect fire weapon since logic is on the assumption indirect fire is good vs structures
+                    if (oCurWeapon.Damage or 0) > 0.01 or not(oCurWeapon.WeaponCategory == 'Experimental') then
+                        oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
+                        if oCurWeapon.WeaponUnpacks then oUnit[refbWeaponUnpacks] = true end
+                        oUnit[refiIndirectAOE] = math.max((oUnit[refiIndirectAOE] or 0), oCurWeapon.MaxRadius or 0)
+                        if oCurWeapon.RateOfFire then oUnit[refiTimeBetweenIFShots] = math.max((oUnit[refiTimeBetweenIFShots] or 0), 1 / oCurWeapon.RateOfFire) end
+                    end
                 elseif not(oCurWeapon.RangeCategory) or oCurWeapon.RangeCategory == 'UWRC_Undefined' then
                     if oCurWeapon.Label == 'Bomb' or oCurWeapon.DisplayName == 'Kamikaze' or oCurWeapon.Label == 'Torpedo' then
                         oUnit[refiBomberRange] = math.max((oUnit[refiBomberRange] or 0), oCurWeapon.MaxRadius)

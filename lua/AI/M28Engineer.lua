@@ -283,6 +283,8 @@ tbActionsWithFactionSpecificLogic = { --Any actions where it is important to kno
 }
 
 
+
+
 function GetEngineerUniqueCount(oEngineer)
     local iUniqueRef = oEngineer[refiEngineerCurUniqueReference]
     if iUniqueRef == nil then
@@ -3615,8 +3617,11 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                 local oHighestPriorityEngi
                 for iEngi, oEngi in toAssignedEngisOfTechLevel do
                     if not(oEngi[refbPrimaryBuilder]) and not(oEngi[refiAssignedAction] == iActionToAssign) and oEngi[refiAssignedActionPriority] > iHighestPriorityEngi and not(oEngi:IsUnitState('Reclaiming')) and not(oEngi:IsUnitState('Attached')) and not(oEngi:IsUnitState('Capturing')) then
-                        iHighestPriorityEngi = oEngi[refiAssignedActionPriority]
-                        oHighestPriorityEngi = oEngi
+                        --Exception for engineers assisting a shield
+                        if not(oEngi[refiAssignedAction] == refActionAssistShield) or not(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) then
+                            iHighestPriorityEngi = oEngi[refiAssignedActionPriority]
+                            oHighestPriorityEngi = oEngi
+                        end
                     end
                 end
                 if oHighestPriorityEngi then
@@ -5432,7 +5437,12 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 iThreatWanted = iThreatWanted - iT2ArtiThreat
                 if bDebugMessages == true then LOG(sFunctionRef..': iT2ArtiThreat='..iT2ArtiThreat..'; iThreatWanted='..iThreatWanted) end
                 if iThreatWanted >= 500 then
-                    iBPWanted = math.min(120, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 10)
+                    if iThreatWanted <= 4000 then
+                        iBPWanted = math.min(120, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 10)
+                    else
+                        --Presumably up against a fatboy so need T2 arti asap
+                        iBPWanted = math.min(240, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 10)
+                    end
                     if bHaveLowMass or bHaveLowPower then iBPWanted = iBPWanted * 0.5 end
                     HaveActionToAssign(refActionBuildEmergencyArti, 2, iBPWanted)
                     if bDebugMessages == true then LOG(sFunctionRef..': Want to build emergency arti, iBPWanted='..iBPWanted) end
