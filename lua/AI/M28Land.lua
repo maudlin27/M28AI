@@ -3153,81 +3153,83 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
 
 
         for iUnit, oUnit in tLZTeamData[M28Map.subrefLZTAlliedUnits] do
-            if EntityCategoryContains(categories.MOBILE - M28UnitInfo.refCategoryScathis, oUnit.UnitId) then
-                if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
-                    table.insert(tEngineers, oUnit)
-                    bLandZoneOrAdjHasUnitsWantingScout = true
-                elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) or oUnit[M28ACU.refbTreatingAsACU] then
-                    --ACU logic - handled via M28ACU file, as amy not want to kite with it; acu is still stored in list of allied units for a land zone though
-                    if bDebugMessages == true then LOG(sFunctionRef..': ACU is in list of allied units for iPlateau'..iPlateau..'; iLandZone='..iLandZone) end
-                    bLandZoneOrAdjHasUnitsWantingScout = true
-                    table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
-                    table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth], oUnit)
+            if oUnit:GetFractionComplete() >= 1 then
+                if EntityCategoryContains(categories.MOBILE - M28UnitInfo.refCategoryScathis, oUnit.UnitId) then
+                    if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
+                        table.insert(tEngineers, oUnit)
+                        bLandZoneOrAdjHasUnitsWantingScout = true
+                    elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) or oUnit[M28ACU.refbTreatingAsACU] then
+                        --ACU logic - handled via M28ACU file, as amy not want to kite with it; acu is still stored in list of allied units for a land zone though
+                        if bDebugMessages == true then LOG(sFunctionRef..': ACU is in list of allied units for iPlateau'..iPlateau..'; iLandZone='..iLandZone) end
+                        bLandZoneOrAdjHasUnitsWantingScout = true
+                        table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
+                        table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth], oUnit)
 
-                    if not(oUnit[M28ACU.refbTreatingAsACU]) and oUnit:GetAIBrain().M28AI then ForkThread(M28ACU.ManageACU, oUnit:GetAIBrain(), oUnit) end --redundancy, wouldnt expect this to normally trigger
-                elseif EntityCategoryContains(M28UnitInfo.refCategoryLandScout, oUnit.UnitId) then
-                    table.insert(tScouts, oUnit)
-                elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileLandShield, oUnit.UnitId) then
-                    table.insert(tMobileShields, oUnit)
-                elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileLandStealth, oUnit.UnitId) then
-                    table.insert(tMobileStealths, oUnit)
-                elseif EntityCategoryContains(M28UnitInfo.refCategoryRASSACU, oUnit.UnitId) and not(bUseRASInCombat) then
-                    table.insert(tRASSACU, oUnit)
-                elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryMobileLand - categories.COMMAND, oUnit.UnitId) then
-                    --Tanks, skirmishers, and indirect fire units - handled by main combat unit manager
-                    bIncludeUnit = false
-                    bLandZoneOrAdjHasUnitsWantingScout = true
-                    --Is the unit available for use by this land zone?
-                    if oUnit:GetFractionComplete() == 1 then
-                        --Is the unit's priority lower than this?
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if have available combat unit, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oUnit[refiCurrentAssignmentValue]='..(oUnit[refiCurrentAssignmentValue] or 'nil')..'; oUnit[refiCurrentAssignmentPlateauAndLZ]='..repru(oUnit[refiCurrentAssignmentPlateauAndLZ])) end
-                        if (oUnit[refiCurrentAssignmentValue] or 0) < iCurLZValue or (oUnit[refiCurrentAssignmentPlateauAndLZ][1] == iPlateau and (oUnit[refiCurrentAssignmentPlateauAndLZ][2] == iLandZone or (GetGameTimeSeconds() - (oUnit[refiTimeOfLastAssignment] or 0) >= 5))) then
-                            --Is it a unit with a shield that wants to retreat so its shield can regen?
-                            iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, true)
-                            if bDebugMessages == true then LOG(sFunctionRef..': iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; Unit max health='..oUnit:GetMaxHealth()) end
-                            if iMaxShield > 0 and iCurShield < iMaxShield * 0.35 and (iCurShield == 0 or iMaxShield > oUnit:GetMaxHealth() * 0.8 or iCurShield < iMaxShield * 0.05) then --Fatboy and in theory SACUs retreat when shield is low; titans etc. retreat when shield is almost gone
-                                table.insert(tOtherUnitsToRetreat, oUnit)
-                                RecordUnitAsReceivingLandZoneAssignment(oUnit, iPlateau, iLandZone, 100000)
+                        if not(oUnit[M28ACU.refbTreatingAsACU]) and oUnit:GetAIBrain().M28AI then ForkThread(M28ACU.ManageACU, oUnit:GetAIBrain(), oUnit) end --redundancy, wouldnt expect this to normally trigger
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryLandScout, oUnit.UnitId) then
+                        table.insert(tScouts, oUnit)
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileLandShield, oUnit.UnitId) then
+                        table.insert(tMobileShields, oUnit)
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileLandStealth, oUnit.UnitId) then
+                        table.insert(tMobileStealths, oUnit)
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryRASSACU, oUnit.UnitId) and not(bUseRASInCombat) then
+                        table.insert(tRASSACU, oUnit)
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryMobileLand - categories.COMMAND, oUnit.UnitId) then
+                        --Tanks, skirmishers, and indirect fire units - handled by main combat unit manager
+                        bIncludeUnit = false
+                        bLandZoneOrAdjHasUnitsWantingScout = true
+                        --Is the unit available for use by this land zone?
+                        if oUnit:GetFractionComplete() == 1 then
+                            --Is the unit's priority lower than this?
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if have available combat unit, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oUnit[refiCurrentAssignmentValue]='..(oUnit[refiCurrentAssignmentValue] or 'nil')..'; oUnit[refiCurrentAssignmentPlateauAndLZ]='..repru(oUnit[refiCurrentAssignmentPlateauAndLZ])) end
+                            if (oUnit[refiCurrentAssignmentValue] or 0) < iCurLZValue or (oUnit[refiCurrentAssignmentPlateauAndLZ][1] == iPlateau and (oUnit[refiCurrentAssignmentPlateauAndLZ][2] == iLandZone or (GetGameTimeSeconds() - (oUnit[refiTimeOfLastAssignment] or 0) >= 5))) then
+                                --Is it a unit with a shield that wants to retreat so its shield can regen?
+                                iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, true)
+                                if bDebugMessages == true then LOG(sFunctionRef..': iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; Unit max health='..oUnit:GetMaxHealth()) end
+                                if iMaxShield > 0 and iCurShield < iMaxShield * 0.35 and (iCurShield == 0 or iMaxShield > oUnit:GetMaxHealth() * 0.8 or iCurShield < iMaxShield * 0.05) then --Fatboy and in theory SACUs retreat when shield is low; titans etc. retreat when shield is almost gone
+                                    table.insert(tOtherUnitsToRetreat, oUnit)
+                                    RecordUnitAsReceivingLandZoneAssignment(oUnit, iPlateau, iLandZone, 100000)
+                                else
+                                    if EntityCategoryContains(M28UnitInfo.refCategoryMAA, oUnit.UnitId) then
+                                        table.insert(tAvailableMAA, oUnit)
+                                        bIncludeUnit =  true
+                                    elseif ((oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or (oUnit[M28UnitInfo.refiIndirectRange] or 0) > 0) then
+                                        table.insert(tAvailableCombatUnits, oUnit)
+                                        table.insert(tLZTeamData[M28Map.subrefLZTAlliedCombatUnits], oUnit)
+                                        if oUnit[M28UnitInfo.refiDFRange] > iOurBestDFRange then iOurBestDFRange = oUnit[M28UnitInfo.refiDFRange] end
+                                        if oUnit[M28UnitInfo.refiIndirectRange] > iOurBestIndirectRange then iOurBestIndirectRange = oUnit[M28UnitInfo.refiIndirectRange] end
+                                        bIncludeUnit = true
+                                    end
+                                    if bIncludeUnit then
+                                        RecordUnitAsReceivingLandZoneAssignment(oUnit, iPlateau, iLandZone, iCurLZValue)
+                                    end
+                                end
                             else
-                                if EntityCategoryContains(M28UnitInfo.refCategoryMAA, oUnit.UnitId) then
-                                    table.insert(tAvailableMAA, oUnit)
-                                    bIncludeUnit =  true
-                                elseif ((oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or (oUnit[M28UnitInfo.refiIndirectRange] or 0) > 0) then
-                                    table.insert(tAvailableCombatUnits, oUnit)
-                                    table.insert(tLZTeamData[M28Map.subrefLZTAlliedCombatUnits], oUnit)
-                                    if oUnit[M28UnitInfo.refiDFRange] > iOurBestDFRange then iOurBestDFRange = oUnit[M28UnitInfo.refiDFRange] end
-                                    if oUnit[M28UnitInfo.refiIndirectRange] > iOurBestIndirectRange then iOurBestIndirectRange = oUnit[M28UnitInfo.refiIndirectRange] end
-                                    bIncludeUnit = true
-                                end
-                                if bIncludeUnit then
-                                    RecordUnitAsReceivingLandZoneAssignment(oUnit, iPlateau, iLandZone, iCurLZValue)
-                                end
+                                table.insert(tUnavailableUnitsInThisLZ, oUnit)
                             end
-                        else
-                            table.insert(tUnavailableUnitsInThisLZ, oUnit)
-                        end
-                        iUnitMassCost = oUnit:GetBlueprint().Economy.BuildCostMass
-                        if iUnitMassCost >= iMobileShieldMassThreshold and (iUnitMassCost >= iMobileShieldHigherMAAMassThreshold or iMobileShieldHigherMAAMassThreshold == iMobileShieldMassThreshold or not(EntityCategoryContains(M28UnitInfo.refCategoryMAA, oUnit.UnitId))) then
-                            table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
-                        end
-                        if iUnitMassCost >= iMobileStealthHigherMassThreshold then
-                            table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth], oUnit)
-                        elseif iUnitMassCost >= iMobileStealthMassThreshold and EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryIndirect - categories.TECH1, oUnit.UnitId) then
-                            --Only say we want a mobile shield if the unit doesnt have one assigned
-                            iMobileStealthLowerThresholdCount = iMobileStealthLowerThresholdCount + 1
-
-                            if iMobileStealthLowerThresholdCount >= 3 or oUnit[refoAssignedMobileStealth] then
-                                iMobileStealthLowerThresholdCount = 0
+                            iUnitMassCost = oUnit:GetBlueprint().Economy.BuildCostMass
+                            if iUnitMassCost >= iMobileShieldMassThreshold and (iUnitMassCost >= iMobileShieldHigherMAAMassThreshold or iMobileShieldHigherMAAMassThreshold == iMobileShieldMassThreshold or not(EntityCategoryContains(M28UnitInfo.refCategoryMAA, oUnit.UnitId))) then
+                                table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
+                            end
+                            if iUnitMassCost >= iMobileStealthHigherMassThreshold then
                                 table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth], oUnit)
+                            elseif iUnitMassCost >= iMobileStealthMassThreshold and EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryIndirect - categories.TECH1, oUnit.UnitId) then
+                                --Only say we want a mobile shield if the unit doesnt have one assigned
+                                iMobileStealthLowerThresholdCount = iMobileStealthLowerThresholdCount + 1
+
+                                if iMobileStealthLowerThresholdCount >= 3 or oUnit[refoAssignedMobileStealth] then
+                                    iMobileStealthLowerThresholdCount = 0
+                                    table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth], oUnit)
+                                end
                             end
                         end
+                    elseif EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) then
+                        --Structure logic - handled separately e.g. via M28Factory for factories
+                    else
+                        --Unexpected unit type - could e.g. be a naval unit on a location thought to be a land zone; only flag as error if unit has no orders
+                        table.insert(tTempOtherUnits, oUnit)
+                        bLandZoneOrAdjHasUnitsWantingScout = true
                     end
-                elseif EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) then
-                    --Structure logic - handled separately e.g. via M28Factory for factories
-                else
-                    --Unexpected unit type - could e.g. be a naval unit on a location thought to be a land zone; only flag as error if unit has no orders
-                    table.insert(tTempOtherUnits, oUnit)
-                    bLandZoneOrAdjHasUnitsWantingScout = true
                 end
             end
         end
