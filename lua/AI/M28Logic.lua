@@ -527,6 +527,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
         local iPlateauOrZero, iLandOrWaterZone
         local tLZOrWZTeamData
         local iT3ArtiMissedShotFactor
+
         if bT3ArtiShotReduction then
             iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tBaseLocation)
             if iPlateauOrZero > 0 then
@@ -567,11 +568,11 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
                                 --Do nothing - stick with default mass factor of 1
                             else
                                 --Still some value in damaging a unit (as might get a second strike), but far less than killing it
-
                                 if EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then
-                                    iMassFactor = iMassFactor * math.max(0.5, iFactorIfWontKill)
+
+                                    iMassFactor = iMassFactor * math.min(math.max(0.5, iFactorIfWontKill), iDamage / math.max(iCurHealth * 1.5, iMaxHealth))
                                 else
-                                    iMassFactor = iMassFactor * iFactorIfWontKill
+                                    iMassFactor = iMassFactor * math.min(iDamage / iMaxHealth, iFactorIfWontKill)
                                 end
                             end
                         end

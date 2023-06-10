@@ -538,7 +538,7 @@ function OnBombFired(oWeapon, projectile)
                 else
                     --Experimental bomber - micro to turn around and go to rally point
                     if oUnit:GetAIBrain().M28AI then
-                        ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit:GetAIBrain(), oUnit, M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint], 15)
+                        ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit:GetAIBrain(), oUnit, M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint], 15, 3)
                     end
                 end
             end

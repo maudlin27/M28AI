@@ -841,7 +841,7 @@ function GetOverchargeTarget(tLZData, aiBrain, oUnitWithOvercharge, bOnlyConside
     return oOverchargeTarget
 end
 
-function TurnAirUnitAndMoveToTarget(aiBrain, oBomber, tDirectionToMoveTo, iMaxAcceptableAngleDif)
+function TurnAirUnitAndMoveToTarget(aiBrain, oBomber, tDirectionToMoveTo, iMaxAcceptableAngleDif, iOptionalSecondsToMoveAtEndIfFarFromTarget)
     --Based on hoverbomb logic - may give unexpected results if not using with T3 bombers
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'TurnAirUnitAndMoveToTarget'
@@ -933,9 +933,16 @@ function TurnAirUnitAndMoveToTarget(aiBrain, oBomber, tDirectionToMoveTo, iMaxAc
 
     if M28UnitInfo.IsUnitValid(oBomber) then
         M28Orders.IssueTrackedMove(oBomber, tDirectionToMoveTo, 5, false, 'BMicMTR', true)
-        if bDebugMessages == true then LOG(sFunctionRef..': Just cleared bomber '..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..' commands and told it to move to '..repru(tDirectionToMoveTo)..'; GameTime='..GetGameTimeSeconds()) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Just cleared bomber '..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..' commands and told it to move to '..repru(tDirectionToMoveTo)..'; GameTime='..GetGameTimeSeconds()..'; iOptionalSecondsToMoveAtEndIfFarFromTarget='..(iOptionalSecondsToMoveAtEndIfFarFromTarget or 'nil')) end
+        if iOptionalSecondsToMoveAtEndIfFarFromTarget then
+            local iTimeToWait = math.min(iOptionalSecondsToMoveAtEndIfFarFromTarget, M28Utilities.GetDistanceBetweenPositions(oBomber:GetPosition(), tDirectionToMoveTo) / (oBomber:GetBlueprint().Physics.MaxSpeed or 10))
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitSeconds(iOptionalSecondsToMoveAtEndIfFarFromTarget)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        end
+        
         oBomber[M28UnitInfo.refbSpecialMicroActive] = false
-        oBomber[M28UnitInfo.refiGameTimeToResetMicroActive] = GetGameTimeSeconds()
+        oBomber[M28UnitInfo.refiGameTimeToResetMicroActive] = GetGameTimeSeconds()        
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

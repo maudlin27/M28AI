@@ -446,6 +446,7 @@ function NoRushMonitor()
 end
 
 function TestCustom(aiBrain)
+    M28Map.DrawSpecificLandZone(1, 8, 3)
 
     --AiX 10.0
     --ScenarioInfo.Options.CheatMult = tostring(10.0)
@@ -873,13 +874,15 @@ end
 
 function OverseerManager(aiBrain)
     --ForkThread(DebugCheck,aiBrain)
-    --ForkThread(TestCustom, aiBrain)
 
     --Make sure map setup will be done
     WaitTicks(1)
     while not(M28Map.bMapLandSetupComplete) do
         WaitTicks(1)
     end
+
+    --ForkThread(TestCustom, aiBrain)
+
     --Initialise main systems
     ForkThread(Initialisation, aiBrain)
 
