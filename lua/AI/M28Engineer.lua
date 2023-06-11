@@ -1111,6 +1111,17 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
                     tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
                 end
                 local iSize = M28UnitInfo.GetBuildingSize(sBlueprintToBuild)
+                --Game-ender specific logic - use a larger build size
+                if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, sBlueprintToBuild) then
+                    --Artillery structures (rapid fire and mavor) - use czar
+                    if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE, sBlueprintToBuild) then
+                        iSize = math.max(iSize, iMaxBuildingSize)
+                    else
+                        --Yolona, scathis
+                        iSize = math.max(iSize, 16)
+                    end
+                end
+
                 if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have searched all segments in the land zone before, tLocation='..repru(tTargetLocation)..'; sBlueprintToBuild='..sBlueprintToBuild..'; iSize='..iSize..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize]='..repru(tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize])..'; Segments considered for build locations='..repru(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize])..'; Total segments in LZ (nil if wZ)='..(tLZOrWZData[M28Map.subrefLZTotalSegmentCount] or 'nil')..'; Is table of build locations empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize]))) end
                 tPotentialBuildLocations = GetPotentialBuildLocationsNearLocation(aiBrain, tLZOrWZData, iPlateauOrZero, iLandOrWaterZone, iSize)
                 if M28Utilities.IsTableEmpty(tPotentialBuildLocations) then

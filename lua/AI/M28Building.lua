@@ -13,6 +13,7 @@ local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Logic = import('/mods/M28AI/lua/AI/M28Logic.lua')
 local M28Chat = import('/mods/M28AI/lua/AI/M28Chat.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
+local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 
 --Global variables
 iTMLMissileRange = 256 --e.g. use if dont have access to a unit blueprint
@@ -1970,4 +1971,84 @@ function JustFiredMissile(oLauncher)
             end
         end
     end
+end
+
+function ReserveLocationsForGameEnder(oUnit)
+    --Reserve locations to provide shield coverage for oUnit
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ReserveLocationsForGameEnder'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+    if iLandZone > 0 then
+        local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+        local tiShieldBuildLocationOptions = {}
+        local tiShieldLocationsByOption = {}
+        local sBlueprintToBuild = 'xsb4202'
+        local iNewBuildingDiameter = M28UnitInfo.GetBuildingSize(sBlueprintToBuild)
+        local iNewBuildingRadius = iNewBuildingDiameter * 0.5
+        local iAdjacencyBuildingRadius = M28UnitInfo.GetBuildingSize(oUnit.UnitId) * 0.5
+        local tAdjacencyBuildingPosition = oUnit:GetPosition()
+
+        local iCurZ, iCurX
+        local iCornerAdjust = math.min(iNewBuildingDiameter, iAdjacencyBuildingRadius * 2)
+
+        local iCurOptionCount = 0
+        bHaveValidLocation = false
+        if bDebugMessages == true then LOG(sFunctionRef..': tAdjacencyBuildingPosition='..repru(tAdjacencyBuildingPosition)..'; iAdjacencyBuildingRadius='..iAdjacencyBuildingRadius..'; iNewBuildingRadius='..iNewBuildingRadius..'; iCycleSize='..iCycleSize) end
+        local aiBrain = oUnit:GetAIBrain()
+
+        --First go along top and bottom:
+        local iCurMod = 0
+        local iMostBuildLocations = 0
+        for iZFactor = -1, 1, 2 do
+            iCurOptionCount = iCurOptionCount + 1
+            tiShieldBuildLocationOptions[iCurOptionCount] = {}
+            iCurZ = tAdjacencyBuildingPosition[3] + (iAdjacencyBuildingRadius + iNewBuildingRadius) * iZFactor
+            --Include corner positions even though not adjacent
+            for iCurX = tAdjacencyBuildingPosition[1] - iCornerAdjust, tAdjacencyBuildingPosition[1] + iCornerAdjust, 1 do
+                if iCurMod > 0 then
+                    iCurMod = iCurMod - 1
+                elseif M28Engineer.CanBuildAtLocation(aiBrain, sBlueprintToBuild, { iCurX, 0, iCurZ}, iPlateau, iLandZone, nil, false, true, false, true) then
+                    tiShieldLocationsByOption[iCurOptionCount] = (tiShieldLocationsByOption[iCurOptionCount] or 0) + 1
+                    tiShieldBuildLocationOptions[iCurOptionCount][tiShieldLocationsByOption[iCurOptionCount]] = {iCurX, GetSurfaceHeight(iCurX, iCurZ), iCurZ}
+                    iCurMod = iCurMod + iNewBuildingDiameter
+                    if tiShieldLocationsByOption[iCurOptionCount] > iMostBuildLocations then
+                        iMostBuildLocations = tiShieldLocationsByOption[iCurOptionCount]
+                        if iMostBuildLocations >= 3 then break end
+                    end
+                end
+            end
+            if iMostBuildLocations >= 3 then break end
+            iCurMod = 0
+        end
+        TODO
+
+        --Next go along the sides:
+        if not(bAbort) then
+            for iXFactor = -1, 1, 2 do
+                iCurX = tAdjacencyBuildingPosition[1] + (iAdjacencyBuildingRadius + iNewBuildingRadius) * iXFactor
+                for iCurZ = tAdjacencyBuildingPosition[3] - iCycleSize, tAdjacencyBuildingPosition[3] + iCycleSize, 1 do
+                    if CanBuildAtLocation(aiBrain, sBlueprintToBuild, { iCurX, 0, iCurZ}, iPlateauOrZero, iLandOrWaterZone, nil, false, true, false, true) then
+                        table.insert(tPotentialLocations, {iCurX, GetSurfaceHeight(iCurX, iCurZ), iCurZ})
+                        if bStopWhenHaveValidLocation then bAbort = true break end
+                        iValidLocationCount = iValidLocationCount + 1
+                        bHaveValidLocation = true
+                    end
+                end
+                if bAbort then break end
+            end
+        end
+
+
+        --First search to the top of the game-ender
+
+        --Then the bottom
+
+        --Then the right
+
+        --Then the left
+    end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
