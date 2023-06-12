@@ -136,6 +136,7 @@ refActionBuildGameEnder = 66
 refActionBuildLandExperimental = 67 --e.g. for when building in water
 refActionCaptureUnit = 68
 refActionRepairUnit = 69 --e.g. can use to repair an underconstruction building
+refActionSpecialShieldDefence = 70 --Covers the building of shields, but uses different approach to normal, intended for protecting a game ender from sustained T3 arti fire
 
 --tiEngiActionsThatDontBuild = {refActionReclaimArea, refActionSpare, refActionNavalSpareAction, refActionHasNearbyEnemies, refActionReclaimFriendlyUnit, refActionReclaimTrees, refActionUpgradeBuilding, refActionAssistSMD, refActionAssistTML, refActionAssistMexUpgrade, refActionAssistAirFactory, refActionAssistNavalFactory, refActionUpgradeHQ, refActionAssistNuke, refActionLoadOntoTransport, refActionAssistShield}
 
@@ -229,6 +230,7 @@ tiActionOrder = {
     [refActionBuildLandExperimental] = M28Orders.refiOrderIssueBuild,
     [refActionCaptureUnit] = M28Orders.refiOrderIssueCapture,
     [refActionRepairUnit] = M28Orders.refiOrderIssueRepair,
+    [refActionSpecialShieldDefence] = M28Orders.refiOrderIssueBuild, --Sometimes will want to be idle
 }
 
 --Adjacent categories to search for for a particular action
@@ -258,6 +260,7 @@ tbActionsThatDontHaveCategory = {
     [refActionLoadOntoTransport] = true,
     [refActionCaptureUnit] = true,
     [refActionRepairUnit] = true,
+    [refActionSpecialShieldDefence] = true,
 }
 
 tbIgnoreUnderConstructionActions = { --Any actions that are building something where would by default search for an under construction building should be set to true in this table if we dont want to, e.g. if want to build a second land factory, dont want to end up repairing a factory that is upgrading to a higher tech level; similarly for mex dont want to assist an existing engineer
@@ -3212,6 +3215,7 @@ function RecordBlacklistLocation(tLocation, iRadius, iResetTimeInSeconds, oOptio
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --oOptionalUnitToTrack - i.e. should have experimental units under construction specified here - if specified, means iresettimeinseconds only triggers if that unit doesnt exist, as a redundancy for if we failed to pickup the event when it died
+    --iResetTimeInSeconds - per above, if  oOptionalUnitToTrack is specififed then this only triggers if hte unit no longer exists after waiting iResetTimeInSeconds
 
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tLocation)
     if (iLandOrWaterZone or 0) > 0 then
@@ -3237,7 +3241,9 @@ function RecordBlacklistLocation(tLocation, iRadius, iResetTimeInSeconds, oOptio
                         tLZOrWZData[M28Map.subrefBuildLocationBlacklistByPosition][iX] = {}
                     end
                     tLZOrWZData[M28Map.subrefBuildLocationBlacklistByPosition][iX][iZ] = true
-                    ForkThread(DelayedBlacklistReset, tLZOrWZData, iX, iZ, iResetTimeInSeconds, oOptionalUnitToTrack)
+                    if (iResetTimeInSeconds or 0) >= 0 then
+                        ForkThread(DelayedBlacklistReset, tLZOrWZData, iX, iZ, iResetTimeInSeconds, oOptionalUnitToTrack)
+                    end
                     if oOptionalUnitToTrack then
                         table.insert(oOptionalUnitToTrack[reftUnitBlacklistSegmentXZ], {iX, iZ})
                         if bDebugMessages == true then LOG(sFunctionRef..': Added blacklist location for oOptionalUnitToTrack='..oOptionalUnitToTrack.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOptionalUnitToTrack)..'; X'..iX..'Z'..iZ) end
@@ -3515,7 +3521,58 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iCurPriority, tLZOrWZData, tLZOrWZTeamData, iTeam, iPlateauOrPond, iLandOrWaterZone, toAvailableEngineersByTech, toAssignedEngineers, bIsWaterZone)
+function FilterEngineersOfTechAndEngiCountForFaction(iOptionalFactionRequired, tEngineersOfTechWanted)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'FilterEngineersOfTechAndEngiCountForFaction'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local tEngineersOfFactionAndTechWanted
+    tEngineersOfFactionAndTechWanted = {}
+    local iRevisedEngiCount = 0
+    for iTechEngi, oTechEngi in tEngineersOfTechWanted do
+        if M28UnitInfo.GetUnitFaction(oTechEngi) == iOptionalFactionRequired then
+            table.insert(tEngineersOfFactionAndTechWanted, oTechEngi)
+            iRevisedEngiCount = iRevisedEngiCount + 1
+            if bDebugMessages == true then LOG(sFunctionRef..': oTechEngi='..oTechEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTechEngi)..' is the right faction so including in revised list, iRevisedEngiCount='..iRevisedEngiCount) end
+        end
+    end
+    if iRevisedEngiCount == 0 then M28Utilities.ErrorHandler('After filtering to a faction we have no available engineers - this shouldnt be possible') end
+    --Now replace original table os we dont have to update below references (do by returning these values now since have moved this logic to a function)
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished updating list, iRevisedEngiCount='..iRevisedEngiCount..'; Last engi in list='..(tEngineersOfTechWanted[iEngiCount].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount]) or 'nil')) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return tEngineersOfFactionAndTechWanted, iRevisedEngiCount
+
+end
+
+function AssignEngineerToShieldDefenceDuty(oEngineer, tLZTeamData)
+    --Get the highest value unit to defend (for now will only support 1 unit for shield defence duty)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AssignEngineerToShieldDefenceDuty'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local oUnitToProtect
+    local iHighestMassValue = 0
+    local iCurMassValue
+    for iGameEnder, oGameEnder in tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection] do
+        if M28UnitInfo.IsUnitValid(oGameEnder) then
+            iCurMassValue = oGameEnder:GetBlueprint().Economy.BuildCostMass * oGameEnder:GetFractionComplete()
+            if iCurMassValue > iHighestMassValue then
+                iHighestMassValue = iCurMassValue
+                oUnitToProtect = oGameEnder
+            end
+        end
+    end
+    if not(oUnitToProtect) then
+        --Clear engineer actions as we dont have something for them to do after all
+        ClearEngineerTracking(oEngineer)
+    else
+        TODO
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+
+end
+
+function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iCurPriority, tLZOrWZData, tLZOrWZTeamData, iTeam, iPlateauOrPond, iLandOrWaterZone, toAvailableEngineersByTech, toAssignedEngineers, bIsWaterZone, iSpecificFactionRequiredOverride)
     --vOptionalVariable can be a table, nil or a value; used to pass info specific to the action if it needs it
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderActionToAssign'
@@ -3674,6 +3731,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
             if vOptionalVariable and (iActionToAssign == refActionBuildAirFactory or iActionToAssign == refActionBuildLandFactory) and vOptionalVariable >= iMinCategoryTechLevel and (vOptionalVariable == 1 or vOptionalVariable == 2) then
                 iCategoryWanted = iCategoryWanted * M28UnitInfo.ConvertTechLevelToCategory(vOptionalVariable)
             end
+            if iSpecificFactionRequiredOverride and not(iOptionalFactionRequired) then iOptionalFactionRequired = iSpecificFactionRequiredOverride end
 
             function UpdateBPTracking()
                 iCurEngiTechLevel = M28UnitInfo.GetUnitTechLevel(tEngineersOfTechWanted[iEngiCount])
@@ -3853,24 +3911,8 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                             --No building under construciton, and no existing engineer to assist - assign engineers to build instead
 
                             --Do we need a specific faction? If so then filter available engineers to just these
-                            local tEngineersOfFactionAndTechWanted
-                            if bDebugMessages == true then LOG(sFunctionRef..': Need to build the unit, iOptionalFactionRequired='..(iOptionalFactionRequired or 'nil')..'; iEngiCount before udpating for any faction restrictions='..iEngiCount) end
-                            if iOptionalFactionRequired then
-                                tEngineersOfFactionAndTechWanted = {}
-                                local iRevisedEngiCount = 0
-                                for iTechEngi, oTechEngi in tEngineersOfTechWanted do
-                                    if M28UnitInfo.GetUnitFaction(oTechEngi) == iOptionalFactionRequired then
-                                        table.insert(tEngineersOfFactionAndTechWanted, oTechEngi)
-                                        iRevisedEngiCount = iRevisedEngiCount + 1
-                                        if bDebugMessages == true then LOG(sFunctionRef..': oTechEngi='..oTechEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTechEngi)..' is the right faction so including in revised list, iRevisedEngiCount='..iRevisedEngiCount) end
-                                    end
-                                end
-                                if iRevisedEngiCount == 0 then M28Utilities.ErrorHandler('After filtering to a faction we have no available engineers - this shouldnt be possible') end
-                                --Now replace original table os we dont have to update below references
-                                tEngineersOfTechWanted = tEngineersOfFactionAndTechWanted
-                                iEngiCount = iRevisedEngiCount
-                                if bDebugMessages == true then LOG(sFunctionRef..': Finished updating list, iEngiCount='..iEngiCount..'; Last engi in list='..(tEngineersOfTechWanted[iEngiCount].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount]) or 'nil')) end
-                            end
+                            if iOptionalFactionRequired then tEngineersOfTechWanted, iEngiCount = FilterEngineersOfTechAndEngiCountForFaction(iOptionalFactionRequired, tEngineersOfTechWanted) end
+
                             if iEngiCount > 0 then
                                 --Building power - if we get to T3, have at least 750 gross energy per tick, and have an action to build second power, then change building power normally so it builds separately to building second power
                                 if iActionToAssign == refActionBuildThirdPower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 1000 then
@@ -3937,8 +3979,11 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                     iTotalBuildPowerWanted = 0
                                 end
                             else
-                                M28Utilities.ErrorHandler('Dont have any engineers of the right faction so will set BPWanted to 0')
                                 iTotalBuildPowerWanted = 0
+                                if iOptionalFactionRequired then
+                                    if not(tLZOrWZTeamData[M28Map.subreftbBPByFactionWanted]) then tLZOrWZTeamData[M28Map.subreftbBPByFactionWanted] = {} end
+                                    tLZOrWZTeamData[M28Map.subreftbBPByFactionWanted][iOptionalFactionRequired] = true
+                                end
                             end
                         end
                     end
@@ -4089,6 +4134,36 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                         TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign, false, iCurPriority)
                         UpdateBPTracking()
                     end
+                elseif iActionToAssign == refActionSpecialShieldDefence then
+                    --Get list of units in zone that want defence and get the best faction they think is available
+                    if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoUnitsForSpecialShieldProtection]) then
+                        M28Utilities.ErrorHandler('Are trying to do special shield protection but have no units wanting it')
+                    else
+                        if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftFactoriesWantedForEngineers]) == false then
+                            for iUnit, oUnit in tLZOrWZTeamData[M28Map.reftFactoriesWantedForEngineers] do
+                                if M28UnitInfo.IsUnitValid(oUnit) then
+                                    iOptionalFactionRequired = M28UnitInfo.GetUnitFaction(oUnit)
+                                    break
+                                end
+                            end
+                        end
+                        if iOptionalFactionRequired then tEngineersOfTechWanted, iEngiCount = FilterEngineersOfTechAndEngiCountForFaction(iOptionalFactionRequired, tEngineersOfTechWanted) end
+                        if iEngiCount > 0 then
+                            while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
+                                AssignEngineerToShieldDefenceDuty(tEngineersOfTechWanted[iEngiCount], tLZTeamData)
+                                TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign, false, iCurPriority)
+                                UpdateBPTracking()
+                            end
+                        else
+                            iTotalBuildPowerWanted = 0
+                            if iOptionalFactionRequired then
+                                --Flag that we need engineers of the desired faction
+                                if not(tLZOrWZTeamData[M28Map.subreftbBPByFactionWanted]) then tLZOrWZTeamData[M28Map.subreftbBPByFactionWanted] = {} end
+                                tLZOrWZTeamData[M28Map.subreftbBPByFactionWanted][iOptionalFactionRequired] = true
+                            end
+                        end
+                    end
+
                 else
                     if not(aiBrain[M28Overseer.refbCloseToUnitCap]) then
                         M28Utilities.ErrorHandler('Unrecognised order, need to add logic, iActionToAssign='..(iActionToAssign or 'nil'))
@@ -4539,6 +4614,49 @@ function GetEngisWantedForTransports(tLZTeamData)
     return iEngisWanted
 end
 
+function GetZoneAndFactionForPriorityEngineerTravel(tBaseLZTeamData, iTeam, iBaseLandZone, iBasePlateau)
+    local iZoneWantingEngineer, iFactionWanted
+    for iFactory, oFactory in tBaseLZTeamData[M28Map.reftFactoriesWantedForEngineers] do
+        if M28Utilities.IsTableEmpty(oFactory[M28Building.reftoUnitsWantingFactoryEngineers]) == false then
+            --Do we already have at least 3 engineers of this factory's faction in the zone that the gameender is in?
+            local iFactionRef = M28UnitInfo.GetUnitFaction(oFactory)
+            for iUnit, oUnit in oFactory[M28Building.reftoUnitsWantingFactoryEngineers] do
+                if M28UnitInfo.IsUnitValid(oUnit) then
+                    local iGameEnderPlateau, iGameEnderZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+                    local tLZTeamData = M28Map.tAllPlateaus[iGameEnderPlateau][M28Map.subrefPlateauLandZones][iGameEnderZone][M28Map.subrefLZTeamData][iTeam]
+                    if tLZTeamData[M28Map.subreftbBPByFactionWanted][iFactionRef] then
+                        if  iBasePlateau == iGameEnderPlateau and not(iGameEnderZone == iBaseLandZone) then
+                            --How many T3 engineers of this faction do we have traveling to this zone already?
+                            local iEngiCatWanted = M28UnitInfo.refCategoryEngineer * categories.TECH3
+                            if iFactionRef == M28UnitInfo.refFactionUEF then iEngiCatWanted = iEngiCatWanted * categories.UEF
+                            elseif iFactionRef == M28UnitInfo.refFactionAeon then iEngiCatWanted = iEngiCatWanted * categories.AEON
+                            elseif iFactionRef == M28UnitInfo.refFactionCybran then iEngiCatWanted = iEngiCatWanted * categories.CYBRAN
+                            elseif iFactionRef == M28UnitInfo.refFactionSeraphim then iEngiCatWanted = iEngiCatWanted * categories.SERAPHIM
+                            end
+                            local iEngisAlreadyTraveling = 0
+                            --Want at least 3 enginers traveling of the desired tech level
+                            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEngineersTravelingHere]) == false then
+                                for iEngi, oEngi in  tLZTeamData[M28Map.subrefTEngineersTravelingHere] do
+                                    if M28UnitInfo.IsUnitValid(oEngi) and EntityCategoryContains(iEngiCatWanted, oEngi.UnitId) then
+                                        iEngisAlreadyTraveling = iEngisAlreadyTraveling + 1
+                                    end
+                                end
+                            end
+                            if iEngisAlreadyTraveling < 3 then
+                                iZoneWantingEngineer = iGameEnderZone
+                                iFactionWanted = iFactionRef
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        if iZoneWantingEngineer then break end
+    end
+    return iZoneWantingEngineer, iFactionWanted
+end
+
 function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, iLandZone, tEngineers)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderCoreBaseLandZoneEngineerAssignment'
@@ -4568,14 +4686,10 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
-
-
-
-
-    function HaveActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting)
+    function HaveActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted)
         --Done as subfunction for convenience so can just note the key values for the action in question and add on the others that wont change
         --vOptionalVariable can be used for action specific information to save having to recalculate the same thing - could be a table, nil, or a value
-        ConsiderActionToAssign(iActionToAssign, math.max(1, iMinTechLevelWanted), iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iCurPriority, tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, toAvailableEngineersByTech, toAssignedEngineers)
+        ConsiderActionToAssign(iActionToAssign, math.max(1, iMinTechLevelWanted), iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iCurPriority, tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, toAvailableEngineersByTech, toAssignedEngineers, false, iOptionalSpecificFactionWanted)
     end
 
     if bDebugMessages == true then
@@ -4750,6 +4864,16 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
+    --Protect game-ender or similar high avlue target (very high priority on assumption if we have built such a unit we shouldnt have to worry about lack of resources for this
+    iCurPriority = iCurPriority + 1
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection]) == false then
+        if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then
+            iBPWanted = 500
+        else
+            iBPWanted = 100
+        end
+        HaveActionToAssign(refActionSpecialShieldDefence, 3, iBPWanted)
+    end
 
     --Start of game - if low power and dont ahve 12 gross energy yet, then ahve 1 engi on tree reclaim duty
     iCurPriority = iCurPriority + 1
@@ -4757,6 +4881,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     if bHaveLowPower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 12 and M28Conditions.WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone) then
         HaveActionToAssign(refActionReclaimArea, 1, 5, true)
     end
+
     --Unclaimed mex in the zone
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then
@@ -4856,6 +4981,15 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             --iActionToAssign,      iMinTechLevelWanted, i  BuildPowerWanted,                                                                       vOptionalVariable,  bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting
             --BP wanted - engineers already attached shouldn't be treated as available, however want BP wanted to be total not additional to avoid multiple unattached engineers being given the same order
             HaveActionToAssign(refActionLoadOntoTransport, 1, iEngisWantedForTransports * tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]], nil, false,false) --Max 5 BP to make sure we only try loading 1 engi at a time
+        end
+    end
+
+    --Zones wanting specific faction engineers (e.g. for shielding game ender)
+    iCurPriority = iCurPriority + 1
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftFactoriesWantedForEngineers]) == false then
+        local iZoneWantingEngineersOfFaction, iFactionWanted = GetZoneAndFactionForPriorityEngineerTravel(tLZTeamData, iTeam, iLandZone, iPlateau)
+        if iZoneWantingEngineersOfFaction and iFactionWanted then
+            HaveActionToAssign(refActionMoveToLandZone, 3, 90, iZoneWantingEngineersOfFaction, true, false, iFactionWanted)
         end
     end
 
@@ -5974,9 +6108,9 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     --local iCurCondition = 0
     local iCurPriority = 0
 
-    function HaveActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting)
+    function HaveActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted)
         --Done as subfunction for convenience so can just note the key values for the action in question and add on the others that wont change
-        ConsiderActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iCurPriority, tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, toAvailableEngineersByTech, toAssignedEngineers)
+        ConsiderActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iCurPriority, tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, toAvailableEngineersByTech, toAssignedEngineers, false, iOptionalSpecificFactionWanted)
     end
 
 
@@ -6143,6 +6277,15 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 HaveActionToAssign(refActionCompletePartBuiltMex, 1, 5)
                 if bDebugMessages == true then LOG(sFunctionRef..': Will get engi to complete part built mex') end
             end
+        end
+    end
+
+    --Zones wanting specific faction engineers (e.g. for shielding game ender)
+    iCurPriority = iCurPriority + 1
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftFactoriesWantedForEngineers]) == false then
+        local iZoneWantingEngineersOfFaction, iFactionWanted = GetZoneAndFactionForPriorityEngineerTravel(tLZTeamData, iTeam, iLandZone, iPlateau)
+        if iZoneWantingEngineersOfFaction and iFactionWanted then
+            HaveActionToAssign(refActionMoveToLandZone, 3, 90, iZoneWantingEngineersOfFaction, true, false, iFactionWanted)
         end
     end
 
@@ -6746,9 +6889,9 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     --local iCurCondition = 0
     local iCurPriority = 0
 
-    function HaveActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting)
+    function HaveActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted)
         --Done as subfunction for convenience so can just note the key values for the action in question and add on the others that wont change
-        ConsiderActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iCurPriority, tWZData, tWZTeamData, iTeam, iPond, iWaterZone, toAvailableEngineersByTech, toAssignedEngineers, true)
+        ConsiderActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iCurPriority, tWZData, tWZTeamData, iTeam, iPond, iWaterZone, toAvailableEngineersByTech, toAssignedEngineers, true, iOptionalSpecificFactionWanted)
     end
 
     --High priority hydro if we have low energy and water zone start
@@ -7220,6 +7363,14 @@ function ConsiderLandOrWaterZoneEngineerAssignment(tLZOrWZTeamData, iTeam, iPlat
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Start of code, iTeam=' .. iTeam .. '; iPlateauOrPond=' .. iPlateauOrPond .. '; iLandOrWaterZone=' .. iLandOrWaterZone .. '; is tEngineers empty=' .. tostring(M28Utilities.IsTableEmpty(tEngineers)) .. '; Is this a core base LZ=' .. tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or false) .. '; bIsWaterZone=' .. tostring(bIsWaterZone or false)..'; tLZOrWZTeamData[M28Map.subrefTbWantBP] before reset='..tostring(tLZOrWZTeamData[M28Map.subrefTbWantBP] or false))
     end
+
+    --First clear any faction requests (will set to true again if we want to build something and dont have an engineer of the right faction for it)
+    if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftbBPByFactionWanted]) == false then
+        for iFaction, bWantEngineers in tLZOrWZTeamData[M28Map.subreftbBPByFactionWanted] do
+            tLZOrWZTeamData[M28Map.subreftbBPByFactionWanted][iFaction] = false
+        end
+    end
+
     if bIsWaterZone then
         ConsiderWaterZoneEngineerAssignment(tLZOrWZTeamData, iTeam, iPlateauOrPond, iLandOrWaterZone, tEngineers, bIsWaterZone)
     elseif tLZOrWZTeamData[M28Map.subrefLZbCoreBase] then

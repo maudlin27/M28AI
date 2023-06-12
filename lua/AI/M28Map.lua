@@ -231,6 +231,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subreftoPartBuiltMexes = 'PBMex' --If we are building a mex and the builder gets its orders cleared or dies, and it was building a mex, then the mex should be recorded in a table so it can be rebuilt
             subrefTbWantBP = 'WantBP' --true if we want BP at any tech level
             subrefTBuildPowerByTechWanted = 'BPByTechW' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power wanted wanted
+            subreftbBPByFactionWanted = 'BPByFaction' --[x] = faction ref, returns true if we want engineers of that faction
             subrefTEngineersTravelingHere = 'EUnitsTrav' --Table of any engineer units in another LZ/WZ that have been told to move to this LZ/WZ
             subrefTScoutsTravelingHere = 'SUnitsTrav' --Table of any land scout units in another LZ/WZ that have been told to move to this LZ/WZ
             subrefSpareBPByTech = 'SpareBPByTech' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power of that tech level that we have spare
@@ -275,6 +276,8 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             refbLZWantsMobileStealth = 'MobSt' --true if LZ wants mobile stealth
             reftoLZUnitsWantingMobileStealth = 'UMobSt' --table of units in the LZ that want mobile stealth
             reftUnitsWantingTMD = 'TMDW' --table of units in the LZ that want TMD coverage
+            reftoUnitsForSpecialShieldProtection = 'GmEnd' --I.e. gameenders (and possibly T3 arti) that we want to protect with special shield covering logic
+            reftFactoriesWantedForEngineers = 'FEng' --table of factory units that are assigend against a unit (e.g. a gameender) as providing engineers of a particular faction (e.g. for shields)
             --Misc
             reftClosestFriendlyBase = 'ClosestFB' --Position of the closest friendly start position
             reftClosestEnemyBase = 'ClosestEB' --Closest enemy start position to water zone or land zone (i.e. same variable used by both)

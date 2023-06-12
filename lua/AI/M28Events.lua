@@ -329,6 +329,15 @@ function OnUnitDeath(oUnit)
                             end
                         end
 
+                        --Special tracking e.g. for factions and shields and game enders - update
+                        if oUnit[M28Building.refoNearbyFactoryOfFaction] then --i.e. gameender that wants a factory's engineers - the gameender is dead so want to clear entries for it
+                            M28Building.ClearTrackingOfDeadUnitWantingFactoryEngineers(oUnit)
+                        end
+                        if oUnit[M28Building.reftoUnitsWantingFactoryEngineers] then --i.e. a factory that was down as the one providing engineers to a gameender - want to find a new factory
+                            M28Building.UpdateTrackingOfDeadFactoryProvidingEngineers(oUnit)
+                        end
+
+
                         --Run unit type specific on death logic where the unit is completed
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering if need to run certain M28AI on death logic, unit fraction ocmplete='..oUnit:GetFractionComplete()) end
                         if oUnit:GetFractionComplete() == 1 then

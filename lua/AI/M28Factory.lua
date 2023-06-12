@@ -14,6 +14,7 @@ local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
 local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 local NavUtils = import("/lua/sim/navutils.lua")
+local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 
 local reftBlueprintPriorityOverride = 'M28FactoryPreferredBlueprintByCategory' --[x] is the blueprint ref, if there's a priority override it returns a numerical value (higher number = higher priority)
 local refiTimeSinceLastOrderCheck = 'M28FactoryTimeSinceLastCheck' --against factory, gametime in seconds when the factory was last identified as idle with no order
@@ -682,6 +683,40 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                     end
                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect) then
                         return sBPIDToBuild
+                    end
+                end
+            end
+        end
+    end
+
+    --High priority engineer where they are needed for special shielding (e.g. of gameenders)
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if iFactoryTechLevel >= 3 and M28Utilities.IsTableEmpty(oFactory[M28Building.reftoUnitsWantingFactoryEngineers]) == false then
+        --Do we already have at least 3 engineers of this factory's faction in the zone that the gameender is in?
+        local iFactionRef = M28UnitInfo.GetUnitFaction(oFactory)
+        for iUnit, oUnit in oFactory[M28Building.reftoUnitsWantingFactoryEngineers] do
+            if M28UnitInfo.IsUnitValid(oUnit) then
+                local iGameEnderPlateau, iGameEnderZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+                local tLZTeamData = M28Map.tAllPlateaus[iGameEnderPlateau][M28Map.subrefPlateauLandZones][iGameEnderZone][M28Map.subrefLZTeamData][aiBrain.M28Team]
+                if tLZTeamData[M28Map.subreftbBPByFactionWanted][iFactionRef] then
+                    --How many T3 engineers of this faction do we have traveling to this zone already?
+                    local iEngiCatWanted = M28UnitInfo.refCategoryEngineer * categories.TECH3
+                    if iFactionRef == M28UnitInfo.refFactionUEF then iEngiCatWanted = iEngiCatWanted * categories.UEF
+                    elseif iFactionRef == M28UnitInfo.refFactionAeon then iEngiCatWanted = iEngiCatWanted * categories.AEON
+                    elseif iFactionRef == M28UnitInfo.refFactionCybran then iEngiCatWanted = iEngiCatWanted * categories.CYBRAN
+                    elseif iFactionRef == M28UnitInfo.refFactionSeraphim then iEngiCatWanted = iEngiCatWanted * categories.SERAPHIM
+                    end
+                    local iEngisAlreadyTraveling = 0
+                    --Want at least 3 enginers traveling of the desired tech level
+                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEngineersTravelingHere]) == false then
+                        for iEngi, oEngi in  tLZTeamData[M28Map.subrefTEngineersTravelingHere] do
+                            if M28UnitInfo.IsUnitValid(oEngi) and EntityCategoryContains(iEngiCatWanted, oEngi.UnitId) then
+                                iEngisAlreadyTraveling = iEngisAlreadyTraveling + 1
+                            end
+                        end
+                    end
+                    if iEngisAlreadyTraveling < 3 then
+                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer * categories.TECH3) then return sBPIDToBuild end
                     end
                 end
             end

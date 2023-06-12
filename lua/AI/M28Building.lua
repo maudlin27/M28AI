@@ -14,6 +14,7 @@ local M28Logic = import('/mods/M28AI/lua/AI/M28Logic.lua')
 local M28Chat = import('/mods/M28AI/lua/AI/M28Chat.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
+local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
 
 --Global variables
 iTMLMissileRange = 256 --e.g. use if dont have access to a unit blueprint
@@ -50,6 +51,9 @@ reftoUnitsCoveredByShield = 'M28BuildUnitsCoveredByShield' --Against shield, ret
 refbUnitWantsShielding = 'M28BuildUnitWantsFixedShield' --true if unit wants a fixed shield
 refbPriorityShield = 'M28BuildPriorityShield' --True if shield is a priority shield for assistance
 refoPriorityShieldProvidingCoverage = 'M28BuildPriorityShieldCoveringUnit' --Against unit being shielded; If a shield marked as a priority shield is covering the unit, then this should return that shield
+refoNearbyFactoryOfFaction = 'M28BuildNrFactionFac' --assigned against a gameender, to record that it can obtain engineers of a particular faction (for shielding purposes)
+reftoUnitsWantingFactoryEngineers = 'M28BuildEngFac' --table of any units that have htis factory as their 'nearest' factory - intended for gamenders so can track which game enders assume this factory can provide engineers
+reftLocationsForPriorityShield = 'M28BuildShdLoc' --against a unit (such as a game ender), [x] = 1,2,3...; returns the predetermined reserved location to build a shield in order to cover the game ender
 
 --T3 arti specific
 reftiPlateauAndZonesInRange = 'M28BuildArtiPlatAndZInRange' --entries in order of distance, 1,2,3 etc, returns {iPlateauOrZero, iLandOrWaterZoneRef}
@@ -1994,7 +1998,7 @@ function ReserveLocationsForGameEnder(oUnit)
         local iCornerAdjust = math.min(iNewBuildingDiameter, iAdjacencyBuildingRadius * 2)
 
         local iCurOptionCount = 0
-        bHaveValidLocation = false
+
         if bDebugMessages == true then LOG(sFunctionRef..': tAdjacencyBuildingPosition='..repru(tAdjacencyBuildingPosition)..'; iAdjacencyBuildingRadius='..iAdjacencyBuildingRadius..'; iNewBuildingRadius='..iNewBuildingRadius..'; iCycleSize='..iCycleSize) end
         local aiBrain = oUnit:GetAIBrain()
 
@@ -2022,33 +2026,182 @@ function ReserveLocationsForGameEnder(oUnit)
             if iMostBuildLocations >= 3 then break end
             iCurMod = 0
         end
-        TODO
-
-        --Next go along the sides:
-        if not(bAbort) then
+        if iMostBuildLocations < 3 then
+            --Next go along the sides:
             for iXFactor = -1, 1, 2 do
+                iCurMod = 0
+                iCurOptionCount = iCurOptionCount + 1
+                tiShieldBuildLocationOptions[iCurOptionCount] = {}
+
                 iCurX = tAdjacencyBuildingPosition[1] + (iAdjacencyBuildingRadius + iNewBuildingRadius) * iXFactor
-                for iCurZ = tAdjacencyBuildingPosition[3] - iCycleSize, tAdjacencyBuildingPosition[3] + iCycleSize, 1 do
-                    if CanBuildAtLocation(aiBrain, sBlueprintToBuild, { iCurX, 0, iCurZ}, iPlateauOrZero, iLandOrWaterZone, nil, false, true, false, true) then
-                        table.insert(tPotentialLocations, {iCurX, GetSurfaceHeight(iCurX, iCurZ), iCurZ})
-                        if bStopWhenHaveValidLocation then bAbort = true break end
-                        iValidLocationCount = iValidLocationCount + 1
-                        bHaveValidLocation = true
+                for iCurZ = tAdjacencyBuildingPosition[3] - iCornerAdjust, tAdjacencyBuildingPosition[3] + iCornerAdjust, 1 do
+                    if M28Engineer.CanBuildAtLocation(aiBrain, sBlueprintToBuild, { iCurX, 0, iCurZ}, iPlateau, iLandZone, nil, false, true, false, true) then
+                        tiShieldLocationsByOption[iCurOptionCount] = (tiShieldLocationsByOption[iCurOptionCount] or 0) + 1
+                        tiShieldBuildLocationOptions[iCurOptionCount][tiShieldLocationsByOption[iCurOptionCount]] = {iCurX, GetSurfaceHeight(iCurX, iCurZ), iCurZ}
+                        iCurMod = iCurMod + iNewBuildingDiameter
+                        if tiShieldLocationsByOption[iCurOptionCount] > iMostBuildLocations then
+                            iMostBuildLocations = tiShieldLocationsByOption[iCurOptionCount]
+                            if iMostBuildLocations >= 3 then break end
+                        end
                     end
                 end
-                if bAbort then break end
+                if iMostBuildLocations >= 3 then break end
             end
         end
 
+        if iMostBuildLocations >= 2 then
+            --Can build at least 2 shields, which is good enough - now figure out the best faction engineer that could realistically build the shield by locating the closest factory of each faction type
+            local tLZTeamData = tLZData[M28Map.subrefLZTeamData][aiBrain.M28Team]
+            if not(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection]) then tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection] = {} end
+            table.insert(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection], oUnit)
+            RecordNearbyFactoryForShieldEngineers(oUnit)
 
-        --First search to the top of the game-ender
-
-        --Then the bottom
-
-        --Then the right
-
-        --Then the left
+            for iOption, tLocations in tiShieldLocationsByOption do
+                if tiShieldBuildLocationOptions[iOption] >= iMostBuildLocations then
+                    oUnit[reftLocationsForPriorityShield] = {}
+                    for iLocation, tLocation in tLocations do
+                        table.insert(oUnit[reftLocationsForPriorityShield], {tLocation[1], tLocation[2], tLocation[3]})
+                        --Blacklist the location
+                        RecordBlacklistLocation(tLocation, iNewBuildingRadius, 600, oUnit)
+                    end
+                    break
+                end
+            end
+        end
     end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function GetBestFactionFactoryOfCategory(iCategory, iDistanceCap)
+    local iClosestFactory = iDistanceCap
+    local iCurDist, iCurPlateau, iCurLandZone
+    local oBestFactory
+    for iBrain, oBrain in M28Team.tLandSubteamData[iLandSubteam][M28Team.subreftoFriendlyM28Brains] do
+        local tFactoriesOfCategory = oBrain:GetListOfUnits(iCategory, false, true)
+        if M28Utilities.IsTableEmpty(tFactoriesOfCategory) == false then
+            for iFactory, oFactory in tFactoriesOfCategory do
+                if oFactory:GetFractionComplete() == 1 and M28UnitInfo.IsUnitValid(oFactory) then
+                    --Is this in the same plateau?
+                    iCurPlateau, iCurLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oFactory:GetPosition())
+                    if iCurPlateau == iPlateau then
+                        --Get the travel distance
+                        iCurDist = tLZData[M28Map.subrefLZTravelDistToOtherLandZones][iCurPlateau][iCurLandZone]
+                        if iCurDist then
+                            if iCurDist < iClosestFactory then
+                                iClosestFactory = iCurDist
+                                oBestFactory = oFactory
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return oBestFactory
+end
+
+function RecordNearbyFactoryForShieldEngineers(oUnit)
+    local iDistanceCap = 300 --Wont try and get engineers from factories further away than this.
+    local aiBrain = oUnit:GetAIBrain()
+    local iLandSubteam = aiBrain.M28LandSubteam
+    local oBestFactory
+
+    --Seraphim factories
+    if (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionSeraphim][3] or 0) > 0 then
+        oBestFactory = GetBestFactionFactoryOfCategory(M28UnitInfo.refCategoryLandFactory * categories.TECH3 * categories.SERAPHIM, iDistanceCap)
+    end
+    if not(oBestFactory) then
+        --Aeon
+        if (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionAeon][3] or 0) > 0 then
+            oBestFactory = GetBestFactionFactoryOfCategory(M28UnitInfo.refCategoryLandFactory * categories.TECH3 * categories.Aeon, iDistanceCap)
+        end
+        if not(oBestFactory) then
+            --UEF
+            if (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionUEF][3] or 0) > 0 then
+                oBestFactory = GetBestFactionFactory(M28UnitInfo.refCategoryLandFactory * categories.TECH3 * categories.UEF, iDistanceCap)
+            end
+            --If dont have any of these factions then dont worry about getting a faction specific shield
+        end
+    end
+    --If have a best factory then record against the game ender
+    oUnit[refoNearbyFactoryOfFaction] = oBestFactory
+    if not(oBestFactory[reftoUnitsWantingFactoryEngineers]) then
+        oBestFactory[reftoUnitsWantingFactoryEngineers] = {}
+    end
+    table.insert(oBestFactory[reftoUnitsWantingFactoryEngineers], oUnit)
+    local iFactoryPlateau, iFactoryLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oBestFactory:GetPosition())
+    local tFactoryLZTeamData = M28Map.tAllPlateaus[iFactoryPlateau][M28Map.subrefPlateauLandZones][iFactoryLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team]
+    local bRecordedInZoneAlready = false
+    if not(tFactoryLZTeamData[M28Map.reftFactoriesWantedForEngineers]) then tFactoryLZTeamData[M28Map.reftFactoriesWantedForEngineers] = {}
+    else
+        for iExistingFactory, oExistingFactory in tFactoryLZTeamData[M28Map.reftFactoriesWantedForEngineers] do
+            if oExistingFactory == oBestFactory then
+                bRecordedInZoneAlready = true
+            end
+        end
+    end
+    if not(bRecordedInZoneAlready) then
+        table.insert(tFactoryLZTeamData[M28Map.reftFactoriesWantedForEngineers], oBestFactory)
+    end
+end
+
+function RemoveFactoryFromZoneList(oFactory)
+    --If a factory was assigned as providing engineers to a unit such as a gameender for shielding, it'd be recorded in the zone it was in - this removes it (e.g. intended where the factory ahs no units to assist, or the factory is dead)
+    local iFactoryPlateau, iFactoryLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oFactory:GetPosition())
+    if iFactoryLandZone > 0 then
+        local tLZTeamData = M28Map.tAllPlateaus[iFactoryPlateau][M28Map.subrefPlateauLandZones][iFactoryLandZone][M28Map.subrefLZTeamData][oFactory:GetAIBrain().M28Team]
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftFactoriesWantedForEngineers]) == false then
+            local iExistingEntries = table.getn(oFactory[reftoUnitsWantingFactoryEngineers])
+            for iCurEntry = iExistingEntries, 1, -1 do
+                if tLZTeamData[M28Map.reftFactoriesWantedForEngineers][iCurEntry] == oFactory or not(M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.reftFactoriesWantedForEngineers][iCurEntry])) then
+                    table.remove(tLZTeamData[M28Map.reftFactoriesWantedForEngineers], iCurEntry)
+                end
+            end
+        end
+    end
+end
+
+function ClearTrackingOfDeadUnitWantingFactoryEngineers(oUnit)
+    --If a gameender had a factory assigned as providing engineers e.g. for shielding, and the gameender is dead, then this clears related tracking
+    if M28Utilities.IsTableEmpty(oUnit[refoNearbyFactoryOfFaction][reftoUnitsWantingFactoryEngineers]) == false then
+        local oFactory = oUnit[refoNearbyFactoryOfFaction]
+        local iExistingEntries = table.getn(oFactory[reftoUnitsWantingFactoryEngineers])
+        for iCurEntry = iExistingEntries, 1, -1 do
+            if oFactory[reftoUnitsWantingFactoryEngineers][iCurEntry] == oUnit or not(M28UnitInfo.IsUnitValid(oFactory[reftoUnitsWantingFactoryEngineers][iCurEntry])) then
+                table.remove(oFactory[reftoUnitsWantingFactoryEngineers], iCurEntry)
+            end
+        end
+        if M28Utilities.IsTableEmpty(  oFactory[reftoUnitsWantingFactoryEngineers]) then
+            RemoveFactoryFromZoneList(oFactory)
+        end
+    end
+    --Remove this unit from the zone
+    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+    local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team]
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection]) == false then
+        local iTotalEntries = table.getn(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection])
+        for iCurEntry = iTotalEntries, 1, -1 do
+            if tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection][iCurEntry] == oUnit or not(M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection][iCurEntry])) then
+                table.remove(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection], iCurEntry)
+            end
+        end
+    end
+end
+
+function UpdateTrackingOfDeadFactoryProvidingEngineers(oUnit)
+    --If a factory that was providing engineers e.g. to a gameender for shielding dies, this updates the tracking variables and looks for a new factory to provide engineers
+    local iExistingEntries = table.getn(oUnit[reftoUnitsWantingFactoryEngineers])
+    for iCurEntry = iExistingEntries, 1, -1 do
+        if oUnit[reftoUnitsWantingFactoryEngineers][iCurEntry][refoNearbyFactoryOfFaction] == oUnit then
+            oUnit[reftoUnitsWantingFactoryEngineers][iCurEntry][refoNearbyFactoryOfFaction] = nil
+            if M28UnitInfo.IsUnitValid(oUnit[reftoUnitsWantingFactoryEngineers][iCurEntry]) then
+                --Get a new 'best factory to provide engineers' for the game ender
+                RecordNearbyFactoryForShieldEngineers(oUnit[reftoUnitsWantingFactoryEngineers][iCurEntry])
+            end
+        end
+    end
+    --Remove this factory from the list of factories in the zone
+    oUnit[reftoUnitsWantingFactoryEngineers] = nil
+    RemoveFactoryFromZoneList(oUnit)
 end
