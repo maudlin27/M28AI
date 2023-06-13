@@ -788,6 +788,10 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                         --Game ender and T3 arti specific - reserve locations for shields
                         if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti, oConstruction.UnitId) then
                             M28Building.ReserveLocationsForGameEnder(oConstruction)
+                            --Record shields against the gameender/T3 arti if they are in the reserved location
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oConstruction.UnitId) and oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionSpecialShieldDefence then
+                            M28Building.AssignShieldToGameEnder(oConstruction, oEngineer)
+
                         end
                         M28Building.CheckIfUnitWantsFixedShield(oConstruction, true)
                         --If this is a fixed shield then instead update shield coverage

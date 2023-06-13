@@ -59,9 +59,15 @@ subrefBuildingRadius = 4 --Size (radius) of the building
 subrefPlateauOrZero = 5 --Plateau where hte building is to be built; zero if water zone
 subrefLandOrWaterZone = 6 --Land zone where hte building is to be built
 refbBuildingExperimental = 'M28EngBuildingExperimental' --True if engineer is building an experimental andh aving itself tracked in the team table for this
-refiFailedShieldBuildDistance = 'M28EngFailedShieldBuildDist' --against a building wanting shielding - records the distance of the closest location that we can build (so can decide if the unit can even be shielded)
 refiAssignedActionPriority = 'M28EngPriority' --Priority of the currently assigned action
 reftUnitBlacklistSegmentXZ = 'M28UnitBlacklist' --table, ordered 1, 2...', returns {SegmentX, SegmentZ} - contains blacklist details for a unit, used for under construciton experimentals so when construction completes the blacklist status can be cleared
+
+--Shield related variables against a unit
+refiFailedShieldBuildDistance = 'M28EngFailedShieldBuildDist' --against a building wanting shielding - records the distance of the closest location that we can build (so can decide if the unit can even be shielded)
+refoUnitActivelyShielding = 'M28EngUntActShd' --against the engineer, gives the unit e.g. gameender it is providing special shielding services to
+refbActiveUnitShieldingThread = 'M28EngActivShld' --against the gameender/similar unit, true if it has a thread that isa ctively trying to use engineers to protect it
+reftEngineersActivelyShielding = 'M28EngActiveEngShd' --against the gameender/similar unit, contains table of all the engineers assigned toa ctively try and protect it
+
 
 
 --Actions for engineers (dont have as local variables due to cap on how many local variables we can have)
@@ -3015,10 +3021,35 @@ function ClearEngineerTracking(oEngineer)
         end
         oEngineer[M28UnitInfo.reftoUnitsAssistingThis] = nil
     end
+
+    --Clear special shield tracking
+    if oEngineer[refoUnitActivelyShielding] then
+        if M28UnitInfo.IsUnitValid(oEngineer[refoUnitActivelyShielding]) then
+            if M28Utilities.IsTableEmpty(oEngineer[refoUnitActivelyShielding][reftEngineersActivelyShielding]) == false then
+                for iRecordedEngi, oRecordedEngi in oEngineer[refoUnitActivelyShielding][reftEngineersActivelyShielding] do
+                    if oRecordedEngi == oEngineer then
+                        table.remove(oEngineer[refoUnitActivelyShielding][reftEngineersActivelyShielding], iRecordedEngi)
+                        break
+                    end
+                end
+            end
+        end
+        if M28Utilities.IsTableEmpty(oEngineer[refoUnitActivelyShielding][reftEngineersActivelyShielding]) then
+            oEngineer[refoUnitActivelyShielding][reftEngineersActivelyShielding] = nil
+        end
+        oEngineer[refoUnitActivelyShielding] = nil
+
+    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function TrackQueuedBuilding(oEngineer, sBuildingID, tBuildLocation)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'TrackQueuedBuilding'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time='..GetGameTimeSeconds()..'; oEngineer='..(oEngineer.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineer) or 'nil')..'; sBuildingID='..(sBuildingID or 'nil')..'; tBuildLocation='..repru(tBuildLocation)) end
+
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tBuildLocation)
 
     if iPlateauOrZero > 0 then
@@ -3029,6 +3060,7 @@ function TrackQueuedBuilding(oEngineer, sBuildingID, tBuildLocation)
         if iLandOrWaterZone > 0 then
             iCurQueueRefNumber = iCurQueueRefNumber + 1
             if not(oEngineer[reftQueuedBuildings]) then oEngineer[reftQueuedBuildings] = {} end
+            if bDebugMessages == true then LOG(sFunctionRef..': About to get building size='..(M28UnitInfo.GetBuildingSize(sBuildingID) or 'nil')) end
             local iBuildingRadius = math.floor(M28UnitInfo.GetBuildingSize(sBuildingID) * 0.5)
             table.insert(oEngineer[reftQueuedBuildings], {[subrefQueueRef] = iCurQueueRefNumber, [subrefBuildingID] = sBuildingID, [subrefBuildingLocation] = tBuildLocation, [subrefBuildingRadius] = iBuildingRadius, [subrefPlateauOrZero] = iPlateauOrZero, [subrefLandOrWaterZone] = iLandOrWaterZone})
             local tLZOrWZTeamData, tLZOrWZData
@@ -3053,6 +3085,7 @@ function TrackQueuedBuilding(oEngineer, sBuildingID, tBuildLocation)
             ChangeQueuedLocationsTracker(tBuildLocation, tLZOrWZData, iBuildingRadius, true)
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function ChangeQueuedLocationsTracker(tBuildLocation, tLZOrWZData, iBuildingRadius, bAddToQueue)
@@ -3544,6 +3577,219 @@ function FilterEngineersOfTechAndEngiCountForFaction(iOptionalFactionRequired, t
 
 end
 
+function ActiveShieldMonitor(oUnitToProtect, tLZTeamData)
+    if not(oUnitToProtect[refbActiveUnitShieldingThread]) then
+        oUnitToProtect[refbActiveUnitShieldingThread] = true
+        local iShieldCategoryToBuild
+        local iOptionalFactionRequired
+        local iEngineerFactionRequired = M28UnitInfo.refCategoryEngineer
+
+        if oUnitToProtect[M28Building.refoNearbyFactoryOfFaction] then
+            iOptionalFactionRequired = M28UnitInfo.GetUnitFaction(oUnitToProtect[M28Building.refoNearbyFactoryOfFaction])
+        end
+        if not(iOptionalFactionRequired) then iShieldCategoryToBuild = M28UnitInfo.refCategoryFixedShield
+        else
+            if iOptionalFactionRequired == M28UnitInfo.refFactionSeraphim then
+                --Does enemy have mavor? if so then want T3 shields not T2
+                local bEnemyHasMavor = false
+                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]) == false then
+                    for iArti, oArti in M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure] do
+                        if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalArti * categories.UEF, oArti.UnitId) then
+                            bEnemyHasMavor = true
+                        end
+                    end
+                end
+                if bEnemyHasMavor then
+                    iShieldCategoryToBuild = M28UnitInfo.refCategoryFixedShield * categories.SERAPHIM
+                else
+                    --If go for T2 shielding then will be quicker to build and cheaper, and still cover the unit provided the shield can absorb a single shot
+                    iShieldCategoryToBuild = M28UnitInfo.refCategoryFixedShield * categories.TECH2 * categories.SERAPHIM
+                end
+                iEngineerFactionRequired = iEngineerFactionRequired * categories.SERAPHIM
+            elseif iOptionalFactionRequired == M28UnitInfo.refFactionAeon then
+                iShieldCategoryToBuild = M28UnitInfo.refCategoryFixedShield * categories.AEON
+                iEngineerFactionRequired = iEngineerFactionRequired * categories.AEON
+            elseif iOptionalFactionRequired == M28UnitInfo.refFactionUEF then
+                iShieldCategoryToBuild = M28UnitInfo.refCategoryFixedShield * categories.UEF
+                iEngineerFactionRequired = iEngineerFactionRequired * categories.UEF
+            else
+                iShieldCategoryToBuild = M28UnitInfo.refCategoryFixedShield
+            end
+        end
+        local sLikelyShieldBlueprint = M28Factory.GetMostExpensiveBlueprintOfCategory(iShieldCategoryToBuild)
+        local iBlueprintBuildTime = (__blueprints[sLikelyShieldBlueprint].Economy.BuildTime or 1250)
+
+        local aiBrain = oUnitToProtect:GetAIBrain()
+        local iTotalAvailableLocations = 0
+        for iEntry, tLocation in oUnitToProtect[M28Building.reftLocationsForPriorityShield] do
+            iTotalAvailableLocations = iTotalAvailableLocations + 1
+        end
+
+
+        while M28UnitInfo.IsUnitValid(oUnitToProtect) do
+            if M28Utilities.IsTableEmpty(oUnitToProtect[reftEngineersActivelyShielding]) == false then
+                --Decide what to do with the engineers - first see how many shields we have, and if any are compelted:
+                local iConstructedShields = 0
+                local iActiveShields = 0
+                local iPartConstructedShields = 0
+                local oNearestCompletionShield
+                local iHighestPartCompleteShield = 0
+                local iLowestPartCompleteShield = 1
+                local oLowestCompletionShield
+                local oLastCompletedShield
+                local iCurShield, iMaxShield
+                local oLowestConstructedShieldHealth
+                local iLowestConstructedShieldHealth = 100000
+                if M28Utilities.IsTableEmpty(oUnitToProtect[M28Building.reftoSpecialAssignedShields]) == false then
+                    local tiEntriesToRemove = {}
+                    for iShield, oShield in oUnitToProtect[M28Building.reftoSpecialAssignedShields] do
+                        if M28UnitInfo.IsUnitValid(oShield) then
+                            if oShield:GetFractionComplete() == 1 then
+                                iConstructedShields = iConstructedShields + 1
+                                oLastCompletedShield = oShield
+                                iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oShield, true)
+                                if iCurShield > 0 then iActiveShields = iActiveShields + 1 end
+                                if iCurShield < iLowestConstructedShieldHealth then
+                                    oLowestConstructedShieldHealth = oShield
+                                end
+                            else
+                                iPartConstructedShields = iPartConstructedShields + 1
+                                if oShield:GetFractionComplete() > iHighestPartCompleteShield then
+                                    iHighestPartCompleteShield = oShield:GetFractionComplete()
+                                    oNearestCompletionShield = oShield
+                                end
+                                if oShield:GetFractionComplete() < iLowestPartCompleteShield then
+                                    iLowestPartCompleteShield = oShield:GetFractionComplete()
+                                    oLowestCompletionShield = oShield
+                                end
+                            end
+                        else
+                            tiEntriesToRemove[iShield] = true
+                        end
+                    end
+                    if M28Utilities.IsTableEmpty(tiEntriesToRemove) == false then
+                        for iEntry, bRemove in tiEntriesToRemove do
+                            oUnitToProtect[M28Building.reftoSpecialAssignedShields][iEntry] = nil
+                        end
+                    end
+                end
+
+                function ConstructNewShield()
+                    --Need to construct a new shield as have none at all
+                    local tPositionToBuild
+                    for iEntry, tLocation in oUnitToProtect[M28Building.reftLocationsForPriorityShield] do
+                        --basic check whether we can build (we should already be able to)
+                        if aiBrain:CanBuildStructureAt(sLikelyShieldBlueprint, tLocation) then
+                            tPositionToBuild = tLocation
+                            break
+                        end
+                    end
+                    if tPositionToBuild then
+                        local toEngineersOfWrongFaction = {}
+                        local oFirstEngineerOfRightFaction
+                        for iEngineer, oEngineer in oUnitToProtect[reftEngineersActivelyShielding] do
+                            if EntityCategoryContains(iEngineerFactionRequired, oEngineer.UnitId) then
+                                local sBlueprintToBuild = M28Factory.GetBlueprintsThatCanBuildOfCategory(aiBrain, iShieldCategoryToBuild, oEngineer, false, false, false, nil, false)
+                                M28Orders.IssueTrackedBuild(oEngineer, tPositionToBuild, sBlueprintToBuild, false, 'SpEBS')
+                                if not(oFirstEngineerOfRightFaction) then oFirstEngineerOfRightFaction = oEngineer end
+                            else
+                                table.insert(toEngineersOfWrongFaction, oEngineer)
+                            end
+                        end
+                        if M28Utilities.IsTableEmpty(toEngineersOfWrongFaction) == false then
+                            if oFirstEngineerOfRightFaction then
+                                for iEngineer, oEngineer in toEngineersOfWrongFaction do
+                                    M28Orders.IssueTrackedGuard(oUnit, oFirstEngineerOfRightFaction, false, 'SpEGE', false)
+                                end
+                            end
+                        end
+                    else
+                        M28Utilities.ErrorHandler('We are unable to build at a predefined shield location, will check for small blocking M28 buildings and destroy them', true)
+                        --Only search for units that are actually built on the shield location - so e.g. this wont cover if a factory is built where part of the factory covers the shield location
+                        local iSearchRadius = M28UnitInfo.GetBuildingSize(sLikelyShieldBlueprint) * 0.5
+                        for iEntry, tLocation in oUnitToProtect[M28Building.reftLocationsForPriorityShield] do
+                            local tUnitsNearby = GetUnitsInRect(M28Utilities.GetRectAroundLocation(tLocation, iSearchRadius))
+                            if M28Utilities.IsTableEmpty(tUnitsNearby) == false then
+                                local tBuildingsNearby = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure - M28UnitInfo.refCategoryFixedShield, tUnitsNearby)
+                                if M28Utilities.IsTableEmpty(tBuildingsNearby) == false then
+                                    for iBuilding, oBuilding in tBuildingsNearby do
+                                        if oBuilding:GetAIBrain().M28AI and oBuilding:GetAIBrain().M28Team == aiBrain.M28Team then
+                                            if (oBuilding:GetBlueprint().Economy.BuildCostMass or 0) * oBuilding:GetFractionComplete() <= 5000 then
+                                                M28Orders.IssueTrackedKillUnit(oBuilding)
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+
+                function AssistShield(oShield)
+                    --Assist this (if bPauseEngineers is true then will make sure every engineer is paused so they dont actually complete it)
+                    if oShield:GetFractionComplete() < 1 then
+                        for iEngineer, oEngineer in oUnitToProtect[reftEngineersActivelyShielding] do
+                            M28Orders.IssueTrackedRepair(oEngineer, oShield, false, 'SpecShR', false)
+                        end
+                    else
+                        for iEngineer, oEngineer in oUnitToProtect[reftEngineersActivelyShielding] do
+                            M28Orders.IssueTrackedGuard(oEngineer, oShield, false, 'SpecShG', false)
+                        end
+                    end
+                end
+                if iConstructedShields == 0 then
+                    --Want to build a shield - complete the closest to completion if we have any
+                    if oNearestCompletionShield then
+                        AssistShield(oNearestCompletionShield)
+                    else
+                        ConstructNewShield()
+                    end
+                else
+                    --We already have 1 constructed shield, want to make sure we have another shield that is closest to completion next
+                    --% wanted - if are assigning 500 build power to this, and the shortest BT shield is 1250, then in theory we could end up building the shield in 0.4s, i.e. each tick would be 4%.  In reality this seems unlikely though
+                    local iPercentCompleteWanted
+                    local iTotalBuildPowerAvailable = 0
+                    for iEngineer, oEngineer in oUnitToProtect[reftEngineersActivelyShielding] do
+                        iTotalBuildPowerAvailable = iTotalBuildPowerAvailable + oEngineer:GetBlueprint().Economy.BuildRate
+                    end
+                    if aiBrain.M28AI then
+                        iTotalBuildPowerAvailable = iTotalBuildPowerAvailable * M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainBuildMultiplier]
+                    end
+                    iPercentCompleteWanted = math.max(0.8, 1 - iTotalBuildPowerAvailable / (iBlueprintBuildTime * 10) - 0.001)
+                    if iPartConstructedShields > 0 and iHighestPartCompleteShield < iPercentCompleteWanted then
+                        --Want to assist existing part complete shield
+                        AssistShield(oNearestCompletionShield)
+                    else
+                        --We have at least 1 constructed shield, and at least 1 shield whose % complete is at the level wanted; Therefore we want a 3rd shield that is near-complete constructed
+                        if iPartConstructedShields + iConstructedShields < iTotalAvailableLocations then
+                            ConstructNewShield()
+                        else
+                            --Get the lowest complete shield to assist if it needs it
+                            if iPartConstructedShields > 0 and iLowestPartCompleteShield < iPercentCompleteWanted then
+                                AssistShield(oLowestCompletionShield)
+                            else
+                                --We have 1 complete shield, and all other shield locations have near-complete shields, so dont want to do anything else - have the engineers assist the completed shield
+                                AssistShield(oLastCompletedShield)
+                            end
+                        end
+                    end
+                end
+
+                --Decide whether to ctrlK shield so can start building another
+                if iConstructedShields >= math.max(iTotalAvailableLocations, 2) or (iConstructedShields > 1 and iConstructedShields + iPartConstructedShields >= iTotalAvailableLocations and iActiveShields < iConstructedShields) then
+                    --CtrlK a completed shield with the lowest shield value
+                    IssueTrackedKillUnit(oLowestConstructedShieldHealth)
+                end
+
+            else
+                oUnitToProtect[refbActiveUnitShieldingThread] = false
+                break
+            end
+            WaitTicks(1)
+        end
+    end
+end
+
 function AssignEngineerToShieldDefenceDuty(oEngineer, tLZTeamData)
     --Get the highest value unit to defend (for now will only support 1 unit for shield defence duty)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -3566,7 +3812,12 @@ function AssignEngineerToShieldDefenceDuty(oEngineer, tLZTeamData)
         --Clear engineer actions as we dont have something for them to do after all
         ClearEngineerTracking(oEngineer)
     else
-        TODO
+        if not(oUnitToProtect[reftEngineersActivelyShielding]) then oUnitToProtect[reftEngineersActivelyShielding] = {} end
+        table.insert(oUnitToProtect[reftEngineersActivelyShielding], oEngineer)
+        oEngineer[refoUnitActivelyShielding] = oUnitToProtect
+        if not(oUnitToProtect[refbActiveUnitShieldingThread]) then
+            ForkThread(ActiveShieldMonitor, oUnitToProtect, tLZTeamData)
+        end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 
@@ -4139,18 +4390,16 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                     if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoUnitsForSpecialShieldProtection]) then
                         M28Utilities.ErrorHandler('Are trying to do special shield protection but have no units wanting it')
                     else
-                        if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftFactoriesWantedForEngineers]) == false then
-                            for iUnit, oUnit in tLZOrWZTeamData[M28Map.reftFactoriesWantedForEngineers] do
-                                if M28UnitInfo.IsUnitValid(oUnit) then
-                                    iOptionalFactionRequired = M28UnitInfo.GetUnitFaction(oUnit)
-                                    break
-                                end
+                        for iUnit, oUnit in tLZOrWZTeamData[M28Map.reftoUnitsForSpecialShieldProtection] do
+                            if oUnit[M28Building.refoNearbyFactoryOfFaction] then
+                                iOptionalFactionRequired = M28UnitInfo.GetUnitFaction(oUnit)
+                                break
                             end
                         end
                         if iOptionalFactionRequired then tEngineersOfTechWanted, iEngiCount = FilterEngineersOfTechAndEngiCountForFaction(iOptionalFactionRequired, tEngineersOfTechWanted) end
                         if iEngiCount > 0 then
                             while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
-                                AssignEngineerToShieldDefenceDuty(tEngineersOfTechWanted[iEngiCount], tLZTeamData)
+                                AssignEngineerToShieldDefenceDuty(tEngineersOfTechWanted[iEngiCount], tLZOrWZTeamData)
                                 TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign, false, iCurPriority)
                                 UpdateBPTracking()
                             end

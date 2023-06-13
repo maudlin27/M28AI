@@ -29,6 +29,23 @@ refiFactoryTypeOther = 4
 --Build count by BP
 refiBuildCountByBlueprint = 'M28FacBC' --against oFactory, returns table with key as the unitID, which returns the number of times the factory has been sent an order to build the unit
 
+function GetMostExpensiveBlueprintOfCategory(iCategoryCondition)
+    --Much more simplified version of 'getblueprintsthatcanbuildofcategory', for cases where we dont yet have the engineer so want a potential blueprint to work with
+    local tBlueprints = EntityCategoryGetUnitList(iCategoryCondition)
+    local iHighestMassCost = 0
+    local tAllBlueprints = __blueprints
+    local sMostExpensiveBlueprint
+    local iCurMassCost
+    for _, sBlueprint in tBlueprints do
+        iCurMassCost = (tAllBlueprints[sBlueprint].Economy.BuildCostMass or 0)
+        if iCurMassCost > iHighestMassCost then
+            iHighestMassCost = iCurMassCost
+            sMostExpensiveBlueprint = sBlueprint
+        end
+    end
+    return sMostExpensiveBlueprint
+end
+
 function GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
     --returns nil if cant find any blueprints that can build
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end

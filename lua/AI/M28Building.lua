@@ -54,6 +54,7 @@ refoPriorityShieldProvidingCoverage = 'M28BuildPriorityShieldCoveringUnit' --Aga
 refoNearbyFactoryOfFaction = 'M28BuildNrFactionFac' --assigned against a gameender, to record that it can obtain engineers of a particular faction (for shielding purposes)
 reftoUnitsWantingFactoryEngineers = 'M28BuildEngFac' --table of any units that have htis factory as their 'nearest' factory - intended for gamenders so can track which game enders assume this factory can provide engineers
 reftLocationsForPriorityShield = 'M28BuildShdLoc' --against a unit (such as a game ender), [x] = 1,2,3...; returns the predetermined reserved location to build a shield in order to cover the game ender
+reftoSpecialAssignedShields = 'M28BuildSpecAssShield' --against a unit (such as a game ender), [x] = 3 or 2 or 1 based on the reftLocationsForPriorityShield index; for special shielding gameender logic
 
 --T3 arti specific
 reftiPlateauAndZonesInRange = 'M28BuildArtiPlatAndZInRange' --entries in order of distance, 1,2,3 etc, returns {iPlateauOrZero, iLandOrWaterZoneRef}
@@ -1987,7 +1988,7 @@ function ReserveLocationsForGameEnder(oUnit)
     if iLandZone > 0 then
         local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
         local tiShieldBuildLocationOptions = {}
-        local tiShieldLocationsByOption = {}
+        local tiShieldLocationCountByOption = {}
         local sBlueprintToBuild = 'xsb4202'
         local iNewBuildingDiameter = M28UnitInfo.GetBuildingSize(sBlueprintToBuild)
         local iNewBuildingRadius = iNewBuildingDiameter * 0.5
@@ -2014,11 +2015,11 @@ function ReserveLocationsForGameEnder(oUnit)
                 if iCurMod > 0 then
                     iCurMod = iCurMod - 1
                 elseif M28Engineer.CanBuildAtLocation(aiBrain, sBlueprintToBuild, { iCurX, 0, iCurZ}, iPlateau, iLandZone, nil, false, true, false, true) then
-                    tiShieldLocationsByOption[iCurOptionCount] = (tiShieldLocationsByOption[iCurOptionCount] or 0) + 1
-                    tiShieldBuildLocationOptions[iCurOptionCount][tiShieldLocationsByOption[iCurOptionCount]] = {iCurX, GetSurfaceHeight(iCurX, iCurZ), iCurZ}
+                    tiShieldLocationCountByOption[iCurOptionCount] = (tiShieldLocationCountByOption[iCurOptionCount] or 0) + 1
+                    tiShieldBuildLocationOptions[iCurOptionCount][tiShieldLocationCountByOption[iCurOptionCount]] = {iCurX, GetSurfaceHeight(iCurX, iCurZ), iCurZ}
                     iCurMod = iCurMod + iNewBuildingDiameter
-                    if tiShieldLocationsByOption[iCurOptionCount] > iMostBuildLocations then
-                        iMostBuildLocations = tiShieldLocationsByOption[iCurOptionCount]
+                    if tiShieldLocationCountByOption[iCurOptionCount] > iMostBuildLocations then
+                        iMostBuildLocations = tiShieldLocationCountByOption[iCurOptionCount]
                         if iMostBuildLocations >= 3 then break end
                     end
                 end
@@ -2036,11 +2037,11 @@ function ReserveLocationsForGameEnder(oUnit)
                 iCurX = tAdjacencyBuildingPosition[1] + (iAdjacencyBuildingRadius + iNewBuildingRadius) * iXFactor
                 for iCurZ = tAdjacencyBuildingPosition[3] - iCornerAdjust, tAdjacencyBuildingPosition[3] + iCornerAdjust, 1 do
                     if M28Engineer.CanBuildAtLocation(aiBrain, sBlueprintToBuild, { iCurX, 0, iCurZ}, iPlateau, iLandZone, nil, false, true, false, true) then
-                        tiShieldLocationsByOption[iCurOptionCount] = (tiShieldLocationsByOption[iCurOptionCount] or 0) + 1
-                        tiShieldBuildLocationOptions[iCurOptionCount][tiShieldLocationsByOption[iCurOptionCount]] = {iCurX, GetSurfaceHeight(iCurX, iCurZ), iCurZ}
+                        tiShieldLocationCountByOption[iCurOptionCount] = (tiShieldLocationCountByOption[iCurOptionCount] or 0) + 1
+                        tiShieldBuildLocationOptions[iCurOptionCount][tiShieldLocationCountByOption[iCurOptionCount]] = {iCurX, GetSurfaceHeight(iCurX, iCurZ), iCurZ}
                         iCurMod = iCurMod + iNewBuildingDiameter
-                        if tiShieldLocationsByOption[iCurOptionCount] > iMostBuildLocations then
-                            iMostBuildLocations = tiShieldLocationsByOption[iCurOptionCount]
+                        if tiShieldLocationCountByOption[iCurOptionCount] > iMostBuildLocations then
+                            iMostBuildLocations = tiShieldLocationCountByOption[iCurOptionCount]
                             if iMostBuildLocations >= 3 then break end
                         end
                     end
@@ -2056,13 +2057,13 @@ function ReserveLocationsForGameEnder(oUnit)
             table.insert(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection], oUnit)
             RecordNearbyFactoryForShieldEngineers(oUnit)
 
-            for iOption, tLocations in tiShieldLocationsByOption do
+            for iOption, tLocations in tiShieldBuildLocationOptions do
                 if tiShieldBuildLocationOptions[iOption] >= iMostBuildLocations then
                     oUnit[reftLocationsForPriorityShield] = {}
                     for iLocation, tLocation in tLocations do
                         table.insert(oUnit[reftLocationsForPriorityShield], {tLocation[1], tLocation[2], tLocation[3]})
                         --Blacklist the location
-                        RecordBlacklistLocation(tLocation, iNewBuildingRadius, 600, oUnit)
+                        M28Engineer.RecordBlacklistLocation(tLocation, iNewBuildingRadius, 600, oUnit)
                     end
                     break
                 end
@@ -2073,7 +2074,7 @@ function ReserveLocationsForGameEnder(oUnit)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function GetBestFactionFactoryOfCategory(iCategory, iDistanceCap)
+function GetBestFactionFactoryOfCategory(iCategory, iDistanceCap, iLandSubteam, iUnitPlateau, tLZData)
     local iClosestFactory = iDistanceCap
     local iCurDist, iCurPlateau, iCurLandZone
     local oBestFactory
@@ -2084,7 +2085,7 @@ function GetBestFactionFactoryOfCategory(iCategory, iDistanceCap)
                 if oFactory:GetFractionComplete() == 1 and M28UnitInfo.IsUnitValid(oFactory) then
                     --Is this in the same plateau?
                     iCurPlateau, iCurLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oFactory:GetPosition())
-                    if iCurPlateau == iPlateau then
+                    if iCurPlateau == iUnitPlateau then
                         --Get the travel distance
                         iCurDist = tLZData[M28Map.subrefLZTravelDistToOtherLandZones][iCurPlateau][iCurLandZone]
                         if iCurDist then
@@ -2107,42 +2108,49 @@ function RecordNearbyFactoryForShieldEngineers(oUnit)
     local iLandSubteam = aiBrain.M28LandSubteam
     local oBestFactory
 
-    --Seraphim factories
-    if (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionSeraphim][3] or 0) > 0 then
-        oBestFactory = GetBestFactionFactoryOfCategory(M28UnitInfo.refCategoryLandFactory * categories.TECH3 * categories.SERAPHIM, iDistanceCap)
-    end
-    if not(oBestFactory) then
-        --Aeon
-        if (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionAeon][3] or 0) > 0 then
-            oBestFactory = GetBestFactionFactoryOfCategory(M28UnitInfo.refCategoryLandFactory * categories.TECH3 * categories.Aeon, iDistanceCap)
+    local iUnitPlateau, iUnitLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+    if (iUnitLandZone or 0) > 0 then
+        local tLZData = M28Map.tAllPlateaus[iUnitPlateau][M28Map.subrefPlateauLandZones][iUnitLandZone]
+        --Seraphim factories
+        if (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionSeraphim][3] or 0) > 0 then
+            oBestFactory = GetBestFactionFactoryOfCategory(M28UnitInfo.refCategoryLandFactory * categories.TECH3 * categories.SERAPHIM, iDistanceCap, iLandSubteam, iUnitPlateau, tLZData)
         end
         if not(oBestFactory) then
-            --UEF
-            if (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionUEF][3] or 0) > 0 then
-                oBestFactory = GetBestFactionFactory(M28UnitInfo.refCategoryLandFactory * categories.TECH3 * categories.UEF, iDistanceCap)
+            --Aeon
+            if (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionAeon][3] or 0) > 0 then
+                oBestFactory = GetBestFactionFactoryOfCategory(M28UnitInfo.refCategoryLandFactory * categories.TECH3 * categories.Aeon, iDistanceCap, iLandSubteam, iUnitPlateau, tLZData)
             end
-            --If dont have any of these factions then dont worry about getting a faction specific shield
-        end
-    end
-    --If have a best factory then record against the game ender
-    oUnit[refoNearbyFactoryOfFaction] = oBestFactory
-    if not(oBestFactory[reftoUnitsWantingFactoryEngineers]) then
-        oBestFactory[reftoUnitsWantingFactoryEngineers] = {}
-    end
-    table.insert(oBestFactory[reftoUnitsWantingFactoryEngineers], oUnit)
-    local iFactoryPlateau, iFactoryLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oBestFactory:GetPosition())
-    local tFactoryLZTeamData = M28Map.tAllPlateaus[iFactoryPlateau][M28Map.subrefPlateauLandZones][iFactoryLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team]
-    local bRecordedInZoneAlready = false
-    if not(tFactoryLZTeamData[M28Map.reftFactoriesWantedForEngineers]) then tFactoryLZTeamData[M28Map.reftFactoriesWantedForEngineers] = {}
-    else
-        for iExistingFactory, oExistingFactory in tFactoryLZTeamData[M28Map.reftFactoriesWantedForEngineers] do
-            if oExistingFactory == oBestFactory then
-                bRecordedInZoneAlready = true
+            if not(oBestFactory) then
+                --UEF
+                if (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionUEF][3] or 0) > 0 then
+                    oBestFactory = GetBestFactionFactoryOfCategory(M28UnitInfo.refCategoryLandFactory * categories.TECH3 * categories.UEF, iDistanceCap, iLandSubteam, iUnitPlateau, tLZData)
+                end
+                --If dont have any of these factions then dont worry about getting a faction specific shield
             end
         end
-    end
-    if not(bRecordedInZoneAlready) then
-        table.insert(tFactoryLZTeamData[M28Map.reftFactoriesWantedForEngineers], oBestFactory)
+        --If have a best factory then record against the game ender
+        oUnit[refoNearbyFactoryOfFaction] = oBestFactory
+        if oBestFactory then
+            if not(oBestFactory[reftoUnitsWantingFactoryEngineers]) then
+                oBestFactory[reftoUnitsWantingFactoryEngineers] = {}
+            end
+
+            table.insert(oBestFactory[reftoUnitsWantingFactoryEngineers], oUnit)
+            local iFactoryPlateau, iFactoryLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oBestFactory:GetPosition())
+            local tFactoryLZTeamData = M28Map.tAllPlateaus[iFactoryPlateau][M28Map.subrefPlateauLandZones][iFactoryLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team]
+            local bRecordedInZoneAlready = false
+            if not(tFactoryLZTeamData[M28Map.reftFactoriesWantedForEngineers]) then tFactoryLZTeamData[M28Map.reftFactoriesWantedForEngineers] = {}
+            else
+                for iExistingFactory, oExistingFactory in tFactoryLZTeamData[M28Map.reftFactoriesWantedForEngineers] do
+                    if oExistingFactory == oBestFactory then
+                        bRecordedInZoneAlready = true
+                    end
+                end
+            end
+            if not(bRecordedInZoneAlready) then
+                table.insert(tFactoryLZTeamData[M28Map.reftFactoriesWantedForEngineers], oBestFactory)
+            end
+        end
     end
 end
 
@@ -2204,4 +2212,37 @@ function UpdateTrackingOfDeadFactoryProvidingEngineers(oUnit)
     --Remove this factory from the list of factories in the zone
     oUnit[reftoUnitsWantingFactoryEngineers] = nil
     RemoveFactoryFromZoneList(oUnit)
+end
+
+function AssignShieldToGameEnder(oConstruction, oEngineer)
+    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oConstruction:GetPosition())
+    if (iLandZone or 0) > 0 then
+        local oGameEnder
+        local aiBrain = oEngineer:GetAIBrain()
+        local iTeam = aiBrain.M28Team
+        local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
+        if not(oEngineer[M28Engineer.refoUnitActivelyShielding]) then
+            M28Utilities.ErrorHandler('Dont have a unit recorded that the engineer is actively shielding, will just get the first gameender in the zone')
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection]) == false then
+                for iUnit, oUnit in tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection] do
+                    oGameEnder = oUnit
+                    break
+                end
+            end
+        else
+            oGameEnder = oEngineer[M28Engineer.refoUnitActivelyShielding]
+        end
+        if M28UnitInfo.IsUnitValid(oGameEnder) then
+            if not(oGameEnder[reftoSpecialAssignedShields]) then
+                oGameEnder[reftoSpecialAssignedShields] = {}
+            end
+            table.insert(oGameEnder[reftoSpecialAssignedShields], oConstruction)
+        else
+            if oGameEnder then
+                M28Utilities.ErrorHandler('Dont have a valid unit')
+            end
+        end
+    else
+        M28Utilities.ErrorHandler('Dont have valid land zone for construction')
+    end
 end
