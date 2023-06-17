@@ -176,7 +176,7 @@ function IsEngineerAvailable(oEngineer)
         local iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
         LOG(sFunctionRef..': GameTIme '..GetGameTimeSeconds()..': Engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' owned by '..oEngineer:GetAIBrain().Nickname..': oEngineer:GetFractionComplete()='..oEngineer:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; Are last orders empty='..tostring(oEngineer[M28Orders.reftiLastOrders] == nil)..'; Engineer Plateau='..(iCurPlateau or 'nil')..'; LZ='..(iCurLZ or 'nil'))
     end
-    if oEngineer:GetFractionComplete() == 1 and not(oEngineer:IsUnitState('Attached')) then
+    if oEngineer:GetFractionComplete() == 1 and not(oEngineer:IsUnitState('Attached')) and not(oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionSpecialShieldDefence) then
         M28Orders.UpdateRecordedOrders(oEngineer)
         if not(oEngineer[M28Orders.reftiLastOrders]) then
             if bDebugMessages == true then LOG(sFunctionRef..': Engineer has no last orders active so is available') end
