@@ -851,7 +851,7 @@ function RecordPriorityShields(iTeam, tLZTeamData)
                             table.insert(tEngineersToClear, oEngi)
                         end
                         for iAssistingEngineer, oAssistingEngineer in tEngineersToClear do
-                            M28Orders.IssueTrackedClearCommands(oAssistingEngineer)
+                            if M28UnitInfo.IsUnitValid(oAssistingEngineer) then M28Orders.IssueTrackedClearCommands(oAssistingEngineer) end
                         end
                         oShield[M28UnitInfo.reftoUnitsAssistingThis] = nil
                     end
@@ -1981,9 +1981,11 @@ end
 
 function ReserveLocationsForGameEnder(oUnit)
     --Reserve locations to provide shield coverage for oUnit
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ReserveLocationsForGameEnder'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, gametimeseconds is '..GetGameTimeSeconds()..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; owned by '..oUnit:GetAIBrain().Nickname..' on team '..oUnit:GetAIBrain().M28Team) end
 
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
     if iLandZone > 0 then
@@ -2001,12 +2003,13 @@ function ReserveLocationsForGameEnder(oUnit)
 
         local iCurOptionCount = 0
 
-        if bDebugMessages == true then LOG(sFunctionRef..': tAdjacencyBuildingPosition='..repru(tAdjacencyBuildingPosition)..'; iAdjacencyBuildingRadius='..iAdjacencyBuildingRadius..'; iNewBuildingRadius='..iNewBuildingRadius..'; iCycleSize='..iCycleSize) end
+        if bDebugMessages == true then LOG(sFunctionRef..': tAdjacencyBuildingPosition='..repru(tAdjacencyBuildingPosition)..'; iAdjacencyBuildingRadius='..iAdjacencyBuildingRadius..'; iNewBuildingRadius='..iNewBuildingRadius..'; iCornerAdjust='..iCornerAdjust) end
         local aiBrain = oUnit:GetAIBrain()
 
         --First go along top and bottom:
         local iCurMod = 0
         local iMostBuildLocations = 0
+        local iBestOptionCountRef
         for iZFactor = -1, 1, 2 do
             iCurOptionCount = iCurOptionCount + 1
             tiShieldBuildLocationOptions[iCurOptionCount] = {}
@@ -2018,13 +2021,15 @@ function ReserveLocationsForGameEnder(oUnit)
                 elseif M28Engineer.CanBuildAtLocation(aiBrain, sBlueprintToBuild, { iCurX, 0, iCurZ}, iPlateau, iLandZone, nil, false, true, false, true) then
                     tiShieldLocationCountByOption[iCurOptionCount] = (tiShieldLocationCountByOption[iCurOptionCount] or 0) + 1
                     tiShieldBuildLocationOptions[iCurOptionCount][tiShieldLocationCountByOption[iCurOptionCount]] = {iCurX, GetSurfaceHeight(iCurX, iCurZ), iCurZ}
-                    iCurMod = iCurMod + iNewBuildingDiameter
+                    iCurMod = iCurMod + iNewBuildingDiameter - 1
                     if tiShieldLocationCountByOption[iCurOptionCount] > iMostBuildLocations then
                         iMostBuildLocations = tiShieldLocationCountByOption[iCurOptionCount]
+                        iBestOptionCountRef = iCurOptionCount
                         if iMostBuildLocations >= 3 then break end
                     end
                 end
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished considering top or bottom, iZFactor='..(iZFactor or 'nil')..'; iCurOptionCount='..(iCurOptionCount or 'nil')..'; tiShieldBuildLocationOptions[iCurOptionCount]='..repru(tiShieldBuildLocationOptions[iCurOptionCount])..'; tiShieldLocationCountByOption[iCurOptionCount]='..(tiShieldLocationCountByOption[iCurOptionCount] or 'nil')..'; iMostBuildLocations='..iMostBuildLocations) end
             if iMostBuildLocations >= 3 then break end
             iCurMod = 0
         end
@@ -2037,19 +2042,24 @@ function ReserveLocationsForGameEnder(oUnit)
 
                 iCurX = tAdjacencyBuildingPosition[1] + (iAdjacencyBuildingRadius + iNewBuildingRadius) * iXFactor
                 for iCurZ = tAdjacencyBuildingPosition[3] - iCornerAdjust, tAdjacencyBuildingPosition[3] + iCornerAdjust, 1 do
-                    if M28Engineer.CanBuildAtLocation(aiBrain, sBlueprintToBuild, { iCurX, 0, iCurZ}, iPlateau, iLandZone, nil, false, true, false, true) then
+                    if iCurMod > 0 then
+                        iCurMod = iCurMod - 1
+                    elseif M28Engineer.CanBuildAtLocation(aiBrain, sBlueprintToBuild, { iCurX, 0, iCurZ}, iPlateau, iLandZone, nil, false, true, false, true) then
                         tiShieldLocationCountByOption[iCurOptionCount] = (tiShieldLocationCountByOption[iCurOptionCount] or 0) + 1
                         tiShieldBuildLocationOptions[iCurOptionCount][tiShieldLocationCountByOption[iCurOptionCount]] = {iCurX, GetSurfaceHeight(iCurX, iCurZ), iCurZ}
-                        iCurMod = iCurMod + iNewBuildingDiameter
+                        iCurMod = iCurMod + iNewBuildingDiameter - 1
                         if tiShieldLocationCountByOption[iCurOptionCount] > iMostBuildLocations then
                             iMostBuildLocations = tiShieldLocationCountByOption[iCurOptionCount]
+                            iBestOptionCountRef = iCurOptionCount
                             if iMostBuildLocations >= 3 then break end
                         end
                     end
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished considering left or right side, iXFactor='..(iXFactor or 'nil')..'; iCurOptionCount='..(iCurOptionCount or 'nil')..'; tiShieldBuildLocationOptions[iCurOptionCount]='..repru(tiShieldBuildLocationOptions[iCurOptionCount])..'; tiShieldLocationCountByOption[iCurOptionCount]='..(tiShieldLocationCountByOption[iCurOptionCount] or 'nil')..'; iMostBuildLocations='..iMostBuildLocations) end
                 if iMostBuildLocations >= 3 then break end
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': iMostBuildLocations='..iMostBuildLocations) end
 
         if iMostBuildLocations >= 2 then
             --Can build at least 2 shields, which is good enough - now figure out the best faction engineer that could realistically build the shield by locating the closest factory of each faction type
@@ -2058,17 +2068,38 @@ function ReserveLocationsForGameEnder(oUnit)
             table.insert(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection], oUnit)
             RecordNearbyFactoryForShieldEngineers(oUnit)
 
-            for iOption, tLocations in tiShieldBuildLocationOptions do
-                if tiShieldBuildLocationOptions[iOption] >= iMostBuildLocations then
+            if bDebugMessages == true then LOG(sFunctionRef..': Can build at least 2 shields close to each other and the gameender, will now pick the best set of shield options, unit position='..repru(oUnit:GetPosition())..'; iBestOptionCountRef='..(iBestOptionCountRef or 'nil')..'; tiShieldBuildLocationOptions for this='..repru(tiShieldBuildLocationOptions[iBestOptionCountRef])) end
+            if iBestOptionCountRef then
+                oUnit[reftLocationsForPriorityShield] = {}
+                if bDebugMessages == true then LOG(sFunctionRef..': Recording priority shield locations, tLocations='..repru(tiShieldBuildLocationOptions[iBestOptionCountRef])) end
+                for iLocation, tLocation in tiShieldBuildLocationOptions[iBestOptionCountRef] do
+                    table.insert(oUnit[reftLocationsForPriorityShield], {tLocation[1], tLocation[2], tLocation[3]})
+                    --Blacklist the location
+                    M28Engineer.RecordBlacklistLocation(tLocation, iNewBuildingRadius, 600, oUnit)
+                    if bDebugMessages == true then
+                        LOG(sFunctionRef..': Added shild build location '..repru(tLocation)..' against the game ender and will record blacklist, Will draw shield locations in black')
+                        M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(tLocation, iNewBuildingRadius), 3, 100)
+                    end
+                end
+
+            end
+            --[[for iOption, tLocations in tiShieldBuildLocationOptions do
+                if (tiShieldBuildLocationOptions[iOption] or 0) >= iMostBuildLocations then
                     oUnit[reftLocationsForPriorityShield] = {}
+                    if bDebugMessages == true then LOG(sFunctionRef..': Recording priority shield locations, tLocations='..repru(tLocations)..'; tiShieldBuildLocationOptions[iOption]='..repru(tiShieldBuildLocationOptions[iOption])..'; iOption='..(iOption or 'nil')) end
                     for iLocation, tLocation in tLocations do
                         table.insert(oUnit[reftLocationsForPriorityShield], {tLocation[1], tLocation[2], tLocation[3]})
                         --Blacklist the location
                         M28Engineer.RecordBlacklistLocation(tLocation, iNewBuildingRadius, 600, oUnit)
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef..': Will draw shield locations in black')
+                            M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(tLocation, iNewBuildingRadius), 3, 100)
+                        end
                     end
                     break
                 end
-            end
+            end--]]
+            M28Team.tTeamData[aiBrain.M28Team][M28Team.refbStartedOnUnitWantingSpecialShielding] = true
         end
     end
 
@@ -2161,7 +2192,7 @@ function RemoveFactoryFromZoneList(oFactory)
     if iFactoryLandZone > 0 then
         local tLZTeamData = M28Map.tAllPlateaus[iFactoryPlateau][M28Map.subrefPlateauLandZones][iFactoryLandZone][M28Map.subrefLZTeamData][oFactory:GetAIBrain().M28Team]
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftFactoriesWantedForEngineers]) == false then
-            local iExistingEntries = table.getn(oFactory[reftoUnitsWantingFactoryEngineers])
+            local iExistingEntries = table.getn(tLZTeamData[M28Map.reftFactoriesWantedForEngineers])
             for iCurEntry = iExistingEntries, 1, -1 do
                 if tLZTeamData[M28Map.reftFactoriesWantedForEngineers][iCurEntry] == oFactory or not(M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.reftFactoriesWantedForEngineers][iCurEntry])) then
                     table.remove(tLZTeamData[M28Map.reftFactoriesWantedForEngineers], iCurEntry)

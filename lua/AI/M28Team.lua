@@ -117,6 +117,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     reftCoreLZsTimeOfApproachingACUByPlateauAndZone = 'M28TApprACULZ' --table, entry [iPlateau][iLandZoneRef], returns gametimeseconds that flagged as having an approaching ACU
     reftCloakedEnemyUnits = 'M28CloakedE'
     reftLongRangeEnemyUnits = 'M28LREUn'
+    refbStartedOnUnitWantingSpecialShielding = 'M28AGESt' --true if we have sent an order to build a gameender/unit wanting special shielding (currently used to decide if we need to be strict about blacklist locations)
 
     subrefiAlliedDFThreat = 'M28TeamDFThreat' --Total DF threat
     subrefiAlliedIndirectThreat = 'M28TeamIndirectThreat' --Total indirect threat
