@@ -3791,7 +3791,7 @@ function ActiveShieldMonitor(oUnitToProtect, tLZTeamData, iTeam)
                                                         oCurBuildingBP = oBuilding:GetBlueprint()
                                                         if (oCurBuildingBP.Economy.BuildCostMass or 0) * oBuilding:GetFractionComplete() <= 5000 then
                                                             --Check the building position and size means it is actually a blocking building
-                                                            if oCurBuildingBP:GetPosition()[1] >= rShieldAreaRect[1] and oCurBuildingBP:GetPosition()[1] <= rShieldAreaRect[3] and oCurBuildingBP:GetPosition()[3] >= rShieldAreaRect[2] and oCurBuildingBP:GetPosition()[3] <= rShieldAreaRect[2] then
+                                                            if oBuilding:GetPosition()[1] >= rShieldAreaRect[1] and oBuilding:GetPosition()[1] <= rShieldAreaRect[3] and oBuilding:GetPosition()[3] >= rShieldAreaRect[2] and oBuilding:GetPosition()[3] <= rShieldAreaRect[2] then
                                                                 if bDebugMessages == true then LOG(sFunctionRef..': Will destroy blocking building='..oBuilding.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBuilding)..'; Building position='..repru(oBuilding:GetPosition())..'; will draw rectangle that this is within')
                                                                     M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(tLocation, iSearchRadius))
                                                                 end
@@ -5238,6 +5238,11 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     --Protect game-ender or similar high avlue target (very high priority on assumption if we have built such a unit we shouldnt have to worry about lack of resources for this
     iCurPriority = iCurPriority + 1
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection]) == false then
+        if bDebugMessages == true then LOG(sFunctionRef..': Want to assign units to active shield protection, will list out each unit for this zone that wants active protection')
+            for iUnit, oUnit in tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection] do
+                LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Mass cost='..oUnit:GetBlueprint().Economy.BuildCostMass)
+            end
+        end
         if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then
             iBPWanted = 500
         else
