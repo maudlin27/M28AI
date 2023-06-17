@@ -746,6 +746,8 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                 oConstruction[M28UnitInfo.refbConstructionStart] = true
 
 
+
+                if bDebugMessages == true then LOG(sFunctionRef..': Construction just started for oConstruction='..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..' at time '..GetGameTimeSeconds()) end
                 --Record any mexes so we can repair them if construction gets interrupted
                 if EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oConstruction.UnitId) then
                     M28Engineer.RecordPartBuiltMex(oEngineer, oConstruction)
@@ -778,6 +780,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                             end
                         end
                     end
+                    if bDebugMessages == true then LOG(sFunctionRef..': bCancelBuilding='..tostring(bCancelBuilding)) end
                     if bCancelBuilding then
                         --Clear all engineeres trying to build this
                         M28Engineer.ClearEngineersBuildingUnit(oEngineer, oConstruction)
@@ -785,6 +788,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                         M28Orders.IssueTrackedReclaim(oEngineer, oConstruction, false, 'AbrtNRec', true)
                         if bDebugMessages == true then LOG(sFunctionRef..': Have told engineer to abort consturction of '..oConstruction.UnitId..' and to reclaim it instead') end
                     else
+                        if bDebugMessages == true then LOG(sFunctionRef..': Engineer that is starting this construction='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; oEngineer[M28Engineer.refiAssignedAction]='..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')) end
                         --Game ender and T3 arti specific - reserve locations for shields
                         if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti, oConstruction.UnitId) then
                             M28Building.ReserveLocationsForGameEnder(oConstruction)

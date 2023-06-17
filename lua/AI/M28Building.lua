@@ -55,6 +55,7 @@ refoNearbyFactoryOfFaction = 'M28BuildNrFactionFac' --assigned against a gameend
 reftoUnitsWantingFactoryEngineers = 'M28BuildEngFac' --table of any units that have htis factory as their 'nearest' factory - intended for gamenders so can track which game enders assume this factory can provide engineers
 reftLocationsForPriorityShield = 'M28BuildShdLoc' --against a unit (such as a game ender), [x] = 1,2,3...; returns the predetermined reserved location to build a shield in order to cover the game ender
 reftoSpecialAssignedShields = 'M28BuildSpecAssShield' --against a unit (such as a game ender), [x] = 3 or 2 or 1 based on the reftLocationsForPriorityShield index; for special shielding gameender logic
+refoGameEnderBeingShielded = 'M28BuildSpecShdlTarg' --against a shield, records the unit it has been assigned to (i.e. the corresponding variable for reftoSpecialAssignedShields)
 
 --T3 arti specific
 reftiPlateauAndZonesInRange = 'M28BuildArtiPlatAndZInRange' --entries in order of distance, 1,2,3 etc, returns {iPlateauOrZero, iLandOrWaterZoneRef}
@@ -2215,7 +2216,13 @@ function UpdateTrackingOfDeadFactoryProvidingEngineers(oUnit)
 end
 
 function AssignShieldToGameEnder(oConstruction, oEngineer)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AssignShieldToGameEnder'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oConstruction:GetPosition())
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at game time '..GetGameTimeSeconds()..'; oConstruction='..(oConstruction.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oConstruction) or 'nil')..'; oEngineer='..(oEngineer.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineer) or 'nil')..'; oConstruction iPlateau='..(iPlateau or 'nil')..'; Zone='..(iLandZone or 'nil')..'; oConstruction position='..repru(oConstruction:GetPosition())) end
     if (iLandZone or 0) > 0 then
         local oGameEnder
         local aiBrain = oEngineer:GetAIBrain()
@@ -2231,12 +2238,15 @@ function AssignShieldToGameEnder(oConstruction, oEngineer)
             end
         else
             oGameEnder = oEngineer[M28Engineer.refoUnitActivelyShielding]
+            if bDebugMessages == true then LOG(sFunctionRef..': Engineer is actively shielding oGameEnder='..(oGameEnder.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oGameEnder) or 'nil')) end
         end
         if M28UnitInfo.IsUnitValid(oGameEnder) then
             if not(oGameEnder[reftoSpecialAssignedShields]) then
                 oGameEnder[reftoSpecialAssignedShields] = {}
             end
             table.insert(oGameEnder[reftoSpecialAssignedShields], oConstruction)
+            oConstruction[refoGameEnderBeingShielded] = oGameEnder
+            if bDebugMessages == true then LOG(sFunctionRef..': Added oConstruction to the table of assigned shields for gameender') end
         else
             if oGameEnder then
                 M28Utilities.ErrorHandler('Dont have a valid unit')
@@ -2245,4 +2255,5 @@ function AssignShieldToGameEnder(oConstruction, oEngineer)
     else
         M28Utilities.ErrorHandler('Dont have valid land zone for construction')
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
