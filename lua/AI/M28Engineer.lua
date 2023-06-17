@@ -3687,7 +3687,7 @@ function ActiveShieldMonitor(oUnitToProtect, tLZTeamData, iTeam)
                                 iConstructedShields = iConstructedShields + 1
                                 oLastCompletedShield = oShield
                                 iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oShield, true)
-                                if bDebugMessages == true then LOG(sFunctionRef..': COnsidering shield health of constructed shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; iLowestConstructedShieldHealth='..iLowestConstructedShieldHealth..'; oUnit.MyShield:GetHealth()='..(oShield.MyShield:GetHealth() or 'nil')..'; Shield ratio='..(oShield:GetShieldRatio(false) or 0)) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': COnsidering shield health of constructed shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; iLowestConstructedShieldHealth='..iLowestConstructedShieldHealth..'; oUnit.MyShield:GetHealth()='..(oShield.MyShield:GetHealth() or 'nil')..'; Shield ratio='..(oShield:GetShieldRatio(false) or 0)..'; IsUp='..tostring(oShield.MyShield:IsUp())..'; IsOn='..tostring(oShield.MyShield:IsOn())..'; Depleted by damage='..tostring(oShield.DepletedByDamage or false)) end
                                 if iCurShield > 0 then iActiveShields = iActiveShields + 1 end
                                 if iCurShield < iLowestConstructedShieldHealth then
                                     oLowestConstructedShieldHealth = oShield

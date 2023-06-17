@@ -1007,6 +1007,12 @@ function GetCurrentAndMaximumShield(oUnit, bDontTreatLowPowerShieldAsZero)
                 --GetHealth doesnt look like it factors in power stall
                 if not(oUnit.MyShield.Enabled) or oUnit.MyShield.DepletedByEnergy or (oUnit:GetAIBrain():GetEconomyStored('ENERGY') == 0) then iCurShield = 0 end
             end
+            if iCurShield > 0 and not(oUnit.MyShield:IsUp()) then
+                --Occasional bug where shield shows as having health via gethealth, not powerstalling, but shield is actually down - below is to try and capture such cases
+                if not(bDontTreatLowPowerShieldAsZero) or oUnit.MyShield.DepletedByDamage then
+                    iCurShield = 0
+                end
+            end
         end
         if bDebugMessages == true then
             LOG(sFunctionRef..': iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; ShieldRatio False='..oUnit:GetShieldRatio(false)..'; ShieldRatio true='..oUnit:GetShieldRatio(true)..' iCurShield='..iCurShield)
