@@ -892,6 +892,14 @@ function OverseerManager(aiBrain)
     end
     local bSetHook = false --Used for debugging
     while not(aiBrain:IsDefeated()) and not(aiBrain.M28IsDefeated) do
+        local bEnabledProfiling = false
+        if GetGameTimeSeconds() >= 2100 and not(bEnabledProfiling) then
+            if not(import('/mods/M28AI/lua/M28Config.lua').M28RunProfiling) then
+                ForkThread(M28Profiler.ProfilerActualTimePerTick)
+                import('/mods/M28AI/lua/M28Config.lua').M28RunProfiling = true
+            end
+            bEnabledProfiling = true
+        end
         --if GetGameTimeSeconds() >= 2700 then import('/mods/M28AI/lua/M28Config.lua').M28ShowUnitNames = true end
         --TestCustom(aiBrain)
         --Enable below to help figure out infinite loops
