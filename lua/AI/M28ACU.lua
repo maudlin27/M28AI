@@ -233,7 +233,7 @@ end
 
 function GetACUEarlyGameOrders(aiBrain, oACU)
     local sFunctionRef = 'GetACUEarlyGameOrders'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
@@ -1406,7 +1406,7 @@ end
 
 function GetACUOrder(aiBrain, oACU)
     local sFunctionRef = 'GetACUOrder'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
@@ -1475,6 +1475,38 @@ function GetACUOrder(aiBrain, oACU)
                 bProceedWithLogic = false
                 GetACUEarlyGameOrders(aiBrain, oACU) --backup which should ahve ACU move if it doesnt seem to be on a land or water zone
                 if bDebugMessages == true then LOG(sFunctionRef..': ACU not in land zone and is doing initial order so referred to early game order logic') end
+            elseif (iLandOrWaterZone or 0) > 0 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                --Are enemies in this zone, decide if we want to attack them - get closest enemy to ACU, and ignore any structures that are more than 10 from being in range of ACU
+                local iClosestDist = 100000
+                local iClosestUntilInRange = 100000
+                local iClosestMobileThreatUntilInRange = 100000
+                local iCurDist, iCurDistUntilInRange, iCurRange
+                local oClosestEnemyByDist
+                local oClosestEnemyUntilInRange
+                local oClosestMobileThreatUntilInRange
+                for iUnit, oUnit in tLZOrWZTeamData[M28Map.subrefTEnemyUnits] do
+                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oACU:GetPosition())
+                    iCurRange = math.max((oUnit[M28UnitInfo.refiDFRange] or 0), (oUnit[M28UnitInfo.refiIndirectRange] or 0))
+                    if iCurDist < iClosestDist then
+                        iClosestDist = iCurDist
+                        oClosestEnemyByDist = oUnit
+                    end
+                    iCurDistUntilInRange = iCurDist - iCurRange
+                    if iCurDistUntilInRange < iClosestUntilInRange then
+                        iClosestUntilInRange = iCurDistUntilInRange
+                        oClosestEnemyUntilInRange = oUnit
+                    end
+                    if iCurDistUntilInRange < iClosestMobileThreatUntilInRange and iCurRange > 0 and EntityCategoryContains(categories.MOBILE, oUnit.UnitId) and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout - M28UnitInfo.refCategoryCombatScout, oUnit.UnitId)) then
+                        iClosestMobileThreatUntilInRange = iCurDistUntilInRange
+                        oClosestMobileThreatUntilInRange = oUnit
+                    end
+                end
+                local iOurRange = (oACU[M28UnitInfo.refiDFRange] or 0)
+                --Ignore nearby enemy if will be a while before in our range, with the threshold depending on if it is is a mobile threat or not
+                if iClosestUntilInRange > (iOurRange + 15) and iCurDistUntilInRange > 15 and iClosestMobileThreatUntilInRange > 25 then
+                    bProceedWithLogic = false
+                    GetACUEarlyGameOrders(aiBrain, oACU) --Avoid some scenarios where ACU might get stuck in 'run to core zone' mode
+                end
             end
             if not(oACU[refbDoingInitialBuildOrder]) then bProceedWithLogic = true end
         end
