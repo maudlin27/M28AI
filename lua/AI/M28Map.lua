@@ -18,6 +18,7 @@ local M28Config = import('/mods/M28AI/lua/M28Config.lua')
 
 bMapLandSetupComplete = false --set to true once have finished setting up map (used to decide how long to wait before starting main aibrain logic)
 bWaterZoneInitialCreation = false --set to true once have finished code for recording water zones (note WZ setup wont be fully complete yet)
+bWaterZoneFirstTeamInitialisation = false --set to true when the first team runs logic for creating team related variables for a water zone
 bIsCampaignMap = false --set at start of game
 
 --Pathing types
@@ -1351,7 +1352,7 @@ function AssignSegmentsNearMexesToLandZones()
 
     --Polar depression for debugging
 
-    if bDebugMessages == true then
+    --[[if bDebugMessages == true then
         local tLocations = {{366, 0, 470}, {366, 0, 478}}
         --info: AssignSegmentsNearMexesToLandZones: Segment XZ=X92Z118; iEntry=4; tPosition={ table: 21FAFA50  366, 0, 470 }; Land label=8; tiSegmentXZAndZone[4] label=8
         --info: AssignSegmentsNearMexesToLandZones: Segment XZ=X92Z120; iEntry=4; tPosition={ table: 20998460  366, 0, 478 }; Land label=8; tiSegmentXZAndZone[4] label=8
@@ -1359,9 +1360,9 @@ function AssignSegmentsNearMexesToLandZones()
         tLocations[2][2] = GetSurfaceHeight(tLocations[2][1], tLocations[2][3])
         M28Utilities.DrawLocation(tLocations[1], 2) --red
         M28Utilities.DrawLocation(tLocations[2], 4) --gold
-        LOG('Label for location '..repru(tLocations[2])..'='..NavUtils.GetTerrainLabel('Land', tLocations[2])..'; Label for location '..repru(tLocations[1])..'='..NavUtils.GetTerrainLabel('Land', tLocations[1])..'; Terrain label of loc1='..(NavUtils.GetTerrainLabel('Land', tLocations[1]) or 'nil')..'Terrain label of loc2='..(NavUtils.GetTerrainLabel('Land', tLocations[2]) or 'nil'))
-        LOG('Travel time between location 1 and 2='..M28Utilities.GetTravelDistanceBetweenPositions(tLocations[1], tLocations[2], 'Land'))
-    end
+        LOG('Label for location '..repru(tLocations[2])..'='..(NavUtils.GetTerrainLabel('Land', tLocations[2]) or 'nil')..'; Label for location '..repru(tLocations[1])..'='..(NavUtils.GetTerrainLabel('Land', tLocations[1]) or 'nil')..'; Terrain label of loc1='..(NavUtils.GetTerrainLabel('Land', tLocations[1]) or 'nil')..'Terrain label of loc2='..(NavUtils.GetTerrainLabel('Land', tLocations[2]) or 'nil'))
+        LOG('Travel time between location 1 and 2='..(M28Utilities.GetTravelDistanceBetweenPositions(tLocations[1], tLocations[2], 'Land') or 'nil'))
+    end--]]
 
 
     function GetNeighbours(iSegmentX, iSegmentZ, tBasePosition)
@@ -1463,7 +1464,7 @@ function AssignSegmentsNearMexesToLandZones()
             end
         end
     end
-    if bDebugMessages == true then LOG('End of code X99Z34 land zone='..(tLandZoneBySegment[99][34] or 'nil')) end
+    if bDebugMessages == true then LOG('End of code') end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -1607,8 +1608,12 @@ local function AssignRemainingSegmentsToLandZones()
     local iLandPathingGroupWanted
     local iPlateauGroup
 
-    local iMaxSegmentZoneCopyThreshold = math.max(3, math.ceil(50 / iLandZoneSegmentSize)) --NOTE: If changing this consider if also want to change the value for AssignSegmentsNearMexesToLandZones; for first draft have this as slightly lower
+    local iMaxSegmentZoneCopyThreshold
+    if iMapSize > 512 then iMaxSegmentZoneCopyThreshold = math.max(3, math.ceil(50 / iLandZoneSegmentSize)) --NOTE: If changing this consider if also want to change the value for AssignSegmentsNearMexesToLandZones; for first draft have this as slightly lower
+    else iMaxSegmentZoneCopyThreshold = math.max(3, math.ceil(30 / iLandZoneSegmentSize))
+    end
     local iMaxSegmentSearchDistance = iMaxSegmentZoneCopyThreshold * 2
+    if bDebugMessages == true then LOG(sFunctionRef..': iMaxSegmentZoneCopyThreshold='..iMaxSegmentZoneCopyThreshold) end
 
     local iDistanceCap = math.max(40, iMaxSegmentSearchDistance * iLandZoneSegmentSize) --used from old appraoch kept in for the redundancy approach; in theory should never acutally be needed
 
@@ -1694,7 +1699,7 @@ local function AssignRemainingSegmentsToLandZones()
                 local iLandZoneToUse
                 local tiAdjacentSegmentsForSearchCountByMex = {}
                 tiAdjacentSegmentsForSearchCountByMex[0] = {{iRevisedBaseSegmentX, iRevisedBaseSegmentZ, iLandPathingGroupWanted, iLandPathingGroupWanted, tBasePosition}}
-                if bDebugMessages == true then LOG(sFunctionRef..': About to identify all segments in same pathing group as iRevisedBaseSegmentX and Z, X'..iRevisedBaseSegmentX..'Z'..iRevisedBaseSegmentZ..'; iLandPathingGroupWanted='..iLandPathingGroupWanted..'; tBasePosition='..repru(tBasePosition)..'; iMaxSegmentSearchDistance='..iMaxSegmentSearchDistance) end
+                if bDebugMessages == true then LOG(sFunctionRef..': About to cycle thorugh adjacent segments to try and find a land zone that should assign this to, in same pathing group as iRevisedBaseSegmentX and Z, X'..iRevisedBaseSegmentX..'Z'..iRevisedBaseSegmentZ..'; iLandPathingGroupWanted='..iLandPathingGroupWanted..'; tBasePosition='..repru(tBasePosition)..'; iMaxSegmentSearchDistance='..iMaxSegmentSearchDistance..'; iMaxSearchCycle='..iMaxSearchCycle) end
                 for iSearchCount = 1, iMaxSearchCycle + 1 do
                     tiAdjacentSegmentsForSearchCountByMex[iSearchCount] = {}
                     bHadSomeEntries = false
@@ -1702,31 +1707,35 @@ local function AssignRemainingSegmentsToLandZones()
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering iSearchCount-1='..(iSearchCount - 1)..'; tiSegmentXZAndZone='..repru(tiSegmentXZAndZone)) end
                         for iNeighbourEntry, tiNeighbourXZ in GetNeighbours(tiSegmentXZAndZone[1], tiSegmentXZAndZone[2], tiSegmentXZAndZone[5]) do
                             if bDebugMessages == true then LOG(sFunctionRef..': Cycling through each neighbour for iSearchCount='..iSearchCount..' and iEntry='..iEntry..', neighbour Segment XZ=X'..tiNeighbourXZ[1]..'Z'..tiNeighbourXZ[2]..'; iNeighbourEntry='..iNeighbourEntry..'; tLandZoneBySegment for this='..(tLandZoneBySegment[tiNeighbourXZ[1]][tiNeighbourXZ[2]] or 'nil')..'; tiSegmentsForAssignment[tiNeighbourXZ[1]][tiNeighbourXZ[2]]='..tostring(tiSegmentsForAssignment[tiNeighbourXZ[1]][tiNeighbourXZ[2]] or false)) end
-                            if not(tLandZoneBySegment[tiNeighbourXZ[1]][tiNeighbourXZ[2]]) and not(tiSegmentsForAssignment[tiNeighbourXZ[1]][tiNeighbourXZ[2]]) then
-                                if not(tLandZoneBySegment[tiNeighbourXZ[1]]) then tLandZoneBySegment[tiNeighbourXZ[1]] = {} end
-                                bSameLandLabel = true
-                                for iEntry, tPosition in tiNeighbourXZ[3] do
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Segment XZ=X'..tiNeighbourXZ[1]..'Z'..tiNeighbourXZ[2]..'; iEntry='..iEntry..'; tPosition='..repru(tPosition)..'; Land label='..(NavUtils.GetTerrainLabel('Land', tPosition) or 'nil')..'; tiSegmentXZAndZone[4] label='..(tiSegmentXZAndZone[4] or 'nil')) end
-                                    if not(NavUtils.GetTerrainLabel('Land', tPosition) == tiSegmentXZAndZone[4]) then
-                                        bSameLandLabel = false
-                                        break
+                            if not(tLandZoneBySegment[tiNeighbourXZ[1]][tiNeighbourXZ[2]]) then
+                                --The neighbour doesnt have an assignment either, if we haven't recorded it already as a segment for assignment, then receord it if it is in the same land terrain label as the base position
+                                if not(tiSegmentsForAssignment[tiNeighbourXZ[1]][tiNeighbourXZ[2]]) then
+                                    if not(tLandZoneBySegment[tiNeighbourXZ[1]]) then tLandZoneBySegment[tiNeighbourXZ[1]] = {} end
+                                    bSameLandLabel = true
+                                    for iEntry, tPosition in tiNeighbourXZ[3] do
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Segment XZ=X'..tiNeighbourXZ[1]..'Z'..tiNeighbourXZ[2]..'; iEntry='..iEntry..'; tPosition='..repru(tPosition)..'; Land label='..(NavUtils.GetTerrainLabel('Land', tPosition) or 'nil')..'; tiSegmentXZAndZone[4] label='..(tiSegmentXZAndZone[4] or 'nil')) end
+                                        if not(NavUtils.GetTerrainLabel('Land', tPosition) == tiSegmentXZAndZone[4]) then
+                                            bSameLandLabel = false
+                                            break
+                                        end
                                     end
-                                end
 
-                                if bSameLandLabel then
-                                    if not(tiSegmentsForAssignment[tiNeighbourXZ[1]]) then tiSegmentsForAssignment[tiNeighbourXZ[1]] = {} end
-                                    tiSegmentsForAssignment[tiNeighbourXZ[1]][tiNeighbourXZ[2]] = true
-                                    table.insert(tiAdjacentSegmentsForSearchCountByMex[iSearchCount], {tiNeighbourXZ[1], tiNeighbourXZ[2], iLandPathingGroupWanted, iLandPathingGroupWanted, GetPositionFromPathingSegments(tiNeighbourXZ[1], tiNeighbourXZ[2])})
-                                    bHadSomeEntries = true
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering segment X'..tiNeighbourXZ[1]..'Z'..tiNeighbourXZ[2]..'; iCurLandLabel='..(tiSegmentXZAndZone[4] or 'nil')..'; adding to table of valid locations') end
-                                else
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Have unpathable segment X'..tiNeighbourXZ[1]..'Z'..tiNeighbourXZ[2]..'; iCurLandLabel='..(tiSegmentXZAndZone[4] or 'nil')..'; adding to table of segments that cant path to') end
+                                    if bSameLandLabel then
+                                        if not(tiSegmentsForAssignment[tiNeighbourXZ[1]]) then tiSegmentsForAssignment[tiNeighbourXZ[1]] = {} end
+                                        tiSegmentsForAssignment[tiNeighbourXZ[1]][tiNeighbourXZ[2]] = true
+                                        table.insert(tiAdjacentSegmentsForSearchCountByMex[iSearchCount], {tiNeighbourXZ[1], tiNeighbourXZ[2], iLandPathingGroupWanted, iLandPathingGroupWanted, GetPositionFromPathingSegments(tiNeighbourXZ[1], tiNeighbourXZ[2])})
+                                        bHadSomeEntries = true
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering segment X'..tiNeighbourXZ[1]..'Z'..tiNeighbourXZ[2]..'; iCurLandLabel='..(tiSegmentXZAndZone[4] or 'nil')..'; adding to table of valid locations') end
+                                    else
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Have unpathable segment X'..tiNeighbourXZ[1]..'Z'..tiNeighbourXZ[2]..'; iCurLandLabel='..(tiSegmentXZAndZone[4] or 'nil')..'; adding to table of segments that cant path to') end
+                                    end
                                 end
                             else
                                 --Have a valid segment so use this as the land zone unless have reached iCopyZoneThreshold
-                                if bDebugMessages == true then LOG(sFunctionRef..': Already considered or recorded this zone, iLandZoneToUse='..(iLandZoneToUse or 'nil')..'; iSearchCount='..iSearchCount..'; iCopyZoneThreshold='..(iCopyZoneThreshold or 'nil')..'; Neighbour land zone='..(tLandZoneBySegment[tiNeighbourXZ[1]][tiNeighbourXZ[2]] or 'nil')..'; Neighbour segment=X'..tiNeighbourXZ[1]..'Z'..tiNeighbourXZ[2]) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Already considered or recorded this zone will check if it is within copy zone threshold, iLandZoneToUse='..(iLandZoneToUse or 'nil')..'; iSearchCount='..iSearchCount..'; iCopyZoneThreshold='..(iCopyZoneThreshold or 'nil')..'; Neighbour land zone='..(tLandZoneBySegment[tiNeighbourXZ[1]][tiNeighbourXZ[2]] or 'nil')..'; Neighbour segment=X'..tiNeighbourXZ[1]..'Z'..tiNeighbourXZ[2]) end
                                 if not(iLandZoneToUse) and iSearchCount < (iCopyZoneThreshold or 10000) then
                                     iLandZoneToUse = tLandZoneBySegment[tiNeighbourXZ[1]][tiNeighbourXZ[2]]
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Are within copy zone threshold so will assign to this zone '..iLandZoneToUse) end
                                 end
                             end
                         end
@@ -1788,28 +1797,51 @@ local function AssignRemainingSegmentsToLandZones()
         end
 
     end
-
     --Cycle through every nth segment on the map - only consider every iMaxSegmentSearchDistance 'th segment (for performance reasons), and check if it has nearby land zones, and if not then create a new land zone at this position
-    for iBaseSegmentX = iMaxSegmentSearchDistance, iMaxLandSegmentX, iMaxSegmentSearchDistance do
-        iBasePositionX = iBasePositionX + iLandZoneSegmentSize * iMaxSegmentSearchDistance --Manually done instead of GetPositionFromPathingSegments for performance
-        iBasePositionZ = - iLandZoneSegmentSize * 0.5 + rMapPotentialPlayableArea[2]
+    local iXTotalIntervals = math.floor(iMaxLandSegmentX / iMaxSegmentSearchDistance)
+    local iXDifToSegmentSize = iMaxLandSegmentX - iMaxSegmentSearchDistance * iXTotalIntervals
+    local iXStartSegmentAdjust =  math.floor((-iXDifToSegmentSize + iMaxSegmentSearchDistance) * -0.5)
+    local iXStartSegment = iXStartSegmentAdjust + iMaxSegmentSearchDistance
+    local iXEndSegment = iXStartSegmentAdjust + iMaxSegmentSearchDistance * iXTotalIntervals
+    local iDistanceBetweenSquares = iMaxSegmentSearchDistance * iLandZoneSegmentSize
+    local iStartPositionX = iXStartSegment * iLandZoneSegmentSize - iLandZoneSegmentSize * 0.5 + rMapPotentialPlayableArea[1] - iDistanceBetweenSquares
+
+    local iZTotalIntervals = math.floor(iMaxLandSegmentZ / iMaxSegmentSearchDistance)
+    local iZDifToSegmentSize = iMaxLandSegmentZ - iMaxSegmentSearchDistance * iZTotalIntervals
+    local iZStartSegmentAdjust =  math.floor((-iZDifToSegmentSize + iMaxSegmentSearchDistance) * -0.5)
+    local iZStartSegment = iZStartSegmentAdjust + iMaxSegmentSearchDistance
+    local iZEndSegment = iZStartSegmentAdjust + iMaxSegmentSearchDistance * iZTotalIntervals
+
+    iBasePositionX = iStartPositionX
+    if bDebugMessages == true then LOG(sFunctionRef..': iMaxLandSegmentX='..iMaxLandSegmentX..'; iMaxSegmentSearchDistance='..iMaxSegmentSearchDistance..'; iXTotalIntervals='..iXTotalIntervals..'; iXDifToSegmentSize='..iXDifToSegmentSize..'; iXStartSegmentAdjust='..iXStartSegmentAdjust..'; iXStartSegment='..iXStartSegment..'; iXEndSegment='..iXEndSegment..'; iStartPositionX='..iStartPositionX..'; rMapPotentialPlayableArea='..repru(rMapPotentialPlayableArea)..'; iDistanceBetweenSquares='..iDistanceBetweenSquares) end
+
+    for iBaseSegmentX = iXStartSegment, iXEndSegment, iMaxSegmentSearchDistance do
+        iBasePositionX = iBasePositionX + iDistanceBetweenSquares --Manually done instead of GetPositionFromPathingSegments for performance
+        iBasePositionZ = iZStartSegment * iLandZoneSegmentSize - iLandZoneSegmentSize * 0.5 + rMapPotentialPlayableArea[2] - iDistanceBetweenSquares
 
         if not(tLandZoneBySegment[iBaseSegmentX]) then tLandZoneBySegment[iBaseSegmentX] = {} end
         if not(tTempZoneTravelDistanceBySegment[iBaseSegmentX]) then
             tTempZoneTravelDistanceBySegment[iBaseSegmentX] = {}
             tTempZonePlateauBySegment[iBaseSegmentX] = {}
         end
-        for iBaseSegmentZ = iMaxSegmentSearchDistance, iMaxLandSegmentZ, iMaxSegmentSearchDistance do
-            iBasePositionZ = iBasePositionZ + iLandZoneSegmentSize * iMaxSegmentSearchDistance
+        for iBaseSegmentZ = iZStartSegment, iZEndSegment, iMaxSegmentSearchDistance do
+            iBasePositionZ = iBasePositionZ + iDistanceBetweenSquares
             --Check we dont already have a zone assigned
             CheckForNearbyZonesAndCreateNewZoneIfNeeded(iBaseSegmentX, iBaseSegmentZ, iBasePositionX, iBasePositionZ, iMaxSegmentSearchDistance, iMaxSegmentZoneCopyThreshold)
+            if bDebugMessages == true then
+                LOG('iBaseSegmentX = '..iBaseSegmentX..'; iBaseSegmentZ='..iBaseSegmentZ..'; iBasePositionX='..iBasePositionX..'; iBasePositionZ='..iBasePositionZ)
+                M28Utilities.DrawLocation({iBasePositionX, GetSurfaceHeight(iBasePositionX, iBasePositionZ), iBasePositionZ}, 3, 10, iLandZoneSegmentSize)
+            end
         end
         --WaitTicks(1)
         if bDebugMessages == true then LOG(sFunctionRef..': Finished all iBaseSegmentX='..iBaseSegmentX..'; moving to next X segments, systemtime='..GetSystemTimeSecondsOnlyForProfileUse()) end
     end
     --Now go through each segment considered and pick the lowest value distance as the assigned land zone
     --AssignTempSegmentsWithDistance()
-    if bDebugMessages == true then LOG(sFunctionRef..': Finished assigning land zones for locations with no nearby zones, systemtime='..GetSystemTimeSecondsOnlyForProfileUse()) end
+    if bDebugMessages == true then
+        LOG(sFunctionRef..': Finished assigning land zones for locations with no nearby zones, systemtime='..GetSystemTimeSecondsOnlyForProfileUse())
+        WaitTicks(10)
+    end
 
     --Now cycle through every segment on the map, and assign to a land zone (or create a new land zone if none nearby, but hopefully after the above code this will be rare)
 
@@ -2110,7 +2142,6 @@ local function AssignMexesALandZone()
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Finished recording land zone mexes for iPlateau='..iPlateau..'; Size of land zones table='..table.getn(tAllPlateaus[iPlateau][subrefPlateauLandZones])) end
     end
-
 
     --Debug - draw the groupings of mexes with rectangles around them to show how they've been grouped, with a different colour for each plateau group:
     if bDebugMessages == true then

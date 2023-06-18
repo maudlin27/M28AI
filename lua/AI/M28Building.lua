@@ -997,7 +997,14 @@ function OnMexConstructionStarted(oUnit)
     local sFunctionRef = 'OnMexConstructionStarted'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if not(M28Map.bMapLandSetupComplete) or GetGameTimeSeconds() <= 4 or not(M28Map.bWaterZoneInitialCreation) then
+        while (not(M28Map.bMapLandSetupComplete) or GetGameTimeSeconds() <= 4 or not(M28Map.bWaterZoneInitialCreation)) do
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitTicks(1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            if GetGameTimeSeconds() >= 6 then break end
+        end
+    end
 
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
     local tMexLocations
@@ -1072,19 +1079,36 @@ function OnMexConstructionStarted(oUnit)
     if not(bFoundMexLocation) then
         --Is the reason we cant find any unbuilt locations because a mex is being upgraded? Doing a reprs of a mex being upgraded, CanTakeDamage was false and IsUpgrade was true, so use these to check
         if oUnit.CanTakeDamage and not(oUnit.IsUpgrade) and (GetGameTimeSeconds() - (tLZOrWZData[M28Map.refiTimeOfLastMexDeath] or 0)) > 2.1 then
-            M28Utilities.ErrorHandler('OnCreate triggered for a mex but no unbuilt locations near it, iPlateau='..iPlateau..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil'), true)
-            if bDebugMessages == true then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations]='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit position='..repru(oUnit:GetPosition())..'; reprs of unit='..reprs(oUnit)) end
+            --Ignore if early game and is owned by non-human brain, or campaign and owned by non-M28AI non-human brain
+            if oUnit:GetAIBrain().BrainType == 'Human' or oUnit:GetAIBrain().M28AI or (GetGameTimeSeconds() >= 10 and not(M28Map.bIsCampaignMap)) then
+                M28Utilities.ErrorHandler('OnCreate triggered for a mex but no unbuilt locations near it, iPlateau='..iPlateau..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Map setup complete='..tostring(M28Map.bMapLandSetupComplete)..'; bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation or false), true)
+                if bDebugMessages == true then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations]='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit position='..repru(oUnit:GetPosition())..'; reprs of unit='..reprs(oUnit)) end
+            end
         end
     end
 
     --Add mex to enemy unit table if underwater, due to flaw with current approach - i.e. to reduce overhead all AI regardless of team use the same table for if a mex has been built; engineers are meant to either build on unbuilt mexes, or try and reclaim if the enemy is there; however without this step they effectively end up thinking a teammate has the mex so they never tyr sending an engineer to build or capture.  For land it's not an issue as would expect land scouts or other land units to reveal the mexes anyway
     if iWaterZone > 0 then
         local tTeamsUpdated = {}
-        for iBrain, oBrain in M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.subreftoEnemyBrains] do
-            if oBrain.M28AI and not(tTeamsUpdated[oBrain.M28Team]) then
-                tTeamsUpdated[oBrain.M28Team] = true
-                --(aiBrain, oUnit, bAlreadyUpdatedPosition, bAlreadyTriedReassignment, bIgnoreIfAssignedAlready)
-                M28Team.AssignUnitToLandZoneOrPond(oBrain, oUnit, false,                    false,                      true)
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.subreftoEnemyBrains]) == false then
+            for iBrain, oBrain in M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.subreftoEnemyBrains] do
+                if oBrain.M28AI and not(tTeamsUpdated[oBrain.M28Team]) then
+                    tTeamsUpdated[oBrain.M28Team] = true
+                    --(aiBrain, oUnit, bAlreadyUpdatedPosition, bAlreadyTriedReassignment, bIgnoreIfAssignedAlready)
+                    M28Team.AssignUnitToLandZoneOrPond(oBrain, oUnit, false,                    false,                      true)
+                end
+            end
+        else
+            --E.g. civilians that own mexes
+            local iMexBrainIndex = oUnit:GetAIBrain():GetArmyIndex()
+            for iBrain, oBrain in ArmyBrains do
+                if not(IsAlly(oBrain:GetArmyIndex(), iMexBrainIndex)) then
+                    if oBrain.M28AI and not(tTeamsUpdated[oBrain.M28Team]) then
+                        tTeamsUpdated[oBrain.M28Team] = true
+                        --(aiBrain, oUnit, bAlreadyUpdatedPosition, bAlreadyTriedReassignment, bIgnoreIfAssignedAlready)
+                        M28Team.AssignUnitToLandZoneOrPond(oBrain, oUnit, false,                    false,                      true)
+                    end
+                end
             end
         end
     end
@@ -1981,7 +2005,7 @@ end
 
 function ReserveLocationsForGameEnder(oUnit)
     --Reserve locations to provide shield coverage for oUnit
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ReserveLocationsForGameEnder'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

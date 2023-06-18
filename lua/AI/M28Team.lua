@@ -637,7 +637,7 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
         if not(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) then oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam] = {} end
         oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][aiBrain.M28Team] = {iPlateau, iLandZone}
         if IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
-            if bDebugMessages == true then LOG(sFunctionRef..': Is an enemy so will add to list of enemy air units or enemy units depending on if it is air, Is team data for this plateau and land zone empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team]))..'; aiBrain='..aiBrain.Nickname..'; team='..aiBrain.M28Team..'; Unit position='..repru(oUnit:GetPosition())..'; bIsEnemyAirUnit='..tostring(bIsEnemyAirUnit or false)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Is an enemy so will add to list of enemy air units or enemy units depending on if it is air, Is team data for this plateau and land zone empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team]))..'; aiBrain='..aiBrain.Nickname..'; team='..aiBrain.M28Team..'; Unit position='..repru(oUnit:GetPosition())..'; bIsEnemyAirUnit='..tostring(bIsEnemyAirUnit or false)..'; M28Map.bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation or false)) end
             if bIsEnemyAirUnit then
                 table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.reftLZEnemyAirUnits], oUnit)
             else
@@ -667,7 +667,18 @@ function AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone, bIsEnemyAirUnit)
     local sFunctionRef = 'AddUnitToWaterZoneForBrain'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    if not(M28Map.bWaterZoneInitialCreation) or not(M28Map.bWaterZoneFirstTeamInitialisation) then
+        if GetGameTimeSeconds() >= 10 then
+            M28Utilities.ErrorHandler('Trying to add unit to water zone but we havent setup initial water zone variables yet, will try waiting 1 second, bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation or false)..'; M28Map.bWaterZoneFirstTeamInitialisation='..tostring(M28Map.bWaterZoneFirstTeamInitialisation or false))
+            WaitSeconds(1)
+        else
 
+            while not(M28Map.bWaterZoneInitialCreation) or not(M28Map.bWaterZoneFirstTeamInitialisation) do
+                WaitTicks(1)
+                if GetGameTimeSeconds() >= 11 then break end
+            end
+        end
+    end
 
     if EntityCategoryContains(categories.MOBILE * categories.AIR, oUnit.UnitId) and not(bIsEnemyAirUnit) then M28Utilities.ErrorHandler('Havent flagged that an air unit is an air unit') end
 
@@ -685,12 +696,13 @@ function AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone, bIsEnemyAirUnit)
                 RemoveUnitFromCurrentLandZone(aiBrain, oUnit)--]]
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Considering adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to iWaterZone '..(iWaterZone or 'nil')..' for brain '..aiBrain.Nickname..'; bAddToZone='..tostring(bAddToZone)..'; Is enemy='..tostring(IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()))..'; Is ally='..tostring(IsAlly(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Considering adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to iWaterZone '..(iWaterZone or 'nil')..' for brain '..aiBrain.Nickname..'; bAddToZone='..tostring(bAddToZone)..'; Is enemy='..tostring(IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()))..'; Is ally='..tostring(IsAlly(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()))..'; bWaterZoneFirstTeamInitialisation='..tostring(M28Map.bWaterZoneFirstTeamInitialisation or false)) end
     if bAddToZone then
         if not(oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam]) then oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam] = {} end
         oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][aiBrain.M28Team] = iWaterZone
         local iPond = M28Map.tiPondByWaterZone[iWaterZone]
         local tWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][aiBrain.M28Team]
+        if bDebugMessages == true then LOG(sFunctionRef..': iPond='..(iPond or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Team='..(aiBrain.M28Team or 'nil')..'; IsEnemy='..tostring(IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()))..'; Is tWZTeamData empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData))) end
         if IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
             if bDebugMessages == true then LOG(sFunctionRef..': Is an enemy so will add to list of enemy air units or enemy units depending on if it is air; aiBrain='..aiBrain.Nickname..'; team='..aiBrain.M28Team..'; Unit position='..repru(oUnit:GetPosition())..'; bIsEnemyAirUnit='..tostring(bIsEnemyAirUnit or false)) end
             if bIsEnemyAirUnit then
@@ -2371,7 +2383,9 @@ function WaterZoneTeamInitialisation(iTeam)
     local sFunctionRef = 'WaterZoneTeamInitialisation'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     local iCurPlateau
+    M28Map.bWaterZoneFirstTeamInitialisation = true
     tTeamData[iTeam][subrefiWaterZonesWantingSignificantMAAByPlateau] = {}
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at gamestime='..GetGameTimeSeconds()..', iTeam='..iTeam) end
     for iPond, tPondSubtable in M28Map.tPondDetails do
         for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
             iCurPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tWZData[M28Map.subrefMidpoint])
