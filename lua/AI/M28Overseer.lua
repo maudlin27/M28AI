@@ -180,7 +180,7 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
     local tFriendlyACU = aiBrain:GetListOfUnits(categories.COMMAND, false, true)
     if bDebugMessages == true then LOG(sFunctionRef..': Is table of friendly ACU empty='..tostring(M28Utilities.IsTableEmpty(tFriendlyACU))) end
     if M28Utilities.IsTableEmpty(tFriendlyACU) == false then
-        local sBlueprint = M28Factory.GetBlueprintsThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryAirFactory, tFriendlyACU[1])
+        local sBlueprint = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryAirFactory, tFriendlyACU[1])
         if bDebugMessages == true then LOG(sFunctionRef..': If ACU '..tFriendlyACU[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(tFriendlyACU[1])..' tries to build an air factory, sBLueprint is '..(sBlueprint or 'nil')) end
         if not(sBlueprint) then
             bAirFactoriesCantBeBuilt = true

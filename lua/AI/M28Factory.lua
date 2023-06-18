@@ -30,7 +30,7 @@ refiFactoryTypeOther = 4
 refiBuildCountByBlueprint = 'M28FacBC' --against oFactory, returns table with key as the unitID, which returns the number of times the factory has been sent an order to build the unit
 
 function GetMostExpensiveBlueprintOfCategory(iCategoryCondition)
-    --Much more simplified version of 'getblueprintsthatcanbuildofcategory', for cases where we dont yet have the engineer so want a potential blueprint to work with
+    --Much more simplified version of 'GetBlueprintThatCanBuildOfCategory', for cases where we dont yet have the engineer so want a potential blueprint to work with
     local tBlueprints = EntityCategoryGetUnitList(iCategoryCondition)
     local iHighestMassCost = 0
     local tAllBlueprints = __blueprints
@@ -46,10 +46,10 @@ function GetMostExpensiveBlueprintOfCategory(iCategoryCondition)
     return sMostExpensiveBlueprint
 end
 
-function GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
+function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
     --returns nil if cant find any blueprints that can build
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'GetBlueprintsThatCanBuildOfCategory'
+    local sFunctionRef = 'GetBlueprintThatCanBuildOfCategory'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
@@ -383,9 +383,9 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iTargetLand
                 if bInSameIsland then iBaseCategoryWanted = M28UnitInfo.refCategoryMobileLandShield
                 else iBaseCategoryWanted = iBaseCategoryWanted * categories.AMPHIBIOUS + iBaseCategoryWanted * categories.HOVER
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': LZ wants mobile stealths so will build them; blueprint expect to build from this='..(GetBlueprintsThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory) or 'nil')) end
+                if bDebugMessages == true then LOG(sFunctionRef..': LZ wants mobile stealths so will build them; blueprint expect to build from this='..(GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory) or 'nil')) end
                 --If dont have any blueprints to build then look to support indirect or DF instead
-                local sBPIDToBuild = GetBlueprintsThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory)
+                local sBPIDToBuild = GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory)
                 if sBPIDToBuild then
                     sBPIDToBuild = AdjustBlueprintForOverrides(oFactory:GetAIBrain(), sBPIDToBuild, tLZTargetTeamData, M28UnitInfo.GetUnitTechLevel(oFactory))
                 end
@@ -398,9 +398,9 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iTargetLand
                     if bInSameIsland then iBaseCategoryWanted = M28UnitInfo.refCategoryMobileLandStealth
                     else iBaseCategoryWanted = iBaseCategoryWanted * categories.AMPHIBIOUS + iBaseCategoryWanted * categories.HOVER
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': LZ wants mobile shilelds so will build them; blueprint expect to build from this='..(GetBlueprintsThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory) or 'nil')) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': LZ wants mobile shilelds so will build them; blueprint expect to build from this='..(GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory) or 'nil')) end
                     --If dont have any blueprints to build then look to support indirect or DF instead
-                    local sBPIDToBuild = GetBlueprintsThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory)
+                    local sBPIDToBuild = GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory)
                     if sBPIDToBuild then
                         sBPIDToBuild = AdjustBlueprintForOverrides(oFactory:GetAIBrain(), sBPIDToBuild, tLZTargetTeamData, M28UnitInfo.GetUnitTechLevel(oFactory))
                     end
@@ -423,7 +423,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iTargetLand
                         iBaseCategoryWanted = M28UnitInfo.refCategoryDFTank
                         if bDebugMessages == true then LOG(sFunctionRef..': Enemies aren earby so want DF tanks more than skirmishers once we have a couple of skirmishers') end
                     end
-                    if not(GetBlueprintsThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory)) then
+                    if not(GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory)) then
                         iBaseCategoryWanted = M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategorySkirmisher
                     else
                         --We can build skirmishers, but if we have built fewer than 15 T3 tanks, and enemy is using T2 and lower tech, consider building t3 tanks instead
@@ -605,7 +605,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
     --subfunctions to mean we can do away with the 'current condition == 1, == 2.....==999 type approach making it much easier to add to
     function ConsiderBuildingCategory(iCategoryToBuild)
-        sBPIDToBuild = GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oFactory, nil, nil, nil, nil, false)
+        sBPIDToBuild = GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oFactory, nil, nil, nil, nil, false)
         if bDebugMessages == true then
             LOG(sFunctionRef .. ': Time=' .. GetGameTimeSeconds() .. ' Factory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; LZ=' .. iLandZone .. '; iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; sBPIDToBuild before adjusting for override=' .. (sBPIDToBuild or 'nil'))
         end
@@ -1850,7 +1850,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
 
     --subfunctions to mean we can do away with the 'current condition == 1, == 2.....==999 type approach making it much easier to add to
     function ConsiderBuildingCategory(iCategoryToBuild)
-        sBPIDToBuild = GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oFactory, nil, nil, nil, nil, false)
+        sBPIDToBuild = GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oFactory, nil, nil, nil, nil, false)
 
         if bDebugMessages == true then
             LOG(sFunctionRef .. ': Time=' .. GetGameTimeSeconds() .. ' Factory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; LZ=' .. iLandZone .. '; iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; sBPIDToBuild before adjusting for override=' .. (sBPIDToBuild or 'nil'))
@@ -2304,7 +2304,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
 
     --subfunctions to mean we can do away with the 'current condition == 1, == 2.....==999 type approach making it much easier to add to
     function ConsiderBuildingCategory(iCategoryToBuild)
-        sBPIDToBuild = GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oFactory, nil, nil, nil, nil, false)
+        sBPIDToBuild = GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oFactory, nil, nil, nil, nil, false)
         if bDebugMessages == true then
             LOG(sFunctionRef .. ': Time=' .. GetGameTimeSeconds() .. ' Factory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; WZ=' .. iWaterZone .. '; iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; sBPIDToBuild before adjusting for override=' .. (sBPIDToBuild or 'nil'))
         end
@@ -2769,7 +2769,7 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
     local iCurrentConditionToTry = 0
 
     function ConsiderBuildingCategory(iCategoryToBuild, bOptionalGetCheapest)
-        sBPIDToBuild = GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oFactory, nil, nil, bOptionalGetCheapest, nil, false)
+        sBPIDToBuild = GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oFactory, nil, nil, bOptionalGetCheapest, nil, false)
         if bDebugMessages == true then
             LOG(sFunctionRef .. ': Time=' .. GetGameTimeSeconds() .. ' Factory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; LZ=' .. iLandZone .. '; iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; sBPIDToBuild before adjusting for override=' .. (sBPIDToBuild or 'nil'))
         end

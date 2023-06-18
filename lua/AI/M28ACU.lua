@@ -233,7 +233,7 @@ end
 
 function GetACUEarlyGameOrders(aiBrain, oACU)
     local sFunctionRef = 'GetACUEarlyGameOrders'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
@@ -358,7 +358,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                 if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then
                                     ACUActionBuildPower(aiBrain, oACU)
                                     if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then
-                                        oACU[refbDoingInitialBuildOrder] = false
+                                        if not(M28Map.bIsCampaignMap) or GetGameTimeSeconds() <= 540 then oACU[refbDoingInitialBuildOrder] = false end
                                     end
                                 end
                             end
@@ -378,6 +378,29 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                     else
                         --Finish the initial BO
                         oACU[refbDoingInitialBuildOrder] = false
+                    end
+                end
+            end
+            --Campaign backup in case of unit restrictions
+            if bDebugMessages == true then LOG(sFunctionRef..': Campaign redundancy for if ACU has no order, reprs of last orders='..reprs(oACU[M28Orders.reftiLastOrders])..'; oACU[refbDoingInitialBuildOrder]='..tostring(oACU[refbDoingInitialBuildOrder])..'; M28Map.bIsCampaignMap='..tostring(M28Map.bIsCampaignMap)..'; Is table of last orders empty='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))) end
+            if M28Map.bIsCampaignMap and M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) and oACU[refbDoingInitialBuildOrder] then
+                ACUActionBuildMex(aiBrain, oACU)
+                if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then
+                    ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData)
+                    if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then
+                        ACUActionBuildPower(aiBrain, oACU)
+                        if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then
+                            ACUActionBuildFactory(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryLandFactory, M28Engineer.refActionBuildLandFactory)
+                            if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then
+                                ACUActionBuildFactory(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryAirFactory, M28Engineer.refActionBuildAirFactory)
+                                if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then
+                                    ACUActionBuildFactory(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryNavalFactory, M28Engineer.refActionBuildNavalFactory)
+                                    if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then
+                                        M28Utilities.ErrorHandler('Unable to get any action for ACU')
+                                    end
+                                end
+                            end
+                        end
                     end
                 end
             end

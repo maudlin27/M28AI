@@ -2026,30 +2026,32 @@ local function AssignMexesALandZone()
 
 
     for iPlateau, tPlateauSubtable in tAllPlateaus do
-        for iMex, tMex in tPlateauSubtable[subrefPlateauMexes] do
-            --Only consider if mex isnt underwater
-            if tMex[2] >= iMapWaterHeight then
-                --Find the closest start point
-                iClosestDistTravel = iTravelDistThreshold --Ignore points whose travel distance is further away than this
-                iClosestBrainIndex = nil
-                for iBrainIndex, tStartPoint in tRelevantStartPointsByIndex do
-                    if tiStartIndexPlateauAndLZ[iBrainIndex][1] == iPlateau then
-                        iCurDistStraightLine = M28Utilities.GetDistanceBetweenPositions(tMex, tStartPoint)
-                        if iCurDistStraightLine <= iStraightLineThreshold then
-                            --Get the land pathing distance
-                            iCurDistTravel = M28Utilities.GetTravelDistanceBetweenPositions(tMex, tStartPoint, refPathingTypeLand)
-                            if iCurDistTravel < iClosestDistTravel then
-                                iClosestDistTravel = iCurDistTravel
-                                iClosestBrainIndex = iBrainIndex
+        if M28Utilities.IsTableEmpty(tPlateauSubtable[subrefPlateauMexes]) == false then
+            for iMex, tMex in tPlateauSubtable[subrefPlateauMexes] do
+                --Only consider if mex isnt underwater
+                if tMex[2] >= iMapWaterHeight then
+                    --Find the closest start point
+                    iClosestDistTravel = iTravelDistThreshold --Ignore points whose travel distance is further away than this
+                    iClosestBrainIndex = nil
+                    for iBrainIndex, tStartPoint in tRelevantStartPointsByIndex do
+                        if tiStartIndexPlateauAndLZ[iBrainIndex][1] == iPlateau then
+                            iCurDistStraightLine = M28Utilities.GetDistanceBetweenPositions(tMex, tStartPoint)
+                            if iCurDistStraightLine <= iStraightLineThreshold then
+                                --Get the land pathing distance
+                                iCurDistTravel = M28Utilities.GetTravelDistanceBetweenPositions(tMex, tStartPoint, refPathingTypeLand)
+                                if iCurDistTravel < iClosestDistTravel then
+                                    iClosestDistTravel = iCurDistTravel
+                                    iClosestBrainIndex = iBrainIndex
+                                end
                             end
                         end
                     end
-                end
-                if iClosestBrainIndex then
-                    if not(tiStartResourcesByBrainIndex[iClosestBrainIndex]) then tiStartResourcesByBrainIndex[iClosestBrainIndex] = {} end
-                    table.insert(tiStartResourcesByBrainIndex[iClosestBrainIndex], tMex)
-                    AddMexToLandZone(iPlateau, tiStartIndexPlateauAndLZ[iClosestBrainIndex][2], iMex, tiPlateauLandZoneByMexRef)
-                    if bDebugMessages == true then LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLandZone='..(tiStartIndexPlateauAndLZ[iClosestBrainIndex][2] or 'nil')..'; Adding iMex='..iMex..'; at position '..repru(tMex)..'; to the start position for aiBrain index='..(iClosestBrainIndex or 'nil')..' which is at '..repru(tRelevantStartPointsByIndex[iClosestBrainIndex])) end
+                    if iClosestBrainIndex then
+                        if not(tiStartResourcesByBrainIndex[iClosestBrainIndex]) then tiStartResourcesByBrainIndex[iClosestBrainIndex] = {} end
+                        table.insert(tiStartResourcesByBrainIndex[iClosestBrainIndex], tMex)
+                        AddMexToLandZone(iPlateau, tiStartIndexPlateauAndLZ[iClosestBrainIndex][2], iMex, tiPlateauLandZoneByMexRef)
+                        if bDebugMessages == true then LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLandZone='..(tiStartIndexPlateauAndLZ[iClosestBrainIndex][2] or 'nil')..'; Adding iMex='..iMex..'; at position '..repru(tMex)..'; to the start position for aiBrain index='..(iClosestBrainIndex or 'nil')..' which is at '..repru(tRelevantStartPointsByIndex[iClosestBrainIndex])) end
+                    end
                 end
             end
         end

@@ -785,7 +785,7 @@ function GetPotentialAdjacencyLocations(aiBrain, sBlueprintToBuild, tTargetLocat
     if bDebugMessages == true then LOG(sFunctionRef..': sBLueprintToBuild='..(sBlueprintToBuild or 'nil')..'; tTargetLocation='..repru(tTargetLocation)..'; iMaxAreaToSearch='..iMaxAreaToSearch..'; Is iCatToBuildBy empty='..tostring(iCatToBuildBy == nil)..'; is oUnitToBuildBy empty='..tostring(oUnitToBuildBy == nil)..'; bStopWhenHaveValidLocation='..tostring(bStopWhenHaveValidLocation or false)) end
 
     if iCatToBuildBy then
-        --sBlueprintBuildBy = M28FactoryOverseer.GetBlueprintsThatCanBuildOfCategory(aiBrain, iCatToBuildBy, oEngineer)--, false, false)
+        --sBlueprintBuildBy = M28FactoryOverseer.GetBlueprintThatCanBuildOfCategory(aiBrain, iCatToBuildBy, oEngineer)--, false, false)
         iPlateauOrZero, iLandOrWaterZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
         if (iLandOrWaterZone or 0) == 0 then
             iWaterZone = M28Map.GetWaterZoneFromPosition(tTargetLocation)
@@ -955,8 +955,8 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code for action (if specified) '..(iOptionalEngineerAction or 'nil')..', Engineer UC='..GetEngineerUniqueCount(oEngineer)..'; Engineer LC='..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; Techlevel='..M28UnitInfo.GetUnitTechLevel(oEngineer)..'; tAlternativePositionToLookFrom='..repru(tAlternativePositionToLookFrom or {'nil'})..'; bBuildCheapestStructure='..tostring((bBuildCheapestStructure or false))..'; All blueprints that meet the category='..repru(EntityCategoryGetUnitList(iCategoryToBuild))..'; iMaxAreaToSearch='..(iMaxAreaToSearch or 'nil')) end
 
     --Get the blueprint to build
-    --GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, iOptionalCategoryThatMustBeAbleToBuild, bGetCheapest)
-    local sBlueprintToBuild = sBlueprintOverride or M28Factory.GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oEngineer, false, false, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure)
+    --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, iOptionalCategoryThatMustBeAbleToBuild, bGetCheapest)
+    local sBlueprintToBuild = sBlueprintOverride or M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oEngineer, false, false, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure)
 
 
     if sBlueprintToBuild == nil then
@@ -970,7 +970,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
             elseif M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryNavalFactory, iCategoryToBuild) then
                 iCategoryToBuild = M28UnitInfo.refCategoryNavalFactory
             end
-            sBlueprintToBuild = M28Factory.GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oEngineer, false, false, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure)
+            sBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oEngineer, false, false, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure)
         end
         if not(sBlueprintToBuild) then
             if not(aiBrain[M28Overseer.refbCloseToUnitCap]) then
@@ -983,7 +983,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
 
             --If trying to build experimental, then just build any kind of experimental
             if M28Overseer.bUnitRestrictionsArePresent and M28Utilities.DoesCategoryContainCategory(iCategoryToBuild, M28UnitInfo.refCategoryExperimentalLevel) and aiBrain:GetEconomyStoredRatio('MASS') >= 0.35 then
-                sBlueprintToBuild = M28Factory.GetBlueprintsThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryExperimentalLevel -categories.TRANSPORTATION - categories.TRANSPORTFOCUS, oEngineer, false, false, nil, nil)
+                sBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryExperimentalLevel -categories.TRANSPORTATION - categories.TRANSPORTFOCUS, oEngineer, false, false, nil, nil)
             end
         end
     end
@@ -1569,8 +1569,8 @@ function BuildStructureNearLocation(aiBrain, oEngineer, iCategoryToBuild, iMaxAr
     local bAbortConstruction = false
 
     --Get the blueprint to build
-    --GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, iOptionalCategoryThatMustBeAbleToBuild, bGetCheapest)
-    local sBlueprintToBuild = M28Factory.GetBlueprintsThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oEngineer, false, false, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure)
+    --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, iOptionalCategoryThatMustBeAbleToBuild, bGetCheapest)
+    local sBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oEngineer, false, false, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure)
     local tTargetLocation
     if sBlueprintToBuild == nil then
         if not(aiBrain[M28Overseer.refbCloseToUnitCap]) then
@@ -1648,7 +1648,7 @@ function BuildStructureNearLocation(aiBrain, oEngineer, iCategoryToBuild, iMaxAr
                     local tBuildingPosition
 
                     if iCatToBuildBy then
-                        --sBlueprintBuildBy = M28FactoryOverseer.GetBlueprintsThatCanBuildOfCategory(aiBrain, iCatToBuildBy, oEngineer)--, false, false)
+                        --sBlueprintBuildBy = M28FactoryOverseer.GetBlueprintThatCanBuildOfCategory(aiBrain, iCatToBuildBy, oEngineer)--, false, false)
 
                         toPossibleBuildingsToBuildBy = aiBrain:GetUnitsAroundPoint(iCatToBuildBy, tTargetLocation, iMaxAreaToSearch, 'Ally')
                         local iCurDist
@@ -3743,7 +3743,7 @@ function ActiveShieldMonitor(oUnitToProtect, tLZTeamData, iTeam)
                             for iEngineer, oEngineer in oUnitToProtect[reftEngineersActivelyShielding] do
                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; Does this contain the required faction='..tostring(EntityCategoryContains(iEngineerFactionRequired, oEngineer.UnitId))) end
                                 if EntityCategoryContains(iEngineerFactionRequired, oEngineer.UnitId) then
-                                    local sBlueprintToBuild = M28Factory.GetBlueprintsThatCanBuildOfCategory(aiBrain, iShieldCategoryToBuild, oEngineer, false, false, false, nil, false)
+                                    local sBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iShieldCategoryToBuild, oEngineer, false, false, false, nil, false)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Checking what shields engineer '..(oEngineer.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineer) or 'nil')..' can build; iOptionalFactionRequired='..(iOptionalFactionRequired or 'nil')..'; Will try and build unit '..sBlueprintToBuild..' at position '..repru(tPositionToBuild)) end
                                     M28Orders.IssueTrackedBuild(oEngineer, tPositionToBuild, sBlueprintToBuild, false, 'SpEBS')
                                     if not(oFirstEngineerOfRightFaction) then oFirstEngineerOfRightFaction = oEngineer end
@@ -8133,7 +8133,7 @@ function GetMaxShieldSearchRangeForEngineer(oFirstEngineer, iCategoryWanted)
     local sFunctionRef = 'GetMaxShieldSearchRangeForEngineer'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    local tsAvailableBlueprints = M28Factory.GetBlueprintsThatCanBuildOfCategory(oFirstEngineer:GetAIBrain(), iCategoryWanted, oFirstEngineer)
+    local tsAvailableBlueprints = M28Factory.GetBlueprintThatCanBuildOfCategory(oFirstEngineer:GetAIBrain(), iCategoryWanted, oFirstEngineer)
     local iMaxSearchRange = 10 --Default in case something goes wrong
     if M28Utilities.IsTableEmpty(tsAvailableBlueprints) == false then
         for iShield, sShield in tsAvailableBlueprints do
