@@ -2545,10 +2545,14 @@ function RecordAdjacentLandZones()
                     iAltLandZone = tLandZoneBySegment[iAltSegX][iAltSegZ]
                     if iAltLandZone and not(iAltLandZone == iLandZone) and not(tRecordedAdjacentZones[iAltLandZone]) then
                         if NavUtils.GetTerrainLabel(refPathingTypeHover, GetPositionFromPathingSegments(iAltSegX, iAltSegZ)) == iPlateau then
-                            tRecordedAdjacentZones[iAltLandZone] = true
-                            table.insert(tLandZoneInfo[subrefLZAdjacentLandZones], iAltLandZone)
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering base segment '..tSegmentXZ[1]..'-'..tSegmentXZ[2]..' at position '..repru(GetPositionFromPathingSegments(tSegmentXZ[1], tSegmentXZ[2]))..'; the adjacent segment to this, X'..iAltSegX..'Z'..iAltSegZ..' is in another land zone '..iAltLandZone..'; will record as being adjacent and draw the adjcent segment in blue')
-                                M28Utilities.DrawLocation(GetPositionFromPathingSegments(iAltSegX, iAltSegZ))
+                            --We should have the same plateau, but double-check - do we have a land zone recorded?
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering iAltLandZone='..iAltLandZone..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is alt land zone for this plateau nil='..tostring(tAllPlateaus[iPlateau][iAltLandZone] == nil)) end
+                            if tAllPlateaus[iPlateau][iAltLandZone] then
+                                tRecordedAdjacentZones[iAltLandZone] = true
+                                table.insert(tLandZoneInfo[subrefLZAdjacentLandZones], iAltLandZone)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering base segment '..tSegmentXZ[1]..'-'..tSegmentXZ[2]..' at position '..repru(GetPositionFromPathingSegments(tSegmentXZ[1], tSegmentXZ[2]))..'; the adjacent segment to this, X'..iAltSegX..'Z'..iAltSegZ..' is in another land zone '..iAltLandZone..'; will record as being adjacent and draw the adjcent segment in blue')
+                                    M28Utilities.DrawLocation(GetPositionFromPathingSegments(iAltSegX, iAltSegZ))
+                                end
                             end
                         end
                     end
@@ -3200,6 +3204,7 @@ function RecordLandZonePatrolPaths()
     for iPlateau, tPlateauSubtable in tAllPlateaus do
         for iLandZone, tLZSubtable in tPlateauSubtable[subrefPlateauLandZones] do
             --Are we interested in patrolling this land zone? Want to ignore very small land zones
+            if bDebugMessages == true then LOG(sFunctionRef..': Start of loop, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; tLZSubtable[subrefLZMexCount]='..(tLZSubtable[subrefLZMexCount] or 'nil')..'; tLZSubtable[subrefLZTotalSegmentCount]='..(tLZSubtable[subrefLZTotalSegmentCount] or 'nil')) end
             if tLZSubtable[subrefLZMexCount] > 0 or tLZSubtable[subrefLZTotalSegmentCount] >= 40 then
 
                 --First travel towards adjacent locations an add these
@@ -3208,7 +3213,7 @@ function RecordLandZonePatrolPaths()
 
                 if M28Utilities.IsTableEmpty(tLZSubtable[subrefLZAdjacentLandZones]) == false then
                     for _, iAdjLZ in tLZSubtable[subrefLZAdjacentLandZones] do
-                        if bDebugMessages == true then LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; LZ midpoint='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iAdjLZ][subrefMidpoint])) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iAdjLZ='..iAdjLZ..'; LZ midpoint='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iAdjLZ][subrefMidpoint])) end
                         local tPotentialLocation = ReturnNthValidLocationInSameLandZoneClosestToTarget(iPlateau, iLandZone, tLZSubtable, tAllPlateaus[iPlateau][subrefPlateauLandZones][iAdjLZ][subrefMidpoint], 4, 3, 100)
                         if tPotentialLocation then
                             table.insert(tUnorderedPatrolPaths, tPotentialLocation)
