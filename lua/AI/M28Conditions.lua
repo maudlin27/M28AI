@@ -838,6 +838,11 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
         end
     end
 
+    --More factories in cases where overflowing and have no T3 engineers or active upgrades (e.g. campaign missions with unit restrictions)
+    if not(bWantMoreFactories) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.99 and tLZTeamData[M28Map.subrefLZbCoreBase] and iAverageCurAirAndLandFactories <= 15 and not(HaveLowPower(iTeam)) then
+        bWantMoreFactories = true
+    end
+
     --Override - if we dont have a HQ for the factory type then want to rebuild it
     if not(bWantMoreFactories) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] == 0 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] == 0) then
         --Is it likely we have built and then lost the factory?
@@ -1149,4 +1154,74 @@ function IsLocationInPlayableArea(tLocation)
     else
         return false
     end
+end
+
+function DoesACUHaveValidOrder(oACU)
+    --Checks if either hte ACU has no last order, or the last order is to build something that it cant build
+    local sFunctionRef = 'DoesACUHaveValidOrder'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local tLastOrders = oACU[M28Orders.reftiLastOrders]
+    if bDebugMessages == true then LOG(sFunctionRef..': tLastOrders='..reprs(tLastOrders)) end
+    if not(tLastOrders) then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return false
+    elseif M28Utilities.IsTableEmpty(tLastOrders) then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return false
+    else
+        local tLastOrder = tLastOrders[oACU[M28Orders.refiOrderCount]]
+        if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueBuild then
+            if bDebugMessages == true then LOG(sFunctionRef..': Last order was to build somethingw ith blueprint '..(tLastOrder[M28Orders.subrefsOrderBlueprint] or 'nil')..'; Can build='..tostring(oACU:CanBuild(tLastOrder[M28Orders.subrefsOrderBlueprint]))) end
+            if oACU:CanBuild(tLastOrder[M28Orders.subrefsOrderBlueprint]) then
+                --We can build last order, but are we trying to build a mex somewhere that already has a completed mex?
+                if EntityCategoryContains(M28UnitInfo.refCategoryMex, tLastOrder[M28Orders.subrefsOrderBlueprint]) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Were trying to build a mex, Last position='..repru(tLastOrder[M28Orders.subreftOrderPosition])..'; CanBuildOnMexLocation='..tostring(CanBuildOnMexLocation(tLastOrder[M28Orders.subreftOrderPosition]))..'; playable area='..repru(M28Map.rMapPlayableArea)..'; Dist to ACU='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition])) end
+                    if M28Map.InPlayableArea(tLastOrder[M28Orders.subreftOrderPosition]) then
+                        if CanBuildOnMexLocation(tLastOrder[M28Orders.subreftOrderPosition]) then
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            return true
+                        else
+                            --Cant build the mex, is it because there is a mex there?
+                            local tUnitsNearPosition = GetUnitsInRect(M28Utilities.GetRectAroundLocation(tLastOrder[M28Orders.subreftOrderPosition], 1.8))
+                            local bBlockedByCompletedMexOnOurTeam = false
+                            if M28Utilities.IsTableEmpty(tUnitsNearPosition) == false then
+                                local tMexesNearPosition = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tUnitsNearPosition)
+                                if M28Utilities.IsTableEmpty(tMexesNearPosition) == false then
+                                    for iMex, oMex in tMexesNearPosition do
+                                        if oMex:GetFractionComplete() == 1 and IsAlly(oMex:GetAIBrain():GetArmyIndex(), oACU:GetAIBrain():GetArmyIndex()) then
+                                            bBlockedByCompletedMexOnOurTeam = true
+                                            break
+                                        end
+                                    end
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Trying to build a mex, bBlockedByCompletedMexOnOurTeam='..tostring(bBlockedByCompletedMexOnOurTeam)) end
+                            if bBlockedByCompletedMexOnOurTeam then
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                return false
+                            else
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                return true
+                            end
+                        end
+                    else
+                        --Not in playable area
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        return false
+                    end
+                else
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    return true
+                end
+            else
+                --Cant build last order
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return false
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return true
 end

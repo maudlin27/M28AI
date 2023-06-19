@@ -233,7 +233,7 @@ end
 
 function GetACUEarlyGameOrders(aiBrain, oACU)
     local sFunctionRef = 'GetACUEarlyGameOrders'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
@@ -344,7 +344,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
 
                     --Redundancy if fail to get order from above
                     if bDebugMessages == true then LOG(sFunctionRef..': Is ACU table of last orders empty after attempting above='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))) end
-                    if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) and oACU[refbDoingInitialBuildOrder] then
+                    if not(M28Conditions.DoesACUHaveValidOrder(oACU)) and oACU[refbDoingInitialBuildOrder] then
                         --Is it just that we want to assist a hydro and engineers havent started one yet? If so then check if we have an engineer assigned to build one, and check the game time
                         if GetGameTimeSeconds() <= 180 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 10 * iResourceMod and M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefHydroLocations]) == false then
                             ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData)
@@ -353,11 +353,11 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                             if bDebugMessages == true then LOG(sFunctionRef..': Failed to get order from above so will resort to backup logic') end
                             --No hydro nearby - try building power; then try building mex; then cancel initial build order
                             ACUActionBuildMex(aiBrain, oACU)
-                            if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then
+                            if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
                                 ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData)
-                                if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then
+                                if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
                                     ACUActionBuildPower(aiBrain, oACU)
-                                    if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then
+                                    if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
                                         if not(M28Map.bIsCampaignMap) or GetGameTimeSeconds() <= 540 then oACU[refbDoingInitialBuildOrder] = false end
                                     end
                                 end
@@ -383,20 +383,34 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
             end
             --Campaign backup in case of unit restrictions
             if bDebugMessages == true then LOG(sFunctionRef..': Campaign redundancy for if ACU has no order, reprs of last orders='..reprs(oACU[M28Orders.reftiLastOrders])..'; oACU[refbDoingInitialBuildOrder]='..tostring(oACU[refbDoingInitialBuildOrder])..'; M28Map.bIsCampaignMap='..tostring(M28Map.bIsCampaignMap)..'; Is table of last orders empty='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))) end
-            if M28Map.bIsCampaignMap and M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) and oACU[refbDoingInitialBuildOrder] then
-                ACUActionBuildMex(aiBrain, oACU)
-                if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then
-                    ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData)
-                    if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then
-                        ACUActionBuildPower(aiBrain, oACU)
-                        if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then
-                            ACUActionBuildFactory(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryLandFactory, M28Engineer.refActionBuildLandFactory)
-                            if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then
-                                ACUActionBuildFactory(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryAirFactory, M28Engineer.refActionBuildAirFactory)
-                                if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then
-                                    ACUActionBuildFactory(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryNavalFactory, M28Engineer.refActionBuildNavalFactory)
-                                    if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then
-                                        M28Utilities.ErrorHandler('Unable to get any action for ACU')
+            if M28Map.bIsCampaignMap and not(M28Conditions.DoesACUHaveValidOrder(oACU)) and oACU[refbDoingInitialBuildOrder] then
+                --Build mex if any available mex locations in zone
+                if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false then
+                    ACUActionBuildMex(aiBrain, oACU)
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Redundancy - Attempted to build mex if there were any unbuilt locations, IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]))..', is table of last orders empty='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))..'; DoesACUHaveValidOrder(oACU)='..tostring(M28Conditions.DoesACUHaveValidOrder(oACU))) end
+                if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
+                    if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefHydroLocations]) == false then ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Redundancy - Attempted to assist hydro, is table of last orders empty='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))..'; DoesACUHaveValidOrder(oACU)='..tostring(M28Conditions.DoesACUHaveValidOrder(oACU))) end
+                    if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
+                        if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower) <= 7 then
+                            ACUActionBuildPower(aiBrain, oACU)
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Redundancy - Attempted to build power, is table of last orders empty='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))..'; DoesACUHaveValidOrder(oACU)='..tostring(M28Conditions.DoesACUHaveValidOrder(oACU))..'; Cur factory count='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory)) end
+                        if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
+
+                            if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory) < 3 then
+                                ACUActionBuildFactory(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryLandFactory, M28Engineer.refActionBuildLandFactory)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Redundancy - Attempted to build land factory, is table of last orders empty='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))..'; DoesACUHaveValidOrder(oACU)='..tostring(M28Conditions.DoesACUHaveValidOrder(oACU))) end
+                                if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
+                                    ACUActionBuildFactory(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryAirFactory, M28Engineer.refActionBuildAirFactory)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Redundancy - Attempted to build air factory, is table of last orders empty='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))..'; DoesACUHaveValidOrder(oACU)='..tostring(M28Conditions.DoesACUHaveValidOrder(oACU))) end
+                                    if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
+                                        ACUActionBuildFactory(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryNavalFactory, M28Engineer.refActionBuildNavalFactory)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Redundancy - Attempted to build naval factory, is table of last orders empty='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))..'; DoesACUHaveValidOrder(oACU)='..tostring(M28Conditions.DoesACUHaveValidOrder(oACU))) end
+                                        if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
+                                            M28Utilities.ErrorHandler('Unable to get any action for ACU')
+                                        end
                                     end
                                 end
                             end

@@ -466,7 +466,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         bCanPathToEnemyWithLand = true
     end
 
-
+    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.95 then bDebugMessages = true end
 
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] .. '; Allied ground MAA threat=' .. (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat] or 'nil') .. '; Is factory paused=' .. tostring(oFactory:IsPaused()) .. '; IsPaused value=' .. tostring(oFactory[M28UnitInfo.refbPaused]) .. '; Does LZ factory is in need BP=' .. tostring(tLZTeamData[M28Map.subrefTbWantBP]) .. '; Core LZ=' .. tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false) .. '; Core expansion=' .. tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false))
@@ -491,7 +491,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         LOG(sFunctionRef .. ': Considering if we want to ignore getting any MAA, tLZTeamData[M28Map.refiEnemyAirToGroundThreat]=' .. tLZTeamData[M28Map.refiEnemyAirToGroundThreat] .. '; Time since last had no MAA targets for this island=' .. GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoMAATargetsByIsland][tLZData[M28Map.subrefLZIslandRef]] or -10) .. '; tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]=' .. tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]))
     end
     if tLZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 then
-        if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] <= 1 and (iFactoryTechLevel == 1 or bHaveLowMass)) then
+        if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyAirTech] <= 1 and (iFactoryTechLevel == 1 or (bHaveLowMass and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] > M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat])) and ((GetGameTimeSeconds() <= 600 and M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] * 5 > M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]) or M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] * 2 > M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat])) then
             bDontConsiderBuildingMAA = true
         elseif GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoMAATargetsByIsland][tLZData[M28Map.subrefLZIslandRef]] or -10) < 10 then
             if not (tLZTeamData[M28Map.subrefLZCoreExpansion]) then
@@ -1226,7 +1226,17 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
             if NavUtils.GetLabel(M28Map.refPathingTypeLand, M28Map.GetPrimaryEnemyBaseLocation(aiBrain)) == iIsland then
                 if not (bHaveLowMass) then
-                    iDistToEnemyBaseToConsider = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iEnemyLandZone) * 0.75
+                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 then
+                        iDistToEnemyBaseToConsider = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iEnemyLandZone)
+                        --Campaign specific - if no active upgrades then increase the dist further (as we may be tech capped/unable to build experimentals)
+                        if (M28Map.bIsCampaignMap or M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.8) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) and not(M28Conditions.HaveLowPower(iTeam)) then
+                            iDistToEnemyBaseToConsider = math.max(500, iDistToEnemyBaseToConsider)
+                        end
+                    else
+                        iDistToEnemyBaseToConsider = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iEnemyLandZone) * 0.75
+                    end
+                    iDistToEnemyBaseToConsider = math.max(iDistToEnemyBaseToConsider, 250)
+
                 else
                     iDistToEnemyBaseToConsider = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iEnemyLandZone) * 0.5
                 end
@@ -1252,8 +1262,9 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                         end
                         if iCategoryToGet then
                             if bDebugMessages == true then
-                                LOG(sFunctionRef .. ': Will draw the LZ where we want more units in a rnadom colour')
-                                M28Map.DrawSpecificLandZone(iPlateau, tLZPathing[M28Map.subrefLZNumber], math.random(1, 8))
+                                LOG(sFunctionRef..': Have got a category to build based on the land zone '..tLZPathing[M28Map.subrefLZNumber])
+                                --LOG(sFunctionRef .. ': Will draw the LZ where we want more units in a rnadom colour')
+                                --M28Map.DrawSpecificLandZone(iPlateau, tLZPathing[M28Map.subrefLZNumber], math.random(1, 8))
                             end
                             if ConsiderBuildingCategory(iCategoryToGet) then
                                 return sBPIDToBuild
@@ -1551,11 +1562,22 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     end
 
     --More land scouts (no cap)
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
     if tLZTeamData[M28Map.refbWantLandScout] then
         if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandScout) then
             return sBPIDToBuild
         end
     end
+
+    --Build more units if we are overflowing mass and dont have many units in cur land zone
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.95 then
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedCombatUnits]) or table.getn(tLZTeamData[M28Map.subrefLZTAlliedCombatUnits]) < 25 then
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryIndirect) then return sBPIDToBuild end
+        end
+    end
+
+
 
     M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForLandFactory] = GetGameTimeSeconds()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

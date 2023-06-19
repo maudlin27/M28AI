@@ -1020,7 +1020,7 @@ local function AddNewLandZoneReferenceToPlateau(iPlateau)
     local sFunctionRef = 'AddNewLandZoneReferenceToPlateau'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iPlateau == 9 and tAllPlateaus[iPlateau][subrefLandZoneCount] == 5 then bDebugMessages = true M28Utilities.ErrorHandler('Audit trail') end
 
     if not(tAllPlateaus[iPlateau]) then
         --Presumably we have a plateau with no mexes so add this plateau to the table of plateaus
@@ -2128,17 +2128,19 @@ local function AssignMexesALandZone()
     for iPlateau, tPlateauSubtable in tAllPlateaus do
         if not(tAllPlateaus[iPlateau][subrefPlateauLandZones]) then tAllPlateaus[iPlateau][subrefPlateauLandZones] = {} end
         if bDebugMessages == true then LOG(sFunctionRef..': tPlateauSubtable[subrefPlateauMexes]='..repru(tPlateauSubtable[subrefPlateauMexes])) end
-        for iMex, tMex in tPlateauSubtable[subrefPlateauMexes] do
-            if bDebugMessages == true then LOG(sFunctionRef..': iMex='..iMex..'; tMex='..repru(tMex)) end
-            if not(IsUnderwater(tMex, false, 0.1)) then
-                if bDebugMessages == true then LOG(sFunctionRef..': Plateau='..iPlateau..': Considering mex with plateau mex ref='..iMex..'; position='..repru(tMex)..'; tiPlateauLandZoneByMexRef for this ref='..(tiPlateauLandZoneByMexRef[iPlateau][iMex] or 'nil')) end
-                if not(tiPlateauLandZoneByMexRef[iPlateau][iMex]) then
-                    AddMexToLandZone(iPlateau, nil, iMex, tiPlateauLandZoneByMexRef)
-                    iCurLandZone = tiPlateauLandZoneByMexRef[iPlateau][iMex]
-                    if bDebugMessages == true then LOG(sFunctionRef..': Added mex '..iMex..' with position '..repru(tMex)..' to land zone, tiPlateauLandZoneByMexRef='..(tiPlateauLandZoneByMexRef[iPlateau][iMex] or 'nil')) end
+        if M28Utilities.IsTableEmpty(tPlateauSubtable[subrefPlateauMexes]) == false then
+            for iMex, tMex in tPlateauSubtable[subrefPlateauMexes] do
+                if bDebugMessages == true then LOG(sFunctionRef..': iMex='..iMex..'; tMex='..repru(tMex)) end
+                if not(IsUnderwater(tMex, false, 0.1)) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Plateau='..iPlateau..': Considering mex with plateau mex ref='..iMex..'; position='..repru(tMex)..'; tiPlateauLandZoneByMexRef for this ref='..(tiPlateauLandZoneByMexRef[iPlateau][iMex] or 'nil')) end
+                    if not(tiPlateauLandZoneByMexRef[iPlateau][iMex]) then
+                        AddMexToLandZone(iPlateau, nil, iMex, tiPlateauLandZoneByMexRef)
+                        iCurLandZone = tiPlateauLandZoneByMexRef[iPlateau][iMex]
+                        if bDebugMessages == true then LOG(sFunctionRef..': Added mex '..iMex..' with position '..repru(tMex)..' to land zone, tiPlateauLandZoneByMexRef='..(tiPlateauLandZoneByMexRef[iPlateau][iMex] or 'nil')) end
 
-                    --Cycle through each other mex in the plateau and if it is within iNearbyMexRange then assign it to the same group if it hasnt had a group assigned already
-                    AddNearbyMexesToLandZone(iPlateau, iCurLandZone, tMex, 0)
+                        --Cycle through each other mex in the plateau and if it is within iNearbyMexRange then assign it to the same group if it hasnt had a group assigned already
+                        AddNearbyMexesToLandZone(iPlateau, iCurLandZone, tMex, 0)
+                    end
                 end
             end
         end
@@ -2538,18 +2540,22 @@ function RecordAdjacentLandZones()
     local tRecordedAdjacentZones
     for iPlateau, tPlateauSubtable in tAllPlateaus do
         for iLandZone, tLandZoneInfo in tPlateauSubtable[subrefPlateauLandZones] do
+            if iPlateau == 9 then bDebugMessages = true else bDebugMessages = false end
             tLandZoneInfo[subrefLZAdjacentLandZones] = {}
             tRecordedAdjacentZones = {}
+            if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through every segment in land zone '..iLandZone..' to look for adjacent land zones, segment count='..( tLandZoneInfo[subrefLZTotalSegmentCount] or 'nil')) end
+            if iPlateau == 9 and iLandZone == 2 then bDebugMessages = true else bDebugMessages = false end
             for iSegmentRef, tSegmentXZ in tLandZoneInfo[subrefLZSegments] do
                 for iSegAdjust, tSegAdjXZ in tiSegmentAdjust do
                     iAltSegX = tSegmentXZ[1] + tSegAdjXZ[1]
                     iAltSegZ = tSegmentXZ[2] + tSegAdjXZ[2]
                     iAltLandZone = tLandZoneBySegment[iAltSegX][iAltSegZ]
                     if iAltLandZone and not(iAltLandZone == iLandZone) and not(tRecordedAdjacentZones[iAltLandZone]) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Consideing tSegmentXZ='..repru(tSegmentXZ)..'; iAltSegX'..iAltSegX..'Z'..iAltSegZ..'; iAltLandZone='..iAltLandZone..'; Hover terrain label='..(NavUtils.GetTerrainLabel(refPathingTypeHover, GetPositionFromPathingSegments(iAltSegX, iAltSegZ)) or 'nil')..'; iPlateau for base seg='..iPlateau) end
                         if NavUtils.GetTerrainLabel(refPathingTypeHover, GetPositionFromPathingSegments(iAltSegX, iAltSegZ)) == iPlateau then
                             --We should have the same plateau, but double-check - do we have a land zone recorded?
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering iAltLandZone='..iAltLandZone..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is alt land zone for this plateau nil='..tostring(tAllPlateaus[iPlateau][iAltLandZone] == nil)) end
-                            if tAllPlateaus[iPlateau][iAltLandZone] then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering iAltLandZone='..iAltLandZone..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is alt land zone for this plateau nil='..tostring(tAllPlateaus[iPlateau][subrefPlateauLandZones][iAltLandZone] == nil)) end
+                            if tAllPlateaus[iPlateau][subrefPlateauLandZones][iAltLandZone] then
                                 tRecordedAdjacentZones[iAltLandZone] = true
                                 table.insert(tLandZoneInfo[subrefLZAdjacentLandZones], iAltLandZone)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering base segment '..tSegmentXZ[1]..'-'..tSegmentXZ[2]..' at position '..repru(GetPositionFromPathingSegments(tSegmentXZ[1], tSegmentXZ[2]))..'; the adjacent segment to this, X'..iAltSegX..'Z'..iAltSegZ..' is in another land zone '..iAltLandZone..'; will record as being adjacent and draw the adjcent segment in blue')

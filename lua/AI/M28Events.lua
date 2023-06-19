@@ -1435,6 +1435,7 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
     local sFunctionRef = 'ObjectiveAdded'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; if map setup not complete then will wait for it to be complete') end
     --Wait until map setup complete
     while not(M28Map.bMapLandSetupComplete) or not(M28Map.bWaterZoneInitialCreation) do
         if GetGameTimeSeconds() >= 10 then break end
