@@ -450,7 +450,9 @@ function UpdateUpgradeTrackingOfUnit(oUnitDoingUpgrade, bUnitDeadOrCompletedUpgr
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function InitialTeamInitialisationForReference() end --To help find the below more easily
 function CreateNewTeam(aiBrain)
+    --See also TeamInitialisation which sets up team variables for zones
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'CreateNewTeam'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -2307,11 +2309,13 @@ end
 
 function TeamInitialisation(iM28Team)
     --First check if we have any M28 brains in this team (otherwise dont do anything further)
+    --NOTE: CreateNewTeam function includes various team setup variables
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'TeamInitialisation'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Will initialise team based logic for the team '..iM28Team..'; Is the table of friendly active M28 brains empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftoFriendlyActiveM28Brains]))..'; Do we already have an active team cycler='..tostring(tTeamData[iM28Team]['M28TeamActiveTeamCycler'] or false)) end
 
+    M28Map.bFirstM28TeamHasBeenInitialised = true
     if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftoFriendlyActiveM28Brains]) == false then
         if not(tTeamData[iM28Team]['M28TeamActiveTeamCycler']) then
             tTeamData[iM28Team]['M28TeamActiveTeamCycler'] = true

@@ -20,6 +20,7 @@ bMapLandSetupComplete = false --set to true once have finished setting up map (u
 bWaterZoneInitialCreation = false --set to true once have finished code for recording water zones (note WZ setup wont be fully complete yet)
 bWaterZoneFirstTeamInitialisation = false --set to true when the first team runs logic for creating team related variables for a water zone
 bIsCampaignMap = false --set at start of game
+bFirstM28TeamHasBeenInitialised = false --set to true once we have run the teaminitialisation function
 
 --Pathing types
 --NavLayers 'Land' | 'Water' | 'Amphibious' | 'Hover' | 'Air'
