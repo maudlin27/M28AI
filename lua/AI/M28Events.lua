@@ -1397,11 +1397,12 @@ function OnMissileImpactTerrain(self, target, position)
 end
 
 function OnPlayableAreaChange(rect, voFlag)
+
     local ScenarioUtils = import("/lua/sim/scenarioutilities.lua")
     if type(rect) == 'string' then
         rect = ScenarioUtils.AreaToRect(rect)
     end
-    M28Map.SetupPlayableAreaAndSegmentSizes(rect)
+    if M28Utilities.bM28AIInGame or GetGameTimeSeconds() <= 5 then M28Map.SetupPlayableAreaAndSegmentSizes(rect) end
     ForkThread(M28Overseer.UpdateMaxUnitCapForRelevantBrains)
 end
 
@@ -1409,6 +1410,7 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
     local sFunctionRef = 'ObjectiveAdded'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     --Wait until map setup complete
     while not(M28Map.bMapLandSetupComplete) or not(M28Map.bWaterZoneInitialCreation) do
         if GetGameTimeSeconds() >= 10 then break end
@@ -1418,86 +1420,88 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
     end
 
 
-
-    --Record capture missions
-    if bDebugMessages == true then LOG('Have a mission, Title='..Title..'; Description='..Description..'; Target.captured='..(Target.captured or 'nil')..'; reprs of Target='..reprs(Target)) end
-    if Target.captured == 0 then
-        if bDebugMessages == true then  LOG('Have a capture mission, is target empty='..tostring(M28Utilities.IsTableEmpty(Target))) end
-        --Record every unit to be captured
-        if M28Utilities.IsTableEmpty(Target.Units) == false then
-            local iPlateauOrZero, iLandOrWaterZone
-            for iEntry, oUnit in Target.Units do
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering iEntry='..iEntry..' in Target; Is valid unit='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
-                if M28UnitInfo.IsUnitValid(oUnit) then
-                    iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
-                    local tLZOrWZData
-                    if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; Unit position='..repru(oUnit:GetPosition())) end
-                    if iLandOrWaterZone > 0 then
-                        if iPlateauOrZero == 0 then
-                            tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
-                        else
-                            tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+    if M28Utilities.bM28AIInGame then
+        --Record capture missions
+        if bDebugMessages == true then LOG('Have a mission, Title='..Title..'; Description='..Description..'; Target.captured='..(Target.captured or 'nil')..'; reprs of Target='..reprs(Target)) end
+        if Target.captured == 0 then
+            if bDebugMessages == true then  LOG('Have a capture mission, is target empty='..tostring(M28Utilities.IsTableEmpty(Target))) end
+            --Record every unit to be captured
+            if M28Utilities.IsTableEmpty(Target.Units) == false then
+                local iPlateauOrZero, iLandOrWaterZone
+                for iEntry, oUnit in Target.Units do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iEntry='..iEntry..' in Target; Is valid unit='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
+                    if M28UnitInfo.IsUnitValid(oUnit) then
+                        iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                        local tLZOrWZData
+                        if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; Unit position='..repru(oUnit:GetPosition())) end
+                        if iLandOrWaterZone > 0 then
+                            if iPlateauOrZero == 0 then
+                                tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+                            else
+                                tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+                            end
+                            if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToCapture]) then tLZOrWZData[M28Map.subreftoUnitsToCapture] = {} end
+                            table.insert(tLZOrWZData[M28Map.subreftoUnitsToCapture], oUnit)
+                            oUnit[M28UnitInfo.refbIsCaptureTarget] = true
+                            if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of units to capture') end
                         end
-                        if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToCapture]) then tLZOrWZData[M28Map.subreftoUnitsToCapture] = {} end
-                        table.insert(tLZOrWZData[M28Map.subreftoUnitsToCapture], oUnit)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of units to capture') end
                     end
                 end
             end
-        end
-    elseif M28Utilities.IsTableEmpty(Target.Units) == false then
-        local bOnlyHaveAllies = true
-        local bHaveLowHealthAlly = true
-        local oFirstM28Brain
-        for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
-            oFirstM28Brain = oBrain
-            break
-        end
-        local tUnitsToRepair = {}
-        for iUnit, oUnit in Target.Units do
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Health%='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; Is enemy='..tostring(IsEnemy(oFirstM28Brain:GetArmyIndex(),  oUnit:GetAIBrain():GetArmyIndex()))..'; IsAlly='..tostring(IsAlly(oFirstM28Brain:GetArmyIndex(),  oUnit:GetAIBrain():GetArmyIndex()))) end
-            if M28UnitInfo.IsUnitValid(oUnit) then
-                if IsAlly(oFirstM28Brain:GetArmyIndex(),  oUnit:GetAIBrain():GetArmyIndex()) then
-                    if M28UnitInfo.GetUnitHealthPercent(oUnit) < 1 then
-                        table.insert(tUnitsToRepair, oUnit)
-                    else
-                        bHaveLowHealthAlly = false
-                    end
-                else
-                    bOnlyHaveAllies = false
-                    if IsEnemy(oFirstM28Brain:GetArmyIndex(),  oUnit:GetAIBrain():GetArmyIndex()) then
-                        --Make sure we are tracking this unit
-                        if bDebugMessages == true then LOG(sFunctionRef..': Sent enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to be recorded in case we lack intel of it, is oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam] true for first M28brain='..tostring(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][oFirstM28Brain.M28Team] or false)) end
-                        M28Team.AssignUnitToLandZoneOrPond(oFirstM28Brain, oUnit, nil, nil, true)
-
-                    end
-                end
+        elseif M28Utilities.IsTableEmpty(Target.Units) == false then
+            local bOnlyHaveAllies = true
+            local bHaveLowHealthAlly = true
+            local oFirstM28Brain
+            for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
+                oFirstM28Brain = oBrain
+                break
             end
-        end
-        if bHaveLowHealthAlly and M28Utilities.IsTableEmpty(tUnitsToRepair) == false then
-            local iPlateauOrZero, iLandOrWaterZone
-            for iEntry, oUnit in tUnitsToRepair do
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering iEntry='..iEntry..' in tUnitsToRepair; Is valid unit='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
-                if M28UnitInfo.IsUnitValid(oUnit) then
-                    iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
-                    local tLZOrWZData
-                    if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; Unit position='..repru(oUnit:GetPosition())) end
-                    if iLandOrWaterZone > 0 then
-                        if iPlateauOrZero == 0 then
-                            tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
-                        else
-                            tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
-                        end
-                        if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToRepair]) then tLZOrWZData[M28Map.subreftoUnitsToRepair] = {} end
-                        table.insert(tLZOrWZData[M28Map.subreftoUnitsToRepair], oUnit)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of units to repair') end
-                    end
-                end
-            end
-        elseif bOnlyHaveAllies then
+            local tUnitsToRepair = {}
             for iUnit, oUnit in Target.Units do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Health%='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; Is enemy='..tostring(IsEnemy(oFirstM28Brain:GetArmyIndex(),  oUnit:GetAIBrain():GetArmyIndex()))..'; IsAlly='..tostring(IsAlly(oFirstM28Brain:GetArmyIndex(),  oUnit:GetAIBrain():GetArmyIndex()))) end
                 if M28UnitInfo.IsUnitValid(oUnit) then
-                    M28Air.AddPriorityAirDefenceTarget(oUnit)
+                    if IsAlly(oFirstM28Brain:GetArmyIndex(),  oUnit:GetAIBrain():GetArmyIndex()) then
+                        if M28UnitInfo.GetUnitHealthPercent(oUnit) < 1 then
+                            table.insert(tUnitsToRepair, oUnit)
+                        else
+                            bHaveLowHealthAlly = false
+                        end
+                    else
+                        bOnlyHaveAllies = false
+                        if IsEnemy(oFirstM28Brain:GetArmyIndex(),  oUnit:GetAIBrain():GetArmyIndex()) then
+                            --Make sure we are tracking this unit
+                            if bDebugMessages == true then LOG(sFunctionRef..': Sent enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to be recorded in case we lack intel of it, is oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam] true for first M28brain='..tostring(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][oFirstM28Brain.M28Team] or false)) end
+                            M28Team.AssignUnitToLandZoneOrPond(oFirstM28Brain, oUnit, nil, nil, true)
+
+                        end
+                    end
+                end
+            end
+            if bHaveLowHealthAlly and M28Utilities.IsTableEmpty(tUnitsToRepair) == false then
+                local iPlateauOrZero, iLandOrWaterZone
+                for iEntry, oUnit in tUnitsToRepair do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iEntry='..iEntry..' in tUnitsToRepair; Is valid unit='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
+                    if M28UnitInfo.IsUnitValid(oUnit) then
+                        iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                        local tLZOrWZData
+                        if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; Unit position='..repru(oUnit:GetPosition())) end
+                        if iLandOrWaterZone > 0 then
+                            if iPlateauOrZero == 0 then
+                                tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+                            else
+                                tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+                            end
+                            if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToRepair]) then tLZOrWZData[M28Map.subreftoUnitsToRepair] = {} end
+                            table.insert(tLZOrWZData[M28Map.subreftoUnitsToRepair], oUnit)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of units to repair') end
+                        end
+                    end
+                end
+            elseif bOnlyHaveAllies then
+                for iUnit, oUnit in Target.Units do
+                    if M28UnitInfo.IsUnitValid(oUnit) then
+                        M28Air.AddPriorityAirDefenceTarget(oUnit)
+                    end
                 end
             end
         end
@@ -1527,4 +1531,63 @@ function OnMissileIntercepted(oLauncher, target, oTMD, position)
         end
     end
 
+end
+
+function OnCaptured(toCapturedUnits, iArmyIndex, bCaptured)
+    --looks like if multiple engineers are trying to capture a unit at once this triggers for each engineer
+    local sFunctionRef = 'OnCaptured'
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time'..GetGameTimeSeconds()..', is toCapturedUnits empty='..tostring(M28Utilities.IsTableEmpty(toCapturedUnits))..'; Army='..reprs(iArmyIndex)..'; Captured='..reprs(bCaptured)) end
+    if M28Utilities.bM28AIInGame then
+        if bCaptured and M28Utilities.IsTableEmpty(toCapturedUnits) == false then
+            --Below is to cover scenarios like FA Mission 6 where a capture target can be captured by the enemy
+            if bDebugMessages == true then
+                LOG(sFunctionRef..': Will cycle through each captured unit')
+                for iUnit, oUnit in toCapturedUnits do
+                    LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; owned by '..oUnit:GetAIBrain().Nickname)
+                end
+            end
+
+            --Is the unit owned by an enemy to the first M28AI in the game?
+            local oM28Brain
+            for iBrain, oBrain in ArmyBrains do
+                if oBrain.M28AI then
+                    oM28Brain = oBrain
+                    break
+                end
+            end
+            for iUnit, oUnit in toCapturedUnits do
+                if not(oM28Brain.M28Team == oUnit:GetAIBrain().M28Team) and not(IsAlly(oM28Brain:GetArmyIndex(), iArmyIndex)) then
+                    local iPlateauOrZero, iLandOrWaterZone = GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                    if (iLandOrWaterZone or 0) > 0 then
+                        local tLZOrWZData
+                        if iPlateauOrZero == 0 then
+                            tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+                        else
+                            tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+                        end
+                        if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToCapture]) == false then
+                            local bWantToCaptureUnitsWithThisID = false
+                            for iCaptureTarget, oCaptureTarget in tLZOrWZData[M28Map.subreftoUnitsToCapture] do
+                                if oCaptureTarget.UnitId == oUnit.UnitId then
+                                    bWantToCaptureUnitsWithThisID = true
+                                    break
+                                end
+                            end
+                            if bWantToCaptureUnitsWithThisID then
+                                table.insert(tLZOrWZData[M28Map.subreftoUnitsToCapture], oUnit)
+                                oUnit[M28UnitInfo.refbIsCaptureTarget] = true
+                            end
+                        end
+                    end
+
+                end
+            end
+
+
+
+            end
+        end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
