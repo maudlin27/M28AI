@@ -2532,9 +2532,15 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                             if iNearestReclaimableEnemy < 20 and ((iClosestDistUntilInRangeOfStaticEnemy >= 10 and iNearestReclaimableEnemy <= oEngineer:GetBlueprint().Economy.MaxBuildDistance) or iNearestReclaimableEnemy <= (oEngineer:GetBlueprint().Economy.MaxBuildDistance + 7)) then
                                 --Reclaim enemy
                                 bEngiIsUnavailable = true
-                                TrackEngineerAction(oEngineer, refActionReclaimEnemyUnit, false, 1)
-                                M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaimableEnemy, false, 'RecE')
-                                if bDebugMessages == true then LOG(sFunctionRef..': Told engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to reclaim enemy unit') end
+                                if oNearestReclaimableEnemy[M28UnitInfo.refbIsCaptureTarget] then
+                                    TrackEngineerAction(oEngineer, refActionCaptureUnit, false, 1)
+                                    M28Orders.IssueTrackedCapture(oEngineer, oNearestReclaimableEnemy, false, 'CapE')
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Told engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to capture enemy unit') end
+                                else
+                                    TrackEngineerAction(oEngineer, refActionReclaimEnemyUnit, false, 1)
+                                    M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaimableEnemy, false, 'RecE')
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Told engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to reclaim enemy unit') end
+                                end
                             else
                                 --Enemy not close enough to reclaim, do we want to run?
                                 if not(tLZTeamData[M28Map.subrefLZbCoreBase]) then
