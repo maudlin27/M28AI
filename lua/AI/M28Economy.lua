@@ -468,7 +468,7 @@ function UpdateMassStorageAdjacencyValues(oStorage, bDestroyed)
         end
     end
 
-    aiBrain[refiGrossMassBaseIncome] = aiBrain[refiGrossMassBaseIncome] + iMassChange
+    aiBrain[refiGrossMassBaseIncome] = (aiBrain[refiGrossMassBaseIncome] or 0) + iMassChange
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, iMassChange='..iMassChange..'; aiBrain[refiGrossMassBaseIncome]='..aiBrain[refiGrossMassBaseIncome]) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -666,10 +666,10 @@ function EconomyMainLoop(aiBrain)
 end
 
 function EconomyInitialisation(aiBrain)
-    aiBrain[refiGrossEnergyBaseIncome] = 0
-    aiBrain[refiNetEnergyBaseIncome] = 0
-    aiBrain[refiGrossMassBaseIncome] = 0
-    aiBrain[refiNetMassBaseIncome] = 0
+    if not(aiBrain[refiGrossEnergyBaseIncome]) then aiBrain[refiGrossEnergyBaseIncome] = 0 end
+    if not(aiBrain[refiNetEnergyBaseIncome]) then aiBrain[refiNetEnergyBaseIncome] = 0 end
+    if not(aiBrain[refiGrossMassBaseIncome]) then aiBrain[refiGrossMassBaseIncome] = 0 end
+    if not(aiBrain[refiNetMassBaseIncome]) then aiBrain[refiNetMassBaseIncome] = 0 end
     aiBrain[reftPausedUnits] = {}
 
     --Some values are set when creating a team to avoid errors

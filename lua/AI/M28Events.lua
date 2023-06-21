@@ -404,7 +404,7 @@ function OnEnhancementComplete(oUnit, sEnhancement)
             M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit)
             M28UnitInfo.RecordUnitRange(oUnit) --Refresh the range incase enhancement has increased anything
             --Update ACU upgrade count
-            if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+            if EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then
                 oUnit[M28ACU.refiUpgradeCount] = (oUnit[M28ACU.refiUpgradeCount] or 0) + 1
             end
             --Fix AiX modifier
@@ -1430,6 +1430,7 @@ function OnPlayableAreaChange(rect, voFlag)
     end
     if M28Utilities.bM28AIInGame or GetGameTimeSeconds() <= 5 then M28Map.SetupPlayableAreaAndSegmentSizes(rect) end
     ForkThread(M28Overseer.UpdateMaxUnitCapForRelevantBrains)
+    ForkThread(M28Engineer.CheckForSpecialCampaignCaptureTargets)
 end
 
 function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
@@ -1457,20 +1458,8 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                 for iEntry, oUnit in Target.Units do
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering iEntry='..iEntry..' in Target; Is valid unit='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
                     if M28UnitInfo.IsUnitValid(oUnit) then
-                        iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
-                        local tLZOrWZData
-                        if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; Unit position='..repru(oUnit:GetPosition())) end
-                        if iLandOrWaterZone > 0 then
-                            if iPlateauOrZero == 0 then
-                                tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
-                            else
-                                tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
-                            end
-                            if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToCapture]) then tLZOrWZData[M28Map.subreftoUnitsToCapture] = {} end
-                            table.insert(tLZOrWZData[M28Map.subreftoUnitsToCapture], oUnit)
-                            oUnit[M28UnitInfo.refbIsCaptureTarget] = true
-                            if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of units to capture') end
-                        end
+                        M28Engineer.RecordUnitCaptureTarget(oUnit)
+                        if bDebugMessages == true then LOG(sFunctionRef..': WIll record unit as capture target assuming it is in a land zone') end
                     end
                 end
             end
@@ -1531,6 +1520,10 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                 end
             end
         end
+
+        --Manual objective checks (e.g. where campaign doesnt use the function for adding objectives)
+        M28Engineer.CheckForSpecialCampaignCaptureTargets()
+
     end
 
     ForkThread(M28Overseer.UpdateMaxUnitCapForRelevantBrains)
@@ -1562,7 +1555,7 @@ end
 function OnCaptured(toCapturedUnits, iArmyIndex, bCaptured)
     --looks like if multiple engineers are trying to capture a unit at once this triggers for each engineer
     local sFunctionRef = 'OnCaptured'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time'..GetGameTimeSeconds()..', is toCapturedUnits empty='..tostring(M28Utilities.IsTableEmpty(toCapturedUnits))..'; Army='..reprs(iArmyIndex)..'; Captured='..reprs(bCaptured)) end
     if M28Utilities.bM28AIInGame then
@@ -1585,35 +1578,10 @@ function OnCaptured(toCapturedUnits, iArmyIndex, bCaptured)
             end
             for iUnit, oUnit in toCapturedUnits do
                 if not(oM28Brain.M28Team == oUnit:GetAIBrain().M28Team) and not(IsAlly(oM28Brain:GetArmyIndex(), iArmyIndex)) then
-                    local iPlateauOrZero, iLandOrWaterZone = GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
-                    if (iLandOrWaterZone or 0) > 0 then
-                        local tLZOrWZData
-                        if iPlateauOrZero == 0 then
-                            tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone][M28Map.subrefPondWaterZones][iLandOrWaterZone]
-                        else
-                            tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
-                        end
-                        if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToCapture]) == false then
-                            local bWantToCaptureUnitsWithThisID = false
-                            for iCaptureTarget, oCaptureTarget in tLZOrWZData[M28Map.subreftoUnitsToCapture] do
-                                if oCaptureTarget.UnitId == oUnit.UnitId then
-                                    bWantToCaptureUnitsWithThisID = true
-                                    break
-                                end
-                            end
-                            if bWantToCaptureUnitsWithThisID then
-                                table.insert(tLZOrWZData[M28Map.subreftoUnitsToCapture], oUnit)
-                                oUnit[M28UnitInfo.refbIsCaptureTarget] = true
-                            end
-                        end
-                    end
-
+                    M28Engineer.RecordUnitAsCaptureTarget(oUnit, true)
                 end
             end
-
-
-
-            end
         end
+    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

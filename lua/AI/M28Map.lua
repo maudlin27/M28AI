@@ -1021,7 +1021,7 @@ local function AddNewLandZoneReferenceToPlateau(iPlateau)
     local sFunctionRef = 'AddNewLandZoneReferenceToPlateau'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iPlateau == 9 and tAllPlateaus[iPlateau][subrefLandZoneCount] == 5 then bDebugMessages = true M28Utilities.ErrorHandler('Audit trail') end
+
 
     if not(tAllPlateaus[iPlateau]) then
         --Presumably we have a plateau with no mexes so add this plateau to the table of plateaus
@@ -2541,11 +2541,9 @@ function RecordAdjacentLandZones()
     local tRecordedAdjacentZones
     for iPlateau, tPlateauSubtable in tAllPlateaus do
         for iLandZone, tLandZoneInfo in tPlateauSubtable[subrefPlateauLandZones] do
-            if iPlateau == 9 then bDebugMessages = true else bDebugMessages = false end
             tLandZoneInfo[subrefLZAdjacentLandZones] = {}
             tRecordedAdjacentZones = {}
             if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through every segment in land zone '..iLandZone..' to look for adjacent land zones, segment count='..( tLandZoneInfo[subrefLZTotalSegmentCount] or 'nil')) end
-            if iPlateau == 9 and iLandZone == 2 then bDebugMessages = true else bDebugMessages = false end
             for iSegmentRef, tSegmentXZ in tLandZoneInfo[subrefLZSegments] do
                 for iSegAdjust, tSegAdjXZ in tiSegmentAdjust do
                     iAltSegX = tSegmentXZ[1] + tSegAdjXZ[1]
@@ -3852,6 +3850,63 @@ function UpdateNewPrimaryBaseLocation(aiBrain)
                 aiBrain[refiLastTimeCheckedEnemyBaseLocation] = GetGameTimeSeconds()
                 aiBrain[reftPrimaryEnemyBaseLocation] = {tEnemyBase[1], tEnemyBase[2], tEnemyBase[3]}
             end
+
+            --If this is on the same island as this brain, then check for overrides if we dont have a land zone for this location
+            local iEnemyLandLabel = NavUtils.GetLabel(refPathingTypeLand, tEnemyBase)
+            local iOurLandLabel = NavUtils.GetLabel(refPathingTypeLand, PlayerStartPoints[aiBrain:GetArmyIndex()])
+            if bDebugMessages == true then LOG(sFunctionRef..': Checking if enemy base on same island as aiBrain '..aiBrain.Nickname..' base, iEnemyLandLabel='..(iEnemyLandLabel or 'nil')..'; iOurLandLabel='..(iOurLandLabel or 'nil')) end
+            if iEnemyLandLabel == iOurLandLabel then
+                local iEnemyPlateau, iEnemyLandZone = GetPlateauAndLandZoneReferenceFromPosition(tEnemyBase)
+                local iOurPlateau, iOurLandZone = GetPlateauAndLandZoneReferenceFromPosition(PlayerStartPoints[aiBrain:GetArmyIndex()])
+                if bDebugMessages == true then LOG(sFunctionRef..': We are on same island so should have a valid land zone, iEnemyLandZone='..(iEnemyLandZone or 'nil')..'; iOurPlateau='..(iOurPlateau or 'nil')..'; iEnemyPlateau='..(iEnemyPlateau or 'nil')) end
+                if iEnemyLandZone == nil and iOurPlateau == iEnemyPlateau then
+                    local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tEnemyBase)
+                    --Search in a hollow box
+                    local iNewLandZone
+                    local iNewLandLabel
+                    local iNewPlateau
+                    --Search nearby but not that far
+                    local iMaxAdjust = math.max(1, math.floor(10 / iLandZoneSegmentSize))
+
+                    for iAdjustBase = 1, iMaxAdjust do
+                        for iCurSegmentX = iSegmentX - iAdjustBase, iSegmentX + iAdjustBase, 1 do
+                            for iCurSegmentZ = iSegmentZ - iAdjustBase, iSegmentZ + iAdjustBase, iAdjustBase * 2 do
+                                if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
+                                    if tLandZoneBySegment[iCurSegmentX][iCurSegmentZ] then
+                                        iNewLandLabel = NavUtils.GetLabel(refPathingTypeLand, GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ))
+                                        if iNewLandLabel == iOurLandLabel then
+                                            iNewLandZone = tLandZoneBySegment[iCurSegmentX][iCurSegmentZ]
+                                            AddLocationToPlateauExceptions(tEnemyBase, iOurPlateau, iNewLandZone)
+                                            break
+                                        end
+                                    end
+                                end
+                            end
+                            if iNewLandZone then break end
+                        end
+                        if iNewLandZone then break end
+                        --Then do the left and right row (excl corners which ahve already done per the above)
+                        for iCurSegmentX = iSegmentX - iAdjustBase, iSegmentX + iAdjustBase, iAdjustBase * 2 do
+                            for iCurSegmentZ = iSegmentZ - iAdjustBase + 1, iSegmentZ + iAdjustBase - 1, 1 do
+                                if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
+                                    if tLandZoneBySegment[iCurSegmentX][iCurSegmentZ] then
+                                        iNewLandLabel = NavUtils.GetLabel(refPathingTypeLand, GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ))
+                                        if iNewLandLabel == iOurLandLabel then
+                                            iNewLandZone = tLandZoneBySegment[iCurSegmentX][iCurSegmentZ]
+                                            AddLocationToPlateauExceptions(tEnemyBase, iOurPlateau, iNewLandZone)
+                                            break
+                                        end
+                                    end
+                                end
+                            end
+                            if iNewLandZone then break end
+                        end
+                        if iNewLandZone then break end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Finished checking for overrides, iNewLandZone='..(iNewLandZone or 'nil')) end
+                end
+            end
+
             --Below is from M27 - not sure if still need it; it is also based in part on how long since we last scouted the location with an air scout and whether there were any enemy buildings there, but land zone logic should give an alternative way of checking if any buildings there
             --[[if aiBrain.M28AI then
             --Consider if we want to check for alternative locations to the actual enemy start:
@@ -3918,6 +3973,7 @@ function UpdateNewPrimaryBaseLocation(aiBrain)
 
     elseif bDebugMessages == true then LOG(sFunctionRef..': Dealing with a civilian brain')
     end
+
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, primary enemy base location='..repru(aiBrain[reftPrimaryEnemyBaseLocation])) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -5806,8 +5862,10 @@ function GetTravelDistanceBetweenLandZones(iPlateau, iStartLZ, iEndLZ)
 
     local tStartLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLZ]
     if not(tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ]) then
+        if not(tStartLZData[subrefLZTravelDistToOtherLandZones]) then tStartLZData[subrefLZTravelDistToOtherLandZones] = {} end
         if not(tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau]) then tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau] = {} end
         if not(tStartLZData[subrefMidpoint]) then RecordMidpointAndOtherDataForZone(iPlateau, iStartLZ, tStartLZData) end --redundancy
+        if bDebugMessages == true then LOG(sFunctionRef..': About to record travel distance for iPlateau '..(iPlateau or 'nil')..'; iStartLZ '..(iStartLZ or 'nil')..'; iEndLZ='..(iEndLZ or 'nil')..'; start midpoint='..repru(tStartLZData[subrefMidpoint])..'; End LZ midpoint='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iEndLZ][subrefMidpoint])) end
         tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ] = M28Utilities.GetTravelDistanceBetweenPositions(tStartLZData[subrefMidpoint], tAllPlateaus[iPlateau][subrefPlateauLandZones][iEndLZ][subrefMidpoint], refPathingTypeLand)
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Travel distance from iStartLZ='..iStartLZ..' to iEndLZ='..iEndLZ..' is '..(tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ] or 'nil')) end

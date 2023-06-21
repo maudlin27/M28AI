@@ -466,7 +466,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         bCanPathToEnemyWithLand = true
     end
 
-    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.95 then bDebugMessages = true end
+
 
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] .. '; Allied ground MAA threat=' .. (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat] or 'nil') .. '; Is factory paused=' .. tostring(oFactory:IsPaused()) .. '; IsPaused value=' .. tostring(oFactory[M28UnitInfo.refbPaused]) .. '; Does LZ factory is in need BP=' .. tostring(tLZTeamData[M28Map.subrefTbWantBP]) .. '; Core LZ=' .. tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false) .. '; Core expansion=' .. tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false))
@@ -1222,9 +1222,12 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         if iEnemyPlateau == iPlateau then
             local iDistToEnemyBaseToConsider
             --Is enemy in same island?
-            local iIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])
-
-            if NavUtils.GetLabel(M28Map.refPathingTypeLand, M28Map.GetPrimaryEnemyBaseLocation(aiBrain)) == iIsland then
+            local iIsland = NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, oFactory:GetPosition())
+            if bDebugMessages == true then
+                local iEnemyBaseSegmentX, iEnemyBaseSegmentZ = M28Map.GetPathingSegmentFromPosition(M28Map.GetPrimaryEnemyBaseLocation(aiBrain))
+                LOG(sFunctionRef..': Primary enemy base location='..repru(M28Map.GetPrimaryEnemyBaseLocation(aiBrain))..'; Land label='..NavUtils.GetLabel(M28Map.refPathingTypeLand, M28Map.GetPrimaryEnemyBaseLocation(aiBrain))..'; iEnemyLandZone='..(iEnemyLandZone or 'nil')..'; tPathingPlateauAndLZOverride[iX][iZ]='..repru(M28Map.tPathingPlateauAndLZOverride[(M28Map.GetPrimaryEnemyBaseLocation(aiBrain)[1] or 0)][(M28Map.GetPrimaryEnemyBaseLocation(aiBrain)[3] or 0)])..'; iEnemyBaseSegmentX'..iEnemyBaseSegmentX..'; , iEnemyBaseSegmentZ='..iEnemyBaseSegmentZ..'; tLandZoneBySegment='..(M28Map.tLandZoneBySegment[iEnemyBaseSegmentX][iEnemyBaseSegmentZ] or 'nil'))
+            end
+            if NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, M28Map.GetPrimaryEnemyBaseLocation(aiBrain)) == iIsland and (iEnemyLandZone or 0) > 0 then
                 if not (bHaveLowMass) then
                     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 then
                         iDistToEnemyBaseToConsider = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iEnemyLandZone)
@@ -1233,6 +1236,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                             iDistToEnemyBaseToConsider = math.max(500, iDistToEnemyBaseToConsider)
                         end
                     else
+                        if bDebugMessages == true then LOG(sFunctionRef..': About to get travel distance to use based on dist to enemy base, iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iEnemyLandZone='..(iEnemyLandZone or 'nil')..'; iEnemyPlateau='..(iEnemyPlateau or 'nil')) end
                         iDistToEnemyBaseToConsider = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iEnemyLandZone) * 0.75
                     end
                     iDistToEnemyBaseToConsider = math.max(iDistToEnemyBaseToConsider, 250)
@@ -1241,7 +1245,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                     iDistToEnemyBaseToConsider = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iEnemyLandZone) * 0.5
                 end
             else
-                --enemy base is a dif island to ours, so want to control all of our island (within reason)
+                --enemy base is a dif island to ours or for some reason doesnt have a land zone, so want to control all of our island (within reason)
                 iDistToEnemyBaseToConsider = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], M28Map.GetPrimaryEnemyBaseLocation(aiBrain))
             end
             if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then

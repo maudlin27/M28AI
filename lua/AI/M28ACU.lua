@@ -567,6 +567,7 @@ function GetUpgradePathForACU(oACU)
             end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, oACU[reftPreferredUpgrades]='..repru(oACU[reftPreferredUpgrades])) end
 end
 
 function GetACUUpgradeWanted(oACU)
@@ -580,7 +581,7 @@ function GetACUUpgradeWanted(oACU)
     local sUpgradeWanted
 
     --If we were to get an upgrade, what upgrade would it be?
-    if not(oACU[reftPreferredUpgrades]) then
+    if not(oACU[reftPreferredUpgrades]) or (oACU[reftPreferredUpgrades][1] and oACU:HasEnhancement(oACU[reftPreferredUpgrades][1])) then
         GetUpgradePathForACU(oACU)
     end
     local aiBrain = oACU:GetAIBrain()
@@ -636,6 +637,12 @@ function GetACUUpgradeWanted(oACU)
                     end
                 end
             end
+        end
+    end
+    if bDebugMessages == true then
+        LOG(sFunctionRef..': End of code, sUpgradeWanted='..(sUpgradeWanted or 'nil'))
+        if sUpgradeWanted then
+            LOG(sFunctionRef..': Does ACU have this enhancement='..tostring(oACU:HasEnhancement(sUpgradeWanted)))
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -1638,7 +1645,7 @@ function GetACUOrder(aiBrain, oACU)
                                     if sUpgradeToGet and not(M28Conditions.HaveLowMass(aiBrain)) and not(M28Conditions.HaveLowPower(aiBrain)) then
                                         --Are we safe to get the upgrade here? if not then retreat
                                         if M28Conditions.SafeToUpgradeUnit(oACU) then
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Safe to get upgrade so will proceed with upgrading ACU') end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Safe to get upgrade so will proceed with upgrading ACU, sUpgradeToGet='..(sUpgradeToGet or 'nil')..' brain='..oACU:GetAIBrain().Nickname) end
                                             M28Orders.IssueTrackedEnhancement(oACU, sUpgradeToGet, false, 'ACUUp')
                                         else
                                             M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'Runc')
@@ -1751,7 +1758,7 @@ function GetACUOrder(aiBrain, oACU)
                                                 if sUpgradeToGet then
                                                     --Are we safe to get the upgrade here? if not then retreat
                                                     if M28Conditions.SafeToUpgradeUnit(oACU) then
-                                                        if bDebugMessages == true then LOG(sFunctionRef..': Safe to get upgrade so will proceed with upgrading ACU') end
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Safe to get upgrade here so will proceed with upgrading ACU, sUpgradeToGet='..(sUpgradeToGet or 'nil')..' brain='..oACU:GetAIBrain().Nickname..'; Has enhancement='..tostring(oACU:HasEnhancement(sUpgradeToGet))) end
                                                         M28Orders.IssueTrackedEnhancement(oACU, sUpgradeToGet, false, 'ACUUp')
                                                     else
                                                         --Retreat

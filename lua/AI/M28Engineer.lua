@@ -6801,6 +6801,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
 
     --Units to capture
     iCurPriority = iCurPriority + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': Is table of units to capture empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]))) end
     if M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]) == false then
         --Refresh the list
         local iCaptureCount = table.getn(tLZData[M28Map.subreftoUnitsToCapture])
@@ -8186,8 +8187,7 @@ end
 
 function ClearEngineersWhoseTargetIsNowBlockedByUnitConstructionStarted(oEngineer, oConstruction)
     --Idea is to prevent scenarios where two units get queued orders for the same location - once construction is started for one, it wont be possible for the other
-    local bDebugMessages = false
-    if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ClearEngineersWhoseTargetIsNowBlockedByUnitConstructionStarted'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -8300,4 +8300,89 @@ function ConsiderDestroyingLowTechEngineers(oJustBuilt)
             end
         end
     end
+end
+
+function RecordUnitAsCaptureTarget(oUnit, bOptionalOnlyRecordIfSameUnitIdInCaptureList)
+    --bOptionalOnlyRecordIfSameUnitIdInCaptureList - true if we only want to record oUnit if a unit with the same .UnitId is in the zone as a capture target - i.e. intended where a unit is captured that can be captured back
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordUnitAsCaptureTarget'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+    local tLZOrWZData
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..';  oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; Unit position='..repru(oUnit:GetPosition())..'; Unit owner='..oUnit:GetAIBrain().Nickname) end
+    if iLandOrWaterZone > 0 then
+        if iPlateauOrZero == 0 then
+            tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+        else
+            tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+        end
+        --If this was called via onunitcaptured then want to check if the same unitid was recorded in a table of capture targets:
+        local bWantToCaptureUnit = not(bOptionalOnlyRecordIfSameUnitIdInCaptureList)
+        if bOptionalOnlyRecordIfSameUnitIdInCaptureList then
+            if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToCapture]) == false then
+                for iCaptureTarget, oCaptureTarget in tLZOrWZData[M28Map.subreftoUnitsToCapture] do
+                    if oCaptureTarget.UnitId == oUnit.UnitId then
+                        bWantToCaptureUnit = true
+                        break
+                    end
+                end
+            end
+        end
+
+        --Check we havent already recorded this unit
+        if bWantToCaptureUnit and oUnit[M28UnitInfo.refbIsCaptureTarget] and M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToCapture]) == false then
+            for iRecordedUnit, oRecordedUnit in M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToCapture]) do
+                if oRecordedUnit == oUnit then
+                    bWantToCaptureUnit = false
+                    break
+                end
+            end
+        end
+
+        --Record unit against zone as a capture target and flag so we dont try and reclaim it
+        if bDebugMessages == true then LOG(sFunctionRef..': bWantToCaptureUnit='..tostring(bWantToCaptureUnit)..'; oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')) end
+        if bWantToCaptureUnit then
+            if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToCapture]) then tLZOrWZData[M28Map.subreftoUnitsToCapture] = {} end
+            table.insert(tLZOrWZData[M28Map.subreftoUnitsToCapture], oUnit)
+            oUnit[M28UnitInfo.refbIsCaptureTarget] = true
+            if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of units to capture') end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function CheckForSpecialCampaignCaptureTargets()
+    --Called whenever we get a new objective or the map size changes, as a basic way of checking for extra objectives that dont use the normal objective function
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'CheckForSpecialCampaignCaptureTargets'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --FA M6 - check for control centre building
+    if bDebugMessages == true then LOG(sFunctionRef..': is ControlCentreBldg nil='..tostring(ScenarioInfo.ControlCenterBldg == nil)) end
+    if ScenarioInfo.ControlCenterBldg then
+        local oControlCentre = ScenarioInfo.ControlCenterBldg
+        if bDebugMessages == true then LOG(sFunctionRef..': oControlCentre='..(oControlCentre.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oControlCentre) or 'nil')..'; Is capturable='..tostring(oControlCentre:IsCapturable())..'; refbIsCaptureTarget='..tostring(oControlCentre[M28UnitInfo.refbIsCaptureTarget] or false)) end
+        if M28UnitInfo.IsUnitValid(oControlCentre) and oControlCentre:IsCapturable() then
+            --Have we already recorded as a capturable target?
+            if not(oControlCentre[M28UnitInfo.refbIsCaptureTarget]) then
+                --Get first M28 brain in game
+                local oFirstM28Brain
+                if M28Utilities.IsTableEmpty(M28Overseer.tAllActiveM28Brains) == false then
+                    for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
+                        if oBrain.M28AI then
+                            oFirstM28Brain = oBrain
+                            break
+                        end
+                    end
+                end
+                if oFirstM28Brain and not(IsAlly(oFirstM28Brain:GetArmyIndex(), oControlCentre:GetAIBrain():GetArmyIndex())) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will call logic to record control centre as a capture target') end
+                    RecordUnitAsCaptureTarget(oControlCentre)
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+
 end
