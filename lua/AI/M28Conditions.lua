@@ -1232,9 +1232,12 @@ function DoWeWantToSynchroniseMMLShots(iPlateau, iLandZone, tLZData, tLZTeamData
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    if iLandZone == 13 then bDebugMessages = true end
 
     local bConsiderSpecialMMLLogic = false
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; iPlateau '..iPlateau..'; iLandZOne '..iLandZone..'; tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMD]='..(tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMD] or 'nil')) end
     if GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMD] or -100) <= 15 then
+        if bDebugMessages == true then LOG(sFunctionRef..': tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]='..tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]..'; tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]='..(tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 'nil')..'; iFriendlyBestMobileIndirectRange='..iFriendlyBestMobileIndirectRange..'; iEnemyBestDFRange='..iEnemyBestDFRange..'; tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange]='..tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange]) end
         if (tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] or 0) >= 700 and (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 and (iFriendlyBestMobileIndirectRange or 0) > (iEnemyBestDFRange or 0) and iFriendlyBestMobileIndirectRange > (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] or 0) then
             local bEnemyHasAeonTMD = false --also includes loyalists and naval TMD
             local bEnemyHasNonAeonTMD = false
@@ -1256,14 +1259,17 @@ function DoWeWantToSynchroniseMMLShots(iPlateau, iLandZone, tLZData, tLZTeamData
                 if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                     for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                         UpdateNearbyTMD(iAdjLZ)
+                        if bEnemyHasAeonTMD then break end
                     end
                 end
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': bEnemyHasAeonTMD='..tostring(bEnemyHasAeonTMD)..'; bEnemyHasNonAeonTMD='..tostring(bEnemyHasNonAeonTMD)) end
             if not(bEnemyHasAeonTMD) and bEnemyHasNonAeonTMD then
                 bConsiderSpecialMMLLogic = true
             end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, bConsiderSpecialMMLLogic='..tostring(bConsiderSpecialMMLLogic)) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return bConsiderSpecialMMLLogic
 end

@@ -507,7 +507,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
                 if oUnit:GetFractionComplete() >= 1 then
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; refiDFRange='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; IndirectRange='..(oUnit[M28UnitInfo.refiIndirectRange] or 'nil')..'; Unit combat rating='..M28UnitInfo.GetCombatThreatRating({ oUnit }, false)) end
                     if oUnit[M28UnitInfo.refiDFRange] > 0 or oUnit[M28UnitInfo.refiIndirectRange] > 0 then
-                        iCurThreat = M28UnitInfo.GetCombatThreatRating({ oUnit }, false)
+                        iCurThreat = M28UnitInfo.GetCombatThreatRating({ oUnit }, false, nil, (oUnit[M28UnitInfo.refiDFRange] or 0) == 0)
                         if iCurThreat > 0 then
                             if oUnit[M28UnitInfo.refiDFRange] > 0 then
                                 if not(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange]) then tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange] = {} end
@@ -2556,12 +2556,13 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         elseif oUnit[M28UnitInfo.refiIndirectRange] > 0 then
 
                             if oUnit[M28UnitInfo.refiIndirectRange] > iEnemyBestDFRange then
-                                if bConsiderSpecialMMLLogic and EntityCategoryContains(M28UnitInfo.refCategoryMML, oUnit.UnitId) then table.insert(tMMLForSynchronisation, oUnit)
+                                table.insert(tUnitsToSupport, oUnit)
+                                if bConsiderSpecialMMLLogic and EntityCategoryContains(M28UnitInfo.refCategoryMML, oUnit.UnitId) then
+                                    table.insert(tMMLForSynchronisation, oUnit)
                                 else
                                     iIndirectDistanceInsideRangeThreshold = iIndirectRunFigureNormal
                                     if oUnit[M28UnitInfo.refbWeaponUnpacks] then iIndirectDistanceInsideRangeThreshold = iIndirectDistanceInsideRangeThreshold + iIndirectRunFigureDeployedAdjust end
 
-                                    table.insert(tUnitsToSupport, oUnit)
 
                                     if bDebugMessages == true then
                                         LOG(sFunctionRef..': Have Indirect unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' that doesnt outrange the enemy, WIll list every unit in the nearest DF enemies and their distance to us; our position='..repru(oUnit:GetPosition()))
@@ -2936,6 +2937,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             end
             --MML synchronisation logic
             if bConsiderSpecialMMLLogic and M28Utilities.IsTableEmpty(tMMLForSynchronisation) == false then
+                bDebugMessages = true
                 --Get table of enemy shields and TMD to consider targeting
                 local tTMDAndShields = {}
                 function IncludeTMDAndShieldsInZone(iAdjLZ)
@@ -2964,6 +2966,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 local iClosestPotentialTarget
                 local iCurTargetDist
                 local tMMLWithNearbyTargets = {}
+                if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through each MML for synchronisation and get a target for it, is tTMDAndShields empty='..tostring(M28Utilities.IsTableEmpty(tTMDAndShields))) end
                 for iUnit, oUnit in tMMLForSynchronisation do
                     if not(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], math.max(oUnit[M28UnitInfo.refiIndirectRange] - iIndirectRunFigureSynchronisation, math.min(iEnemyBestDFRange + 5, oUnit[M28UnitInfo.refiIndirectRange] - 2)), iTeam, false)) then
                         if M28Utilities.IsTableEmpty(tTMDAndShields) then --redundancy - hopefully only scenario we get here is if there is 1 part-complete TMD/shield that is <30% complete
@@ -2993,40 +2996,65 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 end
                             end
                         end
-                        --Do we have any MML that have targets in-range or almost in range?
-                        if M28Utilities.IsTableEmpty(tMMLWithNearbyTargets) == false then
-                            local iMMLWithTargets = table.getn(tMMLWithNearbyTargets)
-                            if iMMLWithTargets >= 4 then
-                                local iMMLJustFiredOrReadyToFire = 0
-                                local iMMLNotFiredForAges = 0
-                                local iMMLReloading = 0
-
-                                local iTimeUntilReadyToFire
-                                for iUnit, oUnit in tMMLWithNearbyTargets do
-                                    iTimeUntilReadyToFire = oUnit[M28UnitInfo.refiTimeBetweenIFShots] - (GetGameTimeSeconds() - (oUnit[M28Events.refiLastWeaponEvent] or -100))
-                                    if iTimeUntilReadyToFire <= math.min(-7, -oUnit[M28UnitInfo.refiTimeBetweenIFShots] - 1.5) then
-                                        iMMLNotFiredForAges = iMMLNotFiredForAges + 1
-                                    elseif iTimeUntilReadyToFire >= 0.5 then
-                                        iMMLReloading = iMMLReloading + 1
-                                    else
-                                        iMMLJustFiredOrReadyToFire = iMMLJustFiredOrReadyToFire + 1
-                                    end
-                                end
-                                if iMMLJustFiredOrReadyToFire + iMMLNotFiredForAges >= iMMLWithTargets * 0.75 or iMMLNotFiredForAges >= iMMLWithTargets * 0.25 then
-                                    --Dont want to synchronise as either already synchronised or have lots of MML that havent fired in a while
-                                    M28UnitInfo.EnableUnitWeapon(oUnit) --In addition to separate logic that will enable, as want to enable asap once we decide we want to fire)
-                                else
-                                    --Want to synchronise shots, disable the weapons (they shoudl be reenabled each cycle)
-                                    M28UnitInfo.DisableUnitWeapon(oUnit)
-                                end
-                            end
-                        end
                     else
                         --Retreat temporarily from enemy units
                         if EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnit.UnitId) then
                             M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'MMLASKRetr'..iLandZone)
                         else
                             M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'MMLSKRetr'..iLandZone)
+                        end
+                    end
+                end
+                --Do we have any MML that have targets in-range or almost in range?
+                if bDebugMessages == true then LOG(sFunctionRef..': Is tMMLWithNearbyTargets empty='..tostring(M28Utilities.IsTableEmpty(tMMLWithNearbyTargets))) end
+                if M28Utilities.IsTableEmpty(tMMLWithNearbyTargets) == false then
+                    local iMMLWithTargets = table.getn(tMMLWithNearbyTargets)
+                    if bDebugMessages == true then LOG(sFunctionRef..': iMMLWithTargets='..iMMLWithTargets) end
+                    if iMMLWithTargets >= 4 then
+                        local iMMLJustFiredOrReadyToFire = 0
+                        local iMMLNotFiredForAges = 0
+                        local iMMLReloading = 0
+
+                        local iTimeUntilReadyToFire
+                        local iTotalTimeUntilReadyToFire = 0
+                        local iMinTimeUntilReady = 100000
+                        local iMaxTimeUntilReady = -100000
+                        local tiTimeUntilReadyToFire = {}
+                        for iUnit, oUnit in tMMLWithNearbyTargets do
+                            iTimeUntilReadyToFire = oUnit[M28UnitInfo.refiTimeBetweenIFShots] - (GetGameTimeSeconds() - (oUnit[M28Events.refiLastWeaponEvent] or -100))
+                            if iTimeUntilReadyToFire <= math.min(-7, -oUnit[M28UnitInfo.refiTimeBetweenIFShots] - 1.5) then
+                                iMMLNotFiredForAges = iMMLNotFiredForAges + 1
+                            elseif iTimeUntilReadyToFire >= 1.01 then
+                                iMMLReloading = iMMLReloading + 1
+                            else
+                                iMMLJustFiredOrReadyToFire = iMMLJustFiredOrReadyToFire + 1
+                            end
+                            if iTimeUntilReadyToFire < iMinTimeUntilReady then iMinTimeUntilReady = iTimeUntilReadyToFire end
+                            if iTimeUntilReadyToFire > iMaxTimeUntilReady then iMaxTimeUntilReady = iTimeUntilReadyToFire end
+                            iTotalTimeUntilReadyToFire = iTotalTimeUntilReadyToFire + iTimeUntilReadyToFire
+                            table.insert(tiTimeUntilReadyToFire, iTimeUntilReadyToFire)
+                            if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTimeUntilReadyToFire='..iTimeUntilReadyToFire..'; oUnit[M28UnitInfo.refiTimeBetweenIFShots]='..oUnit[M28UnitInfo.refiTimeBetweenIFShots]..'; oUnit[M28Events.refiLastWeaponEvent]='..(oUnit[M28Events.refiLastWeaponEvent] or 'nil')..'; Cur time='..GetGameTimeSeconds()) end
+                        end
+                        local iAverageTimeUntilReadyToFire = iTotalTimeUntilReadyToFire / iMMLWithTargets
+                        local iMMLWithin1OfAverage = 0
+                        for iEntry, iTime in tiTimeUntilReadyToFire do
+                            if math.abs(iTime - iAverageTimeUntilReadyToFire) < 1 then
+                                iMMLWithin1OfAverage = iMMLWithin1OfAverage + 1
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iMMLJustFiredOrReadyToFire='..iMMLJustFiredOrReadyToFire..'; iMMLNotFiredForAges='..iMMLNotFiredForAges..'; iMMLWithTargets='..iMMLWithTargets..'; iMMLReloading='..iMMLReloading..'; iMMLWithin1OfAverage='..iMMLWithin1OfAverage..'; iAverageTimeUntilReadyToFire='..iAverageTimeUntilReadyToFire..'; iMaxTimeUntilReady='..iMaxTimeUntilReady..'; iMinTimeUntilReady='..iMinTimeUntilReady) end
+                        if iMMLJustFiredOrReadyToFire + iMMLNotFiredForAges >= iMMLWithTargets * 0.75 or iMMLNotFiredForAges >= iMMLWithTargets * 0.25 or iMMLWithin1OfAverage >= iMMLWithTargets * 0.8 or (iMaxTimeUntilReady - iMinTimeUntilReady) <= 1.4 then
+                            --Dont want to synchronise as either already synchronised or have lots of MML that havent fired in a while
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will enable all MML weapons') end
+                            for iUnit, oUnit in tMMLWithNearbyTargets do
+                                M28UnitInfo.EnableUnitWeapon(oUnit) --In addition to separate logic that will enable, as want to enable asap once we decide we want to fire)
+                            end
+                        else
+                            --Want to synchronise shots, disable the weapons (they shoudl be reenabled each cycle)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will disable all MML weapons until they are better synchronised, time='..GetGameTimeSeconds()) end
+                            for iUnit, oUnit in tMMLWithNearbyTargets do
+                                M28UnitInfo.DisableUnitWeapon(oUnit)
+                            end
                         end
                     end
                 end
