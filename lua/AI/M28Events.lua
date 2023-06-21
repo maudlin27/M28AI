@@ -377,6 +377,18 @@ function OnUnitDeath(oUnit)
                                 oUnit[M28Land.refoMobileShieldTarget][M28Land.refoAssignedMobileShield] = nil
                             end
                         end
+                        --Update record of units with disabled weapons
+                        if oUnit[M28UnitInfo.refbWeaponDisabled] then
+                            local iTeam = oUnit:GetAIBrain().M28Team
+                            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoUnitsWithDisabledWeapons]) == false then
+                                for iRecorded, oRecorded in M28Team.tTeamData[iTeam][M28Team.reftoUnitsWithDisabledWeapons] do
+                                    if oRecorded == oUnit then
+                                        table.remove(M28Team.tTeamData[iTeam][M28Team.reftoUnitsWithDisabledWeapons], iRecorded)
+                                        break
+                                    end
+                                end
+                            end
+                        end
                     end
                 end
             end

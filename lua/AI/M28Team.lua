@@ -140,6 +140,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiLastTimeNoShieldBoatTargetsByPond = 'M28TeamLastTimeNoShieldBoatTargets' --[x] is the pond ref, returns gametimeseconds
     refiLastTimeNoStealthTargetsByPlateau = 'M28TeamLastTimeNoStealthTargets' --[x] is the plateau ref, returns gametime seconds
     refiLastTimeNoMAATargetsByIsland = 'M28TeamLastTimeNoMAATargets' --[x] is the plateau ref, returns gametimeseconds
+    reftoUnitsWithDisabledWeapons = 'M28TeamUnitsDisabledWeap' --[x] = 1,2,...; returns unit with disabled weapon
     --Water related
     subrefiRallyPointWaterZonesByPond = 'M28TeamWZRallyPoint' --[x] is the pond ref, then returns a table orderd 1, 2... of water zones that are rally points
     refiTimeLastNoSurfaceCombatTargetByPond = 'M28TeamLastTimeNoSurfTarget' --[x] is the pond ref, returns gametimeseconds that had surface bomat units with no target
@@ -2298,11 +2299,30 @@ function CheckEnemyACUStatus(iTeam)
         end
     end
 end
+function CheckForUnitsWithDisabledWeapons(iTeam)
+    if M28Utilities.IsTableEmpty(tTeamData[iTeam][reftoUnitsWithDisabledWeapons]) == false then
+        local iRecordedUnits = table.getn(tTeamData[iTeam][reftoUnitsWithDisabledWeapons])
+        for iCurUnit = iRecordedUnits, 1, -1 do
+            local oUnit = tTeamData[iTeam][reftoUnitsWithDisabledWeapons][iCurUnit]
+            if M28UnitInfo.IsUnitValid(oUnit) then
+                --Has it been a while since we last wanted to disable the weapon?
+                if GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeLastDisabledWeapon] or 0) >= 2.01 then
+                    M28UnitInfo.EnableUnitWeapon(oUnit)
+                end
+            else
+                --Unit not valid, remove from table
+                table.remove(tTeamData[iTeam][reftoUnitsWithDisabledWeapons], iCurUnit)
+            end
+        end
+    end
+end
+
 
 function TeamOverseer(iM28Team)
     while tTeamData[iM28Team][subrefiActiveM28BrainCount] > 0 do
         ForkThread(TeamEconomyRefresh, iM28Team)
         ForkThread(CheckEnemyACUStatus, iM28Team)
+        ForkThread(CheckForUnitsWithDisabledWeapons, iM28Team)
         WaitTicks(10)
     end
 end

@@ -1225,3 +1225,45 @@ function DoesACUHaveValidOrder(oACU)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return true
 end
+
+function DoWeWantToSynchroniseMMLShots(iPlateau, iLandZone, tLZData, tLZTeamData, iTeam, iFriendlyBestMobileIndirectRange, iEnemyBestDFRange)
+    --Consider synchronising shots with MML if we have enough to warrant it and they are faced with non-Aeon TMD
+    local sFunctionRef = 'DoWeWantToSynchroniseMMLShots'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+    local bConsiderSpecialMMLLogic = false
+    if GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMD] or -100) <= 15 then
+        if (tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] or 0) >= 700 and (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 and (iFriendlyBestMobileIndirectRange or 0) > (iEnemyBestDFRange or 0) and iFriendlyBestMobileIndirectRange > (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] or 0) then
+            local bEnemyHasAeonTMD = false --also includes loyalists and naval TMD
+            local bEnemyHasNonAeonTMD = false
+            function UpdateNearbyTMD(iAdjLZ)
+                local tAdjLZTeamData
+                if iAdjLZ == iLandZone then tAdjLZTeamData = tLZTeamData else tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam] end
+                if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                    local tZoneTMD = EntityCategoryFilterDown(M28UnitInfo.refCategoryTMD + categories.ANTIMISSILE * categories.MOBILE, tAdjLZTeamData[M28Map.subrefTEnemyUnits])
+                    if M28Utilities.IsTableEmpty(tZoneTMD) == false then
+                        bEnemyHasNonAeonTMD = true
+                        if M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.AEON + categories.ANTIMISSILE * categories.MOBILE, tZoneTMD)) == false then
+                            bEnemyHasAeonTMD = true
+                        end
+                    end
+                end
+            end
+            UpdateNearbyTMD(iLandZone)
+            if not(bEnemyHasAeonTMD) then
+                if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                    for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                        UpdateNearbyTMD(iAdjLZ)
+                    end
+                end
+            end
+            if not(bEnemyHasAeonTMD) and bEnemyHasNonAeonTMD then
+                bConsiderSpecialMMLLogic = true
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return bConsiderSpecialMMLLogic
+end

@@ -44,6 +44,8 @@ refbIsCaptureTarget = 'M28UnitIsCapTrg' --true if we want to capture the unit
 refiGameTimeMicroStarted = 'M28UnitTimeMicroStarted' --Gametimeseconds that started special micro
 refbSpecialMicroActive = 'M28UnitSpecialMicroActive'
 refiGameTimeToResetMicroActive = 'M28UnitTimeToResetMicro' --Gametimeseconds
+refbWeaponDisabled = 'M28UnitWeaponDisabled' --True if unit weapon has been disabled by M28 code
+refiTimeLastDisabledWeapon = 'M28UnitTimeDsblW' --Gametimeseconds that we wanted the unit's weapon to be disabled
 
     --Ranges and weapon details
 refiDFRange = 'M28UDFR' --(fatboy df range gets treated as range of its indirect cannons)
@@ -1924,4 +1926,42 @@ function CanSeeUnit(aiBrain, oUnit, bReturnTrueIfOnlySeeBlip)
         end
     end
     return false
+end
+
+function DisableUnitWeapon(oUnit)
+
+
+    local iHoldFireState = 1
+    oUnit:SetFireState(iHoldFireState)
+    local bAlreadyRecorded = oUnit[refbWeaponDisabled]
+    oUnit[refbWeaponDisabled] = true
+    oUnit[refiTimeLastDisabledWeapon] = GetGameTimeSeconds()
+    if not(bAlreadyRecorded) then
+        local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
+        local iTeam = oUnit:GetAIBrain().M28Team
+        if not(M28Team.tTeamData[iTeam][M28Team.reftoUnitsWithDisabledWeapons]) then
+            M28Team.tTeamData[iTeam][M28Team.reftoUnitsWithDisabledWeapons] = {}
+        end
+        table.insert(M28Team.tTeamData[iTeam][M28Team.reftoUnitsWithDisabledWeapons], oUnit)
+    end
+end
+
+function EnableUnitWeapon(oUnit)
+    local iReturnFireState = 0
+    oUnit:SetFireState(iReturnFireState)
+    local bAlreadyRecorded = not(oUnit[refbWeaponDisabled])
+    oUnit[refbWeaponDisabled] = false
+    oUnit[refiTimeLastDisabledWeapon] = nil
+    if not(bAlreadyRecorded) then
+        local iTeam = oUnit:GetAIBrain().M28Team
+        local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoUnitsWithDisabledWeapons]) == false then
+            for iRecorded, oRecorded in M28Team.tTeamData[iTeam][M28Team.reftoUnitsWithDisabledWeapons] do
+                if oRecorded == oUnit then
+                    table.remove(M28Team.tTeamData[iTeam][M28Team.reftoUnitsWithDisabledWeapons], iRecorded)
+                    break
+                end
+            end
+        end
+    end
 end
