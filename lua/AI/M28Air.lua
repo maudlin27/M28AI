@@ -4035,7 +4035,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                             if bDebugMessages == true then LOG(sFunctionRef..': oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; iBomberPlateauOrZero='..(iBomberPlateauOrZero or 'nil')..'; iBomberLandOrWaterZone='..(iBomberLandOrWaterZone or 'nil')..'; tBomberZoneMidpoint='..repru(tBomberZoneMidpoint)) end
                             RecordOtherLandAndWaterZonesByDistance(tBomberLandOrWaterZoneData, tBomberZoneMidpoint)
                             if M28Utilities.IsTableEmpty(tBomberLandOrWaterZoneData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
-                                if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through each other zone by distance and consider the best target') end
+                                if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through each other zone by distance and consider the best target, tFirstZoneWithTargetsMidpoint='..repru(tFirstZoneWithTargetsMidpoint)) end
                                 local bZoneIsCloseToFirstTargetZone
                                 for iEntry, tSubtable in tBomberLandOrWaterZoneData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
                                     if tFirstZoneWithTargetsMidpoint then
@@ -4073,6 +4073,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                                                 tOtherZoneLZOrWZData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
                                             end
                                             tFirstZoneWithTargetsMidpoint = tOtherZoneLZOrWZData[M28Map.subrefMidpoint]
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Have the first zone to target, tFirstZoneWithTargetsMidpoint='..repru(tFirstZoneWithTargetsMidpoint)) end
                                         end
                                         --if M28Utilities.IsTableEmpty(tEnemyGroundTargets) == false then break end
                                     end
@@ -4110,7 +4111,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
 
 
 
-                        for iUnit, oUnit in tEnemyGroundTargets do
+                        for iUnit, oUnit in tDangerousAATargets do
                             if oUnit:GetFractionComplete() >= 0.8 then
                                 --Add increase in distance if we arent facing the target
                                 iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oBomber:GetPosition())
