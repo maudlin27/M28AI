@@ -1708,11 +1708,40 @@ function ConsiderPriorityMexUpgrades(iM28Team)
     local sFunctionRef = 'ConsiderPriorityMexUpgrades'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Is table of upgrading mexes empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]))..'; tTeamData[iM28Team][subrefiTeamMassStored]='..tTeamData[iM28Team][subrefiTeamMassStored]..'; tTeamData[iM28Team][subrefiTeamNetMass]='..tTeamData[iM28Team][subrefiTeamNetMass]..'; tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]='..tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]..'; or M28Overseer.bNoRushActive='..tostring(M28Overseer.bNoRushActive or false)) end
-    if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) or (tTeamData[iM28Team][subrefiTeamNetMass] - tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]) > 0 or 2 * tTeamData[iM28Team][subrefiActiveM28BrainCount] + table.getn(tTeamData[iM28Team][subreftTeamUpgradingMexes]) * 2.5 < tTeamData[iM28Team][subrefiTeamGrossMass] or M28Overseer.bNoRushActive then
+    local iExistingT1MexUpgrades = 0
+    local iExistingT2MexUpgrades = 0
+    if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) == false then
+        for iUpgradingMex, oUpgradingMex in tTeamData[iM28Team][subreftTeamUpgradingMexes] do
+            if EntityCategoryContains(categories.TECH1, oUpgradingMex.UnitId) then
+                iExistingT1MexUpgrades = iExistingT1MexUpgrades + 1
+            elseif EntityCategoryContains(categories.TECH2, oUpgradingMex.UnitId) then
+                iExistingT2MexUpgrades = iExistingT2MexUpgrades + 1
+            else
+                M28Utilities.ErrorHandler('Are somehow upgrading a mex  that is neither t1 nor t2')
+            end
+        end
+    end
+    --T1 mex upgrading to T2 = c.8 mass per sec; T2 to T3 = c.18 mass per sec; so treat 1 T2 mex upgrading as equiv to 2.5 T1 mex
+    --Want to be spending at least 1/3 of gross income on upgrading mexes assuming we have safe mexes to upgrade
+    local bHaveSafeMexToUpgrade = GetSafeMexToUpgrade(iM28Team, true)
+    local iUpgradingMexValue = iExistingT1MexUpgrades + 2.5 * iExistingT2MexUpgrades
+    local iWantedUpgradingMexValue = 1
+    if bHaveSafeMexToUpgrade then
+        --if upgrading 1 mex from t1 to t2 costs roughly 0.8 mass per tick, and we want to be spenting 1/3 of mass per tick on this, then want 1/3 of gross mass / 0.8, i.e. 0.4167
+        iWantedUpgradingMexValue = tTeamData[iM28Team][subrefiTeamGrossMass]  * 0.4167
+        --if are already upgrading 1 mex per brain and are stalling mass, then reduce the amount wanted
+        if tTeamData[iM28Team][subrefiTeamMassStored] < 50 and M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) == false and table.getn(tTeamData[iM28Team][subreftTeamUpgradingMexes]) > tTeamData[iM28Team][subrefiActiveM28BrainCount] and tTeamData[iM28Team][subrefiTeamNetMass] <= -math.max(-0.5, tTeamData[iM28Team][subrefiTeamGrossMass] * 0.1) then
+            iWantedUpgradingMexValue = iWantedUpgradingMexValue * 0.2
+        end
+        --Adjust maount wanted for any build power modifier
+        iWantedUpgradingMexValue = iWantedUpgradingMexValue / tTeamData[iM28Team][refiHighestBrainBuildMultiplier]
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': iWantedUpgradingMexValue='..iWantedUpgradingMexValue..'; iUpgradingMexValue='..iUpgradingMexValue..'; bHaveSafeMexToUpgrade='..tostring(bHaveSafeMexToUpgrade)..'; iExistingT1MexUpgrades='..iExistingT1MexUpgrades..'; iExistingT2MexUpgrades='..iExistingT2MexUpgrades..'; Active brain count='..tTeamData[iM28Team][subrefiActiveM28BrainCount]..'; Total mass stored='..tTeamData[iM28Team][subrefiTeamMassStored]) end
+    if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) or (bHaveSafeMexToUpgrade and iWantedUpgradingMexValue > iUpgradingMexValue) or (tTeamData[iM28Team][subrefiTeamNetMass] - tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]) > 0 or 2 * tTeamData[iM28Team][subrefiActiveM28BrainCount] + table.getn(tTeamData[iM28Team][subreftTeamUpgradingMexes]) * 2.5 < tTeamData[iM28Team][subrefiTeamGrossMass] or M28Overseer.bNoRushActive then
         --Do we have enough energy?
         if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have enough energy, tTeamData[iM28Team][subrefiTeamNetEnergy]='..tTeamData[iM28Team][subrefiTeamNetEnergy]..'; tTeamData[iM28Team][subrefiEnergyUpgradesStartedThisCycle]='..tTeamData[iM28Team][subrefiEnergyUpgradesStartedThisCycle]..'; tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored]='..tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored]) end
         if tTeamData[iM28Team][subrefiTeamNetEnergy] - tTeamData[iM28Team][subrefiEnergyUpgradesStartedThisCycle] > 0 and (tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] >= 0.75 or tTeamData[iM28Team][subrefiTeamNetEnergy] - tTeamData[iM28Team][subrefiEnergyUpgradesStartedThisCycle] >= 5) then
-            --Do we have mexes in start positions that are lower than the enemy's highest tech, or 2 lower than the highest mex in that LZ? Or are in norush mode?
+            --Do we have mexes in start positions that are lower than the enemy's highest tech, or 2 lower than the highest mex in that LZ? Or are in norush mode? Or just want to be spending more mass on upgrading safe mexes?
             local iTechLevelToUpgrade = math.min(3, (tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] or 1)) - 1 --, (tTeamData[iM28Team][subrefiHighestEnemyMexTech] or 0))) - 1
             if M28Overseer.bNoRushActive then iTechLevelToUpgrade = math.max(1, iTechLevelToUpgrade) end
             --Always be upgrading a mex at higher mass levels
@@ -1725,61 +1754,67 @@ function ConsiderPriorityMexUpgrades(iM28Team)
             end
             if bDebugMessages == true then LOG(sFunctionRef..': iTechLevelToUpgrade='..iTechLevelToUpgrade..'; tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]='..tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) end
             if iTechLevelToUpgrade >= 1 then
-                local iPlateau, iLandZone, tMexesToConsiderUpgrading
-                local bAbort = false
+                if bHaveSafeMexToUpgrade then
+                    GetSafeMexToUpgrade(iM28Team)
+                else
 
-                --Want to be upgrading at least 1 mex on our team, or more if we have positive mass income, subject to gross income
-                local tiExtraMassStoredPerUpgrade = {[1] = 300, [2] = 1000}
-                local iMassStoredToKeepUpgrading = 0
-                if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) == false then
-                    for iUnit, oUnit in tTeamData[iM28Team][subreftTeamUpgradingMexes] do
-                        iMassStoredToKeepUpgrading = iMassStoredToKeepUpgrading + tiExtraMassStoredPerUpgrade[M28UnitInfo.GetUnitTechLevel(oUnit)]
-                    end
-                end
+                    --If dont have safe mex to upgrade - cycle through each brain looking for mex to upgrade
+                    local iPlateau, iLandZone, tMexesToConsiderUpgrading
+                    local bAbort = false
 
-
-
-                for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
-                    bAbort = false
-                    iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
-                    local tLZOrWZTeamData
-                    if (iLandZone or 0) > 0 then
-                        tLZOrWZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iM28Team]
-                    else
-                        local iWaterZone = M28Map.GetWaterZoneFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
-                        if (iWaterZone or 0) > 0 then
-                            tLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][iM28Team]
+                    --Want to be upgrading at least 1 mex on our team, or more if we have positive mass income, subject to gross income
+                    local tiExtraMassStoredPerUpgrade = {[1] = 300, [2] = 1000}
+                    local iMassStoredToKeepUpgrading = 0
+                    if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) == false then
+                        for iUnit, oUnit in tTeamData[iM28Team][subreftTeamUpgradingMexes] do
+                            iMassStoredToKeepUpgrading = iMassStoredToKeepUpgrading + tiExtraMassStoredPerUpgrade[M28UnitInfo.GetUnitTechLevel(oUnit)]
                         end
                     end
-                    --Dont do priority upgrade if this location already has an upgrade, unless we have high mass income for this brain and T1 mexes
-                    if bDebugMessages == true then LOG(sFunctionRef..': Does brain '..oBrain.Nickname..' have an empty table of active upgrades in its start position LZ/WZ='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefActiveUpgrades]))) end
-                    if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefActiveUpgrades]) or (oBrain[M28Economy.refiGrossMassBaseIncome] >= 7 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] > 0) then
-                        for iMexTech = 1, iTechLevelToUpgrade do
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering mexes for iMexTech='..iMexTech..'; count='..tLZOrWZTeamData[M28Map.subrefMexCountByTech][iMexTech]) end
-                            if tLZOrWZTeamData[M28Map.subrefMexCountByTech][iMexTech] > 0 then
-                                tMexesToConsiderUpgrading = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex * M28UnitInfo.ConvertTechLevelToCategory(iMexTech), tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits])
-                                if M28Utilities.IsTableEmpty(tMexesToConsiderUpgrading) == false then
-                                    for iMex, oMex in tMexesToConsiderUpgrading do
-                                        if not(oMex:IsUnitState('Upgrading')) and oMex:GetFractionComplete() == 1 then
-                                            if oMex:GetAIBrain().M28AI and oMex:GetAIBrain().M28Team == iM28Team then
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Will try to upgrade mex in starting zone, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Mex='..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)) end
-                                                M28Economy.UpgradeUnit(oMex, true)
-                                                iMassStoredToKeepUpgrading = iMassStoredToKeepUpgrading + tiExtraMassStoredPerUpgrade[iMexTech]
-                                                bAbort = true
-                                                break
+
+
+
+                    for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
+                        bAbort = false
+                        iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+                        local tLZOrWZTeamData
+                        if (iLandZone or 0) > 0 then
+                            tLZOrWZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iM28Team]
+                        else
+                            local iWaterZone = M28Map.GetWaterZoneFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
+                            if (iWaterZone or 0) > 0 then
+                                tLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][iM28Team]
+                            end
+                        end
+                        --Dont do priority upgrade if this location already has an upgrade, unless we have high mass income for this brain and T1 mexes
+                        if bDebugMessages == true then LOG(sFunctionRef..': Does brain '..oBrain.Nickname..' have an empty table of active upgrades in its start position LZ/WZ='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefActiveUpgrades]))) end
+                        if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefActiveUpgrades]) or (oBrain[M28Economy.refiGrossMassBaseIncome] >= 4 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] > 0) then
+                            for iMexTech = 1, iTechLevelToUpgrade do
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering mexes for iMexTech='..iMexTech..'; count='..tLZOrWZTeamData[M28Map.subrefMexCountByTech][iMexTech]) end
+                                if tLZOrWZTeamData[M28Map.subrefMexCountByTech][iMexTech] > 0 then
+                                    tMexesToConsiderUpgrading = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex * M28UnitInfo.ConvertTechLevelToCategory(iMexTech), tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits])
+                                    if M28Utilities.IsTableEmpty(tMexesToConsiderUpgrading) == false then
+                                        for iMex, oMex in tMexesToConsiderUpgrading do
+                                            if not(oMex:IsUnitState('Upgrading')) and oMex:GetFractionComplete() == 1 then
+                                                if oMex:GetAIBrain().M28AI and oMex:GetAIBrain().M28Team == iM28Team then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Will try to upgrade mex in starting zone, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Mex='..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)) end
+                                                    M28Economy.UpgradeUnit(oMex, true)
+                                                    iMassStoredToKeepUpgrading = iMassStoredToKeepUpgrading + tiExtraMassStoredPerUpgrade[iMexTech]
+                                                    bAbort = true
+                                                    break
+                                                end
                                             end
                                         end
                                     end
                                 end
+                                if bAbort then break end
                             end
-                            if bAbort then break end
                         end
-                    end
-                    if bAbort then
-                        --Do we have positive mass income or lots of mass stored? If so then proceed to upgrade for other brains
-                        if tTeamData[iM28Team][subrefiTeamNetEnergy] - tTeamData[iM28Team][subrefiEnergyUpgradesStartedThisCycle] > 0 then
-                            if (tTeamData[iM28Team][subrefiTeamNetMass] - tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]) > 0 or tTeamData[iM28Team][subrefiTeamMassStored] >= iMassStoredToKeepUpgrading then
-                                bAbort = false
+                        if bAbort then
+                            --Do we have positive mass income or lots of mass stored? If so then proceed to upgrade for other brains
+                            if tTeamData[iM28Team][subrefiTeamNetEnergy] - tTeamData[iM28Team][subrefiEnergyUpgradesStartedThisCycle] > 0 then
+                                if (tTeamData[iM28Team][subrefiTeamNetMass] - tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]) > 0 or tTeamData[iM28Team][subrefiTeamMassStored] >= iMassStoredToKeepUpgrading then
+                                    bAbort = false
+                                end
                             end
                         end
                     end
@@ -1800,7 +1835,7 @@ function AddPotentialUnitsToShortlist(toUnitShortlist, tPotentialUnits, bDontChe
     end
 end
 
-function GetSafeMexToUpgrade(iM28Team)
+function GetSafeMexToUpgrade(iM28Team, bReturnIfSafeInsteadOfUpgrading)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetSafeMexToUpgrade'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -1818,12 +1853,17 @@ function GetSafeMexToUpgrade(iM28Team)
             break
         end
     end
-    if M28Utilities.IsTableEmpty(toSafeUnitsToUpgrade) == false then
-        if bDebugMessages == true then LOG(sFunctionRef..': Have a total of '..table.getn(toSafeUnitsToUpgrade)..' units to upgrade, will pick the best one') end
-        local oUnitToUpgrade = M28Economy.GetBestUnitToUpgrade(toSafeUnitsToUpgrade)
-        if oUnitToUpgrade then
-            if bDebugMessages == true then LOG(sFunctionRef..': Will try to upgrade unit '..oUnitToUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToUpgrade)) end
-            M28Economy.UpgradeUnit(oUnitToUpgrade, true)
+    if bReturnIfSafeInsteadOfUpgrading then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return not(M28Utilities.IsTableEmpty(toSafeUnitsToUpgrade))
+    else
+        if M28Utilities.IsTableEmpty(toSafeUnitsToUpgrade) == false then
+            if bDebugMessages == true then LOG(sFunctionRef..': Have a total of '..table.getn(toSafeUnitsToUpgrade)..' units to upgrade, will pick the best one') end
+            local oUnitToUpgrade = M28Economy.GetBestUnitToUpgrade(toSafeUnitsToUpgrade)
+            if oUnitToUpgrade then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will try to upgrade unit '..oUnitToUpgrade.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToUpgrade)) end
+                M28Economy.UpgradeUnit(oUnitToUpgrade, true)
+            end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
