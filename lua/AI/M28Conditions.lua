@@ -1273,3 +1273,33 @@ function DoWeWantToSynchroniseMMLShots(iPlateau, iLandZone, tLZData, tLZTeamData
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return bConsiderSpecialMMLLogic
 end
+
+function IsTargetNearActiveNukeTarget(tTarget, iTeam, iDistThreshold)
+    --Returns true if are within iDistThreshold of an active nuke target
+    local sFunctionRef = 'IsTargetNearActiveNukeTarget'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local bNearTarget = false
+    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Is table of recently fired nuke launchers empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoRecentlyFiredAlliedNukeLaunchers]))) end
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoRecentlyFiredAlliedNukeLaunchers]) == false then
+        local iLauncherCount = table.getn(M28Team.tTeamData[iTeam][M28Team.reftoRecentlyFiredAlliedNukeLaunchers])
+        for iCurLauncher = iLauncherCount, 1, -1 do
+            local oLauncher = M28Team.tTeamData[iTeam][M28Team.reftoRecentlyFiredAlliedNukeLaunchers][iCurLauncher]
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..'; Is launcher still valid='..tostring(M28UnitInfo.IsUnitValid(oLauncher))..'; Active nuke target='..repru(oLauncher[M28Building.reftActiveNukeTarget])) end
+            if not(M28UnitInfo.IsUnitValid(oLauncher)) or not(oLauncher[M28Building.reftActiveNukeTarget]) then
+                table.remove(M28Team.tTeamData[iTeam][M28Team.reftoRecentlyFiredAlliedNukeLaunchers], iCurLauncher)
+            else
+                if bDebugMessages == true then LOG(sFunctionRef..': Launcher target='..repru(oLauncher[M28Building.reftActiveNukeTarget])..'; tTarget='..repru(tTarget)..'; Dist='..M28Utilities.GetDistanceBetweenPositions(oLauncher[M28Building.reftActiveNukeTarget], tTarget)..'; iDistThreshold='..iDistThreshold) end
+                if M28Utilities.GetDistanceBetweenPositions(oLauncher[M28Building.reftActiveNukeTarget], tTarget) <= iDistThreshold then
+                    bNearTarget = true
+                    break
+                end
+            end
+
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, tTarget='..repru(tTarget)..'; bNearTarget='..tostring(bNearTarget)) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return bNearTarget
+end

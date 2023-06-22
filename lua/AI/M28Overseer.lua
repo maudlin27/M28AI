@@ -446,11 +446,10 @@ function NoRushMonitor()
 end
 
 function TestCustom(aiBrain)
-    M28Map.DrawSpecificLandZone(1, 8, 3)
 
     --AiX 10.0
-    --ScenarioInfo.Options.CheatMult = tostring(10.0)
-    --ScenarioInfo.Options.BuildMult = tostring(10.0)#
+    ScenarioInfo.Options.CheatMult = tostring(10.0)
+    ScenarioInfo.Options.BuildMult = tostring(10.0)
 
 
     --Four corners - draw buildable locations in bottom-right with plateau 7 LZ2
@@ -881,7 +880,7 @@ function OverseerManager(aiBrain)
         WaitTicks(1)
     end
 
-    --ForkThread(TestCustom, aiBrain)
+    ForkThread(TestCustom, aiBrain)
 
     --Initialise main systems
     ForkThread(Initialisation, aiBrain)

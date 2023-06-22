@@ -1411,6 +1411,7 @@ function OnCreateBrain(aiBrain, planName, bIsHuman)
 end
 
 function OnMissileImpactTerrain(self, target, position)
+    LOG('Missile impact terrain at time '..GetGameTimeSeconds()..'; self='..reprs(self))
     --Was this an M28 unit?
     if M28UnitInfo.IsUnitValid(self) and self:GetAIBrain().M28AI then
         local sFunctionRef = 'OnMissileImpactTerrain'
@@ -1431,6 +1432,18 @@ function OnMissileImpactTerrain(self, target, position)
             end
         end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    end
+end
+
+function OnMissileImpact(self, targetType, targetEntity)
+    --LOG('Missile impact at time '..GetGameTimeSeconds()..'; self='..reprs(self))
+    local launcher = self.Launcher
+    --M28 Specific launcher
+    if launcher and M28UnitInfo.IsUnitValid(launcher) and launcher:GetAIBrain().M28AI then
+        --Nukes
+        if EntityCategoryContains(M28UnitInfo.refCategorySML, launcher.UnitId) then
+            M28Building.UpdateForNukeMissileDeath(launcher, self:GetPosition())
+        end
     end
 end
 
@@ -1546,8 +1559,14 @@ end
 function OnMissileIntercepted(oLauncher, target, oTMD, position)
     --M28AI specific
     if oLauncher:GetAIBrain().M28AI then
+        local sFunctionRef = 'OnMissileIntercepted'
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
         --MML - record time that were last intercepted if dealing with non-aeo TMD (used to build more MML) for both the MML and the TMD land zones
+        if bDebugMessages == true then LOG('Missile intercepted, oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..'; is launcher a nuke='..tostring(EntityCategoryContains(M28UnitInfo.refCategorySML, oLauncher.UnitId))..'; is launcher valid='..tostring(M28UnitInfo.IsUnitValid(oLauncher))) end
         if EntityCategoryContains(M28UnitInfo.refCategoryMML, oLauncher.UnitId) and not(EntityCategoryContains(categories.AEON, oTMD.UnitId)) and EntityCategoryContains(M28UnitInfo.refCategoryTMD, oTMD.UnitId) then
+            if bDebugMessages == true then LOG('MML intercepted by tmd') end
             local iTeam = oLauncher:GetAIBrain().M28Team
             local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oLauncher:GetPosition(), true, oLauncher)
             if (iLandZone or 0) > 0 and iPlateau > 0 then
@@ -1559,7 +1578,11 @@ function OnMissileIntercepted(oLauncher, target, oTMD, position)
                 local tLZTeamData = M28Map.tAllPlateaus[iTMDPlateau][M28Map.subrefPlateauLandZones][iTMDLandZone][M28Map.subrefLZTeamData][iTeam]
                 tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMD] = GetGameTimeSeconds()
             end
+        elseif EntityCategoryContains(M28UnitInfo.refCategorySML, oLauncher.UnitId) and M28UnitInfo.IsUnitValid(oLauncher) then
+            if bDebugMessages == true then LOG('Will call nuke missile death logic') end
+            M28Building.UpdateForNukeMissileDeath(oLauncher)
         end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
 
 end

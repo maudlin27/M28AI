@@ -31,6 +31,7 @@ refbUnitWantsMoreTMD = 'M28BuildUnitWantsTMD' --true if a unit wants more TMD
 refbNoNearbyTMDBuildLocations = 'M28BuiltUnitHasNoNearbyTMDBuildLocations' --true if we buitl a TMD to cover this unit and the TMD ended up too far away
 refbMissileRecentlyBuilt = 'M28BuildMissileBuiltRecently' --true if unit has recently built a missile
 refbMissileChecker = 'M28BuildMissileChecker' --true if active missile builder checker for the unit
+reftActiveNukeTarget = 'M28BuildLastTargetLaucnh' --Against oLauncher, returns location of the target we last launched a TML/Nuke at while the missile is still alive, set to nil once the missile dies
 --refbActiveMissileChecker = 'M28BuildMissileTargetChecker' --true if active missile target checker for the unit
 --iTMLHighPriorityCategories = M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryT3Mex * categories.CYBRAN + M28UnitInfo.refCategoryT2Mex + M28UnitInfo.refCategoryTML + M28UnitInfo.refCategorySML + M28UnitInfo.refCategorySMD + M28UnitInfo.refCategoryT2Power + M28UnitInfo.refCategoryT3Radar
 tbExpectMissileBlockedByCliff = 'M28BuildMisBlck' --true if missile firing at this has hit a cliff
@@ -1511,6 +1512,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                         end
                     else
                         IssueNuke({oLauncher}, tTarget)
+                        oLauncher[reftActiveNukeTarget] = {tTarget[1], tTarget[2], tTarget[3]}
                         --Unpause incase we paused previously
                         if oLauncher[refbPausedAsNoTargets] then
                             oLauncher[refbPausedAsNoTargets] = false
@@ -1999,6 +2001,26 @@ function JustFiredMissile(oLauncher)
             if iMissiles > 0 then
                 ConsiderLaunchingMissile(oLauncher)
             end
+            --Track SML launchers who have recently fired
+            if M28UnitInfo.IsUnitValid(oLauncher) and oLauncher:GetAIBrain().M28AI then
+                if EntityCategoryContains(M28UnitInfo.refCategorySML, oLauncher.UnitId) then
+                    local iTeam = oLauncher:GetAIBrain().M28Team
+                    local bAddToTable = true
+                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoRecentlyFiredAlliedNukeLaunchers]) then M28Team.tTeamData[iTeam][M28Team.reftoRecentlyFiredAlliedNukeLaunchers] = {}
+                    else
+                        for iRecordedLauncher, oRecordedLauncher in M28Team.tTeamData[iTeam][M28Team.reftoRecentlyFiredAlliedNukeLaunchers] do
+                            if oRecordedLauncher == oLauncher then
+                                bAddToTable = false
+                                break
+                            end
+                        end
+                    end
+                    if bAddToTable then
+                        table.insert(M28Team.tTeamData[iTeam][M28Team.reftoRecentlyFiredAlliedNukeLaunchers], oLauncher)
+                    end
+                end
+            end
+
         end
     end
 end
@@ -2310,5 +2332,15 @@ function AssignShieldToGameEnder(oConstruction, oEngineer)
     else
         M28Utilities.ErrorHandler('Dont have valid land zone for construction')
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function UpdateForNukeMissileDeath(oLauncher, tOptionalLikelyTarget)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'UpdateForNukeMissileDeath'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Start at time ='..GetGameTimeSeconds()..'; oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..'; oLauncher[reftActiveNukeTarget] before reset='..repru(oLauncher[reftActiveNukeTarget])) end
+    oLauncher[reftActiveNukeTarget] = nil
+
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

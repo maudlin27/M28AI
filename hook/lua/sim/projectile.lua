@@ -8,8 +8,8 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
     Projectile = Class(M28OldProjectile) {
 
         OnImpact = function(self, targetType, targetEntity)
-            self.M28Impacted = true
             M28OldProjectile.OnImpact(self, targetType, targetEntity)
+
         end,
     }
 end

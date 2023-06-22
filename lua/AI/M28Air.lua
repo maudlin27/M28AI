@@ -2823,7 +2823,15 @@ function ManageGunships(iTeam, iAirSubteam)
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Closest priority enemy='..oClosestEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemy)) end
 
-            GetGunshipsToMoveToTarget(tAvailableGunships, oClosestEnemy:GetPosition())
+            --Check we arent near a nuke
+            if M28Conditions.IsTargetNearActiveNukeTarget(oClosestEnemy:GetPosition(), iTeam, 60) then
+                if bDebugMessages == true then LOG(sFunctionRef..': We are near an active nuke target so will change gunship position to go to rally point') end
+                --Return to rally instead
+                GetGunshipsToMoveToTarget(tAvailableGunships, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])
+
+            else
+                GetGunshipsToMoveToTarget(tAvailableGunships, oClosestEnemy:GetPosition())
+            end
         end
     else
         M28Team.tAirSubteamData[iAirSubteam][M28Team.refbGunshipsHadAttackOrderLastCycle] = false

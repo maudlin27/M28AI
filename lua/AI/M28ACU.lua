@@ -748,19 +748,19 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                             else
                                 local iEnemyNearbyThreat = (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
                                 local iTeam = oACU:GetAIBrain().M28Team
-                                local iAllyNearbyThreat = tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] - iACUThreat
+                                local iAllyNearbyThreat = math.max(0, (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) - iACUThreat)
                                 local iAllyAdjacentZoneThreat = 0
-                                local iBestEnemyDFRange = tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange]
+                                local iBestEnemyDFRange = (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0)
                                 if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                                     --First get best enemy nearby range
 
                                     for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                                         local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
-                                        iBestEnemyDFRange = math.max(iBestEnemyDFRange, tAdjLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange])
+                                        iBestEnemyDFRange = math.max(iBestEnemyDFRange, (tAdjLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0))
                                         if bDebugMessages == true then LOG(sFunctionRef..': Adding threat for iAdjLZ='..iAdjLZ..' with threat '..M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTThreatEnemyCombatTotal]) end
-                                        iEnemyNearbyThreat = iEnemyNearbyThreat + tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]
+                                        iEnemyNearbyThreat = iEnemyNearbyThreat + (tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
                                         --Include adjacent enemies assuming ACU has enough health that they are likely to be able to arrive
-                                        if iHealthPercent >= 0.65 and (iHealthPercent >= 0.8 or oACU[refbUseACUAggressively] or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1) then iAllyAdjacentZoneThreat = iAllyAdjacentZoneThreat + tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] * 0.9 end
+                                        if iHealthPercent >= 0.65 and (iHealthPercent >= 0.8 or oACU[refbUseACUAggressively] or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1) then iAllyAdjacentZoneThreat = iAllyAdjacentZoneThreat + (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) * 0.9 end
 
                                     end
                                     if bDebugMessages == true then LOG(sFunctionRef..': iBestEnemyDFRange='..iBestEnemyDFRange..'; oACU[M28UnitInfo.refiDFRange]='..oACU[M28UnitInfo.refiDFRange]..'; iAllyNearbyThreat pre update for adj='..iAllyNearbyThreat..'; iAllyAdjacentZoneThreat='..iAllyAdjacentZoneThreat) end

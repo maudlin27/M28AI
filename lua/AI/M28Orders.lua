@@ -775,6 +775,8 @@ function IssueTrackedTMLMissileLaunch(oUnit, tOrderPosition, iDistanceToReissueO
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueTMLMissile, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
         IssueTactical({oUnit}, tOrderPosition)
+
+        oUnit[import('/mods/M28AI/lua/AI/M28Building.lua').reftActiveNukeTarget] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}
     end
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 end
