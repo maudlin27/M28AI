@@ -1411,7 +1411,7 @@ function OnCreateBrain(aiBrain, planName, bIsHuman)
 end
 
 function OnMissileImpactTerrain(self, target, position)
-    LOG('Missile impact terrain at time '..GetGameTimeSeconds()..'; self='..reprs(self))
+    --LOG('Missile impact terrain at time '..GetGameTimeSeconds()..'; self='..reprs(self))
     --Was this an M28 unit?
     if M28UnitInfo.IsUnitValid(self) and self:GetAIBrain().M28AI then
         local sFunctionRef = 'OnMissileImpactTerrain'
