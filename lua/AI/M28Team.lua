@@ -1728,9 +1728,10 @@ function ConsiderPriorityMexUpgrades(iM28Team)
     local iWantedUpgradingMexValue = 1
     if bHaveSafeMexToUpgrade then
         --if upgrading 1 mex from t1 to t2 costs roughly 0.8 mass per tick, and we want to be spenting 1/3 of mass per tick on this, then want 1/3 of gross mass / 0.8, i.e. 0.4167
-        iWantedUpgradingMexValue = tTeamData[iM28Team][subrefiTeamGrossMass]  * 0.4167
+            --However, are finding we are spending too much mass with this approach and end up always mass stalling, and only upgrading mexes, meaning HQs dont upgrade (when using a value of 0.4167 * gross mass income)
+        iWantedUpgradingMexValue = tTeamData[iM28Team][subrefiTeamGrossMass]  * 0.3
         --if are already upgrading 1 mex per brain and are stalling mass, then reduce the amount wanted
-        if tTeamData[iM28Team][subrefiTeamMassStored] < 50 and M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) == false and table.getn(tTeamData[iM28Team][subreftTeamUpgradingMexes]) > tTeamData[iM28Team][subrefiActiveM28BrainCount] and tTeamData[iM28Team][subrefiTeamNetMass] <= -math.max(-0.5, tTeamData[iM28Team][subrefiTeamGrossMass] * 0.1) then
+        if (tTeamData[iM28Team][subrefiTeamMassStored] < 50 or tTeamData[iM28Team][subrefbTeamIsStallingMass]) and M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) == false and ((M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) and (tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] < 3 or tTeamData[iM28Team][subrefiHighestFriendlyAirFactoryTech] < 3)) or (table.getn(tTeamData[iM28Team][subreftTeamUpgradingMexes]) > tTeamData[iM28Team][subrefiActiveM28BrainCount] and tTeamData[iM28Team][subrefiTeamNetMass] <= -math.max(-0.5, tTeamData[iM28Team][subrefiTeamGrossMass] * 0.1))) then
             iWantedUpgradingMexValue = iWantedUpgradingMexValue * 0.2
         end
         --Adjust maount wanted for any build power modifier
@@ -2258,6 +2259,16 @@ function ConsiderGettingUpgrades(iM28Team)
             ConsiderNormalUpgrades(iM28Team)
         elseif tTeamData[iM28Team][subrefbTeamIsStallingMass] then
             --Want to keep upgrading mexes even if stalling mass
+            --Also still consider upgrading HQ if have no upgrading HQs
+            if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) and M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) == false and tTeamData[iM28Team][subrefiTeamGrossMass] >= 4 * tTeamData[iM28Team][subrefiActiveM28BrainCount] * tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] then
+                if tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] == 1 then ConsiderPriorityLandFactoryUpgrades(iM28Team) else ConsiderPriorityAirFactoryUpgrades(iM28Team) end
+                if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) then
+                    if tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] == 1 then ConsiderPriorityAirFactoryUpgrades(iM28Team) else ConsiderPriorityLandFactoryUpgrades(iM28Team) end
+                    if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingHQs]) then
+                        ConsiderPriorityNavalFactoryUpgrades(iM28Team)
+                    end
+                end
+            end
             ConsiderPriorityMexUpgrades(iM28Team)
         end
     end

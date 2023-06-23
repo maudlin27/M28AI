@@ -718,10 +718,12 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
     local iAverageCurAirAndLandFactories = (M28Team.tTeamData[iTeam][M28Team.subrefiTotalFactoryCountByType][M28Factory.refiFactoryTypeLand] or 0) / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] + (M28Team.tTeamData[iTeam][M28Team.subrefiTotalFactoryCountByType][M28Factory.refiFactoryTypeAir] or 0) / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]
 
     local bWantMoreFactories = false
+    local bDontWantDueToUnitCap = false
     --Unit cap - want max of 2 factories in the core LZ and no more factories in non-core LZs
     if M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap] then
         if not(tLZTeamData[M28Map.subrefLZbCoreBase]) then
             --Dont wnat more factories (no change to default)
+            bDontWantDueToUnitCap = true
         else
             local tFactoriesInZone
             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
@@ -729,6 +731,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
                 if M28Utilities.IsTableEmpty(tFactoriesInZone) == false then
                     if table.getn(tFactoriesInZone) >= 2 then
                         --DOnt want more factories (no change to default)
+                        bDontWantDueToUnitCap = true
                     end
                 end
             end
@@ -762,7 +765,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
         end
     else
         if bDebugMessages == true then LOG(sFunctionRef..': Checking if want more factories at gamttime '..GetGameTimeSeconds()..' for iTeam='..iTeam..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; Mass % stored='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] or 'nil')..'; Land fac count='..(M28Team.tTeamData[iTeam][M28Team.subrefiTotalFactoryCountByType][M28Factory.refiFactoryTypeLand] or 'nil')..'; Gross mass count='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] or 'nil')..'; Highest factory tech='..(M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 'nil')..'; iAverageCurAirAndLandFactories='..(iAverageCurAirAndLandFactories or 'nil')..'; Factories wanted based on gross mass='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] or 0) * (tiFactoryToMassByTechRatioWanted[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] or 0)..'; iCurIsland='..(iCurIsland or 0)..'; iEnemyIsland='..(iEnemyIsland or 0)..'; Time since air fac last failed to have osmething to build='..(GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForAirFactory] or -100))..'; Time since land fac last failed to have something to build='..(GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForLandFactory] or -100))) end
-        if not(bWantMoreFactories) then
+        if not(bWantMoreFactories) and not(bDontWantDueToUnitCap) then
             --Failure to build and have a significant number of factories already (at least 5)
             if (iAverageCurAirAndLandFactories >= 5 or (iAverageCurAirAndLandFactories >= 2.5 and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 2 and iAverageCurAirAndLandFactories * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 8)) and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForAirFactory] or -100) <= 10 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForLandFactory] or -100) <= 10 then
                 --Dont want more factories
@@ -811,12 +814,12 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
         end
     end
     --Exception - get more factories if base level of mass income per brain
-    if not(bWantMoreFactories) and iAverageCurAirAndLandFactories == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 2 then
+    if not(bWantMoreFactories) and not(bDontWantDueToUnitCap) and iAverageCurAirAndLandFactories == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 2 then
         if bDebugMessages == true then LOG(sFunctionRef..': We have at least 20 mass per sec so want to have more than 1 factory') end
         bWantMoreFactories = true
     end
     --decent eco and air fac count is < 1 on average in teamgame (ie want every player to consider getting air fac)
-    if not(bWantMoreFactories) and iTeamCount > 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 8 * iTeamCount and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 500 and tLZTeamData[M28Map.subrefLZbCoreBase] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.05 and not(HaveLowPower(iTeam)) then
+    if not(bWantMoreFactories) and iTeamCount > 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 8 * iTeamCount and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 3) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 100 and tLZTeamData[M28Map.subrefLZbCoreBase] and not(HaveLowPower(iTeam)) then
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
             local tAirFacs = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
             if M28Utilities.IsTableEmpty(tAirFacs) then

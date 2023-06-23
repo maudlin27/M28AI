@@ -880,7 +880,7 @@ function OverseerManager(aiBrain)
         WaitTicks(1)
     end
 
-    ForkThread(TestCustom, aiBrain)
+    --ForkThread(TestCustom, aiBrain)
 
     --Initialise main systems
     ForkThread(Initialisation, aiBrain)

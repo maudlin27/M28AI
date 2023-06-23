@@ -139,7 +139,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         subrefLZAdjacentLandZones = 'AdjLZ' --table containing all adjacent land zone references for the plateau in question, against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], i.e. ordered 1,2,3,...; and returns the LZ ref (based on the order it was added)
         subrefLZPathingToOtherLandZones = 'PathLZ' --table containing the land zone ref of some (but not all) other LZs where have recorded the paths and time taken, sorted by closest LZ first
             subrefLZNumber = 1 --Land zone reference number
-            subrefLZPath = 2 --against subrefLZPathingToOtherLandZones subtable
+            subrefLZPath = 2 --against subrefLZPathingToOtherLandZones subtable, returns a table [x]=1,2,3...; which returns the land zone reference for each land zone that will go through on a path from these
             subrefLZTravelDist = 3 --against subrefLZPathingToOtherLandZones subtable
         subrefLZPathingToOtherLZEntryRef = 'PathRfLZ' --[x] is the target LZ reference; will return the entry in subrefLZPathingToOtherLandZones containing this path, if there is one
         subrefLZTravelDistToOtherLandZones = 'TravelLZ' --table used to store all land travel distance calculations to get from one LZ to another LZ; similar to subrefLZPathingToOtherLandZones, but intended to allow for all land zones to be recorded

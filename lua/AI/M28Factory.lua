@@ -681,6 +681,22 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         end
     end
 
+    --First engineer of cur tech level
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if iFactoryTechLevel >= M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] and tLZTeamData[M28Map.subrefLZbCoreBase] then
+        local iMinEngisWanted --lifetime count; or half this for active current number
+        if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
+            iMinEngisWanted = 1
+        else
+            iMinEngisWanted = 2
+        end
+        if M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) < iMinEngisWanted then
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then
+                return sBPIDToBuild
+            end
+        end
+    end
+
     --Enemy nearby ACU and PD or T2 arti nearby, with no enemies in this actual LZ - get indirect fire as last resort
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if iFactoryTechLevel >= 2 and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] == 0 then
@@ -736,6 +752,28 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer * categories.TECH3) then return sBPIDToBuild end
                     end
                 end
+            end
+        end
+    end
+
+    --Priority upgrade to T3 if have lots of T3 mexes, and no enemies in this zone (even if have enemies nearby), provided we have other factores in the zone that can build units
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if iFactoryTechLevel == 2 and aiBrain[M28Economy.refiOurHighestLandFactoryTech] == 2 and tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) and (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 10 or tLZTeamData[M28Map.subrefMexCountByTech][3] >= 4) and (not(M28Conditions.HaveLowPower(iTeam)) or (not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 100)) then
+        local bAlreadyUpgradingT2HQ = false
+        --Check we arent already upgrading a T2 factory of any kind
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]) == false then
+            for iUpgrade, oUpgrade in tLZTeamData[M28Map.subrefActiveUpgrades] do
+                if EntityCategoryContains(categories.TECH2 * M28UnitInfo.refCategoryAllHQFactories, oUpgrade.UnitId) then
+                    bAlreadyUpgradingT2HQ = true
+                    break
+                end
+            end
+        end
+        if not(bAlreadyUpgradingT2HQ) then
+            --Do we have other land factories in this zone? treat t1 factories as being worth 1/3 a t2 factory, need to -1 due to this factory
+            local iT2FactoryEquivalent = -1 + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory * categories.TECH2) + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory) / 3
+            if iT2FactoryEquivalent >= 1 then
+                if ConsiderUpgrading() then  return sBPIDToBuild end
             end
         end
     end
@@ -2266,6 +2304,20 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             end
         end
     end
+    --Engineers if thisi s an Air HQ and we need BP of this tech level or lower, and have at least 1k mass stored on our team with positive mass income
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 1000 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0 and EntityCategoryContains(M28UnitInfo.refCategoryAirHQ, oFactory.UnitId) and tLZTeamData[M28Map.subrefTbWantBP] and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 3 then
+        local bWantBPOfThisTech = false
+        for iCurTech = iFactoryTechLevel, 1, -1 do
+            if tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][iCurTech] > 0 then
+                bWantBPOfThisTech = true
+                break
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Air fac last builder for engineers at an air HQ, bWantBPOfThisTech='..tostring(bWantBPOfThisTech)..'; iFactoryTechLevel='..iFactoryTechLevel) end
+        if bWantBPOfThisTech then if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end end
+    end
+
     if iFactoryTechLevel >= M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] then
         M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForAirFactory] = GetGameTimeSeconds()
     end
