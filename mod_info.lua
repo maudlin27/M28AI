@@ -1,6 +1,6 @@
 name = "M28AI"
-uid = "fnewm028-v010-55b4-92b6-64398e7ge43f"
-version = 10
+uid = "fnewm028-v011-55b4-92b6-64398e7ge43f"
+version = 11
 copyright = "MIT License"
 description = "Work in progress AI, weaker than M27 but faster to run, expected to provide a challenge similar to a 500-800 rated player. Recent changes: Support for FA Campaign M1-6, misc improvements and fixes. More info: https://forum.faforever.com/topic/5331/m28ai-devlog-v1"
 author = "maudlin27"
