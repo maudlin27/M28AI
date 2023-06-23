@@ -180,7 +180,7 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
     local tFriendlyACU = aiBrain:GetListOfUnits(categories.COMMAND, false, true)
     if bDebugMessages == true then LOG(sFunctionRef..': Is table of friendly ACU empty='..tostring(M28Utilities.IsTableEmpty(tFriendlyACU))) end
     if M28Utilities.IsTableEmpty(tFriendlyACU) == false then
-        local sBlueprint = M28Factory.GetBlueprintsThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryAirFactory, tFriendlyACU[1])
+        local sBlueprint = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryAirFactory, tFriendlyACU[1])
         if bDebugMessages == true then LOG(sFunctionRef..': If ACU '..tFriendlyACU[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(tFriendlyACU[1])..' tries to build an air factory, sBLueprint is '..(sBlueprint or 'nil')) end
         if not(sBlueprint) then
             bAirFactoriesCantBeBuilt = true
@@ -446,11 +446,10 @@ function NoRushMonitor()
 end
 
 function TestCustom(aiBrain)
-    M28Map.DrawSpecificLandZone(1, 8, 3)
 
     --AiX 10.0
-    --ScenarioInfo.Options.CheatMult = tostring(10.0)
-    --ScenarioInfo.Options.BuildMult = tostring(10.0)#
+    ScenarioInfo.Options.CheatMult = tostring(10.0)
+    ScenarioInfo.Options.BuildMult = tostring(10.0)
 
 
     --Four corners - draw buildable locations in bottom-right with plateau 7 LZ2
@@ -892,6 +891,15 @@ function OverseerManager(aiBrain)
     end
     local bSetHook = false --Used for debugging
     while not(aiBrain:IsDefeated()) and not(aiBrain.M28IsDefeated) do
+        local bEnabledProfiling = false
+       --[[ if GetGameTimeSeconds() >= 2100 and not(bEnabledProfiling) then
+            if not(import('/mods/M28AI/lua/M28Config.lua').M28RunProfiling) then
+                ForkThread(M28Profiler.ProfilerActualTimePerTick)
+                import('/mods/M28AI/lua/M28Config.lua').M28RunProfiling = true
+            end
+            bEnabledProfiling = true
+        end--]]
+
         --if GetGameTimeSeconds() >= 2700 then import('/mods/M28AI/lua/M28Config.lua').M28ShowUnitNames = true end
         --TestCustom(aiBrain)
         --Enable below to help figure out infinite loops

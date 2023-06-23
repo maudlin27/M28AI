@@ -38,11 +38,14 @@ reftiTimeOfLastEnhancementComplete = 'M28TLstECmpl' --table, [x] = enhancement I
 refoClosestEnemyFromLastCloseToEnemyUnitCheck = 'M28ClEnU' --If running the 'close to enemy unit' check, this will retunr the closest enemy unit before the code aborts
 refbUnitIsCloaked = 'M28UnitIsCloaked' --true if have triggered the 'cloaked unit identified' logic
 refiTimeCreated = 'M28UntTimCr' --Gametimeseconds (rounded down) that unit was created
+refbIsCaptureTarget = 'M28UnitIsCapTrg' --true if we want to capture the unit
 
     --Unit micro related
 refiGameTimeMicroStarted = 'M28UnitTimeMicroStarted' --Gametimeseconds that started special micro
 refbSpecialMicroActive = 'M28UnitSpecialMicroActive'
 refiGameTimeToResetMicroActive = 'M28UnitTimeToResetMicro' --Gametimeseconds
+refbWeaponDisabled = 'M28UnitWeaponDisabled' --True if unit weapon has been disabled by M28 code
+refiTimeLastDisabledWeapon = 'M28UnitTimeDsblW' --Gametimeseconds that we wanted the unit's weapon to be disabled
 
     --Ranges and weapon details
 refiDFRange = 'M28UDFR' --(fatboy df range gets treated as range of its indirect cannons)
@@ -158,8 +161,8 @@ refCategoryLandScout = categories.LAND * categories.MOBILE * categories.SCOUT
 refCategoryCombatScout = categories.SERAPHIM * categories.SCOUT * categories.DIRECTFIRE
 refCategoryIndirect = categories.LAND * categories.MOBILE * categories.INDIRECTFIRE - categories.DIRECTFIRE - refCategoryLandExperimental - refCategoryScathis - categories.UNSELECTABLE - categories.UNTARGETABLE
 refCategoryT3MobileArtillery = categories.ARTILLERY * categories.LAND * categories.MOBILE * categories.TECH3 - categories.UNSELECTABLE - categories.UNTARGETABLE
-refCategoryMML = categories.SILO * categories.MOBILE * categories.LAND - categories.UNSELECTABLE - categories.UNTARGETABLE
-refCategoryT3MML = categories.SILO * categories.MOBILE * categories.TECH3 * categories.LAND - categories.UNSELECTABLE - categories.UNTARGETABLE
+refCategoryMML = categories.SILO * categories.MOBILE * categories.LAND - categories.UNSELECTABLE - categories.UNTARGETABLE - categories.NUKE
+refCategoryT3MML = categories.SILO * categories.MOBILE * categories.TECH3 * categories.LAND - categories.UNSELECTABLE - categories.UNTARGETABLE - categories.NUKE
 refCategoryFatboy = categories.EXPERIMENTAL * categories.UEF * categories.MOBILE * categories.LAND * categories.ARTILLERY - categories.UNSELECTABLE - categories.UNTARGETABLE
 refCategoryLandCombat = categories.MOBILE * categories.LAND * categories.DIRECTFIRE + categories.MOBILE * categories.LAND * categories.INDIRECTFIRE * categories.TECH1 + categories.FIELDENGINEER + refCategoryFatboy + categories.SUBCOMMANDER - refCategoryEngineer -refCategoryLandScout -refCategoryMAA - categories.UNSELECTABLE - categories.UNTARGETABLE
 refCategoryAmphibiousCombat = refCategoryLandCombat * categories.HOVER + refCategoryLandCombat * categories.AMPHIBIOUS - categories.ANTISHIELD * categories.AEON --Dont include aeon T3 anti-shield here as it sucks unless against shields
@@ -231,7 +234,7 @@ refCategoryStealthGenerator = categories.STEALTHFIELD
 refCategoryStealthAndCloakPersonal = categories.STEALTH
 refCategoryProtectFromTML = refCategoryT2Mex + refCategoryT3Mex + refCategoryT2Power + refCategoryT3Power + refCategoryFixedT2Arti
 refCategoryExperimentalLevel = categories.EXPERIMENTAL + refCategoryFixedT3Arti + refCategorySML
-refCategoryGameEnder = categories.EXPERIMENTAL * categories.ARTILLERY + categories.EXPERIMENTAL * categories.STRUCTURE * categories.SILO
+refCategoryGameEnder = refCategoryExperimentalArti + categories.EXPERIMENTAL * categories.STRUCTURE * categories.SILO
 refCategoryBigThreatCategories = refCategoryExperimentalLevel + refCategoryMissileShip + refCategorySMD --Note - this is different to M27 which only considers land experimentals as big threat categories
 refCategoryFirebaseSuitable = refCategoryPD + refCategoryT1Radar + refCategoryT2Radar + refCategorySMD + refCategoryTMD + refCategoryFixedShield + refCategoryFixedT2Arti + refCategoryStructureAA
 refCategoryLongRangeDFLand = refCategoryFatboy + refCategorySniperBot + refCategoryShieldDisruptor
@@ -1006,6 +1009,12 @@ function GetCurrentAndMaximumShield(oUnit, bDontTreatLowPowerShieldAsZero)
             if not(bDontTreatLowPowerShieldAsZero) then
                 --GetHealth doesnt look like it factors in power stall
                 if not(oUnit.MyShield.Enabled) or oUnit.MyShield.DepletedByEnergy or (oUnit:GetAIBrain():GetEconomyStored('ENERGY') == 0) then iCurShield = 0 end
+            end
+            if iCurShield > 0 and not(oUnit.MyShield:IsUp()) then
+                --Occasional bug where shield shows as having health via gethealth, not powerstalling, but shield is actually down - below is to try and capture such cases
+                if not(bDontTreatLowPowerShieldAsZero) or oUnit.MyShield.DepletedByDamage then
+                    iCurShield = 0
+                end
             end
         end
         if bDebugMessages == true then
@@ -1917,4 +1926,42 @@ function CanSeeUnit(aiBrain, oUnit, bReturnTrueIfOnlySeeBlip)
         end
     end
     return false
+end
+
+function DisableUnitWeapon(oUnit)
+
+
+    local iHoldFireState = 1
+    oUnit:SetFireState(iHoldFireState)
+    local bAlreadyRecorded = oUnit[refbWeaponDisabled]
+    oUnit[refbWeaponDisabled] = true
+    oUnit[refiTimeLastDisabledWeapon] = GetGameTimeSeconds()
+    if not(bAlreadyRecorded) then
+        local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
+        local iTeam = oUnit:GetAIBrain().M28Team
+        if not(M28Team.tTeamData[iTeam][M28Team.reftoUnitsWithDisabledWeapons]) then
+            M28Team.tTeamData[iTeam][M28Team.reftoUnitsWithDisabledWeapons] = {}
+        end
+        table.insert(M28Team.tTeamData[iTeam][M28Team.reftoUnitsWithDisabledWeapons], oUnit)
+    end
+end
+
+function EnableUnitWeapon(oUnit)
+    local iReturnFireState = 0
+    oUnit:SetFireState(iReturnFireState)
+    local bAlreadyRecorded = not(oUnit[refbWeaponDisabled])
+    oUnit[refbWeaponDisabled] = false
+    oUnit[refiTimeLastDisabledWeapon] = nil
+    if not(bAlreadyRecorded) then
+        local iTeam = oUnit:GetAIBrain().M28Team
+        local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoUnitsWithDisabledWeapons]) == false then
+            for iRecorded, oRecorded in M28Team.tTeamData[iTeam][M28Team.reftoUnitsWithDisabledWeapons] do
+                if oRecorded == oUnit then
+                    table.remove(M28Team.tTeamData[iTeam][M28Team.reftoUnitsWithDisabledWeapons], iRecorded)
+                    break
+                end
+            end
+        end
+    end
 end

@@ -344,7 +344,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
 
                     --Redundancy if fail to get order from above
                     if bDebugMessages == true then LOG(sFunctionRef..': Is ACU table of last orders empty after attempting above='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))) end
-                    if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) and oACU[refbDoingInitialBuildOrder] then
+                    if not(M28Conditions.DoesACUHaveValidOrder(oACU)) and oACU[refbDoingInitialBuildOrder] then
                         --Is it just that we want to assist a hydro and engineers havent started one yet? If so then check if we have an engineer assigned to build one, and check the game time
                         if GetGameTimeSeconds() <= 180 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 10 * iResourceMod and M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefHydroLocations]) == false then
                             ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData)
@@ -353,12 +353,12 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                             if bDebugMessages == true then LOG(sFunctionRef..': Failed to get order from above so will resort to backup logic') end
                             --No hydro nearby - try building power; then try building mex; then cancel initial build order
                             ACUActionBuildMex(aiBrain, oACU)
-                            if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then
+                            if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
                                 ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData)
-                                if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then
+                                if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
                                     ACUActionBuildPower(aiBrain, oACU)
-                                    if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then
-                                        oACU[refbDoingInitialBuildOrder] = false
+                                    if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
+                                        if not(M28Map.bIsCampaignMap) or GetGameTimeSeconds() <= 540 then oACU[refbDoingInitialBuildOrder] = false end
                                     end
                                 end
                             end
@@ -378,6 +378,43 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                     else
                         --Finish the initial BO
                         oACU[refbDoingInitialBuildOrder] = false
+                    end
+                end
+            end
+            --Campaign backup in case of unit restrictions
+            if bDebugMessages == true then LOG(sFunctionRef..': Campaign redundancy for if ACU has no order, reprs of last orders='..reprs(oACU[M28Orders.reftiLastOrders])..'; oACU[refbDoingInitialBuildOrder]='..tostring(oACU[refbDoingInitialBuildOrder])..'; M28Map.bIsCampaignMap='..tostring(M28Map.bIsCampaignMap)..'; Is table of last orders empty='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))) end
+            if M28Map.bIsCampaignMap and not(M28Conditions.DoesACUHaveValidOrder(oACU)) and oACU[refbDoingInitialBuildOrder] then
+                --Build mex if any available mex locations in zone
+                if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false then
+                    ACUActionBuildMex(aiBrain, oACU)
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Redundancy - Attempted to build mex if there were any unbuilt locations, IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]))..', is table of last orders empty='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))..'; DoesACUHaveValidOrder(oACU)='..tostring(M28Conditions.DoesACUHaveValidOrder(oACU))) end
+                if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
+                    if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefHydroLocations]) == false then ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Redundancy - Attempted to assist hydro, is table of last orders empty='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))..'; DoesACUHaveValidOrder(oACU)='..tostring(M28Conditions.DoesACUHaveValidOrder(oACU))) end
+                    if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
+                        if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower) <= 7 then
+                            ACUActionBuildPower(aiBrain, oACU)
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Redundancy - Attempted to build power, is table of last orders empty='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))..'; DoesACUHaveValidOrder(oACU)='..tostring(M28Conditions.DoesACUHaveValidOrder(oACU))..'; Cur factory count='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory)) end
+                        if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
+
+                            if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory) < 3 then
+                                ACUActionBuildFactory(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryLandFactory, M28Engineer.refActionBuildLandFactory)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Redundancy - Attempted to build land factory, is table of last orders empty='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))..'; DoesACUHaveValidOrder(oACU)='..tostring(M28Conditions.DoesACUHaveValidOrder(oACU))) end
+                                if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
+                                    ACUActionBuildFactory(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryAirFactory, M28Engineer.refActionBuildAirFactory)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Redundancy - Attempted to build air factory, is table of last orders empty='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))..'; DoesACUHaveValidOrder(oACU)='..tostring(M28Conditions.DoesACUHaveValidOrder(oACU))) end
+                                    if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
+                                        ACUActionBuildFactory(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryNavalFactory, M28Engineer.refActionBuildNavalFactory)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Redundancy - Attempted to build naval factory, is table of last orders empty='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))..'; DoesACUHaveValidOrder(oACU)='..tostring(M28Conditions.DoesACUHaveValidOrder(oACU))) end
+                                        if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
+                                            M28Utilities.ErrorHandler('Unable to get any action for ACU')
+                                        end
+                                    end
+                                end
+                            end
+                        end
                     end
                 end
             end
@@ -530,6 +567,7 @@ function GetUpgradePathForACU(oACU)
             end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, oACU[reftPreferredUpgrades]='..repru(oACU[reftPreferredUpgrades])) end
 end
 
 function GetACUUpgradeWanted(oACU)
@@ -543,7 +581,7 @@ function GetACUUpgradeWanted(oACU)
     local sUpgradeWanted
 
     --If we were to get an upgrade, what upgrade would it be?
-    if not(oACU[reftPreferredUpgrades]) then
+    if not(oACU[reftPreferredUpgrades]) or (oACU[reftPreferredUpgrades][1] and oACU:HasEnhancement(oACU[reftPreferredUpgrades][1])) then
         GetUpgradePathForACU(oACU)
     end
     local aiBrain = oACU:GetAIBrain()
@@ -599,6 +637,12 @@ function GetACUUpgradeWanted(oACU)
                     end
                 end
             end
+        end
+    end
+    if bDebugMessages == true then
+        LOG(sFunctionRef..': End of code, sUpgradeWanted='..(sUpgradeWanted or 'nil'))
+        if sUpgradeWanted then
+            LOG(sFunctionRef..': Does ACU have this enhancement='..tostring(oACU:HasEnhancement(sUpgradeWanted)))
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -704,19 +748,19 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                             else
                                 local iEnemyNearbyThreat = (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
                                 local iTeam = oACU:GetAIBrain().M28Team
-                                local iAllyNearbyThreat = tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] - iACUThreat
+                                local iAllyNearbyThreat = math.max(0, (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) - iACUThreat)
                                 local iAllyAdjacentZoneThreat = 0
-                                local iBestEnemyDFRange = tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange]
+                                local iBestEnemyDFRange = (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0)
                                 if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                                     --First get best enemy nearby range
 
                                     for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                                         local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
-                                        iBestEnemyDFRange = math.max(iBestEnemyDFRange, tAdjLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange])
+                                        iBestEnemyDFRange = math.max(iBestEnemyDFRange, (tAdjLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0))
                                         if bDebugMessages == true then LOG(sFunctionRef..': Adding threat for iAdjLZ='..iAdjLZ..' with threat '..M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTThreatEnemyCombatTotal]) end
-                                        iEnemyNearbyThreat = iEnemyNearbyThreat + tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]
+                                        iEnemyNearbyThreat = iEnemyNearbyThreat + (tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
                                         --Include adjacent enemies assuming ACU has enough health that they are likely to be able to arrive
-                                        if iHealthPercent >= 0.65 and (iHealthPercent >= 0.8 or oACU[refbUseACUAggressively] or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1) then iAllyAdjacentZoneThreat = iAllyAdjacentZoneThreat + tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] * 0.9 end
+                                        if iHealthPercent >= 0.65 and (iHealthPercent >= 0.8 or oACU[refbUseACUAggressively] or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1) then iAllyAdjacentZoneThreat = iAllyAdjacentZoneThreat + (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) * 0.9 end
 
                                     end
                                     if bDebugMessages == true then LOG(sFunctionRef..': iBestEnemyDFRange='..iBestEnemyDFRange..'; oACU[M28UnitInfo.refiDFRange]='..oACU[M28UnitInfo.refiDFRange]..'; iAllyNearbyThreat pre update for adj='..iAllyNearbyThreat..'; iAllyAdjacentZoneThreat='..iAllyAdjacentZoneThreat) end
@@ -1475,6 +1519,38 @@ function GetACUOrder(aiBrain, oACU)
                 bProceedWithLogic = false
                 GetACUEarlyGameOrders(aiBrain, oACU) --backup which should ahve ACU move if it doesnt seem to be on a land or water zone
                 if bDebugMessages == true then LOG(sFunctionRef..': ACU not in land zone and is doing initial order so referred to early game order logic') end
+            elseif (iLandOrWaterZone or 0) > 0 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                --Are enemies in this zone, decide if we want to attack them - get closest enemy to ACU, and ignore any structures that are more than 10 from being in range of ACU
+                local iClosestDist = 100000
+                local iClosestUntilInRange = 100000
+                local iClosestMobileThreatUntilInRange = 100000
+                local iCurDist, iCurDistUntilInRange, iCurRange
+                local oClosestEnemyByDist
+                local oClosestEnemyUntilInRange
+                local oClosestMobileThreatUntilInRange
+                for iUnit, oUnit in tLZOrWZTeamData[M28Map.subrefTEnemyUnits] do
+                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oACU:GetPosition())
+                    iCurRange = math.max((oUnit[M28UnitInfo.refiDFRange] or 0), (oUnit[M28UnitInfo.refiIndirectRange] or 0))
+                    if iCurDist < iClosestDist then
+                        iClosestDist = iCurDist
+                        oClosestEnemyByDist = oUnit
+                    end
+                    iCurDistUntilInRange = iCurDist - iCurRange
+                    if iCurDistUntilInRange < iClosestUntilInRange then
+                        iClosestUntilInRange = iCurDistUntilInRange
+                        oClosestEnemyUntilInRange = oUnit
+                    end
+                    if iCurDistUntilInRange < iClosestMobileThreatUntilInRange and iCurRange > 0 and EntityCategoryContains(categories.MOBILE, oUnit.UnitId) and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout - M28UnitInfo.refCategoryCombatScout, oUnit.UnitId)) then
+                        iClosestMobileThreatUntilInRange = iCurDistUntilInRange
+                        oClosestMobileThreatUntilInRange = oUnit
+                    end
+                end
+                local iOurRange = (oACU[M28UnitInfo.refiDFRange] or 0)
+                --Ignore nearby enemy if will be a while before in our range, with the threshold depending on if it is is a mobile threat or not
+                if iClosestUntilInRange > (iOurRange + 15) and iCurDistUntilInRange > 15 and iClosestMobileThreatUntilInRange > 25 then
+                    bProceedWithLogic = false
+                    GetACUEarlyGameOrders(aiBrain, oACU) --Avoid some scenarios where ACU might get stuck in 'run to core zone' mode
+                end
             end
             if not(oACU[refbDoingInitialBuildOrder]) then bProceedWithLogic = true end
         end
@@ -1569,7 +1645,7 @@ function GetACUOrder(aiBrain, oACU)
                                     if sUpgradeToGet and not(M28Conditions.HaveLowMass(aiBrain)) and not(M28Conditions.HaveLowPower(aiBrain)) then
                                         --Are we safe to get the upgrade here? if not then retreat
                                         if M28Conditions.SafeToUpgradeUnit(oACU) then
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Safe to get upgrade so will proceed with upgrading ACU') end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Safe to get upgrade so will proceed with upgrading ACU, sUpgradeToGet='..(sUpgradeToGet or 'nil')..' brain='..oACU:GetAIBrain().Nickname) end
                                             M28Orders.IssueTrackedEnhancement(oACU, sUpgradeToGet, false, 'ACUUp')
                                         else
                                             M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'Runc')
@@ -1682,7 +1758,7 @@ function GetACUOrder(aiBrain, oACU)
                                                 if sUpgradeToGet then
                                                     --Are we safe to get the upgrade here? if not then retreat
                                                     if M28Conditions.SafeToUpgradeUnit(oACU) then
-                                                        if bDebugMessages == true then LOG(sFunctionRef..': Safe to get upgrade so will proceed with upgrading ACU') end
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Safe to get upgrade here so will proceed with upgrading ACU, sUpgradeToGet='..(sUpgradeToGet or 'nil')..' brain='..oACU:GetAIBrain().Nickname..'; Has enhancement='..tostring(oACU:HasEnhancement(sUpgradeToGet))) end
                                                         M28Orders.IssueTrackedEnhancement(oACU, sUpgradeToGet, false, 'ACUUp')
                                                     else
                                                         --Retreat

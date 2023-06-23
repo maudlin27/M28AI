@@ -15,6 +15,11 @@ local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 
 refiNearestEnemyIndex = 'M28NearestEnemyIndex'
 
+--Against units variables
+reftiTimeOfLastShieldCheck = 'M28LLShC' --[x] is the shield check ref, returns gametimeseconds of the last check
+reftbLastShieldCheckResult = 'M28LLScB' --[x] is the shield check ref
+
+
 
 function GetNearestEnemyIndex(aiBrain)
     --Returns the army index of the nearest enemy brain, or nil if there is none
@@ -234,6 +239,20 @@ function IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisHea
     --bCumulativeShieldHealth - if true, then will treat as being under a shield if all shields combined have health of at least iIgnoreShieldsWithLessThanThisHealth
 
     if M28UnitInfo.IsUnitValid(oTarget) and oTarget.GetHealth then
+        --Optimisation - only refresh shield checks periodically as late game this can soak up a lot of performance
+        local iRef
+
+        if not(bReturnShieldHealthInstead) then --If want to return shield health then need to do the full calculation
+            iRef = aiBrain.M28Team + iIgnoreShieldsWithLessThanThisHealth
+            if bIgnoreMobileShields then iRef = iRef + 7 end
+            if bTreatPartCompleteAsComplete then iRef = iRef + 13 end
+            if bCumulativeShieldHealth then iRef = iRef + 29 end
+            if GetGameTimeSeconds() - (oTarget[reftiTimeOfLastShieldCheck][iRef] or -100) <= 0.9 then
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return oTarget[reftbLastShieldCheckResult][iRef]
+            end
+        end
+
         if bDebugMessages == true and EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oTarget.UnitId) then
             if oTarget.MyShield.GetHealth then
                 LOG(sFunctionRef..': oTarget is a shield='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; Shield ratio='..oTarget:GetShieldRatio(false)..'; Shield ratio true='..oTarget:GetShieldRatio(true)..'; Shield health='..oTarget.MyShield:GetHealth()..'; SHield max health='..oTarget.MyShield:GetMaxHealth()..'; Active consumption='..tostring(oTarget.ActiveConsumption)..'; reprs of shield='..reprs(oTarget.MyShield))
@@ -313,7 +332,11 @@ function IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisHea
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         if bReturnShieldHealthInstead then
             return iTotalShieldCurHealth, iTotalShieldMaxHealth
-        else return bUnderShield
+        else
+            if not(oTarget[reftiTimeOfLastShieldCheck]) then oTarget[reftiTimeOfLastShieldCheck] = {} oTarget[reftbLastShieldCheckResult] = {} end
+            oTarget[reftiTimeOfLastShieldCheck][iRef] = GetGameTimeSeconds()
+            oTarget[reftbLastShieldCheckResult][iRef] = bUnderShield
+            return bUnderShield
         end
     end
 end

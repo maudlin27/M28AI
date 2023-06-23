@@ -4,6 +4,38 @@
 --- DateTime: 18/05/2023 22:00
 ---
 
+local M28OldMakeListFromTarget = MakeListFromTarget
+MakeListFromTarget = function(Target)
+    --Destructive hook - want to replace normal approach so that M28 is treated as a 'human'
+    --LOG('MakeListFromTarget: Start of hook')
+    local resultList = {}
+    if Target.Army then
+        resultList[GetArmyBrain(Target.Army)] = true
+    end
+
+    if Target.Armies then
+        local tblArmy = ListArmies()
+        for _, armyName in Target.Armies do
+            if armyName == "HumanPlayers" then
+                for iArmy, strArmy in pairs(tblArmy) do
+                    --LOG('MakeListFromTarget: Deciding whether to include army, army brain nickname='..(GetArmyBrain(iArmy).Nickname or 'nil')..'; M28AI='..tostring(GetArmyBrain(iArmy).M28AI or false))
+                    if ScenarioInfo.ArmySetup[strArmy].Human or GetArmyBrain(iArmy).M28AI then
+                        resultList[GetArmyBrain(iArmy)] = true
+                    end
+                end
+            else
+                for iArmy, strArmy in pairs(tblArmy) do
+                    if strArmy == armyName then
+                        resultList[GetArmyBrain(iArmy)] = true
+                    end
+                end
+            end
+
+        end
+    end
+    return resultList
+end
+
 local M28OldAddObjective = AddObjective
 AddObjective = function(Type,         -- 'primary', 'bonus', etc
         Complete,     -- 'complete', 'incomplete'

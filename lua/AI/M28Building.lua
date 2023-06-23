@@ -13,6 +13,8 @@ local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Logic = import('/mods/M28AI/lua/AI/M28Logic.lua')
 local M28Chat = import('/mods/M28AI/lua/AI/M28Chat.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
+local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
+local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
 
 --Global variables
 iTMLMissileRange = 256 --e.g. use if dont have access to a unit blueprint
@@ -29,6 +31,7 @@ refbUnitWantsMoreTMD = 'M28BuildUnitWantsTMD' --true if a unit wants more TMD
 refbNoNearbyTMDBuildLocations = 'M28BuiltUnitHasNoNearbyTMDBuildLocations' --true if we buitl a TMD to cover this unit and the TMD ended up too far away
 refbMissileRecentlyBuilt = 'M28BuildMissileBuiltRecently' --true if unit has recently built a missile
 refbMissileChecker = 'M28BuildMissileChecker' --true if active missile builder checker for the unit
+reftActiveNukeTarget = 'M28BuildLastTargetLaucnh' --Against oLauncher, returns location of the target we last launched a TML/Nuke at while the missile is still alive, set to nil once the missile dies
 --refbActiveMissileChecker = 'M28BuildMissileTargetChecker' --true if active missile target checker for the unit
 --iTMLHighPriorityCategories = M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryT3Mex * categories.CYBRAN + M28UnitInfo.refCategoryT2Mex + M28UnitInfo.refCategoryTML + M28UnitInfo.refCategorySML + M28UnitInfo.refCategorySMD + M28UnitInfo.refCategoryT2Power + M28UnitInfo.refCategoryT3Radar
 tbExpectMissileBlockedByCliff = 'M28BuildMisBlck' --true if missile firing at this has hit a cliff
@@ -49,6 +52,11 @@ reftoUnitsCoveredByShield = 'M28BuildUnitsCoveredByShield' --Against shield, ret
 refbUnitWantsShielding = 'M28BuildUnitWantsFixedShield' --true if unit wants a fixed shield
 refbPriorityShield = 'M28BuildPriorityShield' --True if shield is a priority shield for assistance
 refoPriorityShieldProvidingCoverage = 'M28BuildPriorityShieldCoveringUnit' --Against unit being shielded; If a shield marked as a priority shield is covering the unit, then this should return that shield
+refoNearbyFactoryOfFaction = 'M28BuildNrFactionFac' --assigned against a gameender, to record that it can obtain engineers of a particular faction (for shielding purposes)
+reftoUnitsWantingFactoryEngineers = 'M28BuildEngFac' --table of any units that have htis factory as their 'nearest' factory - intended for gamenders so can track which game enders assume this factory can provide engineers
+reftLocationsForPriorityShield = 'M28BuildShdLoc' --against a unit (such as a game ender), [x] = 1,2,3...; returns the predetermined reserved location to build a shield in order to cover the game ender
+reftoSpecialAssignedShields = 'M28BuildSpecAssShield' --against a unit (such as a game ender), [x] = 3 or 2 or 1 based on the reftLocationsForPriorityShield index; for special shielding gameender logic
+refoGameEnderBeingShielded = 'M28BuildSpecShdlTarg' --against a shield, records the unit it has been assigned to (i.e. the corresponding variable for reftoSpecialAssignedShields)
 
 --T3 arti specific
 reftiPlateauAndZonesInRange = 'M28BuildArtiPlatAndZInRange' --entries in order of distance, 1,2,3 etc, returns {iPlateauOrZero, iLandOrWaterZoneRef}
@@ -844,7 +852,7 @@ function RecordPriorityShields(iTeam, tLZTeamData)
                             table.insert(tEngineersToClear, oEngi)
                         end
                         for iAssistingEngineer, oAssistingEngineer in tEngineersToClear do
-                            M28Orders.IssueTrackedClearCommands(oAssistingEngineer)
+                            if M28UnitInfo.IsUnitValid(oAssistingEngineer) then M28Orders.IssueTrackedClearCommands(oAssistingEngineer) end
                         end
                         oShield[M28UnitInfo.reftoUnitsAssistingThis] = nil
                     end
@@ -990,7 +998,14 @@ function OnMexConstructionStarted(oUnit)
     local sFunctionRef = 'OnMexConstructionStarted'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if not(M28Map.bMapLandSetupComplete) or GetGameTimeSeconds() <= 4 or not(M28Map.bWaterZoneInitialCreation) then
+        while (not(M28Map.bMapLandSetupComplete) or GetGameTimeSeconds() <= 4 or not(M28Map.bWaterZoneInitialCreation)) do
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitTicks(1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            if GetGameTimeSeconds() >= 6 then break end
+        end
+    end
 
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
     local tMexLocations
@@ -1065,19 +1080,36 @@ function OnMexConstructionStarted(oUnit)
     if not(bFoundMexLocation) then
         --Is the reason we cant find any unbuilt locations because a mex is being upgraded? Doing a reprs of a mex being upgraded, CanTakeDamage was false and IsUpgrade was true, so use these to check
         if oUnit.CanTakeDamage and not(oUnit.IsUpgrade) and (GetGameTimeSeconds() - (tLZOrWZData[M28Map.refiTimeOfLastMexDeath] or 0)) > 2.1 then
-            M28Utilities.ErrorHandler('OnCreate triggered for a mex but no unbuilt locations near it, iPlateau='..iPlateau..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil'), true)
-            if bDebugMessages == true then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations]='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit position='..repru(oUnit:GetPosition())..'; reprs of unit='..reprs(oUnit)) end
+            --Ignore if early game and is owned by non-human brain, or campaign and owned by non-M28AI non-human brain
+            if oUnit:GetAIBrain().BrainType == 'Human' or oUnit:GetAIBrain().M28AI or (GetGameTimeSeconds() >= 10 and not(M28Map.bIsCampaignMap)) then
+                M28Utilities.ErrorHandler('OnCreate triggered for a mex but no unbuilt locations near it, iPlateau='..iPlateau..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Map setup complete='..tostring(M28Map.bMapLandSetupComplete)..'; bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation or false), true)
+                if bDebugMessages == true then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations]='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit position='..repru(oUnit:GetPosition())..'; reprs of unit='..reprs(oUnit)) end
+            end
         end
     end
 
     --Add mex to enemy unit table if underwater, due to flaw with current approach - i.e. to reduce overhead all AI regardless of team use the same table for if a mex has been built; engineers are meant to either build on unbuilt mexes, or try and reclaim if the enemy is there; however without this step they effectively end up thinking a teammate has the mex so they never tyr sending an engineer to build or capture.  For land it's not an issue as would expect land scouts or other land units to reveal the mexes anyway
     if iWaterZone > 0 then
         local tTeamsUpdated = {}
-        for iBrain, oBrain in M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.subreftoEnemyBrains] do
-            if oBrain.M28AI and not(tTeamsUpdated[oBrain.M28Team]) then
-                tTeamsUpdated[oBrain.M28Team] = true
-                --(aiBrain, oUnit, bAlreadyUpdatedPosition, bAlreadyTriedReassignment, bIgnoreIfAssignedAlready)
-                M28Team.AssignUnitToLandZoneOrPond(oBrain, oUnit, false,                    false,                      true)
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.subreftoEnemyBrains]) == false then
+            for iBrain, oBrain in M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.subreftoEnemyBrains] do
+                if oBrain.M28AI and not(tTeamsUpdated[oBrain.M28Team]) then
+                    tTeamsUpdated[oBrain.M28Team] = true
+                    --(aiBrain, oUnit, bAlreadyUpdatedPosition, bAlreadyTriedReassignment, bIgnoreIfAssignedAlready)
+                    M28Team.AssignUnitToLandZoneOrPond(oBrain, oUnit, false,                    false,                      true)
+                end
+            end
+        else
+            --E.g. civilians that own mexes
+            local iMexBrainIndex = oUnit:GetAIBrain():GetArmyIndex()
+            for iBrain, oBrain in ArmyBrains do
+                if not(IsAlly(oBrain:GetArmyIndex(), iMexBrainIndex)) then
+                    if oBrain.M28AI and not(tTeamsUpdated[oBrain.M28Team]) then
+                        tTeamsUpdated[oBrain.M28Team] = true
+                        --(aiBrain, oUnit, bAlreadyUpdatedPosition, bAlreadyTriedReassignment, bIgnoreIfAssignedAlready)
+                        M28Team.AssignUnitToLandZoneOrPond(oBrain, oUnit, false,                    false,                      true)
+                    end
+                end
             end
         end
     end
@@ -1480,6 +1512,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                         end
                     else
                         IssueNuke({oLauncher}, tTarget)
+                        oLauncher[reftActiveNukeTarget] = {tTarget[1], tTarget[2], tTarget[3]}
                         --Unpause incase we paused previously
                         if oLauncher[refbPausedAsNoTargets] then
                             oLauncher[refbPausedAsNoTargets] = false
@@ -1968,6 +2001,346 @@ function JustFiredMissile(oLauncher)
             if iMissiles > 0 then
                 ConsiderLaunchingMissile(oLauncher)
             end
+            --Track SML launchers who have recently fired
+            if M28UnitInfo.IsUnitValid(oLauncher) and oLauncher:GetAIBrain().M28AI then
+                if EntityCategoryContains(M28UnitInfo.refCategorySML, oLauncher.UnitId) then
+                    local iTeam = oLauncher:GetAIBrain().M28Team
+                    local bAddToTable = true
+                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoRecentlyFiredAlliedNukeLaunchers]) then M28Team.tTeamData[iTeam][M28Team.reftoRecentlyFiredAlliedNukeLaunchers] = {}
+                    else
+                        for iRecordedLauncher, oRecordedLauncher in M28Team.tTeamData[iTeam][M28Team.reftoRecentlyFiredAlliedNukeLaunchers] do
+                            if oRecordedLauncher == oLauncher then
+                                bAddToTable = false
+                                break
+                            end
+                        end
+                    end
+                    if bAddToTable then
+                        table.insert(M28Team.tTeamData[iTeam][M28Team.reftoRecentlyFiredAlliedNukeLaunchers], oLauncher)
+                    end
+                end
+            end
+
         end
     end
+end
+
+function ReserveLocationsForGameEnder(oUnit)
+    --Reserve locations to provide shield coverage for oUnit
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ReserveLocationsForGameEnder'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, gametimeseconds is '..GetGameTimeSeconds()..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; owned by '..oUnit:GetAIBrain().Nickname..' on team '..oUnit:GetAIBrain().M28Team) end
+
+    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+    if iLandZone > 0 then
+        local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+        local tiShieldBuildLocationOptions = {}
+        local tiShieldLocationCountByOption = {}
+        local sBlueprintToBuild = 'xsb4202'
+        local iNewBuildingDiameter = M28UnitInfo.GetBuildingSize(sBlueprintToBuild)
+        local iNewBuildingRadius = iNewBuildingDiameter * 0.5
+        local iAdjacencyBuildingRadius = M28UnitInfo.GetBuildingSize(oUnit.UnitId) * 0.5
+        local tAdjacencyBuildingPosition = oUnit:GetPosition()
+
+        local iCurZ, iCurX
+        local iCornerAdjust = math.min(iNewBuildingDiameter, iAdjacencyBuildingRadius * 2)
+
+        local iCurOptionCount = 0
+
+        if bDebugMessages == true then LOG(sFunctionRef..': tAdjacencyBuildingPosition='..repru(tAdjacencyBuildingPosition)..'; iAdjacencyBuildingRadius='..iAdjacencyBuildingRadius..'; iNewBuildingRadius='..iNewBuildingRadius..'; iCornerAdjust='..iCornerAdjust) end
+        local aiBrain = oUnit:GetAIBrain()
+
+        --First go along top and bottom:
+        local iCurMod = 0
+        local iMostBuildLocations = 0
+        local iBestOptionCountRef
+        for iZFactor = -1, 1, 2 do
+            iCurOptionCount = iCurOptionCount + 1
+            tiShieldBuildLocationOptions[iCurOptionCount] = {}
+            iCurZ = tAdjacencyBuildingPosition[3] + (iAdjacencyBuildingRadius + iNewBuildingRadius) * iZFactor
+            --Include corner positions even though not adjacent
+            for iCurX = tAdjacencyBuildingPosition[1] - iCornerAdjust, tAdjacencyBuildingPosition[1] + iCornerAdjust, 1 do
+                if iCurMod > 0 then
+                    iCurMod = iCurMod - 1
+                elseif M28Engineer.CanBuildAtLocation(aiBrain, sBlueprintToBuild, { iCurX, 0, iCurZ}, iPlateau, iLandZone, nil, false, true, false, true) then
+                    tiShieldLocationCountByOption[iCurOptionCount] = (tiShieldLocationCountByOption[iCurOptionCount] or 0) + 1
+                    tiShieldBuildLocationOptions[iCurOptionCount][tiShieldLocationCountByOption[iCurOptionCount]] = {iCurX, GetSurfaceHeight(iCurX, iCurZ), iCurZ}
+                    iCurMod = iCurMod + iNewBuildingDiameter - 1
+                    if tiShieldLocationCountByOption[iCurOptionCount] > iMostBuildLocations then
+                        iMostBuildLocations = tiShieldLocationCountByOption[iCurOptionCount]
+                        iBestOptionCountRef = iCurOptionCount
+                        if iMostBuildLocations >= 3 then break end
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished considering top or bottom, iZFactor='..(iZFactor or 'nil')..'; iCurOptionCount='..(iCurOptionCount or 'nil')..'; tiShieldBuildLocationOptions[iCurOptionCount]='..repru(tiShieldBuildLocationOptions[iCurOptionCount])..'; tiShieldLocationCountByOption[iCurOptionCount]='..(tiShieldLocationCountByOption[iCurOptionCount] or 'nil')..'; iMostBuildLocations='..iMostBuildLocations) end
+            if iMostBuildLocations >= 3 then break end
+            iCurMod = 0
+        end
+        if iMostBuildLocations < 3 then
+            --Next go along the sides:
+            for iXFactor = -1, 1, 2 do
+                iCurMod = 0
+                iCurOptionCount = iCurOptionCount + 1
+                tiShieldBuildLocationOptions[iCurOptionCount] = {}
+
+                iCurX = tAdjacencyBuildingPosition[1] + (iAdjacencyBuildingRadius + iNewBuildingRadius) * iXFactor
+                for iCurZ = tAdjacencyBuildingPosition[3] - iCornerAdjust, tAdjacencyBuildingPosition[3] + iCornerAdjust, 1 do
+                    if iCurMod > 0 then
+                        iCurMod = iCurMod - 1
+                    elseif M28Engineer.CanBuildAtLocation(aiBrain, sBlueprintToBuild, { iCurX, 0, iCurZ}, iPlateau, iLandZone, nil, false, true, false, true) then
+                        tiShieldLocationCountByOption[iCurOptionCount] = (tiShieldLocationCountByOption[iCurOptionCount] or 0) + 1
+                        tiShieldBuildLocationOptions[iCurOptionCount][tiShieldLocationCountByOption[iCurOptionCount]] = {iCurX, GetSurfaceHeight(iCurX, iCurZ), iCurZ}
+                        iCurMod = iCurMod + iNewBuildingDiameter - 1
+                        if tiShieldLocationCountByOption[iCurOptionCount] > iMostBuildLocations then
+                            iMostBuildLocations = tiShieldLocationCountByOption[iCurOptionCount]
+                            iBestOptionCountRef = iCurOptionCount
+                            if iMostBuildLocations >= 3 then break end
+                        end
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished considering left or right side, iXFactor='..(iXFactor or 'nil')..'; iCurOptionCount='..(iCurOptionCount or 'nil')..'; tiShieldBuildLocationOptions[iCurOptionCount]='..repru(tiShieldBuildLocationOptions[iCurOptionCount])..'; tiShieldLocationCountByOption[iCurOptionCount]='..(tiShieldLocationCountByOption[iCurOptionCount] or 'nil')..'; iMostBuildLocations='..iMostBuildLocations) end
+                if iMostBuildLocations >= 3 then break end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': iMostBuildLocations='..iMostBuildLocations) end
+
+        if iMostBuildLocations >= 2 then
+            --Can build at least 2 shields, which is good enough - now figure out the best faction engineer that could realistically build the shield by locating the closest factory of each faction type
+            local tLZTeamData = tLZData[M28Map.subrefLZTeamData][aiBrain.M28Team]
+            if not(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection]) then tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection] = {} end
+            table.insert(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection], oUnit)
+            RecordNearbyFactoryForShieldEngineers(oUnit)
+
+            if bDebugMessages == true then LOG(sFunctionRef..': Can build at least 2 shields close to each other and the gameender, will now pick the best set of shield options, unit position='..repru(oUnit:GetPosition())..'; iBestOptionCountRef='..(iBestOptionCountRef or 'nil')..'; tiShieldBuildLocationOptions for this='..repru(tiShieldBuildLocationOptions[iBestOptionCountRef])) end
+            if iBestOptionCountRef then
+                oUnit[reftLocationsForPriorityShield] = {}
+                if bDebugMessages == true then LOG(sFunctionRef..': Recording priority shield locations, tLocations='..repru(tiShieldBuildLocationOptions[iBestOptionCountRef])) end
+                for iLocation, tLocation in tiShieldBuildLocationOptions[iBestOptionCountRef] do
+                    table.insert(oUnit[reftLocationsForPriorityShield], {tLocation[1], tLocation[2], tLocation[3]})
+                    --Blacklist the location
+                    M28Engineer.RecordBlacklistLocation(tLocation, iNewBuildingRadius, 600, oUnit)
+                    if bDebugMessages == true then
+                        LOG(sFunctionRef..': Added shild build location '..repru(tLocation)..' against the game ender and will record blacklist, Will draw shield locations in black')
+                        M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(tLocation, iNewBuildingRadius), 3, 100)
+                    end
+                end
+
+            end
+            --[[for iOption, tLocations in tiShieldBuildLocationOptions do
+                if (tiShieldBuildLocationOptions[iOption] or 0) >= iMostBuildLocations then
+                    oUnit[reftLocationsForPriorityShield] = {}
+                    if bDebugMessages == true then LOG(sFunctionRef..': Recording priority shield locations, tLocations='..repru(tLocations)..'; tiShieldBuildLocationOptions[iOption]='..repru(tiShieldBuildLocationOptions[iOption])..'; iOption='..(iOption or 'nil')) end
+                    for iLocation, tLocation in tLocations do
+                        table.insert(oUnit[reftLocationsForPriorityShield], {tLocation[1], tLocation[2], tLocation[3]})
+                        --Blacklist the location
+                        M28Engineer.RecordBlacklistLocation(tLocation, iNewBuildingRadius, 600, oUnit)
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef..': Will draw shield locations in black')
+                            M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(tLocation, iNewBuildingRadius), 3, 100)
+                        end
+                    end
+                    break
+                end
+            end--]]
+            M28Team.tTeamData[aiBrain.M28Team][M28Team.refbStartedOnUnitWantingSpecialShielding] = true
+        end
+    end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function GetBestFactionFactoryOfCategory(iCategory, iDistanceCap, iLandSubteam, iUnitPlateau, tLZData)
+    local iClosestFactory = iDistanceCap
+    local iCurDist, iCurPlateau, iCurLandZone
+    local oBestFactory
+    for iBrain, oBrain in M28Team.tLandSubteamData[iLandSubteam][M28Team.subreftoFriendlyM28Brains] do
+        local tFactoriesOfCategory = oBrain:GetListOfUnits(iCategory, false, true)
+        if M28Utilities.IsTableEmpty(tFactoriesOfCategory) == false then
+            for iFactory, oFactory in tFactoriesOfCategory do
+                if oFactory:GetFractionComplete() == 1 and M28UnitInfo.IsUnitValid(oFactory) then
+                    --Is this in the same plateau?
+                    iCurPlateau, iCurLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oFactory:GetPosition())
+                    if iCurPlateau == iUnitPlateau then
+                        --Get the travel distance
+                        iCurDist = tLZData[M28Map.subrefLZTravelDistToOtherLandZones][iCurPlateau][iCurLandZone]
+                        if iCurDist then
+                            if iCurDist < iClosestFactory then
+                                iClosestFactory = iCurDist
+                                oBestFactory = oFactory
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return oBestFactory
+end
+
+function RecordNearbyFactoryForShieldEngineers(oUnit)
+    local iDistanceCap = 300 --Wont try and get engineers from factories further away than this.
+    local aiBrain = oUnit:GetAIBrain()
+    local iLandSubteam = aiBrain.M28LandSubteam
+    local oBestFactory
+
+    local iUnitPlateau, iUnitLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+    if (iUnitLandZone or 0) > 0 then
+        local tLZData = M28Map.tAllPlateaus[iUnitPlateau][M28Map.subrefPlateauLandZones][iUnitLandZone]
+        --Seraphim factories
+        if (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionSeraphim][3] or 0) > 0 then
+            oBestFactory = GetBestFactionFactoryOfCategory(M28UnitInfo.refCategoryLandFactory * categories.TECH3 * categories.SERAPHIM, iDistanceCap, iLandSubteam, iUnitPlateau, tLZData)
+        end
+        if not(oBestFactory) then
+            --Aeon
+            if (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionAeon][3] or 0) > 0 then
+                oBestFactory = GetBestFactionFactoryOfCategory(M28UnitInfo.refCategoryLandFactory * categories.TECH3 * categories.Aeon, iDistanceCap, iLandSubteam, iUnitPlateau, tLZData)
+            end
+            if not(oBestFactory) then
+                --UEF
+                if (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionUEF][3] or 0) > 0 then
+                    oBestFactory = GetBestFactionFactoryOfCategory(M28UnitInfo.refCategoryLandFactory * categories.TECH3 * categories.UEF, iDistanceCap, iLandSubteam, iUnitPlateau, tLZData)
+                end
+                --If dont have any of these factions then dont worry about getting a faction specific shield
+            end
+        end
+        --If have a best factory then record against the game ender
+        oUnit[refoNearbyFactoryOfFaction] = oBestFactory
+        if oBestFactory then
+            if not(oBestFactory[reftoUnitsWantingFactoryEngineers]) then
+                oBestFactory[reftoUnitsWantingFactoryEngineers] = {}
+            end
+
+            table.insert(oBestFactory[reftoUnitsWantingFactoryEngineers], oUnit)
+            local iFactoryPlateau, iFactoryLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oBestFactory:GetPosition())
+            local tFactoryLZTeamData = M28Map.tAllPlateaus[iFactoryPlateau][M28Map.subrefPlateauLandZones][iFactoryLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team]
+            local bRecordedInZoneAlready = false
+            if not(tFactoryLZTeamData[M28Map.reftFactoriesWantedForEngineers]) then tFactoryLZTeamData[M28Map.reftFactoriesWantedForEngineers] = {}
+            else
+                for iExistingFactory, oExistingFactory in tFactoryLZTeamData[M28Map.reftFactoriesWantedForEngineers] do
+                    if oExistingFactory == oBestFactory then
+                        bRecordedInZoneAlready = true
+                    end
+                end
+            end
+            if not(bRecordedInZoneAlready) then
+                table.insert(tFactoryLZTeamData[M28Map.reftFactoriesWantedForEngineers], oBestFactory)
+            end
+        end
+    end
+end
+
+function RemoveFactoryFromZoneList(oFactory)
+    --If a factory was assigned as providing engineers to a unit such as a gameender for shielding, it'd be recorded in the zone it was in - this removes it (e.g. intended where the factory ahs no units to assist, or the factory is dead)
+    local iFactoryPlateau, iFactoryLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oFactory:GetPosition())
+    if iFactoryLandZone > 0 then
+        local tLZTeamData = M28Map.tAllPlateaus[iFactoryPlateau][M28Map.subrefPlateauLandZones][iFactoryLandZone][M28Map.subrefLZTeamData][oFactory:GetAIBrain().M28Team]
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftFactoriesWantedForEngineers]) == false then
+            local iExistingEntries = table.getn(tLZTeamData[M28Map.reftFactoriesWantedForEngineers])
+            for iCurEntry = iExistingEntries, 1, -1 do
+                if tLZTeamData[M28Map.reftFactoriesWantedForEngineers][iCurEntry] == oFactory or not(M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.reftFactoriesWantedForEngineers][iCurEntry])) then
+                    table.remove(tLZTeamData[M28Map.reftFactoriesWantedForEngineers], iCurEntry)
+                end
+            end
+        end
+    end
+end
+
+function ClearTrackingOfDeadUnitWantingFactoryEngineers(oUnit)
+    --If a gameender had a factory assigned as providing engineers e.g. for shielding, and the gameender is dead, then this clears related tracking
+    if M28Utilities.IsTableEmpty(oUnit[refoNearbyFactoryOfFaction][reftoUnitsWantingFactoryEngineers]) == false then
+        local oFactory = oUnit[refoNearbyFactoryOfFaction]
+        local iExistingEntries = table.getn(oFactory[reftoUnitsWantingFactoryEngineers])
+        for iCurEntry = iExistingEntries, 1, -1 do
+            if oFactory[reftoUnitsWantingFactoryEngineers][iCurEntry] == oUnit or not(M28UnitInfo.IsUnitValid(oFactory[reftoUnitsWantingFactoryEngineers][iCurEntry])) then
+                table.remove(oFactory[reftoUnitsWantingFactoryEngineers], iCurEntry)
+            end
+        end
+        if M28Utilities.IsTableEmpty(  oFactory[reftoUnitsWantingFactoryEngineers]) then
+            RemoveFactoryFromZoneList(oFactory)
+        end
+    end
+    --Remove this unit from the zone
+    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+    local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team]
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection]) == false then
+        local iTotalEntries = table.getn(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection])
+        for iCurEntry = iTotalEntries, 1, -1 do
+            if tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection][iCurEntry] == oUnit or not(M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection][iCurEntry])) then
+                table.remove(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection], iCurEntry)
+            end
+        end
+    end
+end
+
+function UpdateTrackingOfDeadFactoryProvidingEngineers(oUnit)
+    --If a factory that was providing engineers e.g. to a gameender for shielding dies, this updates the tracking variables and looks for a new factory to provide engineers
+    local iExistingEntries = table.getn(oUnit[reftoUnitsWantingFactoryEngineers])
+    for iCurEntry = iExistingEntries, 1, -1 do
+        if oUnit[reftoUnitsWantingFactoryEngineers][iCurEntry][refoNearbyFactoryOfFaction] == oUnit then
+            oUnit[reftoUnitsWantingFactoryEngineers][iCurEntry][refoNearbyFactoryOfFaction] = nil
+            if M28UnitInfo.IsUnitValid(oUnit[reftoUnitsWantingFactoryEngineers][iCurEntry]) then
+                --Get a new 'best factory to provide engineers' for the game ender
+                RecordNearbyFactoryForShieldEngineers(oUnit[reftoUnitsWantingFactoryEngineers][iCurEntry])
+            end
+        end
+    end
+    --Remove this factory from the list of factories in the zone
+    oUnit[reftoUnitsWantingFactoryEngineers] = nil
+    RemoveFactoryFromZoneList(oUnit)
+end
+
+function AssignShieldToGameEnder(oConstruction, oEngineer)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AssignShieldToGameEnder'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oConstruction:GetPosition())
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at game time '..GetGameTimeSeconds()..'; oConstruction='..(oConstruction.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oConstruction) or 'nil')..'; oEngineer='..(oEngineer.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineer) or 'nil')..'; oConstruction iPlateau='..(iPlateau or 'nil')..'; Zone='..(iLandZone or 'nil')..'; oConstruction position='..repru(oConstruction:GetPosition())) end
+    if (iLandZone or 0) > 0 then
+        local oGameEnder
+        local aiBrain = oEngineer:GetAIBrain()
+        local iTeam = aiBrain.M28Team
+        local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
+        if not(oEngineer[M28Engineer.refoUnitActivelyShielding]) then
+            M28Utilities.ErrorHandler('Dont have a unit recorded that the engineer is actively shielding, will just get the first gameender in the zone')
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection]) == false then
+                for iUnit, oUnit in tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection] do
+                    oGameEnder = oUnit
+                    break
+                end
+            end
+        else
+            oGameEnder = oEngineer[M28Engineer.refoUnitActivelyShielding]
+            if bDebugMessages == true then LOG(sFunctionRef..': Engineer is actively shielding oGameEnder='..(oGameEnder.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oGameEnder) or 'nil')) end
+        end
+        if M28UnitInfo.IsUnitValid(oGameEnder) then
+            if not(oGameEnder[reftoSpecialAssignedShields]) then
+                oGameEnder[reftoSpecialAssignedShields] = {}
+            end
+            table.insert(oGameEnder[reftoSpecialAssignedShields], oConstruction)
+            oConstruction[refoGameEnderBeingShielded] = oGameEnder
+            if bDebugMessages == true then LOG(sFunctionRef..': Added oConstruction to the table of assigned shields for gameender') end
+        else
+            if oGameEnder then
+                M28Utilities.ErrorHandler('Dont have a valid unit')
+            end
+        end
+    else
+        M28Utilities.ErrorHandler('Dont have valid land zone for construction')
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function UpdateForNukeMissileDeath(oLauncher, tOptionalLikelyTarget)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'UpdateForNukeMissileDeath'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Start at time ='..GetGameTimeSeconds()..'; oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..'; oLauncher[reftActiveNukeTarget] before reset='..repru(oLauncher[reftActiveNukeTarget])) end
+    oLauncher[reftActiveNukeTarget] = nil
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

@@ -119,7 +119,10 @@ function IssueTrackedClearCommands(oUnit)
 
     --Update tracking for engineers (and clear any assisting engineers via ClearEngineerTracking)
     if EntityCategoryContains(M28UnitInfo.refCategoryEngineer + categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then
-        M28Engineer.ClearEngineerTracking(oUnit)
+        --Dont clear active shield engineers since they can be given different orders (resulting in a clear commands being sent)
+        if not(oUnit[M28Engineer.refiAssignedAction] == M28Engineer.refActionSpecialShieldDefence) then
+            M28Engineer.ClearEngineerTracking(oUnit) --note - will also clear if try assigning action to engineer that is different to its currently assigned action as part of the track engineer action function, which covers cases where we dont trigger this such as shield special defence
+        end
         --Unpause engineers who are about to be cleared
         if oUnit[M28UnitInfo.refbPaused] then
             M28UnitInfo.PauseOrUnpauseEnergyUsage(oUnit, false)
@@ -378,7 +381,11 @@ function IssueTrackedMoveAndBuild(oUnit, tBuildLocation, sOrderBlueprint, tMoveT
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueBuild, [subrefsOrderBlueprint] = sOrderBlueprint, [subreftOrderPosition] = {tBuildLocation[1], tBuildLocation[2], tBuildLocation[3]}})
         IssueBuildMobile({ oUnit }, tBuildLocation, sOrderBlueprint, {})
-        ForkThread(M28Engineer.TrackQueuedBuilding, oUnit, sOrderBlueprint, tBuildLocation)
+        if sOrderBlueprint then
+            ForkThread(M28Engineer.TrackQueuedBuilding, oUnit, sOrderBlueprint, tBuildLocation)
+        else
+            M28Utilities.ErrorHandler('Attempted to build something with no blueprint')
+        end
         --LOG('Sent an issuebuildmobile order to the unit')
     end
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
@@ -400,7 +407,11 @@ function IssueTrackedBuild(oUnit, tOrderPosition, sOrderBlueprint, bAddToExistin
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueBuild, [subrefsOrderBlueprint] = sOrderBlueprint, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
         IssueBuildMobile({ oUnit }, tOrderPosition, sOrderBlueprint, {})
-        ForkThread(M28Engineer.TrackQueuedBuilding, oUnit, sOrderBlueprint, tOrderPosition)
+        if sOrderBlueprint then
+            ForkThread(M28Engineer.TrackQueuedBuilding, oUnit, sOrderBlueprint, tOrderPosition)
+        else
+            M28Utilities.ErrorHandler('Attempted to give a construction order to unit with no order blueprint')
+        end
     end
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 end
@@ -764,6 +775,8 @@ function IssueTrackedTMLMissileLaunch(oUnit, tOrderPosition, iDistanceToReissueO
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueTMLMissile, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
         IssueTactical({oUnit}, tOrderPosition)
+
+        oUnit[import('/mods/M28AI/lua/AI/M28Building.lua').reftActiveNukeTarget] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}
     end
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 end

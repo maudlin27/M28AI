@@ -91,7 +91,7 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
                     if not(oUnitToUpgrade[refsQueuedTransport]) then
                         --Havent built any transports yet so build a T1 transport before we upgrade to T2 air
 
-                        local sTransportID = M28Factory.GetBlueprintsThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryTransport, oUnitToUpgrade)
+                        local sTransportID = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryTransport, oUnitToUpgrade)
                         if sTransportID then
                             oUnitToUpgrade[refsQueuedTransport] = true
                             M28Orders.IssueTrackedFactoryBuild(oUnitToUpgrade, sTransportID, false, 'PreUp')
@@ -101,7 +101,7 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
                 end
             elseif EntityCategoryContains(M28UnitInfo.refCategoryLandFactory * categories.TECH2 + M28UnitInfo.refCategoryAirFactory * categories.TECH2, oUnitToUpgrade.UnitId) and aiBrain[refiOurHighestFactoryTechLevel] <= 2 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer - categories.TECH1) <= 5 then
                 --About to go for T3 factory but have hardl yany engineers so queue up an extra one
-                local sEngiID = M28Factory.GetBlueprintsThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryEngineer, oUnitToUpgrade)
+                local sEngiID = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryEngineer, oUnitToUpgrade)
                 if sEngiID then
                     M28Orders.IssueTrackedFactoryBuild(oUnitToUpgrade, sEngiID, false, 'PreUp')
                 end
@@ -468,7 +468,7 @@ function UpdateMassStorageAdjacencyValues(oStorage, bDestroyed)
         end
     end
 
-    aiBrain[refiGrossMassBaseIncome] = aiBrain[refiGrossMassBaseIncome] + iMassChange
+    aiBrain[refiGrossMassBaseIncome] = (aiBrain[refiGrossMassBaseIncome] or 0) + iMassChange
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, iMassChange='..iMassChange..'; aiBrain[refiGrossMassBaseIncome]='..aiBrain[refiGrossMassBaseIncome]) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -666,10 +666,10 @@ function EconomyMainLoop(aiBrain)
 end
 
 function EconomyInitialisation(aiBrain)
-    aiBrain[refiGrossEnergyBaseIncome] = 0
-    aiBrain[refiNetEnergyBaseIncome] = 0
-    aiBrain[refiGrossMassBaseIncome] = 0
-    aiBrain[refiNetMassBaseIncome] = 0
+    if not(aiBrain[refiGrossEnergyBaseIncome]) then aiBrain[refiGrossEnergyBaseIncome] = 0 end
+    if not(aiBrain[refiNetEnergyBaseIncome]) then aiBrain[refiNetEnergyBaseIncome] = 0 end
+    if not(aiBrain[refiGrossMassBaseIncome]) then aiBrain[refiGrossMassBaseIncome] = 0 end
+    if not(aiBrain[refiNetMassBaseIncome]) then aiBrain[refiNetMassBaseIncome] = 0 end
     aiBrain[reftPausedUnits] = {}
 
     --Some values are set when creating a team to avoid errors
@@ -832,13 +832,13 @@ function GetCategoriesAndActionsToPause(iTeam, bStallingMass)
 
         if bStallingMass then
             if not(bImminentThreat) then
-                tCategoriesByPriority = { M28UnitInfo.refCategorySMD, M28UnitInfo.refCategoryEngineerStation, iSpecialSurplusUpgradeCategory, M28UnitInfo.refCategoryLandFactory * categories.TECH1, M28UnitInfo.refCategoryLandFactory * categories.TECH2, M28UnitInfo.refCategoryLandFactory * categories.TECH3, M28UnitInfo.refCategoryRASSACU, M28UnitInfo.refCategoryEngineer, M28UnitInfo.refCategoryTML, M28UnitInfo.refCategoryAirFactory, iSpecialHQCategory, M28UnitInfo.refCategoryT2Mex, categories.COMMAND, M28UnitInfo.refCategoryT1Mex, M28UnitInfo.refCategoryEngineer }
+                tCategoriesByPriority = { M28UnitInfo.refCategorySMD, M28UnitInfo.refCategoryEngineerStation, iSpecialSurplusUpgradeCategory, M28UnitInfo.refCategoryLandFactory * categories.TECH1, M28UnitInfo.refCategoryLandFactory * categories.TECH2, M28UnitInfo.refCategoryLandFactory * categories.TECH3, M28UnitInfo.refCategoryRASSACU, M28UnitInfo.refCategoryEngineer, M28UnitInfo.refCategoryAirFactory, M28UnitInfo.refCategoryT2Mex, categories.COMMAND, M28UnitInfo.refCategoryT1Mex, M28UnitInfo.refCategoryTML, iSpecialHQCategory, M28UnitInfo.refCategoryEngineer }
 
                 tEngineerActionsByPriority = { { M28Engineer.refActionBuildQuantumOptics, M28Engineer.refActionBuildHive, M28Engineer.refActionBuildT3Radar, M28Engineer.refActionBuildSecondExperimental, M28Engineer.refActionNavalSpareAction, M28Engineer.refActionBuildT2Sonar, M28Engineer.refActionBuildThirdPower, M28Engineer.refActionBuildSecondAirFactory, M28Engineer.refActionBuildSecondLandFactory, M28Engineer.refActionBuildLandFactory, M28Engineer.refActionSAMCreep, M28Engineer.refActionBuildNavalFactory, M28Engineer.refActionAssistNavalFactory, M28Engineer.refActionBuildAirFactory, M28Engineer.refActionBuildT1Sonar, M28Engineer.refActionBuildT2Radar, M28Engineer.refActionBuildT1Radar, M28Engineer.refActionBuildSecondPower, M28Engineer.refActionBuildTML, M28Engineer.refActionBuildEnergyStorage, M28Engineer.refActionBuildAirStaging, M28Engineer.refActionBuildShield, M28Engineer.refActionBuildSecondShield, M28Engineer.refActionBuildExperimental, M28Engineer.refActionAssistAirFactory, M28Engineer.refActionUpgradeBuilding, M28Engineer.refActionBuildPower },
                                                { M28Engineer.refActionFortifyFirebase, M28Engineer.refActionBuildMassStorage, M28Engineer.refActionAssistMexUpgrade, M28Engineer.refActionSpare, M28Engineer.refActionBuildSMD, M28Engineer.refActionBuildEmergencyArti }}
             else
-                --As above but air fac isnt paused at all
-                tCategoriesByPriority = { M28UnitInfo.refCategorySMD, M28UnitInfo.refCategoryEngineerStation, iSpecialSurplusUpgradeCategory, M28UnitInfo.refCategoryLandFactory * categories.TECH1, M28UnitInfo.refCategoryLandFactory * categories.TECH2, M28UnitInfo.refCategoryLandFactory * categories.TECH3, M28UnitInfo.refCategoryRASSACU, M28UnitInfo.refCategoryEngineer, M28UnitInfo.refCategoryTML, iSpecialHQCategory, M28UnitInfo.refCategoryT2Mex, categories.COMMAND, M28UnitInfo.refCategoryT1Mex, M28UnitInfo.refCategoryEngineer }
+                --As above but air fac isnt paused at all and HQs are v.unlikely to be paused
+                tCategoriesByPriority = { M28UnitInfo.refCategorySMD, M28UnitInfo.refCategoryEngineerStation, iSpecialSurplusUpgradeCategory, M28UnitInfo.refCategoryLandFactory * categories.TECH1, M28UnitInfo.refCategoryLandFactory * categories.TECH2, M28UnitInfo.refCategoryLandFactory * categories.TECH3, M28UnitInfo.refCategoryRASSACU, M28UnitInfo.refCategoryEngineer, M28UnitInfo.refCategoryT2Mex, categories.COMMAND, M28UnitInfo.refCategoryT1Mex, M28UnitInfo.refCategoryTML, M28UnitInfo.refCategoryEngineer, iSpecialHQCategory }
 
                 tEngineerActionsByPriority = { { M28Engineer.refActionBuildQuantumOptics, M28Engineer.refActionBuildHive, M28Engineer.refActionBuildT3Radar, M28Engineer.refActionBuildSecondExperimental, M28Engineer.refActionNavalSpareAction, M28Engineer.refActionBuildT2Sonar, M28Engineer.refActionBuildThirdPower, M28Engineer.refActionBuildSecondAirFactory, M28Engineer.refActionBuildSecondLandFactory, M28Engineer.refActionBuildLandFactory, M28Engineer.refActionSAMCreep, M28Engineer.refActionBuildNavalFactory, M28Engineer.refActionAssistNavalFactory, M28Engineer.refActionBuildAirFactory, M28Engineer.refActionBuildT1Sonar, M28Engineer.refActionBuildT2Radar, M28Engineer.refActionBuildT1Radar, M28Engineer.refActionBuildSecondPower, M28Engineer.refActionBuildTML, M28Engineer.refActionBuildEnergyStorage, M28Engineer.refActionBuildAirStaging, M28Engineer.refActionBuildShield, M28Engineer.refActionBuildSecondShield, M28Engineer.refActionBuildExperimental, M28Engineer.refActionAssistAirFactory, M28Engineer.refActionUpgradeBuilding, M28Engineer.refActionBuildPower },
                                                { M28Engineer.refActionFortifyFirebase, M28Engineer.refActionBuildMassStorage, M28Engineer.refActionAssistMexUpgrade, M28Engineer.refActionSpare, M28Engineer.refActionBuildSMD, M28Engineer.refActionBuildEmergencyArti }}

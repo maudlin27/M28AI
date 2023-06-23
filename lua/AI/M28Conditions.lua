@@ -176,7 +176,7 @@ function IsEngineerAvailable(oEngineer)
         local iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
         LOG(sFunctionRef..': GameTIme '..GetGameTimeSeconds()..': Engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' owned by '..oEngineer:GetAIBrain().Nickname..': oEngineer:GetFractionComplete()='..oEngineer:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; Are last orders empty='..tostring(oEngineer[M28Orders.reftiLastOrders] == nil)..'; Engineer Plateau='..(iCurPlateau or 'nil')..'; LZ='..(iCurLZ or 'nil'))
     end
-    if oEngineer:GetFractionComplete() == 1 and not(oEngineer:IsUnitState('Attached')) then
+    if oEngineer:GetFractionComplete() == 1 and not(oEngineer:IsUnitState('Attached')) and not(oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionSpecialShieldDefence) then
         M28Orders.UpdateRecordedOrders(oEngineer)
         if not(oEngineer[M28Orders.reftiLastOrders]) then
             if bDebugMessages == true then LOG(sFunctionRef..': Engineer has no last orders active so is available') end
@@ -463,7 +463,7 @@ end
 function HaveLowMass(aiBrain)
     --Not actually used as yet
     local bHaveLowMass = false
-    if aiBrain[M28Economy.refiGrossMassBaseIncome] <= 200 then --i.e. we dont ahve a paragon or crazy amount of SACUs
+    if aiBrain[M28Economy.refiGrossMassBaseIncome] <= 400 then --i.e. we dont ahve a paragon or crazy amount of SACUs
         local iMassStoredRatio = aiBrain:GetEconomyStoredRatio('MASS')
         if (iMassStoredRatio <= 0.15 or aiBrain:GetEconomyStored('MASS') <= 300) then
             if aiBrain[M28Economy.refiNetMassBaseIncome] < 0.2 then bHaveLowMass = true
@@ -480,7 +480,7 @@ function TeamHasLowMass(iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local bHaveLowMass = false
-    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 200 then --i.e. we dont ahve a paragon or crazy amount of SACUs
+    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 400 then --i.e. we dont ahve a paragon or crazy amount of SACUs
         local iMassStoredRatio = M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]
 
         if (iMassStoredRatio <= 0.15 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] <= 300 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
@@ -503,19 +503,21 @@ function HaveLowPower(iTeam)
 
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..', team='..iTeam..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or false)..'; M28Team.tTeamDta[iTeam][M28Team.subrefiGrossEnergyWhenStalled]='..(M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] or 'nil')..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Just built lots of power='..tostring(M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower])..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) end
     local bHaveLowPower = false
-    if not(M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower]) then
-        if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] <= 0.95) or M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] * 1.05 then
-            bHaveLowPower = true
-        else
-            --Low power levels - apply slightly different test where it's ok to not have 100% energy
-            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 25 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 2.2 then
-                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] >= math.max(0.35, math.min(0.9, M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] * 2.5)) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 0.5 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] >= 0.9 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= -9)) then
-                    --Do nothing (false)
-                else
+    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 80000 then --Paragon gives 1000000 per sec I think
+        if not(M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower]) then
+            if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] <= 0.95) or M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] * 1.05 then
+                bHaveLowPower = true
+            else
+                --Low power levels - apply slightly different test where it's ok to not have 100% energy
+                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 25 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 2.2 then
+                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] >= math.max(0.35, math.min(0.9, M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] * 2.5)) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 0.5 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] >= 0.9 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= -9)) then
+                        --Do nothing (false)
+                    else
+                        bHaveLowPower = true
+                    end
+                elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.15 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] < 0.5 or M28Team.tTeamData[iTeam][M28Team.subrefbTooLittleEnergyForUpgrade] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < M28Economy.tiMinEnergyPerTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]]) then
                     bHaveLowPower = true
                 end
-            elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.15 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] < 0.5 or M28Team.tTeamData[iTeam][M28Team.subrefbTooLittleEnergyForUpgrade] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < M28Economy.tiMinEnergyPerTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]]) then
-                bHaveLowPower = true
             end
         end
     end
@@ -716,10 +718,12 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
     local iAverageCurAirAndLandFactories = (M28Team.tTeamData[iTeam][M28Team.subrefiTotalFactoryCountByType][M28Factory.refiFactoryTypeLand] or 0) / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] + (M28Team.tTeamData[iTeam][M28Team.subrefiTotalFactoryCountByType][M28Factory.refiFactoryTypeAir] or 0) / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]
 
     local bWantMoreFactories = false
+    local bDontWantDueToUnitCap = false
     --Unit cap - want max of 2 factories in the core LZ and no more factories in non-core LZs
     if M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap] then
         if not(tLZTeamData[M28Map.subrefLZbCoreBase]) then
             --Dont wnat more factories (no change to default)
+            bDontWantDueToUnitCap = true
         else
             local tFactoriesInZone
             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
@@ -727,6 +731,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
                 if M28Utilities.IsTableEmpty(tFactoriesInZone) == false then
                     if table.getn(tFactoriesInZone) >= 2 then
                         --DOnt want more factories (no change to default)
+                        bDontWantDueToUnitCap = true
                     end
                 end
             end
@@ -760,7 +765,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
         end
     else
         if bDebugMessages == true then LOG(sFunctionRef..': Checking if want more factories at gamttime '..GetGameTimeSeconds()..' for iTeam='..iTeam..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; Mass % stored='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] or 'nil')..'; Land fac count='..(M28Team.tTeamData[iTeam][M28Team.subrefiTotalFactoryCountByType][M28Factory.refiFactoryTypeLand] or 'nil')..'; Gross mass count='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] or 'nil')..'; Highest factory tech='..(M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 'nil')..'; iAverageCurAirAndLandFactories='..(iAverageCurAirAndLandFactories or 'nil')..'; Factories wanted based on gross mass='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] or 0) * (tiFactoryToMassByTechRatioWanted[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] or 0)..'; iCurIsland='..(iCurIsland or 0)..'; iEnemyIsland='..(iEnemyIsland or 0)..'; Time since air fac last failed to have osmething to build='..(GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForAirFactory] or -100))..'; Time since land fac last failed to have something to build='..(GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForLandFactory] or -100))) end
-        if not(bWantMoreFactories) then
+        if not(bWantMoreFactories) and not(bDontWantDueToUnitCap) then
             --Failure to build and have a significant number of factories already (at least 5)
             if (iAverageCurAirAndLandFactories >= 5 or (iAverageCurAirAndLandFactories >= 2.5 and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 2 and iAverageCurAirAndLandFactories * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 8)) and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForAirFactory] or -100) <= 10 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForLandFactory] or -100) <= 10 then
                 --Dont want more factories
@@ -809,12 +814,12 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
         end
     end
     --Exception - get more factories if base level of mass income per brain
-    if not(bWantMoreFactories) and iAverageCurAirAndLandFactories == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 2 then
+    if not(bWantMoreFactories) and not(bDontWantDueToUnitCap) and iAverageCurAirAndLandFactories == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 2 then
         if bDebugMessages == true then LOG(sFunctionRef..': We have at least 20 mass per sec so want to have more than 1 factory') end
         bWantMoreFactories = true
     end
     --decent eco and air fac count is < 1 on average in teamgame (ie want every player to consider getting air fac)
-    if not(bWantMoreFactories) and iTeamCount > 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 8 * iTeamCount and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 500 and tLZTeamData[M28Map.subrefLZbCoreBase] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.05 and not(HaveLowPower(iTeam)) then
+    if not(bWantMoreFactories) and iTeamCount > 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 8 * iTeamCount and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 3) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 100 and tLZTeamData[M28Map.subrefLZbCoreBase] and not(HaveLowPower(iTeam)) then
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
             local tAirFacs = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
             if M28Utilities.IsTableEmpty(tAirFacs) then
@@ -834,6 +839,11 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
             end
             if iAirFacsInLZ >= 1 then bWantMoreFactories = false end
         end
+    end
+
+    --More factories in cases where overflowing and have no T3 engineers or active upgrades (e.g. campaign missions with unit restrictions)
+    if not(bWantMoreFactories) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.99 and tLZTeamData[M28Map.subrefLZbCoreBase] and iAverageCurAirAndLandFactories <= 15 and not(HaveLowPower(iTeam)) then
+        bWantMoreFactories = true
     end
 
     --Override - if we dont have a HQ for the factory type then want to rebuild it
@@ -1147,4 +1157,152 @@ function IsLocationInPlayableArea(tLocation)
     else
         return false
     end
+end
+
+function DoesACUHaveValidOrder(oACU)
+    --Checks if either hte ACU has no last order, or the last order is to build something that it cant build
+    local sFunctionRef = 'DoesACUHaveValidOrder'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local tLastOrders = oACU[M28Orders.reftiLastOrders]
+    if bDebugMessages == true then LOG(sFunctionRef..': tLastOrders='..reprs(tLastOrders)) end
+    if not(tLastOrders) then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return false
+    elseif M28Utilities.IsTableEmpty(tLastOrders) then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return false
+    else
+        local tLastOrder = tLastOrders[oACU[M28Orders.refiOrderCount]]
+        if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueBuild then
+            if bDebugMessages == true then LOG(sFunctionRef..': Last order was to build somethingw ith blueprint '..(tLastOrder[M28Orders.subrefsOrderBlueprint] or 'nil')..'; Can build='..tostring(oACU:CanBuild(tLastOrder[M28Orders.subrefsOrderBlueprint]))) end
+            if oACU:CanBuild(tLastOrder[M28Orders.subrefsOrderBlueprint]) then
+                --We can build last order, but are we trying to build a mex somewhere that already has a completed mex?
+                if EntityCategoryContains(M28UnitInfo.refCategoryMex, tLastOrder[M28Orders.subrefsOrderBlueprint]) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Were trying to build a mex, Last position='..repru(tLastOrder[M28Orders.subreftOrderPosition])..'; CanBuildOnMexLocation='..tostring(CanBuildOnMexLocation(tLastOrder[M28Orders.subreftOrderPosition]))..'; playable area='..repru(M28Map.rMapPlayableArea)..'; Dist to ACU='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition])) end
+                    if M28Map.InPlayableArea(tLastOrder[M28Orders.subreftOrderPosition]) then
+                        if CanBuildOnMexLocation(tLastOrder[M28Orders.subreftOrderPosition]) then
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            return true
+                        else
+                            --Cant build the mex, is it because there is a mex there?
+                            local tUnitsNearPosition = GetUnitsInRect(M28Utilities.GetRectAroundLocation(tLastOrder[M28Orders.subreftOrderPosition], 1.8))
+                            local bBlockedByCompletedMexOnOurTeam = false
+                            if M28Utilities.IsTableEmpty(tUnitsNearPosition) == false then
+                                local tMexesNearPosition = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tUnitsNearPosition)
+                                if M28Utilities.IsTableEmpty(tMexesNearPosition) == false then
+                                    for iMex, oMex in tMexesNearPosition do
+                                        if oMex:GetFractionComplete() == 1 and IsAlly(oMex:GetAIBrain():GetArmyIndex(), oACU:GetAIBrain():GetArmyIndex()) then
+                                            bBlockedByCompletedMexOnOurTeam = true
+                                            break
+                                        end
+                                    end
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Trying to build a mex, bBlockedByCompletedMexOnOurTeam='..tostring(bBlockedByCompletedMexOnOurTeam)) end
+                            if bBlockedByCompletedMexOnOurTeam then
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                return false
+                            else
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                return true
+                            end
+                        end
+                    else
+                        --Not in playable area
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        return false
+                    end
+                else
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    return true
+                end
+            else
+                --Cant build last order
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return false
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return true
+end
+
+function DoWeWantToSynchroniseMMLShots(iPlateau, iLandZone, tLZData, tLZTeamData, iTeam, iFriendlyBestMobileIndirectRange, iEnemyBestDFRange)
+    --Consider synchronising shots with MML if we have enough to warrant it and they are faced with non-Aeon TMD
+    local sFunctionRef = 'DoWeWantToSynchroniseMMLShots'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+
+    local bConsiderSpecialMMLLogic = false
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; iPlateau '..iPlateau..'; iLandZOne '..iLandZone..'; tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMD]='..(tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMD] or 'nil')) end
+    if GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMD] or -100) <= 15 then
+        if bDebugMessages == true then LOG(sFunctionRef..': tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]='..tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]..'; tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]='..(tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 'nil')..'; iFriendlyBestMobileIndirectRange='..iFriendlyBestMobileIndirectRange..'; iEnemyBestDFRange='..iEnemyBestDFRange..'; tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange]='..tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange]) end
+        if (tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] or 0) >= 700 and (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] or 0) == 0 and (iFriendlyBestMobileIndirectRange or 0) > (iEnemyBestDFRange or 0) and iFriendlyBestMobileIndirectRange > (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] or 0) then
+            local bEnemyHasAeonTMD = false --also includes loyalists and naval TMD
+            local bEnemyHasNonAeonTMD = false
+            function UpdateNearbyTMD(iAdjLZ)
+                local tAdjLZTeamData
+                if iAdjLZ == iLandZone then tAdjLZTeamData = tLZTeamData else tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam] end
+                if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                    local tZoneTMD = EntityCategoryFilterDown(M28UnitInfo.refCategoryTMD + categories.ANTIMISSILE * categories.MOBILE, tAdjLZTeamData[M28Map.subrefTEnemyUnits])
+                    if M28Utilities.IsTableEmpty(tZoneTMD) == false then
+                        bEnemyHasNonAeonTMD = true
+                        if M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.AEON + categories.ANTIMISSILE * categories.MOBILE, tZoneTMD)) == false then
+                            bEnemyHasAeonTMD = true
+                        end
+                    end
+                end
+            end
+            UpdateNearbyTMD(iLandZone)
+            if not(bEnemyHasAeonTMD) then
+                if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                    for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                        UpdateNearbyTMD(iAdjLZ)
+                        if bEnemyHasAeonTMD then break end
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': bEnemyHasAeonTMD='..tostring(bEnemyHasAeonTMD)..'; bEnemyHasNonAeonTMD='..tostring(bEnemyHasNonAeonTMD)) end
+            if not(bEnemyHasAeonTMD) and bEnemyHasNonAeonTMD then
+                bConsiderSpecialMMLLogic = true
+            end
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, bConsiderSpecialMMLLogic='..tostring(bConsiderSpecialMMLLogic)) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return bConsiderSpecialMMLLogic
+end
+
+function IsTargetNearActiveNukeTarget(tTarget, iTeam, iDistThreshold)
+    --Returns true if are within iDistThreshold of an active nuke target
+    local sFunctionRef = 'IsTargetNearActiveNukeTarget'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local bNearTarget = false
+    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Is table of recently fired nuke launchers empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoRecentlyFiredAlliedNukeLaunchers]))) end
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoRecentlyFiredAlliedNukeLaunchers]) == false then
+        local iLauncherCount = table.getn(M28Team.tTeamData[iTeam][M28Team.reftoRecentlyFiredAlliedNukeLaunchers])
+        for iCurLauncher = iLauncherCount, 1, -1 do
+            local oLauncher = M28Team.tTeamData[iTeam][M28Team.reftoRecentlyFiredAlliedNukeLaunchers][iCurLauncher]
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..'; Is launcher still valid='..tostring(M28UnitInfo.IsUnitValid(oLauncher))..'; Active nuke target='..repru(oLauncher[M28Building.reftActiveNukeTarget])) end
+            if not(M28UnitInfo.IsUnitValid(oLauncher)) or not(oLauncher[M28Building.reftActiveNukeTarget]) then
+                table.remove(M28Team.tTeamData[iTeam][M28Team.reftoRecentlyFiredAlliedNukeLaunchers], iCurLauncher)
+            else
+                if bDebugMessages == true then LOG(sFunctionRef..': Launcher target='..repru(oLauncher[M28Building.reftActiveNukeTarget])..'; tTarget='..repru(tTarget)..'; Dist='..M28Utilities.GetDistanceBetweenPositions(oLauncher[M28Building.reftActiveNukeTarget], tTarget)..'; iDistThreshold='..iDistThreshold) end
+                if M28Utilities.GetDistanceBetweenPositions(oLauncher[M28Building.reftActiveNukeTarget], tTarget) <= iDistThreshold then
+                    bNearTarget = true
+                    break
+                end
+            end
+
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, tTarget='..repru(tTarget)..'; bNearTarget='..tostring(bNearTarget)) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return bNearTarget
 end
