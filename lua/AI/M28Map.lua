@@ -1957,7 +1957,7 @@ local function AssignMexesALandZone()
             if not(tiPlateauLandZoneByMexRef[iPlateau][iAltMex]) then
                 if NavUtils.GetTerrainLabel(refPathingTypeLand, tAltMex) == iLandGroupWanted and not(IsUnderwater(tAltMex, false, 0.1)) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering iAltMex='..iAltMex..' for zone '..iCurLandZone..'; Distance straight line='..M28Utilities.GetDistanceBetweenPositions(tAltMex, tMex)..'; Travel distance='..M28Utilities.GetTravelDistanceBetweenPositions(tAltMex, tMex)) end
-                    if M28Utilities.GetTravelDistanceBetweenPositions(tAltMex, tMex) <= iMaxRange then
+                    if M28Utilities.GetDistanceBetweenPositions(tAltMex, tMex) <= iMaxRange and M28Utilities.GetTravelDistanceBetweenPositions(tAltMex, tMex) <= iMaxRange then
                         AddMexToLandZone(iPlateau, iCurLandZone, iAltMex, tiPlateauLandZoneByMexRef)
                         if bDebugMessages == true then LOG(sFunctionRef..': Added mex '..iAltMex..' with position '..repru(tAltMex)..' to land zone, tiPlateauLandZoneByMexRef='..(tiPlateauLandZoneByMexRef[iAltMex] or 'nil')..'; Distance in straight line='..M28Utilities.GetDistanceBetweenPositions(tAltMex, tMex)..'; Travel distance='..M28Utilities.GetTravelDistanceBetweenPositions(tAltMex, tMex)) end
                         AddNearbyMexesToLandZone(iPlateau, iCurLandZone, tAltMex, iRecursiveCount + 1) --Needs to be recursive or else can end up with 2 mees that are really close to each other not being in the same group depending on the order in which the original mexes are called
@@ -2025,7 +2025,9 @@ local function AssignMexesALandZone()
 
     local iStraightLineThreshold = 70 --Ignore locations that are more than this distance away
     local iTravelDistThreshold = 75 --Ignore locations that are more than this land travel distance away
-
+    local iClosestStraightLineDist
+    local iClosestStraightLineIndex
+    local iClosestStraightLineTravelDist
 
     for iPlateau, tPlateauSubtable in tAllPlateaus do
         if M28Utilities.IsTableEmpty(tPlateauSubtable[subrefPlateauMexes]) == false then
@@ -2035,15 +2037,39 @@ local function AssignMexesALandZone()
                     --Find the closest start point
                     iClosestDistTravel = iTravelDistThreshold --Ignore points whose travel distance is further away than this
                     iClosestBrainIndex = nil
+                    iClosestStraightLineDist = 100000
+                    iClosestStraightLineIndex = nil
+                    iClosestStraightLineTravelDist = 100000
+                    local tiBrainsWithinThreshold = {}
+                    --Get the start position closest to this mex (if there are any close enough that we might want the mex to be part of the start zone)
                     for iBrainIndex, tStartPoint in tRelevantStartPointsByIndex do
                         if tiStartIndexPlateauAndLZ[iBrainIndex][1] == iPlateau then
                             iCurDistStraightLine = M28Utilities.GetDistanceBetweenPositions(tMex, tStartPoint)
                             if iCurDistStraightLine <= iStraightLineThreshold then
+                                table.insert(tiBrainsWithinThreshold, {iBrainIndex, iCurDistStraightLine})
+                                if iCurDistStraightLine < iClosestStraightLineTravelDist then
+                                    iClosestStraightLineTravelDist = iCurDistStraightLine
+                                    iClosestStraightLineIndex = iBrainIndex
+                                end
+                                --[[
                                 --Get the land pathing distance
                                 iCurDistTravel = M28Utilities.GetTravelDistanceBetweenPositions(tMex, tStartPoint, refPathingTypeLand)
                                 if iCurDistTravel < iClosestDistTravel then
                                     iClosestDistTravel = iCurDistTravel
                                     iClosestBrainIndex = iBrainIndex
+                                end--]]
+                            end
+                        end
+                    end
+                    if iClosestStraightLineIndex then
+                        iClosestDistTravel = M28Utilities.GetTravelDistanceBetweenPositions(tMex, tRelevantStartPointsByIndex[iClosestStraightLineIndex], refPathingTypeLand)
+                        iClosestBrainIndex = iClosestStraightLineIndex
+                        for iEntry, tiIndexAndDist in tiBrainsWithinThreshold do
+                            if tiBrainsWithinThreshold[2] < iClosestDistTravel and not(tiBrainsWithinThreshold[1] == iClosestStraightLineIndex) then
+                                iCurDistTravel = M28Utilities.GetTravelDistanceBetweenPositions(tMex, tRelevantStartPointsByIndex[tiBrainsWithinThreshold[1]], refPathingTypeLand)
+                                if iCurDistTravel < iClosestDistTravel then
+                                    iClosestDistTravel = iCurDistTravel
+                                    iClosestBrainIndex = tiBrainsWithinThreshold[1]
                                 end
                             end
                         end
@@ -2125,7 +2151,7 @@ local function AssignMexesALandZone()
         end
     end
 
-    --Assign assign zones to mex locations - group mexes that are near each other in the same zone
+    --Assign zones to mex locations - group mexes that are near each other in the same zone
     local iCurLandZone
     for iPlateau, tPlateauSubtable in tAllPlateaus do
         if not(tAllPlateaus[iPlateau][subrefPlateauLandZones]) then tAllPlateaus[iPlateau][subrefPlateauLandZones] = {} end
@@ -3396,7 +3422,7 @@ local function SetupLandZones()
     --Using land zones:
     --To return both the plateau reference, and the land zone reference, of a position tPosiiton, use the function GetPlateauAndLandZoneReferenceFromPosition(tPosition) (which will return nil if it doesnt have a value)
 
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SetupLandZones'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of land zone generation, system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
