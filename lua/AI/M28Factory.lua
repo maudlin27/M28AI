@@ -2084,7 +2084,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
 
         --early-game Transport (high priority)
         iCurrentConditionToTry = iCurrentConditionToTry + 1
-        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist]) == false and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryTransport) == 0 and ((iFactoryTechLevel <= 2 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryTransport) <= 1) or (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and GetGameTimeSeconds() - (M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refiTimeLastTriedBuildingTransport] or -100) >= 180)) then
+        if (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist]) == false or M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist]) == false) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryTransport) == 0 and ((iFactoryTechLevel <= 2 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryTransport) <= 1) or (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and GetGameTimeSeconds() - (M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refiTimeLastTriedBuildingTransport] or -100) >= 180)) then
             M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refiTimeLastTriedBuildingTransport] = GetGameTimeSeconds()
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryTransport - categories.TECH3 - categories.EXPERIMENTAL) then
                 return sBPIDToBuild
@@ -2273,7 +2273,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
 
             --Transport if locations to drop
             iCurrentConditionToTry = iCurrentConditionToTry + 1
-            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist]) == false and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryTransport) == 0 then
+            if (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist]) == false or M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist]) == false) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryTransport) == 0 then
                 if GetGameTimeSeconds() - (M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refiTimeLastTriedBuildingTransport] or -100) >= 120 then
                     M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refiTimeLastTriedBuildingTransport] = GetGameTimeSeconds()
                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryTransport - categories.TECH3 - categories.EXPERIMENTAL) then

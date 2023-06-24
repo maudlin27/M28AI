@@ -316,8 +316,18 @@ function OnUnitDeath(oUnit)
                         end
                         --Transport death - record target island as dangerous
                         if oUnit[M28Air.refiTargetIslandForDrop] then
-                            M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiLastFailedIslandDropTime][oUnit[M28Air.refiTargetIslandForDrop]] = GetGameTimeSeconds()
+                            local iTeam = oUnit:GetAIBrain().M28Team
+                            local iTargetIsland = oUnit[M28Air.refiTargetIslandForDrop]
+                            M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandDropTime][iTargetIsland] = GetGameTimeSeconds()
+                            if oUnit[M28Air.refiTargetZoneForDrop] then
+                                if not(M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][iTargetIsland]) then
+                                    if not(M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime]) then M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime] = {} end
+                                    M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][iTargetIsland] = {}
+                                end
+                                M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][iTargetIsland][oUnit[M28Air.refiTargetZoneForDrop]] = GetGameTimeSeconds()
+                            end
                         end
+
                         --Logic that doesnt require the unit to ahve finished construction:
 
                         --Fixed shielding

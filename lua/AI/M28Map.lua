@@ -182,6 +182,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZbCoreBase = 'ZCore' --true if this is considered a 'core base' land zone
             subrefLZCoreExpansion = 'ZExp' --true if considered the main land zone for an expansion (e.g. on an island); nil if we havent considered yet if it is a core expansion, and false if we have considered and it isnt
             subrefbCoreBaseOverride = 'ZCreO' --true if we want to make this locatio na core zone even if it doesnt meet the normal criteria (e.g. to be used when we run out of places to build in our actual core LZ)
+            subrefLZExpansionOverride = 'ZExpO' --true if want to make this location a core expansion even if doesnt meet normal criteria (e.g. if we use transport to drop somewhere on same island but far away, then building land facs there may be of use)
             subrefAlliedACU = 'AACU' --table of ACU units for the land zone (so can factor into decisions on support and attack)
             subrefLZTAlliedUnits = 'Allies' --USE SAME REF AS FOR WATER ZONES - table of all allied units in the land zone, tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam][subrefLZTAlliedUnits]
             subrefLZTAlliedCombatUnits = 'AllComb' --table of allied units that are to be considered for combat orders
@@ -2952,7 +2953,7 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
             local tLZTeamData = tLZData[subrefLZTeamData][iTeam]
             tLZTeamData[reftClosestFriendlyBase] = {PlayerStartPoints[iClosestBrainRef][1], PlayerStartPoints[iClosestBrainRef][2], PlayerStartPoints[iClosestBrainRef][3]}
             tLZTeamData[reftClosestEnemyBase] = GetPrimaryEnemyBaseLocation(tBrainsByIndex[iClosestBrainRef])
-            tLZTeamData[refiModDistancePercent] = GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tLZData[subrefMidpoint], false)
+            tLZTeamData[refiModDistancePercent] = GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tLZData[subrefMidpoint], false) /  math.max(1, GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tLZTeamData[reftClosestEnemyBase]))
             if bDebugMessages == true then LOG(sFunctionRef..': Have recorded closest enemy base for iPlateau '..iPlateau..'; iLandZone='..iLandZone..'; iTeam='..iTeam..'; tLZTeamData[reftClosestFriendlyBase]='..repru(tLZTeamData[reftClosestFriendlyBase])..'; repru(tLZTeamData[reftClosestEnemyBase])='..repru(tLZTeamData[reftClosestEnemyBase])..'; iClosestBrainRef='..iClosestBrainRef..'; tBrainsByIndex[iClosestBrainRef].Nickname='..tBrainsByIndex[iClosestBrainRef].Nickname..'; aiBrain[reftPrimaryEnemyBaseLocation] for this brain='..repru(tBrainsByIndex[iClosestBrainRef][reftPrimaryEnemyBaseLocation])) end
         end
     end
@@ -3026,7 +3027,7 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam)
                 tWZTeamData[reftClosestFriendlyBase] = {PlayerStartPoints[iClosestBrainRef][1], PlayerStartPoints[iClosestBrainRef][2], PlayerStartPoints[iClosestBrainRef][3]}
                 if bDebugMessages == true then LOG(sFunctionRef..': Recorded closest friendly base '..repru(tWZTeamData[reftClosestFriendlyBase])..' for iWaterZone='..iWaterZone..'; iPond='..iPond) end
                 tWZTeamData[reftClosestEnemyBase] = GetPrimaryEnemyBaseLocation(tBrainsByIndex[iClosestBrainRef])
-                tWZTeamData[refiModDistancePercent] = GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tWZData[subrefMidpoint], false)
+                tWZTeamData[refiModDistancePercent] = GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tWZData[subrefMidpoint], false) / math.max(1, GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tWZTeamData[reftClosestEnemyBase]))
 
             end
         end
@@ -3463,7 +3464,7 @@ function RecordIslands()
 
     --Decide how detailed pathing to do when identifying the nearest land zone - on large maps we want to use straight line distance due to how long the map can take to load
     local bUseDistanceForNearestIslandLZ = false
-    if iMapSize >= 256 then
+    if iMapSize >= 512 then --10km+
         local iTotalLandZoneCount = 0
         for iPlateau, tPlateauSubtable in tAllPlateaus do
             iTotalLandZoneCount = iTotalLandZoneCount + tPlateauSubtable[subrefLandZoneCount]

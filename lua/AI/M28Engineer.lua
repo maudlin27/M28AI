@@ -6593,8 +6593,11 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     --Land fac if this is an island with no core LZs - also set this as the primary if no such LZ
     iCurPriority = iCurPriority + 1
     local iHighestTechEngiAvailable
-    if tLZTeamData[M28Map.subrefLZCoreExpansion] == nil then
-        if tLZData[M28Map.subrefLZMexCount] > 0 and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tLZData[M28Map.subrefLZIslandRef]] >= 3 and not(tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase])) then
+    local bExpansionOnSameIslandAsBase = false
+    if tLZTeamData[M28Map.subrefLZCoreExpansion] == nil or (tLZTeamData[M28Map.subrefLZExpansionOverride] and not(tLZTeamData[M28Map.subrefLZCoreExpansion])) then
+        bExpansionOnSameIslandAsBase = false
+        if tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase]) then bExpansionOnSameIslandAsBase = true end
+        if tLZData[M28Map.subrefLZMexCount] > 0 and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tLZData[M28Map.subrefLZIslandRef]] >= 3 and not(bExpansionOnSameIslandAsBase) then
             iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
             if iHighestTechEngiAvailable > 0 then
                 local bHaveCoreLZ = false
@@ -6604,7 +6607,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                         break
                     end
                 end
-                if not(bHaveCoreLZ) then
+                if not(bHaveCoreLZ) or tLZTeamData[M28Map.subrefLZExpansionOverride] then
                     --Build a land factory
                     tLZTeamData[M28Map.subrefLZCoreExpansion] = true
                 else
@@ -6612,7 +6615,11 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 end
             end
         else
-            tLZTeamData[M28Map.subrefLZCoreExpansion] = false
+            if tLZTeamData[M28Map.subrefLZExpansionOverride] then
+                tLZTeamData[M28Map.subrefLZCoreExpansion] = true
+            else
+                tLZTeamData[M28Map.subrefLZCoreExpansion] = false
+            end
         end
     end
     local iFactoriesWanted = 0
@@ -6632,6 +6639,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             end
         end
         iFactoriesWanted = math.min(4, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tLZData[M28Map.subrefLZIslandRef]] - 2)
+        if bExpansionOnSameIslandAsBase then iFactoriesWanted = math.max(1, math.min(4, iFactoriesWanted, tLZData[M28Map.subrefLZMexCount] - 2)) end
         if iFactoriesWanted > 2 then
             --Does enemy have any units/threats on this island within a certain range?
             local bEnemyHasDangerousUnitsOnIsland = tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]

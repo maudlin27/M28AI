@@ -16,6 +16,7 @@ local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
 local NavUtils = import("/lua/sim/navutils.lua")
 local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
+local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 
 --ACU specific variables against the ACU
 refbTreatingAsACU = 'M28ACUTreatACU' --true if are running ACU logic on this unit - e.g. for campagins where are given SACU but not an ACU
@@ -244,6 +245,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
         local iPlateauOrZero, iLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
         local tLZOrWZData
         local tLZOrWZTeamData
+        local iTeam = oACU:GetAIBrain().M28Team
         local iResourceMod = 1
         if aiBrain.CheatEnabled then iResourceMod = M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainResourceMultipler] end
         if iPlateauOrZero == 0 then
@@ -253,6 +255,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
             tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLZOrWZ]
             tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][aiBrain.M28Team]
         end
+        M28Air.UpdateTransportLocationShortlist(iTeam) --Redundancy
 
         --local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oACU:GetPosition(), true, oACU)
 
@@ -261,6 +264,20 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
             --Do we want to build a mex, hydro or factory?
             if bDebugMessages == true then LOG(sFunctionRef..': Current land factories='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory)..'; Gross energy income='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; Gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]) end
             local iMinEnergyPerTickWanted = 14 * iResourceMod --i.e. 6 T1 PGens given ACU gives 2 E
+            --Large maps - consider going 2nd air instead of 2nd land
+            local bGoSecondAir = false
+            local iLandTravelDistanceToEnemyBase = 100000
+            local iEnemyIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZOrWZTeamData[M28Map.reftClosestEnemyBase])
+            local iOurIsland = tLZOrWZData[M28Map.subrefLZIslandRef]
+            if iOurIsland > 0 and iOurIsland == iEnemyIsland then
+                local iEnemyPlateau, iEnemyLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tLZOrWZTeamData[M28Map.reftClosestEnemyBase])
+                if iEnemyLandZone > 0 then iLandTravelDistanceToEnemyBase = M28Map.GetTravelDistanceBetweenLandZones(iEnemyPlateau, iLZOrWZ, iEnemyLandZone) end
+            end
+
+            if M28Map.iMapSize >= 512 and (M28Map.iMapSize > 512 or iLandTravelDistanceToEnemyBase > 280) and iPlateauOrZero > 0 and (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropZonesByPlateau]) == false or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist])) then bGoSecondAir = true end
+            if bGoSecondAir then
+                iMinEnergyPerTickWanted = 22 * iResourceMod --ACU gives 2E, want equiv of 10 PGens
+            end
             local iCurLandFactories = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory)
             if iCurLandFactories == 0 then
                 if bDebugMessages == true then LOG(sFunctionRef..': Want ACU to build land factory') end
@@ -286,6 +303,8 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                     else
                         local iMexInLandZone = 0
                         if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZMexLocations]) == false then iMexInLandZone = table.getn(tLZOrWZData[M28Map.subrefLZMexLocations]) end
+                        local iMaxMexesBeforeHydro = 4
+                        if iMexInLandZone > 4 then iMaxMexesBeforeHydro = 3 end
                         if bDebugMessages == true then LOG(sFunctionRef..': Deciding on ACU action for where no hydro nearby, gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; Gross energy income='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; iMexInLandZone='..iMexInLandZone..'; iMinEnergyPerTickWanted='..iMinEnergyPerTickWanted..'; iCurLandFactories='..iCurLandFactories) end
                         if aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(2, iMexInLandZone) * 0.2 * iResourceMod then
                             if bDebugMessages == true then LOG(sFunctionRef..': Want at least 2 mexes') end
@@ -294,15 +313,25 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                         elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 8 * iResourceMod then
                             if bDebugMessages == true then LOG(sFunctionRef..': Want at least 4 PGens') end
                             ACUActionBuildPower(aiBrain, oACU)
-                        elseif aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(4, iMexInLandZone) * 0.2 * iResourceMod then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Want up to 4 mexes') end
+                        elseif aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(iMaxMexesBeforeHydro, iMexInLandZone) * 0.2 * iResourceMod then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Want up to iMaxMexesBeforeHydro='..iMaxMexesBeforeHydro..' mexes') end
                             ACUActionBuildMex(aiBrain, oACU)
                         elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] < iMinEnergyPerTickWanted then
                             if bDebugMessages == true then LOG(sFunctionRef..': Want basic level of power') end
                             ACUActionBuildPower(aiBrain, oACU)
+                            --below are redundancy - if we have min energy per tick wanted then wouldn't expect below to trigger
+                        elseif aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(4, iMexInLandZone) * 0.2 * iResourceMod then
+                            --e.g. if went 3 mex hydro then want to get 4th mex before factory
+                            if bDebugMessages == true then LOG(sFunctionRef..': Want up to 4 mexes') end
+                            ACUActionBuildMex(aiBrain, oACU)
                         elseif iCurLandFactories < 2 and iCurLandFactories + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) < 3 and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] and M28Conditions.WantMoreFactories(aiBrain.M28Team, iPlateauOrZero, iLZOrWZ) then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Want 2 land factories') end
-                            ACUActionBuildFactory(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData)
+                            if bGoSecondAir then
+                                ACUActionBuildFactory(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryAirFactory, M28Engineer.refActionBuildAirFactory)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Want to go second air') end
+                            else
+                                if bDebugMessages == true then LOG(sFunctionRef..': Want 2 land factories') end
+                                ACUActionBuildFactory(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData)
+                            end
                         elseif aiBrain[M28Economy.refiGrossMassBaseIncome] < iMexInLandZone * 0.2 * iResourceMod then
                             if bDebugMessages == true then LOG(sFunctionRef..': Want to build on every mex in land zone') end
                             ACUActionBuildMex(aiBrain, oACU)
@@ -368,7 +397,10 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
             else
                 --Have initial power and mexes built, get second factory now
                 if bDebugMessages == true then LOG(sFunctionRef..': Checking if want more factories, iCurLandFactories='..iCurLandFactories..'; Want more factories='..tostring(M28Conditions.WantMoreFactories(aiBrain.M28Team, iPlateauOrZero, iLZOrWZ))..'; Cur air factories='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory)) end
-                if iCurLandFactories < 2 and M28Conditions.WantMoreFactories(aiBrain.M28Team, iPlateauOrZero, iLZOrWZ) and iCurLandFactories + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) < 3 then
+                if bGoSecondAir and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) == 0 then
+                    ACUActionBuildFactory(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryAirFactory, M28Engineer.refActionBuildAirFactory)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Want ACU to go second air') end
+                elseif iCurLandFactories < 2 and M28Conditions.WantMoreFactories(aiBrain.M28Team, iPlateauOrZero, iLZOrWZ) and iCurLandFactories + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory) < 3 then
                     ACUActionBuildFactory(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData)
                 else
                     local iMexInLandZone = 0
@@ -452,12 +484,12 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
             end
 
         end
-    else
-        if bDebugMessages == true then LOG(sFunctionRef..': Are building so wont give any new orders') end
+        else
+            if bDebugMessages == true then LOG(sFunctionRef..': Are building so wont give any new orders') end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': End of code, is ACU table of last orders empty='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))) end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': End of code, is ACU table of last orders empty='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))) end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-end
 
 function GetUpgradePathForACU(oACU)
     --Records the order of upgrades we will want for the ACU
