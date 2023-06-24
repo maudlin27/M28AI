@@ -2014,6 +2014,7 @@ local function AssignMexesALandZone()
             if bDebugMessages == true then LOG(sFunctionRef..': Have just recorded iLZToUse='..iLZToUse..' for iCurPlateau='..iCurPlateau..'; iCurSegmentX-Z='..iCurSegmentX..'-'..iCurSegmentZ..'; Start position='..repru(tStartPosition)..'; Brain index='..iIndex) end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished creating land zone by each start position, tiStartIndexPlateauAndLZ='..repru(tiStartIndexPlateauAndLZ)) end
 
     --Now find any mexes within the desired travel distance and assign them to the nearest start position - first exclude based on distance, and if they meet the straight line distance check then consider travel distance
     local iCurDistStraightLine
@@ -2045,6 +2046,7 @@ local function AssignMexesALandZone()
                     for iBrainIndex, tStartPoint in tRelevantStartPointsByIndex do
                         if tiStartIndexPlateauAndLZ[iBrainIndex][1] == iPlateau then
                             iCurDistStraightLine = M28Utilities.GetDistanceBetweenPositions(tMex, tStartPoint)
+                            if bDebugMessages == true then LOG(sFunctionRef..': iCurDistStraightLine='..iCurDistStraightLine..'; iStraightLineThreshold='..iStraightLineThreshold..'; iClosestStraightLineTravelDist='..iClosestStraightLineTravelDist) end
                             if iCurDistStraightLine <= iStraightLineThreshold then
                                 table.insert(tiBrainsWithinThreshold, {iBrainIndex, iCurDistStraightLine})
                                 if iCurDistStraightLine < iClosestStraightLineTravelDist then
@@ -2065,15 +2067,18 @@ local function AssignMexesALandZone()
                         iClosestDistTravel = M28Utilities.GetTravelDistanceBetweenPositions(tMex, tRelevantStartPointsByIndex[iClosestStraightLineIndex], refPathingTypeLand)
                         iClosestBrainIndex = iClosestStraightLineIndex
                         for iEntry, tiIndexAndDist in tiBrainsWithinThreshold do
-                            if tiBrainsWithinThreshold[2] < iClosestDistTravel and not(tiBrainsWithinThreshold[1] == iClosestStraightLineIndex) then
-                                iCurDistTravel = M28Utilities.GetTravelDistanceBetweenPositions(tMex, tRelevantStartPointsByIndex[tiBrainsWithinThreshold[1]], refPathingTypeLand)
+                            if bDebugMessages == true then LOG(sFunctionRef..': iClosestStraightLineIndex='..iClosestStraightLineIndex..'; tiIndexAndDist='..repru(tiIndexAndDist)..'; tRelevantStartPointsByIndex[tiIndexAndDist[1]]='..repru(tRelevantStartPointsByIndex[tiIndexAndDist[1]])..'; tMex='..repru(tMex)) end
+                            if tiIndexAndDist[2] < iClosestDistTravel and not(tiIndexAndDist[1] == iClosestStraightLineIndex) then
+                                iCurDistTravel = M28Utilities.GetTravelDistanceBetweenPositions(tMex, tRelevantStartPointsByIndex[tiIndexAndDist[1]], refPathingTypeLand)
+                                if bDebugMessages == true then LOG(sFunctionRef..': iCurDistTravel='..(iCurDistTravel or 'nil')..'; iClosestDistTravel='..iClosestDistTravel) end
                                 if iCurDistTravel < iClosestDistTravel then
                                     iClosestDistTravel = iCurDistTravel
-                                    iClosestBrainIndex = tiBrainsWithinThreshold[1]
+                                    iClosestBrainIndex = tiIndexAndDist[1]
                                 end
                             end
                         end
                     end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Searching for closest brain index to tMex '..repru(tMex)..' that is close enough, iClosestBrainIndex='..(iClosestBrainIndex or 'nil')) end
                     if iClosestBrainIndex then
                         if not(tiStartResourcesByBrainIndex[iClosestBrainIndex]) then tiStartResourcesByBrainIndex[iClosestBrainIndex] = {} end
                         table.insert(tiStartResourcesByBrainIndex[iClosestBrainIndex], tMex)
@@ -3422,7 +3427,7 @@ local function SetupLandZones()
     --Using land zones:
     --To return both the plateau reference, and the land zone reference, of a position tPosiiton, use the function GetPlateauAndLandZoneReferenceFromPosition(tPosition) (which will return nil if it doesnt have a value)
 
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SetupLandZones'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of land zone generation, system time='..GetSystemTimeSecondsOnlyForProfileUse()) end

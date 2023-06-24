@@ -3080,7 +3080,7 @@ end
 
 function UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam)
     --Once per game generate list of land zones that are on the same island as a base but far away, so we can consider dropping these as well
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateTransportShortlistForFarAwayLandZoneDrops'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -3405,7 +3405,7 @@ end
 
 function GetFarAwayLandZoneOnCurrentIslandForTransportToTravelTo(iTeam, oUnit)
     --Returns island, plateau and land zone that we want to drop at (or nil if there are none)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetFarAwayLandZoneOnCurrentIslandForTransportToTravelTo'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -3460,7 +3460,7 @@ function GetTransportEngiCargoAndRemainingCapacity(oUnit, iEngiTechLevel)
 end
 
 function ManageTransports(iTeam, iAirSubteam)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageTransports'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Time of last transport shortlist update='..(M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastTransportShortlistUpdate] or 0)..'; Cur time='..GetGameTimeSeconds()..'; Dif='..GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastTransportShortlistUpdate] or 0)) end
