@@ -163,6 +163,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         subrefTotalMassReclaim = 'RecMass' --total mass reclaim in the land zone
         subrefLZTotalEnergyReclaim = 'RecEn' --Total energy reclaim in the land zone
         subrefLastReclaimRefresh = 'RecTime' --Time that we last refreshed the reclaim in the land zone, against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
+        subrefiTimeFailedToGetReclaim = 'RecTmFl' --Gametimeseconds that engineers failed to be given an order to reclaim something when on reclaimorder duty for this land or water zone (same ref for both types of zone)
 
         --Land scout/intel related
         subreftPatrolPath = 'PatrPth' --table of locations intended for a land scout to patrol the perimeter of the land zone / water zone

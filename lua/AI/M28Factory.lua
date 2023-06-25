@@ -466,7 +466,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         bCanPathToEnemyWithLand = true
     end
 
-
+    if iPlateau == 2 and iLandZone == 10 then bDebugMessages = true end
 
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] .. '; Allied ground MAA threat=' .. (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat] or 'nil') .. '; Is factory paused=' .. tostring(oFactory:IsPaused()) .. '; IsPaused value=' .. tostring(oFactory[M28UnitInfo.refbPaused]) .. '; Does LZ factory is in need BP=' .. tostring(tLZTeamData[M28Map.subrefTbWantBP]) .. '; Core LZ=' .. tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false) .. '; Core expansion=' .. tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false))
@@ -1480,15 +1480,32 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         end
     end
 
-    --Different island to nearest friendly base - ensure we have some DF and indirect fire threat nearby
+    --Different island to nearest friendly base or expansion base - ensure we have some DF and indirect fire threat nearby
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if not(NavUtils.GetLabel(M28Map.refPathingTypeLand, oFactory:GetPosition()) == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.reftClosestFriendlyBase])) then
+    if not(NavUtils.GetLabel(M28Map.refPathingTypeLand, oFactory:GetPosition()) == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.reftClosestFriendlyBase])) or tLZTeamData[M28Map.subrefLZCoreExpansion] then
         if bDebugMessages == true then LOG(sFunctionRef..': Closest base is in a different island, so will get base level of tanks') end
         local iNearbyDFThreat = tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]
         local iNearbyIFThreat = tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]
         local iNearbyGroundAAThreat = tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]
+        local iFriendlyDFThreatWanted = 100
+        local iFriendlyIFThreatWanted = 50
+        local iFriendlyAAThreatWanted = 100
+        local iThreatFactor = 1
+        if M28Map.bIsCampaignMap then iThreatFactor = 3 end
+        if M28Map.subrefLZSValue >= 1000 then iThreatFactor = iThreatFactor * 1.5 end
+        if tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 then iThreatFactor = iThreatFactor * 2 end
+        if tLZData[M28Map.subrefLZMexCount] >= 4 then iThreatFactor = iThreatFactor * 2 end
 
-        if iNearbyDFThreat < 100 or iNearbyIFThreat < 50 or iNearbyGroundAAThreat < 100 then
+
+        if not(iThreatFactor == 1) then
+            iFriendlyDFThreatWanted = iFriendlyDFThreatWanted * iThreatFactor
+            iFriendlyIFThreatWanted = iFriendlyIFThreatWanted * iThreatFactor
+            iFriendlyAAThreatWanted = iFriendlyAAThreatWanted * iThreatFactor
+        end
+
+        if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have a base level of threat around this land factory, iThreatFactor='..iThreatFactor..'; iNearbyDFThreat='..iNearbyDFThreat..'; iFriendlyDFThreatWanted='..iFriendlyDFThreatWanted) end
+
+        if iNearbyDFThreat < iFriendlyDFThreatWanted or iNearbyIFThreat < iFriendlyIFThreatWanted or iNearbyGroundAAThreat < iFriendlyAAThreatWanted then
             if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                 for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                     local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
@@ -1497,8 +1514,10 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                     iNearbyGroundAAThreat = iNearbyGroundAAThreat + tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]
                 end
             end
-            if iNearbyDFThreat < 100 or iNearbyIFThreat < 50 or iNearbyGroundAAThreat < 100 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Threat after factoring in adjacent land zones: iNearbyDFThreat='..iNearbyDFThreat..'; iNearbyIFThreat='..iNearbyIFThreat..'; iNearbyGroundAAThreat='..iNearbyGroundAAThreat) end
+            if iNearbyDFThreat < iFriendlyDFThreatWanted or iNearbyIFThreat < iFriendlyIFThreatWanted or iNearbyGroundAAThreat < iFriendlyAAThreatWanted then
                 if bDebugMessages == true then LOG(sFunctionRef..': Will get basic level of combat threat as are on an island') end
+                --Get a couple of each type first:
                 if iNearbyDFThreat < 100 then
                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat * categories.DIRECTFIRE) then return sBPIDToBuild end
                 end
@@ -1507,6 +1526,35 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 end
                 if iNearbyIFThreat < 50 then
                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect) then return sBPIDToBuild end
+                end
+
+                --Now get the one that we ahve the lowest ratio for
+                local iLowestCategoryType
+                local iLowestRatio = 10000
+                local iCurRatio
+                if iNearbyDFThreat < iFriendlyDFThreatWanted then
+                    iLowestRatio = iNearbyDFThreat / iFriendlyDFThreatWanted
+                    iLowestCategoryType = M28UnitInfo.refCategoryLandCombat * categories.DIRECTFIRE
+                end
+
+                if iNearbyGroundAAThreat < iFriendlyAAThreatWanted then
+                    iCurRatio = iNearbyGroundAAThreat / iFriendlyAAThreatWanted
+                    if iCurRatio < iLowestRatio then
+                        iLowestRatio = iCurRatio
+                        iLowestCategoryType = M28UnitInfo.refCategoryMAA
+                    end
+                end
+
+                if iNearbyIFThreat < iFriendlyIFThreatWanted then
+                    iCurRatio = iNearbyIFThreat / iFriendlyIFThreatWanted
+                    if iCurRatio < iLowestRatio then
+                        iLowestRatio = iCurRatio
+                        iLowestCategoryType = M28UnitInfo.refCategoryIndirect
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': iLowestRatio='..iLowestRatio) end
+                if iLowestCategoryType then
+                    if ConsiderBuildingCategory(iLowestCategoryType) then return sBPIDToBuild end
                 end
             end
         end
@@ -1903,6 +1951,8 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
     else
         bSaveMassDueToEnemyFirebaseOrOurExperimental = M28Conditions.WantToEcoDueToEnemyFirebase(iTeam, tLZTeamData, iPlateau)
     end
+
+    if iFactoryTechLevel == 2 then bDebugMessages = true end
 
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; Checking if we have the highest tech land factory in the current land zone, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly factory tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] .. '; Allied ground threat=' .. (M28Team.tTeamData[iTeam][M28Team.subrefiAlliedMAAThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] or 'nil') .. '; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat]=' .. (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat] or 'nil') .. '; Is factory paused=' .. tostring(oFactory:IsPaused()) .. '; IsPaused value=' .. tostring(oFactory[M28UnitInfo.refbPaused]) .. '; Does LZ factory is in need BP=' .. tostring(tLZTeamData[M28Map.subrefTbWantBP]) .. '; Core LZ=' .. tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false) .. '; Core expansion=' .. tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false) .. '; Time since a factory in this LZ last built something=' .. GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeLastBuiltAtFactory] or -100) .. '; bHaveLowMass=' .. tostring(bHaveLowMass) .. '; bHaveLowPower=' .. tostring(bHaveLowPower))

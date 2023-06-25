@@ -2123,7 +2123,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
     local sFunctionRef = 'ManageCombatUnitsInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iPlateau == 2 and iLandZone == 10 then bDebugMessages = true end
 
     if bDebugMessages == true then LOG(sFunctionRef..': start of code, iTeam='..iTeam..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is table of available combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))..'; iFriendlyBestMobileDFRange='..iFriendlyBestMobileDFRange..'; iFriendlyBestMobileIndirectRange='..iFriendlyBestMobileIndirectRange..'; Are there enemy units in this or adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; bWantIndirectReinforcements='..tostring(bWantIndirectReinforcements or false)..'; tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]='..tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]..'; subrefLZThreatAllyMobileIndirectByRange='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange])..'; subrefLZThreatAllyMobileDFByRange='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange])..'; Enemy mobile DF='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange])..'; Threat of tAvailableCombatUnits='..M28UnitInfo.GetCombatThreatRating(tAvailableCombatUnits, false, false, false)) end
 
@@ -3231,14 +3231,18 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
         end
         if M28Utilities.IsTableEmpty(tRemainingLandUnits) == false then
             --Can we path to the enemy base with land? if so then send units to it
-            if NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint]) then
+
+            if NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint]) and M28Conditions.IsLocationInPlayableArea(tLZTeamData[M28Map.reftClosestEnemyBase]) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will send all land units to closest enemy base') end
                 for iUnit, oUnit in tRemainingLandUnits do
                     M28Orders.IssueTrackedMove(oUnit, tLZTeamData[M28Map.reftClosestEnemyBase], 6, false, 'MTDEnB'..iLandZone)
                 end
                 tRemainingLandUnits = nil
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': Have remaining land units with nowhere to go, is pathing of closest enemy base same as pathing of this land zone? enemy base land label='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) or 'nil')..'; label of this zone='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint]) or 'nil')..'; Is table of units empty after considering sending to enemy base='..tostring(M28Utilities.IsTableEmpty(tRemainingLandUnits))) end
             if M28Utilities.IsTableEmpty(tRemainingLandUnits) == false then
                 --Cant go to enemy base, so just follow land scouting path
+                if bDebugMessages == true then LOG(sFunctionRef..': Follow land scouting path if we have one, is patrol path empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath]))) end
                 if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subreftPatrolPath]) == false then
                     --Patrol the land zone
                     for iUnit, oUnit in tRemainingLandUnits do

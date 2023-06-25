@@ -170,7 +170,7 @@ function IsEngineerAvailable(oEngineer)
     local sFunctionRef = 'IsEngineerAvailable'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer) == 'uel010525' then bDebugMessages = true end
 
     if bDebugMessages == true then
         local iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
@@ -501,7 +501,7 @@ function HaveLowPower(iTeam)
     local sFunctionRef = 'HaveLowPower'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..', team='..iTeam..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or false)..'; M28Team.tTeamDta[iTeam][M28Team.subrefiGrossEnergyWhenStalled]='..(M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] or 'nil')..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Just built lots of power='..tostring(M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower])..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..', team='..iTeam..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or false)..'; M28Team.tTeamDta[iTeam][M28Team.subrefiGrossEnergyWhenStalled]='..(M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] or 'nil')..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Just built lots of power='..tostring(M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower])..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; M28Team.tTeamData[iTeam][M28Team.subrefbTooLittleEnergyForUpgrade]='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTooLittleEnergyForUpgrade])..'; Min energy per tech='..M28Economy.tiMinEnergyPerTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]]) end
     local bHaveLowPower = false
     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 80000 then --Paragon gives 1000000 per sec I think
         if not(M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower]) then
@@ -690,7 +690,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
     local sFunctionRef = 'WantMoreFactories'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iPlateau == 2 and iLandZone == 10 then bDebugMessages = true end
 
     --e.g. 1 t1 land factory building tank uses 0.4 mass per tick, so would want 1 factory for every 0.8 mass as a rough baseline; T2 is 0.9 mass per tick, T3 is 1.6; probably want ratio to be 50%-50%-33%
 
@@ -1305,4 +1305,27 @@ function IsTargetNearActiveNukeTarget(tTarget, iTeam, iDistThreshold)
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, tTarget='..repru(tTarget)..'; bNearTarget='..tostring(bNearTarget)) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return bNearTarget
+end
+
+function IsTableOfUnitsStillValid(tUnits, bInvalidIfFullHealth)
+    --bInvalidIfFullHealth - e.g. if have a table of units to repair, set this to true
+    local sFunctionRef = 'IsTableOfUnitsStillValid'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if M28Utilities.IsTableEmpty(tUnits) == false then
+        local iEntryCount = table.getn(tUnits)
+        for iCurEntry = iEntryCount, 1, -1 do
+            local oUnit = tUnits[iCurEntry]
+            if not(M28UnitInfo.IsUnitValid(oUnit)) or (bInvalidIfFullHealth and M28UnitInfo.GetUnitHealthPercent(oUnit) == 1) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Removing unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds()..'; Unit healthj='..M28UnitInfo.GetUnitHealthPercent(oUnit)) end
+                table.remove(tUnits, iCurEntry)
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Do we still have a table of valid units? is it empty='..tostring(M28Utilities.IsTableEmpty(tUnits))) end
+        if M28Utilities.IsTableEmpty(tUnits) == false then
+            return true
+        end
+    end
+    return false
 end

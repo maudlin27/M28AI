@@ -2737,7 +2737,10 @@ function GetCategoryToBuildOrAssistFromAction(iActionToAssign, iMinTechLevel, ai
     if iCategoryToBuild then
         --Power specific - only build at the minimum tech level, presume this is so if we want to build T1/T2 power while having access to T3 (due to very low power) we can; will therefore add adjustment when looking for part-build buildings to counter this
         if iActionToAssign == refActionBuildPower then
-            iCategoryToBuild = iCategoryToBuild * M28UnitInfo.ConvertTechLevelToCategory(iMinTechLevel)
+            --Only restrict the power we will build if we have no unit restrictions and/or arent in a campaign
+            if not(M28Overseer.bUnitRestrictionsArePresent or M28Map.bIsCampaignMap) then
+                iCategoryToBuild = iCategoryToBuild * M28UnitInfo.ConvertTechLevelToCategory(iMinTechLevel)
+            end
         else
             if iMinTechLevel > 1 then
                 if iMinTechLevel == 3 then iCategoryToBuild = iCategoryToBuild * categories.TECH3 + iCategoryToBuild*categories.EXPERIMENTAL
@@ -3434,6 +3437,8 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
     local sFunctionRef = 'GetEngineerToReclaimNearbyArea'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    if iPlateauOrPond == 2 and iLandOrWaterZone == 10 and M28UnitInfo.GetUnitLifetimeCount(oEngineer) == 25 then bDebugMessages = true end
+
     local iCurPriority = (iPriorityOverride or oEngineer[refiAssignedActionPriority] or 1)
     local tLZOrWZData
     if bIsWaterZone then tLZOrWZData = M28Map.tPondDetails[iPlateauOrPond][M28Map.subrefPondWaterZones][iLandOrWaterZone]
@@ -3471,19 +3476,25 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
         else sReclaimTableRef = M28Map.refReclaimTotalMass
         end
 
+        local bDontConsiderPlayableArea = not(M28Map.bIsCampaignMap)
+
         if not(bOnlyConsiderReclaimInRangeOfEngineer) then
             for iSegmentCount, tSegmentXZ in tLZOrWZData[M28Map.subrefReclaimSegments] do
                 if M28Map.tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][sReclaimTableRef] >= iMinReclaimIndividualValue then
-                    iCurModDist = M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), M28Map.GetReclaimLocationFromSegment(tSegmentXZ[1], tSegmentXZ[2]))
-                    if iCurModDist > iMaxDistanceToEngineer then
-                        if tLZOrWZTeamData[M28Map.subrefReclaimAreaAssignmentsBySegment][tSegmentXZ[1]] and tLZOrWZTeamData[M28Map.subrefReclaimAreaAssignmentsBySegment][tSegmentXZ[1]][tSegmentXZ[2]] and tLZOrWZData[sTotalReclaimValueRef] < (iReclaimValuePerEngi * tLZOrWZTeamData[M28Map.subrefReclaimAreaAssignmentsBySegment][tSegmentXZ[1]][tSegmentXZ[2]]) then
-                            iCurModDist = iCurModDist + 60 * tLZOrWZTeamData[M28Map.subrefReclaimAreaAssignmentsBySegment][tSegmentXZ[1]][tSegmentXZ[2]] * iReclaimValuePerEngi / math.max(5, tLZOrWZData[sTotalReclaimValueRef]) --Low priority area
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering reclaim location at position '..repru(M28Map.GetReclaimLocationFromSegment(tSegmentXZ[1], tSegmentXZ[2]))..'; plyaable area='..repru(M28Map.rMapPlayableArea)..'; Is in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(M28Map.GetReclaimLocationFromSegment(tSegmentXZ[1], tSegmentXZ[2])))..'; bDontConsiderPlayableArea='..tostring(bDontConsiderPlayableArea)) end
+                    if bDontConsiderPlayableArea or M28Conditions.IsLocationInPlayableArea(M28Map.GetReclaimLocationFromSegment(tSegmentXZ[1], tSegmentXZ[2])) then
+                        iCurModDist = M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), M28Map.GetReclaimLocationFromSegment(tSegmentXZ[1], tSegmentXZ[2]))
+                        if iCurModDist > iMaxDistanceToEngineer then
+                            if tLZOrWZTeamData[M28Map.subrefReclaimAreaAssignmentsBySegment][tSegmentXZ[1]] and tLZOrWZTeamData[M28Map.subrefReclaimAreaAssignmentsBySegment][tSegmentXZ[1]][tSegmentXZ[2]] and tLZOrWZData[sTotalReclaimValueRef] < (iReclaimValuePerEngi * tLZOrWZTeamData[M28Map.subrefReclaimAreaAssignmentsBySegment][tSegmentXZ[1]][tSegmentXZ[2]]) then
+                                iCurModDist = iCurModDist + 60 * tLZOrWZTeamData[M28Map.subrefReclaimAreaAssignmentsBySegment][tSegmentXZ[1]][tSegmentXZ[2]] * iReclaimValuePerEngi / math.max(5, tLZOrWZData[sTotalReclaimValueRef]) --Low priority area
+                            end
                         end
-                    end
 
-                    if iCurModDist < iClosestSegmentDist then
-                        iClosestSegmentDist = iCurModDist
-                        tiClosestSegmentXZ = {tSegmentXZ[1], tSegmentXZ[2]}
+                        if iCurModDist < iClosestSegmentDist then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Have a new closest dist='..iCurModDist..'; SegmentXZ='..repru(tiClosestSegmentXZ)) end
+                            iClosestSegmentDist = iCurModDist
+                            tiClosestSegmentXZ = {tSegmentXZ[1], tSegmentXZ[2]}
+                        end
                     end
                 end
             end
@@ -3567,7 +3578,7 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
                 if oNearestReclaim then
                     bGivenOrder = true
                     M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaim, false, 'ReclLZSeg')
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will send order to get reclaim at position '..repru(oNearestReclaim.CachePosition)..'; will draw a box around here') M28Utilities.DrawLocation(oNearestReclaim.CachePosition) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will send order to get reclaim at position '..repru(oNearestReclaim.CachePosition)..'; will draw a box around here; oNearestReclaim ID='..(oNearestReclaim.UnitId or 'nil')) M28Utilities.DrawLocation(oNearestReclaim.CachePosition) end
                 else
                     if bDebugMessages == true then LOG(sFunctionRef..': Dont have any reclaim of sufficient value; iMinReclaimIndividualValue='..iMinReclaimIndividualValue) end
                 end
@@ -3580,6 +3591,9 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
         end
         if bGivenOrder and not(EntityCategoryContains(categories.COMMAND, oEngineer.UnitId)) then
             TrackEngineerAction(oEngineer, refActionReclaimArea, false, iCurPriority, nil, tiClosestSegmentXZ)
+        elseif not(bGivenOrder) then
+            --Flag that this zone has failed to find anything for engineers to reclaim, so we limit BP to assign to 5
+            tLZOrWZData[M28Map.subrefiTimeFailedToGetReclaim] = GetGameTimeSeconds()
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -3966,7 +3980,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     local sFunctionRef = 'ConsiderActionToAssign'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iPlateauOrPond == 2 and iLandOrWaterZone == 10 then bDebugMessages = true end
 
     --Dont try getting any mroe BP for htis action if have run out of buildable locations
     local iExpectedBuildingSize = tiLastBuildingSizeFromActionForTeam[iTeam][iActionToAssign]
@@ -3999,6 +4013,15 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
         if iTotalBuildPowerWanted > 60 and M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] >= 1.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 and tLZOrWZTeamData[M28Map.subrefTbWantBP] and (tLZOrWZTeamData[M28Map.subrefSpareBPByTech][1] == 0 and tLZOrWZTeamData[M28Map.subrefSpareBPByTech][2] == 0 and tLZOrWZTeamData[M28Map.subrefSpareBPByTech][3] == 0) then
             iTotalBuildPowerWanted = iTotalBuildPowerWanted * math.max(1 / M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier], 0.4)
             if bDebugMessages == true then LOG(sFunctionRef..': Halfing build power wanted') end
+        end
+
+        --Reclaim specific - limit BP to 5 if we have recenlty failed to find something to reclaim
+        if tLZOrWZData[M28Map.subrefiTimeFailedToGetReclaim] and GetGameTimeSeconds() - tLZOrWZData[M28Map.subrefiTimeFailedToGetReclaim] <= 3 then
+            bDebugMessages = true
+            if bDebugMessages == true then LOG(sFunctionRef..': Time since last failed to get reclaim for this zone='..GetGameTimeSeconds() - tLZOrWZData[M28Map.subrefiTimeFailedToGetReclaim]..'; BP wanted before limitation='..iTotalBuildPowerWanted..'; will cap at 5') end
+            iTotalBuildPowerWanted = math.min(5, iTotalBuildPowerWanted)
+
+            bDebugMessages = false
         end
 
 
@@ -5091,7 +5114,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     local sFunctionRef = 'ConsiderCoreBaseLandZoneEngineerAssignment'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iPlateau == 2 and iLandZone == 10 then bDebugMessages = true end
 
     --For land zones in the core base
     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
@@ -6427,19 +6450,14 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     --Units to repair
     iCurPriority = iCurPriority + 1
     if M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToRepair]) == false then
-        --Refresh the list
-        local iUnitCount = table.getn(tLZData[M28Map.subreftoUnitsToRepair])
-        for iCurCount = iUnitCount, 1, -1 do
-            if not(M28UnitInfo.IsUnitValid(tLZData[M28Map.subreftoUnitsToRepair][iCurCount])) then
-                table.remove(tLZData[M28Map.subreftoUnitsToRepair], iCurCount)
-            end
-        end
-        if bDebugMessages == true then LOG(sFunctionRef..': Have units to repair for zone '..iLandZone..' after freshing them is table empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToRepair]))) end
-        if M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToRepair]) == false then
+        if bDebugMessages == true then LOG(sFunctionRef..': Have units to repair for zone '..iLandZone..' is table empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToRepair]))) end
+
+        if M28Conditions.IsTableOfUnitsStillValid(tLZData[M28Map.subreftoUnitsToRepair], true) then
             local oUnitToTarget = M28Utilities.GetNearestUnit(tLZData[M28Map.subreftoUnitsToRepair], tLZData[M28Map.subrefMidpoint])
             if bDebugMessages == true then LOG(sFunctionRef..': Unit to repair='..oUnitToTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToTarget)) end
             HaveActionToAssign(refActionRepairUnit, 1, 5, oUnitToTarget)
         end
+
     end
 
     --Game ender builder (in addition to normal experimental builders) - intended for extreme scenarios where overflowing lots of mass, or where are in campaign, at unit cap and have decent eco
@@ -6562,7 +6580,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     local sFunctionRef = 'ConsiderMinorLandZoneEngineerAssignment'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iPlateau == 2 and iLandZone == 10 then bDebugMessages = true end
     --if bDebugMessages == true then M28Map.DrawSpecificLandZone(iPlateau, iLandZone, 1) end
     local iBPWanted
     local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
@@ -6580,7 +6598,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
 
     local toAvailableEngineersByTech, toAssignedEngineers = FilterToAvailableEngineersByTech(tEngineers, false, tLZData, tLZTeamData, iTeam, iPlateau, iLandZone)
     tLZTeamData[M28Map.subrefTBuildPowerByTechWanted] = {[1]=0,[2]=0,[3]=0}
-    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Non core LZ - Have just reset BPByTech to 0 for Plateau'..iPlateau..'; LZ='..iLandZone..'; repru='..repru(tLZTeamData[M28Map.subrefTBuildPowerByTechWanted])) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Non core LZ - Have just reset BPByTech to 0 for Plateau'..iPlateau..'; LZ='..iLandZone..'; repru='..repru(tLZTeamData[M28Map.subrefTBuildPowerByTechWanted])..'; subrefLZCoreExpansion='..tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false)..'; subrefbCoreBaseOverride='..tostring(tLZTeamData[M28Map.subrefbCoreBaseOverride] or false)) end
     --local iCurCondition = 0
     local iCurPriority = 0
 
@@ -6903,15 +6921,8 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     --Units to repair
     iCurPriority = iCurPriority + 1
     if M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToRepair]) == false then
-        --Refresh the list
-        local iUnitCount = table.getn(tLZData[M28Map.subreftoUnitsToRepair])
-        for iCurCount = iUnitCount, 1, -1 do
-            if not(M28UnitInfo.IsUnitValid(tLZData[M28Map.subreftoUnitsToRepair][iCurCount])) then
-                table.remove(tLZData[M28Map.subreftoUnitsToRepair], iCurCount)
-            end
-        end
-        if bDebugMessages == true then LOG(sFunctionRef..': Have units to repair for zone '..iLandZone..' after freshing them is table empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToRepair]))) end
-        if M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToRepair]) == false then
+        if bDebugMessages == true then LOG(sFunctionRef..': Have units to repair for zone '..iLandZone..' is table empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToRepair]))) end
+        if M28Conditions.IsTableOfUnitsStillValid(tLZData[M28Map.subreftoUnitsToRepair], true) then
             local oUnitToTarget = M28Utilities.GetNearestUnit(tLZData[M28Map.subreftoUnitsToRepair], tLZData[M28Map.subrefMidpoint])
             if bDebugMessages == true then LOG(sFunctionRef..': Unit to repair='..oUnitToTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToTarget)) end
             HaveActionToAssign(refActionRepairUnit, 1, 5, oUnitToTarget)
@@ -7823,7 +7834,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Have units to repair for water zone '..iWaterZone..' after freshing them is table empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subreftoUnitsToRepair]))) end
-        if M28Utilities.IsTableEmpty(tWZData[M28Map.subreftoUnitsToRepair]) == false then
+        if M28Conditions.IsTableOfUnitsStillValid(tLZData[M28Map.subreftoUnitsToRepair], true) then
             local oUnitToTarget = M28Utilities.GetNearestUnit(tWZData[M28Map.subreftoUnitsToRepair], tWZData[M28Map.subrefMidpoint])
             if bDebugMessages == true then LOG(sFunctionRef..': Unit to repair='..oUnitToTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToTarget)) end
             HaveActionToAssign(refActionRepairUnit, 1, 5, oUnitToTarget)

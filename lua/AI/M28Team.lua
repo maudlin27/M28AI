@@ -175,6 +175,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiLowestUnitCapAdjustmentLevel = 'M28LowestCapAdj' --i.e. 0 is after ctrlking the most types of units, so lower = closer to cap
     refiPriorityPondValues = 'M28PriorityPonds' --Table of ponds that are considered sufficiently high value for our team, [x] is the pond, returns the value of hte pond
     refbAlreadyCheckedForUnitsToShare = 'M28CheckedUnitsShare' --true if already run logic for campaign to share units at start of game
+    reftoSpecialUnitsToProtect = 'M28SpecialUnitsToProtect' --table of units to protect e.g. for air units - e.g. repair targets for a campaign
 
 --AirSubteam data variables
 iTotalAirSubteamCount = 0
@@ -183,7 +184,7 @@ tAirSubteamData = {}
     subrefiMaxScoutRadius = 'M28ASTMaxScoutRadius' --Search range for scouts for this AirSubteam
     refbFarBehindOnAir = 'M28ASTFarBehindOnAir' --true if we are far behind on air
     refbHaveAirControl = 'M28ASTHaveAirControl'
-    reftACUAndExpOnSubteam = 'M28ASTACUExp' --Friendly ACUs and experimentals
+    reftACUExpAndPriorityDefenceOnSubteam = 'M28ASTACUExp' --Friendly ACUs and experimentals
     subrefiOurAirAAThreat = 'M28ASTOurAirAA' --Our AirAA threat
     subrefiOurGunshipThreat = 'M28ASTOurGShip' --Our gunship threat
     subrefiOurTorpBomberThreat = 'M28ASTOurTBmbT' --Our torp bomber threat
@@ -261,7 +262,7 @@ function CreateNewAirSubteam(aiBrain)
     aiBrain.M28AirSubteam = iTotalAirSubteamCount
     tAirSubteamData[aiBrain.M28AirSubteam] = {}
     tAirSubteamData[aiBrain.M28AirSubteam][subreftoFriendlyM28Brains] = {}
-    tAirSubteamData[aiBrain.M28AirSubteam][reftACUAndExpOnSubteam] = {}
+    tAirSubteamData[aiBrain.M28AirSubteam][reftACUExpAndPriorityDefenceOnSubteam] = {}
     if not(tTeamData[aiBrain.M28Team][subrefAirSubteamsInTeam]) then tTeamData[aiBrain.M28Team][subrefAirSubteamsInTeam] = {} end
     table.insert(tTeamData[aiBrain.M28Team][subrefAirSubteamsInTeam], iTotalAirSubteamCount)
 
@@ -775,9 +776,9 @@ function ConsiderAssigningUnitToZoneForBrain(aiBrain, oUnit)
         local sFunctionRef = 'ConsiderAssigningUnitToZoneForBrain'
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+        if oUnit.UnitId == 'uaa0104' then bDebugMessages = true end
 
-
-        if bDebugMessages == true then LOG(sFunctionRef..': Checking if should assign unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to a plateau/other table. Considered for assignment repru='..repru(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam])..'; Unit brain team='..(oUnit:GetAIBrain().M28Team or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Checking at time '..GetGameTimeSeconds()..' if should assign unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to a plateau/other table. Considered for assignment repru='..repru(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam])..'; Unit brain team='..(oUnit:GetAIBrain().M28Team or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
         if M28UnitInfo.IsUnitValid(oUnit) then --redundancy
             if (not(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam]) or not(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam][aiBrain.M28Team])) and M28UnitInfo.IsUnitValid(oUnit) and not(aiBrain.M28IsDefeated) then
                 AssignUnitToLandZoneOrPond(aiBrain, oUnit)
@@ -1031,7 +1032,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
     local sFunctionRef = 'AssignUnitToLandZoneOrPond'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oUnit.UnitId == 'uaa0104' then bDebugMessages = true end
 
     if M28UnitInfo.IsUnitValid(oUnit) then
         --Campaign specific - dont include units flagged as not being killable
