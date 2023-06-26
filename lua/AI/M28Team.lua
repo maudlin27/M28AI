@@ -175,7 +175,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiLowestUnitCapAdjustmentLevel = 'M28LowestCapAdj' --i.e. 0 is after ctrlking the most types of units, so lower = closer to cap
     refiPriorityPondValues = 'M28PriorityPonds' --Table of ponds that are considered sufficiently high value for our team, [x] is the pond, returns the value of hte pond
     refbAlreadyCheckedForUnitsToShare = 'M28CheckedUnitsShare' --true if already run logic for campaign to share units at start of game
-    reftoSpecialUnitsToProtect = 'M28SpecialUnitsToProtect' --table of units to protect e.g. for air units - e.g. repair targets for a campaign
+    --reftoSpecialUnitsToProtect = 'M28SpecialUnitsToProtect' --table of units to protect e.g. for air units - e.g. repair targets for a campaign
 
 --AirSubteam data variables
 iTotalAirSubteamCount = 0

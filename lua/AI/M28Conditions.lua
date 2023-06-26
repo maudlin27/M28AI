@@ -630,6 +630,7 @@ function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, 
     local sFunctionRef = 'CloseToEnemyUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    if oOptionalFriendlyUnitToRecordClosestEnemy.UnitId == 'uel0111' then bDebugMessages = true end
 
     local iCurDist
     if bDebugMessages == true then
@@ -1325,6 +1326,44 @@ function IsTableOfUnitsStillValid(tUnits, bInvalidIfFullHealth)
         if bDebugMessages == true then LOG(sFunctionRef..': Do we still have a table of valid units? is it empty='..tostring(M28Utilities.IsTableEmpty(tUnits))) end
         if M28Utilities.IsTableEmpty(tUnits) == false then
             return true
+        end
+    end
+    return false
+end
+
+function IsPositionCloseToZoneEdge(iPlateauOrZero, iLandOrWaterZone, iMaxDistToEdgeOfAdjacentZone, tStartPoint)
+    --returns true if are within iMaxDistToEdgeOfAdjacentZone of the edge of iLandOrWaterZone, i.e. if this is positive, then will return true if are anywhere in that zone, or outside it by iMaxDistToEdgeOfAdjacentZone; if is a negative number then must be inside the zone by the negativenumber amount
+    --Only an approximation - does a square around the outer edges of the zone to estimate
+    local tLZOrWZData
+
+    local tMinPosition, tMaxPosition
+    if iPlateauOrZero == 0 then
+        tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+        tMinPosition = M28Map.GetPositionFromPathingSegments(tLZOrWZData[M28Map.subrefWZMinSegX], tLZOrWZData[M28Map.subrefWZMinSegZ])
+        tMaxPosition = M28Map.GetPositionFromPathingSegments(tLZOrWZData[M28Map.subrefWZMaxSegX], tLZOrWZData[M28Map.subrefWZMaxSegZ])
+    else
+        tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+        tMinPosition = M28Map.GetPositionFromPathingSegments(tLZOrWZData[M28Map.subrefLZMinSegX], tLZOrWZData[M28Map.subrefLZMinSegZ])
+        tMaxPosition = M28Map.GetPositionFromPathingSegments(tLZOrWZData[M28Map.subrefLZMaxSegX], tLZOrWZData[M28Map.subrefLZMaxSegX])
+    end
+    local iMinX = tMinPosition[1]
+    local iMaxX = tMaxPosition[1]
+    local iMinZ = tMinPosition[3]
+    local iMaxZ = tMaxPosition[3]
+    --Really could simplify the below into just one formula, but separating it out makes it slightl yeasier to conceptualise
+    if iMaxDistToEdgeOfAdjacentZone > 0 then
+        --Want to be outside the box
+        if tStartPoint[1] >= iMinX - iMaxDistToEdgeOfAdjacentZone and tStartPoint[1] <= iMaxX + iMaxDistToEdgeOfAdjacentZone then
+            if tStartPoint[3] >= iMinZ - iMaxDistToEdgeOfAdjacentZone and tStartPoint[3] <= iMaxZ + iMaxDistToEdgeOfAdjacentZone then
+                return true
+            end
+        end
+    else
+        --Wnat to be inside the zone box
+        if tStartPoint[1] >= iMinX + iMaxDistToEdgeOfAdjacentZone and tStartPoint[1] <= iMaxX - iMaxDistToEdgeOfAdjacentZone then
+            if tStartPoint[3] >= iMinZ + iMaxDistToEdgeOfAdjacentZone and tStartPoint[3] <= iMaxZ - iMaxDistToEdgeOfAdjacentZone then
+                return true
+            end
         end
     end
     return false

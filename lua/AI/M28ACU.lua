@@ -522,11 +522,37 @@ function GetUpgradePathForACU(oACU)
 
     --Check all of these are options (in case a mod has changed them)
     local oBP = oACU:GetBlueprint()
+    local tRestrictedEnhancements = import("/lua/enhancementcommon.lua").GetRestricted()
+    local bCheckForRestrictions = not(M28Utilities.IsTableEmpty(tRestrictedEnhancements))
+    local bInvalidUpgrade
+
     if M28Utilities.IsTableEmpty(oACU[reftPreferredUpgrades]) == false then
+        local tiEntriesToRemove = {}
         for iUpgradeWanted, sUpgradeWanted in oACU[reftPreferredUpgrades] do
+            bInvalidUpgrade = false
             if M28Utilities.IsTableEmpty(oBP.Enhancements[sUpgradeWanted]) then
+                bInvalidUpgrade = true
                 oACU[reftPreferredUpgrades] = {}
                 break
+            elseif bCheckForRestrictions then
+                --If we cant get the first upgrade, then cancel all upgrades; otherwise just remove the later upgrade that we cant get
+                if tRestrictedEnhancements[sUpgradeWanted] then
+                    bInvalidUpgrade = true
+                end
+            end
+            if bInvalidUpgrade then
+                if iUpgradeWanted <= 1 then
+                    oACU[reftPreferredUpgrades] = {}
+                    break
+                else
+                    table.insert(tiEntriesToRemove, iUpgradeWanted)
+                end
+            end
+        end
+        if M28Utilities.IsTableEmpty(tiEntriesToRemove) == false then
+            local iTotalEntriesToRemove = table.getn(tiEntriesToRemove)
+            for iCurEntry = iTotalEntriesToRemove, 1, -1 do
+                table.remove(oACU[reftPreferredUpgrades], tiEntriesToRemove[iCurEntry])
             end
         end
     end
@@ -535,10 +561,10 @@ function GetUpgradePathForACU(oACU)
         oACU[reftPreferredUpgrades] = {}
         local iLowestMassCost = 1000000
         local sLowestUpgrade
-        for sUpgrade, tUpgrade in oACU:GetBlueprint().Enhancements do
+        for sUpgrade, tUpgrade in oBP.Enhancements do
             if bDebugMessages == true then LOG(sFunctionRef..': Considering sUpgrade='..sUpgrade..'; tUpgrade='..reprs(tUpgrade)) end
             if (oACU[refbStartedUnderwater] and (tUpgrade.NewBuildRate or 0) > 10) or (tUpgrade.NewMaxRadius or tUpgrade.NewRateOfFire) then
-                if tUpgrade.BuildCostMass < iLowestMassCost and not(tUpgrade.Prerequisite) then
+                if tUpgrade.BuildCostMass < iLowestMassCost and not(tUpgrade.Prerequisite) and not(tRestrictedEnhancements[sUpgrade]) then
                     sLowestUpgrade = sUpgrade
                     iLowestMassCost = tUpgrade.BuildCostMass
                     if bDebugMessages == true then LOG(sFunctionRef..': Have a new preferred upgrade '..sUpgrade..'; iLowestMassCost='..iLowestMassCost) end
@@ -546,7 +572,11 @@ function GetUpgradePathForACU(oACU)
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Finished considering the cheapest gun improving upgrade, sLowestUpgrade='..(sLowestUpgrade or 'nil')) end
-        if sLowestUpgrade then oACU[reftPreferredUpgrades] = {sLowestUpgrade} end
+        if sLowestUpgrade then oACU[reftPreferredUpgrades] = {sLowestUpgrade}
+        --Further backup - sometimes (e.g. cmapaign) RAS might be available but gun isnt
+        elseif oBP.Enhancements['ResourceAllocation'] and not(tRestrictedEnhancements['ResourceAllocation']) then
+            oACU[reftPreferredUpgrades] = {'ResourceAllocation'}
+        end
     end
 
     --Remove any upgrades that we already have
