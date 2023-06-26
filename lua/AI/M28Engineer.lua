@@ -3437,7 +3437,7 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
     local sFunctionRef = 'GetEngineerToReclaimNearbyArea'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iPlateauOrPond == 2 and iLandOrWaterZone == 10 and M28UnitInfo.GetUnitLifetimeCount(oEngineer) == 25 then bDebugMessages = true end
+
 
     local iCurPriority = (iPriorityOverride or oEngineer[refiAssignedActionPriority] or 1)
     local tLZOrWZData
@@ -3980,7 +3980,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     local sFunctionRef = 'ConsiderActionToAssign'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iPlateauOrPond == 2 and iLandOrWaterZone == 10 then bDebugMessages = true end
+
 
     --Dont try getting any mroe BP for htis action if have run out of buildable locations
     local iExpectedBuildingSize = tiLastBuildingSizeFromActionForTeam[iTeam][iActionToAssign]
@@ -4017,11 +4017,9 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
 
         --Reclaim specific - limit BP to 5 if we have recenlty failed to find something to reclaim
         if tLZOrWZData[M28Map.subrefiTimeFailedToGetReclaim] and GetGameTimeSeconds() - tLZOrWZData[M28Map.subrefiTimeFailedToGetReclaim] <= 3 then
-            bDebugMessages = true
             if bDebugMessages == true then LOG(sFunctionRef..': Time since last failed to get reclaim for this zone='..GetGameTimeSeconds() - tLZOrWZData[M28Map.subrefiTimeFailedToGetReclaim]..'; BP wanted before limitation='..iTotalBuildPowerWanted..'; will cap at 5') end
             iTotalBuildPowerWanted = math.min(5, iTotalBuildPowerWanted)
 
-            bDebugMessages = false
         end
 
 
@@ -5114,7 +5112,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     local sFunctionRef = 'ConsiderCoreBaseLandZoneEngineerAssignment'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iPlateau == 2 and iLandZone == 10 then bDebugMessages = true end
+
 
     --For land zones in the core base
     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
@@ -6580,7 +6578,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     local sFunctionRef = 'ConsiderMinorLandZoneEngineerAssignment'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iPlateau == 2 and iLandZone == 10 then bDebugMessages = true end
+
     --if bDebugMessages == true then M28Map.DrawSpecificLandZone(iPlateau, iLandZone, 1) end
     local iBPWanted
     local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)

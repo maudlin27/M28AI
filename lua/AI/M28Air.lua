@@ -1620,7 +1620,7 @@ function AssignAirAATargets(tAvailableAirAA, tEnemyTargets)
     local sFunctionRef = 'AssignAirAATargets'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 1020 then bDebugMessages = true end
+
 
     --Copy of M28Utiliteis function (for speed)
     function GetRoughDistanceBetweenPositions(tPosition1, tPosition2)
@@ -1667,7 +1667,6 @@ function AssignAirAATargets(tAvailableAirAA, tEnemyTargets)
                 end
             else
                 --If the air unit has a target that is in the playable area then target that
-                bDebugMessages = true
                 --local bInterceptTargetFound = false
                 --Navigator is too unreliable in campaign, so will just ignore and target enemy air unit (moving towards it if it is off-map)
                 --[[if oEnemyUnit.GetNavigator then
@@ -1800,7 +1799,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
     local sFunctionRef = 'ManageAirAAUnits'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 900 then bDebugMessages = true end
+
 
     --Get available airAA units (owned by M28 brains in our subteam):
     local tAvailableAirAA, tAirForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, M28UnitInfo.refCategoryAirAA)

@@ -170,7 +170,7 @@ function IsEngineerAvailable(oEngineer)
     local sFunctionRef = 'IsEngineerAvailable'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer) == 'uel010525' then bDebugMessages = true end
+
 
     if bDebugMessages == true then
         local iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
@@ -690,7 +690,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
     local sFunctionRef = 'WantMoreFactories'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iPlateau == 2 and iLandZone == 10 then bDebugMessages = true end
+
 
     --e.g. 1 t1 land factory building tank uses 0.4 mass per tick, so would want 1 factory for every 0.8 mass as a rough baseline; T2 is 0.9 mass per tick, T3 is 1.6; probably want ratio to be 50%-50%-33%
 

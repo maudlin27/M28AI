@@ -1250,7 +1250,7 @@ function OnCreate(oUnit)
         local sFunctionRef = 'OnCreate'
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-        if oUnit.UnitId == 'uaa0104' then bDebugMessages = true end
+
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time'..GetGameTimeSeconds()..'; oUnit[M28OnCrRn]='..tostring(oUnit['M28OnCrRn'] or false)..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete or false)..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
         if not(M28Map.bMapLandSetupComplete) then --Start of game ACU creation happens before we have setup the map
             while not(M28Map.bMapLandSetupComplete) do
@@ -1682,7 +1682,7 @@ end
 
 function ScenarioPlatoonCreated(oPlatoon, strArmy, strGroup, formation, tblNode, platoon, balance)
     local sFunctionRef = 'ScenarioPlatoonCreated'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Scenario platoon created') end
     local tPlatoonUnits = oPlatoon:GetPlatoonUnits()

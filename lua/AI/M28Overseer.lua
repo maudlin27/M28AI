@@ -643,8 +643,17 @@ function CheckUnitCap(aiBrain)
             [1] = M28UnitInfo.refCategoryAllAir * categories.TECH1 + categories.NAVAL * categories.MOBILE * categories.TECH1,
             [2] = M28UnitInfo.refCategoryMobileLand * categories.TECH2 - categories.COMMAND - M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryAirScout + M28UnitInfo.refCategoryAirAA * categories.TECH1,
             [3] = M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND,
-            [4] = M28UnitInfo.refCategoryWall + M28UnitInfo.refCategoryEngineer - categories.TECH3,
+            [4] = M28UnitInfo.refCategoryWall + M28UnitInfo.refCategoryEngineer - categories.TECH3 + M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryLandScout,
         }
+        --Adjust these categories for special cases
+        if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyLandFactoryTech] == 1 and (M28Map.bIsCampaignMap or bUnitRestrictionsArePresent) then
+            --exclude T1 land from category 4
+            tiCategoryToDestroy[4] =  M28UnitInfo.refCategoryWall + M28UnitInfo.refCategoryEngineer - categories.TECH3
+        end
+        if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyLandFactoryTech] == 2 and (M28Map.bIsCampaignMap or bUnitRestrictionsArePresent) and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] then
+            --Exclude MML from category 2
+            tiCategoryToDestroy[2] = M28UnitInfo.refCategoryMobileLand * categories.TECH2 - categories.COMMAND - M28UnitInfo.refCategoryMAA -M28UnitInfo.refCategoryMML + M28UnitInfo.refCategoryAirScout + M28UnitInfo.refCategoryAirAA * categories.TECH1
+        end
         if bDebugMessages == true then LOG(sFunctionRef..': We are over the threshold for ctrlking units') end
         if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) > iUnitCap * 0.35 then tiCategoryToDestroy[0] = tiCategoryToDestroy[0] + M28UnitInfo.refCategoryEngineer end
         local iCumulativeCategory = tiCategoryToDestroy[4]
