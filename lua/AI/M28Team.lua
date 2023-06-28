@@ -1731,11 +1731,14 @@ function ConsiderPriorityMexUpgrades(iM28Team)
     local bHaveSafeMexToUpgrade = GetSafeMexToUpgrade(iM28Team, true)
     local iUpgradingMexValue = iExistingT1MexUpgrades + 2.5 * iExistingT2MexUpgrades
     local iWantedUpgradingMexValue = 0
-    if tTeamData[iM28Team][subrefiTeamGrossMass] >= 2.5 * tTeamData[iM28Team][subrefiActiveM28BrainCount] then iWantedUpgradingMexValue = 1 end
-    if bHaveSafeMexToUpgrade then
+    if tTeamData[iM28Team][subrefiTeamGrossMass] >= 2.5 * tTeamData[iM28Team][subrefiActiveM28BrainCount] then
+        iWantedUpgradingMexValue = 1
+        if tTeamData[iM28Team][subrefiTeamGrossMass] >= 12 then iWantedUpgradingMexValue = iWantedUpgradingMexValue + 1 end
+    end
+    if bHaveSafeMexToUpgrade or M28Overseer.bNoRushActive then
         --if upgrading 1 mex from t1 to t2 costs roughly 0.8 mass per tick, and we want to be spenting 1/3 of mass per tick on this, then want 1/3 of gross mass / 0.8, i.e. 0.4167
         --However, are finding we are spending too much mass with this approach and end up always mass stalling, and only upgrading mexes, meaning HQs dont upgrade (when using a value of 0.4167 * gross mass income)
-        iWantedUpgradingMexValue = (tTeamData[iM28Team][subrefiTeamGrossMass] - 2 * tTeamData[iM28Team][subrefiActiveM28BrainCount]) * 0.3
+        iWantedUpgradingMexValue = math.max((tTeamData[iM28Team][subrefiTeamGrossMass] - 2 * tTeamData[iM28Team][subrefiActiveM28BrainCount]) * 0.3, tTeamData[iM28Team][subrefiTeamGrossMass] * 0.125)
         --if are already upgrading 1 mex per brain and are stalling mass, then reduce the amount wanted
         if (tTeamData[iM28Team][subrefiTeamMassStored] < 50 or tTeamData[iM28Team][subrefbTeamIsStallingMass]) and M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) == false and (table.getn(tTeamData[iM28Team][subreftTeamUpgradingMexes]) > 1 + (tTeamData[iM28Team][subrefiActiveM28BrainCount] - 1) * 0.5 and tTeamData[iM28Team][subrefiTeamNetMass] <= -math.max(-0.5, tTeamData[iM28Team][subrefiTeamGrossMass] * 0.08)) then
             iWantedUpgradingMexValue = iWantedUpgradingMexValue * 0.2
@@ -1744,7 +1747,7 @@ function ConsiderPriorityMexUpgrades(iM28Team)
         iWantedUpgradingMexValue = iWantedUpgradingMexValue / tTeamData[iM28Team][refiHighestBrainBuildMultiplier]
     end
     if bDebugMessages == true then LOG(sFunctionRef..': iWantedUpgradingMexValue='..iWantedUpgradingMexValue..'; iUpgradingMexValue='..iUpgradingMexValue..'; bHaveSafeMexToUpgrade='..tostring(bHaveSafeMexToUpgrade)..'; iExistingT1MexUpgrades='..iExistingT1MexUpgrades..'; iExistingT2MexUpgrades='..iExistingT2MexUpgrades..'; Active brain count='..tTeamData[iM28Team][subrefiActiveM28BrainCount]..'; Total mass stored='..tTeamData[iM28Team][subrefiTeamMassStored]) end
-    if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) or (bHaveSafeMexToUpgrade and iWantedUpgradingMexValue > iUpgradingMexValue) or (tTeamData[iM28Team][subrefiTeamNetMass] - tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]) > 0 or 2 * tTeamData[iM28Team][subrefiActiveM28BrainCount] + table.getn(tTeamData[iM28Team][subreftTeamUpgradingMexes]) * 2.5 < tTeamData[iM28Team][subrefiTeamGrossMass] or M28Overseer.bNoRushActive then
+    if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) or iWantedUpgradingMexValue > iUpgradingMexValue or (tTeamData[iM28Team][subrefiTeamMassStored] >= 800 and (tTeamData[iM28Team][subrefiTeamNetMass] - tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]) > 0) then
         --Do we have enough energy?
         if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have enough energy, tTeamData[iM28Team][subrefiTeamNetEnergy]='..tTeamData[iM28Team][subrefiTeamNetEnergy]..'; tTeamData[iM28Team][subrefiEnergyUpgradesStartedThisCycle]='..tTeamData[iM28Team][subrefiEnergyUpgradesStartedThisCycle]..'; tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored]='..tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored]) end
         if (tTeamData[iM28Team][subrefiTeamNetEnergy] - tTeamData[iM28Team][subrefiEnergyUpgradesStartedThisCycle] > 0 or (M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]) and tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] >= 0.98)) and

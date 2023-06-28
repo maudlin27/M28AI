@@ -276,7 +276,7 @@ function AdjustBlueprintForOverrides(aiBrain, sBPIDToBuild, tLZTeamData, iFactor
             end
             --Cap total gunships to be active at any one time
         elseif EntityCategoryContains(M28UnitInfo.refCategoryGunship - categories.TECH3 - categories.EXPERIMENTAL, sBPIDToBuild) then
-            if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryGunship) >= 80 then sBPIDToBuild = nil end
+            if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryGunship) >= 80 and not(M28Map.bIsCampaignMap) then sBPIDToBuild = nil end
         end
     end
     if sBPIDToBuild and aiBrain[M28Overseer.refbCloseToUnitCap] then
@@ -2335,7 +2335,8 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
 
                 --Gunships subject to mass and existing number
                 iCurrentConditionToTry = iCurrentConditionToTry + 1
-                if iCurGunships < 5 or (not (bHaveLowMass) and iCurGunships < 40 and (not(M28Map.bIsCampaignMap) or iCurGunships < 100) and (iCurGunships < 22 or (iFactoryTechLevel >= 3 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 20))) then
+                if iCurGunships < 5 or (not (bHaveLowMass) and iCurGunships < 40 and (not(M28Map.bIsCampaignMap) or iCurGunships < 100) and
+                        (iCurGunships < 22 or (iFactoryTechLevel >= 3 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 20) or ((M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.3 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.2 and M28Map.bIsCampaignMap)) and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] <= 2 or M28Map.bIsCampaignMap)))) then
                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then
                         return sBPIDToBuild
                     end
@@ -2379,6 +2380,14 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryBomber * categories.TECH3) then
                         return sBPIDToBuild
                     end
+                end
+
+                --Gunship if we dont have low mass (or are in a campaign with at least 500 mass stored and no active upgrades) and have air control
+                iCurrentConditionToTry = iCurrentConditionToTry + 1
+                if bDebugMessages == true then LOG(sFunctionRef..': Low priority gunship builder, iFactoryTechLevel='..iFactoryTechLevel..'; Lowest air fac tech='..M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyAirFactoryTech]..'; have air control='..tostring(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbHaveAirControl])..'; Have low mass='..tostring(bHaveLowMass)..'; CampaignMap='..tostring(M28Map.bIsCampaignMap)..'; team mass stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; Is table of upgrading HQs empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]))..'; Is table of upgrading mexes empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]))) end
+                if iFactoryTechLevel >= M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyAirFactoryTech] and M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbHaveAirControl] and (not(bHaveLowMass) or (M28Map.bIsCampaignMap and iFactoryTechLevel >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 500 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]))) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will try to build a gunship') end
+                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end
                 end
             end
         end

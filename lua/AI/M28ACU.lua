@@ -497,6 +497,7 @@ function GetUpgradePathForACU(oACU)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; oACU='..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' owned by brain '..oACU:GetAIBrain().Nickname..'; oACU[refbStartedUnderwater]='..tostring(oACU[refbStartedUnderwater] or false)) end
+    local oBP = oACU:GetBlueprint()
     if oACU[refbStartedUnderwater] then
 
         if EntityCategoryContains(categories.UEF, oACU.UnitId) then
@@ -515,13 +516,14 @@ function GetUpgradePathForACU(oACU)
             oACU[reftPreferredUpgrades] = {'CrysalisBeam', 'HeatSink', 'Shield'}
         elseif EntityCategoryContains(categories.CYBRAN, oACU.UnitId) then
             oACU[reftPreferredUpgrades] = {'CoolingUpgrade', 'StealthGenerator'}
+            --FAF upcoming balance patch expected 15th July to introduce nano upgrade for Cybran
+            if oBP.Enhancements['SelfRepairSystem'] then table.insert( oACU[reftPreferredUpgrades], 'SelfRepairSystem') end
         elseif EntityCategoryContains(categories.SERAPHIM, oACU.UnitId) then
             oACU[reftPreferredUpgrades] = {'RateOfFire', 'AdvancedEngineering'}
         end
     end
 
     --Check all of these are options (in case a mod has changed them)
-    local oBP = oACU:GetBlueprint()
     local tRestrictedEnhancements = import("/lua/enhancementcommon.lua").GetRestricted()
     local bCheckForRestrictions = not(M28Utilities.IsTableEmpty(tRestrictedEnhancements))
     local bInvalidUpgrade
