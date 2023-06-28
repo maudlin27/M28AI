@@ -316,8 +316,18 @@ function OnUnitDeath(oUnit)
                         end
                         --Transport death - record target island as dangerous
                         if oUnit[M28Air.refiTargetIslandForDrop] then
-                            M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiLastFailedIslandDropTime][oUnit[M28Air.refiTargetIslandForDrop]] = GetGameTimeSeconds()
+                            local iTeam = oUnit:GetAIBrain().M28Team
+                            local iTargetIsland = oUnit[M28Air.refiTargetIslandForDrop]
+                            M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandDropTime][iTargetIsland] = GetGameTimeSeconds()
+                            if oUnit[M28Air.refiTargetZoneForDrop] then
+                                if not(M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][iTargetIsland]) then
+                                    if not(M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime]) then M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime] = {} end
+                                    M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][iTargetIsland] = {}
+                                end
+                                M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][iTargetIsland][oUnit[M28Air.refiTargetZoneForDrop]] = GetGameTimeSeconds()
+                            end
                         end
+
                         --Logic that doesnt require the unit to ahve finished construction:
 
                         --Fixed shielding
@@ -1053,6 +1063,10 @@ function OnConstructed(oEngineer, oJustBuilt)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway, oEngineer.UnitId) then
                     if bDebugMessages == true then LOG(sFunctionRef..': A factory has just built a unit so will get the next order for the factory') end
                     ForkThread(M28Factory.DecideAndBuildUnitForFactory, oEngineer:GetAIBrain(), oEngineer)
+                    --Treat the unit just built as having micro active so it doesn't receive orders for a couple of seconds (so it can clear the factory)
+                    if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oEngineer.UnitId) then
+                        M28Micro.TrackTemporaryUnitMicro(oJustBuilt, 1.5) --i.e. want to increase likelihood that a unit has exited the land factory before it starts being given orders
+                    end
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEngineer.UnitId) then
                     --Clear any engineers trying to build this unit if we just built a building or experimental
                     if EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId) then
@@ -1236,6 +1250,7 @@ function OnCreate(oUnit)
         local sFunctionRef = 'OnCreate'
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time'..GetGameTimeSeconds()..'; oUnit[M28OnCrRn]='..tostring(oUnit['M28OnCrRn'] or false)..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete or false)..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
         if not(M28Map.bMapLandSetupComplete) then --Start of game ACU creation happens before we have setup the map
             while not(M28Map.bMapLandSetupComplete) do
@@ -1255,6 +1270,15 @@ function OnCreate(oUnit)
                 M28UnitInfo.GetUnitLifetimeCount(oUnit) --essential so lifetimecount logic works
 
                 M28Team.ConsiderAssigningUnitToZoneForBrain(oUnit:GetAIBrain(), oUnit) --This function includes check of whether this is an M28 brain
+                if M28Map.bIsCampaignMap then
+                    local tiTeamsConsidered = {[(oUnit:GetAIBrain().M28Team or 0)] = true}
+                    for iBrain, oBrain in ArmyBrains do
+                        if oBrain.M28AI and not(tiTeamsConsidered[oBrain.M28Team]) then
+                            tiTeamsConsidered[oBrain.M28Team] = true
+                            M28Team.ConsiderAssigningUnitToZoneForBrain(oBrain, oUnit)
+                        end
+                    end
+                end
 
                 --All units (not just M28 specific):
                 M28UnitInfo.RecordUnitRange(oUnit)
@@ -1519,6 +1543,13 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
             end
             if bHaveLowHealthAlly and M28Utilities.IsTableEmpty(tUnitsToRepair) == false then
                 local iPlateauOrZero, iLandOrWaterZone
+                local iTeam
+                for iBrain, oBrain in ArmyBrains do
+                    if oBrain.M28AI then
+                        iTeam = oBrain.M28Team
+                        break
+                    end
+                end
                 for iEntry, oUnit in tUnitsToRepair do
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering iEntry='..iEntry..' in tUnitsToRepair; Is valid unit='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
                     if M28UnitInfo.IsUnitValid(oUnit) then
@@ -1526,14 +1557,42 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                         local tLZOrWZData
                         if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; Unit position='..repru(oUnit:GetPosition())) end
                         if iLandOrWaterZone > 0 then
+                            local tLZOrWZTeamData
                             if iPlateauOrZero == 0 then
                                 tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+                                tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
                             else
                                 tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+                                tLZOrWZTeamData = tLZOrWZData[M28Map.subrefWZTeamData][iTeam]
                             end
                             if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToRepair]) then tLZOrWZData[M28Map.subreftoUnitsToRepair] = {} end
                             table.insert(tLZOrWZData[M28Map.subreftoUnitsToRepair], oUnit)
+                            M28Air.AddPriorityAirDefenceTarget(oUnit)
                             if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of units to repair') end
+                            --Consider adding this zone as somewhere to drop if it's not adjacent to a core zone
+                            if iPlateauOrZero > 0 then
+                                local bAdjacentToCoreBase = false
+                                if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] then
+                                    bAdjacentToCoreBase = true
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Are in a core base; tLZOrWZTeamData[M28Map.subrefbCoreBaseOverride]='..tostring(tLZOrWZTeamData[M28Map.subrefbCoreBaseOverride])) end
+
+                                elseif M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                                    for _, iAdjLZ in tLZOrWZData[M28Map.subrefLZAdjacentLandZones] do
+                                        if M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': iAdjLZ '..iAdjLZ..' is a core base, midpoint of adjlz='..repru(M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefMidpoint])..'; Dist to midpoint of this LZ='..M28Utilities.GetDistanceBetweenPositions(M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefMidpoint], tLZOrWZData[M28Map.subrefMidpoint])..'; Travel distance='..(M28Map.GetTravelDistanceBetweenLandZones(iPlateauOrZero, iLandOrWaterZone, iAdjLZ) or 'nil')) end
+                                            bAdjacentToCoreBase = true
+                                            break
+                                        end
+                                    end
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to add location as a drop zone target, bAdjacentToCoreBase='..tostring(bAdjacentToCoreBase)) end
+                                if not(bAdjacentToCoreBase) then
+                                    --Add to locations for priority transport drop
+                                    M28Air.UpdateTransportLocationShortlist(iTeam) --incase not already run
+                                    M28Air.AddZoneToPotentialSameIslandDropZones(iTeam, iPlateauOrZero, iLandOrWaterZone)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Have tried toa dd to same island drop list, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; iTeam='..iTeam) end
+                                end
+                            end
                         end
                     end
                 end
@@ -1615,6 +1674,24 @@ function OnCaptured(toCapturedUnits, iArmyIndex, bCaptured)
                 if not(oM28Brain.M28Team == oUnit:GetAIBrain().M28Team) and not(IsAlly(oM28Brain:GetArmyIndex(), iArmyIndex)) then
                     M28Engineer.RecordUnitAsCaptureTarget(oUnit, true)
                 end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ScenarioPlatoonCreated(oPlatoon, strArmy, strGroup, formation, tblNode, platoon, balance)
+    local sFunctionRef = 'ScenarioPlatoonCreated'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Scenario platoon created') end
+    local tPlatoonUnits = oPlatoon:GetPlatoonUnits()
+
+    if M28Utilities.IsTableEmpty(tPlatoonUnits) == false then
+        for iUnit, oUnit in tPlatoonUnits do
+            if M28UnitInfo.IsUnitValid(oUnit) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Calling onCreate for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                OnCreate(oUnit)
             end
         end
     end

@@ -501,15 +501,18 @@ function HaveLowPower(iTeam)
     local sFunctionRef = 'HaveLowPower'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..', team='..iTeam..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or false)..'; M28Team.tTeamDta[iTeam][M28Team.subrefiGrossEnergyWhenStalled]='..(M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] or 'nil')..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Just built lots of power='..tostring(M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower])..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..', team='..iTeam..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or false)..'; M28Team.tTeamDta[iTeam][M28Team.subrefiGrossEnergyWhenStalled]='..(M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] or 'nil')..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Just built lots of power='..tostring(M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower])..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; M28Team.tTeamData[iTeam][M28Team.subrefbTooLittleEnergyForUpgrade]='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTooLittleEnergyForUpgrade])..'; Min energy per tech='..M28Economy.tiMinEnergyPerTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]]) end
     local bHaveLowPower = false
     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 80000 then --Paragon gives 1000000 per sec I think
         if not(M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower]) then
-            if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] <= 0.95) or M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] * 1.05 then
+            if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] <= 0.95) or M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] then
                 bHaveLowPower = true
             else
-                --Low power levels - apply slightly different test where it's ok to not have 100% energy
-                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 25 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 2.2 then
+                --Dont have much more energy than when we last stalled - sometimes treat as low power (i.e. if we have low net energy, or dont have 100% energy stored)
+                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] * 1.05 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] <= 0.99 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.1 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.1)) then
+                    bHaveLowPower = true
+                    --Low power levels - apply slightly different test where it's ok to not have 100% energy
+                elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 25 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 2.2 then
                     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] >= math.max(0.35, math.min(0.9, M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] * 2.5)) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 0.5 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] >= 0.9 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= -9)) then
                         --Do nothing (false)
                     else
@@ -621,7 +624,7 @@ function HaveFactionTech(iSubteam, iFactoryType, iFactionWanted, iMinTechLevelNe
     return false
 end
 
-function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy)
+function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure)
     --Returns true if our distance to any of tUnitsToCheck is <= iDistThreshold; if bIncludeEnemyDFRange is true then our distance to the units is reduced by the enemy unit's DF range (meaning it returns true if we are within iDistThreshold of the enemy unit being able to shoot at us)
     --iAltThresholdToDFRange - if bIncludeEnemyDFRange is true and this also has a value specified, then if we are within iAltThresholdToDFRange will return true regardless of the iDistThreshold test
     --oUnitIfConsideringAngleAndLastShot - if we have a unit that is very vulnerable at lcose range (e.g. a skirmisher unit), then including this here will mean a check is done of the enemy unit facing angle and unit state (to factor in how easily it could close in to us) to decide whether to run or not
@@ -629,6 +632,7 @@ function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'CloseToEnemyUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
 
 
     local iCurDist
@@ -671,12 +675,17 @@ function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, 
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bIncludeEnemyDFRange='..tostring(bIncludeEnemyDFRange or false)..'; Unit range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; iCurDist='..iCurDist..'; iDistThreshold='..iDistThreshold..'; iAltThresholdToDFRange='..(iAltThresholdToDFRange or 'nil')) end
             if (bIncludeEnemyDFRange and (iCurDist - (oUnit[M28UnitInfo.refiDFRange] or 0) <= iDistThreshold or iCurDist <= (iAltThresholdToDFRange or 0))) or (not(bIncludeEnemyDFRange) and iCurDist <= iDistThreshold) then
-                if bDebugMessages == true then LOG(sFunctionRef..': Are close to unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
-                bAreCloseToUnit = true
-                --Want to keep searching to get the closest enemy unit if dont have one in range and have specified the closest unit be recorded
-                if not(oOptionalFriendlyUnitToRecordClosestEnemy) or iClosestEnemyDist <= -5 + math.max((oOptionalFriendlyUnitToRecordClosestEnemy[M28UnitInfo.refiDFRange] or 0), (oOptionalFriendlyUnitToRecordClosestEnemy[M28UnitInfo.refiIndirectRange] or 0)) then
-                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                    return true
+                --Structure specific
+                if not(iOptionalDistThresholdForStructure) or iCurDist <= iOptionalDistThresholdForStructure or not(EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId)) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Are close to unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                    bAreCloseToUnit = true
+                    --Want to keep searching to get the closest enemy unit if dont have one in range and have specified the closest unit be recorded
+                    if not(oOptionalFriendlyUnitToRecordClosestEnemy) or iClosestEnemyDist <= -5 + math.max((oOptionalFriendlyUnitToRecordClosestEnemy[M28UnitInfo.refiDFRange] or 0), (oOptionalFriendlyUnitToRecordClosestEnemy[M28UnitInfo.refiIndirectRange] or 0)) then
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        return true
+                    end
+                else
+                    if bDebugMessages == true then LOG(sFunctionRef..': Are close to structure but not too close yet, iOptionalDistThresholdForStructure='..iOptionalDistThresholdForStructure) end
                 end
             end
         end
@@ -1305,4 +1314,65 @@ function IsTargetNearActiveNukeTarget(tTarget, iTeam, iDistThreshold)
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, tTarget='..repru(tTarget)..'; bNearTarget='..tostring(bNearTarget)) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return bNearTarget
+end
+
+function IsTableOfUnitsStillValid(tUnits, bInvalidIfFullHealth)
+    --bInvalidIfFullHealth - e.g. if have a table of units to repair, set this to true
+    local sFunctionRef = 'IsTableOfUnitsStillValid'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if M28Utilities.IsTableEmpty(tUnits) == false then
+        local iEntryCount = table.getn(tUnits)
+        for iCurEntry = iEntryCount, 1, -1 do
+            local oUnit = tUnits[iCurEntry]
+            if not(M28UnitInfo.IsUnitValid(oUnit)) or (bInvalidIfFullHealth and M28UnitInfo.GetUnitHealthPercent(oUnit) == 1) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Removing unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds()..'; Unit healthj='..M28UnitInfo.GetUnitHealthPercent(oUnit)) end
+                table.remove(tUnits, iCurEntry)
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Do we still have a table of valid units? is it empty='..tostring(M28Utilities.IsTableEmpty(tUnits))) end
+        if M28Utilities.IsTableEmpty(tUnits) == false then
+            return true
+        end
+    end
+    return false
+end
+
+function IsPositionCloseToZoneEdge(iPlateauOrZero, iLandOrWaterZone, iMaxDistToEdgeOfAdjacentZone, tStartPoint)
+    --returns true if are within iMaxDistToEdgeOfAdjacentZone of the edge of iLandOrWaterZone, i.e. if this is positive, then will return true if are anywhere in that zone, or outside it by iMaxDistToEdgeOfAdjacentZone; if is a negative number then must be inside the zone by the negativenumber amount
+    --Only an approximation - does a square around the outer edges of the zone to estimate
+    local tLZOrWZData
+
+    local tMinPosition, tMaxPosition
+    if iPlateauOrZero == 0 then
+        tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+        tMinPosition = M28Map.GetPositionFromPathingSegments(tLZOrWZData[M28Map.subrefWZMinSegX], tLZOrWZData[M28Map.subrefWZMinSegZ])
+        tMaxPosition = M28Map.GetPositionFromPathingSegments(tLZOrWZData[M28Map.subrefWZMaxSegX], tLZOrWZData[M28Map.subrefWZMaxSegZ])
+    else
+        tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+        tMinPosition = M28Map.GetPositionFromPathingSegments(tLZOrWZData[M28Map.subrefLZMinSegX], tLZOrWZData[M28Map.subrefLZMinSegZ])
+        tMaxPosition = M28Map.GetPositionFromPathingSegments(tLZOrWZData[M28Map.subrefLZMaxSegX], tLZOrWZData[M28Map.subrefLZMaxSegX])
+    end
+    local iMinX = tMinPosition[1]
+    local iMaxX = tMaxPosition[1]
+    local iMinZ = tMinPosition[3]
+    local iMaxZ = tMaxPosition[3]
+    --Really could simplify the below into just one formula, but separating it out makes it slightl yeasier to conceptualise
+    if iMaxDistToEdgeOfAdjacentZone > 0 then
+        --Want to be outside the box
+        if tStartPoint[1] >= iMinX - iMaxDistToEdgeOfAdjacentZone and tStartPoint[1] <= iMaxX + iMaxDistToEdgeOfAdjacentZone then
+            if tStartPoint[3] >= iMinZ - iMaxDistToEdgeOfAdjacentZone and tStartPoint[3] <= iMaxZ + iMaxDistToEdgeOfAdjacentZone then
+                return true
+            end
+        end
+    else
+        --Wnat to be inside the zone box
+        if tStartPoint[1] >= iMinX + iMaxDistToEdgeOfAdjacentZone and tStartPoint[1] <= iMaxX - iMaxDistToEdgeOfAdjacentZone then
+            if tStartPoint[3] >= iMinZ + iMaxDistToEdgeOfAdjacentZone and tStartPoint[3] <= iMaxZ - iMaxDistToEdgeOfAdjacentZone then
+                return true
+            end
+        end
+    end
+    return false
 end

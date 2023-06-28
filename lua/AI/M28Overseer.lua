@@ -314,8 +314,10 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
     if bIncompatible then
         if bDontPlayWithM27 then
             if sUnnecessaryAIMod and not(bHaveOtherAI) then
-                M28Chat.SendMessage(aiBrain, 'SendGameCompatibilityWarning', 'Sorry I don’t like it when M27AI is watching and adults are around - he teases me about how much better he is and sometimes the game desyncs.  Please disable the M27AI mod.', 15, 15)
+                --Disabled as seen a bunch of games with M27 enabled and M28 active with no desync
+                --M28Chat.SendMessage(aiBrain, 'SendGameCompatibilityWarning', 'Sorry I don’t like it when M27AI is watching and adults are around - he teases me about how much better he is and sometimes the game desyncs.  Please disable the M27AI mod.', 15, 15)
             else
+                --warning based on Az noting there were sometimes desyncs with M27 and M28 playing together
                 M28Chat.SendMessage(aiBrain, 'SendGameCompatibilityWarning', 'Sorry I don’t get on well with my brother M27 when adults are around – he teases me about how much better he is and sometimes the game desyncs', 15, 15)
             end
         else
@@ -643,8 +645,29 @@ function CheckUnitCap(aiBrain)
             [1] = M28UnitInfo.refCategoryAllAir * categories.TECH1 + categories.NAVAL * categories.MOBILE * categories.TECH1,
             [2] = M28UnitInfo.refCategoryMobileLand * categories.TECH2 - categories.COMMAND - M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryAirScout + M28UnitInfo.refCategoryAirAA * categories.TECH1,
             [3] = M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND,
-            [4] = M28UnitInfo.refCategoryWall + M28UnitInfo.refCategoryEngineer - categories.TECH3,
+            [4] = M28UnitInfo.refCategoryWall + M28UnitInfo.refCategoryEngineer - categories.TECH3 + M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryLandScout,
         }
+        --Adjust these categories for special cases
+        if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyLandFactoryTech] == 1 and (M28Map.bIsCampaignMap or bUnitRestrictionsArePresent) then
+            --exclude T1 land from category 4
+            tiCategoryToDestroy[4] =  M28UnitInfo.refCategoryWall + M28UnitInfo.refCategoryEngineer - categories.TECH3
+        end
+        if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyFactoryTech] < 3 or ((M28Map.bIsCampaignMap or bUnitRestrictionsArePresent) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * categories.TECH3) == 0) then
+            if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyFactoryTech] == 1 then
+                tiCategoryToDestroy[4] = tiCategoryToDestroy[4] - M28UnitInfo.refCategoryEngineer
+            else
+                tiCategoryToDestroy[4] = tiCategoryToDestroy[4] - M28UnitInfo.refCategoryEngineer * categories.TECH2
+            end
+        end
+        if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyLandFactoryTech] == 2 and (M28Map.bIsCampaignMap or bUnitRestrictionsArePresent) and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] then
+            --Exclude MML from category 2
+            tiCategoryToDestroy[2] = M28UnitInfo.refCategoryMobileLand * categories.TECH2 - categories.COMMAND - M28UnitInfo.refCategoryMAA -M28UnitInfo.refCategoryMML + M28UnitInfo.refCategoryAirScout + M28UnitInfo.refCategoryAirAA * categories.TECH1
+        end
+        --If have no T2+ power, then dont include T1 power in units to ctrlK
+        if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower - categories.TECH1) == 0 then
+            tiCategoryToDestroy[3] = tiCategoryToDestroy[3] - M28UnitInfo.refCategoryPower
+        end
+
         if bDebugMessages == true then LOG(sFunctionRef..': We are over the threshold for ctrlking units') end
         if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) > iUnitCap * 0.35 then tiCategoryToDestroy[0] = tiCategoryToDestroy[0] + M28UnitInfo.refCategoryEngineer end
         local iCumulativeCategory = tiCategoryToDestroy[4]
