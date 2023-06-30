@@ -1956,9 +1956,29 @@ function AssignBombardmentActions(tWZData, iPond, iTeam, tPotentialBombardmentUn
 
         --Get the target
         local tBombardmentMainTarget
-        if iClosestMexRef then tBombardmentMainTarget = tClosestMex
+        if iClosestMexRef then tBombardmentMainTarget = {tClosestMex[1], tClosestMex[2], tClosestMex[3]}
         else
-            tBombardmentMainTarget = tWZTeamData[M28Map.reftClosestEnemyBase]
+            tBombardmentMainTarget = {tWZTeamData[M28Map.reftClosestEnemyBase][1], tWZTeamData[M28Map.reftClosestEnemyBase][2], tWZTeamData[M28Map.reftClosestEnemyBase][3]}
+        end
+        --Adjust target if this is a campaign to make sure it is in the playable area
+        if M28Map.bIsCampaignMap and not(M28Conditions.IsLocationInPlayableArea(tBombardmentMainTarget)) then
+            local iInterval = 30
+            local iDistFromBase = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], tBombardmentMainTarget)
+            local iMaxDist = math.floor(iDistFromBase / iInterval) * iInterval
+            local iAngleFromTargetToMidpoint = M28Utilities.GetAngleFromAToB(tWZData[M28Map.subrefMidpoint], tBombardmentMainTarget)
+            if bDebugMessages == true then LOG(sFunctionRef..': Bombardment target is outside playable area so will try and adjust, playable area='..repru(M28Map.rMapPlayableArea)..'; Sync.NewPlayableArea='..repru(Sync.NewPlayableArea)) end
+            for iCurDist = iInterval, iMaxDist, iInterval do
+                local tRevisedTarget = M28Utilities.MoveInDirection(tBombardmentMainTarget, iAngleFromTargetToMidpoint, iCurDist, true, false, true)
+                if bDebugMessages == true then LOG(sFunctionRef..': iCurDist='..iCurDist..'; tRevisedTarget='..repru(tRevisedTarget)..'; Is in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tRevisedTarget))) end
+                if tRevisedTarget and M28Conditions.IsLocationInPlayableArea(tRevisedTarget) then
+                    if bDebugMessages == true then
+                        LOG(sFunctionRef..': Adjusting bombardment target, iCurDist='..iCurDist..'; tRevisedTarget='..repru(tRevisedTarget)..'; tBombardmentMainTarget before adjust='..repru(tBombardmentMainTarget)..'; Map playable area='..repru(M28Map.rMapPlayableArea))
+                        M28Utilities.DrawLocation(tRevisedTarget)
+                    end
+                    tBombardmentMainTarget = {tRevisedTarget[1], tRevisedTarget[2], tRevisedTarget[3]}
+                    break
+                end
+            end
         end
 
 

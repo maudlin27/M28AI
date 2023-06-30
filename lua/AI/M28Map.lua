@@ -687,7 +687,7 @@ function SetupPlayableAreaAndSegmentSizes(rCampaignPlayableAreaOverride)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SetupPlayableAreaAndSegmentSizes'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if bDebugMessages == true then LOG(sFunctionRef..': About to set playable area at time='..GetGameTimeSeconds()..'; ScenarioInfo.MapData.PlayableRect='..repru(ScenarioInfo.MapData.PlayableRect)..'; bMapLandSetupComplete='..tostring(bMapLandSetupComplete or false)..'; bIsCampaignMap='..tostring(bIsCampaignMap or false)..'; rCampaignPlayableAreaOverride='..repru(rCampaignPlayableAreaOverride)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': About to set playable area at time='..GetGameTimeSeconds()..'; ScenarioInfo.MapData.PlayableRect='..repru(ScenarioInfo.MapData.PlayableRect)..'; bMapLandSetupComplete='..tostring(bMapLandSetupComplete or false)..'; bIsCampaignMap='..tostring(bIsCampaignMap or false)..'; rCampaignPlayableAreaOverride='..repru(rCampaignPlayableAreaOverride)..'; Sync.NewPlayableArea='..repru(Sync.NewPlayableArea)) end
     if ScenarioInfo.MapData.PlayableRect then --and (bMapLandSetupComplete or not(bIsCampaignMap)) then
         rMapPlayableArea = ScenarioInfo.MapData.PlayableRect
     else
@@ -707,8 +707,15 @@ function SetupPlayableAreaAndSegmentSizes(rCampaignPlayableAreaOverride)
                 table.insert(rNewRect, tPosition)
             end
         end
+        if ScenarioInfo.MapData.PlayableRect then --limit playable area to scenarioinfo playable area
+            local rScenarioPlayableRect = ScenarioInfo.MapData.PlayableRect
+            rNewRect[1] = math.max(rNewRect[1], rScenarioPlayableRect[1])
+            rNewRect[2] = math.max(rNewRect[2], rScenarioPlayableRect[2])
+            rNewRect[3] = math.min(rNewRect[3], rScenarioPlayableRect[3])
+            rNewRect[4] = math.min(rNewRect[4], rScenarioPlayableRect[4])
+        end
         if bDebugMessages == true then
-            LOG(sFunctionRef..': Updating playable rect for override, rCampaignPlayableAreaOverride='..repru(rCampaignPlayableAreaOverride)..'; rNewRect='..repru(rNewRect))
+            LOG(sFunctionRef..': Updating playable rect for override, rCampaignPlayableAreaOverride='..repru(rCampaignPlayableAreaOverride)..'; ScenarioInfo.MapData.PlayableRect='..repru(ScenarioInfo.MapData.PlayableRect)..'; rNewRect='..repru(rNewRect))
             M28Utilities.DrawRectangle(rCampaignPlayableAreaOverride, 2, 1000, 0)
         end
         rMapPlayableArea = rNewRect

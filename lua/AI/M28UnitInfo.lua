@@ -39,6 +39,7 @@ refoClosestEnemyFromLastCloseToEnemyUnitCheck = 'M28ClEnU' --If running the 'clo
 refbUnitIsCloaked = 'M28UnitIsCloaked' --true if have triggered the 'cloaked unit identified' logic
 refiTimeCreated = 'M28UntTimCr' --Gametimeseconds (rounded down) that unit was created
 refbIsCaptureTarget = 'M28UnitIsCapTrg' --true if we want to capture the unit
+refbIsReclaimTarget = 'M28UnitIsReTrg' --true if have an objective to reclaim the unit
 
     --Unit micro related
 refiGameTimeMicroStarted = 'M28UnitTimeMicroStarted' --Gametimeseconds that started special micro

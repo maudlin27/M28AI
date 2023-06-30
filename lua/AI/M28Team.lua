@@ -2760,3 +2760,33 @@ function GetFirstActiveM28Brain(iTeam)
         end
     end
 end
+
+function GiftAdjacentStorageToMexOwner(oJustBuilt, oOptionalBrainToGiftTo)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GiftAdjacentStorageToMexOwner'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local tMexLocation = oJustBuilt:GetPosition()
+    local rSearchRectangle = M28Utilities.GetRectAroundLocation(tMexLocation, 2.749) --If changing this also change M28Economy and M28Engineer similar value
+    local tNearbyUnits = GetUnitsInRect(rSearchRectangle) --at 1.5 end up with storage thats not adjacent being gifted in some cases but not in others; at 1 none of it gets gifted; the mass storage should be exactly 2 from the mex; however even at 2.1, 2.25 and 2.499 had cases where the mex wasnt identified so will try 2.75 since distances can vary/be snapped to the nearest 0.5 I think
+    local iBrainIndexToGiftTo
+    if oOptionalBrainToGiftTo then iBrainIndexToGiftTo = oOptionalBrainToGiftTo:GetArmyIndex()
+    else iBrainIndexToGiftTo = oJustBuilt:GetAIBrain():GetArmyIndex()
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Storage gifting where built mex - oJustBuilt='..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..'; owner='..oJustBuilt:GetAIBrain().Nickname..'; is tNearbyUnits empty='..tostring(M28Utilities.IsTableEmpty(tNearbyUnits))) end
+    if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
+        local tNearbyStorage = EntityCategoryFilterDown(M28UnitInfo.refCategoryMassStorage, tNearbyUnits)
+        if M28Utilities.IsTableEmpty(tNearbyStorage) == false then
+            for iUnit, oUnit in tNearbyStorage do
+                if IsAlly(iBrainIndexToGiftTo, oUnit:GetAIBrain():GetArmyIndex()) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': About to transfer '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' from brain '..oUnit:GetAIBrain().Nickname..' to '..oJustBuilt:GetAIBrain().Nickname..'; Dist from unit to tMexLocation='..M28Utilities.GetDistanceBetweenPositions(tMexLocation, oUnit:GetPosition())) end
+                    if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tMexLocation) <= 2.25 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will try and gift the storage to the player that built the mex') end
+                        TransferUnitsToPlayer({oUnit}, iBrainIndexToGiftTo, false)
+                    end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end

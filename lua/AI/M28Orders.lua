@@ -52,6 +52,7 @@ local M28Config = import('/mods/M28AI/lua/M28Config.lua')
 local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
 local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
+local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 
 
 function UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc)
@@ -134,6 +135,11 @@ function IssueTrackedClearCommands(oUnit)
         if GetGameTimeSeconds() + 0.02 > oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] then
             oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] = nil
         end
+    end
+
+    --Bomber damage tracking
+    if oUnit[M28Air.refoStrikeDamageAssigned] then
+        M28Air.RemoveAssignedAttacker(oUnit[M28Air.refoStrikeDamageAssigned], oUnit)
     end
 
     --Clear orders:

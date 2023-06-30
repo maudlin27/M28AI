@@ -970,7 +970,7 @@ function CheckForAlliedCampaignUnitsToShareAtGameStart(aiBrain)
                 table.insert(tHumanBrains, oBrain)
             end
         end
-        local iCategoriesOfInterest = M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryAllAir + M28UnitInfo.refCategoryAllNavy - categories.COMMAND
+        local iCategoriesOfInterest = M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryAllAir + M28UnitInfo.refCategoryAllNavy - categories.COMMAND - M28UnitInfo.refCategoryMassStorage
         if M28Utilities.IsTableEmpty(tHumanBrains) == false then
             while M28Utilities.IsTableEmpty(tNearbyStructures) do
                 if iWaitCount > 0 then
@@ -1055,6 +1055,10 @@ function CheckForAlliedCampaignUnitsToShareAtGameStart(aiBrain)
                             else
                                 oCurBrain = tiM28Brains[iM28BrainCount]
                             end
+                            --Gift adjacent mass storage if any
+                            if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
+                                M28Team.GiftAdjacentStorageToMexOwner(oUnit, oCurBrain:GetArmyIndex())
+                            end
                             if bDebugMessages == true then LOG(sFunctionRef..': Just about to try and gift unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' to M28AI brain '..oCurBrain.Nickname) end
                             M28Team.TransferUnitsToPlayer({ oUnit }, oCurBrain:GetArmyIndex(), false)
                         end
@@ -1138,4 +1142,40 @@ function CheckForScenarioObjectives()
         bActiveMissionChecker = false
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function M28ErisKilled()
+
+    if(not ScenarioInfo.OpEnded) and ScenarioInfo.M4P1.Active then
+        local CampaignScript = import('/maps/scca_coop_e03.v0021/SCCA_Coop_E03_script.lua')
+        if CampaignScript.ErisKilled then
+            LOG('Manually calling Eris killed event')
+            CampaignScript.ErisKilled()
+        end
+        --[[WaitSeconds(20)
+        if(not ScenarioInfo.OpEnded) and ScenarioInfo.M4P1.Active then
+            local ScenarioFramework = import('/lua/ScenarioFramework.lua')
+            ScenarioFramework.EndOperationSafety()
+            ScenarioInfo.OpComplete = true
+
+            -- aeon cdr killed
+            --    ScenarioFramework.EndOperationCamera(ScenarioInfo.AeonCDR)
+            --ScenarioFramework.CDRDeathNISCamera(ScenarioInfo.AeonCDR) --Commander will be dead now/unit invalid
+
+            local OpStrings = import('/maps/scca_coop_e03.v0021/SCCA_Coop_E03_strings.lua')
+            ScenarioFramework.Dialogue(OpStrings.E03_M04_070, StartKillGame, true)
+        end--]]
+    end
+end
+
+function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderSpecialCampaignObjectives'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    --UEF Mission 3 - create a special death trigger for Aeon ACU due to flaw with preceding objective
+    if ScenarioInfo.M4P1 and M28Utilities.IsTableEmpty(Target.Units) and ScenarioInfo.M4P1.Active and M28UnitInfo.IsUnitValid(ScenarioInfo.AeonCDR) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Creating manual on death trigger') end
+        local ScenarioFramework = import('/lua/ScenarioFramework.lua')
+        ScenarioFramework.CreateUnitDeathTrigger(M28ErisKilled, ScenarioInfo.AeonCDR)
+    end
 end
