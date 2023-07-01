@@ -39,6 +39,7 @@ refoClosestEnemyFromLastCloseToEnemyUnitCheck = 'M28ClEnU' --If running the 'clo
 refbUnitIsCloaked = 'M28UnitIsCloaked' --true if have triggered the 'cloaked unit identified' logic
 refiTimeCreated = 'M28UntTimCr' --Gametimeseconds (rounded down) that unit was created
 refbIsCaptureTarget = 'M28UnitIsCapTrg' --true if we want to capture the unit
+refbIsReclaimTarget = 'M28UnitIsReTrg' --true if have an objective to reclaim the unit
 
     --Unit micro related
 refiGameTimeMicroStarted = 'M28UnitTimeMicroStarted' --Gametimeseconds that started special micro
@@ -232,7 +233,7 @@ refCategoryDangerousToLand = refCategoryLandCombat + refCategoryIndirect + refCa
 refCategoryAllNonAirScoutUnits = categories.MOBILE + refCategoryStructure + refCategoryAirNonScout
 refCategoryStealthGenerator = categories.STEALTHFIELD
 refCategoryStealthAndCloakPersonal = categories.STEALTH
-refCategoryProtectFromTML = refCategoryT2Mex + refCategoryT3Mex + refCategoryT2Power + refCategoryT3Power + refCategoryFixedT2Arti
+refCategoryProtectFromTML = refCategoryStructure * categories.TECH2 + refCategoryStructure * categories.TECH3 + refCategoryExperimentalStructure - categories.FACTORY --Previously was: refCategoryT2Mex + refCategoryT3Mex + refCategoryT2Power + refCategoryT3Power + refCategoryFixedT2Arti
 refCategoryExperimentalLevel = categories.EXPERIMENTAL + refCategoryFixedT3Arti + refCategorySML
 refCategoryGameEnder = refCategoryExperimentalArti + categories.EXPERIMENTAL * categories.STRUCTURE * categories.SILO
 refCategoryBigThreatCategories = refCategoryExperimentalLevel + refCategoryMissileShip + refCategorySMD --Note - this is different to M27 which only considers land experimentals as big threat categories
@@ -681,6 +682,8 @@ function GetCombatThreatRating(tUnits, bEnemyUnits, bJustGetMassValue, bIndirect
                                 --T2 arti - reduce its value because it sucks
                                 if EntityCategoryContains(refCategoryFixedT2Arti, oUnit.UnitId) then
                                     iMassMod = iMassMod * 0.6
+                                elseif EntityCategoryContains(refCategoryStructureAA * categories.TECH1, oUnit.UnitId) then
+                                    iMassMod = iMassMod * 1.5
                                 else
                                     iMassMod = iMassMod * 2
                                     if bAntiNavyOnly then iMassMod = iMassMod * 1.1 end

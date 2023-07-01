@@ -554,6 +554,9 @@ function AddAssignedAttacker(oTarget, oNewBomber)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AddAssignedAttacker'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if oNewBomber[refoStrikeDamageAssigned] and not(oNewBomber[refoStrikeDamageAssigned] == oTarget) then --redundancy - M28Orders should already clear when issuing a clear commands
+        RemoveAssignedAttacker(oNewBomber[refoStrikeDamageAssigned], oNewBomber)
+    end
 
     oTarget[refiStrikeDamageAssigned] = (oTarget[refiStrikeDamageAssigned] or 0) + oNewBomber[M28UnitInfo.refiStrikeDamage]
     oNewBomber[refoStrikeDamageAssigned] = oTarget
@@ -1498,10 +1501,11 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                             local iAngleToSupport = M28Utilities.GetAngleFromAToB(tStartMidpoint, tStartLZOrWZTeamData[M28Map.reftClosestEnemyBase])
                             local iRallyPlateau, iRallyLZOrWZ
                             local tLastSafeRally
-                            if bDebugMessages == true then LOG(sFunctionRef..': iAngleToSupport='..iAngleToSupport..'; iDistBetweenSupportAndRally='..iDistBetweenSupportAndRally) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': iAngleToSupport='..iAngleToSupport..'; base rally point='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])..'; Playable area='..repru(M28Map.rMapPlayableArea)..'; iMaxDistToTravel='..iMaxDistToTravel) end
                             for iCurDist = iIntervalSize, math.floor(iMaxDistToTravel / iIntervalSize) * iIntervalSize, iIntervalSize do
                                 local tPotentialNewRally = M28Utilities.MoveInDirection(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], iAngleToSupport, iCurDist, true, false, true)
                                 if tPotentialNewRally then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': iCurDist='..iCurDist..'; tPotentialNewRally='..repru(tPotentialNewRally)) end
                                     iRallyPlateau, iRallyLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tPotentialNewRally)
                                     if (iRallyLZOrWZ or 0) > 0 then
                                         --Is this safe?
@@ -2423,7 +2427,13 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
             local iTorpBomberThreat = M28UnitInfo.GetAirThreatLevel(tAvailableBombers, false, false, false, true, false, true, false) + M28UnitInfo.GetAirThreatLevel(tUnavailableUnits, false, false, false, true, false, true, false)
 
             local iAAThreatThreshold
-            if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through water zones, iTorpBomberThreat='..iTorpBomberThreat) end
+
+            local iAirAAThreatThreshold = 0
+            if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then iAirAAThreatThreshold = iTorpBomberThreat * 0.25
+            elseif not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]) then
+                iAirAAThreatThreshold = math.min(iTorpBomberThreat * 0.15, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.25)
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through water zones, iTorpBomberThreat='..iTorpBomberThreat..'; iAirAAThreatThreshold='..iAirAAThreatThreshold) end
             for iWaterZone, iDistance in M28Utilities.SortTableByValue(tiWaterZoneByDistance, false) do
                 local tWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][iTeam]
                 if iTorpBomberThreat >= 6000 or (iTorpBomberThreat >= 4000 and GetGameTimeSeconds() - (tWZTeamData[M28Map.refiTimeOfLastTorpAttack] or -100) >= 3) then --Have so many torp bombers that dont want to worry about enemy groundAA threat unless massively more than us
@@ -2440,7 +2450,9 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering if enemies in iWaterZone='..iWaterZone..'; iDistance='..iDistance..'; Is table of enemy units in this WZ empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]))..'; tWZTeamData[M28Map.subrefWZbCoreBase]='..tostring(tWZTeamData[M28Map.subrefWZbCoreBase] or false)) end
                 if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
                     if bDebugMessages == true then LOG(sFunctionRef..': Want to attack, enemy AA threat threshold='..iAAThreatThreshold..'; DoesEnemyHaveAAThreatAlongPath='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, false, iAAThreatThreshold, 0))) end
-                    if not(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, false, iAAThreatThreshold, 0, true, iAirSubteam)) then
+
+                    --DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, iEndPlateauOrZero, iEndLandOrWaterZone, bIgnoreAirAAThreat, iGroundAAThreatThreshold, iAirAAThreatThreshold, bUsingTorpBombers, iAirSubteam)
+                    if not(DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOrWaterZone, 0, iWaterZone, false,      iAAThreatThreshold,     iAirAAThreatThreshold, true, iAirSubteam)) then
                         --Add enemies in this water zone and any adjacent water zone
                         AddEnemyTargetsInWaterZone(iWaterZone, true)
                         tWZTeamData[M28Map.refiTimeOfLastTorpAttack] = GetGameTimeSeconds()
@@ -2466,8 +2478,10 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                                 end
                             end
                             local tEnemyOther = EntityCategoryFilterDown(iOtherCat, tEnemyTargets)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is table tEnemyOther empty='..tostring(M28Utilities.IsTableEmpty(tEnemyOther))) end
                             if M28Utilities.IsTableEmpty(tEnemyOther) == false then
                                 AssignTorpOrBomberTargets(tAvailableBombers, tEnemyOther, iAirSubteam)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Is table of available bombers empty after assigning torp targets='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))) end
                                 if M28Utilities.IsTableEmpty(tAvailableBombers) then
                                     break
                                 end
@@ -2546,9 +2560,19 @@ function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam
     for iUnit, oUnit in tEnemyTargets do
         toEnemyUnitsByDistance[iUnit] = GetRoughDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint)
     end
+
+    local aiBrain
+    if tAvailableBombers[1] then aiBrain = tAvailableBombers[1]:GetAIBrain()
+    else
+        for iUnit, oUnit in tAvailableBombers do
+            aiBrain = oUnit:GetAIBrain()
+            break
+        end
+    end
+    local bIssueAttackUnitOrder
     --Go through enemy units by distance to rally point (so target the nearest ones first)
     for iCurEnemyUnit, iDistance in M28Utilities.SortTableByValue(toEnemyUnitsByDistance, false) do
-    --for iCurEnemyUnit = iEnemyTargetSize, 1, -1 do
+        --for iCurEnemyUnit = iEnemyTargetSize, 1, -1 do
         iClosestUnitDist = 100000
         local oEnemyUnit = tEnemyTargets[iCurEnemyUnit]
         iTotalStrikeDamageWanted = oEnemyUnit:GetMaxHealth()
@@ -2572,14 +2596,33 @@ function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam
                     iClosestTorpRef = iTorp
                 end
             end
-            AddAssignedAttacker(oEnemyUnit, oClosestUnit)
-            M28Orders.IssueTrackedAttack(oClosestUnit, oEnemyUnit, false, 'ATrp', false)
-            if bDebugMessages == true then LOG(sFunctionRef..': Will tell oClosestUnit='..oClosestUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestUnit)..' with distance '..iClosestUnitDist..' to attack enemy, strike damage of torp bomber='..oClosestUnit[M28UnitInfo.refiStrikeDamage]..'; assigned strike damage after including this='..oEnemyUnit[refiStrikeDamageAssigned]) end
+
+            --Attack if we already have an attack order on this unit, or we ahve visibility of it - decided ot comment out as had added  to try and avoid a bug with units not targeting but it was caused by somethign else, left commented out in case want to reintroduce at a later point
+            --bIssueAttackUnitOrder = M28UnitInfo.CanSeeUnit(aiBrain, oEnemyUnit, true)
+            --if not(bIssueAttackUnitOrder) then
+                --if oClosestUnit[M28Orders.reftiLastOrders][oClosestUnit[M28Orders.refiOrderCount]][M28Orers.subrefoOrderUnitTarget] == oEnemyUnit then
+                    --[[bIssueAttackUnitOrder = true
+                end
+            end
+            if bIssueAttackUnitOrder then--]]
+                M28Orders.IssueTrackedAttack(oClosestUnit, oEnemyUnit, false, 'ATrp', false)
+            --[[else
+                --Bomber - use attackground; torp bomber - use attackmove
+                if EntityCategoryContains(M28UnitInfo.refCategoryTorpBomber, oClosestUnit.UnitId) then
+                    M28Orders.IssueTrackedAggressiveMove(oClosestUnit, oEnemyUnit:GetPosition(), 6, false, 'AMTrp', false)
+                else
+                    --Bomber - ground fire
+                    M28Orders.IssueTrackedGroundAttack(oClosestUnit, oEnemyUnit:GetPosition(), 1, false, 'ABGrn', false)
+                end
+            end--]]
+            AddAssignedAttacker(oEnemyUnit, oClosestUnit) --Must do this after sending the order or else will be cleared
+            if bDebugMessages == true then LOG(sFunctionRef..': Will tell oClosestUnit='..oClosestUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestUnit)..' with distance '..iClosestUnitDist..' to attack enemy, strike damage of torp bomber='..oClosestUnit[M28UnitInfo.refiStrikeDamage]..'; assigned strike damage after including this='..oEnemyUnit[refiStrikeDamageAssigned]..'; bIssueAttackUnitOrder='..tostring(bIssueAttackUnitOrder or false)) end
 
             table.remove(tAvailableBombers, iClosestTorpRef)
             if M28Utilities.IsTableEmpty(tAvailableBombers) then break end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': end of code, is table of available bomers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))) end
 end
 
 function GetUnitNearestEnemyBase(tUnitsToConsider, iTeam)
@@ -3669,8 +3712,8 @@ function UpdateTransportLocationShortlist(iTeam)
                                 end
                             end
                         end
-                            if bTooMuchThreatOrEngisTraveling then break end
-                        end
+                        if bTooMuchThreatOrEngisTraveling then break end
+                    end
                     if bDebugMessages == true then LOG(sFunctionRef..': bTooMuchThreatOrEngisTraveling='..tostring(bTooMuchThreatOrEngisTraveling)) end
                     if not(bTooMuchThreatOrEngisTraveling) then
                         table.insert(tShortlist, {iPlateau, iIsland})
@@ -4511,7 +4554,7 @@ function ManageExperimentalBomber(iTeam, iAirSubteam)
                         --Only include if enemy threat is high and our threat isnt high (as dont want to nuke our own units)
                         if bDebugMessages == true then LOG(sFunctionRef..': Are potential enemies to target, checking overall threat vs friendly threat, ally combat total='..(tLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0)..'; Enemy combat total='..(tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)..'; tLZOrWZTeamData[M28Map.subrefLZThreatEnemyGroundAA]='..(tLZOrWZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 'nil')..'; tLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass]='..(tLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 'nil')) end
                         if (tLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) * 1.75 <= (tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) + ((tLZOrWZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) + (tLZOrWZTeamData[M28Map.subrefWZThreatEnemyAA] or 0)) * 0.25 + (tLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) * 0.02 and
-                        ((tLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) <= 200 or (tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) + (tLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) + (tLZOrWZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) + (tLZOrWZTeamData[M28Map.subrefWZThreatEnemyAA] or 0) >= 2500 + (tLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) * 3) then
+                                ((tLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) <= 200 or (tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) + (tLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) + (tLZOrWZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) + (tLZOrWZTeamData[M28Map.subrefWZThreatEnemyAA] or 0) >= 2500 + (tLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) * 3) then
 
                             --Check if enemy has enough AA nearby
                             local bTooMuchAA

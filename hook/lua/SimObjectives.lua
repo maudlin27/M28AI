@@ -52,3 +52,9 @@ AddObjective = function(Type,         -- 'primary', 'bonus', etc
     ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').ObjectiveAdded, Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
     return M28OldAddObjective(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
 end
+
+local M28OldReclaim = Reclaim
+Reclaim = function(Type, Complete, Title, Description, Target)
+    ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').ReclaimTargetObjectiveAdded, Type, Complete, Title, Description, Target)
+    return M28OldReclaim(Type, Complete, Title, Description, Target)
+end

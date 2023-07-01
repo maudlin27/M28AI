@@ -4,8 +4,8 @@
 --- DateTime: 01/12/2022 08:27
 ---
 local M28Config = import('/mods/M28AI/lua/M28Config.lua')
-local M28OnFirstUpdate = OnFirstUpdate
 
+local M28OnFirstUpdate = OnFirstUpdate
 function OnFirstUpdate()
     M28OnFirstUpdate()
     if M28Config.M28RunVeryFast == true then

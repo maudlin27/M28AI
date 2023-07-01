@@ -7,6 +7,7 @@ local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local NavUtils = import("/lua/sim/navutils.lua")
 local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
 local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
+local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 
 tErrorCountByMessage = {} --WHenever we have an error, then the error message is a key that gets included in this table
 
@@ -408,7 +409,7 @@ end
 
 function MoveInDirection(tStart, iAngle, iDistance, bKeepInMapBounds, bTravelUnderwater, bKeepInCampaignPlayableArea)
     --iAngle: 0 = north, 90 = east, etc.; use GetAngleFromAToB if need angle from 2 positions
-    --tStart = {x,y,z} (y isnt used)
+    --tStart = {x,y,z} (y isnt used); try to use a location that is inside the playable area as tStart
     --if bKeepInMapBounds is true then will limit to map bounds
     --bTravelUnderwater - if true then will get the terrain height instead of the surface height
 
@@ -428,7 +429,9 @@ function MoveInDirection(tStart, iAngle, iDistance, bKeepInMapBounds, bTravelUnd
         end
     else
         local rPlayableArea
-        if bKeepInCampaignPlayableArea then rPlayableArea = M28Map.rMapPlayableArea
+        if bKeepInCampaignPlayableArea then
+            --Adjust slightly as had a location that was 0.1 inside the playable area and units couldnt move to it
+            rPlayableArea = {M28Map.rMapPlayableArea[1] + 1, M28Map.rMapPlayableArea[2] + 1, M28Map.rMapPlayableArea[3] - 1, M28Map.rMapPlayableArea[4] - 1}
         else rPlayableArea = M28Map.rMapPotentialPlayableArea
         end
         local tTargetPosition
@@ -439,10 +442,10 @@ function MoveInDirection(tStart, iAngle, iDistance, bKeepInMapBounds, bTravelUnd
         end
         --Get actual distance required to keep within map bounds
         local iNewDistWanted = 10000
-        if tTargetPosition[1] < rPlayableArea[1] then iNewDistWanted = iDistance * (tStart[1] - rPlayableArea[1]) / (tStart[1] - tTargetPosition[1]) end
-        if tTargetPosition[3] < rPlayableArea[2] then iNewDistWanted = math.min(iNewDistWanted, iDistance * (tStart[3] - rPlayableArea[2]) / (tStart[3] - tTargetPosition[3])) end
-        if tTargetPosition[1] > rPlayableArea[3] then iNewDistWanted = math.min(iNewDistWanted, iDistance * (rPlayableArea[3] - tStart[1]) / (tTargetPosition[1] - tStart[1])) end
-        if tTargetPosition[3] > rPlayableArea[4] then iNewDistWanted = math.min(iNewDistWanted, iDistance * (rPlayableArea[4] - tStart[3]) / (tTargetPosition[3] - tStart[3])) end
+        if tTargetPosition[1] < rPlayableArea[1] then iNewDistWanted = (iDistance + 0.1) * (tStart[1] - rPlayableArea[1]) / (tStart[1] - tTargetPosition[1]) end
+        if tTargetPosition[3] < rPlayableArea[2] then iNewDistWanted = math.min(iNewDistWanted, (iDistance + 0.1) * (tStart[3] - rPlayableArea[2]) / (tStart[3] - tTargetPosition[3])) end
+        if tTargetPosition[1] > rPlayableArea[3] then iNewDistWanted = math.min(iNewDistWanted, (iDistance + 0.1) * (rPlayableArea[3] - tStart[1]) / (tTargetPosition[1] - tStart[1])) end
+        if tTargetPosition[3] > rPlayableArea[4] then iNewDistWanted = math.min(iNewDistWanted, (iDistance + 0.1) * (rPlayableArea[4] - tStart[3]) / (tTargetPosition[3] - tStart[3])) end
 
         if iNewDistWanted == 10000 then
             --if bDebugMessages == true then LOG(sFunctionRef..': Are inside playable area, returning tTargetPosition='..repru(tTargetPosition)) end
@@ -450,7 +453,7 @@ function MoveInDirection(tStart, iAngle, iDistance, bKeepInMapBounds, bTravelUnd
         else
             --Are out of playable area, so adjust the position; Can use the ratio of the amount we have moved left/right or top/down vs the long line length to work out the long line length if we reduce the left/right so its within playable area
             --if bDebugMessages == true then LOG(sFunctionRef..': Outside playable area, iNewDistWanted='..iNewDistWanted..'; iXAdj='..iXAdj..'; iZAdj='..iZAdj..'; iDistance='..iDistance..'; tTargetPosition after updating for x and z adj='..repru(tTargetPosition)..'; rPlayableArea='..repru(rPlayableArea)) end
-            return MoveInDirection(tStart, iAngle, iNewDistWanted - 0.1, false)
+            return MoveInDirection(tStart, iAngle, iNewDistWanted, false)
         end
     end
 end
