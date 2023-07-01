@@ -20,6 +20,7 @@ local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
 local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
+local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 
 
 bInitialSetup = false
@@ -398,7 +399,7 @@ function M28BrainCreated(aiBrain)
         ForkThread(GameSettingWarningsChecksAndInitialChatMessages, aiBrain)
         ForkThread(M28Map.SetupMap)
         ForkThread(UpdateMaxUnitCapForRelevantBrains)
-
+        ForkThread(M28Building.DetermineBuildingExpectedValues)
     end
 
     ForkThread(OverseerManager, aiBrain)
@@ -461,11 +462,8 @@ end
 function TestCustom(aiBrain)
 
     --AiX 10.0
-    --ScenarioInfo.Options.CheatMult = tostring(10.0)
-    --ScenarioInfo.Options.BuildMult = tostring(10.0)
-    if M28Map.bMapLandSetupComplete and GetGameTimeSeconds() >= 6 then
-        M28Map.DrawSpecificLandZone(143, 2)
-    end
+    ScenarioInfo.Options.CheatMult = tostring(10.0)
+    ScenarioInfo.Options.BuildMult = tostring(10.0)
 
     --Four corners - draw buildable locations in bottom-right with plateau 7 LZ2
     --Island zero - P218 LZ1
@@ -916,7 +914,7 @@ function OverseerManager(aiBrain)
         WaitTicks(1)
     end
 
-    --ForkThread(TestCustom, aiBrain)
+    ForkThread(TestCustom, aiBrain)
 
     --Initialise main systems
     ForkThread(Initialisation, aiBrain)

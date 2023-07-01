@@ -4011,8 +4011,11 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     elseif iTotalBuildPowerWanted > 0 then
         --Reduce BP for high modifiers where we have at least 50% mass stored and dont have spare engineers
         if iTotalBuildPowerWanted > 60 and M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] >= 1.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 and tLZOrWZTeamData[M28Map.subrefTbWantBP] and (tLZOrWZTeamData[M28Map.subrefSpareBPByTech][1] == 0 and tLZOrWZTeamData[M28Map.subrefSpareBPByTech][2] == 0 and tLZOrWZTeamData[M28Map.subrefSpareBPByTech][3] == 0) then
-            iTotalBuildPowerWanted = iTotalBuildPowerWanted * math.max(1 / M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier], 0.4)
-            if bDebugMessages == true then LOG(sFunctionRef..': Halfing build power wanted') end
+            --Only half BP for building the first power if we have lots of power already
+            if not(iActionToAssign == refActionBuildPower) or (iMinTechWanted == 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultipler] * 500) then
+                iTotalBuildPowerWanted = iTotalBuildPowerWanted * math.max(1 / M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier], 0.4)
+                if bDebugMessages == true then LOG(sFunctionRef..': Halfing build power wanted') end
+            end
         end
 
         --Reclaim specific - limit BP to 5 if we have recenlty failed to find something to reclaim
@@ -4415,12 +4418,22 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
             else --Dont have a category to search for
                 --Order specific logic
                 if iActionToAssign == refActionMoveToLandZone then
-                    local iTargetLZ = vOptionalVariable
-                    local tTargetLZ = M28Map.tAllPlateaus[iPlateauOrPond][M28Map.subrefPlateauLandZones][iTargetLZ]
+                    local iTargetLZ
+                    local iPlateauToMoveTo
+                    if bIsWaterZone then
+                        iTargetLZ = vOptionalVariable[2]
+                        iPlateauToMoveTo = vOptionalVariable[1]
+                    else
+                        iTargetLZ = vOptionalVariable
+                        iPlateauToMoveTo = iPlateauOrPond
+                    end
+                    local tTargetLZ = M28Map.tAllPlateaus[iPlateauToMoveTo][M28Map.subrefPlateauLandZones][iTargetLZ]
+
+
                     sOrderRef = sOrderRef..'TLZ='..iTargetLZ
                     if M28Utilities.IsTableEmpty(tTargetLZ) then
-                        M28Utilities.ErrorHandler('Invalid LZ  for moving to, iPlateauOrPond='..iPlateauOrPond..'; will do reprs of iTargetLZ in log')
-                        LOG(sFunctionRef..': iTargetLZ='..reprs(iTargetLZ))
+                        M28Utilities.ErrorHandler('Invalid LZ  for moving to, iPlateauOrPOND='..iPlateauOrPond..'; iPlateauToMoveTo='..(iPlateauToMoveTo or 'nil')..'; will do reprs of iTargetLZ in log')
+                        LOG(sFunctionRef..': Invalid LZ for moving to, iPlateauOrPond='..(iPlateauOrPond or 'nil')..'; iTargetLZ='..reprs(iTargetLZ)..'; vOptionalVariable='..reprs(vOptionalVariable))
                     else
                         local tMoveLocation = tTargetLZ[M28Map.subrefMidpoint]
                         while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
@@ -4428,7 +4441,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                 LOG(sFunctionRef..': About to tell engineer '..tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount])..' to move to iPlateauOrPond '..iPlateauOrPond..'; iTargetLZ='..iTargetLZ)
                             end
                             M28Orders.IssueTrackedMove(tEngineersOfTechWanted[iEngiCount], tMoveLocation, 5, false, sOrderRef)
-                            TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign, false, iCurPriority, {iPlateauOrPond, iTargetLZ})
+                            TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign, false, iCurPriority, {iPlateauToMoveTo, iTargetLZ})
                             UpdateBPTracking()
                         end
                     end
@@ -5298,7 +5311,9 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     iBPWanted = 2 * tiBPByTech[iMinTechLevelForPower]
                 end
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': Start of game Want more power, iBPWanted='..iBPWanted) end
             HaveActionToAssign(refActionBuildPower, iMinTechLevelForPower, iBPWanted)
+
         end
     end
 
@@ -5573,13 +5588,14 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 if tWZTeamData[M28Map.subrefTbWantBP] and tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] <= 10 then
                     iBPWanted = 5
                     if tWZTeamData[M28Map.subrefTbWantBP] then
-                        iBPWanted = math.max(tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]], tWZTeamData[M28Map.subrefTBuildPowerByTechWanted][1])
+                        iBPWanted = math.min(40, math.max(tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]], tWZTeamData[M28Map.subrefTBuildPowerByTechWanted][1]))
                     end
+
                     HaveActionToAssign(refActionMoveToWaterZone, 1, iBPWanted + iBPAlreadyAssigned, iCurWZ, true)
                     iBPAlreadyAssigned = iBPAlreadyAssigned + iBPWanted
                     if bDebugMessages == true then LOG(sFunctionRef..': Tried to send engineers to iCurWZ '..iCurWZ..'; iBPWanted='..iBPWanted..'; iBPAlreadyAssigned='..iBPAlreadyAssigned) end
                     iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
-                    if iHighestTechEngiAvailable == 0 then break end
+                    if iHighestTechEngiAvailable == 0 or iBPAlreadyAssigned >= tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 3 then break end
                 end
             end
 
@@ -5967,7 +5983,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     if bDebugMessages == true then LOG(sFunctionRef..': iCurPriority='..iCurPriority..'; Considering building energy storage, Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Have low power='..tostring(bHaveLowPower)..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount]='..M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount]..'; Enemy unit with highest health='..M28Team.tTeamData[iTeam][M28Team.refiEnemyHighestMobileLandHealth]) end
     if not(bHaveLowPower) and M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount] <= 7 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 1 + M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount] * 5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 30 + M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount] * 20 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 2.5 + 0.25 * M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount] then
         --Do we have enough storage to 1-shot any enemy unit?
-        if M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount] < math.max(1, math.ceil((M28Team.tTeamData[iTeam][M28Team.refiEnemyHighestMobileLandHealth] / 0.9 - 1000) / 1250)) then
+        if M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount] < math.max(1, math.ceil((M28Team.tTeamData[iTeam][M28Team.refiEnemyHighestMobileLandHealth] / 0.9 - 1000) / (0.25 * M28Building.iEnergyStorageExpectedCapacity))) then
             --Is the number of storage in this LZ <= lowest storage count?
             local toStorageInThisLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryEnergyStorage, tLZTeamData[M28Map.subrefLZTAlliedUnits])
             local iStorageInThisLZ
@@ -6136,8 +6152,10 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --More power
     iCurPriority = iCurPriority + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': More power builder, bHaveLowMass='..tostring(bHaveLowMass)..'; bWantMorePower='..tostring(bWantMorePower)..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Highest friendly factory tech='..(M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 'nil')) end
     if not(bHaveLowMass) and bWantMorePower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 11 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 0) > 0 then
         iBPWanted = tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 5
+        if bDebugMessages == true then LOG(sFunctionRef..': Want more power, iCurPriority='..iCurPriority..'; iBPWanted='..iBPWanted) end
         HaveActionToAssign(refActionBuildPower, iMinTechLevelForPower, iBPWanted)
     end
 
@@ -7108,12 +7126,12 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 if tWZTeamData[M28Map.subrefTbWantBP] and tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] <= 10 then
                     iBPWanted = 5
                     if tWZTeamData[M28Map.subrefTbWantBP] then
-                        iBPWanted = math.max(tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]], tWZTeamData[M28Map.subrefTBuildPowerByTechWanted][1])
+                        iBPWanted = math.min(50, math.max(tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]], tWZTeamData[M28Map.subrefTBuildPowerByTechWanted][1]))
                     end
                     HaveActionToAssign(refActionMoveToWaterZone, 1, iBPWanted + iBPAlreadyAssigned, iCurWZ, true)
                     iBPAlreadyAssigned = iBPAlreadyAssigned + iBPWanted
                     iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
-                    if iHighestTechEngiAvailable == 0 then break end
+                    if iHighestTechEngiAvailable == 0 or iBPAlreadyAssigned >= tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 3 then break end
                 end
             end
         end
@@ -7379,8 +7397,9 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': bWantBPOfOurTech='..tostring(bWantBPOfOurTech)) end
                 if bWantBPOfOurTech then
-                    HaveActionToAssign(refActionMoveToWaterZone, iMinTechWanted, tiBPByTech[iMinTechWanted] * 2, iCurWZ, true)
+                    HaveActionToAssign(refActionMoveToWaterZone, iMinTechWanted, math.min(tiBPByTech[iMinTechWanted] * 2, 50), iCurWZ, true)
                     if bDebugMessages == true then LOG(sFunctionRef..': have tried to send BP of '..(tiBPByTech[iMinTechWanted] * 2)..' to iCurWZ '..iCurWZ) end
+                    break
                 end
             end
             if bWantBPOfOurTech then break end
@@ -7838,7 +7857,9 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
                 if tLZTeamData[M28Map.subrefTbWantBP] and not (tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) then
                     --For now to keep things simple will ignore minimum engineer tech requirements
                     iLZSentTo = iLZSentTo + 1
-                    HaveActionToAssign(refActionMoveToLandZone, iMinTechWanted, 10 * 2 * iLZSentTo, iLandZone, true)
+                    if bDebugMessages == true then LOG(sFunctionRef..': About to try and send engineers to iLandZOne '..(iLandZone or 'nil')..'; iPlateau='..(iPlateau or 'nil')) end
+                    --HaveActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted,            vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted)
+                    HaveActionToAssign(refActionMoveToLandZone, iMinTechWanted, 10 * 2 * iLZSentTo, {iPlateau, iLandZone}, true)
                     if bDebugMessages == true then LOG(sFunctionRef..': Have flagged we want to send BP of '..10 * 2 * iLZSentTo..' to land zone '..iLandZone) end
                 end
             end
@@ -7883,6 +7904,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
                     if bWZOrAdjacentLZWantsEngineers then
                         iLZSentTo = iLZSentTo + 1
                         HaveActionToAssign(refActionMoveToWaterZone, iMinTechWanted, 10 * 2 * iLZSentTo, iAdjWZ, true)
+                        if iLZSentTo >= 4 then break end
                     end
                 end
             end

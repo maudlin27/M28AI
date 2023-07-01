@@ -144,7 +144,10 @@ function IssueTrackedClearCommands(oUnit)
 
     --Clear orders:
     IssueClearCommands({oUnit})
-    --if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'url03092' then LOG('Just issuedclearcommands to unit url03092') end
+    --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ual02087' and oUnit:GetAIBrain():GetArmyIndex() == 3 then
+        LOG('Just issuedclearcommands to unit ual02087 at time '..GetGameTimeSeconds())
+        M28Utilities.ErrorHandler('Audit trail', true, true)
+    end--]]
 
     --Unit name
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit) end
@@ -392,7 +395,9 @@ function IssueTrackedMoveAndBuild(oUnit, tBuildLocation, sOrderBlueprint, tMoveT
         else
             M28Utilities.ErrorHandler('Attempted to build something with no blueprint')
         end
-        --LOG('Sent an issuebuildmobile order to the unit')
+        --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ual02087' and oUnit:GetAIBrain():GetArmyIndex() == 3 then
+            LOG('Just sent a move and then build order to unit ual02087 at time '..GetGameTimeSeconds())
+        end--]]
     end
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 end
@@ -418,6 +423,9 @@ function IssueTrackedBuild(oUnit, tOrderPosition, sOrderBlueprint, bAddToExistin
         else
             M28Utilities.ErrorHandler('Attempted to give a construction order to unit with no order blueprint')
         end
+        --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ual02087' and oUnit:GetAIBrain():GetArmyIndex() == 3 then
+            LOG('Just sent a build order to unit ual02087 at time '..GetGameTimeSeconds())
+        end--]]
     end
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 end

@@ -18,7 +18,7 @@ local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
 
 --Global variables
 iTMLMissileRange = 256 --e.g. use if dont have access to a unit blueprint
-
+iEnergyStorageExpectedCapacity = 5000 --i.e. how much energy does an energy storage hold - for a long time for FAF was 5k, but beta balance changes (expected July 2023) are meant to be changing this
 
 --Variables against a unit:
     --TML and TMD
@@ -2153,16 +2153,23 @@ function ReserveLocationsForGameEnder(oUnit)
 end
 
 function GetBestFactionFactoryOfCategory(iCategory, iDistanceCap, iLandSubteam, iUnitPlateau, tLZData)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetBestFactionFactoryOfCategory'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local iClosestFactory = iDistanceCap
     local iCurDist, iCurPlateau, iCurLandZone
     local oBestFactory
     for iBrain, oBrain in M28Team.tLandSubteamData[iLandSubteam][M28Team.subreftoFriendlyM28Brains] do
         local tFactoriesOfCategory = oBrain:GetListOfUnits(iCategory, false, true)
+        if bDebugMessages == true then LOG(sFunctionRef..': Is table of factories of catory empty for brain '..oBrain.Nickname..'='..tostring(M28Utilities.IsTableEmpty(tFactoriesOfCategory))) end
         if M28Utilities.IsTableEmpty(tFactoriesOfCategory) == false then
             for iFactory, oFactory in tFactoriesOfCategory do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Fraction complete='..oFactory:GetFractionComplete()..'; Is factory valid='..tostring(M28UnitInfo.IsUnitValid(oFactory))) end
                 if oFactory:GetFractionComplete() == 1 and M28UnitInfo.IsUnitValid(oFactory) then
                     --Is this in the same plateau?
                     iCurPlateau, iCurLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oFactory:GetPosition())
+                    if bDebugMessages == true then LOG(sFunctionRef..': iCurPlateau='..(iCurPlateau or 'nil')..'; iUnitPlateau='..(iUnitPlateau or 'nil')) end
                     if iCurPlateau == iUnitPlateau then
                         --Get the travel distance
                         iCurDist = tLZData[M28Map.subrefLZTravelDistToOtherLandZones][iCurPlateau][iCurLandZone]
@@ -2177,10 +2184,15 @@ function GetBestFactionFactoryOfCategory(iCategory, iDistanceCap, iLandSubteam, 
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return oBestFactory
 end
 
 function RecordNearbyFactoryForShieldEngineers(oUnit)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordNearbyFactoryForShieldEngineers'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local iDistanceCap = 300 --Wont try and get engineers from factories further away than this.
     local aiBrain = oUnit:GetAIBrain()
     local iLandSubteam = aiBrain.M28LandSubteam
@@ -2195,8 +2207,10 @@ function RecordNearbyFactoryForShieldEngineers(oUnit)
         end
         if not(oBestFactory) then
             --Aeon
+
             if (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionAeon][3] or 0) > 0 then
-                oBestFactory = GetBestFactionFactoryOfCategory(M28UnitInfo.refCategoryLandFactory * categories.TECH3 * categories.Aeon, iDistanceCap, iLandSubteam, iUnitPlateau, tLZData)
+                if bDebugMessages == true then LOG(sFunctionRef..': About to try and get the best factory at time '..GetGameTimeSeconds()..'; iDistanceCap='..(iDistanceCap or 'nil')..'; iLandSubteam='..(iLandSubteam or 'nil')..'; iUnitPlateau='..(iUnitPlateau or 'nil')..'; is tLZData empty='..tostring(M28Utilities.IsTableEmpty(tLZData))) end
+                oBestFactory = GetBestFactionFactoryOfCategory(M28UnitInfo.refCategoryLandFactory * categories.TECH3 * categories.AEON, iDistanceCap, iLandSubteam, iUnitPlateau, tLZData)
             end
             if not(oBestFactory) then
                 --UEF
@@ -2230,6 +2244,7 @@ function RecordNearbyFactoryForShieldEngineers(oUnit)
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function RemoveFactoryFromZoneList(oFactory)
@@ -2342,5 +2357,33 @@ function UpdateForNukeMissileDeath(oLauncher, tOptionalLikelyTarget)
     if bDebugMessages == true then LOG(sFunctionRef..': Start at time ='..GetGameTimeSeconds()..'; oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..'; oLauncher[reftActiveNukeTarget] before reset='..repru(oLauncher[reftActiveNukeTarget])) end
     oLauncher[reftActiveNukeTarget] = nil
 
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+
+function DetermineBuildingExpectedValues()
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'DetermineBuildingExpectedValues'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    local tsT1EnergyStorageBlueprints = EntityCategoryGetUnitList(M28UnitInfo.refCategoryEnergyStorage)
+    local iLowestTechTier = 5
+    local iHighestEnergyStored = 0
+    local iCurTechLevel
+    if M28Utilities.IsTableEmpty(tsT1EnergyStorageBlueprints) == false then
+        for _, sBlueprint in tsT1EnergyStorageBlueprints do
+            local oBP = __blueprints[sBlueprint]
+            if (oBP.Economy.StorageEnergy or 0) > 0 then
+                iCurTechLevel = M28UnitInfo.GetBlueprintTechLevel(sBlueprint)
+                if iCurTechLevel < iLowestTechTier then
+                    iLowestTechTier = iCurTechLevel
+                    iHighestEnergyStored = oBP.Economy.StorageEnergy
+                elseif iCurTechLevel == iLowestTechTier and iHighestEnergyStored < oBP.Economy.StorageEnergy then
+                    iHighestEnergyStored = oBP.Economy.StorageEnergy
+                end
+            end
+        end
+    end
+    iEnergyStorageExpectedCapacity = (iHighestEnergyStored or 5000)
+    if bDebugMessages == true then LOG(sFunctionRef..': end of code, iHighestEnergyStored='..iHighestEnergyStored..'; iLowestTechTier='..iLowestTechTier) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

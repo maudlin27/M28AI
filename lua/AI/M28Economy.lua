@@ -14,7 +14,7 @@ local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
 local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
-
+local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 
 --Variables against aiBrain:
 --ECONOMY VARIABLES - below 4 are to track values based on base production, ignoring reclaim. Provide per tick values so 10% of per second)
@@ -1918,7 +1918,7 @@ function GetEnergyStorageMaximum(aiBrain, bDetailedUpdate)
         return aiBrain[refiMaxEnergyStorage]
     else
         if bDetailedUpdate then
-            aiBrain[refiMaxEnergyStorage] = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage) * 5000 + aiBrain:GetCurrentUnits(categories.COMMAND) * 3900 + 100
+            aiBrain[refiMaxEnergyStorage] = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage) * M28Building.iEnergyStorageExpectedCapacity + aiBrain:GetCurrentUnits(categories.COMMAND) * 3900 + 100
         end
         return aiBrain[refiMaxEnergyStorage]
     end

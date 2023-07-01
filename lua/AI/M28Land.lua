@@ -3194,8 +3194,43 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             if not(iDFLZToSupport) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherIslands]) == false then
                 --Do we have amphibious or hover units in our available units?
                 if bDebugMessages == true then LOG(sFunctionRef..': Is table of amphib combat empty='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryAmphibiousCombat, tDFUnits)))) end
-                if M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryAmphibiousCombat, tDFUnits)) == false then
-                    local iDistanceThreshold = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefMidpoint]) * 0.75
+                local tAmphibiousDFUnits = EntityCategoryFilterDown(M28UnitInfo.refCategoryAmphibiousCombat, tDFUnits)
+                if M28Utilities.IsTableEmpty(tAmphibiousDFUnits) == false then
+                    local bConsiderAttackingEnemyBase = false
+                    --If enemy has long range threat then consider sending experimentals to attack their base
+                    if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]) == false then
+                        local iAmphibiousCombatThreat = M28UnitInfo.GetCombatThreatRating(tAmphibiousDFUnits, false, false)
+                        if bDebugMessages == true then LOG(sFunctionRef..': iAmphibiousCombatThreat='..iAmphibiousCombatThreat) end
+                        if iAmphibiousCombatThreat >= 19000 then --Monkeylord is 20k
+                            --Do we have at least as many land experimentals as the enemy? (otherwise we risk suiciding into their base)
+                            local iEnemyExperimentalCount = 0
+                            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false then
+                                iEnemyExperimentalCount = table.getn(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals])
+                            end
+                            if iEnemyExperimentalCount > 0 then
+                                local iFriendlyExperimentalCount = 0
+                                for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                                    iFriendlyExperimentalCount = iFriendlyExperimentalCount + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandExperimental)
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': iFriendlyExperimentalCount='..iFriendlyExperimentalCount..'; iEnemyExperimentalCount='..iEnemyExperimentalCount) end
+                                if iFriendlyExperimentalCount > iEnemyExperimentalCount then
+                                    bConsiderAttackingEnemyBase = true
+                                end
+                            else
+                                if bDebugMessages == true then LOG(sFunctionRef..': Enemy has no land experimentals so will attack') end
+                                bConsiderAttackingEnemyBase = true
+                            end
+
+                        end
+                    end
+                    local iDistanceThreshold
+                    if bConsiderAttackingEnemyBase then
+                        iDistanceThreshold = math.max(400, M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefMidpoint]) * 1.25)
+                    else
+                        iDistanceThreshold = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], tLZData[M28Map.subrefMidpoint]) * 0.75
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': bConsiderAttackingEnemyBase='..tostring(bConsiderAttackingEnemyBase)..'; iDistanceThreshold='..iDistanceThreshold) end
+
                     for iEntry, tPathingData in tLZData[M28Map.subrefLZPathingToOtherIslands] do
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering island '..tPathingData[M28Map.subrefIslandNumber]..'; tPathingData[M28Map.subrefIslandTravelDist]='..tPathingData[M28Map.subrefIslandTravelDist]..'; iDistanceThreshold='..iDistanceThreshold..'; Does LZ want support='..tostring(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tPathingData[M28Map.subrefIslandClosestLZRef]][M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsSupport])..'; tPathingData[M28Map.subrefIslandClosestLZRef]='..tPathingData[M28Map.subrefIslandClosestLZRef]) end
                         if tPathingData[M28Map.subrefIslandTravelDist] > iDistanceThreshold then break end
