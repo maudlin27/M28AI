@@ -1493,7 +1493,7 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                 for iEntry, oUnit in Target.Units do
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering iEntry='..iEntry..' in Target; Is valid unit='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
                     if M28UnitInfo.IsUnitValid(oUnit) then
-                        M28Engineer.RecordUnitCaptureTarget(oUnit)
+                        M28Engineer.RecordUnitAsCaptureTarget(oUnit)
                         if bDebugMessages == true then LOG(sFunctionRef..': WIll record unit as capture target assuming it is in a land zone') end
                     end
                 end

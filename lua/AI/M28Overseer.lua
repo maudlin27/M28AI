@@ -332,7 +332,7 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
         local sStartMessage
 
         if M28Map.bIsCampaignMap then
-            local iRand = math.random(1,5)
+            local iRand = math.random(1,8)
             if iRand == 1 then sStartMessage = 'Lets do this!'
             elseif iRand == 2 then sStartMessage = 'Time to foil their plans'
             elseif iRand == 3 then sStartMessage = 'I didnt ask for this...'
@@ -340,6 +340,17 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
             elseif iRand == 5 then sStartMessage = 'I hope youve got my back commander'
             elseif iRand == 6 then sStartMessage = 'So...I just need to eco right?'
             elseif iRand == 7 then sStartMessage = 'This doesnt look as easy as the simulation...'
+            else
+                --Faction specific message
+                if aiBrain:GetFactionIndex() == M28UnitInfo.refFactionUEF then
+                    sStartMessage = 'They will not stop the UEF'
+                elseif aiBrain:GetFactionIndex() == M28UnitInfo.refFactionAeon then
+                    sStartMessage = 'For the Aeon!'
+                elseif aiBrain:GetFactionIndex() == M28UnitInfo.refFactionCybran then
+                    sStartMessage = 'Their defeat can be the only outcome'
+                else
+                    sStartMessage = 'They will perish at my hand'
+                end
             end
         else
             local iRand = math.random(1,3)
@@ -450,9 +461,11 @@ end
 function TestCustom(aiBrain)
 
     --AiX 10.0
-    ScenarioInfo.Options.CheatMult = tostring(10.0)
-    ScenarioInfo.Options.BuildMult = tostring(10.0)
-
+    --ScenarioInfo.Options.CheatMult = tostring(10.0)
+    --ScenarioInfo.Options.BuildMult = tostring(10.0)
+    if M28Map.bMapLandSetupComplete and GetGameTimeSeconds() >= 6 then
+        M28Map.DrawSpecificLandZone(143, 2)
+    end
 
     --Four corners - draw buildable locations in bottom-right with plateau 7 LZ2
     --Island zero - P218 LZ1
@@ -915,16 +928,16 @@ function OverseerManager(aiBrain)
     local bSetHook = false --Used for debugging
     while not(aiBrain:IsDefeated()) and not(aiBrain.M28IsDefeated) do
         local bEnabledProfiling = false
-       --[[ if GetGameTimeSeconds() >= 2100 and not(bEnabledProfiling) then
-            if not(import('/mods/M28AI/lua/M28Config.lua').M28RunProfiling) then
-                ForkThread(M28Profiler.ProfilerActualTimePerTick)
-                import('/mods/M28AI/lua/M28Config.lua').M28RunProfiling = true
-            end
-            bEnabledProfiling = true
-        end--]]
+        --[[ if GetGameTimeSeconds() >= 2100 and not(bEnabledProfiling) then
+             if not(import('/mods/M28AI/lua/M28Config.lua').M28RunProfiling) then
+                 ForkThread(M28Profiler.ProfilerActualTimePerTick)
+                 import('/mods/M28AI/lua/M28Config.lua').M28RunProfiling = true
+             end
+             bEnabledProfiling = true
+         end--]]
 
         --if GetGameTimeSeconds() >= 2700 then import('/mods/M28AI/lua/M28Config.lua').M28ShowUnitNames = true end
-        --TestCustom(aiBrain)
+        --if GetGameTimeSeconds() >= 5 and GetGameTimeSeconds() <= 30 then TestCustom(aiBrain) end
         --Enable below to help figure out infinite loops
         --[[if GetGameTimeSeconds() >= 173 and not(bSetHook) then
             bSetHook = true
