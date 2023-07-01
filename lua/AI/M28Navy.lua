@@ -2255,7 +2255,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
     local sFunctionRef = 'ManageCombatUnitsInWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iWaterZone == 6 or iWaterZone == 4 then bDebugMessages = true end
+
 
     local tUnassignedLandUnits
     if bDebugMessages == true then LOG(sFunctionRef..': start of code for time '..GetGameTimeSeconds()..', iTeam='..iTeam..'; iPond='..iPond..'; iWaterZone='..iWaterZone..'; Is table of available combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))..'; Is table of available subs empty='..tostring(M28Utilities.IsTableEmpty(tAvailableSubmarines))..'; Are there enemy units in this or adjacent WZ='..tostring(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])) end
@@ -2852,6 +2852,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
     --If enemy has air units in this zone then send the MAA to advance units towards it, but avoid enemy land units
     if M28Utilities.IsTableEmpty(tMAAToAdvance) == false then
         if bDebugMessages == true then LOG(sFunctionRef..': Number of MAA units to advance='..table.getn(tMAAToAdvance)..'; Is table of enemy air units for this WZ '..iWaterZone..' empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftWZEnemyAirUnits]))) end
+        local bGivenOrderToGoToEnemyAirUnit = false
         if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftWZEnemyAirUnits]) == false then
             --Move towards the nearest enemy air unit to the WZ midpoint
             local oNearestEnemyToMidpoint
@@ -2869,18 +2870,21 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
             end
 
             --Move towards the air unit
-            local tOrderPosition = oNearestEnemyToMidpoint:GetPosition()
-            if bDebugMessages == true then
-                LOG(sFunctionRef..': GameTime='..GetGameTimeSeconds()..' Will order every MAA to move to oNearestEnemyToMidpoint='..oNearestEnemyToMidpoint.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyToMidpoint)..' at position '..repru(oNearestEnemyToMidpoint:GetPosition()))
-                M28Utilities.DrawLocation(tOrderPosition)
-            end
+            if oNearestEnemyToMidpoint then
+                bGivenOrderToGoToEnemyAirUnit = true
+                local tOrderPosition = oNearestEnemyToMidpoint:GetPosition()
+                if bDebugMessages == true then
+                    LOG(sFunctionRef..': GameTime='..GetGameTimeSeconds()..' Will order every MAA to move to oNearestEnemyToMidpoint='..oNearestEnemyToMidpoint.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyToMidpoint)..' at position '..repru(oNearestEnemyToMidpoint:GetPosition()))
+                    M28Utilities.DrawLocation(tOrderPosition)
+                end
 
-            for iUnit, oUnit in tMAAToAdvance do
-                M28Orders.IssueTrackedMove(oUnit, tOrderPosition, iResisueOrderDistanceHover, false, 'NMNA')
+                for iUnit, oUnit in tMAAToAdvance do
+                    M28Orders.IssueTrackedMove(oUnit, tOrderPosition, iResisueOrderDistanceHover, false, 'NMNA')
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Will do reprs of orders of the first unit in tMAAToAdvance, '..tMAAToAdvance[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(tMAAToAdvance[1])..': '..reprs(tMAAToAdvance[1][M28Orders.reftiLastOrders])) end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Will do reprs of orders of the first unit in tMAAToAdvance, '..tMAAToAdvance[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(tMAAToAdvance[1])..': '..reprs(tMAAToAdvance[1][M28Orders.reftiLastOrders])) end
-
-        else
+        end
+        if not(bGivenOrderToGoToEnemyAirUnit) then
             local tWZToReinforceModDistance = {}
             local iCurModDist
             if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZOtherWaterZones]) == false then

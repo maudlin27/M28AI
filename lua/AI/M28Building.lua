@@ -1121,7 +1121,7 @@ function DecideToLaunchNukeSMLOrTMLMissile()  end --Done only to make it easier 
 function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
     --Should be called via forkthread when missile created due to creating a loop
     --oOptioanlWeapon - if specified then can get the missile speed
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderLaunchingMissile'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

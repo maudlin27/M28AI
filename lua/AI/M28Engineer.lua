@@ -5556,7 +5556,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     iCurPriority = iCurPriority + 1
     --If have adjacent waterzone that has unbuilt mexes or is a core WZ, wants engineers and has no combat threat then assign engi
-    bDebugMessages = true
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we have adjacent WZ that wants engineer for unbuilt mexes or core WZ, iHighestTechEngiAvailable='..iHighestTechEngiAvailable..'; Is table of adjacent water zones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]))) end
     if iHighestTechEngiAvailable > 0 and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false then
         local iCurWZ, iCurPond
@@ -5586,7 +5585,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
         end
     end
-    bDebugMessages = false
 
     --High priority reclaim if are low on mass or energy
     iCurPriority = iCurPriority + 1
@@ -6568,7 +6566,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     --Low priority island support - will consider further away distances tahn before, up to a distance of 400, and only if the island wants T1 engineer BP
 
     iCurPriority = iCurPriority + 1
-    if iHighestTechEngiAvailable > 0 then bDebugMessages = true end
     if bDebugMessages == true then LOG(sFunctionRef..': Low priority core zone island engi support logic, iHighestTechEngiAvailable='..iHighestTechEngiAvailable) end
     if iHighestTechEngiAvailable > 0 and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) then
         iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
@@ -6618,7 +6615,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             end
         end
     end
-    bDebugMessages = false
 
     --SPARE ENGINEER ACTIONS----->
     UpdateSpareEngineerNumber(tLZTeamData, toAvailableEngineersByTech)
