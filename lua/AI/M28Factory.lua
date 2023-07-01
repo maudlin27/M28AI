@@ -283,7 +283,7 @@ function AdjustBlueprintForOverrides(aiBrain, sBPIDToBuild, tLZTeamData, iFactor
             end
             if sBPIDToBuild then --and (tLZTeamData[M28Map.subrefTbWantBP] or M28Map.bIsCampaignMap or M28Overseer.bUnitRestrictionsArePresent) then
                 local iCurUnitTechLevel = M28UnitInfo.GetBlueprintTechLevel(sBPIDToBuild)
-                if iCurUnitTechLevel < 3 and iCurUnitTechLevel < aiBrain[M28Economy.refiOurHighestFactoryTechLevel] then
+                if iCurUnitTechLevel < 3 then
                     local iLowestTechWanted
                     for iTech, iBPWanted in tLZTeamData[M28Map.subrefTBuildPowerByTechWanted] do
                         if iBPWanted > 0 then
@@ -293,8 +293,11 @@ function AdjustBlueprintForOverrides(aiBrain, sBPIDToBuild, tLZTeamData, iFactor
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': iLowestTechWanted='..(iLowestTechWanted or 'nil')..'; iCurUnitTechLevel='..iCurUnitTechLevel) end
                     if (iLowestTechWanted or 3) > math.max(1, iCurUnitTechLevel) then
-                        sBPIDToBuild = nil
-                        if bDebugMessages == true then LOG(sFunctionRef..': Want build engi as it isnt the tech level wew ant') end
+                        --Do we already have a number of units of this tech level?
+                        if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iCurUnitTechLevel)) >= 5 then
+                            sBPIDToBuild = nil
+                            if bDebugMessages == true then LOG(sFunctionRef..': Want build engi as it isnt the tech level wew ant') end
+                        end
                     end
                 end
             end
@@ -2357,8 +2360,35 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                     --We have air control
                     iAirAAWanted = math.max(iAirAAWanted, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] * 0.75 + math.max(0, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] - 4000) * 0.3)
                 end
+
+                local iAirAACategory = M28UnitInfo.refCategoryAirAA
                 if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] < iAirAAWanted and (not (bHaveLowMass) or not (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])) then
-                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA) then
+                    --Cap total number of AirAA built bsaed on enemy threat
+                    if not (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] >= 10000 then --Equiv of 200 inties
+                        local iTotalEnemyAirThreat = M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] + M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] + M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] + M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat]
+                        if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] >= iTotalEnemyAirThreat * 2 then
+                            local iCurAirAA = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirAA)
+
+                            if iCurAirAA > 200 then
+                                --Dont want any more inties; do we still waint swifties or asfs?
+                                local iCurNonIntieAA = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirAA - categories.TECH1)
+                                if iCurNonIntieAA > 400 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] >= iTotalEnemyAirThreat * 2.5 then
+                                    --Dont want any more inties
+                                    iAirAACategory = nil
+                                else
+                                    --Still want T2 and T3 units
+                                    if iCurNonIntieAA > 100 and iCurAirAA > 250 then
+                                        --Just want asfs
+                                        iAirAACategory = M28UnitInfo.refCategoryAirAA * categories.TECH3
+                                    else
+                                        --Swifties and asfs
+                                        iAirAACategory = M28UnitInfo.refCategoryAirAA - categories.TECH1
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    if iAirAACategory and ConsiderBuildingCategory(iAirAACategory) then
                         return sBPIDToBuild
                     end
                 end

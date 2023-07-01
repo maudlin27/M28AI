@@ -4616,7 +4616,7 @@ function RecordPondToExpandTo(aiBrain)
 
                                     --Are we close enough to enemy base to be in danger and we can land path to enemy base?
                                     if bDebugMessages == true then LOG(sFunctionRef..': Dist to nearest enemy base='..aiBrain[M28Overseer.refiDistanceToNearestEnemyBase]..'; Can path with land='..tostring(aiBrain[refbCanPathToEnemyBaseWithLand])..'; Dist from naval build location to enemy base='..M28Utilities.GetDistanceBetweenPositions(tNavalBuildArea, GetPrimaryEnemyBaseLocation(aiBrain))) end
-                                    if aiBrain[refbCanPathToEnemyBaseWithLand] then
+                                    if aiBrain[refbCanPathToEnemyBaseWithLand] and not(bIsCampaignMap) then
                                         --Reduce value of pond if enemy base is close for land anyway
                                         if aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] <= 300 then
                                             iCurPondValue = iCurPondValue * 0.5
@@ -4646,10 +4646,12 @@ function RecordPondToExpandTo(aiBrain)
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Near end of code, iBestPondRef='..(iBestPondRef or 'nil')..'; iBestPondValue='..(iBestPondValue or 'nil')) end
-        if iBestPondRef and iBestPondValue >= 4 then
+        if iBestPondRef and (iBestPondValue >= 4 or (iBestPondValue >= 2 and bIsCampaignMap)) then
             aiBrain[M28Navy.refiPriorityPondRef] = iBestPondRef
             if bDebugMessages == true then
-                LOG(sFunctionRef..': Have a priority pond ref='..aiBrain[M28Navy.refiPriorityPondRef]..'; will draw a square in orangy pink for the build position='..repru(tPondDetails[aiBrain[M28Navy.refiPriorityPondRef]][subrefBuildLocationByStartPosition][aiBrain:GetArmyIndex()]))
+                local iBuildSegmentX, iBuildSegmentZ = GetPathingSegmentFromPosition(tPondDetails[aiBrain[M28Navy.refiPriorityPondRef]][subrefBuildLocationByStartPosition][aiBrain:GetArmyIndex()])
+                local iWaterZone = tWaterZoneBySegment[iBuildSegmentX][iBuildSegmentZ]
+                LOG(sFunctionRef..': Have a priority pond ref='..aiBrain[M28Navy.refiPriorityPondRef]..' at water zone '..(iWaterZone or 'nil')..'; will draw a square in orangy pink for the build position='..repru(tPondDetails[aiBrain[M28Navy.refiPriorityPondRef]][subrefBuildLocationByStartPosition][aiBrain:GetArmyIndex()]))
                 M28Utilities.DrawLocation(tPondDetails[aiBrain[M28Navy.refiPriorityPondRef]][subrefBuildLocationByStartPosition][aiBrain:GetArmyIndex()], 8, 200, 10)
             end
             local bInTeamList = false
@@ -4666,6 +4668,7 @@ function RecordPondToExpandTo(aiBrain)
                 if not(M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues]) then M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues] = {} end
                 M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][iBestPondRef] = math.max((M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][iBestPondRef] or 0), iBestPondValue)
             end
+        elseif bDebugMessages == true then LOG(sFunctionRef..'; Etiher dont have a pond to expand to, or the value is too low to want to expand')
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -5072,6 +5075,7 @@ function RecordWaterZoneMidpointAndMinMaxPositions()
     local iMinX, iMaxX, iMinZ, iMaxZ, iAveragePond, iAverageWaterZone
     local iMinSegmentX, iMinSegmentZ, iMaxSegmentX, iMaxSegmentZ
     local iAverageSegmentX, iAverageSegmentZ
+    local iAveragePlateau
     for iPond, tPondSubtable in tPondDetails do
         --Go through any mexes near a pond, and record against a waterzone if they're in water
         if M28Utilities.IsTableEmpty(tPondSubtable[subrefPondMexInfo]) == false then
@@ -5118,15 +5122,18 @@ function RecordWaterZoneMidpointAndMinMaxPositions()
             --Record midpoint
             local tAverage = {(iMinX + iMaxX)*0.5, 0, (iMinZ + iMaxZ) * 0.5}
             iAveragePond = NavUtils.GetTerrainLabel(refPathingTypeNavy, tAverage)
+
             iAverageSegmentX, iAverageSegmentZ = GetPathingSegmentFromPosition(tAverage)
             iAverageWaterZone = tWaterZoneBySegment[iAverageSegmentX][iAverageSegmentZ]
+            iAveragePlateau = NavUtils.GetTerrainLabel(refPathingTypeHover, tAverage)
 
 
             --Move the midpoint if nav utils doesnt work for this position (to reduce the amount of grief we might have later)
             if bDebugMessages == true then
-                LOG(sFunctionRef .. ': Considering iWaterZone=' .. iWaterZone .. '; MinX=' .. iMinX .. 'Z' .. iMinZ .. '; iMaxX' .. iMaxX .. 'Z' .. iMaxZ .. '; iMinSegmentX=' .. iMinSegmentX .. 'Z' .. iMinSegmentZ .. '; iMaxSegmentX=' .. iMaxSegmentX .. iMaxSegmentZ)
+                LOG(sFunctionRef .. ': Considering iWaterZone=' .. iWaterZone .. '; MinX=' .. iMinX .. 'Z' .. iMinZ .. '; iMaxX' .. iMaxX .. 'Z' .. iMaxZ .. '; iMinSegmentX=' .. iMinSegmentX .. 'Z' .. iMinSegmentZ .. '; iMaxSegmentX=' .. iMaxSegmentX .. iMaxSegmentZ..'; iAveragePlateau='..(iAveragePlateau or 'nil'))
             end
-            if not (iPond == iAveragePond) or not (iAverageWaterZone == iWaterZone) then
+
+            if not (iPond == iAveragePond) or not (iAverageWaterZone == iWaterZone) or not(iAveragePlateau) then
                 local tAltMidpoint
                 local iAdjustedSegmentX, iAdjustedSegmentZ
                 local bHaveValidAltMidpoint = false
@@ -5141,9 +5148,10 @@ function RecordWaterZoneMidpointAndMinMaxPositions()
                                     if iAverageWaterZone == iWaterZone then
                                         tAltMidpoint = GetPositionFromPathingSegments(iAdjustedSegmentX, iAdjustedSegmentZ)
                                         if bDebugMessages == true then
-                                            LOG(sFunctionRef .. ': Considering adjusted segment X-Z=' .. iAdjustedSegmentX .. '-' .. iAdjustedSegmentZ .. '; with water zone ' .. tWaterZoneBySegment[iAdjustedSegmentX][iAdjustedSegmentZ] .. '; tAltMidpoint=' .. repru(tAltMidpoint) .. '; Pond from navutils=' .. (NavUtils.GetTerrainLabel(refPathingTypeNavy, tAltMidpoint) or 'nil'))
+                                            LOG(sFunctionRef .. ': Considering adjusted segment X-Z=' .. iAdjustedSegmentX .. '-' .. iAdjustedSegmentZ .. '; with water zone ' .. tWaterZoneBySegment[iAdjustedSegmentX][iAdjustedSegmentZ] .. '; tAltMidpoint=' .. repru(tAltMidpoint) .. '; Pond from navutils=' .. (NavUtils.GetTerrainLabel(refPathingTypeNavy, tAltMidpoint) or 'nil')..'; Plateau='..(NavUtils.GetTerrainLabel(refPathingTypeHover, tAltMidpoint)))
                                         end
-                                        if NavUtils.GetTerrainLabel(refPathingTypeNavy, tAltMidpoint) == iPond then
+                                        if NavUtils.GetTerrainLabel(refPathingTypeNavy, tAltMidpoint) == iPond and (NavUtils.GetTerrainLabel(refPathingTypeHover, tAltMidpoint) or 0) > 0 then
+
                                             --Have a valid midpoint; as this is water, see whether if we move further in the adjust direction we can still have a vlid point (so we arent as likely to be on the shore/by a cliff):
                                             local iXNewAdjust = 0
                                             local iZNewAdjust = 0
@@ -5165,7 +5173,8 @@ function RecordWaterZoneMidpointAndMinMaxPositions()
                                             elseif iZNewAdjust > 0 then
                                                 iZNewAdjust = iZSizeAdjust
                                             end
-                                            if tWaterZoneBySegment[iAdjustedSegmentX + iXNewAdjust][iAdjustedSegmentZ + iZNewAdjust] == iAverageWaterZone and NavUtils.GetTerrainLabel(refPathingTypeNavy, GetPositionFromPathingSegments(iAdjustedSegmentX + iXNewAdjust, iAdjustedSegmentZ + iZNewAdjust)) == iPond then
+                                            local tAdjustedPosition = GetPositionFromPathingSegments(iAdjustedSegmentX + iXNewAdjust, iAdjustedSegmentZ + iZNewAdjust)
+                                            if tWaterZoneBySegment[iAdjustedSegmentX + iXNewAdjust][iAdjustedSegmentZ + iZNewAdjust] == iAverageWaterZone and NavUtils.GetTerrainLabel(refPathingTypeNavy, tAdjustedPosition) == iPond and (NavUtils.GetTerrainLabel(refPathingTypeHover, tAdjustedPosition) or 0) > 0 then
                                                 if bDebugMessages == true then
                                                     LOG(sFunctionRef .. ': Will go with adjusted segment value, tAltMidpoint before adjust=' .. repru(tAltMidpoint) .. '; tAltMidpoint after adjust=' .. repru(GetPositionFromPathingSegments(iAdjustedSegmentX + iXNewAdjust, iAdjustedSegmentZ + iZNewAdjust)) .. '; iXNewAdjust=' .. iXNewAdjust .. '; iZNewAdjust=' .. iZNewAdjust)
                                                 end
@@ -5304,7 +5313,7 @@ function RecordWaterZoneAdjacentLandZones()
     for iPond, tPondSubtable in tPondDetails do
         for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
             iPlateau = NavUtils.GetTerrainLabel(refPathingTypeHover, tWZData[subrefMidpoint])
-            if iPlateau > 0 and M28Utilities.IsTableEmpty(tAllPlateaus[iPlateau]) == false then
+            if (iPlateau or 0) > 0 and M28Utilities.IsTableEmpty(tAllPlateaus[iPlateau]) == false then
                 --Cycle through every land zone on the map, and check if it is near this
                 for iLandZone, tLZData in tAllPlateaus[iPlateau][subrefPlateauLandZones] do
                     --Is this land zone adjacent? Might be adjacent the following are both the case:
@@ -5368,6 +5377,7 @@ function RecordWaterZoneAdjacentLandZones()
                                     end
                                 end
                             end
+                            if not(iPlateau) then M28Utilities.ErrorHandler('Have a nil plateau for iLandZone='..(iLandZone or 'nil')) end
                             table.insert(tWZData[subrefAdjacentLandZones], iAdjacencyTablePosition, {[subrefWPlatAndLZNumber] = {iPlateau, iLandZone}, [subrefALZDistance] = iDistBetweenMidpoints})
                         end
                     end
