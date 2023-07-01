@@ -462,8 +462,8 @@ end
 function TestCustom(aiBrain)
 
     --AiX 10.0
-    ScenarioInfo.Options.CheatMult = tostring(10.0)
-    ScenarioInfo.Options.BuildMult = tostring(10.0)
+    --ScenarioInfo.Options.CheatMult = tostring(10.0)
+    --ScenarioInfo.Options.BuildMult = tostring(10.0)
 
     --Four corners - draw buildable locations in bottom-right with plateau 7 LZ2
     --Island zero - P218 LZ1
