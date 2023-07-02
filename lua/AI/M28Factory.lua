@@ -233,7 +233,7 @@ function GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactor
 
 end
 
-function AdjustBlueprintForOverrides(aiBrain, sBPIDToBuild, tLZTeamData, iFactoryTechLevel)
+function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamData, iFactoryTechLevel)
     --Blacklisted units (done on land subteam basis - in theory should work ok if use naval units or air units here as well)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AdjustBlueprintForOverrides'
@@ -247,15 +247,19 @@ function AdjustBlueprintForOverrides(aiBrain, sBPIDToBuild, tLZTeamData, iFactor
         --Special case - Cybran and UEF - if building loyalists or titans, then check if want to switch to bricks/percies
         if sBPIDToBuild == 'url0303' then --Loyalist
             if M28Team.tTeamData[aiBrain.M28Team][M28Team.refbEnemyHasPerciesOrBricks] or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.TECH3) >= 2 then
-                aiBrain[reftBlueprintPriorityOverride]['url0303'] = nil --loyalist
-                aiBrain[reftBlueprintPriorityOverride]['xrl0305'] = 1 --brick
-                sBPIDToBuild = 'xrl0305'
+                if oFactory:CanBuild('xrl0305') then
+                    aiBrain[reftBlueprintPriorityOverride]['url0303'] = nil --loyalist
+                    aiBrain[reftBlueprintPriorityOverride]['xrl0305'] = 1 --brick
+                    sBPIDToBuild = 'xrl0305'
+                end
             end
         elseif sBPIDToBuild == 'uel0303' then --Titan
             if M28Team.tTeamData[aiBrain.M28Team][M28Team.refbEnemyHasPerciesOrBricks] or M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat * categories.TECH3) >= 15 then
-                aiBrain[reftBlueprintPriorityOverride]['url0303'] = nil --Titan
-                aiBrain[reftBlueprintPriorityOverride]['xel0305'] = 1 --Percival
-                sBPIDToBuild = 'xel0305'
+                if oFactory:CanBuild('xel0305') then
+                    aiBrain[reftBlueprintPriorityOverride]['url0303'] = nil --Titan
+                    aiBrain[reftBlueprintPriorityOverride]['xel0305'] = 1 --Percival
+                    sBPIDToBuild = 'xel0305'
+                end
             end
         end
 
@@ -418,7 +422,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iTargetLand
                 --If dont have any blueprints to build then look to support indirect or DF instead
                 local sBPIDToBuild = GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory)
                 if sBPIDToBuild then
-                    sBPIDToBuild = AdjustBlueprintForOverrides(oFactory:GetAIBrain(), sBPIDToBuild, tLZTargetTeamData, M28UnitInfo.GetUnitTechLevel(oFactory))
+                    sBPIDToBuild = AdjustBlueprintForOverrides(oFactory:GetAIBrain(), oFactory, sBPIDToBuild, tLZTargetTeamData, M28UnitInfo.GetUnitTechLevel(oFactory))
                 end
                 if not(sBPIDToBuild) then iBaseCategoryWanted = nil end
             end
@@ -433,7 +437,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iTargetLand
                     --If dont have any blueprints to build then look to support indirect or DF instead
                     local sBPIDToBuild = GetBlueprintThatCanBuildOfCategory(oFactory:GetAIBrain(), iBaseCategoryWanted, oFactory)
                     if sBPIDToBuild then
-                        sBPIDToBuild = AdjustBlueprintForOverrides(oFactory:GetAIBrain(), sBPIDToBuild, tLZTargetTeamData, M28UnitInfo.GetUnitTechLevel(oFactory))
+                        sBPIDToBuild = AdjustBlueprintForOverrides(oFactory:GetAIBrain(), oFactory, sBPIDToBuild, tLZTargetTeamData, M28UnitInfo.GetUnitTechLevel(oFactory))
                     end
                     if not(sBPIDToBuild) then iBaseCategoryWanted = nil end
                 end
@@ -649,11 +653,13 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             LOG(sFunctionRef .. ': Time=' .. GetGameTimeSeconds() .. ' Factory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; LZ=' .. iLandZone .. '; iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; sBPIDToBuild before adjusting for override=' .. (sBPIDToBuild or 'nil'))
         end
         if sBPIDToBuild then
-            sBPIDToBuild = AdjustBlueprintForOverrides(aiBrain, sBPIDToBuild, tLZTeamData, iFactoryTechLevel)
+            sBPIDToBuild = AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamData, iFactoryTechLevel)
         end
         if sBPIDToBuild then
+            if bDebugMessages == true then LOG(sFunctionRef..': After adjusting for overrides still have blueprint to build='..sBPIDToBuild) end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) --Assumes we will end code if we get to this point
             return sBPIDToBuild
+        elseif bDebugMessages == true then LOG(sFunctionRef..': Dont have a blueprint to build')
         end
     end
 
@@ -2019,7 +2025,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             LOG(sFunctionRef .. ': Time=' .. GetGameTimeSeconds() .. ' Factory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; LZ=' .. iLandZone .. '; iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; sBPIDToBuild before adjusting for override=' .. (sBPIDToBuild or 'nil'))
         end
         if sBPIDToBuild then
-            sBPIDToBuild = AdjustBlueprintForOverrides(aiBrain, sBPIDToBuild, tLZTeamData, iFactoryTechLevel)
+            sBPIDToBuild = AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamData, iFactoryTechLevel)
         end
         if sBPIDToBuild then
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) --Assumes we will end code if we get to this point
@@ -2537,7 +2543,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
             LOG(sFunctionRef .. ': Time=' .. GetGameTimeSeconds() .. ' Factory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; WZ=' .. iWaterZone .. '; iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; sBPIDToBuild before adjusting for override=' .. (sBPIDToBuild or 'nil'))
         end
         if sBPIDToBuild then
-            sBPIDToBuild = AdjustBlueprintForOverrides(aiBrain, sBPIDToBuild, tWZTeamData, iFactoryTechLevel)
+            sBPIDToBuild = AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tWZTeamData, iFactoryTechLevel)
         end
         if sBPIDToBuild then
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) --Assumes we will end code if we get to this point
@@ -3002,7 +3008,7 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
             LOG(sFunctionRef .. ': Time=' .. GetGameTimeSeconds() .. ' Factory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; LZ=' .. iLandZone .. '; iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; sBPIDToBuild before adjusting for override=' .. (sBPIDToBuild or 'nil'))
         end
         if sBPIDToBuild then
-            sBPIDToBuild = AdjustBlueprintForOverrides(aiBrain, sBPIDToBuild, tLZTeamData, iFactoryTechLevel)
+            sBPIDToBuild = AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamData, iFactoryTechLevel)
         end
         if sBPIDToBuild then
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) --Assumes we will end code if we get to this point
