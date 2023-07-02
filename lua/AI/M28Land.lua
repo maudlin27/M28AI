@@ -9,12 +9,12 @@ local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
 local NavUtils = import("/lua/sim/navutils.lua")
 local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
-local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
+--local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
-local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
-local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
+--local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
+--local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
 local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
-local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
+--local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
 local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
@@ -3739,7 +3739,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
         end
     end
     --Handle engineers and even if no engineers still decide what engineers we would want for hte LZ
-    M28Engineer.ConsiderLandOrWaterZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, iLandZone, tEngineers) --Should update the land zone engineer requirements, even if tEngineers itself is empty
+    import('/mods/M28AI/lua/AI/M28Engineer.lua').ConsiderLandOrWaterZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, iLandZone, tEngineers) --Should update the land zone engineer requirements, even if tEngineers itself is empty
 
     ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tScouts, bLandZoneOrAdjHasUnitsWantingScout)
 

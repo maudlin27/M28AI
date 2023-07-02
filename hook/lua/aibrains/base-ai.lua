@@ -5,18 +5,18 @@
 ---
 --Note - this file only exists in FAF-Develop as of May 2023 (at later point expect this may replace lua\aibrain.lua)
 --In theory the below shouldt be needed once the FAF-Develop changes are integrated into FAF (expected June 2023), although probably no harm leaving for backwards compatibility
-local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
+--local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 
 local M28OldAIBrain = AIBrain
 AIBrain = Class(M28OldAIBrain) {
 
     OnDefeat = function(self)
-        ForkThread(M28Events.OnPlayerDefeated, self)
+        ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').OnPlayerDefeated, self)
         M28OldAIBrain.OnDefeat(self)
     end,
 
     OnCreateAI = function(self, planName)
-        M28Events.OnCreateBrain(self, planName, false) --dont do via forkthread or else self.m28ai wont work
+        import('/mods/M28AI/lua/AI/M28Events.lua').OnCreateBrain(self, planName, false) --dont do via forkthread or else self.m28ai wont work
         if not(self.M28AI) then
             LOG('Running normal aiBrain creation code for brain '..(self.Nickname or 'nil'))
             M28OldAIBrain.OnCreateAI(self, planName)
@@ -25,7 +25,7 @@ AIBrain = Class(M28OldAIBrain) {
 
     OnCreateHuman = function(self, planName)
         M28OldAIBrain.OnCreateHuman(self, planName)
-        M28Events.OnCreateBrain(self, planName, true)
+        import('/mods/M28AI/lua/AI/M28Events.lua').OnCreateBrain(self, planName, true)
     end,
     --Redundancy - wouldnt expect any of below to trigger for M28, but this is as an extra redundancy
     CreateBrainShared = function(self, planName)

@@ -3,10 +3,10 @@
 --- Created by maudlin27.
 --- DateTime: 02/12/2022 09:09
 ---
-local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
+--local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 
 local M28CalculateBallisticAcceleration = CalculateBallisticAcceleration
 function CalculateBallisticAcceleration(weapon, projectile)
-    ForkThread(M28Events.OnBombFired, weapon, projectile)
+    ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').OnBombFired, weapon, projectile)
     return M28CalculateBallisticAcceleration(weapon, projectile)
 end

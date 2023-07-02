@@ -47,7 +47,7 @@ refiEstimatedLastPathPoint = 'M28OrderLastPathRef' --If a unit is being given an
 
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
-local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
+--local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 local M28Config = import('/mods/M28AI/lua/M28Config.lua')
 local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
 local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
@@ -72,6 +72,7 @@ end
 
 function IssueTrackedClearCommands(oUnit)
     --Update tracking for repairing units:
+    local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
     if oUnit[reftiLastOrders] then
         local tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]]
         if tLastOrder[subrefiOrderType] == refiOrderIssueRepair then
@@ -361,6 +362,7 @@ function IssueTrackedOvercharge(oUnit, oOrderTarget, bAddToExistingQueue, sOptio
 end
 
 function IssueTrackedMoveAndBuild(oUnit, tBuildLocation, sOrderBlueprint, tMoveTarget, iDistanceToReorderMoveTarget, bAddToExistingQueue, sOptionalOrderDesc)
+    local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
     UpdateRecordedOrders(oUnit)
     local bDontAlreadyHaveOrder = true
     local iLastOrderCount = 0
@@ -403,6 +405,7 @@ function IssueTrackedMoveAndBuild(oUnit, tBuildLocation, sOrderBlueprint, tMoveT
 end
 
 function IssueTrackedBuild(oUnit, tOrderPosition, sOrderBlueprint, bAddToExistingQueue, sOptionalOrderDesc)
+    local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
     UpdateRecordedOrders(oUnit)
     local tLastOrder
 
@@ -454,6 +457,7 @@ end
 
 
 function IssueTrackedReclaim(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
+    local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
     UpdateRecordedOrders(oUnit)
     --Issue order if we arent already trying to attack them
     local tLastOrder

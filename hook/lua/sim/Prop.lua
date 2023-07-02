@@ -3,19 +3,19 @@
 --- Created by maudlin27.
 --- DateTime: 02/12/2022 09:12
 ---
-local Entity = import('/lua/sim/Entity.lua').Entity
-local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
+--local Entity = import('/lua/sim/Entity.lua').Entity
+--local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 
 local M28OldProp = Prop
 Prop = Class(M28OldProp) {
     Destroy = function(self)
-        M28Events.OnPropDestroyed(self)
+        import('/mods/M28AI/lua/AI/M28Events.lua').OnPropDestroyed(self)
         M28OldProp.Destroy(self)
     end,
     OnCreate = function(self)
         M28OldProp.OnCreate(self)
         if self.CachePosition then
-            ForkThread(M28Events.OnCreateWreck, self.CachePosition, self.MaxMassReclaim, self.MaxEnergyReclaim)
+            ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').OnCreateWreck, self.CachePosition, self.MaxMassReclaim, self.MaxEnergyReclaim)
         end
     end,
 }

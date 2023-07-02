@@ -11,7 +11,7 @@ local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
 local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
 local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
-local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
+--local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 local NavUtils = import("/lua/sim/navutils.lua")
 local M28Logic = import('/mods/M28AI/lua/AI/M28Logic.lua')
@@ -1524,7 +1524,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
         end
     end
     --Handle engineers and even if no engineers still decide what engineers we would want for hte WZ
-    M28Engineer.ConsiderLandOrWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZone, tEngineers, true) --Should update the water zone engineer requirements, even if tEngineers itself is empty
+    import('/mods/M28AI/lua/AI/M28Engineer.lua').ConsiderLandOrWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZone, tEngineers, true) --Should update the water zone engineer requirements, even if tEngineers itself is empty
 
     --Manage any scouts and flag if we need scouts (i.e. want to run this function even if we have no scouts)
     ManageWaterZoneScouts(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tScouts, bWaterZoneOrAdjHasUnitsWantingScout)

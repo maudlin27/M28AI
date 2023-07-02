@@ -3,31 +3,31 @@
 --- Created by maudlin27.
 --- DateTime: 02/12/2022 09:13
 ---
-local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
+--local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 
 do --Per Balthazaar - encasing the code in do .... end means that you dont have to worry about using unique variables
     local M28OldUnit = Unit
     Unit = Class(M28OldUnit) {
         OnKilled = function(self, instigator, type, overkillRatio) --NOTE: For some reason this doesnt run a lot of the time; onkilledunit is more reliable
-            M28Events.OnKilled(self, instigator, type, overkillRatio)
+            import('/mods/M28AI/lua/AI/M28Events.lua').OnKilled(self, instigator, type, overkillRatio)
             M28OldUnit.OnKilled(self, instigator, type, overkillRatio)
         end,
         OnReclaimed = function(self, reclaimer)
-            M28Events.OnKilled(self, reclaimer)
+            import('/mods/M28AI/lua/AI/M28Events.lua').OnKilled(self, reclaimer)
             M28OldUnit.OnReclaimed(self, reclaimer)
         end,
         OnDecayed = function(self)
             LOG('OnDecayed: Time='..GetGameTimeSeconds()..'; self.UnitId='..(self.UnitId or 'nil'))
-            M28Events.OnUnitDeath(self)
+            import('/mods/M28AI/lua/AI/M28Events.lua').OnUnitDeath(self)
             M28OldUnit.OnDecayed(self)
         end,
         OnKilledUnit = function(self, unitKilled, massKilled)
-            M28Events.OnKilled(unitKilled, self)
+            import('/mods/M28AI/lua/AI/M28Events.lua').OnKilled(unitKilled, self)
             M28OldUnit.OnKilledUnit(self, unitKilled, massKilled)
         end,
         OnDestroy = function(self)
             --LOG('OnDestroy: Time='..GetGameTimeSeconds()..'; self.UnitId='..(self.UnitId or 'nil'))
-            M28Events.OnUnitDeath(self)
+            import('/mods/M28AI/lua/AI/M28Events.lua').OnUnitDeath(self)
             M28OldUnit.OnDestroy(self)
         end,
         --[[OnFailedToBeBuilt = function(self)
@@ -35,68 +35,68 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
             M28OldUnit.OnFailedToBeBuilt(self)
         end,--]]
         OnDestroy = function(self)
-            M28Events.OnUnitDeath(self) --Any custom code we want to run
+            import('/mods/M28AI/lua/AI/M28Events.lua').OnUnitDeath(self) --Any custom code we want to run
             M28OldUnit.OnDestroy(self) --Normal code
         end,
         OnWorkEnd = function(self, work)
-            M28Events.OnWorkEnd(self, work)
+            import('/mods/M28AI/lua/AI/M28Events.lua').OnWorkEnd(self, work)
             M28OldUnit.OnWorkEnd(self, work)
         end,
         OnDamage = function(self, instigator, amount, vector, damageType)
             M28OldUnit.OnDamage(self, instigator, amount, vector, damageType)
-            M28Events.OnDamaged(self, instigator) --Want this after just incase our code messes things up
+            import('/mods/M28AI/lua/AI/M28Events.lua').OnDamaged(self, instigator) --Want this after just incase our code messes things up
         end,
         OnSiloBuildEnd = function(self, weapon)
             M28OldUnit.OnSiloBuildEnd(self, weapon)
-            M28Events.OnMissileBuilt(self, weapon)
+            import('/mods/M28AI/lua/AI/M28Events.lua').OnMissileBuilt(self, weapon)
         end,
         OnStartBuild = function(self, built, order, ...)
-            ForkThread(M28Events.OnConstructionStarted, self, built, order)
+            ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').OnConstructionStarted, self, built, order)
             return M28OldUnit.OnStartBuild(self, built, order, unpack(arg))
         end,
         OnStartReclaim = function(self, target)
-            ForkThread(M28Events.OnReclaimStarted, self, target)
+            ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').OnReclaimStarted, self, target)
             return M28OldUnit.OnStartReclaim(self, target)
         end,
         OnStopReclaim = function(self, target)
-            ForkThread(M28Events.OnReclaimFinished, self, target)
+            ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').OnReclaimFinished, self, target)
             return M28OldUnit.OnStopReclaim(self, target)
         end,
 
         OnStopBuild = function(self, unit)
             if unit and not(unit.Dead) and unit.GetFractionComplete and unit:GetFractionComplete() == 1 then
-                ForkThread(M28Events.OnConstructed, self, unit)
+                ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').OnConstructed, self, unit)
             end
             return M28OldUnit.OnStopBuild(self, unit)
         end,
 
         OnAttachedToTransport = function(self, transport, bone)
-            ForkThread(M28Events.OnTransportLoad, self, transport, bone)
+            ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').OnTransportLoad, self, transport, bone)
             return M28OldUnit.OnAttachedToTransport(self, transport, bone)
         end,
         OnDetachedFromTransport = function(self, transport, bone)
-            ForkThread(M28Events.OnTransportUnload, self, transport, bone)
+            ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').OnTransportUnload, self, transport, bone)
             return M28OldUnit.OnDetachedFromTransport(self, transport, bone)
         end,
         OnDetectedBy = function(self, index)
 
-            ForkThread(M28Events.OnDetectedBy, self, index)
+            ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').OnDetectedBy, self, index)
             return M28OldUnit.OnDetectedBy(self, index)
         end,
         OnCreate = function(self)
             M28OldUnit.OnCreate(self)
-            ForkThread(M28Events.OnCreate, self)
+            ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').OnCreate, self)
         end,
         CreateEnhancement = function(self, enh)
-            ForkThread(M28Events.OnEnhancementComplete, self, enh)
+            ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').OnEnhancementComplete, self, enh)
             return M28OldUnit.CreateEnhancement(self, enh)
         end,
         OnMissileImpactTerrain = function(self, target, position)
-            ForkThread(M28Events.OnMissileImpactTerrain, self, target, position)
+            ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').OnMissileImpactTerrain, self, target, position)
             return M28OldUnit.OnMissileImpactTerrain(self, target, position)
         end,
         OnMissileIntercepted = function(self, target, defense, position)
-            ForkThread(M28Events.OnMissileIntercepted, self, target, defense, position)
+            ForkThread(import('/mods/M28AI/lua/AI/M28Events.lua').OnMissileIntercepted, self, target, defense, position)
         end,
     }
 end

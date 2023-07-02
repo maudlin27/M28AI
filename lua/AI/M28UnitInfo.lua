@@ -4,7 +4,7 @@
 --- DateTime: 01/12/2022 08:18
 ---
 
-local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
+--local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
 local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 --Dont include m28factory or m28engineer here or will get a crash at start of the game
@@ -278,14 +278,14 @@ function GetUnitPathingType(oUnit)
     --if oUnit and not(oUnit.Dead) and oUnit.GetBlueprint then
     local mType = __blueprints[oUnit.UnitId].Physics.MotionType
     if (mType == 'RULEUMT_AmphibiousFloating' or mType == 'RULEUMT_Hover' or mType == 'RULEUMT_Amphibious') then
-        return M28Map.refPathingTypeHover
+        return import('/mods/M28AI/lua/AI/M28Map.lua').refPathingTypeHover
     elseif (mType == 'RULEUMT_Water' or mType == 'RULEUMT_SurfacingSub') then
-        return M28Map.refPathingTypeNavy
+        return import('/mods/M28AI/lua/AI/M28Map.lua').refPathingTypeNavy
     elseif mType == 'RULEUMT_Air' then
-        return M28Map.refPathingTypeAir
+        return import('/mods/M28AI/lua/AI/M28Map.lua').refPathingTypeAir
     elseif (mType == 'RULEUMT_Biped' or mType == 'RULEUMT_Land') then
-        return M28Map.refPathingTypeLand
-    else return M28Map.refPathingTypeNone
+        return import('/mods/M28AI/lua/AI/M28Map.lua').refPathingTypeLand
+    else return import('/mods/M28AI/lua/AI/M28Map.lua').refPathingTypeNone
     end
 end
 
@@ -811,6 +811,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                     bUnitFitsDesiredCategory = false
                     --Exclude based on pathing type initially before considering more precisely:
                     local sCurUnitPathing = GetUnitPathingType(oUnit)
+                    local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
                     if sCurUnitPathing == M28Map.refPathingTypeAir then
                         if bIncludeAirToAir == true then bUnitFitsDesiredCategory = true
                         elseif bIncludeAirToGround == true then bUnitFitsDesiredCategory = true
@@ -1604,7 +1605,7 @@ end
 
 function IsUnitUnderwater(oUnit)
     if oUnit.GetPosition and oUnit.GetBlueprint then
-        return M28Map.IsUnderwater({oUnit:GetPosition()[1], oUnit:GetPosition()[2] + (oUnit:GetBlueprint().SizeY or 0), oUnit:GetPosition()[3]}, false)
+        return import('/mods/M28AI/lua/AI/M28Map.lua').IsUnderwater({oUnit:GetPosition()[1], oUnit:GetPosition()[2] + (oUnit:GetBlueprint().SizeY or 0), oUnit:GetPosition()[3]}, false)
     else return false
     end
 end

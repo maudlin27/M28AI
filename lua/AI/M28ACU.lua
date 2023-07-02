@@ -9,7 +9,7 @@ local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
 local M28Map = import('/mods/M28AI/lua/AI/M28Map.lua')
 local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Profiler = import('/mods/M28AI/lua/AI/M28Profiler.lua')
-local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
+--local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
@@ -41,6 +41,8 @@ function ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearchForAdjace
     local sFunctionRef = 'ACUBuildUnit'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 
     --Do we have a nearby unit of the type we want to build under construction?
     local tNearbyUnitsOfCategoryToBuild = aiBrain:GetUnitsAroundPoint(iCategoryToBuild, oACU:GetPosition(), iMaxAreaToSearchForAdjacencyAndUnderConstruction, 'Ally')
@@ -113,6 +115,8 @@ function ACUActionBuildFactory(aiBrain, oACU, tLZData, tLZTeamData, iFactoryCate
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
+
     local iMaxAreaToSearch = 35
     local iCategoryToBuild
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code for aiBrain '..aiBrain.Nickname..' at time '..GetGameTimeSeconds()) end
@@ -139,6 +143,8 @@ function ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData)
     local sFunctionRef = 'ACUActionAssistHydro'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 
     --Redundancy - make sure we have hydros in this LZ:
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oACU:GetPosition(), true, oACU)
@@ -237,7 +243,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 
     --Are we already building something?
     if bDebugMessages == true then LOG(sFunctionRef..': ACU unit state='..M28UnitInfo.GetUnitState(oACU)) end
@@ -484,12 +490,12 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
             end
 
         end
-        else
-            if bDebugMessages == true then LOG(sFunctionRef..': Are building so wont give any new orders') end
-        end
-        if bDebugMessages == true then LOG(sFunctionRef..': End of code, is ACU table of last orders empty='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))) end
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    else
+        if bDebugMessages == true then LOG(sFunctionRef..': Are building so wont give any new orders') end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, is ACU table of last orders empty='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
 
 function GetUpgradePathForACU(oACU)
     --Records the order of upgrades we will want for the ACU
@@ -1149,6 +1155,8 @@ function ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, iOptionalMaxDis
     local sFunctionRef = 'ConsiderBuildingMex'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
+
     if bDebugMessages == true then
         local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oACU:GetPosition())
         LOG(sFunctionRef..': Do we have any unbuilt locations for this LZ, iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..' - is table empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]))..'; Is table of part built mexes empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoPartBuiltMexes])))
@@ -1230,6 +1238,8 @@ function ConsiderNearbyReclaim(iPlateau, iLandZone, tLZData, tLZTeamData, oACU, 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderNearbyReclaim'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 
     local iTotalReclaimWanted
     local iIndividualReclaimThreshold
@@ -1517,7 +1527,7 @@ function GetACUOrder(aiBrain, oACU)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
     local tLZOrWZData

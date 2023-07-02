@@ -13,7 +13,7 @@ local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Logic = import('/mods/M28AI/lua/AI/M28Logic.lua')
 local M28Chat = import('/mods/M28AI/lua/AI/M28Chat.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
-local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
+--local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
 
 --Global variables
@@ -2031,6 +2031,8 @@ function ReserveLocationsForGameEnder(oUnit)
     local sFunctionRef = 'ReserveLocationsForGameEnder'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
+
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, gametimeseconds is '..GetGameTimeSeconds()..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; owned by '..oUnit:GetAIBrain().Nickname..' on team '..oUnit:GetAIBrain().M28Team) end
 
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
@@ -2311,6 +2313,8 @@ function AssignShieldToGameEnder(oConstruction, oEngineer)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AssignShieldToGameEnder'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oConstruction:GetPosition())
 
