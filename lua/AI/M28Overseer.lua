@@ -914,7 +914,7 @@ function OverseerManager(aiBrain)
         WaitTicks(1)
     end
 
-    ForkThread(TestCustom, aiBrain)
+    --ForkThread(TestCustom, aiBrain)
 
     --Initialise main systems
     ForkThread(Initialisation, aiBrain)
@@ -1068,7 +1068,7 @@ function CheckForAlliedCampaignUnitsToShareAtGameStart(aiBrain)
                             end
                             --Gift adjacent mass storage if any
                             if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
-                                M28Team.GiftAdjacentStorageToMexOwner(oUnit, oCurBrain:GetArmyIndex())
+                                M28Team.GiftAdjacentStorageToMexOwner(oUnit, oCurBrain)
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': Just about to try and gift unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' to M28AI brain '..oCurBrain.Nickname) end
                             M28Team.TransferUnitsToPlayer({ oUnit }, oCurBrain:GetArmyIndex(), false)
