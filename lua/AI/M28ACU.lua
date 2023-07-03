@@ -1542,7 +1542,7 @@ function GetACUOrder(aiBrain, oACU)
     M28Orders.UpdateRecordedOrders(oACU)
 
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; oACU[refbDoingInitialBuildOrder]='..tostring(oACU[refbDoingInitialBuildOrder])..'; ACU unit state='..M28UnitInfo.GetUnitState(oACU)..'; iPlateau='..(iPlateauOrZero or 'nil')..'; iLandZone='..(iLandOrWaterZone or 'nil')..'; Can ACU use overcharge='..tostring(M28Conditions.CanUnitUseOvercharge(oACU:GetAIBrain(), oACU))..'; ACU position='..repru(oACU:GetPosition())..'; ACU Orders (before updates)='..reprs(oACU[M28Orders.reftiLastOrders])..'; Is special micro active='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive] or false)..'; Time to stop micro='..(oACU[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')..'; Brian nickname='..aiBrain.Nickname) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; oACU[refbDoingInitialBuildOrder]='..tostring(oACU[refbDoingInitialBuildOrder])..'; ACU unit state='..M28UnitInfo.GetUnitState(oACU)..'; iPlateau='..(iPlateauOrZero or 'nil')..'; iLandZone='..(iLandOrWaterZone or 'nil')..'; Can ACU use overcharge='..tostring(M28Conditions.CanUnitUseOvercharge(oACU:GetAIBrain(), oACU))..'; ACU position='..repru(oACU:GetPosition())..'; ACU Orders (before updates)='..reprs(oACU[M28Orders.reftiLastOrders])..'; Is special micro active='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive] or false)..'; Time to stop micro='..(oACU[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')..'; Brian nickname='..aiBrain.Nickname..'; reftSpecialObjectiveMoveLocation='..repru(oACU[reftSpecialObjectiveMoveLocation])) end
 
     --Is the ACU busy with something?
     if oACU:IsUnitState('Upgrading') then
@@ -1584,8 +1584,6 @@ function GetACUOrder(aiBrain, oACU)
                 bProceedWithLogic = false
                 GetACUEarlyGameOrders(aiBrain, oACU) --backup which should ahve ACU move if it doesnt seem to be on a land or water zone
                 if bDebugMessages == true then LOG(sFunctionRef..': ACU not in land zone and is doing initial order so referred to early game order logic') end
-            elseif oACU[reftSpecialObjectiveMoveLocation] then
-                M28Orders.IssueTrackedMove(oACU, oACU[reftSpecialObjectiveMoveLocation], 3, false, 'ACUObj', false)
             elseif (iLandOrWaterZone or 0) > 0 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false then
                 --Are enemies in this zone, decide if we want to attack them - get closest enemy to ACU, and ignore any structures that are more than 10 from being in range of ACU
                 local iClosestDist = 100000
@@ -1619,7 +1617,10 @@ function GetACUOrder(aiBrain, oACU)
                     GetACUEarlyGameOrders(aiBrain, oACU) --Avoid some scenarios where ACU might get stuck in 'run to core zone' mode
                 end
             end
-                if not(oACU[refbDoingInitialBuildOrder]) then bProceedWithLogic = true end
+            if not(oACU[refbDoingInitialBuildOrder]) then bProceedWithLogic = true end
+        elseif oACU[reftSpecialObjectiveMoveLocation] then
+            M28Orders.IssueTrackedMove(oACU, oACU[reftSpecialObjectiveMoveLocation], 3, false, 'ACUObj', false)
+            bProceedWithLogic = false
         end
         if bDebugMessages == true then LOG(sFunctionRef..': oACU[refbDoingInitialBuildOrder]='..tostring(oACU[refbDoingInitialBuildOrder] or false)..'; bProceedWithLogic='..tostring(bProceedWithLogic or false)..'; Is table of enemy units for this LZ empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]))) end
         if bProceedWithLogic then

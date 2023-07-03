@@ -1180,24 +1180,27 @@ function M28ErisKilled()
 end
 
 function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderSpecialCampaignObjectives'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --UEF Mission 3 - create a special death trigger for Aeon ACU due to flaw with preceding objective
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; Is M3P3 active='..tostring(ScenarioInfo.M3P3.Active or false)..'; Is commander gate area empty='..tostring(Scenario.Areas['CDR_Gate_Area'] == nil)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; Is M3P3 active='..tostring(ScenarioInfo.M3P3.Active or false)..'; Is commander gate area empty='..tostring(Scenario.Areas['CDR_Gate_Area'] == nil)..'; CDR_Gate_Area='..repru(Scenario.Areas['CDR_Gate_Area'])..'; ') end
     if ScenarioInfo.M4P1 and M28Utilities.IsTableEmpty(Target.Units) and ScenarioInfo.M4P1.Active and M28UnitInfo.IsUnitValid(ScenarioInfo.AeonCDR) then
         if bDebugMessages == true then LOG(sFunctionRef..': Creating manual on death trigger') end
         local ScenarioFramework = import('/lua/ScenarioFramework.lua')
         ScenarioFramework.CreateUnitDeathTrigger(M28ErisKilled, ScenarioInfo.AeonCDR)
         --UEF Mission 5 - send ACU to gateway
     elseif ScenarioInfo.M3P3.Active and Scenario.Areas['CDR_Gate_Area'] and ScenarioInfo.PlayerCDRs then
-        local rRect = import("/lua/sim/scenarioutilities.lua").AreaToRect('CDR_Gate_Area')
+        --local rRect = import("/lua/sim/scenarioutilities.lua").AreaToRect('CDR_Gate_Area')
+        local tRect = import("/lua/sim/scenarioutilities.lua").AreaToRect('CDR_Gate_Area')
+        local rRect = {tRect['x0'], tRect['y0'], tRect['x1'], tRect['y1']}
+        if bDebugMessages == true then LOG(sFunctionRef..': rRect='..repru(rRect)..'; AreaToRect='..repru(import("/lua/sim/scenarioutilities.lua").AreaToRect('CDR_Gate_Area'))) end
         if rRect then
             local tMidpoint = {(rRect[1] + rRect[3])*0.5, 0, (rRect[2] + rRect[4])*0.5}
             tMidpoint[2] = GetTerrainHeight(tMidpoint[1], tMidpoint[3])
             for iUnit, oUnit in ScenarioInfo.PlayerCDRs do
                 if M28UnitInfo.IsUnitValid(oUnit) then
-                    LOG(sFunctionRef..': Considering ACU owned by brain '..oUnit:GetAIBrain().Nickname..'; if M28 then will set objective to tMidpoint='..repru(tMidpoint))
+                    LOG(sFunctionRef..': Considering ACU owned by brain '..oUnit:GetAIBrain().Nickname..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; if M28 then will set objective to tMidpoint='..repru(tMidpoint))
                     if oUnit:GetAIBrain().M28AI then
                         oUnit[M28ACU.reftSpecialObjectiveMoveLocation] = {tMidpoint[1], tMidpoint[2], tMidpoint[3]}
                     end

@@ -1158,10 +1158,14 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                     iNukeCount = oBrain:GetCurrentUnits(M28UnitInfo.refCategorySML - categories.EXPERIMENTAL) + oBrain:GetCurrentUnits(M28UnitInfo.refCategorySML * categories.EXPERIMENTAL) * 6
                 end
                 --Only consider overwhelming if we have 6 nukes
-                if iNukeCount >= 5 then
+                if iNukeCount >= 4 then
                     local iEnemySMD = 0
                     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemySMD]) == false then
-                        iEnemySMD = table.getn(M28Team.tTeamData[iTeam][M28Team.reftEnemySMD])
+                        for iSMD, oSMD in M28Team.tTeamData[iTeam][M28Team.reftEnemySMD] do
+                            if oSMD:GetFractionComplete() == 1 then
+                                iEnemySMD = iEnemySMD + 1
+                            end
+                        end
                     end
                     if iNukeCount > iEnemySMD * 1.5 then
                         --Have enough nukes to overwhelm enemy
