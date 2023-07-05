@@ -1604,7 +1604,12 @@ end
 
 function IsUnitUnderwater(oUnit)
     if oUnit.GetPosition and oUnit.GetBlueprint then
-        return M28Map.IsUnderwater({oUnit:GetPosition()[1], oUnit:GetPosition()[2] + (oUnit:GetBlueprint().SizeY or 0), oUnit:GetPosition()[3]}, false)
+        if EntityCategoryContains(categories.SUBMERSIBLE, oUnit.UnitId) then
+            --E.g. tempest - sizey is 4, but when it is submerged it is only 2.6 below water level
+            return M28Map.IsUnderwater({oUnit:GetPosition()[1], oUnit:GetPosition()[2] + (oUnit:GetBlueprint().SizeY or 0) * 0.5, oUnit:GetPosition()[3]}, false)
+        else
+            return M28Map.IsUnderwater({oUnit:GetPosition()[1], oUnit:GetPosition()[2] + (oUnit:GetBlueprint().SizeY or 0), oUnit:GetPosition()[3]}, false)
+        end
     else return false
     end
 end

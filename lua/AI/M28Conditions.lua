@@ -1396,3 +1396,50 @@ function IsPositionCloseToZoneEdge(iPlateauOrZero, iLandOrWaterZone, iMaxDistToE
     end
     return false
 end
+
+function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, bConsideringSubmarinesNotSurface)
+    local sFunctionRef = 'WantToAttackWithNavyEvenIfOutranged'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local bAreInScenario2 = false
+    if (bConsideringSubmarinesNotSurface and (iAdjacentAlliedSubmersibleThreat > iAdjacentEnemyAntiNavyThreat * 1.5 or (iAdjacentAlliedSubmersibleThreat > iAdjacentEnemyAntiNavyThreat and iAdjacentAlliedCombatThreat > iAdjacentEnemyCombatThreat * 1.3))) or
+    --Surface level consideration - want tobe similar to sub so we dont end up attacking with subs and not surface if reason for attacking with subs is our surface threat
+            (not(bConsideringSubmarinesNotSurface) and ((iAdjacentAlliedCombatThreat - iAdjacentAlliedSubmersibleThreat) > iAdjacentEnemyCombatThreat * 1.3 or (tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] - iAdjacentAlliedSubmersibleThreat) > iAdjacentEnemyCombatThreat * 1.1))  then bAreInScenario2 = true
+    elseif tWZTeamData[M28Map.subrefWZbCoreBase] then
+        --Consider attacking if naval fac is vulnerable, or we have slightly more threat
+        if  iAdjacentAlliedCombatThreat > iAdjacentEnemyCombatThreat then
+            if bDebugMessages == true then LOG(sFunctionRef..': We have significantly more threat than enemy so want to attack') end
+            bAreInScenario2 = true
+        else
+            --Are in core zone, and have enemies either in this zone ro an adjacent one; if enemies are in this zone still attack; if they are in adjacent zone then only attack if nearest enemy is almost in range of our naval fac
+            if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                if bDebugMessages == true then LOG(sFunctionRef..': Enemy has units in oure core water zone so want to attack') end
+                bAreInScenario2 = true
+            elseif M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftoNearestCombatEnemies]) == false then
+                --No enemies in this water zone, so must only be in adjacent zone, check if are close to being in range of our naval factory
+
+                local tFriendlyNavalFac = EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tWZTeamData[M28Map.subrefWZTAlliedUnits])
+                if M28Utilities.IsTableEmpty(tFriendlyNavalFac) then
+                    --Greater search range as dont know how close to midpoint the naval fac build location would be
+                    if CloseToEnemyUnit(tWZData[M28Map.subrefMidpoint], tWZTeamData[M28Map.reftoNearestCombatEnemies], 30, iTeam, true) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy has units almost in range of our core zone midpoint so will attack') end
+                        bAreInScenario2 = true
+                    end
+                else
+                    --Cycle through each naval fac and see if enemy is close
+                    for iNavalFac, oNavalFac in tFriendlyNavalFac do
+                        if CloseToEnemyUnit(oNavalFac:GetPosition(), tWZTeamData[M28Map.reftoNearestCombatEnemies], 15, iTeam, true) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Enemy has units almost in range of our naval fac so will attack') end
+                            bAreInScenario2 = true
+                            break
+                        end
+                    end
+                end
+            end
+        end
+
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return bAreInScenario2
+end
