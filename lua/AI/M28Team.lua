@@ -158,6 +158,8 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiEnemyTorpBombersThreat = 'M28TeamEnemyTorpBomberThreat'
     refiEnemyAirOtherThreat = 'M28TeamEnemyAirOtherThreat'
     refiTimeOfLastAirStagingShortage = 'M28TeamTimeAirStagingShortage' --Gametimeseconds that a team member last had units that had nowhere to refuel
+    --subrefiOurGunshipThreat - uses same ref as air subteam
+    --subrefiOurBomberThreat - uses same ref as air subteam
 
     refiTimeOfLastTransportShortlistUpdate = 'M28TeamAirTimeTransportShortlist' --Gametimeseconds that last updated the list of potential locations to do transport engi drops to
     reftTransportIslandDropShortlist = 'M28TeamAirTransportShortlist' --key is 1,2....x, returns {iPlateau, iIsland} - shortlist of plateau and island references that want to consider a transport drop for
@@ -177,6 +179,8 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refbAlreadyCheckedForUnitsToShare = 'M28CheckedUnitsShare' --true if already run logic for campaign to share units at start of game
     --reftoSpecialUnitsToProtect = 'M28SpecialUnitsToProtect' --table of units to protect e.g. for air units - e.g. repair targets for a campaign
 
+
+
 --AirSubteam data variables
 iTotalAirSubteamCount = 0
 tAirSubteamData = {}
@@ -186,8 +190,9 @@ tAirSubteamData = {}
     refbHaveAirControl = 'M28ASTHaveAirControl'
     reftACUExpAndPriorityDefenceOnSubteam = 'M28ASTACUExp' --Friendly ACUs and experimentals
     subrefiOurAirAAThreat = 'M28ASTOurAirAA' --Our AirAA threat
-    subrefiOurGunshipThreat = 'M28ASTOurGShip' --Our gunship threat
+    subrefiOurGunshipThreat = 'M28ASTOurGShip' --Our gunship threat; also used as a team variable
     subrefiOurTorpBomberThreat = 'M28ASTOurTBmbT' --Our torp bomber threat
+    subrefiOurBomberThreat = 'M28ASTOurBomb' --Our bomber threat
     refbTooMuchGroundNavalAAForTorpBombers = 'M28TooMuchAAForTorps' --true if have avoided targeting a water zone with torps due to groundAA threat in a water zone
     refbNoAvailableTorpsForEnemies = 'M28NoAvailTorps' --true if have enemy naval unit in a wz we want to defend, and we lack available torp bombers
     reftAirSubRallyPoint = 'M28ASTRally' --Contains the location of the air subteam's rally point
