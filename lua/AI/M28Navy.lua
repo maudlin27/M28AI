@@ -407,7 +407,7 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
     local sFunctionRef = 'RecordGroundThreatForWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iWaterZone == 36 then bDebugMessages = true end
+
     --Track team total threat - first remove the previous entry, then add in the new entry
     --M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] - tWZTeamData[M28Map.subrefWZThreatAllyMobileDFTotal]
     --M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] - tWZTeamData[M28Map.subrefWZThreatAllyMobileIndirectTotal]
@@ -1241,7 +1241,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
     local sFunctionRef = 'ManageSpecificWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iWaterZone == 45 then bDebugMessages = true end
+
 
     --Record enemy threat
     local tWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone]
@@ -1659,7 +1659,7 @@ function WaterZoneOverseer(iTeam)
 end
 
 function RecordClosestAdjacentRangesAndEnemies(tWZData, tWZTeamData, iPond, iWaterZone, iTeam)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordClosestAdjacentRangesAndEnemies'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -2251,7 +2251,7 @@ end
 
 function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableCombatUnits, tAvailableSubmarines, tUnavailableUnitsInThisWZ)
     --Handles logic for main combat units (direct and indirect fire mobile units) that are noted as available to the land zone
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageCombatUnitsInWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -2799,7 +2799,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
 end
 
 function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableMAA)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageMAAInWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

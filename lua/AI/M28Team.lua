@@ -197,6 +197,7 @@ tAirSubteamData = {}
     refiTimeLastTriedBuildingTransport = 'M28TimeLastTrns' --Gametimeseconds that someone on air subteam tried building an air transport
     refbGunshipsHadAttackOrderLastCycle = 'M28GunshipAtck' --True if the last time we ran gunship cycle we had a unit to attack (to reduce likelihood gunships appraoch somewhere then upon entering a new zone with slightly different adjacent enemy zones we decide to retreat)
     reftPriorityUnitsWantingScout = 'M28PriUnFrSct' --e.g. if gunship wants an air scout to help reveal cloaked units, this would include the gunship to shadow
+    refiLastTorpBomberAdjacencyLevel = 'M28ASTLastTBAdj' --i.e. 3 means we last looked up to 3 adjacency levels out for targets
 
 
 --Land subteam data varaibles (used for factory production logic)

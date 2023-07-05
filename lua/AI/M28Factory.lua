@@ -311,6 +311,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
             if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryGunship) >= 80 and not(M28Map.bIsCampaignMap) then sBPIDToBuild = nil end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': About to consider adjustment for factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' for if close to unit cap, sBPIDToBuild='..(sBPIDToBuild or 'nil')..'; aiBrain[M28Overseer.refbCloseToUnitCap]='..tostring(aiBrain[M28Overseer.refbCloseToUnitCap] or false)) end
     if sBPIDToBuild and aiBrain[M28Overseer.refbCloseToUnitCap] then
         if aiBrain[M28Overseer.refiExpectedRemainingCap] <= 20 or EntityCategoryContains(categories.TECH1 + M28UnitInfo.refCategoryMobileLand * categories.TECH2, sBPIDToBuild) or (aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed] and EntityCategoryContains(aiBrain[M28Overseer.refiUnitCapCategoriesDestroyed], sBPIDToBuild)) then
             --Exception - build T2 engineers if we dont have many T3 engineers and have at least 10 leeway and havent been destroying these units
@@ -328,7 +329,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
         end
         if sBPIDToBuild and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] <= 1 and (aiBrain[M28Overseer.refiExpectedRemainingCap] < 40 or (aiBrain[M28Overseer.refiExpectedRemainingCap] < 70 and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] == 0)) then
             --Dont build anything if already have lots of it
-            if bDebugMessages == true then LOG(sFunctionRef..': Are close to unit cap, sBPIDToBuild after initial close to unit override='..(sBPIDToBuild or 'nil')..'; Current units owned of this already='..aiBrain:GetCurrentUnits(sBPIDToBuild)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Are close to unit cap, sBPIDToBuild after initial close to unit override='..(sBPIDToBuild or 'nil')..'; Current units owned of this already='..aiBrain:GetCurrentUnits(categories[sBPIDToBuild])) end
             if aiBrain:GetCurrentUnits(categories[sBPIDToBuild]) >= 50 then
                 sBPIDToBuild = nil
             end
@@ -2338,6 +2339,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 end
 
                 --Do we lack enough torpedo bombers to target enemy navy?
+                if bDebugMessages == true then LOG(sFunctionRef..': About to consider getting torp bombers, iFactoryTechLevel='..iFactoryTechLevel..'; time='..GetGameTimeSeconds()..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies]='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies] or false)..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchGroundNavalAAForTorpBombers]='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchGroundNavalAAForTorpBombers])..'; M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbFarBehindOnAir]='..tostring(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbFarBehindOnAir])..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat]='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat]..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]) end
                 iCurrentConditionToTry = iCurrentConditionToTry + 1
                 if iFactoryTechLevel >= 2 and (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies] or M28Team.tAirSubteamData[iAirSubteam][M28Team.refbTooMuchGroundNavalAAForTorpBombers]) then
                     --Are we far behind on air?
@@ -2349,12 +2351,13 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                         end
                     else
                         --Not far behind on air so get more torps
+                        if bDebugMessages == true then LOG(sFunctionRef..': Not far behind on air so will try and get more torp bombers') end
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryTorpBomber) then
                             return sBPIDToBuild
                         end
                     end
                 end
-
+                if bDebugMessages == true then LOG(sFunctionRef..': Will consider getting AirAA in proportion to gunship threat now') end
                 --AirAA in proportion to gunship threat (based on if far behind on air or not); if have air control then only get if dont have low mass
                 iCurrentConditionToTry = iCurrentConditionToTry + 1
                 local iAirAAWanted = M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 100

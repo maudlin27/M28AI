@@ -305,28 +305,86 @@ function RecordTorpedoBomberPriorityLocations(iTeam, iAirSubteam)
     local sFunctionRef = 'RecordTorpedoBomberPriorityLocations'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTorpedoDefenceWaterZones] = {}
+    local iMaxAdjacencySearchLevel
+    if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then iMaxAdjacencySearchLevel = 3
+    elseif M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] then iMaxAdjacencySearchLevel = 2
+    else iMaxAdjacencySearchLevel = 1
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, Time='..GetGameTimeSeconds()..'; iMaxAdjacencySearchLevel='..iMaxAdjacencySearchLevel..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.refiLastTorpBomberAdjacencyLevel]='..(M28Team.tAirSubteamData[iAirSubteam][M28Team.refiLastTorpBomberAdjacencyLevel] or 'nil')) end
+    if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refiLastTorpBomberAdjacencyLevel] == iMaxAdjacencySearchLevel) then
+        M28Team.tAirSubteamData[iAirSubteam][M28Team.refiLastTorpBomberAdjacencyLevel] = iMaxAdjacencySearchLevel
+        M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTorpedoDefenceWaterZones] = {}
 
-    local tbAddedZones = {}
-    for iPond, tPondSubtable in M28Map.tPondDetails do
-        M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointWaterZonesByPond][iPond] = {}
-        for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
-            if tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZbContainsNavalBuildLocation] then
-                if not(tbAddedZones[iWaterZone]) then
-                    table.insert(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTorpedoDefenceWaterZones], iWaterZone)
-                end
-                --Include adjacent zones
-                if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
-                    for iEntry, iAdjWZ in tWZData[M28Map.subrefWZAdjacentWaterZones] do
-                        if not(tbAddedZones[iWaterZone]) then
-                            table.insert(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTorpedoDefenceWaterZones], iAdjWZ)
+        local tbAddedZones = {}
+        local tiMinZoneLevelRecorded = {}
+        local iCurAdjacencyLevel
+        function AddWaterZoneToTorpedoDefenceZones(iWZToAdd, iLevelRecordedAt)
+            if not(tbAddedZones[iWZToAdd]) then
+                table.insert(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTorpedoDefenceWaterZones], iWZToAdd)
+                tbAddedZones[iWZToAdd] = true
+            end
+            tiMinZoneLevelRecorded[iWZToAdd] = math.min((tiMinZoneLevelRecorded[iWZToAdd] or iLevelRecordedAt), iLevelRecordedAt)
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code for iAirSubteam '..iAirSubteam..' in iTeam '..iTeam..' at the game time='..GetGameTimeSeconds()) end
+        for iPond, tPondSubtable in M28Map.tPondDetails do
+            M28Team.tTeamData[iTeam][M28Team.subrefiRallyPointWaterZonesByPond][iPond] = {}
+            for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
+                if tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZbContainsNavalBuildLocation] then
+                    iCurAdjacencyLevel = 0
+                    if not(tbAddedZones[iWaterZone]) or tiMinZoneLevelRecorded[iWaterZone] > iCurAdjacencyLevel then
+                        AddWaterZoneToTorpedoDefenceZones(iWaterZone, iCurAdjacencyLevel)
+
+                        --Include adjacent zones
+                        if bDebugMessages == true then LOG(sFunctionRef..': Added WZ '..iWaterZone..'; is table of adj WZ empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]))) end
+                        if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
+                            for iEntry, iAdjWZ in tWZData[M28Map.subrefWZAdjacentWaterZones] do
+                                iCurAdjacencyLevel = 1
+                                if not(tbAddedZones[iAdjWZ]) or tiMinZoneLevelRecorded[iAdjWZ] > iCurAdjacencyLevel then
+                                    AddWaterZoneToTorpedoDefenceZones(iAdjWZ, iCurAdjacencyLevel)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Added iAdjWZ='..iAdjWZ..'; are we far behind on air='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir])) end
+                                    --Include zones adjacent to this if not far behind on air
+                                    if iMaxAdjacencySearchLevel > iCurAdjacencyLevel then
+                                        for iEntry, iSecondAdjWZ in M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZAdjacentWaterZones] do
+                                            iCurAdjacencyLevel = 2
+                                            if (not(tbAddedZones[iSecondAdjWZ]) or tiMinZoneLevelRecorded[iSecondAdjWZ] > iCurAdjacencyLevel) then
+                                                AddWaterZoneToTorpedoDefenceZones(iSecondAdjWZ, iCurAdjacencyLevel)
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Added iSecondAdjWZ='..iSecondAdjWZ..'; Do we have air control='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])) end
+                                                --If have significant torpedo threat then consider adding the next line
+                                                if iMaxAdjacencySearchLevel > iCurAdjacencyLevel then
+                                                    for iEntry, iThirdAdjWZ in M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iSecondAdjWZ][M28Map.subrefWZAdjacentWaterZones] do
+                                                        iCurAdjacencyLevel = 3
+                                                        if not(tbAddedZones[iThirdAdjWZ]) or tiMinZoneLevelRecorded[iThirdAdjWZ] > iCurAdjacencyLevel then
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': Added iThirdAdjWZ='..iThirdAdjWZ) end
+                                                            AddWaterZoneToTorpedoDefenceZones(iThirdAdjWZ, iCurAdjacencyLevel)
+                                                        end
+                                                    end
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                            end
                         end
                     end
                 end
             end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTorpedoDefenceWaterZones]='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTorpedoDefenceWaterZones])) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function ReassessTorpBomberPriorityLocations(iTeam, iAirSubteam)
+    local iCurCount = 0
+    while iCurCount <= 10 do
+        iCurCount = iCurCount + 1
+        WaitSeconds(1)
+        if iCurCount >= 10 then
+            iCurCount = 0
+            ForkThread(RecordTorpedoBomberPriorityLocations, iTeam, iAirSubteam)
+        end
+    end
+
 end
 
 function AirSubteamOverseer(iTeam, iAirSubteam)
@@ -345,6 +403,7 @@ function AirSubteamOverseer(iTeam, iAirSubteam)
 
     --Record torpedo bomber locations to defend
     RecordTorpedoBomberPriorityLocations(iTeam, iAirSubteam)
+    ForkThread(ReassessTorpBomberPriorityLocations, iTeam, iAirSubteam)
 
 
     while M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains]) == false do
@@ -2414,7 +2473,7 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
             if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
                 for iEntry, tSubtable in tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
                     if tSubtable[M28Map.subrefbIsWaterZone] then
-                        tiWaterZoneByDistance[tSubtable[M28Map.subrefiLandOrWaterZoneRef]] = M28Map.subrefiDistance
+                        tiWaterZoneByDistance[tSubtable[M28Map.subrefiLandOrWaterZoneRef]] = tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance][M28Map.subrefiDistance]
                     end
                 end
             else
@@ -2487,6 +2546,8 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
                                 end
                             end
                         end
+                        --Clear enemy targets (incase e.g. we have decided not to attack some of them because we have enough threat assigned already or outside playable area)
+                        tEnemyTargets = {}
                     end
                 end
             end
@@ -2513,8 +2574,10 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
             for iEntry, iWaterZone in M28Team.tAirSubteamData[iAirSubteam][M28Team.reftiTorpedoDefenceWaterZones] do
                 local tWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone]
                 local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
+                if bDebugMessages == true then LOG(sFunctionRef..': Checking if want torp bombers - considering iWaterZone='..iWaterZone..'; is table of enemy units mpety='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]))..'; does this WZ have only hover enemies='..tostring(tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies])) end
                 if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false and not(tWZTeamData[M28Map.subrefbWZOnlyHoverEnemies]) then
                     M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies] = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': We want more torp bombers as we lack available torp bombers') end
                     break
                 end
             end
@@ -2522,7 +2585,7 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
     end
 
     --Send units for refueling
-    if bDebugMessages == true then LOG(sFunctionRef..': Finished giving bomber orders, is table of air for refueling empty='..tostring(M28Utilities.IsTableEmpty(tBombersForRefueling))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished giving torp bomber orders, is table of air for refueling empty='..tostring(M28Utilities.IsTableEmpty(tBombersForRefueling))..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies]='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies])) end
     --Run the function even if no units wanting refueling so already attached untis can be sent on their way
     SendUnitsForRefueling(tBombersForRefueling, iTeam, iAirSubteam)
     if bDebugMessages == true and M28Utilities.IsTableEmpty(tBombersForRefueling) == false then
@@ -2571,55 +2634,58 @@ function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam
     end
     local bIssueAttackUnitOrder
     --Go through enemy units by distance to rally point (so target the nearest ones first)
+    local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
     for iCurEnemyUnit, iDistance in M28Utilities.SortTableByValue(toEnemyUnitsByDistance, false) do
         --for iCurEnemyUnit = iEnemyTargetSize, 1, -1 do
         iClosestUnitDist = 100000
         local oEnemyUnit = tEnemyTargets[iCurEnemyUnit]
-        iTotalStrikeDamageWanted = oEnemyUnit:GetMaxHealth()
-        if oEnemyUnit.MyShield.GetMaxHealth then iTotalStrikeDamageWanted = iTotalStrikeDamageWanted + oEnemyUnit.MyShield:GetMaxHealth() end
-        local tBasePosition = oEnemyUnit:GetPosition()
-        iCurLoopCount = 0
-        --If dealing with an anti-air unit then increase strike damage wanted by 50% to allow for some of the torps dying
-        if EntityCategoryContains(M28UnitInfo.refCategoryCruiserCarrier, oEnemyUnit.UnitId) then
-            iTotalStrikeDamageWanted = iTotalStrikeDamageWanted * 1.5
-        end
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering targeting oEnemyUnit='..(oEnemyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyUnit)..'; oEnemyUnit[refiStrikeDamageAssigned]='..(oEnemyUnit[refiStrikeDamageAssigned] or 'nil')..'; iTotalStrikeDamageWanted='..iTotalStrikeDamageWanted)) end
-        while (oEnemyUnit[refiStrikeDamageAssigned] or 0) < iTotalStrikeDamageWanted do
-            iCurLoopCount = iCurLoopCount + 1
-            if iCurLoopCount > iMaxLoopCount then M28Utilities.ErrorHandler('Potential infinite loop unless have '..iMaxLoopCount..' plus torp bombers') break end
-            iClosestUnitDist = 100000
-            for iTorp, oTorp in tAvailableBombers do
-                iCurDist = GetRoughDistanceBetweenPositions(tBasePosition, oTorp:GetPosition())
-                if iCurDist < iClosestUnitDist then
-                    iClosestUnitDist = iCurDist
-                    oClosestUnit = oTorp
-                    iClosestTorpRef = iTorp
-                end
+        if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(oEnemyUnit:GetPosition()) then
+            iTotalStrikeDamageWanted = oEnemyUnit:GetMaxHealth()
+            if oEnemyUnit.MyShield.GetMaxHealth then iTotalStrikeDamageWanted = iTotalStrikeDamageWanted + oEnemyUnit.MyShield:GetMaxHealth() end
+            local tBasePosition = oEnemyUnit:GetPosition()
+            iCurLoopCount = 0
+            --If dealing with an anti-air unit then increase strike damage wanted by 50% to allow for some of the torps dying
+            if EntityCategoryContains(M28UnitInfo.refCategoryCruiserCarrier, oEnemyUnit.UnitId) then
+                iTotalStrikeDamageWanted = iTotalStrikeDamageWanted * 1.5
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering targeting oEnemyUnit='..(oEnemyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyUnit)..'; oEnemyUnit[refiStrikeDamageAssigned]='..(oEnemyUnit[refiStrikeDamageAssigned] or 'nil')..'; iTotalStrikeDamageWanted='..iTotalStrikeDamageWanted)) end
+            while (oEnemyUnit[refiStrikeDamageAssigned] or 0) < iTotalStrikeDamageWanted do
+                iCurLoopCount = iCurLoopCount + 1
+                if iCurLoopCount > iMaxLoopCount then M28Utilities.ErrorHandler('Potential infinite loop unless have '..iMaxLoopCount..' plus torp bombers') break end
+                iClosestUnitDist = 100000
+                for iTorp, oTorp in tAvailableBombers do
+                    iCurDist = GetRoughDistanceBetweenPositions(tBasePosition, oTorp:GetPosition())
+                    if iCurDist < iClosestUnitDist then
+                        iClosestUnitDist = iCurDist
+                        oClosestUnit = oTorp
+                        iClosestTorpRef = iTorp
+                    end
+                end
 
-            --Attack if we already have an attack order on this unit, or we ahve visibility of it - decided ot comment out as had added  to try and avoid a bug with units not targeting but it was caused by somethign else, left commented out in case want to reintroduce at a later point
-            --bIssueAttackUnitOrder = M28UnitInfo.CanSeeUnit(aiBrain, oEnemyUnit, true)
-            --if not(bIssueAttackUnitOrder) then
+                --Attack if we already have an attack order on this unit, or we ahve visibility of it - decided ot comment out as had added  to try and avoid a bug with units not targeting but it was caused by somethign else, left commented out in case want to reintroduce at a later point
+                --bIssueAttackUnitOrder = M28UnitInfo.CanSeeUnit(aiBrain, oEnemyUnit, true)
+                --if not(bIssueAttackUnitOrder) then
                 --if oClosestUnit[M28Orders.reftiLastOrders][oClosestUnit[M28Orders.refiOrderCount]][M28Orers.subrefoOrderUnitTarget] == oEnemyUnit then
-                    --[[bIssueAttackUnitOrder = true
-                end
+                --[[bIssueAttackUnitOrder = true
             end
-            if bIssueAttackUnitOrder then--]]
+        end
+        if bIssueAttackUnitOrder then--]]
                 M28Orders.IssueTrackedAttack(oClosestUnit, oEnemyUnit, false, 'ATrp', false)
-            --[[else
-                --Bomber - use attackground; torp bomber - use attackmove
-                if EntityCategoryContains(M28UnitInfo.refCategoryTorpBomber, oClosestUnit.UnitId) then
-                    M28Orders.IssueTrackedAggressiveMove(oClosestUnit, oEnemyUnit:GetPosition(), 6, false, 'AMTrp', false)
-                else
-                    --Bomber - ground fire
-                    M28Orders.IssueTrackedGroundAttack(oClosestUnit, oEnemyUnit:GetPosition(), 1, false, 'ABGrn', false)
-                end
-            end--]]
-            AddAssignedAttacker(oEnemyUnit, oClosestUnit) --Must do this after sending the order or else will be cleared
-            if bDebugMessages == true then LOG(sFunctionRef..': Will tell oClosestUnit='..oClosestUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestUnit)..' with distance '..iClosestUnitDist..' to attack enemy, strike damage of torp bomber='..oClosestUnit[M28UnitInfo.refiStrikeDamage]..'; assigned strike damage after including this='..oEnemyUnit[refiStrikeDamageAssigned]..'; bIssueAttackUnitOrder='..tostring(bIssueAttackUnitOrder or false)) end
+                --[[else
+                    --Bomber - use attackground; torp bomber - use attackmove
+                    if EntityCategoryContains(M28UnitInfo.refCategoryTorpBomber, oClosestUnit.UnitId) then
+                        M28Orders.IssueTrackedAggressiveMove(oClosestUnit, oEnemyUnit:GetPosition(), 6, false, 'AMTrp', false)
+                    else
+                        --Bomber - ground fire
+                        M28Orders.IssueTrackedGroundAttack(oClosestUnit, oEnemyUnit:GetPosition(), 1, false, 'ABGrn', false)
+                    end
+                end--]]
+                AddAssignedAttacker(oEnemyUnit, oClosestUnit) --Must do this after sending the order or else will be cleared
+                if bDebugMessages == true then LOG(sFunctionRef..': Will tell oClosestUnit='..oClosestUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestUnit)..' with distance '..iClosestUnitDist..' to attack enemy, strike damage of torp bomber='..oClosestUnit[M28UnitInfo.refiStrikeDamage]..'; assigned strike damage after including this='..oEnemyUnit[refiStrikeDamageAssigned]..'; bIssueAttackUnitOrder='..tostring(bIssueAttackUnitOrder or false)) end
 
-            table.remove(tAvailableBombers, iClosestTorpRef)
-            if M28Utilities.IsTableEmpty(tAvailableBombers) then break end
+                table.remove(tAvailableBombers, iClosestTorpRef)
+                if M28Utilities.IsTableEmpty(tAvailableBombers) then break end
+            end
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': end of code, is table of available bomers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))) end

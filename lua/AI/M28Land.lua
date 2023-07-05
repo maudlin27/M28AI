@@ -2050,7 +2050,7 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
             end
         end
         if oGateway then
-            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.05 and not(M28Conditions.HaveLowPower(iTeam)) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < math.min(100, 40 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
+            if (M28Map.bIsCampaignMap or M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.05) and not(M28Conditions.HaveLowPower(iTeam)) and ((M28Map.bIsCampaignMap and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 80 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) or (not(M28Map.bIsCampaignMap) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < math.min(100, 40 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]))) then
                 if (M28Map.bIsCampaignMap or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 100) and oGateway:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryRASSACU) < 50 then
                     bNotAssistingGateway = false
                     for iUnit, oUnit in tRASSACU do
