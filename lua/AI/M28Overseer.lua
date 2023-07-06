@@ -460,7 +460,7 @@ function NoRushMonitor()
 end
 
 function TestCustom(aiBrain)
-
+    M28Map.DrawSpecificWaterZone(1)
     --AiX 10.0
     --ScenarioInfo.Options.CheatMult = tostring(10.0)
     --ScenarioInfo.Options.BuildMult = tostring(10.0)
@@ -1203,6 +1203,38 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                     LOG(sFunctionRef..': Considering ACU owned by brain '..oUnit:GetAIBrain().Nickname..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; if M28 then will set objective to tMidpoint='..repru(tMidpoint))
                     if oUnit:GetAIBrain().M28AI then
                         oUnit[M28ACU.reftSpecialObjectiveMoveLocation] = {tMidpoint[1], tMidpoint[2], tMidpoint[3]}
+                    end
+                end
+            end
+        end
+    elseif ScenarioInfo.M1P3.Active and ScenarioInfo.M1_TempleCombinedTable then
+        if M28Utilities.IsTableEmpty(   ScenarioInfo.M1_TempleCombinedTable) == false and M28Utilities.IsTableEmpty(tAllActiveM28Brains) == false then
+            local aiBrain
+            for iBrain, oBrain in tAllActiveM28Brains do
+                if oBrain.M28AI then aiBrain = oBrain break end
+            end
+            if aiBrain then
+                local iTeam = aiBrain.M28Team
+                for iUnit, oUnit in ScenarioInfo.M1_TempleCombinedTable do
+                    --Add to table of units in the land zone (if it is in a land zone)
+                    local iPlateau, iLandZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
+                    if (iLandZone or 0) > 0 then
+                        local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
+                        local bAddToTable = true
+                        if not(tLZTeamData[M28Map.reftoGroundFireFriendlyTarget]) then tLZTeamData[M28Map.reftoGroundFireFriendlyTarget] = {}
+                        else
+                            for iRecordedUnit, oRecordedUnit in tLZTeamData[M28Map.reftoGroundFireFriendlyTarget] do
+                                if oRecordedUnit == oUnit then
+                                    bAddToTable = false
+                                    break
+                                end
+                            end
+                        end
+                        if bAddToTable then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Added unit to the land zone team table of ground fire targets') end
+                            table.insert(tLZTeamData[M28Map.reftoGroundFireFriendlyTarget], oUnit)
+                        end
                     end
                 end
             end

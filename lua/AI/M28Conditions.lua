@@ -153,16 +153,20 @@ function GetLifetimeBuildCount(aiBrain, category)
     return iTotalBuilt
 end
 
-function GetFactoryLifetimeCount(oFactory, iCategory)
-    local iTotalCount = 0
-    if oFactory[M28Factory.refiBuildCountByBlueprint] then
-        for sBPID, iCurCount in oFactory[M28Factory.refiBuildCountByBlueprint] do
-            if EntityCategoryContains(iCategory, sBPID) then
-                iTotalCount = iTotalCount + iCurCount
+function GetFactoryLifetimeCount(oFactory, iCategory, bAllUnitsInsteadOfCategory)
+    if bAllUnitsInsteadOfCategory then
+        return (oFactory[M28Factory.refiTotalBuildCount] or 0)
+    else
+        local iTotalCount = 0
+        if oFactory[M28Factory.refiBuildCountByBlueprint] then
+            for sBPID, iCurCount in oFactory[M28Factory.refiBuildCountByBlueprint] do
+                if EntityCategoryContains(iCategory, sBPID) then
+                    iTotalCount = iTotalCount + iCurCount
+                end
             end
         end
+        return iTotalCount
     end
-    return iTotalCount
 end
 
 function IsEngineerAvailable(oEngineer)
@@ -559,7 +563,7 @@ function WantMorePower(iTeam)
     elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= (30 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] + 160 * math.max(0, (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] - 2))) * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultipler] * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
         --We dont have 1 pgen of our cur tech level (roughly) per brain so want more; i.e. no change
         if bDebugMessages == true then LOG(sFunctionRef..': Want base level of power given our tech level') end
-    --Have re recently build lots of power, and at a high level it looks like we should have a decent amount of power for our mass income?
+        --Have re recently build lots of power, and at a high level it looks like we should have a decent amount of power for our mass income?
     elseif M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.3 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.6 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] > 20 * M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.98 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] > 30 * M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass])) then
         bWantMorePower = false
         if bDebugMessages == true then LOG(sFunctionRef..': Just built lots of power so dont want more') end
@@ -658,8 +662,8 @@ function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, 
         --iOurFacingAngle = M28UnitInfo.GetUnitFacingAngle(oUnitIfConsideringAngleAndLastShot)
 
         --Adjust distance threshold if we have fired recently since being in range to fire again is less important
-        if bDebugMessages == true then LOG(sFunctionRef..': About to adjust dist threshold based on if we have fired recently, iDistThreshold before adjustment='..iDistThreshold..'; Time='..GetGameTimeSeconds()..'; Last weapon event='..(oUnitIfConsideringAngleAndLastShot[M28Events.refiLastWeaponEvent] or -100)..'; Time between DF shots='..(oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiTimeBetweenDFShots] or 'nil')) end
-        if GetGameTimeSeconds() - (oUnitIfConsideringAngleAndLastShot[M28Events.refiLastWeaponEvent] or -100) < (oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiTimeBetweenDFShots] or oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiTimeBetweenIFShots] or 100) then
+        if bDebugMessages == true then LOG(sFunctionRef..': About to adjust dist threshold based on if we have fired recently, iDistThreshold before adjustment='..iDistThreshold..'; Time='..GetGameTimeSeconds()..'; Last weapon event='..(oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiLastWeaponEvent] or -100)..'; Time between DF shots='..(oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiTimeBetweenDFShots] or 'nil')) end
+        if GetGameTimeSeconds() - (oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiLastWeaponEvent] or -100) < (oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiTimeBetweenDFShots] or oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiTimeBetweenIFShots] or 100) then
             iDistThreshold = iDistThreshold * 1.06
         else iDistThreshold = iDistThreshold * 0.94
         end
@@ -706,7 +710,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
     local sFunctionRef = 'WantMoreFactories'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.8 then bDebugMessages = true end
+
 
     --e.g. 1 t1 land factory building tank uses 0.4 mass per tick, so would want 1 factory for every 0.8 mass as a rough baseline; T2 is 0.9 mass per tick, T3 is 1.6; probably want ratio to be 50%-50%-33%
 
@@ -1057,7 +1061,7 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                                     end
                                 else
                                     iLandFactoriesWantedBeforeAir = 3
-                                    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] <= 1 then
+                                    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] <= 1 and not(M28Map.bIsCampaignMap) then
                                         iAirFactoriesForEveryLandFactory = 0.25
                                         if M28Map.iMapSize <= 256 and iEnemyBaseDist <= 210 then
                                             iLandFactoriesWantedBeforeAir = 7
@@ -1065,8 +1069,12 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                                     else
                                         if iEnemyBaseDist <= 250 then
                                             --Somtimes on campaign map thenearest enemy base is messed up
-                                            if M28Map.bIsCampaignMap and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 2 then
-                                                iAirFactoriesForEveryLandFactory = 1.25
+                                            if M28Map.bIsCampaignMap then
+                                                if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 2 then
+                                                    iAirFactoriesForEveryLandFactory = 1.25
+                                                else
+                                                    iAirFactoriesForEveryLandFactory = 0.75
+                                                end
                                             else
                                                 iAirFactoriesForEveryLandFactory = 0.5
                                             end
@@ -1348,8 +1356,9 @@ function IsTableOfUnitsStillValid(tUnits, bInvalidIfFullHealth)
         local iEntryCount = table.getn(tUnits)
         for iCurEntry = iEntryCount, 1, -1 do
             local oUnit = tUnits[iCurEntry]
+            --if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; Is oUnit.GetHealth nil='..tostring(oUnit.GetHealth == nil)) end
             if not(M28UnitInfo.IsUnitValid(oUnit)) or (bInvalidIfFullHealth and M28UnitInfo.GetUnitHealthPercent(oUnit) == 1) then
-                if bDebugMessages == true then LOG(sFunctionRef..': Removing unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds()..'; Unit healthj='..M28UnitInfo.GetUnitHealthPercent(oUnit)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Removing unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' at time '..GetGameTimeSeconds()..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; bInvalidIfFullHealth='..tostring(bInvalidIfFullHealth or false)) end
                 table.remove(tUnits, iCurEntry)
             end
         end

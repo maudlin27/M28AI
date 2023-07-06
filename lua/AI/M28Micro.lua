@@ -439,7 +439,11 @@ function DodgeShot(oTarget, oWeapon, oAttacker, iTimeToDodge)
     M28Orders.UpdateRecordedOrders(oTarget)
     local tCurDestination
     local bAttackMove = false
-    if oTarget[M28Orders.refiOrderCount] > 0 then
+    --ACU special - if ACU wants to run, then ignore hte last order and instead treat it as tyring to run to base
+    if oTarget[M28ACU.refiTimeLastWantedToRun] and GetGameTimeSeconds() - (oTarget[M28ACU.refiTimeLastWantedToRun] or -100) <= 5 then
+        local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneTeamData(oTarget:GetPosition(), true, oTarget:GetAIBrain().M28Team)
+        if tLZOrWZTeamData then tCurDestination = {tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][1], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][2], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][3]} end
+    elseif oTarget[M28Orders.refiOrderCount] > 0 then
         local tLastOrder = oTarget[M28Orders.reftiLastOrders][oTarget[M28Orders.refiOrderCount]]
         tCurDestination = tLastOrder[M28Orders.subreftOrderPosition]
         if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAttack or tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAggressiveMove or tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueAggressiveFormMove then
@@ -681,8 +685,8 @@ function GetOverchargeTarget(tLZData, aiBrain, oUnitWithOvercharge, bOnlyConside
 
 
     if not(oOverchargeTarget) then
-        --Cycle through every land combat non-ACU unit within firing range to see if can find one that reduces the damage the most, or failing that does the most mass damage; will include all navy on the assumption isshotblocked will trigger if shot will go underwater (as otherwise we might ignore sera T2 destroyers)
-        local tEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand - categories.COMMAND + M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryAllNavy, tUnitPosition, iACURange - 1, 'Enemy')
+        --Cycle through every land combat non-ACU, and/or surface naval, unit within firing range to see if can find one that reduces the damage the most, or failing that does the most mass damage; will include all navy on the assumption isshotblocked will trigger if shot will go underwater (as otherwise we might ignore sera T2 destroyers)
+        local tEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand - categories.COMMAND + M28UnitInfo.refCategoryPD + M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryAllNavy, tUnitPosition, iACURange, 'Enemy')
 
         local iMostMassDamage = 0
         local oMostMassDamage, iKillsExpected
@@ -691,14 +695,18 @@ function GetOverchargeTarget(tLZData, aiBrain, oUnitWithOvercharge, bOnlyConside
         if bDebugMessages == true then LOG(sFunctionRef..': Will consider enemy mobile units and PD within 2 of the ACU max range; is the table empty='..tostring(M28Utilities.IsTableEmpty(tEnemyUnits))) end
         if M28Utilities.IsTableEmpty(tEnemyUnits) == false then
             for iUnit, oUnit in tEnemyUnits do
-                if WillShotHit(oUnitWithOvercharge, oUnit) then
-                    iCurDamageDealt, iCurKillsExpected = M28Logic.GetDamageFromOvercharge(aiBrain, oUnit, iOverchargeArea, iMaxOverchargeDamage)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Shot will hit enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; damage result='..iCurDamageDealt) end
-                    if iCurDamageDealt > iMostMassDamage then
-                        iMostMassDamage = iCurDamageDealt
-                        oMostMassDamage = oUnit
-                        iKillsExpected = iCurKillsExpected
+                --Reduce range to consider if unit is moving and isn't moving towards ACU
+                if not(oUnit:IsUnitState('Moving')) or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oUnitWithOvercharge:GetPosition()) < iACURange - 1 or M28Utilities.GetAngleDifference(M28UnitInfo.GetUnitFacingAngle(oUnit), M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oUnitWithOvercharge:GetPosition())) <= 25 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if shot will hit for ACU '..(oUnitWithOvercharge.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitWithOvercharge) or 'nil')..' to hit oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' unit position='..repru(oUnit:GetPosition())..'; Is unit underwater='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; Will shot hit='..tostring(WillShotHit(oUnitWithOvercharge, oUnit))) end
+                    if WillShotHit(oUnitWithOvercharge, oUnit) then
+                        iCurDamageDealt, iCurKillsExpected = M28Logic.GetDamageFromOvercharge(aiBrain, oUnit, iOverchargeArea, iMaxOverchargeDamage)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Shot will hit enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; damage result='..iCurDamageDealt) end
+                        if iCurDamageDealt > iMostMassDamage then
+                            iMostMassDamage = iCurDamageDealt
+                            oMostMassDamage = oUnit
+                            iKillsExpected = iCurKillsExpected
 
+                        end
                     end
                 end
             end

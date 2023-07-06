@@ -473,9 +473,8 @@ function UpdateMassStorageAdjacencyValues(oStorage, bDestroyed)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function UpdateGrossIncomeForUnit(oUnit, bDestroyed)
+function UpdateGrossIncomeForUnit(oUnit, bDestroyed, bIgnoreEnhancements)
     --Logs are enabled below
-
     if oUnit.GetAIBrain and EntityCategoryContains(M28UnitInfo.refCategoryResourceUnit + M28UnitInfo.refCategoryMassStorage, oUnit.UnitId) then
         --Does the unit have an M28 aiBrain?
         local aiBrain = oUnit:GetAIBrain()
@@ -483,6 +482,7 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed)
             local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
             local sFunctionRef = 'UpdateGrossIncomeForUnit'
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
 
             if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..' oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bDestroyed='..tostring(bDestroyed or false)..': Unit aiBrain='..oUnit:GetAIBrain().Nickname..'; Brain recorded for economy='..((oUnit[refoBrainRecordedForEconomy] or {'nil'}).Nickname or 'nil')..'; Fraction complete='..oUnit:GetFractionComplete()) end
             if oUnit:GetFractionComplete() < 1 then M28Utilities.ErrorHandler('Trying to update income for unit whose fraction isnt complete') end
@@ -499,7 +499,7 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed)
                     iEnergyGen = math.max(oBP.Economy.ProductionPerSecondEnergy or 0) * 0.1
                     --Adjust for RAS upgrade
                     if bDebugMessages == true then LOG(sFunctionRef..': Is this an ACU or SACU='..tostring(EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId))) end
-                    if EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then
+                    if not(bIgnoreEnhancements) and EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then
                         local iUpgradeMassPerSec = 0
                         local iUpgradeEnergyPerSec = 0
 

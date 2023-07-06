@@ -425,6 +425,7 @@ function OnEnhancementComplete(oUnit, sEnhancement)
             if bDebugMessages == true then LOG(sFunctionRef..': Enhancement completed for self='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..'; sEnhancement='..reprs(sEnhancement)..'; Has enhancement for this='..tostring(oUnit:HasEnhancement(sEnhancement))) end
             M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit)
             M28UnitInfo.RecordUnitRange(oUnit) --Refresh the range incase enhancement has increased anything
+
             --Update ACU upgrade count
             if EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then
                 oUnit[M28ACU.refiUpgradeCount] = (oUnit[M28ACU.refiUpgradeCount] or 0) + 1
@@ -445,6 +446,18 @@ function OnEnhancementComplete(oUnit, sEnhancement)
                 --Record in table for enemy teams
                 CloakedUnitIdentified(oUnit)
             end
+            --Update eco for RAS
+            local tEnhancement = oUnit:GetBlueprint().Enhancements[sEnhancement]
+            bDebugMessages = true
+            if bDebugMessages == true then LOG(sFunctionRef..': tEnhancement='..reprs(tEnhancement)) end
+            if tEnhancement then
+                if tEnhancement.ProductionPerSecondEnergy or tEnhancement.ProductionperSecondMass then
+                    --Remove existing entries for unit then create new ones
+                    M28Economy.UpdateGrossIncomeForUnit(oUnit, true, true)
+                    M28Economy.UpdateGrossIncomeForUnit(oUnit, false, false)
+                end
+            end
+
             if bDebugMessages == true then LOG(sFunctionRef..': Unit DF range after updating recorded range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')) end
         end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -585,14 +598,14 @@ function OnWeaponFired(oWeapon)
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         local sFunctionRef = 'OnWeaponFired'
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-        if bDebugMessages == true then LOG(sFunctionRef..': Start of code; does the weapon have a valid unit='..tostring(M28UnitInfo.IsUnitValid(oWeapon.unit))..'; Weapon unitID='..(oWeapon.unit.UnitId or 'nil')..'; oWeapon[refiLastWeaponEvent]='..(oWeapon[refiLastWeaponEvent] or 'nil')) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code; does the weapon have a valid unit='..tostring(M28UnitInfo.IsUnitValid(oWeapon.unit))..'; Weapon unitID='..(oWeapon.unit.UnitId or 'nil')..'; oWeapon[M28UnitInfo.refiLastWeaponEvent]='..(oWeapon[M28UnitInfo.refiLastWeaponEvent] or 'nil')) end
 
         local oUnit = oWeapon.unit
         if oUnit and oUnit.GetUnitId and oUnit.GetAIBrain then
-            if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' has just fired a shot, Time='..GetGameTimeSeconds()..'; oWeapon[refiLastWeaponEvent]='..(oWeapon[refiLastWeaponEvent] or 'nil')) end
-            if not(oWeapon[refiLastWeaponEvent]) or GetGameTimeSeconds() - (oWeapon[refiLastWeaponEvent] or -1) >= 0.5 then
-                oWeapon[refiLastWeaponEvent] = GetGameTimeSeconds()
-                oUnit[refiLastWeaponEvent] = GetGameTimeSeconds()
+            if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' has just fired a shot, Time='..GetGameTimeSeconds()..'; oWeapon[M28UnitInfo.refiLastWeaponEvent]='..(oWeapon[M28UnitInfo.refiLastWeaponEvent] or 'nil')) end
+            if not(oWeapon[M28UnitInfo.refiLastWeaponEvent]) or GetGameTimeSeconds() - (oWeapon[M28UnitInfo.refiLastWeaponEvent] or -1) >= 0.5 then
+                oWeapon[M28UnitInfo.refiLastWeaponEvent] = GetGameTimeSeconds()
+                oUnit[M28UnitInfo.refiLastWeaponEvent] = GetGameTimeSeconds()
                 --Update unit last known position/record it
                 local oParentBrain = oUnit:GetAIBrain()
                 for iTeam, tTeam in M28Team.tTeamData do
@@ -1511,7 +1524,10 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
             end
             local tUnitsToRepair = {}
             for iUnit, oUnit in Target.Units do
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Health%='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; Is enemy='..tostring(IsEnemy(oFirstM28Brain:GetArmyIndex(),  oUnit:GetAIBrain():GetArmyIndex()))..'; IsAlly='..tostring(IsAlly(oFirstM28Brain:GetArmyIndex(),  oUnit:GetAIBrain():GetArmyIndex()))) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit)))
+                    if M28UnitInfo.IsUnitValid(oUnit) then LOG(sFunctionRef..': Unit is valid, Health%='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; Is enemy='..tostring(IsEnemy(oFirstM28Brain:GetArmyIndex(),  oUnit:GetAIBrain():GetArmyIndex()))..'; IsAlly='..tostring(IsAlly(oFirstM28Brain:GetArmyIndex(),  oUnit:GetAIBrain():GetArmyIndex()))) end
+                end
+
                 if M28UnitInfo.IsUnitValid(oUnit) then
                     if IsAlly(oFirstM28Brain:GetArmyIndex(),  oUnit:GetAIBrain():GetArmyIndex()) then
                         if M28UnitInfo.GetUnitHealthPercent(oUnit) < 1 then
@@ -1596,7 +1612,7 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
 
         --Manual objective checks (e.g. where campaign doesnt use the function for adding objectives)
         M28Engineer.CheckForSpecialCampaignCaptureTargets()
-
+        if bDebugMessages == true then LOG(sFunctionRef..': About to check for special campaign objectives') end
         M28Overseer.ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
     end
 

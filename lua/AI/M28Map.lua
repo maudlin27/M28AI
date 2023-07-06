@@ -290,6 +290,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             refiTimeOfLastTorpAttack = 'TLstTorp' --Gametimeseconds that last sent torpedo bombers to attack units in this location
             reftoTransportsWaitingForEngineers = 'TWntEng' --Table of any transports in this LZ wanting engineers
             refiTimeLastBuiltAtFactory = 'TLstBFac' --Gametimeseconds that a factory last tried ot build (used to make sure we spread things out by several ticks)
+            reftoGroundFireFriendlyTarget = 'TGFTrg' --Location of a ground fire target that we wont be trying to target via normal means, e..g intended for Cybran mission 2 where need to ground fire temples that dont show as enemies and cant be reclaimed
 
 --Pond and naval variables
     --General
@@ -5322,10 +5323,16 @@ function RecordWaterZoneAdjacentLandZones()
     local tLinePosition
     local bIsAdjacent
     local iAdjacencyTablePosition
+    local iBaseIntervalIgnoreThreshold = 3
+    local iCloseIntervalIgnoreThreshold = 6
+    local iActualIntervalIgnoreThreshold
+    local iCurIntervalIgnoreCount --i.e. if we are moving from one midpoint to another, and come across a different land or water zone, it increases the ignorecount by 1 if the midpoints aren't too far apart
 
     for iPond, tPondSubtable in tPondDetails do
         for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
+
             iPlateau = NavUtils.GetTerrainLabel(refPathingTypeHover, tWZData[subrefMidpoint])
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering iWaterZone='..iWaterZone..'; iPlateau='..(iPlateau or 'nil')..'; Is plateau data empty='..tostring(M28Utilities.IsTableEmpty(tAllPlateaus[(iPlateau or -1)]))) end
             if (iPlateau or 0) > 0 and M28Utilities.IsTableEmpty(tAllPlateaus[iPlateau]) == false then
                 --Cycle through every land zone on the map, and check if it is near this
                 for iLandZone, tLZData in tAllPlateaus[iPlateau][subrefPlateauLandZones] do
@@ -5333,6 +5340,7 @@ function RecordWaterZoneAdjacentLandZones()
                     --LZMinX is >= WZMinX and <=WZMaxX; or LZMaxX is >= WZMinX and <=WZMaxX
                     --As above but for Z
                     --Hover want to have a small tolerance for cliffs etc
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if land zone '..iLandZone..' is near the water zone; iSegmentGapAllowed='..iSegmentGapAllowed..'; tLZData[subrefLZMinSegX]='..tLZData[subrefLZMinSegX]..'; tWZData[subrefWZMinSegX]='..tWZData[subrefWZMinSegX]..'; tWZData[subrefWZMaxSegX]='..tWZData[subrefWZMaxSegX]..'; tLZData[subrefLZMaxSegX]='..tLZData[subrefLZMaxSegX]..'; tLZData[subrefLZMinSegZ]='..tLZData[subrefLZMinSegZ]..'; tWZData[subrefWZMinSegZ]='..tWZData[subrefWZMinSegZ]..'; tWZData[subrefWZMaxSegZ]='..tWZData[subrefWZMaxSegZ]..'; tLZData[subrefLZMaxSegZ]='..tLZData[subrefLZMaxSegZ]) end
                     if (tLZData[subrefLZMinSegX] + iSegmentGapAllowed >= tWZData[subrefWZMinSegX] and tLZData[subrefLZMinSegX] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegX]) or (tLZData[subrefLZMaxSegX] + iSegmentGapAllowed >= tWZData[subrefWZMinSegX] and tLZData[subrefLZMaxSegX] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegX])
                             and (tLZData[subrefLZMinSegZ] + iSegmentGapAllowed >= tWZData[subrefWZMinSegZ] and tLZData[subrefLZMinSegZ] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegZ]) or (tLZData[subrefLZMaxSegZ] + iSegmentGapAllowed >= tWZData[subrefWZMinSegZ] and tLZData[subrefLZMaxSegZ] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegZ]) then
                         --It looks like we might overlap, do a more precise calculation drawing a line from the two midpoints to see if we come across other land zones
@@ -5340,24 +5348,44 @@ function RecordWaterZoneAdjacentLandZones()
                         iDistBetweenMidpoints = M28Utilities.GetDistanceBetweenPositions(tWZData[subrefMidpoint], tLZData[subrefMidpoint])
                         iMaxLineInterval = math.floor(iDistBetweenMidpoints / iLineInterval) * iLineInterval
                         iLineAngle = M28Utilities.GetAngleFromAToB(tWZData[subrefMidpoint], tLZData[subrefMidpoint])
+                        if iDistBetweenMidpoints <= 150 then
+                            if iDistBetweenMidpoints <= 75 then iActualIntervalIgnoreThreshold = iCloseIntervalIgnoreThreshold
+                            else iActualIntervalIgnoreThreshold = iBaseIntervalIgnoreThreshold
+                            end
+                        else
+                            iActualIntervalIgnoreThreshold = 0
+                        end
+                        iCurIntervalIgnoreCount = 0
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have land zone that is close to a ater zone, checking if we cross other land zones when going from one to the other, iDistBetweenMidpoints='..iDistBetweenMidpoints..'; iMaxLineInterval='..iMaxLineInterval..'; iLineAngle='..iLineAngle) end
                         for iDistAlongLine = iLineInterval, iMaxLineInterval, iLineInterval do
                             tLinePosition = M28Utilities.MoveInDirection(tWZData[subrefMidpoint], iLineAngle, iDistAlongLine, false, false, false)
                             iCurLineSegmentX, iCurLineSegmentZ = GetPathingSegmentFromPosition(tLinePosition)
+                            if bDebugMessages == true then
+                                LOG(sFunctionRef..': tLinePosition='..repru(tLinePosition)..'; iCurLineSegmentX='..(iCurLineSegmentX or 'nil')..'; iCurLineSegmentZ='..(iCurLineSegmentZ or 'nil')..'; tLandZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ]='..(tLandZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ] or 'nil')..'; tWaterZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ]='..(tWaterZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ] or 'nil')..'; iCurIntervalIgnoreCount='..iCurIntervalIgnoreCount..'; iActualIntervalIgnoreThreshold='..iActualIntervalIgnoreThreshold..'; Will draw this location')
+                                M28Utilities.DrawLocation(tLinePosition, nil, 200)
+                            end
                             if tLandZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ] then
                                 if tLandZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ] == iLandZone then
                                     bIsAdjacent = true
                                     break
                                 else
                                     --Not adjacent as is another land zone inbetween
-                                    break
+                                    iCurIntervalIgnoreCount = iCurIntervalIgnoreCount + 1
+                                    if iCurIntervalIgnoreCount > iActualIntervalIgnoreThreshold then
+                                        break
+                                    end
                                 end
                             elseif tWaterZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ] then
                                 if not(tWaterZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ] == iWaterZone) then
                                     --not adjacent as is another water zone inbetween
-                                    break
+                                    iCurIntervalIgnoreCount = iCurIntervalIgnoreCount + 1
+                                    if iCurIntervalIgnoreCount > iActualIntervalIgnoreThreshold then
+                                        break
+                                    end
                                 end
                             end
                         end
+                        if bDebugMessages == true then LOG(sFunctionRef..': bIsAdjacent='..tostring(bIsAdjacent)) end
                         if bIsAdjacent then
                             --Record water zone as adjacent to land zone
                             iAdjacencyTablePosition = 1
@@ -6134,5 +6162,25 @@ function InPlayableArea(tLocation) --NOTE - also have the same function in M28Co
         return true
     else
         return false
+    end
+end
+
+function GetLandOrWaterZoneTeamData(tLocation, bReturnTeamDataAsWell, iOptionalTeam)
+    local iPlateauOrZero, iLandOrWaterZone = GetClosestPlateauOrZeroAndZoneToPosition(tLocation)
+    if (iLandOrWaterZone or 0) > 0 then
+        if iPlateauOrZero == 0 then
+            --Water zone
+            if bReturnTeamDataAsWell then
+                return tPondDetails[tiPondByWaterZone[iLandOrWaterZone]][subrefPondWaterZones][iLandOrWaterZone], tPondDetails[tiPondByWaterZone[iLandOrWaterZone]][subrefPondWaterZones][iLandOrWaterZone][subrefWZTeamData][iOptionalTeam]
+            else
+                return tPondDetails[tiPondByWaterZone[iLandOrWaterZone]][subrefPondWaterZones][iLandOrWaterZone]
+            end
+        else
+            if bReturnTeamDataAsWell then
+                return tAllPlateaus[iPlateauOrZero][subrefPlateauLandZones][iLandOrWaterZone], tAllPlateaus[iPlateauOrZero][subrefPlateauLandZones][iLandOrWaterZone][subrefLZTeamData][iOptionalTeam]
+            else
+                return tAllPlateaus[iPlateauOrZero][subrefPlateauLandZones][iLandOrWaterZone]
+            end
+        end
     end
 end

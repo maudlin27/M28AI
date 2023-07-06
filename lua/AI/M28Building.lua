@@ -1750,7 +1750,7 @@ function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
         local iAOE, iDamage, iMinRange, iMaxRange, iSalvoSize, iSalvoIndividualDelay = M28UnitInfo.GetLauncherAOEStrikeDamageMinAndMaxRange(oArti)
         --Wait if salvo size >1
         local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
-        if iSalvoSize > 1 and not(bCalledFromSalvoSize) and oArti[M28Events.refiLastWeaponEvent] then
+        if iSalvoSize > 1 and not(bCalledFromSalvoSize) and oArti[M28UnitInfo.refiLastWeaponEvent] then
             --E.g. scathis - dont want to change targets after firing a single shot - we have fired the scathis before, and this has presumably been called from the onweaponevent trigger
 
             local iTimeToWait = 4
