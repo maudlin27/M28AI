@@ -1550,8 +1550,36 @@ function ConsiderAttackingNearbyNavalUnits(tLZData, tLZTeamData, oACU, iRangeThr
     local tPotentialViaPoint
     local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()) end
-
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..', iRangeThresholdOverride='..(iRangeThresholdOverride or 'nil')..'; iDistToLandThreshold='..iDistToLandThreshold..'; iDistToACUThreshold='..iDistToACUThreshold) end
+    function ConsiderPotentialUnitTarget(oUnit)
+        if M28UnitInfo.IsUnitValid(oUnit) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and (bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition())) then
+            iCurDistToACU = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oUnit:GetPosition())
+            if bDebugMessages == true then LOG(sFunctionRef..': iCurDistToACU='..iCurDistToACU..'; iDistToACUThreshold='..iDistToACUThreshold..'; iClosestEnemyToAttack='..iClosestEnemyToAttack) end
+            if iCurDistToACU <= iDistToACUThreshold and iCurDistToACU < iClosestEnemyToAttack then
+                --If we move from the ACU until we are within ACU range of the unit, are we on land rather than water?
+                bCanHitFromLand = false
+                if iCurDistToACU <= iDistToLandThreshold then
+                    bCanHitFromLand = true
+                    tPotentialViaPoint = oUnit:GetPosition()
+                else
+                    iAngleFromACUToUnit = M28Utilities.GetAngleFromAToB(oACU:GetPosition(), oUnit:GetPosition())
+                    tPotentialViaPoint = M28Utilities.MoveInDirection(oACU:GetPosition(), iAngleFromACUToUnit, iCurDistToACU - iDistToLandThreshold, true, true, true)
+                    iTempSegmentX, iTempSegmentZ = M28Map.GetPathingSegmentFromPosition(tPotentialViaPoint)
+                    if M28Map.tLandZoneBySegment[iTempSegmentX][iTempSegmentZ] then
+                        bCanHitFromLand = true
+                    elseif iCurDistToACU <= oACU[M28UnitInfo.refiDFRange] then
+                        bCanHitFromLand = true
+                        tPotentialViaPoint = oUnit:GetPosition()
+                    end
+                end
+                if bCanHitFromLand then
+                    iClosestEnemyToAttack = iCurDistToACU
+                    oClosestEnemyToAttack = oUnit
+                    tViaPointForClosestEnemy = {tPotentialViaPoint[1], tPotentialViaPoint[2], tPotentialViaPoint[3]}
+                end
+            end
+        end
+    end
     for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
         local iAdjWZ = tSubtable[M28Map.subrefAWZRef]
         local iPond = M28Map.tiPondByWaterZone[iAdjWZ]
@@ -1560,31 +1588,16 @@ function ConsiderAttackingNearbyNavalUnits(tLZData, tLZTeamData, oACU, iRangeThr
         if (tWZTeamData[M28Map.subrefWZThreatEnemySurface] + tWZTeamData[M28Map.subrefWZThreatEnemyAA]) > 0 and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
             for iUnit, oUnit in tWZTeamData[M28Map.subrefTEnemyUnits] do
                 if bDebugMessages == true then if M28UnitInfo.IsUnitValid(oUnit) then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is unit undetwater='..tostring(M28UnitInfo.IsUnitUnderwater(oUnit))..'; Is in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition()))) end end
-                if M28UnitInfo.IsUnitValid(oUnit) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and (bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition())) then
-                    iCurDistToACU = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oUnit:GetPosition())
-                    if bDebugMessages == true then LOG(sFunctionRef..': iCurDistToACU='..iCurDistToACU..'; iDistToACUThreshold='..iDistToACUThreshold..'; iClosestEnemyToAttack='..iClosestEnemyToAttack) end
-                    if iCurDistToACU <= iDistToACUThreshold and iCurDistToACU < iClosestEnemyToAttack then
-                        --If we move from the ACU until we are within ACU range of the unit, are we on land rather than water?
-                        bCanHitFromLand = false
-                        if iCurDistToACU <= iDistToLandThreshold then
-                            bCanHitFromLand = true
-                            tPotentialViaPoint = oUnit:GetPosition()
-                        else
-                            iAngleFromACUToUnit = M28Utilities.GetAngleFromAToB(oACU:GetPosition(), oUnit:GetPosition())
-                            tPotentialViaPoint = M28Utilities.MoveInDirection(oACU:GetPosition(), iAngleFromACUToUnit, iCurDistToACU - iDistToLandThreshold, true, true, true)
-                            iTempSegmentX, iTempSegmentZ = M28Map.GetPathingSegmentFromPosition(tPotentialViaPoint)
-                            if M28Map.tLandZoneBySegment[iTempSegmentX][iTempSegmentZ] then
-                                bCanHitFromLand = true
-                            elseif iCurDistToACU <= oACU[M28UnitInfo.refiDFRange] then
-                                bCanHitFromLand = true
-                                tPotentialViaPoint = oUnit:GetPosition()
-                            end
-                        end
-                        if bCanHitFromLand then
-                            iClosestEnemyToAttack = iCurDistToACU
-                            oClosestEnemyToAttack = oUnit
-                            tViaPointForClosestEnemy = {tPotentialViaPoint[1], tPotentialViaPoint[2], tPotentialViaPoint[3]}
-                        end
+                ConsiderPotentialUnitTarget(oUnit)
+            end
+            if not(oClosestEnemyToAttack) then
+                --redundancy - use getunitsaroundpoint as sometimes can have nearby WZ that unit isnt showing in
+                local aiBrain = oACU:GetAIBrain()
+                local tNearbyNavalUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryAllAmphibiousAndNavy - categories.AMPHIBIOUS, oACU:GetPosition(), iDistToACUThreshold, 'Enemy')
+                if bDebugMessages == true then LOG(sFunctionRef..': Is table of nearby enemy hover and surface navy empty='..tostring(M28Utilities.IsTableEmpty(tNearbyNavalUnits))) end
+                if M28Utilities.IsTableEmpty(tNearbyNavalUnits) == false then
+                    for iUnit, oUnit in tNearbyNavalUnits do
+                        ConsiderPotentialUnitTarget(oUnit)
                     end
                 end
             end
@@ -1792,7 +1805,7 @@ end
                         if not(tRallyPoint) then tRallyPoint = M28Map.PlayerStartPoints[oACU:GetAIBrain():GetArmyIndex()] end
                         if not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and not(tLZOrWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) then
 
-                            M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'Runa')
+                            M28Orders.IssueTrackedMove(oACU, tRallyPoint, 3, false, 'Runa')
                             if bDebugMessages == true then LOG(sFunctionRef..': Sending ACU to core base') end
                         else
                             --Consider attacking nearby enemies if no enemy experimental
@@ -1811,9 +1824,11 @@ end
                                     --Do nothing
                                 else
                                     --Are there nearby enemy naval units to attack?
-                                    if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefAdjacentWaterZones]) and M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.refbNoAvailableTorpsForEnemies] and ConsiderAttackingNearbyNavalUnits(tLZOrWZData, tLZOrWZTeamData, oACU, oACU[refiDFRange] + 10) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if are nearby naval threats to attack, is table of adjacent WZs empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefAdjacentWaterZones]))..'; Do we lack torp bombers for enemy naval='..tostring(M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.refbNoAvailableTorpsForEnemies])) end
+                                    if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefAdjacentWaterZones]) == false and M28Team.tAirSubteamData[oACU:GetAIBrain().M28AirSubteam][M28Team.refbNoAvailableTorpsForEnemies] and ConsiderAttackingNearbyNavalUnits(tLZOrWZData, tLZOrWZTeamData, oACU, oACU[M28UnitInfo.refiDFRange] + 10) then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Will attack nearby naval threats') end
                                     else
+                                        if bDebugMessages == true then LOG(sFunctionRef..': No naval threats close enough to attack so will consider nearby reclaim') end
                                         if not(ConsiderNearbyReclaim(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, true)) then
                                             local sUpgradeToGet = GetACUUpgradeWanted(oACU)
                                             if sUpgradeToGet and not(M28Conditions.HaveLowMass(aiBrain)) and not(M28Conditions.HaveLowPower(aiBrain)) then
@@ -1849,7 +1864,9 @@ end
                     else
                         --Nearby enemy naval units
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering if nearby naval units that should send ACU to try and fight; M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbNoAvailableTorpsForEnemies] ='..tostring(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbNoAvailableTorpsForEnemies])..'; ACU health='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; Is table of adjacent WZs empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefAdjacentWaterZones]))) end
-                        if iPlateauOrZero > 0 and M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbNoAvailableTorpsForEnemies] and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.3 and M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefAdjacentWaterZones]) == false and ConsiderAttackingNearbyNavalUnits(tLZOrWZData, tLZOrWZTeamData, oACU) then
+                        local iWaterZoneEnemyRangeOverride
+                        if M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.3 then iWaterZoneEnemyRangeOverride = 10 end
+                        if iPlateauOrZero > 0 and M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbNoAvailableTorpsForEnemies] and M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefAdjacentWaterZones]) == false and ConsiderAttackingNearbyNavalUnits(tLZOrWZData, tLZOrWZTeamData, oACU, iWaterZoneEnemyRangeOverride) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Telling ACU to attack nearby enemy navla units') end
 
                         else
