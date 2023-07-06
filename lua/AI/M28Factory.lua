@@ -1109,7 +1109,6 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
 
         --Consider upgrading factory to t2 (or T3) if we have lots of mass, or have built lots of units from this factory
-        if iFactoryTechLevel == 1 then bDebugMessages = true end
         local iUnitCountToUpgrade = 25
         if iFactoryTechLevel < M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] then iUnitCountToUpgrade = iUnitCountToUpgrade - 10 end
         if bHaveLowMass then iUnitCountToUpgrade = iUnitCountToUpgrade + 15 end
@@ -1126,7 +1125,6 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             if bDebugMessages == true then LOG(sFunctionRef..': Will try and upgrade factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)) end
             if ConsiderUpgrading() then return sBPIDToBuild end
         end
-        bDebugMessages = false
 
         --Combat units in proportion to engineers at T1 if enemy relatively nearby spawn
         iCurrentConditionToTry = iCurrentConditionToTry + 1

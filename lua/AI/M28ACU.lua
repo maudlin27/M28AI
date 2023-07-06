@@ -1617,7 +1617,7 @@ end
 
     function GetACUOrder(aiBrain, oACU)
         local sFunctionRef = 'GetACUOrder'
-        local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 

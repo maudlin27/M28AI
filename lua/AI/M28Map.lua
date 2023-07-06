@@ -366,7 +366,7 @@ tPondDetails = {}
             --subrefTEnemyUnits = 'Enemies' --table of all enemy units in the water zone - uses same ref as for land zone
             reftWZEnemyAirUnits = 'EnAir' --All enemy air units that are currently in the water zone
             --Threat values
-            subrefbEnemiesInThisOrAdjacentWZ = 'EnInAdjWZ' --true if enemy in this or adjacent WZ
+            subrefbEnemiesInThisOrAdjacentWZ = 'EnInAdjWZ' --true if enemy in this or adjacent WZ; for land zones this will return true if any adjacent WZ has enemies
 
             --subrefThreatEnemyStructureTotalMass - uses same ref as for LZ
             --subrefTThreatEnemyCombatTotal = 'ECTotal' --Uses same ref as for LZ

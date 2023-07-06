@@ -448,7 +448,6 @@ function OnEnhancementComplete(oUnit, sEnhancement)
             end
             --Update eco for RAS
             local tEnhancement = oUnit:GetBlueprint().Enhancements[sEnhancement]
-            bDebugMessages = true
             if bDebugMessages == true then LOG(sFunctionRef..': tEnhancement='..reprs(tEnhancement)) end
             if tEnhancement then
                 if tEnhancement.ProductionPerSecondEnergy or tEnhancement.ProductionperSecondMass then
