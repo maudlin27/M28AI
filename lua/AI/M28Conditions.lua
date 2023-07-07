@@ -20,6 +20,9 @@ local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
 local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 
+refiEngineerStuckCheckCount = 'M28CEngSC' --time since last recorded the engineer's position when moving
+reftEngineerStuckCheckLastPosition = 'M28CEngSP' --Position engineer was at when last did the stuck check
+
 function AreMobileLandUnitsInRect(rRectangleToSearch)
     --returns true if have mobile land units in rRectangleToSearch
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -169,16 +172,17 @@ function GetFactoryLifetimeCount(oFactory, iCategory, bAllUnitsInsteadOfCategory
     end
 end
 
-function IsEngineerAvailable(oEngineer)
+function IsEngineerAvailable(oEngineer, bDebugOnly)
+    --If bDebugOnly is true then wont adjust counts/tracking (i.e. set to true if are calling for logging purposes, so we dont desync the replay)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'IsEngineerAvailable'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if GetGameTimeSeconds() >= 1620 and oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer) == 'xsl01052' then bDebugMessages = true end
 
     if bDebugMessages == true then
         local iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
-        LOG(sFunctionRef..': GameTIme '..GetGameTimeSeconds()..': Engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' owned by '..oEngineer:GetAIBrain().Nickname..': oEngineer:GetFractionComplete()='..oEngineer:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; Are last orders empty='..tostring(oEngineer[M28Orders.reftiLastOrders] == nil)..'; Engineer Plateau='..(iCurPlateau or 'nil')..'; LZ='..(iCurLZ or 'nil'))
+        LOG(sFunctionRef..': GameTIme '..GetGameTimeSeconds()..': Engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' owned by '..oEngineer:GetAIBrain().Nickname..': oEngineer:GetFractionComplete()='..oEngineer:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; Are last orders empty='..tostring(oEngineer[M28Orders.reftiLastOrders] == nil)..'; Engineer Plateau='..(iCurPlateau or 'nil')..'; LZ='..(iCurLZ or 'nil')..'; Is unit state moving='..tostring(oEngineer:IsUnitState('Moving'))..'; Engineer position='..repru(oEngineer:GetPosition()))
     end
     if oEngineer:GetFractionComplete() == 1 and not(oEngineer:IsUnitState('Attached')) and not(oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionSpecialShieldDefence) then
         M28Orders.UpdateRecordedOrders(oEngineer)
@@ -192,6 +196,25 @@ function IsEngineerAvailable(oEngineer)
             else
                 local iLastOrderType = oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]][M28Orders.subrefiOrderType]
                 if bDebugMessages == true then LOG(sFunctionRef..': Engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' owned by '..oEngineer:GetAIBrain().Nickname..' has a last order type of '..(iLastOrderType or 'nil')..'; and an action assigned of '..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')..'; Order for this action='..(M28Engineer.tiActionOrder[oEngineer[M28Engineer.refiAssignedAction]] or 'nil')) end
+                --Rare case where engineer acn be given a move order yet doesn't move - below is to try and mitigate it
+                if oEngineer:IsUnitState('Moving') and oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove and not(bDebugOnly) then
+                    if (oEngineer[refiEngineerStuckCheckCount] or 0) == 0 then
+                        oEngineer[refiEngineerStuckCheckCount] = 1
+                        oEngineer[reftEngineerStuckCheckLastPosition] = {oEngineer:GetPosition()[1], oEngineer:GetPosition()[2], oEngineer:GetPosition()[3]}
+                    else
+                        oEngineer[refiEngineerStuckCheckCount] = oEngineer[refiEngineerStuckCheckCount] + 1
+                        if oEngineer[refiEngineerStuckCheckCount] >= 10 then
+                            oEngineer[refiEngineerStuckCheckCount] = 0
+                            if M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(),oEngineer[reftEngineerStuckCheckLastPosition]) <= 0.01 then
+                                --Engineer is stuck, clear its orders and treat as available
+                                M28Orders.IssueTrackedClearCommands(oEngineer)
+                                oEngineer[reftEngineerStuckCheckLastPosition] = nil
+                                return true
+                            end
+                        end
+                    end
+                end
+
                 if iLastOrderType == M28Orders.refiOrderIssueMove then
                     if oEngineer[M28Engineer.refiAssignedAction] and M28Engineer.tiActionOrder[oEngineer[M28Engineer.refiAssignedAction]] == iLastOrderType then
                         --Engineer not available, unless its order was to move to a land or water zone, in which case check if it is now in that land or water zone

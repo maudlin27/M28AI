@@ -2475,7 +2475,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
     local sFunctionRef = 'FilterToAvailableEngineersByTech'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iPlateauOrPond == 67 and iLandZone == 1 and GetGameTimeSeconds() >= 1620 then bDebugMessages = true end
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..' for iPlateauOrPond='..iPlateauOrPond..'; iLandZone='..iLandZone..'; reprs of tEngineers='..reprs(tEngineers)) end
 
@@ -2656,7 +2656,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
             --Finished checking for enemies; now check more generally if engineer is busy
             if not(bEngiIsUnavailable) then
                 bEngiIsUnavailable = not(M28Conditions.IsEngineerAvailable(oEngineer))
-                if bDebugMessages == true then LOG(sFunctionRef..': Entry in table='..iEngineer..'; Considering if engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' is available, result='..tostring(M28Conditions.IsEngineerAvailable(oEngineer))..'; Eng unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; bEngiIsUnavailable='..tostring(bEngiIsUnavailable)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Entry in table='..iEngineer..'; Considering if engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' is available, result='..tostring(M28Conditions.IsEngineerAvailable(oEngineer, true))..'; Eng unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; bEngiIsUnavailable='..tostring(bEngiIsUnavailable)) end
             end
             if bEngiIsUnavailable then
                 table.insert(toAssignedEngineers, oEngineer)
