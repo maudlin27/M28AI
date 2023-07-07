@@ -460,7 +460,7 @@ function NoRushMonitor()
 end
 
 function TestCustom(aiBrain)
-    M28Map.DrawSpecificWaterZone(1)
+    --M28Map.DrawSpecificWaterZone(1)
     --AiX 10.0
     --ScenarioInfo.Options.CheatMult = tostring(10.0)
     --ScenarioInfo.Options.BuildMult = tostring(10.0)
@@ -1184,7 +1184,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
     local sFunctionRef = 'ConsiderSpecialCampaignObjectives'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --UEF Mission 3 - create a special death trigger for Aeon ACU due to flaw with preceding objective
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; Is M3P3 active='..tostring(ScenarioInfo.M3P3.Active or false)..'; Is commander gate area empty='..tostring(Scenario.Areas['CDR_Gate_Area'] == nil)..'; CDR_Gate_Area='..repru(Scenario.Areas['CDR_Gate_Area'])..'; ') end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; Is M3P3 active='..tostring(ScenarioInfo.M3P3.Active or false)..'; Is commander gate area empty='..tostring(Scenario.Areas['CDR_Gate_Area'] == nil)..'; CDR_Gate_Area='..repru(Scenario.Areas['CDR_Gate_Area'])..'; ScenarioInfo.M1P3.Active='..tostring(ScenarioInfo.M1P3.Active or false)..'; Is combined table empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.M1_TempleCombinedTable))..'; M1P2 active='..tostring(ScenarioInfo.M1P2.Active)..'; M1P1 active='..tostring(ScenarioInfo.M1P1.Active)) end
     if ScenarioInfo.M4P1 and M28Utilities.IsTableEmpty(Target.Units) and ScenarioInfo.M4P1.Active and M28UnitInfo.IsUnitValid(ScenarioInfo.AeonCDR) then
         if bDebugMessages == true then LOG(sFunctionRef..': Creating manual on death trigger') end
         local ScenarioFramework = import('/lua/ScenarioFramework.lua')
@@ -1207,7 +1207,8 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                 end
             end
         end
-    elseif ScenarioInfo.M1P3.Active and ScenarioInfo.M1_TempleCombinedTable then
+    elseif ScenarioInfo.M1_TempleCombinedTable and (ScenarioInfo.M1P3.Active or ScenarioInfo.M1P2.Active) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Will check if we have Seraphim temples that need manually destroying') end
         if M28Utilities.IsTableEmpty(   ScenarioInfo.M1_TempleCombinedTable) == false and M28Utilities.IsTableEmpty(tAllActiveM28Brains) == false then
             local aiBrain
             for iBrain, oBrain in tAllActiveM28Brains do
@@ -1236,6 +1237,17 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                             table.insert(tLZTeamData[M28Map.reftoGroundFireFriendlyTarget], oUnit)
                         end
                     end
+                end
+            end
+        end
+        --Cybran mission 2 - move to gate
+    elseif ScenarioInfo.M3P2.Active and ScenarioInfo.M3Gate and M28UnitInfo.IsUnitValid(ScenarioInfo.M3Gate) then
+        for iBrain, oBrain in tAllActiveM28Brains do
+            local tACUs = oBrain:GetListOfUnits(categories.COMMAND, false, true)
+            if M28Utilities.IsTableEmpty(tACUs) == false then
+                for iUnit, oUnit in tACUs do
+                    LOG(sFunctionRef..': Considering ACU owned by brain '..oUnit:GetAIBrain().Nickname..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; if M28 then will set objective to gate position='..repru(ScenarioInfo.M3Gate:GetPosition()))
+                    oUnit[M28ACU.reftSpecialObjectiveMoveLocation] = ScenarioInfo.M3Gate:GetPosition()
                 end
             end
         end

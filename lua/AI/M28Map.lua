@@ -4199,6 +4199,7 @@ function RecordPondDetails()
         local tShotStartPosition
         local tShotEndPosition
         local iAOE
+        local iPotentialSegmentX, iPotentialSegmentZ, iPotentialWaterZone
 
         --Want a brain in case we end up using the alternative 'line is blocked' built in functionality
         local aiBrain
@@ -4235,94 +4236,98 @@ function RecordPondDetails()
                             for iAngleAdjust = iAngleInterval, 360, iAngleInterval do
                                 tPossibleWaterPosition = M28Utilities.MoveInDirection(tMex, iAngleAdjust, iDist, true, true, false) --Gets terrainheight rather than surface height
                                 if IsUnderwater(tPossibleWaterPosition, false, iMinWaterDepth) then
-                                    --Have a match, record the mex details:
-                                    bInRange = true
-                                    iCurMexDist = iDist
+                                    iPotentialSegmentX, iPotentialSegmentZ = GetPathingSegmentFromPosition(tPossibleWaterPosition)
+                                    iPotentialWaterZone = tWaterZoneBySegment[iPotentialSegmentX][iPotentialSegmentZ]
+                                    if iPotentialWaterZone and tiPondByWaterZone[iPotentialWaterZone] == iPond then
+                                        --Have a match, record the mex details:
+                                        bInRange = true
+                                        iCurMexDist = iDist
 
-                                    --Record initial mex details:
-                                    iPondMexCount = iPondMexCount + 1
-                                    tPondSubtable[subrefPondMexInfo][iPondMexCount] = {}
-                                    tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexLocation] = { tMex[1], tMex[2], tMex[3] }
+                                        --Record initial mex details:
+                                        iPondMexCount = iPondMexCount + 1
+                                        tPondSubtable[subrefPondMexInfo][iPondMexCount] = {}
+                                        tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexLocation] = { tMex[1], tMex[2], tMex[3] }
 
-                                    --Do we expect to be able to hit the mex from here? a UEF Frigate y height is 1.1, while a t1 mex is 1.4; cant be bothered to check height of weapon and mex bone, and will vary based on how far away we are as well
-                                    tShotStartPosition = { tPossibleWaterPosition[1], GetSurfaceHeight(tPossibleWaterPosition[1], tPossibleWaterPosition[3]) + 1, tPossibleWaterPosition[3] }
-                                    tShotEndPosition = { tMex[1], tMex[2] + 1.1, tMex[3] }
+                                        --Do we expect to be able to hit the mex from here? a UEF Frigate y height is 1.1, while a t1 mex is 1.4; cant be bothered to check height of weapon and mex bone, and will vary based on how far away we are as well
+                                        tShotStartPosition = { tPossibleWaterPosition[1], GetSurfaceHeight(tPossibleWaterPosition[1], tPossibleWaterPosition[3]) + 1, tPossibleWaterPosition[3] }
+                                        tShotEndPosition = { tMex[1], tMex[2] + 1.1, tMex[3] }
 
-                                    iAOE = 0
-                                    if iCurMexDist >= 30 then
-                                        iAOE = 1
-                                    end --most destroyers have an aoe attack (except sera)
+                                        iAOE = 0
+                                        if iCurMexDist >= 30 then
+                                            iAOE = 1
+                                        end --most destroyers have an aoe attack (except sera)
 
-                                    if M28Logic.IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, iAOE) then
-                                        tShotStartPosition[2] = tShotStartPosition[2] + 8
-                                        tShotEndPosition[2] = tShotEndPosition[2] + 8
-                                        if M28Logic.IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, 1) then
-                                            --cant hit with df or indirect
-                                            tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexIndirectDistance] = 10000
-                                            tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFDistance] = 10000
-                                        else
-                                            --Can hit with indirect but not DF, so consider whether if we move further back we can then hit
-                                            tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexIndirectDistance] = iCurMexDist
-                                            tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexIndirectUnblockedLocation] = {tShotStartPosition[1], tShotStartPosition[2], tShotStartPosition[3]}
+                                        if M28Logic.IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, iAOE) then
+                                            tShotStartPosition[2] = tShotStartPosition[2] + 8
+                                            tShotEndPosition[2] = tShotEndPosition[2] + 8
+                                            if M28Logic.IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, 1) then
+                                                --cant hit with df or indirect
+                                                tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexIndirectDistance] = 10000
+                                                tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFDistance] = 10000
+                                            else
+                                                --Can hit with indirect but not DF, so consider whether if we move further back we can then hit
+                                                tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexIndirectDistance] = iCurMexDist
+                                                tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexIndirectUnblockedLocation] = {tShotStartPosition[1], tShotStartPosition[2], tShotStartPosition[3]}
 
-                                            --Find the point at which DF can hit, if any, in intervals of 5, assuming at max range we can hit
-                                            local iMaxDistAdjust = math.max(5, math.min(100, math.floor((150 - iCurMexDist) / 5) * 5))
-                                            tPossibleWaterPosition = M28Utilities.MoveInDirection(tMex, iAngleAdjust, iDist + iMaxDistAdjust, true, true, false)
-                                            if IsUnderwater(tPossibleWaterPosition, false, iMinWaterDepth) then
-                                                tShotStartPosition = { tPossibleWaterPosition[1], GetSurfaceHeight(tPossibleWaterPosition[1], tPossibleWaterPosition[3]) + 1, tPossibleWaterPosition[3] }
-                                                if M28Logic.IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, 1) then
-                                                    --Assume wont find any match
-                                                    tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFDistance] = 10000
-                                                else
-                                                    tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFDistance] = iDist + iMaxDistAdjust
-                                                    --Refine the distance by moving closer
-                                                    for iDFDistAdjust = 5, math.max(5, math.min(100, math.floor((150 - iCurMexDist) / 5) * 5)), 5 do
-                                                        tPossibleWaterPosition = M28Utilities.MoveInDirection(tMex, iAngleAdjust, iDist + iDFDistAdjust, true, true, false)
-                                                        tShotStartPosition = { tPossibleWaterPosition[1], GetSurfaceHeight(tPossibleWaterPosition[1], tPossibleWaterPosition[3]) + 1, tPossibleWaterPosition[3] }
-                                                        if not (M28Logic.IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, 1)) then
-                                                            tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFDistance] = iDist + iDFDistAdjust
-                                                            tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFUnblockedLocation] = {tShotStartPosition[1], tShotStartPosition[2], tShotStartPosition[3]}
-                                                            break
+                                                --Find the point at which DF can hit, if any, in intervals of 5, assuming at max range we can hit
+                                                local iMaxDistAdjust = math.max(5, math.min(100, math.floor((150 - iCurMexDist) / 5) * 5))
+                                                tPossibleWaterPosition = M28Utilities.MoveInDirection(tMex, iAngleAdjust, iDist + iMaxDistAdjust, true, true, false)
+                                                if IsUnderwater(tPossibleWaterPosition, false, iMinWaterDepth) then
+                                                    tShotStartPosition = { tPossibleWaterPosition[1], GetSurfaceHeight(tPossibleWaterPosition[1], tPossibleWaterPosition[3]) + 1, tPossibleWaterPosition[3] }
+                                                    if M28Logic.IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, 1) then
+                                                        --Assume wont find any match
+                                                        tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFDistance] = 10000
+                                                    else
+                                                        tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFDistance] = iDist + iMaxDistAdjust
+                                                        --Refine the distance by moving closer
+                                                        for iDFDistAdjust = 5, math.max(5, math.min(100, math.floor((150 - iCurMexDist) / 5) * 5)), 5 do
+                                                            tPossibleWaterPosition = M28Utilities.MoveInDirection(tMex, iAngleAdjust, iDist + iDFDistAdjust, true, true, false)
+                                                            tShotStartPosition = { tPossibleWaterPosition[1], GetSurfaceHeight(tPossibleWaterPosition[1], tPossibleWaterPosition[3]) + 1, tPossibleWaterPosition[3] }
+                                                            if not (M28Logic.IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, 1)) then
+                                                                tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFDistance] = iDist + iDFDistAdjust
+                                                                tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFUnblockedLocation] = {tShotStartPosition[1], tShotStartPosition[2], tShotStartPosition[3]}
+                                                                break
+                                                            end
                                                         end
                                                     end
+                                                else
+                                                    --Assume wont find any match as if move really far back we are not on water
+                                                    tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFDistance] = 10000
                                                 end
-                                            else
-                                                --Assume wont find any match as if move really far back we are not on water
-                                                tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFDistance] = 10000
+                                            end
+
+                                            if bDebugMessages == true and tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexIndirectDistance] then
+                                                LOG(sFunctionRef .. ' Drawing start in white and end in orangy pink')
+                                                M28Utilities.DrawLocation({ tShotStartPosition[1], tShotStartPosition[2] - 8, tShotStartPosition[3] }, 7, 100, nil)
+                                                M28Utilities.DrawLocation({ tShotEndPosition[1], tShotEndPosition[2] - 8, tShotEndPosition[3] }, 8, 100, nil)
+                                            end
+                                        else
+                                            --DF can hit from cur position so assume indirect can as well
+                                            tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFDistance] = iCurMexDist
+                                            tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexIndirectDistance] = iCurMexDist
+                                            tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFUnblockedLocation] = {tShotStartPosition[1], tShotStartPosition[2], tShotStartPosition[3]}
+                                            tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexIndirectUnblockedLocation] = {tShotStartPosition[1], tShotStartPosition[2], tShotStartPosition[3]}
+                                        end
+
+                                        --Refine the distance - see if can get any closer
+                                        if iEntry == 1 then
+                                            iPrevDist = 0
+                                        else
+                                            iPrevDist = tiDistToTry[iEntry - 1]
+                                        end
+                                        for iShortDist = iPrevDist + 1, iDist - 1, 1 do
+                                            tPossibleWaterPosition = M28Utilities.MoveInDirection(tMex, iAngleAdjust, iDist, true, false, false)
+                                            if IsUnderwater(tPossibleWaterPosition, false, iMinWaterDepth) then
+                                                iCurMexDist = iShortDist
+                                                break
                                             end
                                         end
 
-                                        if bDebugMessages == true and tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexIndirectDistance] then
-                                            LOG(sFunctionRef .. ' Drawing start in white and end in orangy pink')
-                                            M28Utilities.DrawLocation({ tShotStartPosition[1], tShotStartPosition[2] - 8, tShotStartPosition[3] }, 7, 100, nil)
-                                            M28Utilities.DrawLocation({ tShotEndPosition[1], tShotEndPosition[2] - 8, tShotEndPosition[3] }, 8, 100, nil)
-                                        end
-                                    else
-                                        --DF can hit from cur position so assume indirect can as well
-                                        tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFDistance] = iCurMexDist
-                                        tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexIndirectDistance] = iCurMexDist
-                                        tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFUnblockedLocation] = {tShotStartPosition[1], tShotStartPosition[2], tShotStartPosition[3]}
-                                        tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexIndirectUnblockedLocation] = {tShotStartPosition[1], tShotStartPosition[2], tShotStartPosition[3]}
-                                    end
+                                        tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDistance] = iCurMexDist
 
-                                    --Refine the distance - see if can get any closer
-                                    if iEntry == 1 then
-                                        iPrevDist = 0
-                                    else
-                                        iPrevDist = tiDistToTry[iEntry - 1]
+                                        if bDebugMessages == true then LOG(sFunctionRef .. ': Finished recording mex in range for pond ' .. iPond .. '; iPondMexCount=' .. iPondMexCount .. '; full mex table of info=' .. repru(tPondSubtable[subrefPondMexInfo][iPondMexCount])) end
+                                        break
                                     end
-                                    for iShortDist = iPrevDist + 1, iDist - 1, 1 do
-                                        tPossibleWaterPosition = M28Utilities.MoveInDirection(tMex, iAngleAdjust, iDist, true, false, false)
-                                        if IsUnderwater(tPossibleWaterPosition, false, iMinWaterDepth) then
-                                            iCurMexDist = iShortDist
-                                            break
-                                        end
-                                    end
-
-                                    tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDistance] = iCurMexDist
-
-                                    if bDebugMessages == true then LOG(sFunctionRef .. ': Finished recording mex in range for pond ' .. iPond .. '; iPondMexCount=' .. iPondMexCount .. '; full mex table of info=' .. repru(tPondSubtable[subrefPondMexInfo][iPondMexCount])) end
-                                    break
                                 end
                             end
                             if bInRange then

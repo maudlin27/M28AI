@@ -2507,11 +2507,11 @@ function ManageBombers(iTeam, iAirSubteam)
                             if M28Utilities.IsTableEmpty(tRallyLZOrWZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
                                 for iEntry, tPathingDetails in tRallyLZOrWZData[M28Map.subrefLZPathingToOtherLandZones] do
                                     local iOtherLZ = tPathingDetails[M28Map.subrefLZNumber]
-                                    if not(tbZonesConsidered[iOtherLZ]) then
+                                    if not(tbZonesConsidered[iOtherLZ]) and iOtherLZ then
                                         local tOtherLZData = M28Map.tAllPlateaus[iRallyPlateauOrZero][M28Map.subrefPlateauLandZones][iOtherLZ]
-                                        if tOtherLZData[M28Map.subrefLZTravelDist] > iSearchSize then break end
+                                        if (tOtherLZData[M28Map.subrefLZTravelDist] or 0) > iSearchSize then break end
                                         local tOtherLZTeamData = tOtherLZData[M28Map.subrefLZTeamData][iTeam]
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering iOtherLZ='..iOtherLZ..'; Travel dist='..tOtherLZData[M28Map.subrefLZTravelDist]..'; iSearchSize='..iSearchSize..'; Does it have enemy units='..tostring(M28Utilities.IsTableEmpty(tOtherLZTeamData[M28Map.subrefTEnemyUnits]))) end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering iOtherLZ='..(iOtherLZ or 'nil')..'; Travel dist='..(tOtherLZData[M28Map.subrefLZTravelDist] or 'nil')..'; iSearchSize='..(iSearchSize or 'nil')..'; Does it have enemy units='..tostring(M28Utilities.IsTableEmpty(tOtherLZTeamData[M28Map.subrefTEnemyUnits]))) end
                                         FilterToAvailableTargets(tOtherLZTeamData[M28Map.subrefTEnemyUnits])
                                         if M28Utilities.IsTableEmpty( tEnemyTargets) == false then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Assigning bomber targets for iOtherLZ='..iOtherLZ) end

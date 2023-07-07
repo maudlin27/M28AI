@@ -15,6 +15,7 @@ local M28Chat = import('/mods/M28AI/lua/AI/M28Chat.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
+local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 
 --Global variables
 iTMLMissileRange = 256 --e.g. use if dont have access to a unit blueprint
@@ -1567,7 +1568,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                     --Disable autobuild and pause
                     if not(oLauncher[refbPausedAsNoTargets]) and not(EntityCategoryContains(categories.EXPERIMENTAL, oLauncher.UnitId)) then
                         --Dont pause if we have loads of resources
-                        if not(M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.8 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 400) then
+                        if M28Conditions.HaveLowPower(iTeam) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 400 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] < 0.8 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 25 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.99))) then
                             oLauncher[refbPausedAsNoTargets] = true
                             oLauncher:SetAutoMode(false)
                             oLauncher:SetPaused(true)

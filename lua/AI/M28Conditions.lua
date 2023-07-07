@@ -389,7 +389,7 @@ function SafeToUpgradeUnit(oUnit)
             bSafeZone = true
         end
         --ACU specific:
-        if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+        if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and tLZTeamData[M28Map.reftClosestFriendlyBase] then
             -- dont treat as safe if low health unless close to a base
             if bSafeZone and M28UnitInfo.GetUnitHealthPercent(oUnit) < 0.5 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]) > 10 then
                 bSafeZone = false
