@@ -23,6 +23,7 @@ refFactionNomads = 5
 refFactionUnrecognised = 6
 
 --Variables against units;
+refiLastWeaponEvent = 'M28LastWep' --Gametimeseconds that last updated onweapon
 reftLastKnownPositionByTeam = 'M28UnitLastPos' --[x] is the M28 team ref, returns the last known position of the unit
 reftAssignedPlateauAndLandZoneByTeam = 'M28UnitPlateauAndZone' --[x] is the M28 team ref, returns a table {iPlateau, iLandZoneRef}
 reftAssignedWaterZoneByTeam = 'M28UnitWaterZone' --[x] is the M28 team ref, returns the water zone assigned to the unit, if there is one
@@ -1604,7 +1605,12 @@ end
 
 function IsUnitUnderwater(oUnit)
     if oUnit.GetPosition and oUnit.GetBlueprint then
-        return M28Map.IsUnderwater({oUnit:GetPosition()[1], oUnit:GetPosition()[2] + (oUnit:GetBlueprint().SizeY or 0), oUnit:GetPosition()[3]}, false)
+        if EntityCategoryContains(categories.SUBMERSIBLE, oUnit.UnitId) then
+            --E.g. tempest - sizey is 4, but when it is submerged it is only 2.6 below water level
+            return M28Map.IsUnderwater({oUnit:GetPosition()[1], oUnit:GetPosition()[2] + (oUnit:GetBlueprint().SizeY or 0) * 0.5, oUnit:GetPosition()[3]}, false)
+        else
+            return M28Map.IsUnderwater({oUnit:GetPosition()[1], oUnit:GetPosition()[2] + (oUnit:GetBlueprint().SizeY or 0), oUnit:GetPosition()[3]}, false)
+        end
     else return false
     end
 end

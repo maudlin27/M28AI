@@ -20,6 +20,9 @@ local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
 local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 
+refiEngineerStuckCheckCount = 'M28CEngSC' --time since last recorded the engineer's position when moving
+reftEngineerStuckCheckLastPosition = 'M28CEngSP' --Position engineer was at when last did the stuck check
+
 function AreMobileLandUnitsInRect(rRectangleToSearch)
     --returns true if have mobile land units in rRectangleToSearch
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -153,19 +156,24 @@ function GetLifetimeBuildCount(aiBrain, category)
     return iTotalBuilt
 end
 
-function GetFactoryLifetimeCount(oFactory, iCategory)
-    local iTotalCount = 0
-    if oFactory[M28Factory.refiBuildCountByBlueprint] then
-        for sBPID, iCurCount in oFactory[M28Factory.refiBuildCountByBlueprint] do
-            if EntityCategoryContains(iCategory, sBPID) then
-                iTotalCount = iTotalCount + iCurCount
+function GetFactoryLifetimeCount(oFactory, iCategory, bAllUnitsInsteadOfCategory)
+    if bAllUnitsInsteadOfCategory then
+        return (oFactory[M28Factory.refiTotalBuildCount] or 0)
+    else
+        local iTotalCount = 0
+        if oFactory[M28Factory.refiBuildCountByBlueprint] then
+            for sBPID, iCurCount in oFactory[M28Factory.refiBuildCountByBlueprint] do
+                if EntityCategoryContains(iCategory, sBPID) then
+                    iTotalCount = iTotalCount + iCurCount
+                end
             end
         end
+        return iTotalCount
     end
-    return iTotalCount
 end
 
-function IsEngineerAvailable(oEngineer)
+function IsEngineerAvailable(oEngineer, bDebugOnly)
+    --If bDebugOnly is true then wont adjust counts/tracking (i.e. set to true if are calling for logging purposes, so we dont desync the replay)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'IsEngineerAvailable'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -174,7 +182,7 @@ function IsEngineerAvailable(oEngineer)
 
     if bDebugMessages == true then
         local iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
-        LOG(sFunctionRef..': GameTIme '..GetGameTimeSeconds()..': Engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' owned by '..oEngineer:GetAIBrain().Nickname..': oEngineer:GetFractionComplete()='..oEngineer:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; Are last orders empty='..tostring(oEngineer[M28Orders.reftiLastOrders] == nil)..'; Engineer Plateau='..(iCurPlateau or 'nil')..'; LZ='..(iCurLZ or 'nil'))
+        LOG(sFunctionRef..': GameTIme '..GetGameTimeSeconds()..': Engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' owned by '..oEngineer:GetAIBrain().Nickname..': oEngineer:GetFractionComplete()='..oEngineer:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; Are last orders empty='..tostring(oEngineer[M28Orders.reftiLastOrders] == nil)..'; Engineer Plateau='..(iCurPlateau or 'nil')..'; LZ='..(iCurLZ or 'nil')..'; Is unit state moving='..tostring(oEngineer:IsUnitState('Moving'))..'; Engineer position='..repru(oEngineer:GetPosition()))
     end
     if oEngineer:GetFractionComplete() == 1 and not(oEngineer:IsUnitState('Attached')) and not(oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionSpecialShieldDefence) then
         M28Orders.UpdateRecordedOrders(oEngineer)
@@ -188,6 +196,25 @@ function IsEngineerAvailable(oEngineer)
             else
                 local iLastOrderType = oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]][M28Orders.subrefiOrderType]
                 if bDebugMessages == true then LOG(sFunctionRef..': Engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' owned by '..oEngineer:GetAIBrain().Nickname..' has a last order type of '..(iLastOrderType or 'nil')..'; and an action assigned of '..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')..'; Order for this action='..(M28Engineer.tiActionOrder[oEngineer[M28Engineer.refiAssignedAction]] or 'nil')) end
+                --Rare case where engineer acn be given a move order yet doesn't move - below is to try and mitigate it
+                if oEngineer:IsUnitState('Moving') and oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove and not(bDebugOnly) then
+                    if (oEngineer[refiEngineerStuckCheckCount] or 0) == 0 then
+                        oEngineer[refiEngineerStuckCheckCount] = 1
+                        oEngineer[reftEngineerStuckCheckLastPosition] = {oEngineer:GetPosition()[1], oEngineer:GetPosition()[2], oEngineer:GetPosition()[3]}
+                    else
+                        oEngineer[refiEngineerStuckCheckCount] = oEngineer[refiEngineerStuckCheckCount] + 1
+                        if oEngineer[refiEngineerStuckCheckCount] >= 10 then
+                            oEngineer[refiEngineerStuckCheckCount] = 0
+                            if M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(),oEngineer[reftEngineerStuckCheckLastPosition]) <= 0.01 then
+                                --Engineer is stuck, clear its orders and treat as available
+                                M28Orders.IssueTrackedClearCommands(oEngineer)
+                                oEngineer[reftEngineerStuckCheckLastPosition] = nil
+                                return true
+                            end
+                        end
+                    end
+                end
+
                 if iLastOrderType == M28Orders.refiOrderIssueMove then
                     if oEngineer[M28Engineer.refiAssignedAction] and M28Engineer.tiActionOrder[oEngineer[M28Engineer.refiAssignedAction]] == iLastOrderType then
                         --Engineer not available, unless its order was to move to a land or water zone, in which case check if it is now in that land or water zone
@@ -385,7 +412,7 @@ function SafeToUpgradeUnit(oUnit)
             bSafeZone = true
         end
         --ACU specific:
-        if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+        if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and tLZTeamData[M28Map.reftClosestFriendlyBase] then
             -- dont treat as safe if low health unless close to a base
             if bSafeZone and M28UnitInfo.GetUnitHealthPercent(oUnit) < 0.5 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]) > 10 then
                 bSafeZone = false
@@ -559,7 +586,7 @@ function WantMorePower(iTeam)
     elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= (30 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] + 160 * math.max(0, (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] - 2))) * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultipler] * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
         --We dont have 1 pgen of our cur tech level (roughly) per brain so want more; i.e. no change
         if bDebugMessages == true then LOG(sFunctionRef..': Want base level of power given our tech level') end
-    --Have re recently build lots of power, and at a high level it looks like we should have a decent amount of power for our mass income?
+        --Have re recently build lots of power, and at a high level it looks like we should have a decent amount of power for our mass income?
     elseif M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.3 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.6 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] > 20 * M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.98 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] > 30 * M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass])) then
         bWantMorePower = false
         if bDebugMessages == true then LOG(sFunctionRef..': Just built lots of power so dont want more') end
@@ -658,8 +685,8 @@ function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, 
         --iOurFacingAngle = M28UnitInfo.GetUnitFacingAngle(oUnitIfConsideringAngleAndLastShot)
 
         --Adjust distance threshold if we have fired recently since being in range to fire again is less important
-        if bDebugMessages == true then LOG(sFunctionRef..': About to adjust dist threshold based on if we have fired recently, iDistThreshold before adjustment='..iDistThreshold..'; Time='..GetGameTimeSeconds()..'; Last weapon event='..(oUnitIfConsideringAngleAndLastShot[M28Events.refiLastWeaponEvent] or -100)..'; Time between DF shots='..(oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiTimeBetweenDFShots] or 'nil')) end
-        if GetGameTimeSeconds() - (oUnitIfConsideringAngleAndLastShot[M28Events.refiLastWeaponEvent] or -100) < (oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiTimeBetweenDFShots] or oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiTimeBetweenIFShots] or 100) then
+        if bDebugMessages == true then LOG(sFunctionRef..': About to adjust dist threshold based on if we have fired recently, iDistThreshold before adjustment='..iDistThreshold..'; Time='..GetGameTimeSeconds()..'; Last weapon event='..(oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiLastWeaponEvent] or -100)..'; Time between DF shots='..(oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiTimeBetweenDFShots] or 'nil')) end
+        if GetGameTimeSeconds() - (oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiLastWeaponEvent] or -100) < (oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiTimeBetweenDFShots] or oUnitIfConsideringAngleAndLastShot[M28UnitInfo.refiTimeBetweenIFShots] or 100) then
             iDistThreshold = iDistThreshold * 1.06
         else iDistThreshold = iDistThreshold * 0.94
         end
@@ -809,10 +836,12 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
 
                         elseif iAverageCurAirAndLandFactories >= 2 and iCurIsland == iEnemyIsland and ((M28Team.tTeamData[iTeam][M28Team.subrefiTotalFactoryCountByType][M28Factory.refiFactoryTypeAir] or 0) > 0 and HaveLowPower(iTeam)) then
                             --Dont want more factories
+                            if bDebugMessages == true then LOG(sFunctionRef..': Have low power so dont want more factories') end
 
                             --Cap on no. of factories on larger maps
-                        elseif iAverageCurAirAndLandFactories >= 4 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] > 0 and M28Map.iMapSize > 256 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] < 8000 then
+                        elseif iAverageCurAirAndLandFactories >= 4 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] > 0 and M28Map.iMapSize > 256 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] < 8000 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.75 then
                             --Dont want more factories
+                            if bDebugMessages == true then LOG(sFunctionRef..': Cap on number of factories for larger maps') end
 
                             --If we dont have at least 25% mass stored, do we have an enemy in the same plateau as us who is within 300 land travel distance?
                         elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] < 0.25 or (iAverageCurAirAndLandFactories == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] < 0.4 and GetGameTimeSeconds() <= 300) then
@@ -1055,7 +1084,7 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                                     end
                                 else
                                     iLandFactoriesWantedBeforeAir = 3
-                                    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] <= 1 then
+                                    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] <= 1 and not(M28Map.bIsCampaignMap) then
                                         iAirFactoriesForEveryLandFactory = 0.25
                                         if M28Map.iMapSize <= 256 and iEnemyBaseDist <= 210 then
                                             iLandFactoriesWantedBeforeAir = 7
@@ -1063,8 +1092,12 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                                     else
                                         if iEnemyBaseDist <= 250 then
                                             --Somtimes on campaign map thenearest enemy base is messed up
-                                            if M28Map.bIsCampaignMap and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 2 then
-                                                iAirFactoriesForEveryLandFactory = 1.25
+                                            if M28Map.bIsCampaignMap then
+                                                if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 2 then
+                                                    iAirFactoriesForEveryLandFactory = 1.25
+                                                else
+                                                    iAirFactoriesForEveryLandFactory = 0.75
+                                                end
                                             else
                                                 iAirFactoriesForEveryLandFactory = 0.5
                                             end
@@ -1346,8 +1379,9 @@ function IsTableOfUnitsStillValid(tUnits, bInvalidIfFullHealth)
         local iEntryCount = table.getn(tUnits)
         for iCurEntry = iEntryCount, 1, -1 do
             local oUnit = tUnits[iCurEntry]
+            --if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; Is oUnit.GetHealth nil='..tostring(oUnit.GetHealth == nil)) end
             if not(M28UnitInfo.IsUnitValid(oUnit)) or (bInvalidIfFullHealth and M28UnitInfo.GetUnitHealthPercent(oUnit) == 1) then
-                if bDebugMessages == true then LOG(sFunctionRef..': Removing unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds()..'; Unit healthj='..M28UnitInfo.GetUnitHealthPercent(oUnit)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Removing unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' at time '..GetGameTimeSeconds()..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; bInvalidIfFullHealth='..tostring(bInvalidIfFullHealth or false)) end
                 table.remove(tUnits, iCurEntry)
             end
         end
@@ -1395,4 +1429,51 @@ function IsPositionCloseToZoneEdge(iPlateauOrZero, iLandOrWaterZone, iMaxDistToE
         end
     end
     return false
+end
+
+function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, bConsideringSubmarinesNotSurface)
+    local sFunctionRef = 'WantToAttackWithNavyEvenIfOutranged'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local bAreInScenario2 = false
+    if (bConsideringSubmarinesNotSurface and (iAdjacentAlliedSubmersibleThreat > iAdjacentEnemyAntiNavyThreat * 1.5 or (iAdjacentAlliedSubmersibleThreat > iAdjacentEnemyAntiNavyThreat and iAdjacentAlliedCombatThreat > iAdjacentEnemyCombatThreat * 1.3))) or
+    --Surface level consideration - want tobe similar to sub so we dont end up attacking with subs and not surface if reason for attacking with subs is our surface threat
+            (not(bConsideringSubmarinesNotSurface) and ((iAdjacentAlliedCombatThreat - iAdjacentAlliedSubmersibleThreat) > iAdjacentEnemyCombatThreat * 1.3 or (tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] - iAdjacentAlliedSubmersibleThreat) > iAdjacentEnemyCombatThreat * 1.1))  then bAreInScenario2 = true
+    elseif tWZTeamData[M28Map.subrefWZbCoreBase] then
+        --Consider attacking if naval fac is vulnerable, or we have slightly more threat
+        if  iAdjacentAlliedCombatThreat > iAdjacentEnemyCombatThreat then
+            if bDebugMessages == true then LOG(sFunctionRef..': We have significantly more threat than enemy so want to attack') end
+            bAreInScenario2 = true
+        else
+            --Are in core zone, and have enemies either in this zone ro an adjacent one; if enemies are in this zone still attack; if they are in adjacent zone then only attack if nearest enemy is almost in range of our naval fac
+            if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                if bDebugMessages == true then LOG(sFunctionRef..': Enemy has units in oure core water zone so want to attack') end
+                bAreInScenario2 = true
+            elseif M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftoNearestCombatEnemies]) == false then
+                --No enemies in this water zone, so must only be in adjacent zone, check if are close to being in range of our naval factory
+
+                local tFriendlyNavalFac = EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tWZTeamData[M28Map.subrefWZTAlliedUnits])
+                if M28Utilities.IsTableEmpty(tFriendlyNavalFac) then
+                    --Greater search range as dont know how close to midpoint the naval fac build location would be
+                    if CloseToEnemyUnit(tWZData[M28Map.subrefMidpoint], tWZTeamData[M28Map.reftoNearestCombatEnemies], 30, iTeam, true) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Enemy has units almost in range of our core zone midpoint so will attack') end
+                        bAreInScenario2 = true
+                    end
+                else
+                    --Cycle through each naval fac and see if enemy is close
+                    for iNavalFac, oNavalFac in tFriendlyNavalFac do
+                        if CloseToEnemyUnit(oNavalFac:GetPosition(), tWZTeamData[M28Map.reftoNearestCombatEnemies], 15, iTeam, true) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Enemy has units almost in range of our naval fac so will attack') end
+                            bAreInScenario2 = true
+                            break
+                        end
+                    end
+                end
+            end
+        end
+
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return bAreInScenario2
 end

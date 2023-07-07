@@ -158,6 +158,8 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiEnemyTorpBombersThreat = 'M28TeamEnemyTorpBomberThreat'
     refiEnemyAirOtherThreat = 'M28TeamEnemyAirOtherThreat'
     refiTimeOfLastAirStagingShortage = 'M28TeamTimeAirStagingShortage' --Gametimeseconds that a team member last had units that had nowhere to refuel
+    --subrefiOurGunshipThreat - uses same ref as air subteam
+    --subrefiOurBomberThreat - uses same ref as air subteam
 
     refiTimeOfLastTransportShortlistUpdate = 'M28TeamAirTimeTransportShortlist' --Gametimeseconds that last updated the list of potential locations to do transport engi drops to
     reftTransportIslandDropShortlist = 'M28TeamAirTransportShortlist' --key is 1,2....x, returns {iPlateau, iIsland} - shortlist of plateau and island references that want to consider a transport drop for
@@ -177,6 +179,8 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refbAlreadyCheckedForUnitsToShare = 'M28CheckedUnitsShare' --true if already run logic for campaign to share units at start of game
     --reftoSpecialUnitsToProtect = 'M28SpecialUnitsToProtect' --table of units to protect e.g. for air units - e.g. repair targets for a campaign
 
+
+
 --AirSubteam data variables
 iTotalAirSubteamCount = 0
 tAirSubteamData = {}
@@ -186,8 +190,9 @@ tAirSubteamData = {}
     refbHaveAirControl = 'M28ASTHaveAirControl'
     reftACUExpAndPriorityDefenceOnSubteam = 'M28ASTACUExp' --Friendly ACUs and experimentals
     subrefiOurAirAAThreat = 'M28ASTOurAirAA' --Our AirAA threat
-    subrefiOurGunshipThreat = 'M28ASTOurGShip' --Our gunship threat
+    subrefiOurGunshipThreat = 'M28ASTOurGShip' --Our gunship threat; also used as a team variable
     subrefiOurTorpBomberThreat = 'M28ASTOurTBmbT' --Our torp bomber threat
+    subrefiOurBomberThreat = 'M28ASTOurBomb' --Our bomber threat; also used as a team variable
     refbTooMuchGroundNavalAAForTorpBombers = 'M28TooMuchAAForTorps' --true if have avoided targeting a water zone with torps due to groundAA threat in a water zone
     refbNoAvailableTorpsForEnemies = 'M28NoAvailTorps' --true if have enemy naval unit in a wz we want to defend, and we lack available torp bombers
     reftAirSubRallyPoint = 'M28ASTRally' --Contains the location of the air subteam's rally point
@@ -197,6 +202,7 @@ tAirSubteamData = {}
     refiTimeLastTriedBuildingTransport = 'M28TimeLastTrns' --Gametimeseconds that someone on air subteam tried building an air transport
     refbGunshipsHadAttackOrderLastCycle = 'M28GunshipAtck' --True if the last time we ran gunship cycle we had a unit to attack (to reduce likelihood gunships appraoch somewhere then upon entering a new zone with slightly different adjacent enemy zones we decide to retreat)
     reftPriorityUnitsWantingScout = 'M28PriUnFrSct' --e.g. if gunship wants an air scout to help reveal cloaked units, this would include the gunship to shadow
+    refiLastTorpBomberAdjacencyLevel = 'M28ASTLastTBAdj' --i.e. 3 means we last looked up to 3 adjacency levels out for targets
 
 
 --Land subteam data varaibles (used for factory production logic)

@@ -290,6 +290,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             refiTimeOfLastTorpAttack = 'TLstTorp' --Gametimeseconds that last sent torpedo bombers to attack units in this location
             reftoTransportsWaitingForEngineers = 'TWntEng' --Table of any transports in this LZ wanting engineers
             refiTimeLastBuiltAtFactory = 'TLstBFac' --Gametimeseconds that a factory last tried ot build (used to make sure we spread things out by several ticks)
+            reftoGroundFireFriendlyTarget = 'TGFTrg' --Location of a ground fire target that we wont be trying to target via normal means, e..g intended for Cybran mission 2 where need to ground fire temples that dont show as enemies and cant be reclaimed
 
 --Pond and naval variables
     --General
@@ -365,7 +366,7 @@ tPondDetails = {}
             --subrefTEnemyUnits = 'Enemies' --table of all enemy units in the water zone - uses same ref as for land zone
             reftWZEnemyAirUnits = 'EnAir' --All enemy air units that are currently in the water zone
             --Threat values
-            subrefbEnemiesInThisOrAdjacentWZ = 'EnInAdjWZ' --true if enemy in this or adjacent WZ
+            subrefbEnemiesInThisOrAdjacentWZ = 'EnInAdjWZ' --true if enemy in this or adjacent WZ; for land zones this will return true if any adjacent WZ has enemies
 
             --subrefThreatEnemyStructureTotalMass - uses same ref as for LZ
             --subrefTThreatEnemyCombatTotal = 'ECTotal' --Uses same ref as for LZ
@@ -1622,7 +1623,16 @@ local function AssignRemainingSegmentsToLandZones()
     if iMapSize > 512 then iMaxSegmentZoneCopyThreshold = math.max(3, math.ceil(50 / iLandZoneSegmentSize)) --NOTE: If changing this consider if also want to change the value for AssignSegmentsNearMexesToLandZones; for first draft have this as slightly lower
     else iMaxSegmentZoneCopyThreshold = math.max(3, math.ceil(30 / iLandZoneSegmentSize))
     end
+
     local iMaxSegmentSearchDistance = iMaxSegmentZoneCopyThreshold * 2
+    --Reduce the actual copy segment range by 1 for non-campaign, reduce further for campaign
+    if bIsCampaignMap then
+        iMaxSegmentZoneCopyThreshold = math.max(math.floor(iMaxSegmentZoneCopyThreshold * 0.5), math.min(iMaxSegmentZoneCopyThreshold - 1, 3))
+    else
+        iMaxSegmentZoneCopyThreshold = math.max(math.floor(iMaxSegmentZoneCopyThreshold * 0.9), math.min(iMaxSegmentZoneCopyThreshold - 1, 3))
+    end
+
+
     if bDebugMessages == true then LOG(sFunctionRef..': iMaxSegmentZoneCopyThreshold='..iMaxSegmentZoneCopyThreshold) end
 
     local iDistanceCap = math.max(40, iMaxSegmentSearchDistance * iLandZoneSegmentSize) --used from old appraoch kept in for the redundancy approach; in theory should never acutally be needed
@@ -1661,7 +1671,7 @@ local function AssignRemainingSegmentsToLandZones()
     function CheckForNearbyZonesAndCreateNewZoneIfNeeded(iBaseSegmentX, iBaseSegmentZ, iBasePositionX, iBasePositionZ, iMaxSearchCycle, iCopyZoneThreshold)
         --iCopyZoneThreshold - if come across segments with valid existing zone before this threshold is reached in the iSearchCount loop then will set everything to that zone
         if not(tLandZoneBySegment[iBaseSegmentX]) or not(tLandZoneBySegment[iBaseSegmentX][iBaseSegmentZ]) then
-            local tiAdjacentSegmentsForSearchCountByMex, bHadSomeEntries, bSameLandLabel
+            local bHadSomeEntries, bSameLandLabel
             tBasePosition = {iBasePositionX, 0, iBasePositionZ} --GetPositionFromPathingSegments(iBaseSegmentX, iBaseSegmentZ)
             local iRevisedBaseSegmentX = iBaseSegmentX
             local iRevisedBaseSegmentZ = iBaseSegmentZ
@@ -1707,13 +1717,13 @@ local function AssignRemainingSegmentsToLandZones()
                 --Cycle through adjacent segments to see if find a land zone, and if so then assign this
                 local tiSegmentsForAssignment = {}
                 local iLandZoneToUse
-                local tiAdjacentSegmentsForSearchCountByMex = {}
-                tiAdjacentSegmentsForSearchCountByMex[0] = {{iRevisedBaseSegmentX, iRevisedBaseSegmentZ, iLandPathingGroupWanted, iLandPathingGroupWanted, tBasePosition}}
+                local tiAdjacentSegmentsForSearchBySearchCount = {}
+                tiAdjacentSegmentsForSearchBySearchCount[0] = {{iRevisedBaseSegmentX, iRevisedBaseSegmentZ, iLandPathingGroupWanted, iLandPathingGroupWanted, tBasePosition}}
                 if bDebugMessages == true then LOG(sFunctionRef..': About to cycle thorugh adjacent segments to try and find a land zone that should assign this to, in same pathing group as iRevisedBaseSegmentX and Z, X'..iRevisedBaseSegmentX..'Z'..iRevisedBaseSegmentZ..'; iLandPathingGroupWanted='..iLandPathingGroupWanted..'; tBasePosition='..repru(tBasePosition)..'; iMaxSegmentSearchDistance='..iMaxSegmentSearchDistance..'; iMaxSearchCycle='..iMaxSearchCycle) end
                 for iSearchCount = 1, iMaxSearchCycle + 1 do
-                    tiAdjacentSegmentsForSearchCountByMex[iSearchCount] = {}
+                    tiAdjacentSegmentsForSearchBySearchCount[iSearchCount] = {}
                     bHadSomeEntries = false
-                    for iEntry, tiSegmentXZAndZone in tiAdjacentSegmentsForSearchCountByMex[iSearchCount-1] do
+                    for iEntry, tiSegmentXZAndZone in tiAdjacentSegmentsForSearchBySearchCount[iSearchCount-1] do
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering iSearchCount-1='..(iSearchCount - 1)..'; tiSegmentXZAndZone='..repru(tiSegmentXZAndZone)) end
                         for iNeighbourEntry, tiNeighbourXZ in GetNeighbours(tiSegmentXZAndZone[1], tiSegmentXZAndZone[2], tiSegmentXZAndZone[5]) do
                             if bDebugMessages == true then LOG(sFunctionRef..': Cycling through each neighbour for iSearchCount='..iSearchCount..' and iEntry='..iEntry..', neighbour Segment XZ=X'..tiNeighbourXZ[1]..'Z'..tiNeighbourXZ[2]..'; iNeighbourEntry='..iNeighbourEntry..'; tLandZoneBySegment for this='..(tLandZoneBySegment[tiNeighbourXZ[1]][tiNeighbourXZ[2]] or 'nil')..'; tiSegmentsForAssignment[tiNeighbourXZ[1]][tiNeighbourXZ[2]]='..tostring(tiSegmentsForAssignment[tiNeighbourXZ[1]][tiNeighbourXZ[2]] or false)) end
@@ -1733,7 +1743,7 @@ local function AssignRemainingSegmentsToLandZones()
                                     if bSameLandLabel then
                                         if not(tiSegmentsForAssignment[tiNeighbourXZ[1]]) then tiSegmentsForAssignment[tiNeighbourXZ[1]] = {} end
                                         tiSegmentsForAssignment[tiNeighbourXZ[1]][tiNeighbourXZ[2]] = true
-                                        table.insert(tiAdjacentSegmentsForSearchCountByMex[iSearchCount], {tiNeighbourXZ[1], tiNeighbourXZ[2], iLandPathingGroupWanted, iLandPathingGroupWanted, GetPositionFromPathingSegments(tiNeighbourXZ[1], tiNeighbourXZ[2])})
+                                        table.insert(tiAdjacentSegmentsForSearchBySearchCount[iSearchCount], {tiNeighbourXZ[1], tiNeighbourXZ[2], iLandPathingGroupWanted, iLandPathingGroupWanted, GetPositionFromPathingSegments(tiNeighbourXZ[1], tiNeighbourXZ[2])})
                                         bHadSomeEntries = true
                                         if bDebugMessages == true then LOG(sFunctionRef..': Considering segment X'..tiNeighbourXZ[1]..'Z'..tiNeighbourXZ[2]..'; iCurLandLabel='..(tiSegmentXZAndZone[4] or 'nil')..'; adding to table of valid locations') end
                                     else
@@ -1750,8 +1760,8 @@ local function AssignRemainingSegmentsToLandZones()
                             end
                         end
                     end
-                    if bDebugMessages == true then LOG('Finished for iSearchCount='..iSearchCount..'; Size of tiAdjacentSegmentsForSearchCountByMex='..table.getn(tiAdjacentSegmentsForSearchCountByMex[iSearchCount])..'; iLandZoneToUse='..(iLandZoneToUse or 'nil')..'; bHadSomeEntries='..tostring(bHadSomeEntries)) end
-                    if not(bHadSomeEntries) then break end
+                    if bDebugMessages == true then LOG('Finished for iSearchCount='..iSearchCount..'; Size of tiAdjacentSegmentsForSearchBySearchCount='..table.getn(tiAdjacentSegmentsForSearchBySearchCount[iSearchCount])..'; iLandZoneToUse='..(iLandZoneToUse or 'nil')..'; bHadSomeEntries='..tostring(bHadSomeEntries)) end
+                    if not(bHadSomeEntries) or (iLandZoneToUse and iSearchCount >= iCopyZoneThreshold) then break end
                 end
                 --If we didnt come across an existing nearby land zone we can path to then create a new zone:
                 if bDebugMessages == true then LOG(sFunctionRef..': FInished cycling through all nearby pathable segments for base segments X'..iRevisedBaseSegmentX..'Z'..iRevisedBaseSegmentZ..'; iLandZoneToUse='..(iLandZoneToUse or 'nil')) end
@@ -1789,7 +1799,8 @@ local function AssignRemainingSegmentsToLandZones()
                         end
                     end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Finished creating land zone if we didnt have one, iLandZoneTOUse='..(iLandZoneToUse or 'nil')..'; iPlateauGroup='..(iPlateauGroup or 'nil')) end
+
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished creating land zone if we didnt have one, iLandZoneTOUse='..(iLandZoneToUse or 'nil')..'; iPlateauGroup='..(iPlateauGroup or 'nil')..'; iBaseSegmentX='..iBaseSegmentX..'; iBaseSegmentZ='..iBaseSegmentZ..'; iCopyZoneThreshold='..iCopyZoneThreshold..'; tiSegmentsForAssignment='..repru(tiSegmentsForAssignment)..'; tiAdjacentSegmentsForSearchBySearchCount='..repru(tiAdjacentSegmentsForSearchBySearchCount)) end
                 if iLandZoneToUse then
                     RecordSegmentLandZone(iBaseSegmentX, iBaseSegmentZ, iPlateauGroup, iLandZoneToUse)
                     if M28Utilities.IsTableEmpty(tiSegmentsForAssignment) == false then
@@ -1804,7 +1815,7 @@ local function AssignRemainingSegmentsToLandZones()
                 LOG(sFunctionRef..': No land pathing group for base position '..repru(tBasePosition)..'; iBaseSegmentX='..iBaseSegmentX..'; iBaseSegmentZ='..iBaseSegmentZ..'; will draw base position')
                 M28Utilities.DrawLocation(tBasePosition)
             end
-        end
+            end
 
     end
     --Cycle through every nth segment on the map - only consider every iMaxSegmentSearchDistance 'th segment (for performance reasons), and check if it has nearby land zones, and if not then create a new land zone at this position
@@ -1840,7 +1851,7 @@ local function AssignRemainingSegmentsToLandZones()
             CheckForNearbyZonesAndCreateNewZoneIfNeeded(iBaseSegmentX, iBaseSegmentZ, iBasePositionX, iBasePositionZ, iMaxSegmentSearchDistance, iMaxSegmentZoneCopyThreshold)
             if bDebugMessages == true then
                 LOG('iBaseSegmentX = '..iBaseSegmentX..'; iBaseSegmentZ='..iBaseSegmentZ..'; iBasePositionX='..iBasePositionX..'; iBasePositionZ='..iBasePositionZ)
-                M28Utilities.DrawLocation({iBasePositionX, GetSurfaceHeight(iBasePositionX, iBasePositionZ), iBasePositionZ}, 3, 10, iLandZoneSegmentSize)
+                M28Utilities.DrawLocation({iBasePositionX, GetSurfaceHeight(iBasePositionX, iBasePositionZ), iBasePositionZ}, 3, 200, iLandZoneSegmentSize)
             end
         end
         --WaitTicks(1)
@@ -2038,6 +2049,10 @@ local function AssignMexesALandZone()
 
     local iStraightLineThreshold = 70 --Ignore locations that are more than this distance away
     local iTravelDistThreshold = 75 --Ignore locations that are more than this land travel distance away
+    if bIsCampaignMap then
+        iStraightLineThreshold = 40
+        iTravelDistThreshold = 45
+    end
     local iClosestStraightLineDist
     local iClosestStraightLineIndex
     local iClosestStraightLineTravelDist
@@ -3466,7 +3481,6 @@ local function SetupLandZones()
     end
 
 
-
     --Now look for empty spots on the map without land zones and assign them a land zone, creating new ones (that have no mexes in them) where they are far from any existing land zone:
     AssignRemainingSegmentsToLandZones()
     if bDebugMessages == true then LOG(sFunctionRef..': Added remaining segments to land zones') end
@@ -4185,6 +4199,7 @@ function RecordPondDetails()
         local tShotStartPosition
         local tShotEndPosition
         local iAOE
+        local iPotentialSegmentX, iPotentialSegmentZ, iPotentialWaterZone
 
         --Want a brain in case we end up using the alternative 'line is blocked' built in functionality
         local aiBrain
@@ -4221,94 +4236,98 @@ function RecordPondDetails()
                             for iAngleAdjust = iAngleInterval, 360, iAngleInterval do
                                 tPossibleWaterPosition = M28Utilities.MoveInDirection(tMex, iAngleAdjust, iDist, true, true, false) --Gets terrainheight rather than surface height
                                 if IsUnderwater(tPossibleWaterPosition, false, iMinWaterDepth) then
-                                    --Have a match, record the mex details:
-                                    bInRange = true
-                                    iCurMexDist = iDist
+                                    iPotentialSegmentX, iPotentialSegmentZ = GetPathingSegmentFromPosition(tPossibleWaterPosition)
+                                    iPotentialWaterZone = tWaterZoneBySegment[iPotentialSegmentX][iPotentialSegmentZ]
+                                    if iPotentialWaterZone and tiPondByWaterZone[iPotentialWaterZone] == iPond then
+                                        --Have a match, record the mex details:
+                                        bInRange = true
+                                        iCurMexDist = iDist
 
-                                    --Record initial mex details:
-                                    iPondMexCount = iPondMexCount + 1
-                                    tPondSubtable[subrefPondMexInfo][iPondMexCount] = {}
-                                    tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexLocation] = { tMex[1], tMex[2], tMex[3] }
+                                        --Record initial mex details:
+                                        iPondMexCount = iPondMexCount + 1
+                                        tPondSubtable[subrefPondMexInfo][iPondMexCount] = {}
+                                        tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexLocation] = { tMex[1], tMex[2], tMex[3] }
 
-                                    --Do we expect to be able to hit the mex from here? a UEF Frigate y height is 1.1, while a t1 mex is 1.4; cant be bothered to check height of weapon and mex bone, and will vary based on how far away we are as well
-                                    tShotStartPosition = { tPossibleWaterPosition[1], GetSurfaceHeight(tPossibleWaterPosition[1], tPossibleWaterPosition[3]) + 1, tPossibleWaterPosition[3] }
-                                    tShotEndPosition = { tMex[1], tMex[2] + 1.1, tMex[3] }
+                                        --Do we expect to be able to hit the mex from here? a UEF Frigate y height is 1.1, while a t1 mex is 1.4; cant be bothered to check height of weapon and mex bone, and will vary based on how far away we are as well
+                                        tShotStartPosition = { tPossibleWaterPosition[1], GetSurfaceHeight(tPossibleWaterPosition[1], tPossibleWaterPosition[3]) + 1, tPossibleWaterPosition[3] }
+                                        tShotEndPosition = { tMex[1], tMex[2] + 1.1, tMex[3] }
 
-                                    iAOE = 0
-                                    if iCurMexDist >= 30 then
-                                        iAOE = 1
-                                    end --most destroyers have an aoe attack (except sera)
+                                        iAOE = 0
+                                        if iCurMexDist >= 30 then
+                                            iAOE = 1
+                                        end --most destroyers have an aoe attack (except sera)
 
-                                    if M28Logic.IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, iAOE) then
-                                        tShotStartPosition[2] = tShotStartPosition[2] + 8
-                                        tShotEndPosition[2] = tShotEndPosition[2] + 8
-                                        if M28Logic.IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, 1) then
-                                            --cant hit with df or indirect
-                                            tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexIndirectDistance] = 10000
-                                            tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFDistance] = 10000
-                                        else
-                                            --Can hit with indirect but not DF, so consider whether if we move further back we can then hit
-                                            tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexIndirectDistance] = iCurMexDist
-                                            tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexIndirectUnblockedLocation] = {tShotStartPosition[1], tShotStartPosition[2], tShotStartPosition[3]}
+                                        if M28Logic.IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, iAOE) then
+                                            tShotStartPosition[2] = tShotStartPosition[2] + 8
+                                            tShotEndPosition[2] = tShotEndPosition[2] + 8
+                                            if M28Logic.IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, 1) then
+                                                --cant hit with df or indirect
+                                                tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexIndirectDistance] = 10000
+                                                tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFDistance] = 10000
+                                            else
+                                                --Can hit with indirect but not DF, so consider whether if we move further back we can then hit
+                                                tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexIndirectDistance] = iCurMexDist
+                                                tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexIndirectUnblockedLocation] = {tShotStartPosition[1], tShotStartPosition[2], tShotStartPosition[3]}
 
-                                            --Find the point at which DF can hit, if any, in intervals of 5, assuming at max range we can hit
-                                            local iMaxDistAdjust = math.max(5, math.min(100, math.floor((150 - iCurMexDist) / 5) * 5))
-                                            tPossibleWaterPosition = M28Utilities.MoveInDirection(tMex, iAngleAdjust, iDist + iMaxDistAdjust, true, true, false)
-                                            if IsUnderwater(tPossibleWaterPosition, false, iMinWaterDepth) then
-                                                tShotStartPosition = { tPossibleWaterPosition[1], GetSurfaceHeight(tPossibleWaterPosition[1], tPossibleWaterPosition[3]) + 1, tPossibleWaterPosition[3] }
-                                                if M28Logic.IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, 1) then
-                                                    --Assume wont find any match
-                                                    tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFDistance] = 10000
-                                                else
-                                                    tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFDistance] = iDist + iMaxDistAdjust
-                                                    --Refine the distance by moving closer
-                                                    for iDFDistAdjust = 5, math.max(5, math.min(100, math.floor((150 - iCurMexDist) / 5) * 5)), 5 do
-                                                        tPossibleWaterPosition = M28Utilities.MoveInDirection(tMex, iAngleAdjust, iDist + iDFDistAdjust, true, true, false)
-                                                        tShotStartPosition = { tPossibleWaterPosition[1], GetSurfaceHeight(tPossibleWaterPosition[1], tPossibleWaterPosition[3]) + 1, tPossibleWaterPosition[3] }
-                                                        if not (M28Logic.IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, 1)) then
-                                                            tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFDistance] = iDist + iDFDistAdjust
-                                                            tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFUnblockedLocation] = {tShotStartPosition[1], tShotStartPosition[2], tShotStartPosition[3]}
-                                                            break
+                                                --Find the point at which DF can hit, if any, in intervals of 5, assuming at max range we can hit
+                                                local iMaxDistAdjust = math.max(5, math.min(100, math.floor((150 - iCurMexDist) / 5) * 5))
+                                                tPossibleWaterPosition = M28Utilities.MoveInDirection(tMex, iAngleAdjust, iDist + iMaxDistAdjust, true, true, false)
+                                                if IsUnderwater(tPossibleWaterPosition, false, iMinWaterDepth) then
+                                                    tShotStartPosition = { tPossibleWaterPosition[1], GetSurfaceHeight(tPossibleWaterPosition[1], tPossibleWaterPosition[3]) + 1, tPossibleWaterPosition[3] }
+                                                    if M28Logic.IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, 1) then
+                                                        --Assume wont find any match
+                                                        tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFDistance] = 10000
+                                                    else
+                                                        tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFDistance] = iDist + iMaxDistAdjust
+                                                        --Refine the distance by moving closer
+                                                        for iDFDistAdjust = 5, math.max(5, math.min(100, math.floor((150 - iCurMexDist) / 5) * 5)), 5 do
+                                                            tPossibleWaterPosition = M28Utilities.MoveInDirection(tMex, iAngleAdjust, iDist + iDFDistAdjust, true, true, false)
+                                                            tShotStartPosition = { tPossibleWaterPosition[1], GetSurfaceHeight(tPossibleWaterPosition[1], tPossibleWaterPosition[3]) + 1, tPossibleWaterPosition[3] }
+                                                            if not (M28Logic.IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, 1)) then
+                                                                tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFDistance] = iDist + iDFDistAdjust
+                                                                tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFUnblockedLocation] = {tShotStartPosition[1], tShotStartPosition[2], tShotStartPosition[3]}
+                                                                break
+                                                            end
                                                         end
                                                     end
+                                                else
+                                                    --Assume wont find any match as if move really far back we are not on water
+                                                    tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFDistance] = 10000
                                                 end
-                                            else
-                                                --Assume wont find any match as if move really far back we are not on water
-                                                tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFDistance] = 10000
+                                            end
+
+                                            if bDebugMessages == true and tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexIndirectDistance] then
+                                                LOG(sFunctionRef .. ' Drawing start in white and end in orangy pink')
+                                                M28Utilities.DrawLocation({ tShotStartPosition[1], tShotStartPosition[2] - 8, tShotStartPosition[3] }, 7, 100, nil)
+                                                M28Utilities.DrawLocation({ tShotEndPosition[1], tShotEndPosition[2] - 8, tShotEndPosition[3] }, 8, 100, nil)
+                                            end
+                                        else
+                                            --DF can hit from cur position so assume indirect can as well
+                                            tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFDistance] = iCurMexDist
+                                            tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexIndirectDistance] = iCurMexDist
+                                            tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFUnblockedLocation] = {tShotStartPosition[1], tShotStartPosition[2], tShotStartPosition[3]}
+                                            tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexIndirectUnblockedLocation] = {tShotStartPosition[1], tShotStartPosition[2], tShotStartPosition[3]}
+                                        end
+
+                                        --Refine the distance - see if can get any closer
+                                        if iEntry == 1 then
+                                            iPrevDist = 0
+                                        else
+                                            iPrevDist = tiDistToTry[iEntry - 1]
+                                        end
+                                        for iShortDist = iPrevDist + 1, iDist - 1, 1 do
+                                            tPossibleWaterPosition = M28Utilities.MoveInDirection(tMex, iAngleAdjust, iDist, true, false, false)
+                                            if IsUnderwater(tPossibleWaterPosition, false, iMinWaterDepth) then
+                                                iCurMexDist = iShortDist
+                                                break
                                             end
                                         end
 
-                                        if bDebugMessages == true and tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexIndirectDistance] then
-                                            LOG(sFunctionRef .. ' Drawing start in white and end in orangy pink')
-                                            M28Utilities.DrawLocation({ tShotStartPosition[1], tShotStartPosition[2] - 8, tShotStartPosition[3] }, 7, 100, nil)
-                                            M28Utilities.DrawLocation({ tShotEndPosition[1], tShotEndPosition[2] - 8, tShotEndPosition[3] }, 8, 100, nil)
-                                        end
-                                    else
-                                        --DF can hit from cur position so assume indirect can as well
-                                        tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFDistance] = iCurMexDist
-                                        tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexIndirectDistance] = iCurMexDist
-                                        tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDFUnblockedLocation] = {tShotStartPosition[1], tShotStartPosition[2], tShotStartPosition[3]}
-                                        tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexIndirectUnblockedLocation] = {tShotStartPosition[1], tShotStartPosition[2], tShotStartPosition[3]}
-                                    end
+                                        tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDistance] = iCurMexDist
 
-                                    --Refine the distance - see if can get any closer
-                                    if iEntry == 1 then
-                                        iPrevDist = 0
-                                    else
-                                        iPrevDist = tiDistToTry[iEntry - 1]
+                                        if bDebugMessages == true then LOG(sFunctionRef .. ': Finished recording mex in range for pond ' .. iPond .. '; iPondMexCount=' .. iPondMexCount .. '; full mex table of info=' .. repru(tPondSubtable[subrefPondMexInfo][iPondMexCount])) end
+                                        break
                                     end
-                                    for iShortDist = iPrevDist + 1, iDist - 1, 1 do
-                                        tPossibleWaterPosition = M28Utilities.MoveInDirection(tMex, iAngleAdjust, iDist, true, false, false)
-                                        if IsUnderwater(tPossibleWaterPosition, false, iMinWaterDepth) then
-                                            iCurMexDist = iShortDist
-                                            break
-                                        end
-                                    end
-
-                                    tPondSubtable[subrefPondMexInfo][iPondMexCount][subrefMexDistance] = iCurMexDist
-
-                                    if bDebugMessages == true then LOG(sFunctionRef .. ': Finished recording mex in range for pond ' .. iPond .. '; iPondMexCount=' .. iPondMexCount .. '; full mex table of info=' .. repru(tPondSubtable[subrefPondMexInfo][iPondMexCount])) end
-                                    break
                                 end
                             end
                             if bInRange then
@@ -5309,10 +5328,16 @@ function RecordWaterZoneAdjacentLandZones()
     local tLinePosition
     local bIsAdjacent
     local iAdjacencyTablePosition
+    local iBaseIntervalIgnoreThreshold = 3
+    local iCloseIntervalIgnoreThreshold = 6
+    local iActualIntervalIgnoreThreshold
+    local iCurIntervalIgnoreCount --i.e. if we are moving from one midpoint to another, and come across a different land or water zone, it increases the ignorecount by 1 if the midpoints aren't too far apart
 
     for iPond, tPondSubtable in tPondDetails do
         for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
+
             iPlateau = NavUtils.GetTerrainLabel(refPathingTypeHover, tWZData[subrefMidpoint])
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering iWaterZone='..iWaterZone..'; iPlateau='..(iPlateau or 'nil')..'; Is plateau data empty='..tostring(M28Utilities.IsTableEmpty(tAllPlateaus[(iPlateau or -1)]))) end
             if (iPlateau or 0) > 0 and M28Utilities.IsTableEmpty(tAllPlateaus[iPlateau]) == false then
                 --Cycle through every land zone on the map, and check if it is near this
                 for iLandZone, tLZData in tAllPlateaus[iPlateau][subrefPlateauLandZones] do
@@ -5320,6 +5345,7 @@ function RecordWaterZoneAdjacentLandZones()
                     --LZMinX is >= WZMinX and <=WZMaxX; or LZMaxX is >= WZMinX and <=WZMaxX
                     --As above but for Z
                     --Hover want to have a small tolerance for cliffs etc
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if land zone '..iLandZone..' is near the water zone; iSegmentGapAllowed='..iSegmentGapAllowed..'; tLZData[subrefLZMinSegX]='..tLZData[subrefLZMinSegX]..'; tWZData[subrefWZMinSegX]='..tWZData[subrefWZMinSegX]..'; tWZData[subrefWZMaxSegX]='..tWZData[subrefWZMaxSegX]..'; tLZData[subrefLZMaxSegX]='..tLZData[subrefLZMaxSegX]..'; tLZData[subrefLZMinSegZ]='..tLZData[subrefLZMinSegZ]..'; tWZData[subrefWZMinSegZ]='..tWZData[subrefWZMinSegZ]..'; tWZData[subrefWZMaxSegZ]='..tWZData[subrefWZMaxSegZ]..'; tLZData[subrefLZMaxSegZ]='..tLZData[subrefLZMaxSegZ]) end
                     if (tLZData[subrefLZMinSegX] + iSegmentGapAllowed >= tWZData[subrefWZMinSegX] and tLZData[subrefLZMinSegX] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegX]) or (tLZData[subrefLZMaxSegX] + iSegmentGapAllowed >= tWZData[subrefWZMinSegX] and tLZData[subrefLZMaxSegX] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegX])
                             and (tLZData[subrefLZMinSegZ] + iSegmentGapAllowed >= tWZData[subrefWZMinSegZ] and tLZData[subrefLZMinSegZ] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegZ]) or (tLZData[subrefLZMaxSegZ] + iSegmentGapAllowed >= tWZData[subrefWZMinSegZ] and tLZData[subrefLZMaxSegZ] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegZ]) then
                         --It looks like we might overlap, do a more precise calculation drawing a line from the two midpoints to see if we come across other land zones
@@ -5327,24 +5353,44 @@ function RecordWaterZoneAdjacentLandZones()
                         iDistBetweenMidpoints = M28Utilities.GetDistanceBetweenPositions(tWZData[subrefMidpoint], tLZData[subrefMidpoint])
                         iMaxLineInterval = math.floor(iDistBetweenMidpoints / iLineInterval) * iLineInterval
                         iLineAngle = M28Utilities.GetAngleFromAToB(tWZData[subrefMidpoint], tLZData[subrefMidpoint])
+                        if iDistBetweenMidpoints <= 150 then
+                            if iDistBetweenMidpoints <= 75 then iActualIntervalIgnoreThreshold = iCloseIntervalIgnoreThreshold
+                            else iActualIntervalIgnoreThreshold = iBaseIntervalIgnoreThreshold
+                            end
+                        else
+                            iActualIntervalIgnoreThreshold = 0
+                        end
+                        iCurIntervalIgnoreCount = 0
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have land zone that is close to a ater zone, checking if we cross other land zones when going from one to the other, iDistBetweenMidpoints='..iDistBetweenMidpoints..'; iMaxLineInterval='..iMaxLineInterval..'; iLineAngle='..iLineAngle) end
                         for iDistAlongLine = iLineInterval, iMaxLineInterval, iLineInterval do
                             tLinePosition = M28Utilities.MoveInDirection(tWZData[subrefMidpoint], iLineAngle, iDistAlongLine, false, false, false)
                             iCurLineSegmentX, iCurLineSegmentZ = GetPathingSegmentFromPosition(tLinePosition)
+                            if bDebugMessages == true then
+                                LOG(sFunctionRef..': tLinePosition='..repru(tLinePosition)..'; iCurLineSegmentX='..(iCurLineSegmentX or 'nil')..'; iCurLineSegmentZ='..(iCurLineSegmentZ or 'nil')..'; tLandZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ]='..(tLandZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ] or 'nil')..'; tWaterZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ]='..(tWaterZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ] or 'nil')..'; iCurIntervalIgnoreCount='..iCurIntervalIgnoreCount..'; iActualIntervalIgnoreThreshold='..iActualIntervalIgnoreThreshold..'; Will draw this location')
+                                M28Utilities.DrawLocation(tLinePosition, nil, 200)
+                            end
                             if tLandZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ] then
                                 if tLandZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ] == iLandZone then
                                     bIsAdjacent = true
                                     break
                                 else
                                     --Not adjacent as is another land zone inbetween
-                                    break
+                                    iCurIntervalIgnoreCount = iCurIntervalIgnoreCount + 1
+                                    if iCurIntervalIgnoreCount > iActualIntervalIgnoreThreshold then
+                                        break
+                                    end
                                 end
                             elseif tWaterZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ] then
                                 if not(tWaterZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ] == iWaterZone) then
                                     --not adjacent as is another water zone inbetween
-                                    break
+                                    iCurIntervalIgnoreCount = iCurIntervalIgnoreCount + 1
+                                    if iCurIntervalIgnoreCount > iActualIntervalIgnoreThreshold then
+                                        break
+                                    end
                                 end
                             end
                         end
+                        if bDebugMessages == true then LOG(sFunctionRef..': bIsAdjacent='..tostring(bIsAdjacent)) end
                         if bIsAdjacent then
                             --Record water zone as adjacent to land zone
                             iAdjacencyTablePosition = 1
@@ -6121,5 +6167,25 @@ function InPlayableArea(tLocation) --NOTE - also have the same function in M28Co
         return true
     else
         return false
+    end
+end
+
+function GetLandOrWaterZoneTeamData(tLocation, bReturnTeamDataAsWell, iOptionalTeam)
+    local iPlateauOrZero, iLandOrWaterZone = GetClosestPlateauOrZeroAndZoneToPosition(tLocation)
+    if (iLandOrWaterZone or 0) > 0 then
+        if iPlateauOrZero == 0 then
+            --Water zone
+            if bReturnTeamDataAsWell then
+                return tPondDetails[tiPondByWaterZone[iLandOrWaterZone]][subrefPondWaterZones][iLandOrWaterZone], tPondDetails[tiPondByWaterZone[iLandOrWaterZone]][subrefPondWaterZones][iLandOrWaterZone][subrefWZTeamData][iOptionalTeam]
+            else
+                return tPondDetails[tiPondByWaterZone[iLandOrWaterZone]][subrefPondWaterZones][iLandOrWaterZone]
+            end
+        else
+            if bReturnTeamDataAsWell then
+                return tAllPlateaus[iPlateauOrZero][subrefPlateauLandZones][iLandOrWaterZone], tAllPlateaus[iPlateauOrZero][subrefPlateauLandZones][iLandOrWaterZone][subrefLZTeamData][iOptionalTeam]
+            else
+                return tAllPlateaus[iPlateauOrZero][subrefPlateauLandZones][iLandOrWaterZone]
+            end
+        end
     end
 end

@@ -460,7 +460,7 @@ function NoRushMonitor()
 end
 
 function TestCustom(aiBrain)
-
+    --M28Map.DrawSpecificWaterZone(1)
     --AiX 10.0
     --ScenarioInfo.Options.CheatMult = tostring(10.0)
     --ScenarioInfo.Options.BuildMult = tostring(10.0)
@@ -652,7 +652,7 @@ function CheckUnitCap(aiBrain)
         if iUnitCap - iCurUnits < 10 then iMaxToDestroy = math.max(10, iMaxToDestroy) end
         local tUnitsToDestroy
         local tiCategoryToDestroy = {
-            [0] = categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryAirStaging - M28UnitInfo.refCategoryT1Mex + M28UnitInfo.refCategoryAllAir * categories.TECH2 - M28UnitInfo.refCategoryTransport * categories.TECH2,
+            [0] = categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryAirStaging - M28UnitInfo.refCategoryT1Mex + M28UnitInfo.refCategoryAllAir * categories.TECH2 - M28UnitInfo.refCategoryTransport * categories.TECH2 - M28UnitInfo.refCategoryTorpBomber * categories.TECH2,
             [1] = M28UnitInfo.refCategoryAllAir * categories.TECH1 + categories.NAVAL * categories.MOBILE * categories.TECH1,
             [2] = M28UnitInfo.refCategoryMobileLand * categories.TECH2 - categories.COMMAND - M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryAirScout + M28UnitInfo.refCategoryAirAA * categories.TECH1,
             [3] = M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND,
@@ -914,7 +914,7 @@ function OverseerManager(aiBrain)
         WaitTicks(1)
     end
 
-    ForkThread(TestCustom, aiBrain)
+    --ForkThread(TestCustom, aiBrain)
 
     --Initialise main systems
     ForkThread(Initialisation, aiBrain)
@@ -1068,7 +1068,7 @@ function CheckForAlliedCampaignUnitsToShareAtGameStart(aiBrain)
                             end
                             --Gift adjacent mass storage if any
                             if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
-                                M28Team.GiftAdjacentStorageToMexOwner(oUnit, oCurBrain:GetArmyIndex())
+                                M28Team.GiftAdjacentStorageToMexOwner(oUnit, oCurBrain)
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': Just about to try and gift unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' to M28AI brain '..oCurBrain.Nickname) end
                             M28Team.TransferUnitsToPlayer({ oUnit }, oCurBrain:GetArmyIndex(), false)
@@ -1184,9 +1184,72 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
     local sFunctionRef = 'ConsiderSpecialCampaignObjectives'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --UEF Mission 3 - create a special death trigger for Aeon ACU due to flaw with preceding objective
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; Is M3P3 active='..tostring(ScenarioInfo.M3P3.Active or false)..'; Is commander gate area empty='..tostring(Scenario.Areas['CDR_Gate_Area'] == nil)..'; CDR_Gate_Area='..repru(Scenario.Areas['CDR_Gate_Area'])..'; ScenarioInfo.M1P3.Active='..tostring(ScenarioInfo.M1P3.Active or false)..'; Is combined table empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.M1_TempleCombinedTable))..'; M1P2 active='..tostring(ScenarioInfo.M1P2.Active)..'; M1P1 active='..tostring(ScenarioInfo.M1P1.Active)) end
     if ScenarioInfo.M4P1 and M28Utilities.IsTableEmpty(Target.Units) and ScenarioInfo.M4P1.Active and M28UnitInfo.IsUnitValid(ScenarioInfo.AeonCDR) then
         if bDebugMessages == true then LOG(sFunctionRef..': Creating manual on death trigger') end
         local ScenarioFramework = import('/lua/ScenarioFramework.lua')
         ScenarioFramework.CreateUnitDeathTrigger(M28ErisKilled, ScenarioInfo.AeonCDR)
+        --UEF Mission 5 - send ACU to gateway
+    elseif ScenarioInfo.M3P3.Active and Scenario.Areas['CDR_Gate_Area'] and ScenarioInfo.PlayerCDRs then
+        --local rRect = import("/lua/sim/scenarioutilities.lua").AreaToRect('CDR_Gate_Area')
+        local tRect = import("/lua/sim/scenarioutilities.lua").AreaToRect('CDR_Gate_Area')
+        local rRect = {tRect['x0'], tRect['y0'], tRect['x1'], tRect['y1']}
+        if bDebugMessages == true then LOG(sFunctionRef..': rRect='..repru(rRect)..'; AreaToRect='..repru(import("/lua/sim/scenarioutilities.lua").AreaToRect('CDR_Gate_Area'))) end
+        if rRect then
+            local tMidpoint = {(rRect[1] + rRect[3])*0.5, 0, (rRect[2] + rRect[4])*0.5}
+            tMidpoint[2] = GetTerrainHeight(tMidpoint[1], tMidpoint[3])
+            for iUnit, oUnit in ScenarioInfo.PlayerCDRs do
+                if M28UnitInfo.IsUnitValid(oUnit) then
+                    LOG(sFunctionRef..': Considering ACU owned by brain '..oUnit:GetAIBrain().Nickname..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; if M28 then will set objective to tMidpoint='..repru(tMidpoint))
+                    if oUnit:GetAIBrain().M28AI then
+                        oUnit[M28ACU.reftSpecialObjectiveMoveLocation] = {tMidpoint[1], tMidpoint[2], tMidpoint[3]}
+                    end
+                end
+            end
+        end
+    elseif ScenarioInfo.M1_TempleCombinedTable and (ScenarioInfo.M1P3.Active or ScenarioInfo.M1P2.Active) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Will check if we have Seraphim temples that need manually destroying') end
+        if M28Utilities.IsTableEmpty(   ScenarioInfo.M1_TempleCombinedTable) == false and M28Utilities.IsTableEmpty(tAllActiveM28Brains) == false then
+            local aiBrain
+            for iBrain, oBrain in tAllActiveM28Brains do
+                if oBrain.M28AI then aiBrain = oBrain break end
+            end
+            if aiBrain then
+                local iTeam = aiBrain.M28Team
+                for iUnit, oUnit in ScenarioInfo.M1_TempleCombinedTable do
+                    --Add to table of units in the land zone (if it is in a land zone)
+                    local iPlateau, iLandZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
+                    if (iLandZone or 0) > 0 then
+                        local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
+                        local bAddToTable = true
+                        if not(tLZTeamData[M28Map.reftoGroundFireFriendlyTarget]) then tLZTeamData[M28Map.reftoGroundFireFriendlyTarget] = {}
+                        else
+                            for iRecordedUnit, oRecordedUnit in tLZTeamData[M28Map.reftoGroundFireFriendlyTarget] do
+                                if oRecordedUnit == oUnit then
+                                    bAddToTable = false
+                                    break
+                                end
+                            end
+                        end
+                        if bAddToTable then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Added unit to the land zone team table of ground fire targets') end
+                            table.insert(tLZTeamData[M28Map.reftoGroundFireFriendlyTarget], oUnit)
+                        end
+                    end
+                end
+            end
+        end
+        --Cybran mission 2 - move to gate
+    elseif ScenarioInfo.M3P2.Active and ScenarioInfo.M3Gate and M28UnitInfo.IsUnitValid(ScenarioInfo.M3Gate) then
+        for iBrain, oBrain in tAllActiveM28Brains do
+            local tACUs = oBrain:GetListOfUnits(categories.COMMAND, false, true)
+            if M28Utilities.IsTableEmpty(tACUs) == false then
+                for iUnit, oUnit in tACUs do
+                    LOG(sFunctionRef..': Considering ACU owned by brain '..oUnit:GetAIBrain().Nickname..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; if M28 then will set objective to gate position='..repru(ScenarioInfo.M3Gate:GetPosition()))
+                    oUnit[M28ACU.reftSpecialObjectiveMoveLocation] = ScenarioInfo.M3Gate:GetPosition()
+                end
+            end
+        end
     end
 end
