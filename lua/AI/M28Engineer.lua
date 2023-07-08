@@ -157,6 +157,7 @@ tiActionCategory = {
     [refActionBuildSecondPower] = M28UnitInfo.refCategoryPower,
     [refActionBuildAirStaging] = M28UnitInfo.refCategoryAirStaging,
     [refActionBuildAirFactory] = M28UnitInfo.refCategoryAirFactory,
+    [refActionBuildSecondAirFactory] = M28UnitInfo.refCategoryAirFactory,
     [refActionBuildSMD] = M28UnitInfo.refCategorySMD,
     [refActionBuildMassStorage] = M28UnitInfo.refCategoryMassStorage,
     [refActionBuildT1Radar] = M28UnitInfo.refCategoryT1Radar,
@@ -195,6 +196,7 @@ tiActionOrder = {
     [refActionBuildSecondPower] = M28Orders.refiOrderIssueBuild,
     [refActionBuildAirStaging] = M28Orders.refiOrderIssueBuild,
     [refActionBuildAirFactory] = M28Orders.refiOrderIssueBuild,
+    [refActionBuildSecondAirFactory] = M28Orders.refiOrderIssueBuild,
     [refActionBuildEnergyStorage] = M28Orders.refiOrderIssueBuild,
     [refActionMoveToLandZone] = M28Orders.refiOrderIssueMove,
     [refActionRunToLandZone] = M28Orders.refiOrderIssueMove,
@@ -246,6 +248,7 @@ tiActionAdjacentCategory = {
     [refActionBuildThirdPower] = M28UnitInfo.refCategorySML + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti * categories.UEF,
     [refActionBuildLandFactory] = M28UnitInfo.refCategoryMex,
     [refActionBuildAirFactory] = M28UnitInfo.refCategoryT3Power + M28UnitInfo.refCategoryHydro,
+    [refActionBuildSecondAirFactory] = M28UnitInfo.refCategoryT3Power + M28UnitInfo.refCategoryHydro,
     [refActionBuildSMD] = M28UnitInfo.refCategoryT3Power,
     [refActionBuildT1Radar] = M28UnitInfo.refCategoryT1Power,
     [refActionBuildT2Radar] = M28UnitInfo.refCategoryT2Power,
@@ -272,6 +275,7 @@ tbActionsThatDontHaveCategory = {
 tbIgnoreUnderConstructionActions = { --Any actions that are building something where would by default search for an under construction building should be set to true in this table if we dont want to, e.g. if want to build a second land factory, dont want to end up repairing a factory that is upgrading to a higher tech level; similarly for mex dont want to assist an existing engineer
     [refActionBuildMex] = true,
     [refActionBuildSecondLandFactory] = true,
+    [refActionBuildSecondAirFactory] = true,
     [refActionBuildSecondMassStorage] = true,
     [refActionBuildSecondPower] = true,
     [refActionBuildThirdPower] = true,
@@ -4077,7 +4081,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
         if bDebugMessages == true then LOG(sFunctionRef..': About to check if want to lower tech level wanted, bAlreadyHaveTechLevelWanted='..tostring(bAlreadyHaveTechLevelWanted)..'; iMinTechWanted='..iMinTechWanted..'; Is campaign map='..tostring(M28Map.bIsCampaignMap)) end
         if bAlreadyHaveTechLevelWanted and not(bDontUseLowerTechEngineersToAssist) then iMinTechWanted = 1
             --Campaign - might have T3 air fac but not be able to build T3 engineers
-        elseif iMinTechWanted > 1 and (M28Map.bIsCampaignMap or M28Overseer.bUnitRestrictionsArePresent) and (iActionToAssign == refActionBuildLandFactory or iActionToAssign == refActionBuildAirFactory or iActionToAssign == refActionBuildPower) and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
+        elseif iMinTechWanted > 1 and (M28Map.bIsCampaignMap or M28Overseer.bUnitRestrictionsArePresent) and (iActionToAssign == refActionBuildLandFactory or iActionToAssign == refActionBuildAirFactory or iActionToAssign == refActionBuildPower or iActionToAssign == refActionBuildSecondLandFactory or iActionToAssign == refActionBuildSecondAirFactory) and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
             --Check we have engineers of the relevant tech level to be able to build the factory
             local iEngiCategoryWanted
             if iMinTechWanted >= 3 then iEngiCategoryWanted = M28UnitInfo.refCategoryEngineer * categories.TECH3
@@ -4139,7 +4143,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
             --Override tech level if we lack the relevant factory HQ
             if iActionToAssign == refActionBuildLandFactory or iActionToAssign == refActionBuildSecondLandFactory then
                 iMinCategoryTechLevel = math.max(1, math.min(iMinTechWanted, (aiBrain[M28Economy.refiOurHighestLandFactoryTech] or 1)))
-            elseif iActionToAssign == refActionBuildAirFactory then
+            elseif iActionToAssign == refActionBuildAirFactory or iActionToAssign == refActionBuildSecondAirFactory then
                 iMinCategoryTechLevel = math.max(1, math.min(iMinTechWanted, (aiBrain[M28Economy.refiOurHighestAirFactoryTech] or 1)))
             elseif iActionToAssign == refActionBuildNavalFactory then
                 iMinCategoryTechLevel = math.max(1, math.min(iMinTechWanted, (aiBrain[M28Economy.refiOurHighestNavalFactoryTech] or 1)))
@@ -4155,7 +4159,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
 
             local iCategoryWanted, iOptionalFactionRequired = GetCategoryToBuildOrAssistFromAction(iActionToAssign, iMinCategoryTechLevel, aiBrain, tbEngineersOfFaction, tLZOrWZData, tLZOrWZTeamData)
             --Land and air facs - optional variable can be used to specify max tech level to use
-            if vOptionalVariable and (iActionToAssign == refActionBuildAirFactory or iActionToAssign == refActionBuildLandFactory) and vOptionalVariable >= iMinCategoryTechLevel and (vOptionalVariable == 1 or vOptionalVariable == 2) then
+            if vOptionalVariable and (iActionToAssign == refActionBuildAirFactory or iActionToAssign == refActionBuildLandFactory or iActionToAssign == refActionBuildSecondLandFactory or iActionToAssign == refActionBuildSecondLandFactory) and vOptionalVariable >= iMinCategoryTechLevel and (vOptionalVariable == 1 or vOptionalVariable == 2) then
                 iCategoryWanted = iCategoryWanted * M28UnitInfo.ConvertTechLevelToCategory(vOptionalVariable)
             end
             if iSpecificFactionRequiredOverride and not(iOptionalFactionRequired) then iOptionalFactionRequired = iSpecificFactionRequiredOverride end
@@ -6677,14 +6681,25 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
-    --Build more air factories if overflowing mass and dont have low power (e.g. to help in campaign and unit restriction scenarios where land factories arent an option)
+    --Build more air factories if close to overflowing mass and dont have low power (e.g. to help in campaign and unit restriction scenarios where land factories arent an option)
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Considering whether want a low priority air factory if overflowing mass, bHaveLowMass='..tostring(bHaveLowMass)..'; bHaveLowPower='..tostring(bHaveLowPower)..'; Lowest mass% stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]..'; Land facotyr lifetime count='..M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandFactory)..'; Want more factories='..tostring(M28Conditions.WantMoreFactories(iTeam, iPlateau, iLandZone))..'; want air instead of land fac='..tostring(M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData))) end
-    if not(bHaveLowMass) and not(bHaveLowPower) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.75 and M28Conditions.WantMoreFactories(iTeam, iPlateau, iLandZone) then
+    if not(bHaveLowMass) and not(bHaveLowPower) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.6 and M28Conditions.WantMoreFactories(iTeam, iPlateau, iLandZone) then
         if M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData) or ((M28Map.bIsCampaignMap or M28Overseer.bUnitRestrictionsArePresent) and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandFactory) <= 1) then
             if bDebugMessages == true then LOG(sFunctionRef..': Will try and build another air factory as low priority action due to mass overflow') end
             iBPWanted = 3 * tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]]
             HaveActionToAssign(refActionBuildAirFactory, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech], iBPWanted, nil)
+        end
+    end
+
+    --Build second air factories if really close to overflowing mass and dont have low power (e.g. to help in campaign and unit restriction scenarios where land factories arent an option)
+    iCurPriority = iCurPriority + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering whether want a low priority air factory if overflowing mass, bHaveLowMass='..tostring(bHaveLowMass)..'; bHaveLowPower='..tostring(bHaveLowPower)..'; Lowest mass% stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]..'; Land facotyr lifetime count='..M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandFactory)..'; Want more factories='..tostring(M28Conditions.WantMoreFactories(iTeam, iPlateau, iLandZone))..'; want air instead of land fac='..tostring(M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData))) end
+    if not(bHaveLowMass) and not(bHaveLowPower) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.8 and M28Conditions.WantMoreFactories(iTeam, iPlateau, iLandZone) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 1 then
+        if M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData) or ((M28Map.bIsCampaignMap or M28Overseer.bUnitRestrictionsArePresent) and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandFactory) <= 1) then
+            iBPWanted = tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]]
+            if bDebugMessages == true then LOG(sFunctionRef..': Will try and build another air factory as low priority action due to mass overflow, iBPWanted='..iBPWanted..'; Highest air fac tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]) end
+            HaveActionToAssign(refActionBuildSecondAirFactory, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech], iBPWanted, nil)
         end
     end
 
@@ -6833,6 +6848,10 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         end
         iFactoriesWanted = math.min(4, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tLZData[M28Map.subrefLZIslandRef]] - 2)
         if bExpansionOnSameIslandAsBase then iFactoriesWanted = math.max(1, math.min(4, iFactoriesWanted, tLZData[M28Map.subrefLZMexCount] - 2)) end
+        if not(bWantMorePower) and not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.4 then
+            iFactoriesWanted = iFactoriesWanted + 1
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.8 then iFactoriesWanted = iFactoriesWanted * 2 end
+        end
         if iFactoriesWanted > 2 then
             --Does enemy have any units/threats on this island within a certain range?
             local bEnemyHasDangerousUnitsOnIsland = tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]
@@ -6852,7 +6871,11 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 end
             end
             if not(bEnemyHasDangerousUnitsOnIsland) then
-                iFactoriesWanted = 2
+                if iFactoriesWanted > 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.8 then
+                    iFactoriesWanted = 3
+                else
+                    iFactoriesWanted = 2
+                end
             end
         end
         if bHaveLowMass then iFactoriesWanted = math.max(1, math.floor(iFactoriesWanted * 0.5)) end

@@ -17,7 +17,8 @@ local NavUtils = import("/lua/sim/navutils.lua")
 local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 
 local reftBlueprintPriorityOverride = 'M28FactoryPreferredBlueprintByCategory' --[x] is the blueprint ref, if there's a priority override it returns a numerical value (higher number = higher priority)
-local refiTimeSinceLastOrderCheck = 'M28FactoryTimeSinceLastCheck' --against factory, gametime in seconds when the factory was last identified as idle with no order
+local refiTimeSinceLastOrderCheck = 'M28FactoryTimeSinceLastCheck' --against factory, gametime in seconds when the factory was last checked to consider an order
+local refiTimeSinceLastFailedToGetOrder = 'M28FactoryTimeFailedToGetOrder' --Against factory, gametimeseconds that factory failed to find anything to do
 --NOTE: Also have a blueprint blacklist in the landsubteam data - see M28Team
 
 --Factory types (used by subteams)
@@ -744,6 +745,22 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         end
     end
 
+    --T1 factory that has built loads of units - consider upgrading
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': Checking if want to upgrade T1 factory to T2 due to having built lots of units, enemies in this zone empty='..tostring( M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]))..'; Tech level='..iFactoryTechLevel..'; M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]) empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]))..'; Lifetime count='..M28Conditions.GetFactoryLifetimeCount(oFactory, nil, true)) end
+    if iFactoryTechLevel == 1 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) and not(M28Conditions.HaveLowPower(iTeam)) then
+        local iLifetimeCountWanted = 35
+        if not(bHaveLowMass) then
+            iLifetimeCountWanted = iLifetimeCountWanted - 8
+            if aiBrain[M28Economy.refiGrossMassBaseIncome] >= 7 then iLifetimeCountWanted = iLifetimeCountWanted - 7 end
+        end
+        if M28Map.bIsCampaignMap then iLifetimeCountWanted = iLifetimeCountWanted - 16
+        elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 2 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 3 then iLifetimeCountWanted = iLifetimeCountWanted - 9
+        end
+        if iLifetimeCountWanted <= 5 then iLifetimeCountWanted = 5 end
+        if ConsiderUpgrading() then  return sBPIDToBuild end
+    end
+
     --Enemy nearby ACU and PD or T2 arti nearby, with no enemies in this actual LZ - get indirect fire as last resort
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if iFactoryTechLevel >= 2 and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] == 0 then
@@ -1118,10 +1135,10 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             iUnitCountToUpgrade = iUnitCountToUpgrade * 0.5
             if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.8 then iUnitCountToUpgrade = iUnitCountToUpgrade * 0.5 end
         end
-        if (GetGameTimeSeconds() - (oFactory[refiTimeSinceLastOrderCheck] or -100)) <= 5 then iUnitCountToUpgrade = iUnitCountToUpgrade * 2 end
+        if (GetGameTimeSeconds() - (oFactory[refiTimeSinceLastFailedToGetOrder] or -100)) <= 5 then iUnitCountToUpgrade = iUnitCountToUpgrade * 2 end
         if M28Utilities.IsTableEmpty(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades])) then iUnitCountToUpgrade = iUnitCountToUpgrade * 0.75 end
         iCurrentConditionToTry = iCurrentConditionToTry + 1
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to upgrade factory, iFactoryTechLevel='..(iFactoryTechLevel or 'nil')..'; Highest friendly tech='..(M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] or 'nil')..'; Time since last had no order='..(GetGameTimeSeconds() - (oFactory[refiTimeSinceLastOrderCheck] or -100))..'; Is table of active upgrades empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]))..'; iUnitCountToUpgrade='..iUnitCountToUpgrade) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to upgrade factory, iFactoryTechLevel='..(iFactoryTechLevel or 'nil')..'; Highest friendly tech='..(M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] or 'nil')..'; Time since last had no order='..(GetGameTimeSeconds() - (oFactory[refiTimeSinceLastFailedToGetOrder] or -100))..'; Is table of active upgrades empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]))..'; iUnitCountToUpgrade='..iUnitCountToUpgrade) end
         if M28Conditions.GetFactoryLifetimeCount(oFactory, nil, true) >= iUnitCountToUpgrade then
             if bDebugMessages == true then LOG(sFunctionRef..': Will try and upgrade factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)) end
             if ConsiderUpgrading() then return sBPIDToBuild end
@@ -1361,11 +1378,12 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                     iDistToEnemyBaseToConsider = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], M28Map.GetPrimaryEnemyBaseLocation(aiBrain))
                 end
                 if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
+                    local bDontConsiderPlayableArea = not(M28Map.bIsCampaignMap)
                     for iEntry, tLZPathing in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
                         if bDebugMessages == true then
                             LOG(sFunctionRef .. ': About to check alternative LZ ' .. tLZPathing[M28Map.subrefLZNumber] .. '; iDistToEnemyBaseToConsider=' .. iDistToEnemyBaseToConsider .. '; tLZPathing[M28Map.subrefLZTravelDist]=' .. tLZPathing[M28Map.subrefLZTravelDist])
                         end
-                        if tLZPathing[M28Map.subrefLZTravelDist] <= iDistToEnemyBaseToConsider then
+                        if tLZPathing[M28Map.subrefLZTravelDist] <= iDistToEnemyBaseToConsider and (bDontConsiderPlayableArea or M28Conditions.IsLocationInPlayableArea(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tLZPathing[M28Map.subrefLZNumber]][M28Map.subrefMidpoint])) then
                             --if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tLZPathing[M28Map.subrefLZNumber]][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefbLZWantsSupport] then
                             --How far away is it?
                             if bDebugMessages == true then
@@ -1768,6 +1786,8 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
 
     M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForLandFactory] = GetGameTimeSeconds()
+    oFactory[refiTimeSinceLastFailedToGetOrder] = GetGameTimeSeconds() --Redundancy, will also include in parent logic
+    tLZTeamData[M28Map.subrefiTimeLandFacHadNothingToBuild] = GetGameTimeSeconds()
     if bDebugMessages == true then LOG(sFunctionRef..': Updated time that last had nothing to build for land factory to '..M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForLandFactory]) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -1872,6 +1892,7 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                     M28Orders.IssueTrackedFactoryBuild(oFactory, sBPToBuild, bDontWait)
                 end
             else
+                oFactory[refiTimeSinceLastFailedToGetOrder] = GetGameTimeSeconds()
                 --Clear any assisting engineers
                 if bDebugMessages == true then LOG(sFunctionRef..': We dont have anything to build, will wait 10 ticks and try again.  In the meantime will clear all assisting engineers. Is table of assisting units empty='..tostring(M28Utilities.IsTableEmpty(oFactory[M28UnitInfo.reftoUnitsAssistingThis]))) end
                 if M28Utilities.IsTableEmpty(oFactory[M28UnitInfo.reftoUnitsAssistingThis]) == false then
@@ -2583,7 +2604,9 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
 
     if iFactoryTechLevel >= M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] then
         M28Team.tTeamData[iTeam][M28Team.refiTimeLastHadNothingToBuildForAirFactory] = GetGameTimeSeconds()
+        tLZTeamData[M28Map.subrefiTimeAirFacHadNothingToBuild] = GetGameTimeSeconds()
     end
+    oFactory[refiTimeSinceLastFailedToGetOrder] = GetGameTimeSeconds() --Redundancy, will also include in parent logic
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -3063,7 +3086,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Have no categories to build')
     end
-
+    oFactory[refiTimeSinceLastFailedToGetOrder] = GetGameTimeSeconds() --Redundancy, will also include in parent logic
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 

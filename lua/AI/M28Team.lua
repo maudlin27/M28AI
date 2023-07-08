@@ -2837,7 +2837,7 @@ end
 
 function MonitorEnemyMobileTMLThreats(iTeam)
     --Whenever an enemy mobile TML threat has moved by more than 15 from its last recorded postiion, update its targets
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'MonitorEnemyMobileTMLThreats'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, activem TML monitor='..tostring(tTeamData[iTeam][refbActiveMobileTMLMonitor] or false)..'; Gametime='..GetGameTimeSeconds()) end

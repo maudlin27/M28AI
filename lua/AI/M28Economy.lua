@@ -1094,8 +1094,8 @@ function ManageMassStalls(iTeam)
                                     if bDebugMessages == true then
                                         LOG(sFunctionRef .. ': UnitState=' .. M28UnitInfo.GetUnitState(oUnit) .. '; Is ActiveHQUpgrades Empty=' .. tostring(M28Utilities.IsTableEmpty(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]))))
                                     end
-                                    --Factories, ACU and engineers - dont pause if >=85% done
-                                    if bPauseNotUnpause and oUnit.GetWorkProgress and EntityCategoryContains(M28UnitInfo.refCategoryEngineer + categories.COMMAND + M28UnitInfo.refCategoryFactory, oUnit.UnitId) and (oUnit:GetWorkProgress() or 0) >= 0.85 then
+                                    --Factories, ACU and engineers - dont pause if >=85% done, or if is land factory that hasn't built many units (so e.g. if have just placed a land factory on a core expansion we dont immediately pause it)
+                                    if bPauseNotUnpause and oUnit.GetWorkProgress and EntityCategoryContains(M28UnitInfo.refCategoryEngineer + categories.COMMAND + M28UnitInfo.refCategoryFactory, oUnit.UnitId) and ((oUnit:GetWorkProgress() or 0) >= 0.85 or (EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) and (oUnit[M28Factory.refiTotalBuildCount] or 0) <= 5)) then
                                         bApplyActionToUnit = false
                                         --SMD LOGIC - Check if already have 1 missile loaded before pausing
                                     elseif iCategoryRef == M28UnitInfo.refCategorySMD and oUnit.GetTacticalSiloAmmoCount and oUnit:GetTacticalSiloAmmoCount() >= 1 then

@@ -279,7 +279,7 @@ function RecordUnitsInRangeOfTMLAndAnyTMDProtection(oTML, tOptionalUnitsToConsid
     local sFunctionRef = 'RecordUnitsInRangeOfTMLAndAnyTMDProtection'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if EntityCategoryContains(categories.MOBILE, oTML.UnitId) then bDebugMessages = true end
+
 
     local iTMLRange = math.max((oTML[M28UnitInfo.refiManualRange] or 0), (oTML[M28UnitInfo.refiIndirectRange] or 0))
     if iTMLRange == 0 then iTMLRange = iTMLMissileRange end
@@ -768,7 +768,6 @@ function RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnits)
                 if M28UnitInfo.IsUnitValid(oRecordedTML) then
                     --UEF ACU with billy nuke upgrade - increase value
                     if EntityCategoryContains(categories.COMMAND * categories.UEF, oRecordedTML.UnitId) and oRecordedTML:HasEnhancement('TacticalNukeMissile') then
-                        bDebugMessages = true
                         if bDebugMessages == true then LOG(sFunctionRef..': ENemy unit owned by brain '..oRecordedTML:GetAIBrain().Nickname..' has a billy nuke') end
                         iTMLValueInRangeOfUnit = iTMLValueInRangeOfUnit + 4
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryMissileShip * categories.AEON, oRecordedTML.UnitId) then

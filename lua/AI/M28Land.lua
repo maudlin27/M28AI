@@ -2358,7 +2358,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Finished checking for nearest enemy unit, is it valid='..tostring(M28UnitInfo.IsUnitValid(oNearestEnemyToMidpoint))) end
-        if oNearestEnemyToMidpoint then
+        if oNearestEnemyToMidpoint and M28Conditions.IsLocationInPlayableArea(oNearestEnemyToMidpoint:GetPosition()) then
             if tLZTeamData[M28Map.subrefLZbCoreBase] then
                 --Adjust rally points for core base if nearby enemy in case we end up going closer to the enemy instead of furhter away
                 if M28Utilities.GetDistanceBetweenPositions(tAmphibiousRallyPoint, tLZData[M28Map.subrefMidpoint]) <= 5 then
@@ -2821,10 +2821,12 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             end
                         end
                         local iNearbyCombatThreat = math.max(iOurCombatThreat, M28UnitInfo.GetCombatThreatRating(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains][1]:GetUnitsAroundPoint(M28UnitInfo.refCategoryLandCombat, oClosestFriendlyToEnemy:GetPosition(), iSearchRange, 'Ally'), false))
-                        if iNearbyCombatThreat > iEnemyCombatThreat or iNearbyCombatThreat > 1.2 * tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] then
+                        if iNearbyCombatThreat > iEnemyCombatThreat then
+                            bAttackWithEverything = true
+                        elseif iNearbyCombatThreat > 1.2 * tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] and tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] then
                             bAttackWithEverything = true
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Island beachhead Nearby combat threat='..iNearbyCombatThreat..'; iEnemyCombatThreat='..iEnemyCombatThreat..'; tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; bAttackWithEverythign='..tostring(bAttackWithEverything)) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Island beachhead Nearby combat threat='..iNearbyCombatThreat..'; iEnemyCombatThreat='..iEnemyCombatThreat..'; tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; bAttackWithEverythign='..tostring(bAttackWithEverything)..'; tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ])) end
                     end
 
                     if iOurCombatThreat < iEnemyCombatThreat * 1.4 or not(bAttackWithEverything) then

@@ -252,6 +252,8 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefActiveUpgrades = 'ActiveUpgrades' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam]
             subrefMexCountByTech = 'MexByTech' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam], returns {[1]=x,[2]=y,[3]=z} where xyz are counts of mexes
             subreftoUnitsToReclaim = 'UnitToRec' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam], table of units that we should reclaim
+            subrefiTimeLandFacHadNothingToBuild = 'TimeLFNoB' --Gametimeseconds that had a land fac in this zone with nothing to build
+            subrefiTimeAirFacHadNothingToBuild = 'TimeAFNoB' --Gametimeseconds that had an air fac in this zone with nothing to build
             --Intel related values
             refbWantLandScout = 'LandScout' --True/false, used by water and land zones
             refiRadarCoverage = 'RadCov' --Radar coverage of the centre of the land zone midpoint
