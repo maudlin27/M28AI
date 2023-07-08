@@ -105,6 +105,8 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refbDefendAgainstArti = 'M28TeamDefendAgainstArti' --true if enemy has t3 arti or equivelnt
     subreftoT3Arti = 'M28TeamT3Arti' --table of T3 and experimental arti that M28 players on the team have
     reftEnemyTML = 'M28TeamEnTML' --table of enemy TML
+    reftEnemyMobileTML = 'M28TeamEnMobTML' --Table of enemy TML, includes cruisers and missile ships
+    refbActiveMobileTMLMonitor = 'M28TeamActiveMobTM' --True if have an active monitor for this team
     reftEnemyLandExperimentals = 'M28TeamELandE'
     reftEnemyArtiAndExpStructure = 'M28TeamEArtiExp'
     reftEnemyNukeLaunchers = 'M28TeamENuke'
@@ -158,6 +160,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiEnemyTorpBombersThreat = 'M28TeamEnemyTorpBomberThreat'
     refiEnemyAirOtherThreat = 'M28TeamEnemyAirOtherThreat'
     refiTimeOfLastAirStagingShortage = 'M28TeamTimeAirStagingShortage' --Gametimeseconds that a team member last had units that had nowhere to refuel
+    reftoEnemyExperimentalAirObjectives = 'M28TeamEnemyAirExp' --Table of enemy air experimentals that we need to destroy
     --subrefiOurGunshipThreat - uses same ref as air subteam
     --subrefiOurBomberThreat - uses same ref as air subteam
 
@@ -177,6 +180,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiLowestUnitCapAdjustmentLevel = 'M28LowestCapAdj' --i.e. 0 is after ctrlking the most types of units, so lower = closer to cap
     refiPriorityPondValues = 'M28PriorityPonds' --Table of ponds that are considered sufficiently high value for our team, [x] is the pond, returns the value of hte pond
     refbAlreadyCheckedForUnitsToShare = 'M28CheckedUnitsShare' --true if already run logic for campaign to share units at start of game
+    refiConstructedExperimentalCount = 'M28ConstructedExpCount' --Total number of experimentals constructed
     --reftoSpecialUnitsToProtect = 'M28SpecialUnitsToProtect' --table of units to protect e.g. for air units - e.g. repair targets for a campaign
 
 
@@ -515,6 +519,7 @@ function CreateNewTeam(aiBrain)
     M28Engineer.tiLastBuildingSizeFromActionForTeam[iTotalTeamCount] = {}
     tTeamData[iTotalTeamCount][refiHighestBrainResourceMultipler] = 1
     tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier] = 1
+    tTeamData[iTotalTeamCount][refiConstructedExperimentalCount] = 0
 
 
 
@@ -1576,6 +1581,8 @@ function ConsiderPriorityLandFactoryUpgrades(iM28Team)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --Enemy has better land tech than us, and we have no active land upgrades
 
+
+
     if bDebugMessages == true then LOG(sFunctionRef..': tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech]='..(tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] or 'nil')..'; tTeamData[iM28Team][subrefiHighestEnemyGroundTech]='..(tTeamData[iM28Team][subrefiHighestEnemyGroundTech] or 'nil')..'; Lifetime combat count='..M28Conditions.GetTeamLifetimeBuildCount(iM28Team, (M28UnitInfo.refCategoryLandCombat * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + M28UnitInfo.refCategoryIndirect * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech])) ) >= 20 * (2-tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + 12) end
     if tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] > 0 and tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] < 3 and (tTeamData[iM28Team][subrefiHighestFriendlyLandFactoryTech] < tTeamData[iM28Team][subrefiHighestEnemyGroundTech] or (tTeamData[iM28Team][subrefiTeamGrossMass] >= 3.5 / tTeamData[iM28Team][subrefiActiveM28BrainCount] and (tTeamData[iM28Team][subrefiTeamMassStored] >= 300 * tTeamData[iM28Team][subrefiActiveM28BrainCount] or tTeamData[iM28Team][subrefiTeamGrossMass] >= 20) and (tTeamData[iM28Team][subrefiTeamGrossMass] >= 8.5 * (1 + (tTeamData[iM28Team][subrefiActiveM28BrainCount] - 1) *0.5) or tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech] == 1 or M28Conditions.GetTeamLifetimeBuildCount(iM28Team, (M28UnitInfo.refCategoryLandCombat * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + M28UnitInfo.refCategoryIndirect * M28UnitInfo.ConvertTechLevelToCategory(tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech])) ) >= 20 * (2-tTeamData[iM28Team][subrefiHighestFriendlyFactoryTech]) + 12 * tTeamData[iM28Team][subrefiActiveM28BrainCount]))) then
         local bWantUpgrade = false
@@ -1696,7 +1703,7 @@ function ConsiderPriorityNavalFactoryUpgrades(iM28Team)
     local sFunctionRef = 'ConsiderPriorityNavalFactoryUpgrades'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bDebugMessages == true then LOG(sFunctionRef..': tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech]='..tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech]) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech]='..tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech]) end
 
     if tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech] > 0 and tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech] < math.min(3, tTeamData[iM28Team][subrefiHighestEnemyNavyTech]) then
         local bWantUpgrade = false
@@ -1706,7 +1713,26 @@ function ConsiderPriorityNavalFactoryUpgrades(iM28Team)
                 bWantUpgrade = not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryNavalHQ))
 
                 if bWantUpgrade then
-                    M28Economy.FindAndUpgradeUnitOfCategory(oBrain, M28UnitInfo.refCategoryNavalHQ * M28UnitInfo.ConvertTechLevelToCategory(oBrain[M28Economy.refiOurHighestNavalFactoryTech]))
+                    --Campaign maps where still relatively early, or games where we have poor gross mass, where considering upgrading to T3
+                    if tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech] == 2 then
+                        if M28Map.bIsCampaignMap and GetGameTimeSeconds() <= 600 and tTeamData[iM28Team][subrefiTeamGrossMass] <= 20 then
+                            bWantUpgrade = false
+                        elseif tTeamData[iM28Team][subrefiTeamGrossMass] <= 10 * tTeamData[iM28Team][subrefiActiveM28BrainCount] then
+                            --Only upgrade to T3 if we have built a number of T2 units
+                            local tNavalFactories = oBrain:GetListOfUnits(M28UnitInfo.refCategoryNavalFactory * categories.TECH2, false, true)
+                            local iTotalBuildCount = 0
+                            for iFactory, oFactory in tNavalFactories do
+                                iTotalBuildCount = iTotalBuildCount + (oFactory[M28Factory.refiTotalBuildCount] or 0)
+                            end
+                            if iTotalBuildCount <= 8 then
+                                bWantUpgrade = false
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': We have lower naval tech than enemy, and dont have an active HQ upgrade, bWantUpgrade after low mass checks='..tostring(bWantUpgrade)) end
+                    if bWantUpgrade then
+                        M28Economy.FindAndUpgradeUnitOfCategory(oBrain, M28UnitInfo.refCategoryNavalHQ * M28UnitInfo.ConvertTechLevelToCategory(oBrain[M28Economy.refiOurHighestNavalFactoryTech]))
+                    end
                 end
             end
         end
@@ -2158,6 +2184,8 @@ function ConsiderNormalUpgrades(iM28Team)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderNormalUpgrades'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
 
     local iMassUpgradesAtLoopStart
     local iCycleCount = 0
@@ -2793,6 +2821,104 @@ function GiftAdjacentStorageToMexOwner(oJustBuilt, oOptionalBrainToGiftTo)
                 end
             end
         end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function RecordMobileEnemyTMLForTeam(oTML, iTeam)
+    local bAlreadyIncluded = false
+    if not(tTeamData[iTeam][reftEnemyMobileTML]) then
+        tTeamData[iTeam][reftEnemyMobileTML] = {}
+    elseif M28Utilities.IsTableEmpty(tTeamData[iTeam][reftEnemyMobileTML]) == false then
+        for iUnit, oUnit in tTeamData[iTeam][reftEnemyMobileTML] do
+            if oUnit == oTML then bAlreadyIncluded = true end
+        end
+    end
+    if not(bAlreadyIncluded) then
+        table.insert(tTeamData[iTeam][reftEnemyMobileTML], oTML)
+        oTML[M28Building.reftMobileTMLLastLocationChecked] = nil
+        ForkThread(MonitorEnemyMobileTMLThreats, iTeam)
+    end
+end
+
+function RecordMobileTMLThreatForAllEnemyTeams(oTML)
+    --Intended for ACUs, SACUs, and potentially UEF/Sera cruisers and Aeon missile ship
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordMobileTMLThreatForAllEnemyTeams'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    while not(M28Map.bMapLandSetupComplete) do
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitTicks(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        if GetGameTimeSeconds() >= 10 then break end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for oTML='..(oTML.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTML) or 'nil')) end
+    if M28UnitInfo.IsUnitValid(oTML) then
+        if M28Utilities.IsTableEmpty(M28Overseer.tAllActiveM28Brains) == false then
+            local tiTeamsToUpdate = {}
+            local iTMLArmyIndex = oTML:GetAIBrain():GetArmyIndex()
+            local bUnitIsValid = true
+            for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
+                if not(tiTeamsToUpdate[oBrain.M28Team]) and IsEnemy(oBrain:GetArmyIndex(), iTMLArmyIndex) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering oBrain='..oBrain.Nickname..'; Team='..(oBrain.M28Team or 'nil')) end
+                    while not(oBrain.M28Team) do --Cybran mission 4 causes lua error due to this triggering before teams have been assigned
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        WaitTicks(1)
+                        bUnitIsValid = false
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                        if GetGameTimeSeconds() >= 10 then break end
+                    end
+                    if not(bUnitIsValid) then bUnitIsValid = M28UnitInfo.IsUnitValid(oTML) end
+                    if bUnitIsValid then
+                        tiTeamsToUpdate[oBrain.M28Team] = true
+                    end
+                end
+                if M28Utilities.IsTableEmpty(tiTeamsToUpdate) == false and bUnitIsValid then
+                    for iTeam, bUpdate in tiTeamsToUpdate do
+                        RecordMobileEnemyTMLForTeam(oTML, iTeam)
+                    end
+                end
+            end
+        end
+    end
+end
+
+function MonitorEnemyMobileTMLThreats(iTeam)
+    --Whenever an enemy mobile TML threat has moved by more than 15 from its last recorded postiion, update its targets
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'MonitorEnemyMobileTMLThreats'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, activem TML monitor='..tostring(tTeamData[iTeam][refbActiveMobileTMLMonitor] or false)..'; Gametime='..GetGameTimeSeconds()) end
+    if not(tTeamData[iTeam][refbActiveMobileTMLMonitor]) then
+        tTeamData[iTeam][refbActiveMobileTMLMonitor] = true
+        if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy mobile TML empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iTeam][reftEnemyMobileTML]))) end
+        while M28Utilities.IsTableEmpty(tTeamData[iTeam][reftEnemyMobileTML]) == false do
+            local iTicksWaitedThisCycle = 0
+            if M28Conditions.IsTableOfUnitsStillValid(tTeamData[iTeam][reftEnemyMobileTML]) then
+                for iUnit, oUnit in tTeamData[iTeam][reftEnemyMobileTML] do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to update oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Cur position='..repru(oUnit:GetPosition())..'; Last location checked='..repru(oUnit[M28Building.reftMobileTMLLastLocationChecked])..'; Time since last hceck='..GetGameTimeSeconds() - (oUnit[M28Building.refiTimeMobileTMLLastChecked] or -1000)) end
+                    if not(oUnit[M28Building.reftMobileTMLLastLocationChecked]) or GetGameTimeSeconds() - (oUnit[M28Building.refiTimeMobileTMLLastChecked] or -100) >= 60 or M28Utilities.GetDistanceBetweenPositions(oUnit[M28Building.reftMobileTMLLastLocationChecked], oUnit:GetPosition()) >= 10 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will record units in range of TML now') end
+                        M28Building.RecordUnitsInRangeOfTMLAndAnyTMDProtection(oUnit)
+                        oUnit[M28Building.reftMobileTMLLastLocationChecked] = {oUnit:GetPosition()[1], oUnit:GetPosition()[2], oUnit:GetPosition()[3]}
+                        oUnit[M28Building.refiTimeMobileTMLLastChecked] = GetGameTimeSeconds()
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        WaitTicks(1)
+                        iTicksWaitedThisCycle = iTicksWaitedThisCycle + 1
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                    end
+                end
+            else
+                break
+            end
+            if iTicksWaitedThisCycle < 50 then --Want to refresh no more quickly than once every 5s
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitTicks(50 - iTicksWaitedThisCycle)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            end
+        end
+        tTeamData[iTeam][refbActiveMobileTMLMonitor] = false
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
