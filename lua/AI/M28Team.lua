@@ -2817,19 +2817,41 @@ end
 
 function RecordMobileTMLThreatForAllEnemyTeams(oTML)
     --Intended for ACUs, SACUs, and potentially UEF/Sera cruisers and Aeon missile ship
-    if M28Utilities.IsTableEmpty(M28Overseer.tAllActiveM28Brains) == false then
-        local tiTeamsToUpdate = {}
-        local iTMLArmyIndex = oTML:GetAIBrain():GetArmyIndex()
-        for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
-            if not(tiTeamsToUpdate[oBrain.M28Team]) and IsEnemy(oBrain:GetArmyIndex(), iTMLArmyIndex) then
-                tiTeamsToUpdate[oBrain.M28Team] = true
-            end
-        end
-        if M28Utilities.IsTableEmpty(tiTeamsToUpdate) == false then
-
-
-            for iTeam, bUpdate in tiTeamsToUpdate do
-                RecordMobileEnemyTMLForTeam(oTML, iTeam)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordMobileTMLThreatForAllEnemyTeams'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    while not(M28Map.bMapLandSetupComplete) do
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitTicks(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        if GetGameTimeSeconds() >= 10 then break end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for oTML='..(oTML.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTML) or 'nil')) end
+    if M28UnitInfo.IsUnitValid(oTML) then
+        if M28Utilities.IsTableEmpty(M28Overseer.tAllActiveM28Brains) == false then
+            local tiTeamsToUpdate = {}
+            local iTMLArmyIndex = oTML:GetAIBrain():GetArmyIndex()
+            local bUnitIsValid = true
+            for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
+                if not(tiTeamsToUpdate[oBrain.M28Team]) and IsEnemy(oBrain:GetArmyIndex(), iTMLArmyIndex) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering oBrain='..oBrain.Nickname..'; Team='..(oBrain.M28Team or 'nil')) end
+                    while not(oBrain.M28Team) do --Cybran mission 4 causes lua error due to this triggering before teams have been assigned
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        WaitTicks(1)
+                        bUnitIsValid = false
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                        if GetGameTimeSeconds() >= 10 then break end
+                    end
+                    if not(bUnitIsValid) then bUnitIsValid = M28UnitInfo.IsUnitValid(oTML) end
+                    if bUnitIsValid then
+                        tiTeamsToUpdate[oBrain.M28Team] = true
+                    end
+                end
+                if M28Utilities.IsTableEmpty(tiTeamsToUpdate) == false and bUnitIsValid then
+                    for iTeam, bUpdate in tiTeamsToUpdate do
+                        RecordMobileEnemyTMLForTeam(oTML, iTeam)
+                    end
+                end
             end
         end
     end

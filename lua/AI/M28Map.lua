@@ -174,6 +174,8 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         --Capture and repair (done on zone rather than team basis, since intended for civilian targets and/or objectives so want to consider for all M28 teams; same ref used for water zones
         subreftoUnitsToCapture = 'UnitsToCap'
         subreftoUnitsToRepair = 'UnitsToRep'
+        --Mission objective specific - disable targeting logic
+        subrefbPacifistArea = 'PacAre' --true if this is a pacificst area
 
         --Land zone subteam data (update M28Teams.TeamInitialisation function to include varaibles here so dont have to check if they exist each time)
         subrefLZTeamData = 'Subteam' --tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData] - Table for all the data by team for a plateau's land zone
@@ -4381,6 +4383,7 @@ function RecordPondToExpandTo(aiBrain)
 
         local iDistanceThreshold = math.max(138, math.min(180, aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] * 0.35))
         if not(aiBrain[refbCanPathToEnemyBaseWithLand]) then iDistanceThreshold = iDistanceThreshold + 50 end
+        if bIsCampaignMap then iDistanceThreshold = iDistanceThreshold + 50 end
 
         local iFrigateRange = 28
         local iDestroyerRange = 60
@@ -4494,7 +4497,16 @@ function RecordPondToExpandTo(aiBrain)
                             end
                         end
 
+                        --Increase value for massive ponds
+                        if tPondSubtable[subrefiSegmentCount] >= 10000 then
+                            if tPondSubtable[subrefiSegmentCount] >= 50000 or tPondSubtable[subrefPondMaxX] + tPondSubtable[subrefPondMaxZ] - tPondSubtable[subrefPondMinX] - tPondSubtable[subrefPondMinZ] >= 0.5 * iMapSize then
+                                if bIsCampaignMap then iCurPondValue = iCurPondValue + 1 end
+                                iCurPondValue = iCurPondValue * 1.5
+                            end
+                        end
 
+                        --Increase value for campaign maps
+                        if bIsCampaignMap then iCurPondValue = iCurPondValue * 2 end
                         if bDebugMessages == true then LOG(sFunctionRef..': Have a pond that is in range of our start position, value based on mexes in range pre adjust='..iCurPondValue) end
                         --Do we have sufficient value to consider?
                         if iCurPondValue >= 4 or iCurPondDefensiveValue >= 4 or bStartLocationIsUnderwater then
@@ -6172,7 +6184,7 @@ function InPlayableArea(tLocation) --NOTE - also have the same function in M28Co
     end
 end
 
-function GetLandOrWaterZoneTeamData(tLocation, bReturnTeamDataAsWell, iOptionalTeam)
+function GetLandOrWaterZoneData(tLocation, bReturnTeamDataAsWell, iOptionalTeam)
     local iPlateauOrZero, iLandOrWaterZone = GetClosestPlateauOrZeroAndZoneToPosition(tLocation)
     if (iLandOrWaterZone or 0) > 0 then
         if iPlateauOrZero == 0 then

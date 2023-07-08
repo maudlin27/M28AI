@@ -2505,21 +2505,24 @@ function ManageBombers(iTeam, iAirSubteam)
                         --If have air control and lots of bombers available consider further away targets
                         if M28Utilities.IsTableEmpty(tAvailableBombers) == false and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and iAvailableBombers >= 8 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] >= 2500 then
                             if M28Utilities.IsTableEmpty(tRallyLZOrWZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
+                                local bDontCheckForPacifism = not(M28Overseer.bPacifistModeActive)
                                 for iEntry, tPathingDetails in tRallyLZOrWZData[M28Map.subrefLZPathingToOtherLandZones] do
                                     local iOtherLZ = tPathingDetails[M28Map.subrefLZNumber]
                                     if not(tbZonesConsidered[iOtherLZ]) and iOtherLZ then
                                         local tOtherLZData = M28Map.tAllPlateaus[iRallyPlateauOrZero][M28Map.subrefPlateauLandZones][iOtherLZ]
                                         if (tOtherLZData[M28Map.subrefLZTravelDist] or 0) > iSearchSize then break end
-                                        local tOtherLZTeamData = tOtherLZData[M28Map.subrefLZTeamData][iTeam]
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering iOtherLZ='..(iOtherLZ or 'nil')..'; Travel dist='..(tOtherLZData[M28Map.subrefLZTravelDist] or 'nil')..'; iSearchSize='..(iSearchSize or 'nil')..'; Does it have enemy units='..tostring(M28Utilities.IsTableEmpty(tOtherLZTeamData[M28Map.subrefTEnemyUnits]))) end
-                                        FilterToAvailableTargets(tOtherLZTeamData[M28Map.subrefTEnemyUnits])
-                                        if M28Utilities.IsTableEmpty( tEnemyTargets) == false then
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Assigning bomber targets for iOtherLZ='..iOtherLZ) end
-                                            AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam, false, true)
-                                            tEnemyTargets = {}
-                                            if M28Utilities.IsTableEmpty(tAvailableBombers) then break end
+                                        if bDontCheckForPacifism or not(tOtherLZData[M28Map.subrefbPacifistArea]) then
+                                            local tOtherLZTeamData = tOtherLZData[M28Map.subrefLZTeamData][iTeam]
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering iOtherLZ='..(iOtherLZ or 'nil')..'; Travel dist='..(tOtherLZData[M28Map.subrefLZTravelDist] or 'nil')..'; iSearchSize='..(iSearchSize or 'nil')..'; Does it have enemy units='..tostring(M28Utilities.IsTableEmpty(tOtherLZTeamData[M28Map.subrefTEnemyUnits]))) end
+                                            FilterToAvailableTargets(tOtherLZTeamData[M28Map.subrefTEnemyUnits])
+                                            if M28Utilities.IsTableEmpty( tEnemyTargets) == false then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Assigning bomber targets for iOtherLZ='..iOtherLZ) end
+                                                AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam, false, true)
+                                                tEnemyTargets = {}
+                                                if M28Utilities.IsTableEmpty(tAvailableBombers) then break end
+                                            end
+                                            if bCheckForObjectiveTargets then AddObjectiveTargetsFromLZTeamData(tOtherLZTeamData) end
                                         end
-                                        if bCheckForObjectiveTargets then AddObjectiveTargetsFromLZTeamData(tOtherLZTeamData) end
                                     end
 
                                 end
@@ -3118,6 +3121,7 @@ function ManageGunships(iTeam, iAirSubteam)
         end
 
         local bDontLookForMoreTargets = false
+        local bDontCheckForPacifism = not(M28Overseer.bPacifistModeActive)
 
         if bDebugMessages == true then LOG(sFunctionRef..': About to look for targets for g unships, iMaxEnemyAirAA='..iMaxEnemyAirAA..'; iDistToSupport='..M28Utilities.GetDistanceBetweenPositions(oFrontGunship:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])..'; iOurGunshipThreat='..iOurGunshipThreat..'; HaveAirControl='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])..'; Far behind on air='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir])) end
         function AddEnemyGroundUnitsToTargetsSubjectToAA(iPlateauOrZero, iLandOrWaterZone, iGunshipThreatFactorWanted, bCheckForAirAA, bOnlyIncludeIfMexToProtect)
@@ -3136,7 +3140,7 @@ function ManageGunships(iTeam, iAirSubteam)
             end
 
 
-            if not(M28Map.bIsCampaignMap) or M28Conditions.IsLocationInPlayableArea(tLZOrWZData[M28Map.subrefMidpoint]) then
+            if not(M28Map.bIsCampaignMap) or (M28Conditions.IsLocationInPlayableArea(tLZOrWZData[M28Map.subrefMidpoint]) and (bDontCheckForPacifism or not(tLZOrWZData[M28Map.subrefbPacifistArea]))) then
                 function IsHighValueZoneToProtect()
                     if (tLZOrWZTeamData[M28Map.subrefLZSValue] or 0) >= 2000 or (tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] or 0) > 0 or (tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] or 0) > 0 then
                         return true
@@ -3440,6 +3444,35 @@ function ManageGunships(iTeam, iAirSubteam)
     if bGunshipWantsAirScout and oFrontGunship then
         if not(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout]) then M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout] = {} end
         table.insert(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftPriorityUnitsWantingScout], oFrontGunship)
+    end
+
+    --Disable gunship weapons over pacifist areas
+    if M28Overseer.bPacifistModeActive or M28Overseer.bHaveDisabledGunshipWeaponsForPacifism then
+        M28Overseer.bHaveDisabledGunshipWeaponsForPacifism = M28Overseer.bPacifistModeActive
+        for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
+            local tAllGunships = oBrain:GetListOfUnits(M28UnitInfo.refCategoryGunship, false, true)
+            if M28Utilities.IsTableEmpty(tAllGunships) == false then
+                local iCurSegmentX, iCurSegmentZ
+                local sPathing = M28Map.refPathingTypeHover
+                local bDisableWeapon
+                for iGunship, oGunship in tAllGunships do
+                    bDisableWeapon = false
+                    if oGunship:GetFractionComplete() == 1 then
+                        if NavUtils.GetLabel(sPathing, oGunship:GetPosition()) then
+                            local tGunshipLZOrWZData = M28Map.GetLandOrWaterZoneData(oGunship:GetPosition())
+                            if tGunshipLZOrWZData[M28Map.subrefbPacifistArea] then
+                                bDisableWeapon = true
+                            end
+                        end
+                        if bDisableWeapon then
+                            M28UnitInfo.DisableUnitWeapon(oGunship)
+                        else
+                            M28UnitInfo.EnableUnitWeapon(oGunship)
+                        end
+                    end
+                end
+            end
+        end
     end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

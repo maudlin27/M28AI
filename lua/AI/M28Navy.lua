@@ -15,8 +15,9 @@ local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 local NavUtils = import("/lua/sim/navutils.lua")
 local M28Logic = import('/mods/M28AI/lua/AI/M28Logic.lua')
-local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
+--local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
+local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 
 --Unit variables
 refiTimeOfLastWZAssignment = 'M28WZLastAssignmentTime' --GameTimeSeconds
@@ -1058,10 +1059,12 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
             local iLZToSupport
 
             --Does this WZ have adjacent LZ wanting support?
+            local bDontCheckForPacifism = not(M28Overseer.bPacifistModeActive)
             if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefAdjacentLandZones]) == false then
                 for iEntry, tSubtable in tWZData[M28Map.subrefAdjacentLandZones] do
                     local tAltLZ = M28Map.tAllPlateaus[tSubtable[M28Map.subrefWPlatAndLZNumber][1]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefWPlatAndLZNumber][2]]
-                    if tAltLZ[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsSupport] then
+
+                    if (bDontCheckForPacifism or not(tWZData[M28Map.subrefbPacifistArea])) and tAltLZ[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsSupport] then
                         if iAmphibiousLabel == tAltLZ[M28Map.refiMidpointAmphibiousLabel] then
                             iLZToSupport = tSubtable[M28Map.subrefWPlatAndLZNumber][2]
                             iPlateau = tSubtable[M28Map.subrefWPlatAndLZNumber][1]
@@ -1084,7 +1087,7 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                             for iEntry, tSubtable in tAltWZData[M28Map.subrefAdjacentLandZones] do
                                 local tAltLZ = M28Map.tAllPlateaus[tSubtable[M28Map.subrefWPlatAndLZNumber][1]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefWPlatAndLZNumber][2]]
                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering adjacent land zone '..tSubtable[M28Map.subrefWPlatAndLZNumber][2]..' in plateau '..tSubtable[M28Map.subrefWPlatAndLZNumber][1]..'; Does this zone want support='..tostring(tAltLZ[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsSupport])..'; Dist to enemy base='..M28Utilities.GetDistanceBetweenPositions(tWZTeamData[M28Map.reftClosestEnemyBase], tAltLZ[M28Map.subrefMidpoint])..'; iMaxDistWantedToEnemyBase='..iMaxDistWantedToEnemyBase) end
-                                if tAltLZ[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsSupport] then
+                                if (bDontCheckForPacifism or not(tAltLZ[M28Map.subrefbPacifistArea])) and tAltLZ[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsSupport] then
                                     if iAmphibiousLabel == tAltLZ[M28Map.refiMidpointAmphibiousLabel] then
                                         iLZToSupport = tSubtable[M28Map.subrefWPlatAndLZNumber][2]
                                         iPlateau = tSubtable[M28Map.subrefWPlatAndLZNumber][1]
@@ -1476,17 +1479,30 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
 
         if M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false or M28Utilities.IsTableEmpty(tAvailableSubmarines) == false then
             if bDebugMessages == true then LOG(sFunctionRef..': About to manage combat units in the WZ') end
-            local tRemainingLandUnits = ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableCombatUnits, tAvailableSubmarines, tUnavailableUnitsInThisWZ)
-            if M28Utilities.IsTableEmpty(tRemainingLandUnits) == false then
-                for iUnit, oUnit in tRemainingLandUnits do
-                    table.insert(tAmphibiousUnits, oUnit)
+            if tWZData[M28Map.subrefbPacifistArea] then
+                if M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false then
+                    RetreatOtherUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableCombatUnits)
                 end
+                if M28Utilities.IsTableEmpty(tAvailableSubmarines) == false then
+                    RetreatOtherUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableSubmarines)
+                end
+            else
+                local tRemainingLandUnits = ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableCombatUnits, tAvailableSubmarines, tUnavailableUnitsInThisWZ)
+                if M28Utilities.IsTableEmpty(tRemainingLandUnits) == false then
+                    for iUnit, oUnit in tRemainingLandUnits do
+                        table.insert(tAmphibiousUnits, oUnit)
+                    end
+                end
+                bUpdateEnemyDataHere = false
             end
-            bUpdateEnemyDataHere = false
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of MAA empty='..tostring(M28Utilities.IsTableEmpty(tAvailableMAA))..'; Is table of entity filtered dow nto MAA empty='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryMAA, tWZTeamData[M28Map.subrefWZTAlliedUnits])))) end
         if M28Utilities.IsTableEmpty(tAvailableMAA) == false then
-            ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableMAA)
+            if tWZData[M28Map.subrefbPacifistArea] then
+                RetreatOtherUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableMAA)
+            else
+                ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableMAA)
+            end
         end
 
         if M28Utilities.IsTableEmpty(tOtherUnitsToRetreat) == false then
@@ -1516,7 +1532,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
     if bDebugMessages == true then LOG(sFunctionRef..': Will update enemy data for this WZ if are enemies in this WZ. bUpdateEnemyDataHere='..tostring(bUpdateEnemyDataHere or false)) end
     if bUpdateEnemyDataHere then
         RecordClosestAdjacentRangesAndEnemies(tWZData, tWZTeamData, iPond, iWaterZone, iTeam)
-        if tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] and tWZTeamData[M28Map.subrefWZTValue] >= 200 then
+        if tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] and tWZTeamData[M28Map.subrefWZTValue] >= 200 and not(tWZData[M28Map.subrefbPacifistArea]) then
             UpdateIfWaterZoneWantsSupport(tWZTeamData, true)
             if bDebugMessages == true then LOG(sFunctionRef..': Will update to flag this water zone wants combat support') end
         else
@@ -2803,7 +2819,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
     end
 
     --Override support if we couldnt find any enemies
-    if bWantReinforcements and not(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]) then bWantReinforcements = false end
+    if bWantReinforcements and (not(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]) or tWZData[M28Map.subrefbPacifistArea]) then bWantReinforcements = false end
     UpdateIfWaterZoneWantsSupport(tWZTeamData, bWantReinforcements)
     if bDebugMessages == true then LOG(sFunctionRef..': Just recorded if this WZ wants support, bWantReinforcements='..tostring(bWantReinforcements)..'; is tUnassignedLandUnits empty='..tostring(M28Utilities.IsTableEmpty(tUnassignedLandUnits))) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -3041,11 +3057,13 @@ function ManageWaterZoneScouts(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, t
             end
         end
     end
-    
+
     if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTScoutsTravelingHere]) then
         --Want a land scout for htis land zone, unless we already have one traveling here; if we have available land scouts then will change this flag back to false
-        tWZTeamData[M28Map.refbWantLandScout] = true
-        if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; We want to get a scout for this WZ '..(iWaterZone or 'nil')..' on pond '..(iPond or 'nil')) end
+        if not(tWZData[M28Map.subrefbPacifistArea]) then
+            tWZTeamData[M28Map.refbWantLandScout] = true
+            if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; We want to get a scout for this WZ '..(iWaterZone or 'nil')..' on pond '..(iPond or 'nil')) end
+        end
     elseif bDebugMessages == true then
         LOG(sFunctionRef..': We have scouts traveling to this WZ so wont flag it needs more scouts. Will list out traveling scouts')
         for iUnit, oUnit in tWZTeamData[M28Map.subrefTScoutsTravelingHere] do

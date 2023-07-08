@@ -7554,6 +7554,23 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         end
     end
 
+    --Low priority air staging builder (max of 1) for expansion bases
+    iCurPriority = iCurPriority + 1
+    if tLZTeamData[M28Map.subrefLZCoreExpansion] and not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastAirStagingShortage] or -100) <= 2 and tLZTeamData[M28Map.subrefLZSValue] >= 400 and not(bHaveLowMass) and not(M28Conditions.HaveLowPower(iTeam)) then
+        local bHaveAirStaging = false
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
+            local tAirStaging = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirStaging, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+            if M28Utilities.IsTableEmpty(tAirStaging) == false then
+                for iUnit, oUnit in tAirStaging do
+                    if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() == 1 then bHaveAirStaging = true break end
+                end
+            end
+        end
+        if not(bHaveAirStaging) then
+            HaveActionToAssign(refActionBuildAirStaging, 1, 10)
+        end
+    end
+
 
     --If still have an engineer available and there is reclaim in the LZ of any kind, and we arent overflowing, then reclaim
     iCurPriority = iCurPriority + 1
@@ -8385,6 +8402,22 @@ function ConsiderLandOrWaterZoneEngineerAssignment(tLZOrWZTeamData, iTeam, iPlat
             break
         end
     end
+    --Clear the BP wanted flag if this is a pacifist zone
+    if M28Overseer.bPacifistModeActive and tLZOrWZTeamData[M28Map.subrefTbWantBP] then
+        local tLZOrWZData
+        if bIsWaterZone then
+            tLZOrWZData = M28Map.tPondDetails[iPlateauOrPond][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+        else
+            tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrPond][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+        end
+        if tLZOrWZData[M28Map.subrefbPacifistArea] then
+            tLZOrWZTeamData[M28Map.subrefTbWantBP] = false
+            for iTech = 1, 3 do
+                tLZOrWZTeamData[M28Map.subrefTBuildPowerByTechWanted][iTech] = 0
+            end
+        end
+    end
+
     --Clear any BP wanted if norush active and dealing with a non-core LZ outside any M28 norush raidius
     if M28Overseer.bNoRushActive and M28Overseer.iNoRushTimer - GetGameTimeSeconds() > 30 and tLZOrWZTeamData[M28Map.subrefTbWantBP] and not (tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and not (tLZOrWZTeamData[M28Map.subrefWZbCoreBase]) then
         local tLZOrWZData

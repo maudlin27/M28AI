@@ -441,7 +441,7 @@ function DodgeShot(oTarget, oWeapon, oAttacker, iTimeToDodge)
     local bAttackMove = false
     --ACU special - if ACU wants to run, then ignore hte last order and instead treat it as tyring to run to base
     if oTarget[M28ACU.refiTimeLastWantedToRun] and GetGameTimeSeconds() - (oTarget[M28ACU.refiTimeLastWantedToRun] or -100) <= 5 then
-        local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneTeamData(oTarget:GetPosition(), true, oTarget:GetAIBrain().M28Team)
+        local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oTarget:GetPosition(), true, oTarget:GetAIBrain().M28Team)
         if tLZOrWZTeamData then tCurDestination = {tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][1], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][2], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][3]} end
     elseif oTarget[M28Orders.refiOrderCount] > 0 then
         local tLastOrder = oTarget[M28Orders.reftiLastOrders][oTarget[M28Orders.refiOrderCount]]

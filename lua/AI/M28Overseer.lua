@@ -37,6 +37,9 @@ iNoRushTimer = 0 --Gametimeseconds that norush should end
 reftNoRushCentre = 'M28OverseerNRCtre' --against aiBrain
 reftNoRushM28StartPoints = { } --start positions for all norush buildable locations
 bActiveMissionChecker = false --true if are actively checking for mission objectives
+bPacifistModeActive = false --true if we have set certain zones to never be attacked (e.g. Cybran mission 4)
+bHaveDisabledGunshipWeaponsForPacifism = false --true if we have disabled gunship weapons due to pacifism
+tiPacifistZonesByPlateau = {} --[iPlateau], returns iLandOrWaterZone, for any zone flagged as pacificst
 
 --aiBrain variables
 refiDistanceToNearestEnemyBase = 'M28OverseerDistToNearestEnemyBase'
@@ -1180,11 +1183,12 @@ function M28ErisKilled()
 end
 
 function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderSpecialCampaignObjectives'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --UEF Mission 3 - create a special death trigger for Aeon ACU due to flaw with preceding objective
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; Is M3P3 active='..tostring(ScenarioInfo.M3P3.Active or false)..'; Is commander gate area empty='..tostring(Scenario.Areas['CDR_Gate_Area'] == nil)..'; CDR_Gate_Area='..repru(Scenario.Areas['CDR_Gate_Area'])..'; ScenarioInfo.M1P3.Active='..tostring(ScenarioInfo.M1P3.Active or false)..'; Is combined table empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.M1_TempleCombinedTable))..'; M1P2 active='..tostring(ScenarioInfo.M1P2.Active)..'; M1P1 active='..tostring(ScenarioInfo.M1P1.Active)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Further logs, ScenarioInfo.M3BaseDamageWarnings='..(ScenarioInfo.M3BaseDamageWarnings or 'nil')..'; ScenarioInfo.MainFrameIsAlive='..tostring(ScenarioInfo.MainFrameIsAlive or false)..'; ScenarioInfo.EMPFired='..tostring(ScenarioInfo.EMPFired or false)..'; ScenarioInfo.M3_Base is empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.M3_Base))..'; bPacifistModeActive='..tostring(bPacifistModeActive)) end
     if ScenarioInfo.M4P1 and M28Utilities.IsTableEmpty(Target.Units) and ScenarioInfo.M4P1.Active and M28UnitInfo.IsUnitValid(ScenarioInfo.AeonCDR) then
         if bDebugMessages == true then LOG(sFunctionRef..': Creating manual on death trigger') end
         local ScenarioFramework = import('/lua/ScenarioFramework.lua')
@@ -1250,6 +1254,120 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                     oUnit[M28ACU.reftSpecialObjectiveMoveLocation] = ScenarioInfo.M3Gate:GetPosition()
                 end
             end
+        end
+        --Cybran mission 4 - play defensively and let human player try and capture the nodes
+    elseif ScenarioInfo.M3BaseDamageWarnings and ScenarioInfo.MainFrameIsAlive and not ScenarioInfo.EMPFired and ScenarioInfo.M3_Base and not(bPacifistModeActive) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Want to disable attacking parts of the map that could cause us to fail the mission') end
+        bPacifistModeActive = true
+        local aiBrain
+        for iBrain, oBrain in tAllActiveM28Brains do
+            if oBrain.M28AI then aiBrain = oBrain break end
+        end
+        if aiBrain then
+            local iTeam = aiBrain.M28Team
+            tiPacifistZonesByPlateau = {}
+            local tbHasPlateauAndZoneBeenRecorded = {}
+            local iCurPlateauOrZero, iCurLandOrWaterZone
+            for iUnit, oUnit in ScenarioInfo.M3_Base do
+                iCurPlateauOrZero, iCurLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                if iCurPlateauOrZero and iCurLandOrWaterZone and not(tbHasPlateauAndZoneBeenRecorded[iCurPlateauOrZero][iCurLandOrWaterZone]) then
+                    if not(tiPacifistZonesByPlateau[iCurPlateauOrZero]) then tiPacifistZonesByPlateau[iCurPlateauOrZero] = {} end
+                    table.insert(tiPacifistZonesByPlateau[iCurPlateauOrZero], iCurLandOrWaterZone)
+                    if not(tbHasPlateauAndZoneBeenRecorded[iCurPlateauOrZero]) then tbHasPlateauAndZoneBeenRecorded[iCurPlateauOrZero] = {} end
+                    tbHasPlateauAndZoneBeenRecorded[iCurPlateauOrZero][iCurLandOrWaterZone] = true
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished recording the plateaus and zones that units in M3_Base are in, repru of tiPacifistZonesByPlateau='..repru(tiPacifistZonesByPlateau)) end
+            if M28Utilities.IsTableEmpty(tiPacifistZonesByPlateau) == false then
+                --Record any adjacent zones
+                local tiAdjacentZonesByPlateau = {}
+                for iPlateauOrZero, iLandOrWaterZone in tiPacifistZonesByPlateau do
+                    local tLZOrWZData
+                    if iPlateauOrZero == 0 then
+                        tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+                        --Water zone: Adjacent land zones
+                        if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefAdjacentLandZones]) == false then
+                            for iEntry, tSubtable in tLZOrWZData[M28Map.subrefAdjacentLandZones] do
+                                local iPlateauRef = tSubtable[M28Map.subrefWPlatAndLZNumber][1]
+                                local iAdjZoneRef = tSubtable[M28Map.subrefWPlatAndLZNumber][2]
+                                if not(tbHasPlateauAndZoneBeenRecorded[iPlateauRef][iAdjZoneRef]) then
+                                    tbHasPlateauAndZoneBeenRecorded[iPlateauRef][iAdjZoneRef] = true
+                                    if not(tiAdjacentZonesByPlateau[iPlateauRef]) then tiAdjacentZonesByPlateau[iPlateauRef] = {}
+                                        table.insert(tiAdjacentZonesByPlateau[iPlateauRef], iAdjZoneRef)
+                                    end
+                                end
+                            end
+                            --Water zone: Adjacent water zones:
+                            if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
+                                for _, iAdjZoneRef in tLZOrWZData[M28Map.subrefWZAdjacentWaterZones] do
+                                    if not(tbHasPlateauAndZoneBeenRecorded[0][iAdjZoneRef]) then
+                                        tbHasPlateauAndZoneBeenRecorded[0][iAdjZoneRef] = true
+                                        if not(tiAdjacentZonesByPlateau[0]) then tiAdjacentZonesByPlateau[0] = {}
+                                            table.insert(tiAdjacentZonesByPlateau[0], iAdjZoneRef)
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    else
+                        tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+                        --Land zone: Adjacent land zones
+                        if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                            for _, iAdjZoneRef in tLZOrWZData[M28Map.subrefLZAdjacentLandZones] do
+                                if not(tbHasPlateauAndZoneBeenRecorded[iPlateauOrZero][iAdjZoneRef]) then
+                                    tbHasPlateauAndZoneBeenRecorded[iPlateauOrZero][iAdjZoneRef] = true
+                                    if not(tiAdjacentZonesByPlateau[iPlateauOrZero]) then tiAdjacentZonesByPlateau[iPlateauOrZero] = {}
+                                        table.insert(tiAdjacentZonesByPlateau[iPlateauOrZero], iAdjZoneRef)
+                                    end
+                                end
+                            end
+                            --Land zone: Adjacent water zone:
+                            if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefAdjacentWaterZones]) == false then
+                                for iEntry, tSubtable in tLZOrWZData[M28Map.subrefAdjacentWaterZones] do
+                                    local iAdjZoneRef = tSubtable[M28Map.subrefAWZRef]
+                                    if not(tbHasPlateauAndZoneBeenRecorded[0][iAdjZoneRef]) then
+                                        tbHasPlateauAndZoneBeenRecorded[0][iAdjZoneRef] = true
+                                        if not(tiAdjacentZonesByPlateau[0]) then tiAdjacentZonesByPlateau[0] = {}
+                                            table.insert(tiAdjacentZonesByPlateau[0], iAdjZoneRef)
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+                if M28Utilities.IsTableEmpty(tiAdjacentZonesByPlateau) == false then
+                    for iPlateauOrZero, iAdjZoneRef in tiAdjacentZonesByPlateau do
+                        if not(tiPacifistZonesByPlateau[iPlateauOrZero]) then tiPacifistZonesByPlateau[iPlateauOrZero] = {} end
+                        table.insert(tiPacifistZonesByPlateau[iPlateauOrZero], iAdjZoneRef)
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished adding adjacent zones, repru of adjacent zones by plateau='..repru(tiAdjacentZonesByPlateau)) end
+
+                for iPlateauOrZero, iLandOrWaterZone in tiPacifistZonesByPlateau do
+                    local tLZOrWZData
+                    if iPlateauOrZero == 0 then
+                        tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+                    else
+                        tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+                    end
+                    tLZOrWZData[M28Map.subrefbPacifistArea] = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Set pacifist flag to true for iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone) end
+                end
+            end
+        end
+    elseif bPacifistModeActive and ScenarioInfo.EMPFired and M28Utilities.IsTableEmpty(tiPacifistZonesByPlateau) == false then
+        --Disable pacifist flag
+        if bDebugMessages == true then LOG(sFunctionRef..': EMP has been fired so will disable pacifist flag for all recorded zones, tiPacifistZonesByPlateau='..repru(tiPacifistZonesByPlateau)) end
+        bPacifistModeActive = false
+        for iPlateauOrZero, iLandOrWaterZone in tiPacifistZonesByPlateau do
+            local tLZOrWZData
+            if iPlateauOrZero == 0 then
+                tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+            else
+                tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+            end
+            tLZOrWZData[M28Map.subrefbPacifistArea] = false
         end
     end
 end
