@@ -2614,7 +2614,7 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
             if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
                 for iEntry, tSubtable in tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
                     if tSubtable[M28Map.subrefbIsWaterZone] then
-                        tiWaterZoneByDistance[tSubtable[M28Map.subrefiLandOrWaterZoneRef]] = tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance][M28Map.subrefiDistance]
+                        tiWaterZoneByDistance[tSubtable[M28Map.subrefiLandOrWaterZoneRef]] = tSubtable[M28Map.subrefiDistance]
                     end
                 end
             else
@@ -2633,7 +2633,8 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
             elseif not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]) then
                 iAirAAThreatThreshold = math.min(iTorpBomberThreat * 0.15, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.25)
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through water zones, iTorpBomberThreat='..iTorpBomberThreat..'; iAirAAThreatThreshold='..iAirAAThreatThreshold) end
+
+            if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through water zones, iTorpBomberThreat='..iTorpBomberThreat..'; iAirAAThreatThreshold='..iAirAAThreatThreshold..'; tiWaterZoneByDistance='..repru(tiWaterZoneByDistance)) end
             for iWaterZone, iDistance in M28Utilities.SortTableByValue(tiWaterZoneByDistance, false) do
                 local tWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][iTeam]
                 if iTorpBomberThreat >= 6000 or (iTorpBomberThreat >= 4000 and GetGameTimeSeconds() - (tWZTeamData[M28Map.refiTimeOfLastTorpAttack] or -100) >= 3) then --Have so many torp bombers that dont want to worry about enemy groundAA threat unless massively more than us
@@ -4222,7 +4223,6 @@ end
 
 function ManageNovax(iTeam, iAirSubteam)
     --Wont bother with normal air availability since arent interested in fuel or health
-    local tNovax = {}
     local iPlateauOrZero, iLandOrWaterZone
     for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
         if oBrain.M28AI then
@@ -4249,11 +4249,6 @@ function ManageNovax(iTeam, iAirSubteam)
                     ForkThread(NovaxCoreTargetLoop, oBrain, oUnit)
                 end
             end
-        end
-    end
-    if M28Utilities.IsTableEmpty(tNovax) == false then
-        for iNovax, oNovax in tNovax do
-            M28Utilities.ErrorHandler('To add code for novax')
         end
     end
 end

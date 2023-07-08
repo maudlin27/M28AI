@@ -105,6 +105,8 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refbDefendAgainstArti = 'M28TeamDefendAgainstArti' --true if enemy has t3 arti or equivelnt
     subreftoT3Arti = 'M28TeamT3Arti' --table of T3 and experimental arti that M28 players on the team have
     reftEnemyTML = 'M28TeamEnTML' --table of enemy TML
+    reftEnemyMobileTML = 'M28TeamEnMobTML' --Table of enemy TML, includes cruisers and missile ships
+    refbActiveMobileTMLMonitor = 'M28TeamActiveMobTM' --True if have an active monitor for this team
     reftEnemyLandExperimentals = 'M28TeamELandE'
     reftEnemyArtiAndExpStructure = 'M28TeamEArtiExp'
     reftEnemyNukeLaunchers = 'M28TeamENuke'
@@ -2793,6 +2795,82 @@ function GiftAdjacentStorageToMexOwner(oJustBuilt, oOptionalBrainToGiftTo)
                 end
             end
         end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function RecordMobileEnemyTMLForTeam(oTML, iTeam)
+    local bAlreadyIncluded = false
+    if not(tTeamData[iTeam][reftEnemyMobileTML]) then
+        tTeamData[iTeam][reftEnemyMobileTML] = {}
+    elseif M28Utilities.IsTableEmpty(tTeamData[iTeam][reftEnemyMobileTML]) == false then
+        for iUnit, oUnit in tTeamData[iTeam][reftEnemyMobileTML] do
+            if oUnit == oTML then bAlreadyIncluded = true end
+        end
+    end
+    if not(bAlreadyIncluded) then
+        table.insert(tTeamData[iTeam][reftEnemyMobileTML], oTML)
+        oTML[M28Building.reftMobileTMLLastLocationChecked] = nil
+        ForkThread(MonitorEnemyMobileTMLThreats, iTeam)
+    end
+end
+
+function RecordMobileTMLThreatForAllEnemyTeams(oTML)
+    --Intended for ACUs, SACUs, and potentially UEF/Sera cruisers and Aeon missile ship
+    if M28Utilities.IsTableEmpty(M28Overseer.tAllActiveM28Brains) == false then
+        local tiTeamsToUpdate = {}
+        local iTMLArmyIndex = oTML:GetAIBrain():GetArmyIndex()
+        for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
+            if not(tiTeamsToUpdate[oBrain.M28Team]) and IsEnemy(oBrain:GetArmyIndex(), iTMLArmyIndex) then
+                tiTeamsToUpdate[oBrain.M28Team] = true
+            end
+        end
+        if M28Utilities.IsTableEmpty(tiTeamsToUpdate) == false then
+
+
+            for iTeam, bUpdate in tiTeamsToUpdate do
+                RecordMobileEnemyTMLForTeam(oTML, iTeam)
+            end
+        end
+    end
+end
+
+function MonitorEnemyMobileTMLThreats(iTeam)
+    --Whenever an enemy mobile TML threat has moved by more than 15 from its last recorded postiion, update its targets
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'MonitorEnemyMobileTMLThreats'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, activem TML monitor='..tostring(tTeamData[iTeam][refbActiveMobileTMLMonitor] or false)..'; Gametime='..GetGameTimeSeconds()) end
+    if not(tTeamData[iTeam][refbActiveMobileTMLMonitor]) then
+        tTeamData[iTeam][refbActiveMobileTMLMonitor] = true
+        if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy mobile TML empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iTeam][reftEnemyMobileTML]))) end
+        while M28Utilities.IsTableEmpty(tTeamData[iTeam][reftEnemyMobileTML]) == false do
+            local iTicksWaitedThisCycle = 0
+            if M28Conditions.IsTableOfUnitsStillValid(tTeamData[iTeam][reftEnemyMobileTML]) then
+                for iUnit, oUnit in tTeamData[iTeam][reftEnemyMobileTML] do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to update oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Cur position='..repru(oUnit:GetPosition())..'; Last location checked='..repru(oUnit[M28Building.reftMobileTMLLastLocationChecked])..'; Time since last hceck='..GetGameTimeSeconds() - (oUnit[M28Building.refiTimeMobileTMLLastChecked] or -1000)) end
+                    if not(oUnit[M28Building.reftMobileTMLLastLocationChecked]) or GetGameTimeSeconds() - (oUnit[M28Building.refiTimeMobileTMLLastChecked] or -100) >= 60 or M28Utilities.GetDistanceBetweenPositions(oUnit[M28Building.reftMobileTMLLastLocationChecked], oUnit:GetPosition()) >= 10 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will record units in range of TML now') end
+                        M28Building.RecordUnitsInRangeOfTMLAndAnyTMDProtection(oUnit)
+                        oUnit[M28Building.reftMobileTMLLastLocationChecked] = {oUnit:GetPosition()[1], oUnit:GetPosition()[2], oUnit:GetPosition()[3]}
+                        oUnit[M28Building.refiTimeMobileTMLLastChecked] = GetGameTimeSeconds()
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        WaitTicks(1)
+                        iTicksWaitedThisCycle = iTicksWaitedThisCycle + 1
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                    end
+                end
+            else
+                break
+            end
+            if iTicksWaitedThisCycle < 50 then --Want to refresh no more quickly than once every 5s
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitTicks(50 - iTicksWaitedThisCycle)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            end
+        end
+        tTeamData[iTeam][refbActiveMobileTMLMonitor] = false
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

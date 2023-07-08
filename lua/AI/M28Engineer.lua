@@ -4360,7 +4360,13 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                     end
                                 elseif vOptionalVariable and iActionToAssign == refActionBuildTMD then
                                     --Build near the unit we want to protect (get blueprint will also factor in maxsearchrange based on the TMD range)
-                                    sBlueprint, tBuildLocation = GetBlueprintAndLocationToBuild(aiBrain, oFirstEngineer, iActionToAssign, iCategoryWanted, iMaxSearchRange, tiActionAdjacentCategory[iActionToAssign], vOptionalVariable:GetPosition(), false, nil, nil, false, tLZOrWZTeamData)
+                                    if vOptionalVariable.UnitId then
+                                        sBlueprint, tBuildLocation = GetBlueprintAndLocationToBuild(aiBrain, oFirstEngineer, iActionToAssign, iCategoryWanted, iMaxSearchRange, tiActionAdjacentCategory[iActionToAssign], vOptionalVariable:GetPosition(), false, nil, nil, false, tLZOrWZTeamData)
+                                    elseif M28Utilities.IsTableEmpty(vOptionalVariable) == false then
+                                        sBlueprint, tBuildLocation = GetBlueprintAndLocationToBuild(aiBrain, oFirstEngineer, iActionToAssign, iCategoryWanted, iMaxSearchRange, tiActionAdjacentCategory[iActionToAssign], vOptionalVariable, false, nil, nil, false, tLZOrWZTeamData)
+                                    else
+                                        M28Utilities.ErrorHandler('Trying to build TMD without a unit or location')
+                                    end
                                 else
                                     iAdjacencyCategory = tiActionAdjacentCategory[iActionToAssign]
                                     if not(iAdjacencyCategory) and (iActionToAssign == refActionBuildExperimental or iActionToAssign == refActionBuildSecondExperimental) then
@@ -5135,6 +5141,43 @@ function GetPDThreatAboveRangeThresholdAlongPath(iPlateau, iLandZone, tLZData, t
     return iCurPDThreat
 end
 
+function GetClosestMobileTMLIfWantMoreTMD(iTeam, tLZTeamData)
+    --Assumes we have already confirmed there are enemy mobile tml on the enemy team
+    --Dont bother trying to get TMD if enemy has units in this zone
+    --NOTE: After drafting this decided to use a different approach to tracking mobile TML
+    M28Utilities.ErrorHandler('Obsolete never tested code')
+    local oMobileTMLToDefendAgainst
+    if (tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) == 0 and (tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) == 0 then
+
+        local iZoneTMDCount = 0
+        local tZoneTMD = EntityCategoryFilterDown(M28UnitInfo.refCategoryTMD, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+        if M28Utilities.IsTableEmpty(tZoneTMD) == false then
+            for iUnit, oUnit in tZoneTMD do
+                if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() == 1 then iZoneTMDCount = iZoneTMDCount + 1 end
+            end
+        end
+        if iZoneTMDCount < 4 or (iZoneTMDCount < 16 and tLZTeamData[M28Map.subrefLZSValue] > iZoneTMDCount * 800) then
+            --Get the closest enemy TML to midpoint
+            local iCurDist
+            local iClosestDist = 100000
+            local oClosestUnit
+            local tMidpoint = tLZTeamData[M28Map.subrefMidpoint]
+            for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyMobileTML] do
+                iCurDist = M28Utilities.GetDistanceBetweenPositions(tMidpoint, oUnit:GetPosition()) - math.max((oUnit[M28UnitInfo.refiManualRange] or 0), (oUnit[M28UnitInfo.refiIndirectRange] or 0))
+                if iCurDist < iClosestDist then
+                    iClosestDist = iCurDist
+                    oClosestUnit = oUnit
+                end
+            end
+            if iClosestDist <= 50 then
+                oMobileTMLToDefendAgainst = oClosestUnit
+            end
+
+        end
+    end
+    return oMobileTMLToDefendAgainst
+end
+
 function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, iLandZone, tEngineers)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderCoreBaseLandZoneEngineerAssignment'
@@ -5612,7 +5655,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         HaveActionToAssign(refActionReclaimArea, 1, 5, true)
     end
 
-    --TMD
+    --TMD (including vs mobile ACUs with TML upgrade)
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Considering if we want to get TMD; is table of units wanting TMD empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]))) end
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]) == false then
@@ -6971,7 +7014,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     end
 
 
-    --TMD
+    --TMD - TML (including mobile ACUs with TML upgrade)
     iCurPriority = iCurPriority + 1
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]) == false then
         iBPWanted = 30

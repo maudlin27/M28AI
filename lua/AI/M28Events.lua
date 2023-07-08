@@ -426,6 +426,12 @@ function OnEnhancementComplete(oUnit, sEnhancement)
             M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit)
             M28UnitInfo.RecordUnitRange(oUnit) --Refresh the range incase enhancement has increased anything
 
+            --Mobile TML logic (e.g. ACU and SACU, and billy nuke)
+            if (oUnit[M28UnitInfo.refiManualRange] or 0) > 0 then
+                --Record this against every opposing M28 Team
+                ForkThread(M28Team.RecordMobileTMLThreatForAllEnemyTeams, oUnit)
+            end
+
             --Update ACU upgrade count
             if EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then
                 oUnit[M28ACU.refiUpgradeCount] = (oUnit[M28ACU.refiUpgradeCount] or 0) + 1
