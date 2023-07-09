@@ -2817,7 +2817,7 @@ end
 
 function RecordMobileTMLThreatForAllEnemyTeams(oTML)
     --Intended for ACUs, SACUs, and potentially UEF/Sera cruisers and Aeon missile ship
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordMobileTMLThreatForAllEnemyTeams'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     while not(M28Map.bMapLandSetupComplete) do
