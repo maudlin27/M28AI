@@ -8850,7 +8850,7 @@ function RecordUnitAsCaptureTarget(oUnit, bOptionalOnlyRecordIfSameUnitIdInCaptu
 
         --Check we havent already recorded this unit
         if bWantToCaptureUnit and oUnit[M28UnitInfo.refbIsCaptureTarget] and M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToCapture]) == false then
-            for iRecordedUnit, oRecordedUnit in M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToCapture]) do
+            for iRecordedUnit, oRecordedUnit in tLZOrWZData[M28Map.subreftoUnitsToCapture] do
                 if oRecordedUnit == oUnit then
                     bWantToCaptureUnit = false
                     break

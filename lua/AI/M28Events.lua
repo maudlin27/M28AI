@@ -1492,6 +1492,29 @@ function OnPlayableAreaChange(rect, voFlag)
     ForkThread(M28Engineer.CheckForSpecialCampaignCaptureTargets)
 end
 
+function CaptureTriggerAdded(FunctionForOldUnit, FunctionForNewUnit, oUnit)
+    local sFunctionRef = 'CaptureTriggerAdded'
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if M28Utilities.bM28AIInGame then
+
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
+        if M28UnitInfo.IsUnitValid(oUnit) then
+            local aiBrain
+            if M28Utilities.IsTableEmpty(M28Overseer.tAllActiveM28Brains) == false then
+                for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
+                    aiBrain = oBrain
+                end
+                if not(IsAlly(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex())) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Unit is not an ally so will record as a capture target') end
+                    M28Engineer.RecordUnitAsCaptureTarget(oUnit)
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
     local sFunctionRef = 'ObjectiveAdded'
     local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
