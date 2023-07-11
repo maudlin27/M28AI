@@ -1182,44 +1182,53 @@ function M28ErisKilled()
     end
 end
 
-function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
+function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag, iOptionalWaitInSeconds)
+    --NOTE: All of input variables are optional as sometimes we just call this due to a playable area size change
     local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderSpecialCampaignObjectives'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    --UEF Mission 3 - create a special death trigger for Aeon ACU due to flaw with preceding objective
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; Is M3P3 active='..tostring(ScenarioInfo.M3P3.Active or false)..'; Is commander gate area empty='..tostring(Scenario.Areas['CDR_Gate_Area'] == nil)..'; CDR_Gate_Area='..repru(Scenario.Areas['CDR_Gate_Area'])..'; ScenarioInfo.M1P3.Active='..tostring(ScenarioInfo.M1P3.Active or false)..'; Is combined table empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.M1_TempleCombinedTable))..'; M1P2 active='..tostring(ScenarioInfo.M1P2.Active)..'; M1P1 active='..tostring(ScenarioInfo.M1P1.Active)) end
-    if bDebugMessages == true then LOG(sFunctionRef..': Further logs, ScenarioInfo.M3BaseDamageWarnings='..(ScenarioInfo.M3BaseDamageWarnings or 'nil')..'; ScenarioInfo.MainFrameIsAlive='..tostring(ScenarioInfo.MainFrameIsAlive or false)..'; ScenarioInfo.EMPFired='..tostring(ScenarioInfo.EMPFired or false)..'; ScenarioInfo.M3_Base is empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.M3_Base))..'; bPacifistModeActive='..tostring(bPacifistModeActive)..'; ScenarioInfo.MissionNumber='..(ScenarioInfo.MissionNumber or 'nil')) end
-    if ScenarioInfo.M4P1 and M28Utilities.IsTableEmpty(Target.Units) and ScenarioInfo.M4P1.Active and M28UnitInfo.IsUnitValid(ScenarioInfo.AeonCDR) then
-        if bDebugMessages == true then LOG(sFunctionRef..': Creating manual on death trigger') end
-        local ScenarioFramework = import('/lua/ScenarioFramework.lua')
-        ScenarioFramework.CreateUnitDeathTrigger(M28ErisKilled, ScenarioInfo.AeonCDR)
-        --UEF Mission 5 - send ACU to gateway
-    elseif ScenarioInfo.M3P3.Active and Scenario.Areas['CDR_Gate_Area'] and ScenarioInfo.PlayerCDRs then
-        --local rRect = import("/lua/sim/scenarioutilities.lua").AreaToRect('CDR_Gate_Area')
-        local tRect = import("/lua/sim/scenarioutilities.lua").AreaToRect('CDR_Gate_Area')
-        local rRect = {tRect['x0'], tRect['y0'], tRect['x1'], tRect['y1']}
-        if bDebugMessages == true then LOG(sFunctionRef..': rRect='..repru(rRect)..'; AreaToRect='..repru(import("/lua/sim/scenarioutilities.lua").AreaToRect('CDR_Gate_Area'))) end
-        if rRect then
-            local tMidpoint = {(rRect[1] + rRect[3])*0.5, 0, (rRect[2] + rRect[4])*0.5}
-            tMidpoint[2] = GetTerrainHeight(tMidpoint[1], tMidpoint[3])
-            for iUnit, oUnit in ScenarioInfo.PlayerCDRs do
-                if M28UnitInfo.IsUnitValid(oUnit) then
-                    LOG(sFunctionRef..': Considering ACU owned by brain '..oUnit:GetAIBrain().Nickname..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; if M28 then will set objective to tMidpoint='..repru(tMidpoint))
-                    if oUnit:GetAIBrain().M28AI then
-                        oUnit[M28ACU.reftSpecialObjectiveMoveLocation] = {tMidpoint[1], tMidpoint[2], tMidpoint[3]}
+
+    if iOptionalWaitInSeconds then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(iOptionalWaitInSeconds)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code at time '..GetGameTimeSeconds()..' after iOptionalWaitInSeconds='..(iOptionalWaitInSeconds or 'nil')..'; Is M3P3 active='..tostring(ScenarioInfo.M3P3.Active or false)..'; Is commander gate area empty='..tostring(Scenario.Areas['CDR_Gate_Area'] == nil)..'; CDR_Gate_Area='..repru(Scenario.Areas['CDR_Gate_Area'])..'; ScenarioInfo.M1P3.Active='..tostring(ScenarioInfo.M1P3.Active or false)..'; Is combined table empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.M1_TempleCombinedTable))..'; M1P2 active='..tostring(ScenarioInfo.M1P2.Active)..'; M1P1 active='..tostring(ScenarioInfo.M1P1.Active)) end
+
+    local aiBrain
+    for iBrain, oBrain in tAllActiveM28Brains do
+        if oBrain.M28AI then aiBrain = oBrain break end
+    end
+    if aiBrain then
+        local iTeam = aiBrain.M28Team
+        --UEF Mission 3 - create a special death trigger for Aeon ACU due to flaw with preceding objective
+        if bDebugMessages == true then LOG(sFunctionRef..': Further logs, ScenarioInfo.M3BaseDamageWarnings='..(ScenarioInfo.M3BaseDamageWarnings or 'nil')..'; ScenarioInfo.MainFrameIsAlive='..tostring(ScenarioInfo.MainFrameIsAlive or false)..'; ScenarioInfo.EMPFired='..tostring(ScenarioInfo.EMPFired or false)..'; ScenarioInfo.M3_Base is empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.M3_Base))..'; bPacifistModeActive='..tostring(bPacifistModeActive)..'; ScenarioInfo.MissionNumber='..(ScenarioInfo.MissionNumber or 'nil')..'; iTeam='..iTeam..'; C M6: ScenarioInfo.ControlCenter is nil='..tostring(ScenarioInfo.ControlCenter == nil)..'; ScenarioInfo.Czar is nil='..tostring(ScenarioInfo.Czar == nil)..'; Is table of czars empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.Czar))) end
+        if ScenarioInfo.M4P1 and M28Utilities.IsTableEmpty(Target.Units) and ScenarioInfo.M4P1.Active and M28UnitInfo.IsUnitValid(ScenarioInfo.AeonCDR) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Creating manual on death trigger') end
+            local ScenarioFramework = import('/lua/ScenarioFramework.lua')
+            ScenarioFramework.CreateUnitDeathTrigger(M28ErisKilled, ScenarioInfo.AeonCDR)
+            --UEF Mission 5 - send ACU to gateway
+        elseif ScenarioInfo.M3P3.Active and Scenario.Areas['CDR_Gate_Area'] and ScenarioInfo.PlayerCDRs then
+            --local rRect = import("/lua/sim/scenarioutilities.lua").AreaToRect('CDR_Gate_Area')
+            local tRect = import("/lua/sim/scenarioutilities.lua").AreaToRect('CDR_Gate_Area')
+            local rRect = {tRect['x0'], tRect['y0'], tRect['x1'], tRect['y1']}
+            if bDebugMessages == true then LOG(sFunctionRef..': rRect='..repru(rRect)..'; AreaToRect='..repru(import("/lua/sim/scenarioutilities.lua").AreaToRect('CDR_Gate_Area'))) end
+            if rRect then
+                local tMidpoint = {(rRect[1] + rRect[3])*0.5, 0, (rRect[2] + rRect[4])*0.5}
+                tMidpoint[2] = GetTerrainHeight(tMidpoint[1], tMidpoint[3])
+                for iUnit, oUnit in ScenarioInfo.PlayerCDRs do
+                    if M28UnitInfo.IsUnitValid(oUnit) then
+                        LOG(sFunctionRef..': Considering ACU owned by brain '..oUnit:GetAIBrain().Nickname..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; if M28 then will set objective to tMidpoint='..repru(tMidpoint))
+                        if oUnit:GetAIBrain().M28AI then
+                            oUnit[M28ACU.reftSpecialObjectiveMoveLocation] = {tMidpoint[1], tMidpoint[2], tMidpoint[3]}
+                        end
                     end
                 end
             end
-        end
-    elseif ScenarioInfo.M1_TempleCombinedTable and (ScenarioInfo.M1P3.Active or ScenarioInfo.M1P2.Active) then
-        if bDebugMessages == true then LOG(sFunctionRef..': Will check if we have Seraphim temples that need manually destroying') end
-        if M28Utilities.IsTableEmpty(   ScenarioInfo.M1_TempleCombinedTable) == false and M28Utilities.IsTableEmpty(tAllActiveM28Brains) == false then
-            local aiBrain
-            for iBrain, oBrain in tAllActiveM28Brains do
-                if oBrain.M28AI then aiBrain = oBrain break end
-            end
-            if aiBrain then
-                local iTeam = aiBrain.M28Team
+        elseif ScenarioInfo.M1_TempleCombinedTable and (ScenarioInfo.M1P3.Active or ScenarioInfo.M1P2.Active) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will check if we have Seraphim temples that need manually destroying') end
+            if M28Utilities.IsTableEmpty(   ScenarioInfo.M1_TempleCombinedTable) == false and M28Utilities.IsTableEmpty(tAllActiveM28Brains) == false then
+
                 for iUnit, oUnit in ScenarioInfo.M1_TempleCombinedTable do
                     --Add to table of units in the land zone (if it is in a land zone)
                     local iPlateau, iLandZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
@@ -1243,36 +1252,30 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                     end
                 end
             end
-        end
-        --Cybran mission 2 - move to gate
-    elseif ScenarioInfo.M3P2.Active and ScenarioInfo.M3Gate and M28UnitInfo.IsUnitValid(ScenarioInfo.M3Gate) then
-        for iBrain, oBrain in tAllActiveM28Brains do
-            local tACUs = oBrain:GetListOfUnits(categories.COMMAND, false, true)
-            if M28Utilities.IsTableEmpty(tACUs) == false then
-                for iUnit, oUnit in tACUs do
-                    LOG(sFunctionRef..': Considering ACU owned by brain '..oUnit:GetAIBrain().Nickname..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; if M28 then will set objective to gate position='..repru(ScenarioInfo.M3Gate:GetPosition()))
-                    oUnit[M28ACU.reftSpecialObjectiveMoveLocation] = ScenarioInfo.M3Gate:GetPosition()
+            --Cybran mission 2 - move to gate
+        elseif ScenarioInfo.M3P2.Active and ScenarioInfo.M3Gate and M28UnitInfo.IsUnitValid(ScenarioInfo.M3Gate) then
+            for iBrain, oBrain in tAllActiveM28Brains do
+                local tACUs = oBrain:GetListOfUnits(categories.COMMAND, false, true)
+                if M28Utilities.IsTableEmpty(tACUs) == false then
+                    for iUnit, oUnit in tACUs do
+                        LOG(sFunctionRef..': Considering ACU owned by brain '..oUnit:GetAIBrain().Nickname..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; if M28 then will set objective to gate position='..repru(ScenarioInfo.M3Gate:GetPosition()))
+                        oUnit[M28ACU.reftSpecialObjectiveMoveLocation] = ScenarioInfo.M3Gate:GetPosition()
+                    end
                 end
             end
-        end
-        --Cybran mission 4 - play defensively and let human player try and capture the nodes
-    elseif ScenarioInfo.M3BaseDamageWarnings and ScenarioInfo.MainFrameIsAlive and not ScenarioInfo.EMPFired and (ScenarioInfo.M3_Base or Scenario.Areas['Aeon_Base_M3']) and not(bPacifistModeActive) then
-        --Reset base warnings to help M28 a bit since it can trigger the damage before this objective is even active
-        if ScenarioInfo.M3BaseDamageWarnings > 0 then ScenarioInfo.M3BaseDamageWarnings = 0 end
-        local tUnitsToConsider = ScenarioInfo.M3_Base
-        if not(tUnitsToConsider) then
-            local ScenarioFramework = import('/lua/ScenarioFramework.lua')
-            tUnitsToConsider = ScenarioFramework.GetCatUnitsInArea(categories.STRUCTURE - categories.WALL, 'Aeon_Base_M3', ArmyBrains[ScenarioInfo.Aeon])
-        end
-        if M28Utilities.IsTableEmpty(tUnitsToConsider) == false then
-            if bDebugMessages == true then LOG(sFunctionRef..': Want to disable attacking parts of the map that could cause us to fail the mission') end
-            bPacifistModeActive = true
-            local aiBrain
-            for iBrain, oBrain in tAllActiveM28Brains do
-                if oBrain.M28AI then aiBrain = oBrain break end
+            --Cybran mission 4 - play defensively and let human player try and capture the nodes
+        elseif ScenarioInfo.M3BaseDamageWarnings and ScenarioInfo.MainFrameIsAlive and not ScenarioInfo.EMPFired and (ScenarioInfo.M3_Base or Scenario.Areas['Aeon_Base_M3']) and not(bPacifistModeActive) then
+            --Reset base warnings to help M28 a bit since it can trigger the damage before this objective is even active
+            if ScenarioInfo.M3BaseDamageWarnings > 0 then ScenarioInfo.M3BaseDamageWarnings = 0 end
+            local tUnitsToConsider = ScenarioInfo.M3_Base
+            if not(tUnitsToConsider) then
+                local ScenarioFramework = import('/lua/ScenarioFramework.lua')
+                tUnitsToConsider = ScenarioFramework.GetCatUnitsInArea(categories.STRUCTURE - categories.WALL, 'Aeon_Base_M3', ArmyBrains[ScenarioInfo.Aeon])
             end
-            if aiBrain then
-                local iTeam = aiBrain.M28Team
+            if M28Utilities.IsTableEmpty(tUnitsToConsider) == false then
+                if bDebugMessages == true then LOG(sFunctionRef..': Want to disable attacking parts of the map that could cause us to fail the mission') end
+                bPacifistModeActive = true
+
                 tiPacifistZonesByPlateau = {}
                 local tbHasPlateauAndZoneBeenRecorded = {}
                 local iCurPlateauOrZero, iCurLandOrWaterZone
@@ -1378,21 +1381,49 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                     end
                 end
             end
-        end
-    elseif bPacifistModeActive and ScenarioInfo.EMPFired and M28Utilities.IsTableEmpty(tiPacifistZonesByPlateau) == false then
-        --Disable pacifist flag
-        if bDebugMessages == true then LOG(sFunctionRef..': EMP has been fired so will disable pacifist flag for all recorded zones, tiPacifistZonesByPlateau='..repru(tiPacifistZonesByPlateau)) end
-        bPacifistModeActive = false
-        for iPlateauOrZero, tSubtable in tiPacifistZonesByPlateau do
-            local tLZOrWZData
-            for iEntry, iLandOrWaterZone in tSubtable do
-                if iPlateauOrZero == 0 then
-                    tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
-                else
-                    tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+        elseif bPacifistModeActive and ScenarioInfo.EMPFired and M28Utilities.IsTableEmpty(tiPacifistZonesByPlateau) == false then
+            --Disable pacifist flag
+            if bDebugMessages == true then LOG(sFunctionRef..': EMP has been fired so will disable pacifist flag for all recorded zones, tiPacifistZonesByPlateau='..repru(tiPacifistZonesByPlateau)) end
+            bPacifistModeActive = false
+            for iPlateauOrZero, tSubtable in tiPacifistZonesByPlateau do
+                local tLZOrWZData
+                for iEntry, iLandOrWaterZone in tSubtable do
+                    if iPlateauOrZero == 0 then
+                        tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+                    else
+                        tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+                    end
+                    tLZOrWZData[M28Map.subrefbPacifistArea] = false
                 end
-                tLZOrWZData[M28Map.subrefbPacifistArea] = false
             end
+            --Cybran mission 6 - kill Czar
+        elseif ScenarioInfo.ControlCenter and ScenarioInfo.Czar and M28Utilities.IsTableEmpty(ScenarioInfo.Czar) == false then
+            function DelayedRecordingOfCzar(tUnits)
+                WaitSeconds(15)
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting, time='..GetGameTimeSeconds()..' is table of units empty='..tostring(M28Utilities.IsTableEmpty(tUnits))) end
+                if M28Utilities.IsTableEmpty(tUnits) == false then
+                    for iUnit, oUnit in tUnits do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
+                        if M28UnitInfo.IsUnitValid(oUnit) then
+                            if EntityCategoryContains(M28UnitInfo.refCategoryAllAir * categories.EXPERIMENTAL, oUnit.UnitId) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will record enemy Czar as a priority enemy air experimental target unless it is alrady recorded') end
+                                local bAlreadyIncluded = false
+                                if not(M28Team.tTeamData[iTeam][M28Team.reftoEnemyExperimentalObjectives]) then M28Team.tTeamData[iTeam][M28Team.reftoEnemyExperimentalObjectives] = {}
+                                else
+                                    for iRecordedUnit, oRecordedUnit in M28Team.tTeamData[iTeam][M28Team.reftoEnemyExperimentalObjectives] do
+                                        if oRecordedUnit == oUnit then bAlreadyIncluded = true break end
+                                    end
+                                end
+                                if not(bAlreadyIncluded) then
+                                    table.insert(M28Team.tTeamData[iTeam][M28Team.reftoEnemyExperimentalObjectives], oUnit)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Will wait a while and then look to include enemy Czar as a priority enemy air experimental target unless it is alrady recorded') end
+            ForkThread(DelayedRecordingOfCzar, ScenarioInfo.Czar)
         end
     end
 end

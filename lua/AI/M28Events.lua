@@ -1494,6 +1494,8 @@ function OnPlayableAreaChange(rect, voFlag)
     if M28Utilities.bM28AIInGame or GetGameTimeSeconds() <= 5 then M28Map.SetupPlayableAreaAndSegmentSizes(rect) end
     ForkThread(M28Overseer.UpdateMaxUnitCapForRelevantBrains)
     ForkThread(M28Engineer.CheckForSpecialCampaignCaptureTargets)
+    --Wait 5s then consider campaign special objectives
+    ForkThread(M28Overseer.ConsiderSpecialCampaignObjectives, nil, nil, nil, nil, nil, nil, nil, nil,  5)
 end
 
 function CaptureTriggerAdded(FunctionForOldUnit, FunctionForNewUnit, oUnit)
