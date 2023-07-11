@@ -2293,13 +2293,15 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
         end
         local bOnlyCheckForStructure = true
         if not(oNearestEnemyToMidpoint) then bOnlyCheckForStructure = false end
-
+        if bDebugMessages == true then LOG(sFunctionRef..': Deciding whether to search adjacent land zones for enemies closer to the midpoint; bOnlyCheckForStructure='..tostring(bOnlyCheckForStructure)..'; oNearestEnemyToMidpoint='..(oNearestEnemyToMidpoint.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyToMidpoint) or 'nil')..'; oNearestEnemyStructureToMidpoint='..(oNearestEnemyStructureToMidpoint.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyStructureToMidpoint) or 'nil')) end
         if not(oNearestEnemyToMidpoint) or not(oNearestEnemyStructureToMidpoint) then
 
             for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjLZ='..iAdjLZ..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTEnemyUnits]))) end
                 if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTEnemyUnits]) == false then
                     for iUnit, oUnit in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTEnemyUnits] do
                         if M28UnitInfo.IsUnitValid(oUnit) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurdist='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; iClosestDist='..iClosestDist..'; iClosestStructureDist='..iClosestStructureDist) end
                             if bOnlyCheckForStructure then
                                 if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) and oUnit:GetFractionComplete() >= 0.5 then
                                     iCurDist = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])
@@ -4311,7 +4313,7 @@ end
 
 function UpdateZoneIntelForRadar(oRadar)
     --If just built radar then want to update all land zones for the team to indicate the intel coverage
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateZoneIntelForRadar'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

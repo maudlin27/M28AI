@@ -1071,7 +1071,12 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                             else
                                 --Can path to enemy with land, base number of factories wanted on distance to enemy base
                                 local iEnemyBaseDist = M28Utilities.GetDistanceBetweenPositions(  tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])
-
+                                --Campaign - enemy base location can be messed up, at higher tech levels treat base as furhter away so we get more air instead of land
+                                if M28Map.bIsCampaignMap and iEnemyBaseDist < 500 and M28Map.iMapSize >= 512 and iLandFactoriesHave >= 2 then
+                                    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 2 then
+                                        iEnemyBaseDist = math.max(iEnemyBaseDist, M28Map.iMapSize * 0.75)
+                                    end
+                                end
                                 if iEnemyBaseDist >= 500 then
                                     iLandFactoriesWantedBeforeAir = 1
                                     iAirFactoriesForEveryLandFactory = 4

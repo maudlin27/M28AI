@@ -984,7 +984,7 @@ function CheckForAlliedCampaignUnitsToShareAtGameStart(aiBrain)
                 table.insert(tHumanBrains, oBrain)
             end
         end
-        local iCategoriesOfInterest = M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryAllAir + M28UnitInfo.refCategoryAllNavy - categories.COMMAND - M28UnitInfo.refCategoryMassStorage
+        local iCategoriesOfInterest = M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryAllAir + M28UnitInfo.refCategoryAllNavy + M28UnitInfo.refCategoryEngineer - categories.COMMAND - M28UnitInfo.refCategoryMassStorage
         if M28Utilities.IsTableEmpty(tHumanBrains) == false then
             while M28Utilities.IsTableEmpty(tNearbyStructures) do
                 if iWaitCount > 0 then

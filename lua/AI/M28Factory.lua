@@ -336,6 +336,19 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                 sBPIDToBuild = nil
             end
         end
+        --Cap MAA levels
+        if sBPIDToBuild and EntityCategoryContains(M28UnitInfo.refCategoryMAA - categories.TECH3, sBPIDToBuild) then
+            local iMaxT1AndT2MAA = 200
+            if M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbHaveAirControl] then
+                iMaxT1AndT2MAA = 100
+            end
+            if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMAA) >= iMaxT1AndT2MAA then
+                --Ignore if enemy has air to ground threat in this zone
+                if tLZTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 then
+                    sBPIDToBuild = nil
+                end
+            end
+        end
     end
 
     --NoRush

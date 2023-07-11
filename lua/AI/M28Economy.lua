@@ -806,7 +806,7 @@ function ConsiderReclaimingPower(iTeam, oPowerJustBuilt)
 
 end
 
-function GetCategoriesAndActionsToPause(iTeam, bStallingMass)
+function GetCategoriesAndActionsToPause(iTeam, bStallingMass, bPauseNotUnpause)
     local tCategoriesByPriority, tEngineerActionsByPriority
 
     --Are there enemies adjacent to a core base? If so then dont want to pause T2+ air factories except as a near last resort
@@ -836,6 +836,16 @@ function GetCategoriesAndActionsToPause(iTeam, bStallingMass)
 
                 tEngineerActionsByPriority = { { M28Engineer.refActionBuildQuantumOptics, M28Engineer.refActionBuildHive, M28Engineer.refActionBuildT3Radar, M28Engineer.refActionBuildSecondExperimental, M28Engineer.refActionNavalSpareAction, M28Engineer.refActionBuildT2Sonar, M28Engineer.refActionBuildThirdPower, M28Engineer.refActionBuildSecondAirFactory, M28Engineer.refActionBuildSecondLandFactory, M28Engineer.refActionBuildLandFactory, M28Engineer.refActionSAMCreep, M28Engineer.refActionBuildNavalFactory, M28Engineer.refActionAssistNavalFactory, M28Engineer.refActionBuildAirFactory, M28Engineer.refActionBuildT1Sonar, M28Engineer.refActionBuildT2Radar, M28Engineer.refActionBuildT1Radar, M28Engineer.refActionBuildSecondPower, M28Engineer.refActionBuildTML, M28Engineer.refActionBuildEnergyStorage, M28Engineer.refActionBuildAirStaging, M28Engineer.refActionBuildShield, M28Engineer.refActionBuildSecondShield, M28Engineer.refActionBuildExperimental, M28Engineer.refActionAssistAirFactory, M28Engineer.refActionUpgradeBuilding, M28Engineer.refActionBuildPower },
                                                { M28Engineer.refActionFortifyFirebase, M28Engineer.refActionBuildMassStorage, M28Engineer.refActionAssistMexUpgrade, M28Engineer.refActionSpare, M28Engineer.refActionBuildSMD, M28Engineer.refActionBuildEmergencyArti }}
+
+                --Campaign specific - dont pause T1 mex upgrades if we have at least 10 gross mass
+                if M28Map.bIsCampaignMap and bPauseNotUnpause and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 1 then
+                    for iEntry, iCategory in tCategoriesByPriority do
+                        if iCategory == M28UnitInfo.refCategoryT1Mex then
+                            table.remove(tCategoriesByPriority, iEntry)
+                            break
+                        end
+                    end
+                end
             else
                 --As above but air fac isnt paused at all and HQs are v.unlikely to be paused
                 tCategoriesByPriority = { M28UnitInfo.refCategorySMD, M28UnitInfo.refCategoryEngineerStation, iSpecialSurplusUpgradeCategory, M28UnitInfo.refCategoryLandFactory * categories.TECH1, M28UnitInfo.refCategoryLandFactory * categories.TECH2, M28UnitInfo.refCategoryLandFactory * categories.TECH3, M28UnitInfo.refCategoryRASSACU, M28UnitInfo.refCategoryEngineer, M28UnitInfo.refCategoryT2Mex, categories.COMMAND, M28UnitInfo.refCategoryT1Mex, M28UnitInfo.refCategoryTML, M28UnitInfo.refCategoryEngineer, iSpecialHQCategory }
@@ -923,7 +933,7 @@ function ManageMassStalls(iTeam)
             if bChangeRequired then
                 --Decide on order to pause/unpause
 
-                local tCategoriesByPriority, tEngineerActionsByPriority = GetCategoriesAndActionsToPause(iTeam, true)
+                local tCategoriesByPriority, tEngineerActionsByPriority = GetCategoriesAndActionsToPause(iTeam, true, bPauseNotUnpause)
 
                 local iMassPerTickSavingNeeded
                 if bPauseNotUnpause then

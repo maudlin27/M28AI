@@ -160,6 +160,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiEnemyTorpBombersThreat = 'M28TeamEnemyTorpBomberThreat'
     refiEnemyAirOtherThreat = 'M28TeamEnemyAirOtherThreat'
     refiTimeOfLastAirStagingShortage = 'M28TeamTimeAirStagingShortage' --Gametimeseconds that a team member last had units that had nowhere to refuel
+    reftoEnemyExperimentalObjectives = 'M28TeamEnemyAirExp' --Table of enemy air experimentals that we need to destroy
     --subrefiOurGunshipThreat - uses same ref as air subteam
     --subrefiOurBomberThreat - uses same ref as air subteam
 
@@ -179,6 +180,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiLowestUnitCapAdjustmentLevel = 'M28LowestCapAdj' --i.e. 0 is after ctrlking the most types of units, so lower = closer to cap
     refiPriorityPondValues = 'M28PriorityPonds' --Table of ponds that are considered sufficiently high value for our team, [x] is the pond, returns the value of hte pond
     refbAlreadyCheckedForUnitsToShare = 'M28CheckedUnitsShare' --true if already run logic for campaign to share units at start of game
+    refiConstructedExperimentalCount = 'M28ConstructedExpCount' --Total number of experimentals constructed
     --reftoSpecialUnitsToProtect = 'M28SpecialUnitsToProtect' --table of units to protect e.g. for air units - e.g. repair targets for a campaign
 
 
@@ -517,6 +519,7 @@ function CreateNewTeam(aiBrain)
     M28Engineer.tiLastBuildingSizeFromActionForTeam[iTotalTeamCount] = {}
     tTeamData[iTotalTeamCount][refiHighestBrainResourceMultipler] = 1
     tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier] = 1
+    tTeamData[iTotalTeamCount][refiConstructedExperimentalCount] = 0
 
 
 
@@ -1717,7 +1720,7 @@ function ConsiderPriorityNavalFactoryUpgrades(iM28Team)
 end
 
 function ConsiderPriorityMexUpgrades(iM28Team)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderPriorityMexUpgrades'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Is table of upgrading mexes empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]))..'; tTeamData[iM28Team][subrefiTeamMassStored]='..tTeamData[iM28Team][subrefiTeamMassStored]..'; tTeamData[iM28Team][subrefiTeamNetMass]='..tTeamData[iM28Team][subrefiTeamNetMass]..'; tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]='..tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]..'; or M28Overseer.bNoRushActive='..tostring(M28Overseer.bNoRushActive or false)) end
@@ -2042,7 +2045,7 @@ end
 
 function HaveEcoToSupportUpgrades(iM28Team)
     --Returns true if we think we can support another upgrade (for normal non-priority logic), but is less likely to return true early game if we want more land factories
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'HaveEcoToSupportUpgrades'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

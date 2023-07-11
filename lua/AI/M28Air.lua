@@ -2042,7 +2042,7 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
 end
 
 function ManageAirAAUnits(iTeam, iAirSubteam)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageAirAAUnits'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -2350,6 +2350,37 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                         if M28Utilities.IsTableEmpty(tAvailableAirAA) then break end
                     end
                 end
+
+                --Campaign specific - check for air experimental targets and attack if we have equivalent of at least 20 asfs
+                if bDebugMessages == true then LOG(sFunctionRef..': Campaign specific - checking for experimental air targets; Is table of available aira empty='..tostring(M28Utilities.IsTableEmpty(tAvailableAirAA))..'; Is table of enemy experimentals still valid='..tostring(M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftoEnemyExperimentalObjectives]))..'; Our AA threat='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]) end
+                if M28Map.bIsCampaignMap and M28Utilities.IsTableEmpty(tAvailableAirAA) == false and table.getn(tAvailableAirAA) >= 15 and M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftoEnemyExperimentalObjectives]) and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] >= 8000 then
+                    --Consider attacking based on a lower threshold
+                    local iGroundThreatOverride = math.max(M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.33, 3000)
+                    local iAirThreatOverride = math.max(3000, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.75)
+                    bDebugMessages = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy exp air objectives, iGroundThreatOverride='..iGroundThreatOverride..'; iAirThreatOverride='..iAirThreatOverride) end
+                    for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftoEnemyExperimentalObjectives] do
+
+                        local iUnitPlateau, iUnitLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                        if iUnitLandOrWaterZone and iUnitPlateau then
+                            if iUnitPlateau == 0 then
+                                AddEnemyAirInWaterZoneIfNoAA(tSubtable[M28Map.subrefiLandOrWaterZoneRef], false, refiAvoidOnlyGroundAA, iGroundThreatOverride, iAirThreatOverride, 10, oUnit:GetPosition())
+                            else
+                                AddEnemyAirInLandZoneIfNoAA(iUnitPlateau, iUnitLandOrWaterZone, false, refiAvoidOnlyGroundAA, iGroundThreatOverride, iAirThreatOverride, 10, oUnit:GetPosition())
+                            end
+                            if bDebugMessages == true then
+                                local tUnitLZOrWZData, tUnitLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+                                LOG(sFunctionRef..': Do we have enemy targets after checking for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'? table is empty='..tostring(M28Utilities.IsTableEmpty(tEnemyAirTargets))..'; iUnitPlateau='..iUnitPlateau..'; iUnitLandOrWaterZone='..iUnitLandOrWaterZone..'; Enemy LZ groundAA='..(tUnitLZOrWZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 'nil')..'; ENemy WZ AA='..(tUnitLZOrWZTeamData[M28Map.subrefWZThreatEnemyAA] or 'nil')..'; Enemy AirAA='..(tUnitLZOrWZTeamData[M28Map.refiEnemyAirAAThreat] or 'nil'))
+                            end
+                            if M28Utilities.IsTableEmpty(tEnemyAirTargets) == false then
+                                AssignAirAATargets(tAvailableAirAA, tEnemyAirTargets)
+                                if M28Utilities.IsTableEmpty(tAvailableAirAA) then break end
+                            end
+                        end
+                    end
+                end
+
+
                 --If still have available air send them to the support location (unless they could do with a fuel or health top-up)
                 if bDebugMessages == true then LOG(sFunctionRef..': Finished considering AirAA targets for all land and water zones, is tAvailableAirAA empty='..tostring(M28Utilities.IsTableEmpty(tAvailableAirAA))) end
                 if M28Utilities.IsTableEmpty(tAvailableAirAA) == false then
@@ -2476,11 +2507,12 @@ function ManageBombers(iTeam, iAirSubteam)
                     end
                 end
                 --Consider adjacent zones if are on a land zone
-                local tbZonesConsidered = {}
+                local tbZonesConsideredByPlateau = {}
+                tbZonesConsideredByPlateau[iRallyPlateauOrZero] = {}
                 if iRallyPlateauOrZero > 0 then
                     if M28Utilities.IsTableEmpty(tRallyLZOrWZData[M28Map.subrefLZAdjacentLandZones]) == false then
                         for _, iAdjLZ in tRallyLZOrWZData[M28Map.subrefLZAdjacentLandZones] do
-                            tbZonesConsidered[iAdjLZ] = true
+                            tbZonesConsideredByPlateau[iRallyPlateauOrZero][iAdjLZ] = true
                             local tAdjLZTeamData = M28Map.tAllPlateaus[iRallyPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
                             FilterToAvailableTargets(tAdjLZTeamData[M28Map.subrefTEnemyUnits])
                             if M28Utilities.IsTableEmpty( tEnemyTargets) == false then
@@ -2509,33 +2541,48 @@ function ManageBombers(iTeam, iAirSubteam)
                         end
 
                         --If have air control and lots of bombers available consider further away targets
-                        if M28Utilities.IsTableEmpty(tAvailableBombers) == false and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and iAvailableBombers >= 8 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] >= 2500 then
-                            if M28Utilities.IsTableEmpty(tRallyLZOrWZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of available bombers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))..'; Do we have air control='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])..'; iAvailableBombers='..iAvailableBombers..'; iOurBomberThreat='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat]) end
+                        if M28Utilities.IsTableEmpty(tAvailableBombers) == false and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and iAvailableBombers >= 8 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] >= 2500 and (iAvailableBombers >= 80 or M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] >= 20000) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is table of pathing to other zones empty='..tostring(M28Utilities.IsTableEmpty(tRallyLZOrWZData[M28Map.subrefLZPathingToOtherLandZones]))) end
+                            if M28Utilities.IsTableEmpty(tRallyLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
                                 local bDontCheckForPacifism = not(M28Overseer.bPacifistModeActive)
-                                for iEntry, tPathingDetails in tRallyLZOrWZData[M28Map.subrefLZPathingToOtherLandZones] do
-                                    local iOtherLZ = tPathingDetails[M28Map.subrefLZNumber]
-                                    if not(tbZonesConsidered[iOtherLZ]) and iOtherLZ then
-                                        local tOtherLZData = M28Map.tAllPlateaus[iRallyPlateauOrZero][M28Map.subrefPlateauLandZones][iOtherLZ]
-                                        if (tOtherLZData[M28Map.subrefLZTravelDist] or 0) > iSearchSize then break end
-                                        if bDontCheckForPacifism or not(tOtherLZData[M28Map.subrefbPacifistArea]) then
-                                            local tOtherLZTeamData = tOtherLZData[M28Map.subrefLZTeamData][iTeam]
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering iOtherLZ='..(iOtherLZ or 'nil')..'; Travel dist='..(tOtherLZData[M28Map.subrefLZTravelDist] or 'nil')..'; iSearchSize='..(iSearchSize or 'nil')..'; Does it have enemy units='..tostring(M28Utilities.IsTableEmpty(tOtherLZTeamData[M28Map.subrefTEnemyUnits]))) end
-                                            FilterToAvailableTargets(tOtherLZTeamData[M28Map.subrefTEnemyUnits])
+
+                                for iEntry, tPathingDetails in tRallyLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+                                    local iOtherPlateauOrZero = tPathingDetails[M28Map.subrefiPlateauOrPond]
+                                    local iOtherLZOrWZ = tPathingDetails[M28Map.subrefiLandOrWaterZoneRef]
+                                    if tPathingDetails[M28Map.subrefbIsWaterZone] then iOtherPlateauOrZero = 0 end
+                                    if not(tbZonesConsideredByPlateau[iRallyPlateauOrZero][iOtherLZOrWZ]) and iOtherLZOrWZ then
+
+                                        local tOtherLZOrWZData
+                                        local tOtherLZOrWZTeamData
+                                        if iOtherPlateauOrZero == 0 then
+                                            tOtherLZOrWZData = M28Map.tPondDetails[tPathingDetails[M28Map.subrefiPlateauOrPond]][M28Map.subrefPondWaterZones][iOtherLZOrWZ]
+                                            tOtherLZOrWZTeamData = tOtherLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                                        else
+                                            tOtherLZOrWZData = M28Map.tAllPlateaus[iRallyPlateauOrZero][M28Map.subrefPlateauLandZones][iOtherLZOrWZ]
+                                            tOtherLZOrWZTeamData = tOtherLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                                        end
+                                        if (tOtherLZOrWZData[M28Map.subrefLZTravelDist] or 0) > iSearchSize then break end
+                                        if bDontCheckForPacifism or not(tOtherLZOrWZData[M28Map.subrefbPacifistArea]) then
+
+                                            FilterToAvailableTargets(tOtherLZOrWZTeamData[M28Map.subrefTEnemyUnits])
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering iOtherPlateauOrZero='..(iOtherPlateauOrZero or 'nil')..'; iOtherLZOrWZ='..(iOtherLZOrWZ or 'nil')..'; dist='..(tOtherLZOrWZData[M28Map.subrefiDistance] or 'nil')..'; iSearchSize='..(iSearchSize or 'nil')..'; Does it have enemy units='..tostring(M28Utilities.IsTableEmpty(tOtherLZOrWZTeamData[M28Map.subrefTEnemyUnits]))..'; Is table of targets empty='..tostring(M28Utilities.IsTableEmpty( tEnemyTargets))) end
                                             if M28Utilities.IsTableEmpty( tEnemyTargets) == false then
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Assigning bomber targets for iOtherLZ='..iOtherLZ) end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Assigning bomber targets for iOtherLZOrWZ='..iOtherLZOrWZ) end
                                                 AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam, false, true)
                                                 tEnemyTargets = {}
                                                 if M28Utilities.IsTableEmpty(tAvailableBombers) then break end
                                             end
-                                            if bCheckForObjectiveTargets then AddObjectiveTargetsFromLZTeamData(tOtherLZTeamData) end
+                                            if bCheckForObjectiveTargets then AddObjectiveTargetsFromLZTeamData(tOtherLZOrWZTeamData) end
                                         end
                                     end
-
                                 end
                             end
                         end
                     end
                 end
+
+
                 if bDebugMessages == true then LOG(sFunctionRef..': Finished sending out bombers at targets, is table of available bombers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))..'; Is table of objective targets empty='..tostring(M28Utilities.IsTableEmpty(toObjectiveTargets))) end
                 if bCheckForObjectiveTargets and M28Utilities.IsTableEmpty(toObjectiveTargets) == false and M28Utilities.IsTableEmpty(tAvailableBombers) == false then
                     AssignTorpOrBomberTargets(tAvailableBombers, toObjectiveTargets, iAirSubteam, true, true)
