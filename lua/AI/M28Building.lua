@@ -33,6 +33,8 @@ refbNoNearbyTMDBuildLocations = 'M28BuiltUnitHasNoNearbyTMDBuildLocations' --tru
 refbMissileRecentlyBuilt = 'M28BuildMissileBuiltRecently' --true if unit has recently built a missile
 refbMissileChecker = 'M28BuildMissileChecker' --true if active missile builder checker for the unit
 reftActiveNukeTarget = 'M28BuildLastTargetLaucnh' --Against oLauncher, returns location of the target we last launched a TML/Nuke at while the missile is still alive, set to nil once the missile dies
+reftMobileTMLLastLocationChecked = 'M28BuildLastTMLLoc' --against mobile missile TMLs like ACU/SACU, to determine if shoudl rerun logic for identifying targets
+refiTimeMobileTMLLastChecked = 'M28BuildLastTMLChk' --Gametimeseconds that we last refreshed a mobile TML's potential targets
 --refbActiveMissileChecker = 'M28BuildMissileTargetChecker' --true if active missile target checker for the unit
 --iTMLHighPriorityCategories = M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryT3Mex * categories.CYBRAN + M28UnitInfo.refCategoryT2Mex + M28UnitInfo.refCategoryTML + M28UnitInfo.refCategorySML + M28UnitInfo.refCategorySMD + M28UnitInfo.refCategoryT2Power + M28UnitInfo.refCategoryT3Radar
 tbExpectMissileBlockedByCliff = 'M28BuildMisBlck' --true if missile firing at this has hit a cliff
@@ -273,11 +275,22 @@ end
 
 function RecordUnitsInRangeOfTMLAndAnyTMDProtection(oTML, tOptionalUnitsToConsider)
     --tOptionalUnitsToConsider - if nil then will get all nearby units on an opposing team to oTML
-
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordUnitsInRangeOfTMLAndAnyTMDProtection'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    local iTMLRange = (oTML[M28UnitInfo.refiManualRange] or iTMLMissileRange) + (oTML[M28UnitInfo.refiIndirectRange] or 2)
+
+
+
+    local iTMLRange = math.max((oTML[M28UnitInfo.refiManualRange] or 0), (oTML[M28UnitInfo.refiIndirectRange] or 0))
+    if iTMLRange == 0 then iTMLRange = iTMLMissileRange end
+    --Increase range if mobile
+    if EntityCategoryContains(categories.MOBILE, oTML.UnitId) then
+        iTMLRange = iTMLRange + 10
+    end
+    --Increase range for aoe
+    iTMLRange = iTMLRange + (oTML[M28UnitInfo.refiIndirectAOE] or 2)
+
+
     local iTMLTeam = oTML:GetAIBrain().M28Team
     local tNearbyTMD = {}
     local tUnitsToProtect = {}
@@ -736,9 +749,38 @@ function RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnits)
     for iUnit, oUnit in tUnits do
         --Does the unit need TMD coverage?
         iTMDInRange = 0
-        if M28Utilities.IsTableEmpty(oUnit[reftTMDCoveringThisUnit]) == false then iTMDInRange = table.getn(oUnit[reftTMDCoveringThisUnit]) end
+        if M28Utilities.IsTableEmpty(oUnit[reftTMDCoveringThisUnit]) == false then
+            --Treat Aeon as having twice the TMD power as other factions
+            for iRecordedTMD, oRecordedTMD in oUnit[reftTMDCoveringThisUnit] do
+                if M28UnitInfo.IsUnitValid(oRecordedTMD) then
+                    if EntityCategoryContains(categories.AEON, oRecordedTMD.UnitId) then
+                        iTMDInRange = iTMDInRange + 2
+                    else
+                        iTMDInRange = iTMDInRange + 1
+                    end
+                end
+            end
+        end
         if bDebugMessages == true then LOG(sFunctionRef..': Considierng unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTMDInRange='..iTMDInRange..'; TML in range='..table.getn((oUnit[reftTMLInRangeOfThisUnit] or {}))..'; oUnit[refbUnitWantsMoreTMD]='..tostring(oUnit[refbUnitWantsMoreTMD] or false)) end
-        if M28Utilities.IsTableEmpty(oUnit[reftTMLInRangeOfThisUnit]) == false and iTMDInRange < table.getn(oUnit[reftTMLInRangeOfThisUnit]) and not(oUnit[refbNoNearbyTMDBuildLocations]) then
+        local iTMLValueInRangeOfUnit = 0
+        if M28Utilities.IsTableEmpty(oUnit[reftTMLInRangeOfThisUnit]) == false then
+            for iRecordedTML, oRecordedTML in oUnit[reftTMLInRangeOfThisUnit] do
+                if M28UnitInfo.IsUnitValid(oRecordedTML) then
+                    --UEF ACU with billy nuke upgrade - increase value
+                    if EntityCategoryContains(categories.COMMAND * categories.UEF, oRecordedTML.UnitId) and oRecordedTML:HasEnhancement('TacticalNukeMissile') then
+                        if bDebugMessages == true then LOG(sFunctionRef..': ENemy unit owned by brain '..oRecordedTML:GetAIBrain().Nickname..' has a billy nuke') end
+                        iTMLValueInRangeOfUnit = iTMLValueInRangeOfUnit + 4
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryMissileShip * categories.AEON, oRecordedTML.UnitId) then
+                        --Aeon missile ship
+                        iTMLValueInRangeOfUnit = iTMLValueInRangeOfUnit + 3
+                    else
+                        iTMLValueInRangeOfUnit = iTMLValueInRangeOfUnit + 1
+                    end
+                end
+            end
+        end
+
+        if iTMDInRange < iTMLValueInRangeOfUnit and not(oUnit[refbNoNearbyTMDBuildLocations]) then
             if not(oUnit[refbUnitWantsMoreTMD]) then --redundancy (i.e. will ahve already called below if unit is already flagged as wanting more TMD)
                 iUnitPlateau, iUnitLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
                 if bDebugMessages == true then LOG(sFunctionRef..': Want TMD for this unit, iUnitPlateau='..(iUnitPlateau or 'nil')..'; iUnitLandZone='..(iUnitLandZone or 'nil')) end

@@ -15,8 +15,9 @@ local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 local NavUtils = import("/lua/sim/navutils.lua")
 local M28Logic = import('/mods/M28AI/lua/AI/M28Logic.lua')
-local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
+--local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
+local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 
 --Unit variables
 refiTimeOfLastWZAssignment = 'M28WZLastAssignmentTime' --GameTimeSeconds
@@ -1058,10 +1059,12 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
             local iLZToSupport
 
             --Does this WZ have adjacent LZ wanting support?
+            local bDontCheckForPacifism = not(M28Overseer.bPacifistModeActive)
             if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefAdjacentLandZones]) == false then
                 for iEntry, tSubtable in tWZData[M28Map.subrefAdjacentLandZones] do
                     local tAltLZ = M28Map.tAllPlateaus[tSubtable[M28Map.subrefWPlatAndLZNumber][1]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefWPlatAndLZNumber][2]]
-                    if tAltLZ[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsSupport] then
+
+                    if (bDontCheckForPacifism or not(tWZData[M28Map.subrefbPacifistArea])) and tAltLZ[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsSupport] then
                         if iAmphibiousLabel == tAltLZ[M28Map.refiMidpointAmphibiousLabel] then
                             iLZToSupport = tSubtable[M28Map.subrefWPlatAndLZNumber][2]
                             iPlateau = tSubtable[M28Map.subrefWPlatAndLZNumber][1]
@@ -1084,7 +1087,7 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                             for iEntry, tSubtable in tAltWZData[M28Map.subrefAdjacentLandZones] do
                                 local tAltLZ = M28Map.tAllPlateaus[tSubtable[M28Map.subrefWPlatAndLZNumber][1]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefWPlatAndLZNumber][2]]
                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering adjacent land zone '..tSubtable[M28Map.subrefWPlatAndLZNumber][2]..' in plateau '..tSubtable[M28Map.subrefWPlatAndLZNumber][1]..'; Does this zone want support='..tostring(tAltLZ[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsSupport])..'; Dist to enemy base='..M28Utilities.GetDistanceBetweenPositions(tWZTeamData[M28Map.reftClosestEnemyBase], tAltLZ[M28Map.subrefMidpoint])..'; iMaxDistWantedToEnemyBase='..iMaxDistWantedToEnemyBase) end
-                                if tAltLZ[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsSupport] then
+                                if (bDontCheckForPacifism or not(tAltLZ[M28Map.subrefbPacifistArea])) and tAltLZ[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbLZWantsSupport] then
                                     if iAmphibiousLabel == tAltLZ[M28Map.refiMidpointAmphibiousLabel] then
                                         iLZToSupport = tSubtable[M28Map.subrefWPlatAndLZNumber][2]
                                         iPlateau = tSubtable[M28Map.subrefWPlatAndLZNumber][1]
@@ -1476,17 +1479,30 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
 
         if M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false or M28Utilities.IsTableEmpty(tAvailableSubmarines) == false then
             if bDebugMessages == true then LOG(sFunctionRef..': About to manage combat units in the WZ') end
-            local tRemainingLandUnits = ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableCombatUnits, tAvailableSubmarines, tUnavailableUnitsInThisWZ)
-            if M28Utilities.IsTableEmpty(tRemainingLandUnits) == false then
-                for iUnit, oUnit in tRemainingLandUnits do
-                    table.insert(tAmphibiousUnits, oUnit)
+            if tWZData[M28Map.subrefbPacifistArea] then
+                if M28Utilities.IsTableEmpty(tAvailableCombatUnits) == false then
+                    RetreatOtherUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableCombatUnits)
                 end
+                if M28Utilities.IsTableEmpty(tAvailableSubmarines) == false then
+                    RetreatOtherUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableSubmarines)
+                end
+            else
+                local tRemainingLandUnits = ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableCombatUnits, tAvailableSubmarines, tUnavailableUnitsInThisWZ)
+                if M28Utilities.IsTableEmpty(tRemainingLandUnits) == false then
+                    for iUnit, oUnit in tRemainingLandUnits do
+                        table.insert(tAmphibiousUnits, oUnit)
+                    end
+                end
+                bUpdateEnemyDataHere = false
             end
-            bUpdateEnemyDataHere = false
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of MAA empty='..tostring(M28Utilities.IsTableEmpty(tAvailableMAA))..'; Is table of entity filtered dow nto MAA empty='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryMAA, tWZTeamData[M28Map.subrefWZTAlliedUnits])))) end
         if M28Utilities.IsTableEmpty(tAvailableMAA) == false then
-            ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableMAA)
+            if tWZData[M28Map.subrefbPacifistArea] then
+                RetreatOtherUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableMAA)
+            else
+                ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableMAA)
+            end
         end
 
         if M28Utilities.IsTableEmpty(tOtherUnitsToRetreat) == false then
@@ -1516,7 +1532,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
     if bDebugMessages == true then LOG(sFunctionRef..': Will update enemy data for this WZ if are enemies in this WZ. bUpdateEnemyDataHere='..tostring(bUpdateEnemyDataHere or false)) end
     if bUpdateEnemyDataHere then
         RecordClosestAdjacentRangesAndEnemies(tWZData, tWZTeamData, iPond, iWaterZone, iTeam)
-        if tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] and tWZTeamData[M28Map.subrefWZTValue] >= 200 then
+        if tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] and tWZTeamData[M28Map.subrefWZTValue] >= 200 and not(tWZData[M28Map.subrefbPacifistArea]) then
             UpdateIfWaterZoneWantsSupport(tWZTeamData, true)
             if bDebugMessages == true then LOG(sFunctionRef..': Will update to flag this water zone wants combat support') end
         else
@@ -1984,23 +2000,81 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
         else
             tBombardmentMainTarget = {tWZTeamData[M28Map.reftClosestEnemyBase][1], tWZTeamData[M28Map.reftClosestEnemyBase][2], tWZTeamData[M28Map.reftClosestEnemyBase][3]}
         end
-        --Adjust target if this is a campaign to make sure it is in the playable area
-        if M28Map.bIsCampaignMap and not(M28Conditions.IsLocationInPlayableArea(tBombardmentMainTarget)) then
-            local iInterval = 30
-            local iDistFromBase = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], tBombardmentMainTarget)
-            local iMaxDist = math.floor(iDistFromBase / iInterval) * iInterval
-            local iAngleFromTargetToMidpoint = M28Utilities.GetAngleFromAToB(tWZData[M28Map.subrefMidpoint], tBombardmentMainTarget)
-            if bDebugMessages == true then LOG(sFunctionRef..': Bombardment target is outside playable area so will try and adjust, playable area='..repru(M28Map.rMapPlayableArea)..'; Sync.NewPlayableArea='..repru(Sync.NewPlayableArea)) end
-            for iCurDist = iInterval, iMaxDist, iInterval do
-                local tRevisedTarget = M28Utilities.MoveInDirection(tBombardmentMainTarget, iAngleFromTargetToMidpoint, iCurDist, true, false, true)
-                if bDebugMessages == true then LOG(sFunctionRef..': iCurDist='..iCurDist..'; tRevisedTarget='..repru(tRevisedTarget)..'; Is in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tRevisedTarget))) end
-                if tRevisedTarget and M28Conditions.IsLocationInPlayableArea(tRevisedTarget) then
-                    if bDebugMessages == true then
-                        LOG(sFunctionRef..': Adjusting bombardment target, iCurDist='..iCurDist..'; tRevisedTarget='..repru(tRevisedTarget)..'; tBombardmentMainTarget before adjust='..repru(tBombardmentMainTarget)..'; Map playable area='..repru(M28Map.rMapPlayableArea))
-                        M28Utilities.DrawLocation(tRevisedTarget)
+        --Adjust target if this is a campaign to just get the closest enemy unit that is in the playable area
+        if bDebugMessages == true then LOG(sFunctionRef..': Is campaign map='..tostring(M28Map.bIsCampaignMap)..'; Cur bombardment location='..repru(tBombardmentMainTarget)..'; iClosestMexRef='..(iClosestMexRef or 'nil')..'; Is target in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tBombardmentMainTarget))) end
+        if M28Map.bIsCampaignMap and (not(iClosestMexRef) or not(M28Conditions.IsLocationInPlayableArea(tBombardmentMainTarget))) then
+            --First consider targeting something other than the nearest enemy base in campaign - e.g. cycle through all water zones and see if there are enemy structures that we can target
+            --if not(iClosestMexRef) then
+            local oClosestEnemyUnit
+            function ConsiderAdjacentLandZonesForBombardment(tCurWZData)
+                if bDebugMessages == true then LOG(sFunctionRef..': Is cur wz in playable area='..tostring(tCurWZData[M28Map.subrefMidpoint])) end
+                if M28Conditions.IsLocationInPlayableArea(tCurWZData[M28Map.subrefMidpoint]) then
+                    local iAdjLZ, iAdjPlateau, iCurDist
+                    local iClosestDist = 100000
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of adjacent land zones empty='..tostring(M28Utilities.IsTableEmpty(tCurWZData[M28Map.subrefAdjacentLandZones]))) end
+                    if M28Utilities.IsTableEmpty(tCurWZData[M28Map.subrefAdjacentLandZones]) == false then
+                        for iEntry, tLZSubtable in tCurWZData[M28Map.subrefAdjacentLandZones] do
+                            iAdjPlateau = tLZSubtable[M28Map.subrefWPlatAndLZNumber][1]
+                            iAdjLZ = tLZSubtable[M28Map.subrefWPlatAndLZNumber][2]
+                            local tAdjLZData = M28Map.tAllPlateaus[iAdjPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjPlateau='..iAdjPlateau..'; iAdjLZ='..iAdjLZ..'; Is midpoint of this LZ in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tAdjLZData[M28Map.subrefMidpoint]))) end
+                            if M28Conditions.IsLocationInPlayableArea(tAdjLZData[M28Map.subrefMidpoint]) then
+                                local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
+                                if bDebugMessages == true then LOG(sFunctionRef..': Dangerous enemies in this LZ='..tostring(tAdjLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ])..'; Enemy structure total mass='..tAdjLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass]..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]))) end
+                                if tAdjLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or tAdjLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] >= 30 then
+                                    --Get the closest enemy to here
+                                    for iUnit, oUnit in tAdjLZTeamData[M28Map.subrefTEnemyUnits] do
+                                        if M28UnitInfo.IsUnitValid(oUnit) then
+                                            iCurDist = M28Utilities.GetDistanceBetweenPositions(tCurWZData[M28Map.subrefMidpoint], oUnit:GetPosition())
+                                            if iCurDist < iClosestDist and M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition()) then
+                                                iClosestDist = iCurDist
+                                                oClosestEnemyUnit = oUnit
+
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
                     end
-                    tBombardmentMainTarget = {tRevisedTarget[1], tRevisedTarget[2], tRevisedTarget[3]}
-                    break
+                end
+            end
+            --First check adjacent land zones
+            ConsiderAdjacentLandZonesForBombardment(tWZData)
+            if not(oClosestEnemyUnit) then
+                if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZOtherWaterZones]) == false then
+                    local iAdjWZ
+                    for iWZEntry, tWZSubtable in tWZData[M28Map.subrefWZOtherWaterZones] do
+                        iAdjWZ = tWZSubtable[M28Map.subrefWZAWZRef]
+                        local tAdjWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAdjWZ]
+                        if bDebugMessages == true then LOG(sFunctionRef..': About to consider if enmy land zones adjacent to iAdjWZ='..iAdjWZ..' have enemy units in them') end
+                        ConsiderAdjacentLandZonesForBombardment(tAdjWZData)
+                        if oClosestEnemyUnit then break end
+                    end
+                end
+            end
+            if oClosestEnemyUnit then
+                tBombardmentMainTarget = oClosestEnemyUnit:GetPosition()
+            else --Dont have a valid closest enemy unit and are outside playable area
+                --Adjust to the nearest location on map to the bombardment target
+
+                --end
+                local iInterval = 30
+                local iDistFromBase = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], tBombardmentMainTarget)
+                local iMaxDist = math.floor(iDistFromBase / iInterval) * iInterval
+                local iAngleFromTargetToMidpoint = M28Utilities.GetAngleFromAToB(tWZData[M28Map.subrefMidpoint], tBombardmentMainTarget)
+                if bDebugMessages == true then LOG(sFunctionRef..': Bombardment target is outside playable area so will try and adjust, playable area='..repru(M28Map.rMapPlayableArea)..'; Sync.NewPlayableArea='..repru(Sync.NewPlayableArea)) end
+                for iCurDist = iInterval, iMaxDist, iInterval do
+                    local tRevisedTarget = M28Utilities.MoveInDirection(tBombardmentMainTarget, iAngleFromTargetToMidpoint, iCurDist, true, false, true)
+                    if bDebugMessages == true then LOG(sFunctionRef..': iCurDist='..iCurDist..'; tRevisedTarget='..repru(tRevisedTarget)..'; Is in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tRevisedTarget))) end
+                    if tRevisedTarget and M28Conditions.IsLocationInPlayableArea(tRevisedTarget) then
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef..': Adjusting bombardment target, iCurDist='..iCurDist..'; tRevisedTarget='..repru(tRevisedTarget)..'; tBombardmentMainTarget before adjust='..repru(tBombardmentMainTarget)..'; Map playable area='..repru(M28Map.rMapPlayableArea))
+                            M28Utilities.DrawLocation(tRevisedTarget)
+                        end
+                        tBombardmentMainTarget = {tRevisedTarget[1], tRevisedTarget[2], tRevisedTarget[3]}
+                        break
+                    end
                 end
             end
         end
@@ -2723,7 +2797,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
             if not(bAreInScenario1) then
                 local bAreInScenario2 = M28Conditions.WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iAdjacentAlliedSubmersibleThreat, iAdjacentEnemyAntiNavyThreat, iAdjacentAlliedCombatThreat, iAdjacentEnemyCombatThreat, false)
 
-                if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if are in scenario2, bAreInScenario2='..tostring(bAreInScenario2)..'; tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]='..tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]..'; tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Core WZ base='..tostring(tWZTeamData[M28Map.subrefWZbCoreBase])..'; iEnemyThreat='..iEnemyThreat) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if are in scenario2, bAreInScenario2='..tostring(bAreInScenario2)..'; tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]='..tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]..'; tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..tWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Core WZ base='..tostring(tWZTeamData[M28Map.subrefWZbCoreBase])..'; iAdjacentAlliedCombatThreat='..iAdjacentAlliedCombatThreat..'; iAdjacentEnemyCombatThreat='..iAdjacentEnemyCombatThreat) end
                 if bAreInScenario2 then
                     --SCENARIO 2 - We either have enemies near our core naval factory or we have a greater threat than the enemy - attack
                     if bDebugMessages == true then
@@ -2803,7 +2877,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
     end
 
     --Override support if we couldnt find any enemies
-    if bWantReinforcements and not(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]) then bWantReinforcements = false end
+    if bWantReinforcements and (not(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]) or tWZData[M28Map.subrefbPacifistArea]) then bWantReinforcements = false end
     UpdateIfWaterZoneWantsSupport(tWZTeamData, bWantReinforcements)
     if bDebugMessages == true then LOG(sFunctionRef..': Just recorded if this WZ wants support, bWantReinforcements='..tostring(bWantReinforcements)..'; is tUnassignedLandUnits empty='..tostring(M28Utilities.IsTableEmpty(tUnassignedLandUnits))) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -3041,11 +3115,13 @@ function ManageWaterZoneScouts(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, t
             end
         end
     end
-    
+
     if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTScoutsTravelingHere]) then
         --Want a land scout for htis land zone, unless we already have one traveling here; if we have available land scouts then will change this flag back to false
-        tWZTeamData[M28Map.refbWantLandScout] = true
-        if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; We want to get a scout for this WZ '..(iWaterZone or 'nil')..' on pond '..(iPond or 'nil')) end
+        if not(tWZData[M28Map.subrefbPacifistArea]) then
+            tWZTeamData[M28Map.refbWantLandScout] = true
+            if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; We want to get a scout for this WZ '..(iWaterZone or 'nil')..' on pond '..(iPond or 'nil')) end
+        end
     elseif bDebugMessages == true then
         LOG(sFunctionRef..': We have scouts traveling to this WZ so wont flag it needs more scouts. Will list out traveling scouts')
         for iUnit, oUnit in tWZTeamData[M28Map.subrefTScoutsTravelingHere] do

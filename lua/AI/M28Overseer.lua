@@ -37,6 +37,9 @@ iNoRushTimer = 0 --Gametimeseconds that norush should end
 reftNoRushCentre = 'M28OverseerNRCtre' --against aiBrain
 reftNoRushM28StartPoints = { } --start positions for all norush buildable locations
 bActiveMissionChecker = false --true if are actively checking for mission objectives
+bPacifistModeActive = false --true if we have set certain zones to never be attacked (e.g. Cybran mission 4)
+bHaveDisabledGunshipWeaponsForPacifism = false --true if we have disabled gunship weapons due to pacifism
+tiPacifistZonesByPlateau = {} --[iPlateau], returns iLandOrWaterZone, for any zone flagged as pacificst
 
 --aiBrain variables
 refiDistanceToNearestEnemyBase = 'M28OverseerDistToNearestEnemyBase'
@@ -981,7 +984,7 @@ function CheckForAlliedCampaignUnitsToShareAtGameStart(aiBrain)
                 table.insert(tHumanBrains, oBrain)
             end
         end
-        local iCategoriesOfInterest = M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryAllAir + M28UnitInfo.refCategoryAllNavy - categories.COMMAND - M28UnitInfo.refCategoryMassStorage
+        local iCategoriesOfInterest = M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryAllAir + M28UnitInfo.refCategoryAllNavy + M28UnitInfo.refCategoryEngineer - categories.COMMAND - M28UnitInfo.refCategoryMassStorage
         if M28Utilities.IsTableEmpty(tHumanBrains) == false then
             while M28Utilities.IsTableEmpty(tNearbyStructures) do
                 if iWaitCount > 0 then
@@ -1179,43 +1182,85 @@ function M28ErisKilled()
     end
 end
 
-function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
+function DelayedCybranFireBlackSun(aiBrain)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'DelayedCybranFireBlackSun'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Will wait a bit then fire black sun') end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    WaitSeconds(10)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Has the op ended yet='..tostring(ScenarioInfo.OpEnded or false)..'; OpComplete='..tostring(ScenarioInfo.OpComplete or false)) end
+    if not(ScenarioInfo.OpEnded) and not(ScenarioInfo.OpComplete) then
+        M28Chat.SendMessage(aiBrain, 'M6End', 'Getting ready to fire black sun...', 0, 100000, false, false)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(5)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        if bDebugMessages == true then LOG(sFunctionRef..': WIll fire black sun') end
+        local ScenarioFramework = import('/lua/ScenarioFramework.lua')
+        ScenarioFramework.FlushDialogueQueue()
+        ScenarioFramework.EndOperationSafety()
+        ScenarioInfo.OpComplete = true
+        if ScenarioInfo.M3P2 then
+            ScenarioInfo.M3P2:ManualResult(true)
+        end
+        ScenarioFramework.EndOperation(ScenarioInfo.OpComplete, ScenarioInfo.OpComplete, true)
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+
+
+function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag, iOptionalWaitInSeconds)
+    --NOTE: All of input variables are optional as sometimes we just call this due to a playable area size change
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderSpecialCampaignObjectives'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    --UEF Mission 3 - create a special death trigger for Aeon ACU due to flaw with preceding objective
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; Is M3P3 active='..tostring(ScenarioInfo.M3P3.Active or false)..'; Is commander gate area empty='..tostring(Scenario.Areas['CDR_Gate_Area'] == nil)..'; CDR_Gate_Area='..repru(Scenario.Areas['CDR_Gate_Area'])..'; ScenarioInfo.M1P3.Active='..tostring(ScenarioInfo.M1P3.Active or false)..'; Is combined table empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.M1_TempleCombinedTable))..'; M1P2 active='..tostring(ScenarioInfo.M1P2.Active)..'; M1P1 active='..tostring(ScenarioInfo.M1P1.Active)) end
-    if ScenarioInfo.M4P1 and M28Utilities.IsTableEmpty(Target.Units) and ScenarioInfo.M4P1.Active and M28UnitInfo.IsUnitValid(ScenarioInfo.AeonCDR) then
-        if bDebugMessages == true then LOG(sFunctionRef..': Creating manual on death trigger') end
-        local ScenarioFramework = import('/lua/ScenarioFramework.lua')
-        ScenarioFramework.CreateUnitDeathTrigger(M28ErisKilled, ScenarioInfo.AeonCDR)
-        --UEF Mission 5 - send ACU to gateway
-    elseif ScenarioInfo.M3P3.Active and Scenario.Areas['CDR_Gate_Area'] and ScenarioInfo.PlayerCDRs then
-        --local rRect = import("/lua/sim/scenarioutilities.lua").AreaToRect('CDR_Gate_Area')
-        local tRect = import("/lua/sim/scenarioutilities.lua").AreaToRect('CDR_Gate_Area')
-        local rRect = {tRect['x0'], tRect['y0'], tRect['x1'], tRect['y1']}
-        if bDebugMessages == true then LOG(sFunctionRef..': rRect='..repru(rRect)..'; AreaToRect='..repru(import("/lua/sim/scenarioutilities.lua").AreaToRect('CDR_Gate_Area'))) end
-        if rRect then
-            local tMidpoint = {(rRect[1] + rRect[3])*0.5, 0, (rRect[2] + rRect[4])*0.5}
-            tMidpoint[2] = GetTerrainHeight(tMidpoint[1], tMidpoint[3])
-            for iUnit, oUnit in ScenarioInfo.PlayerCDRs do
-                if M28UnitInfo.IsUnitValid(oUnit) then
-                    LOG(sFunctionRef..': Considering ACU owned by brain '..oUnit:GetAIBrain().Nickname..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; if M28 then will set objective to tMidpoint='..repru(tMidpoint))
-                    if oUnit:GetAIBrain().M28AI then
-                        oUnit[M28ACU.reftSpecialObjectiveMoveLocation] = {tMidpoint[1], tMidpoint[2], tMidpoint[3]}
+
+    if iOptionalWaitInSeconds then
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(iOptionalWaitInSeconds)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code at time '..GetGameTimeSeconds()..' after iOptionalWaitInSeconds='..(iOptionalWaitInSeconds or 'nil')..'; Is M3P3 active='..tostring(ScenarioInfo.M3P3.Active or false)..'; Is commander gate area empty='..tostring(Scenario.Areas['CDR_Gate_Area'] == nil)..'; CDR_Gate_Area='..repru(Scenario.Areas['CDR_Gate_Area'])..'; ScenarioInfo.M1P3.Active='..tostring(ScenarioInfo.M1P3.Active or false)..'; Is combined table empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.M1_TempleCombinedTable))..'; M1P2 active='..tostring(ScenarioInfo.M1P2.Active)..'; M1P1 active='..tostring(ScenarioInfo.M1P1.Active)) end
+
+    local aiBrain
+    for iBrain, oBrain in tAllActiveM28Brains do
+        if oBrain.M28AI then aiBrain = oBrain break end
+    end
+    if aiBrain then
+        local iTeam = aiBrain.M28Team
+        --UEF Mission 3 - create a special death trigger for Aeon ACU due to flaw with preceding objective
+        if bDebugMessages == true then
+            LOG(sFunctionRef..': Further logs, ScenarioInfo.M3BaseDamageWarnings='..(ScenarioInfo.M3BaseDamageWarnings or 'nil')..'; ScenarioInfo.MainFrameIsAlive='..tostring(ScenarioInfo.MainFrameIsAlive or false)..'; ScenarioInfo.EMPFired='..tostring(ScenarioInfo.EMPFired or false)..'; ScenarioInfo.M3_Base is empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.M3_Base))..'; bPacifistModeActive='..tostring(bPacifistModeActive)..'; ScenarioInfo.MissionNumber='..(ScenarioInfo.MissionNumber or 'nil')..'; iTeam='..iTeam..'; C M6: ScenarioInfo.ControlCenter is nil='..tostring(ScenarioInfo.ControlCenter == nil)..'; ScenarioInfo.Czar is nil='..tostring(ScenarioInfo.Czar == nil)..'; Is table of czars empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.Czar))..'; Is M3P1 active='..tostring(ScenarioInfo.M3P1.Active)..'; Is M3P2 active='..tostring(ScenarioInfo.M3P2.Active)..'; Is there a valid black sun unit='..tostring(M28UnitInfo.IsUnitValid(ScenarioInfo.BlackSunWeapon)))
+            if M28UnitInfo.IsUnitValid(ScenarioInfo.BlackSunWeapon) then LOG(sFunctionRef..': Have a valid black sun unit, Target[1].UnitId='..(Target[1].UnitId or 'nil')..'; Black sun brain owner='..ScenarioInfo.BlackSunWeapon:GetAIBrain().Nickname..'; Faction index='..ScenarioInfo.BlackSunWeapon:GetAIBrain():GetFactionIndex()) end
+        end
+        if ScenarioInfo.M4P1 and M28Utilities.IsTableEmpty(Target.Units) and ScenarioInfo.M4P1.Active and M28UnitInfo.IsUnitValid(ScenarioInfo.AeonCDR) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Creating manual on death trigger') end
+            local ScenarioFramework = import('/lua/ScenarioFramework.lua')
+            ScenarioFramework.CreateUnitDeathTrigger(M28ErisKilled, ScenarioInfo.AeonCDR)
+            --UEF Mission 5 - send ACU to gateway
+        elseif ScenarioInfo.M3P3.Active and Scenario.Areas['CDR_Gate_Area'] and ScenarioInfo.PlayerCDRs then
+            --local rRect = import("/lua/sim/scenarioutilities.lua").AreaToRect('CDR_Gate_Area')
+            local tRect = import("/lua/sim/scenarioutilities.lua").AreaToRect('CDR_Gate_Area')
+            local rRect = {tRect['x0'], tRect['y0'], tRect['x1'], tRect['y1']}
+            if bDebugMessages == true then LOG(sFunctionRef..': rRect='..repru(rRect)..'; AreaToRect='..repru(import("/lua/sim/scenarioutilities.lua").AreaToRect('CDR_Gate_Area'))) end
+            if rRect then
+                local tMidpoint = {(rRect[1] + rRect[3])*0.5, 0, (rRect[2] + rRect[4])*0.5}
+                tMidpoint[2] = GetTerrainHeight(tMidpoint[1], tMidpoint[3])
+                for iUnit, oUnit in ScenarioInfo.PlayerCDRs do
+                    if M28UnitInfo.IsUnitValid(oUnit) then
+                        LOG(sFunctionRef..': Considering ACU owned by brain '..oUnit:GetAIBrain().Nickname..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; if M28 then will set objective to tMidpoint='..repru(tMidpoint))
+                        if oUnit:GetAIBrain().M28AI then
+                            oUnit[M28ACU.reftSpecialObjectiveMoveLocation] = {tMidpoint[1], tMidpoint[2], tMidpoint[3]}
+                        end
                     end
                 end
             end
-        end
-    elseif ScenarioInfo.M1_TempleCombinedTable and (ScenarioInfo.M1P3.Active or ScenarioInfo.M1P2.Active) then
-        if bDebugMessages == true then LOG(sFunctionRef..': Will check if we have Seraphim temples that need manually destroying') end
-        if M28Utilities.IsTableEmpty(   ScenarioInfo.M1_TempleCombinedTable) == false and M28Utilities.IsTableEmpty(tAllActiveM28Brains) == false then
-            local aiBrain
-            for iBrain, oBrain in tAllActiveM28Brains do
-                if oBrain.M28AI then aiBrain = oBrain break end
-            end
-            if aiBrain then
-                local iTeam = aiBrain.M28Team
+        elseif ScenarioInfo.M1_TempleCombinedTable and (ScenarioInfo.M1P3.Active or ScenarioInfo.M1P2.Active) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will check if we have Seraphim temples that need manually destroying') end
+            if M28Utilities.IsTableEmpty(   ScenarioInfo.M1_TempleCombinedTable) == false and M28Utilities.IsTableEmpty(tAllActiveM28Brains) == false then
+
                 for iUnit, oUnit in ScenarioInfo.M1_TempleCombinedTable do
                     --Add to table of units in the land zone (if it is in a land zone)
                     local iPlateau, iLandZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
@@ -1239,17 +1284,183 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                     end
                 end
             end
-        end
-        --Cybran mission 2 - move to gate
-    elseif ScenarioInfo.M3P2.Active and ScenarioInfo.M3Gate and M28UnitInfo.IsUnitValid(ScenarioInfo.M3Gate) then
-        for iBrain, oBrain in tAllActiveM28Brains do
-            local tACUs = oBrain:GetListOfUnits(categories.COMMAND, false, true)
-            if M28Utilities.IsTableEmpty(tACUs) == false then
-                for iUnit, oUnit in tACUs do
-                    LOG(sFunctionRef..': Considering ACU owned by brain '..oUnit:GetAIBrain().Nickname..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; if M28 then will set objective to gate position='..repru(ScenarioInfo.M3Gate:GetPosition()))
-                    oUnit[M28ACU.reftSpecialObjectiveMoveLocation] = ScenarioInfo.M3Gate:GetPosition()
+            --Cybran mission 2 - move to gate
+        elseif ScenarioInfo.M3P2.Active and ScenarioInfo.M3Gate and M28UnitInfo.IsUnitValid(ScenarioInfo.M3Gate) then
+            for iBrain, oBrain in tAllActiveM28Brains do
+                local tACUs = oBrain:GetListOfUnits(categories.COMMAND, false, true)
+                if M28Utilities.IsTableEmpty(tACUs) == false then
+                    for iUnit, oUnit in tACUs do
+                        LOG(sFunctionRef..': Considering ACU owned by brain '..oUnit:GetAIBrain().Nickname..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; if M28 then will set objective to gate position='..repru(ScenarioInfo.M3Gate:GetPosition()))
+                        oUnit[M28ACU.reftSpecialObjectiveMoveLocation] = ScenarioInfo.M3Gate:GetPosition()
+                    end
                 end
             end
+            --Cybran mission 4 - play defensively and let human player try and capture the nodes
+        elseif ScenarioInfo.M3BaseDamageWarnings and ScenarioInfo.MainFrameIsAlive and not ScenarioInfo.EMPFired and (ScenarioInfo.M3_Base or Scenario.Areas['Aeon_Base_M3']) and not(bPacifistModeActive) then
+            --Reset base warnings to help M28 a bit since it can trigger the damage before this objective is even active
+            if ScenarioInfo.M3BaseDamageWarnings > 0 then ScenarioInfo.M3BaseDamageWarnings = 0 end
+            local tUnitsToConsider = ScenarioInfo.M3_Base
+            if not(tUnitsToConsider) then
+                local ScenarioFramework = import('/lua/ScenarioFramework.lua')
+                tUnitsToConsider = ScenarioFramework.GetCatUnitsInArea(categories.STRUCTURE - categories.WALL, 'Aeon_Base_M3', ArmyBrains[ScenarioInfo.Aeon])
+            end
+            if M28Utilities.IsTableEmpty(tUnitsToConsider) == false then
+                if bDebugMessages == true then LOG(sFunctionRef..': Want to disable attacking parts of the map that could cause us to fail the mission') end
+                bPacifistModeActive = true
+
+                tiPacifistZonesByPlateau = {}
+                local tbHasPlateauAndZoneBeenRecorded = {}
+                local iCurPlateauOrZero, iCurLandOrWaterZone
+                for iUnit, oUnit in ScenarioInfo.M3_Base do
+                    iCurPlateauOrZero, iCurLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                    if iCurPlateauOrZero and iCurLandOrWaterZone and not(tbHasPlateauAndZoneBeenRecorded[iCurPlateauOrZero][iCurLandOrWaterZone]) then
+                        if not(tiPacifistZonesByPlateau[iCurPlateauOrZero]) then tiPacifistZonesByPlateau[iCurPlateauOrZero] = {} end
+                        table.insert(tiPacifistZonesByPlateau[iCurPlateauOrZero], iCurLandOrWaterZone)
+                        if not(tbHasPlateauAndZoneBeenRecorded[iCurPlateauOrZero]) then tbHasPlateauAndZoneBeenRecorded[iCurPlateauOrZero] = {} end
+                        tbHasPlateauAndZoneBeenRecorded[iCurPlateauOrZero][iCurLandOrWaterZone] = true
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished recording the plateaus and zones that units in M3_Base are in, repru of tiPacifistZonesByPlateau='..repru(tiPacifistZonesByPlateau)) end
+                if M28Utilities.IsTableEmpty(tiPacifistZonesByPlateau) == false then
+                    --Record any adjacent zones
+                    local tiAdjacentZonesByPlateau = {}
+                    for iPlateauOrZero, tBaseSubtable in tiPacifistZonesByPlateau do
+                        for iEntry, iLandOrWaterZone in tBaseSubtable do
+                            local tLZOrWZData
+                            if iPlateauOrZero == 0 then
+                                tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+                                --Water zone: Adjacent land zones
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering water zone '..iLandOrWaterZone..'; Is table of adjacent land zones empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefAdjacentLandZones]))) end
+                                if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefAdjacentLandZones]) == false then
+                                    for iEntry, tSubtable in tLZOrWZData[M28Map.subrefAdjacentLandZones] do
+                                        local iPlateauRef = tSubtable[M28Map.subrefWPlatAndLZNumber][1]
+                                        local iAdjZoneRef = tSubtable[M28Map.subrefWPlatAndLZNumber][2]
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjZoneRef='..iAdjZoneRef..'; iPlateauRef='..iPlateauRef) end
+                                        if not(tbHasPlateauAndZoneBeenRecorded[iPlateauRef][iAdjZoneRef]) then
+                                            tbHasPlateauAndZoneBeenRecorded[iPlateauRef][iAdjZoneRef] = true
+                                            if not(tiAdjacentZonesByPlateau[iPlateauRef]) then tiAdjacentZonesByPlateau[iPlateauRef] = {} end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Adding iAdjZoneRef='..iAdjZoneRef..'; to table') end
+                                            table.insert(tiAdjacentZonesByPlateau[iPlateauRef], iAdjZoneRef)
+                                        end
+                                    end
+                                end
+                                --Water zone: Adjacent water zones:
+                                if bDebugMessages == true then LOG(sFunctionRef..': Is table of adjacent water zones empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefWZAdjacentWaterZones]))) end
+                                if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
+                                    for _, iAdjZoneRef in tLZOrWZData[M28Map.subrefWZAdjacentWaterZones] do
+                                        if not(tbHasPlateauAndZoneBeenRecorded[0][iAdjZoneRef]) then
+                                            tbHasPlateauAndZoneBeenRecorded[0][iAdjZoneRef] = true
+                                            if not(tiAdjacentZonesByPlateau[0]) then tiAdjacentZonesByPlateau[0] = {} end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Adding WZ iAdjZoneRef='..iAdjZoneRef..'; to table') end
+                                            table.insert(tiAdjacentZonesByPlateau[0], iAdjZoneRef)
+                                        end
+                                    end
+                                end
+                            else
+                                tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+                                --Land zone: Adjacent land zones
+                                if bDebugMessages == true then LOG(sFunctionRef..': Dealing with land zone, is table of adjacent land zones empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZAdjacentLandZones]))) end
+                                if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                                    for _, iAdjZoneRef in tLZOrWZData[M28Map.subrefLZAdjacentLandZones] do
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjZoneRef='..iAdjZoneRef..' in iPlateuOrZero='..iPlateauOrZero) end
+                                        if not(tbHasPlateauAndZoneBeenRecorded[iPlateauOrZero][iAdjZoneRef]) then
+                                            tbHasPlateauAndZoneBeenRecorded[iPlateauOrZero][iAdjZoneRef] = true
+                                            if not(tiAdjacentZonesByPlateau[iPlateauOrZero]) then tiAdjacentZonesByPlateau[iPlateauOrZero] = {} end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Adding LZ iAdjZoneRef='..iAdjZoneRef..'; to table') end
+                                            table.insert(tiAdjacentZonesByPlateau[iPlateauOrZero], iAdjZoneRef)
+                                        end
+                                    end
+                                end
+                                --Land zone: Adjacent water zone:
+                                if bDebugMessages == true then LOG(sFunctionRef..': Is table of adjacent water zones empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefAdjacentWaterZones]))) end
+                                if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefAdjacentWaterZones]) == false then
+                                    for iEntry, tSubtable in tLZOrWZData[M28Map.subrefAdjacentWaterZones] do
+                                        local iAdjZoneRef = tSubtable[M28Map.subrefAWZRef]
+                                        if not(tbHasPlateauAndZoneBeenRecorded[0][iAdjZoneRef]) then
+                                            tbHasPlateauAndZoneBeenRecorded[0][iAdjZoneRef] = true
+                                            if not(tiAdjacentZonesByPlateau[0]) then tiAdjacentZonesByPlateau[0] = {} end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Adding WZ iAdjZoneRef='..iAdjZoneRef..'; to table') end
+                                            table.insert(tiAdjacentZonesByPlateau[0], iAdjZoneRef)
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': About to add adjacent zones to core zone, tiAdjacentZonesByPlateau='..repru(tiAdjacentZonesByPlateau)) end
+                    if M28Utilities.IsTableEmpty(tiAdjacentZonesByPlateau) == false then
+                        for iPlateauOrZero, tSubtable in tiAdjacentZonesByPlateau do
+                            for iEntry, iAdjZoneRef in tSubtable do
+                                if not(tiPacifistZonesByPlateau[iPlateauOrZero]) then tiPacifistZonesByPlateau[iPlateauOrZero] = {} end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Adding iAdjZoneRef='..iAdjZoneRef..' for iPlateauOrZero='..iPlateauOrZero) end
+                                table.insert(tiPacifistZonesByPlateau[iPlateauOrZero], iAdjZoneRef)
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Finished adding adjacent zones, repru of adjacent zones by plateau='..repru(tiAdjacentZonesByPlateau)) end
+
+                    for iPlateauOrZero, tSubtable in tiPacifistZonesByPlateau do
+                        for iEntry, iLandOrWaterZone in tSubtable do
+                            local tLZOrWZData
+                            if iPlateauOrZero == 0 then
+                                tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+                            else
+                                tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+                            end
+                            tLZOrWZData[M28Map.subrefbPacifistArea] = true
+                            if bDebugMessages == true then LOG(sFunctionRef..': Set pacifist flag to true for iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone) end
+                        end
+                    end
+                end
+            end
+        elseif bPacifistModeActive and ScenarioInfo.EMPFired and M28Utilities.IsTableEmpty(tiPacifistZonesByPlateau) == false then
+            --Disable pacifist flag
+            if bDebugMessages == true then LOG(sFunctionRef..': EMP has been fired so will disable pacifist flag for all recorded zones, tiPacifistZonesByPlateau='..repru(tiPacifistZonesByPlateau)) end
+            bPacifistModeActive = false
+            for iPlateauOrZero, tSubtable in tiPacifistZonesByPlateau do
+                local tLZOrWZData
+                for iEntry, iLandOrWaterZone in tSubtable do
+                    if iPlateauOrZero == 0 then
+                        tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+                    else
+                        tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+                    end
+                    tLZOrWZData[M28Map.subrefbPacifistArea] = false
+                end
+            end
+        --Cybran mission 6 - activate black sun (below is as a redundancy but doesnt actually trigger - are reliant on the oncapture event instead)
+        elseif ScenarioInfo.M3P2.Active and M28UnitInfo.IsUnitValid(ScenarioInfo.BlackSunWeapon) and ScenarioInfo.BlackSunWeapon:GetAIBrain().M28AI and ScenarioInfo.BlackSunWeapon:GetAIBrain():GetFactionIndex() == M28UnitInfo.refFactionCybran then
+            if bDebugMessages == true then LOG(sFunctionRef..': Want to fire black sun to complete cybran campaign - will fire in a bit') end
+            ForkThread(DelayedCybranFireBlackSun, ScenarioInfo.BlackSunWeapon:GetAIBrain())
+            --Cybran mission 6 - kill Czar
+        elseif ScenarioInfo.ControlCenter and ScenarioInfo.Czar and M28Utilities.IsTableEmpty(ScenarioInfo.Czar) == false and ScenarioInfo.M1P1.Active then
+            function DelayedRecordingOfCzar(tUnits)
+                WaitSeconds(15)
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting, time='..GetGameTimeSeconds()..' is table of units empty='..tostring(M28Utilities.IsTableEmpty(tUnits))) end
+                if M28Utilities.IsTableEmpty(tUnits) == false then
+                    for iUnit, oUnit in tUnits do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
+                        if M28UnitInfo.IsUnitValid(oUnit) then
+                            if EntityCategoryContains(M28UnitInfo.refCategoryAllAir * categories.EXPERIMENTAL, oUnit.UnitId) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will record enemy Czar as a priority enemy air experimental target unless it is alrady recorded') end
+                                local bAlreadyIncluded = false
+                                if not(M28Team.tTeamData[iTeam][M28Team.reftoEnemyExperimentalAirObjectives]) then M28Team.tTeamData[iTeam][M28Team.reftoEnemyExperimentalAirObjectives] = {}
+                                else
+                                    for iRecordedUnit, oRecordedUnit in M28Team.tTeamData[iTeam][M28Team.reftoEnemyExperimentalAirObjectives] do
+                                        if oRecordedUnit == oUnit then bAlreadyIncluded = true break end
+                                    end
+                                end
+                                if not(bAlreadyIncluded) then
+                                    table.insert(M28Team.tTeamData[iTeam][M28Team.reftoEnemyExperimentalAirObjectives], oUnit)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Will wait a while and then look to include enemy Czar as a priority enemy air experimental target unless it is alrady recorded') end
+            ForkThread(DelayedRecordingOfCzar, ScenarioInfo.Czar)
+            --Cybran M6 - fire black sun if it is owned by M28 and we are on the objective to fire it
         end
     end
 end
