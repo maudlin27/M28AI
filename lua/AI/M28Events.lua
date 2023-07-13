@@ -1510,7 +1510,7 @@ end
 
 function CaptureTriggerAdded(FunctionForOldUnit, FunctionForNewUnit, oUnit)
     local sFunctionRef = 'CaptureTriggerAdded'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if M28Utilities.bM28AIInGame then
 
@@ -1533,7 +1533,7 @@ end
 
 function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
     local sFunctionRef = 'ObjectiveAdded'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; if map setup not complete then will wait for it to be complete') end
     --Wait until map setup complete
@@ -1769,7 +1769,7 @@ end
 function OnCaptured(toCapturedUnits, iArmyIndex, bCaptured)
     --looks like if multiple engineers are trying to capture a unit at once this triggers for each engineer
     local sFunctionRef = 'OnCaptured'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time'..GetGameTimeSeconds()..', is toCapturedUnits empty='..tostring(M28Utilities.IsTableEmpty(toCapturedUnits))..'; Army='..reprs(iArmyIndex)..'; Captured='..reprs(bCaptured)) end
     if M28Utilities.bM28AIInGame then

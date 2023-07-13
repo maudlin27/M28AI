@@ -1183,7 +1183,7 @@ function M28ErisKilled()
 end
 
 function DelayedCybranFireBlackSun(aiBrain)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'DelayedCybranFireBlackSun'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Will wait a bit then fire black sun') end
@@ -1213,7 +1213,7 @@ end
 
 function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag, iOptionalWaitInSeconds)
     --NOTE: All of input variables are optional as sometimes we just call this due to a playable area size change
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderSpecialCampaignObjectives'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -1428,7 +1428,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                     tLZOrWZData[M28Map.subrefbPacifistArea] = false
                 end
             end
-        --Cybran mission 6 - activate black sun
+        --Cybran mission 6 - activate black sun (below is as a redundancy but doesnt actually trigger - are reliant on the oncapture event instead)
         elseif ScenarioInfo.M3P2.Active and M28UnitInfo.IsUnitValid(ScenarioInfo.BlackSunWeapon) and ScenarioInfo.BlackSunWeapon:GetAIBrain().M28AI and ScenarioInfo.BlackSunWeapon:GetAIBrain():GetFactionIndex() == M28UnitInfo.refFactionCybran then
             if bDebugMessages == true then LOG(sFunctionRef..': Want to fire black sun to complete cybran campaign - will fire in a bit') end
             ForkThread(DelayedCybranFireBlackSun, ScenarioInfo.BlackSunWeapon:GetAIBrain())
