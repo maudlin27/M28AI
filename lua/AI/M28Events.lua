@@ -1343,6 +1343,16 @@ function OnCreate(oUnit)
                 if EntityCategoryContains(M28UnitInfo.refCategoryProtectFromTML, oUnit.UnitId) then
                     M28Building.RecordTMLAndTMDForUnitJustBuilt(oUnit)
                 end
+
+                --M28 team specific - e.g. radar and sonar that are constructed
+                if (M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.subrefiActiveM28BrainCount] or 0) > 0 and oUnit:GetFractionComplete() == 1 then
+                    local iTeam = oUnit:GetAIBrain().M28Team
+                    if EntityCategoryContains(M28UnitInfo.refCategoryRadar, oUnit.UnitId) then
+                        M28Land.UpdateZoneIntelForRadar(oUnit)
+                    elseif EntityCategoryContains(M28UnitInfo.refCategorySonar, oUnit.UnitId) then
+                        M28Navy.UpdateZoneIntelForSonar(oUnit)
+                    end
+                end
             end
 
             --M28 specific:
@@ -1583,14 +1593,14 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
 
                             if EntityCategoryContains(M28UnitInfo.refCategoryAllAir * categories.EXPERIMENTAL, oUnit.UnitId) then
                                 local bAlreadyIncluded = false
-                                if not(M28Team.tTeamData[iTeam][M28Team.reftoEnemyExperimentalObjectives]) then M28Team.tTeamData[iTeam][M28Team.reftoEnemyExperimentalObjectives] = {}
+                                if not(M28Team.tTeamData[iTeam][M28Team.reftoEnemyExperimentalAirObjectives]) then M28Team.tTeamData[iTeam][M28Team.reftoEnemyExperimentalAirObjectives] = {}
                                 else
-                                    for iRecordedUnit, oRecordedUnit in M28Team.tTeamData[iTeam][M28Team.reftoEnemyExperimentalObjectives] do
+                                    for iRecordedUnit, oRecordedUnit in M28Team.tTeamData[iTeam][M28Team.reftoEnemyExperimentalAirObjectives] do
                                         if oRecordedUnit == oUnit then bAlreadyIncluded = true break end
                                     end
                                 end
                                 if not(bAlreadyIncluded) then
-                                    table.insert(M28Team.tTeamData[iTeam][M28Team.reftoEnemyExperimentalObjectives], oUnit)
+                                    table.insert(M28Team.tTeamData[iTeam][M28Team.reftoEnemyExperimentalAirObjectives], oUnit)
                                 end
                             end
                         end
@@ -1759,7 +1769,7 @@ end
 function OnCaptured(toCapturedUnits, iArmyIndex, bCaptured)
     --looks like if multiple engineers are trying to capture a unit at once this triggers for each engineer
     local sFunctionRef = 'OnCaptured'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time'..GetGameTimeSeconds()..', is toCapturedUnits empty='..tostring(M28Utilities.IsTableEmpty(toCapturedUnits))..'; Army='..reprs(iArmyIndex)..'; Captured='..reprs(bCaptured)) end
     if M28Utilities.bM28AIInGame then
@@ -1780,9 +1790,15 @@ function OnCaptured(toCapturedUnits, iArmyIndex, bCaptured)
                     break
                 end
             end
+            local bCheckForBlackSun = M28Map.bIsCampaignMap
             for iUnit, oUnit in toCapturedUnits do
+                if bDebugMessages == true then LOG(sFunctionRef..': Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bCheckForBlackSun='..tostring(bCheckForBlackSun)..'; Is M3P2 active='..tostring(ScenarioInfo.M3P2.Active)..'; Unit brain='..oUnit:GetAIBrain().Nickname) end
                 if not(oM28Brain.M28Team == oUnit:GetAIBrain().M28Team) and not(IsAlly(oM28Brain:GetArmyIndex(), iArmyIndex)) then
                     M28Engineer.RecordUnitAsCaptureTarget(oUnit, true)
+                    --Cybran M6 - fire black sun if we have just captured it
+                elseif bCheckForBlackSun and oUnit.UnitId == 'uec1901' and ScenarioInfo.M3P2.Active and oUnit:GetAIBrain().M28AI and oUnit:GetAIBrain():GetFactionIndex() == M28UnitInfo.refFactionCybran then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Want to fire black sun to complete cybran campaign - will fire in a bit') end
+                    ForkThread(M28Overseer.DelayedCybranFireBlackSun, oUnit:GetAIBrain())
                 end
             end
         end

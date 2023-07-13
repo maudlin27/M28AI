@@ -2315,6 +2315,39 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 end
             end
 
+            --Determine the AirAA category to produce
+            local iAirAASearchCategory
+            if iFactoryTechLevel < 3 then
+                iAirAASearchCategory = M28UnitInfo.refCategoryAirAA
+            else
+                iAirAASearchCategory = M28UnitInfo.refCategoryAirAA * categories.TECH3
+            end
+            local iAirAACountOfSearchCategory = aiBrain:GetCurrentUnits(iAirAASearchCategory)
+
+            --Priority asf for campaign missions
+            iCurrentConditionToTry = iCurrentConditionToTry + 1
+            if bDebugMessages == true then LOG(sFunctionRef..': Priority asf for campaign maps, iFactoryTechLevel='..iFactoryTechLevel..'; iAirAACountOfSearchCategory='..iAirAACountOfSearchCategory..'; M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]='..M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat]..'; M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.subrefiOurAirAAThreat]='..M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.subrefiOurAirAAThreat]) end
+            if M28Map.bIsCampaignMap and iFactoryTechLevel >= 3 and iAirAACountOfSearchCategory <= 100 and (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoEnemyExperimentalAirObjectives]) == false or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 10000) and M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.subrefiOurAirAAThreat] < math.min(20000, M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] * 0.5) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Campaign specific logic - will get base level of air threat hten get asfs as a high priority') end
+                local iAirSubteam = aiBrain.M28AirSubteam
+                --Base level of gunship and torp bomber threat before considering to get asf, assuming we have a base level of asf
+                if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] <= 1000 then
+                    if ConsiderBuildingCategory(iAirAASearchCategory) then return sBPIDToBuild end
+                end
+
+                --Gunships
+                if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] <= 600 then
+                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end
+                end
+
+                --Torp bomber if need them
+                if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies] and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] <= 2500 then
+                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryTorpBomber) then return sBPIDToBuild end
+                end
+
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA * categories.TECH3) then return sBPIDToBuild end
+            end
+
 
             --General production - depends on if we have highest tech level, or if we dont have t3 air yet
             if bDebugMessages == true then
@@ -2402,14 +2435,6 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
 
                 --AirAA until have a minimum level
                 iCurrentConditionToTry = iCurrentConditionToTry + 1
-                local iAirAASearchCategory
-
-                if iFactoryTechLevel < 3 then
-                    iAirAASearchCategory = M28UnitInfo.refCategoryAirAA
-                else
-                    iAirAASearchCategory = M28UnitInfo.refCategoryAirAA * categories.TECH3
-                end
-                local iAirAACountOfSearchCategory = aiBrain:GetCurrentUnits(iAirAASearchCategory)
                 if bDebugMessages == true then
                     LOG(sFunctionRef .. ': Minimum level of AirAA wanted: Number we have currently=' .. aiBrain:GetCurrentUnits(iAirAASearchCategory))
                 end
@@ -2516,35 +2541,10 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                     iAirAAWanted = math.max(iAirAAWanted, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] * 0.75 + math.max(0, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] - 4000) * 0.3 + M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] * 0.75)
                 end
 
-                local iAirAACategory = M28UnitInfo.refCategoryAirAA
                 if bDebugMessages == true then LOG(sFunctionRef..': Will consider getting AirAA in proportion to gunship threat now, Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..';  M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat]='.. M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat]..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat]='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat]..'; M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat]..'; iAirAAWanted='..iAirAAWanted) end
                 if iAirAACountOfSearchCategory < 400 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] < iAirAAWanted and (not (bHaveLowMass) or not (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])) then
                     --Cap total number of AirAA built bsaed on enemy threat
-                    if not (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]) and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] >= 10000 then --Equiv of 200 inties
-                        local iTotalEnemyAirThreat = M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] + M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] + M28Team.tTeamData[iTeam][M28Team.refiEnemyTorpBombersThreat] + M28Team.tTeamData[iTeam][M28Team.refiEnemyAirOtherThreat]
-                        if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] >= iTotalEnemyAirThreat * 2 then
-                            local iCurAirAA = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirAA)
-
-                            if iCurAirAA > 200 then
-                                --Dont want any more inties; do we still waint swifties or asfs?
-                                local iCurNonIntieAA = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirAA - categories.TECH1)
-                                if iCurNonIntieAA > 400 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] >= iTotalEnemyAirThreat * 2.5 then
-                                    --Dont want any more inties
-                                    iAirAACategory = nil
-                                else
-                                    --Still want T2 and T3 units
-                                    if iCurNonIntieAA > 100 and iCurAirAA > 250 then
-                                        --Just want asfs
-                                        iAirAACategory = M28UnitInfo.refCategoryAirAA * categories.TECH3
-                                    else
-                                        --Swifties and asfs
-                                        iAirAACategory = M28UnitInfo.refCategoryAirAA - categories.TECH1
-                                    end
-                                end
-                            end
-                        end
-                    end
-                    if iAirAACategory and ConsiderBuildingCategory(iAirAACategory) then
+                    if iAirAASearchCategory and ConsiderBuildingCategory(iAirAASearchCategory) then
                         return sBPIDToBuild
                     end
                 end
@@ -2925,7 +2925,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                 iUpgradeThreatThreshold = iUpgradeThreatThreshold * 0.75
             end
             if bDebugMessages == true then
-                LOG(sFunctionRef .. ': tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]=' .. tostring(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] or false) .. '; tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]=' .. tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] .. '; iUpgradeThreatThreshold=' .. iUpgradeThreatThreshold)
+                LOG(sFunctionRef .. ': Considering whether to upgrade, tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]=' .. tostring(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] or false) .. '; tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal]=' .. tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] .. '; iUpgradeThreatThreshold=' .. iUpgradeThreatThreshold)
             end
             if not (tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ]) or tWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] >= iUpgradeThreatThreshold or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 20 then
                 --Do we have enough mass income to justify upgrading?
@@ -2937,9 +2937,10 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                     iGrossMassThreshold = iGrossMassThreshold * 0.75
                 end
                 if bDebugMessages == true then
-                    LOG(sFunctionRef .. ': Gross mass income=' .. aiBrain[M28Economy.refiGrossMassBaseIncome] .. '; iGrossMassThreshold=' .. iGrossMassThreshold)
+                    LOG(sFunctionRef .. ': Considering whether to upgrade, Gross mass income=' .. aiBrain[M28Economy.refiGrossMassBaseIncome] .. '; iGrossMassThreshold=' .. iGrossMassThreshold)
                 end
                 if aiBrain[M28Economy.refiGrossMassBaseIncome] >= iGrossMassThreshold then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Mass income high enough so will try and upgrade naval fac') end
                     if ConsiderUpgrading() then
                         return sBPIDToBuild
                     end
@@ -2953,6 +2954,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
                     if iLifetimeBuildCount >= 14 then
                         iGrossMassThreshold = iGrossMassThreshold * math.max(0.35, (1 - iGrossMassThreshold * 0.02))
                         if aiBrain[M28Economy.refiGrossMassBaseIncome] >= iGrossMassThreshold then
+                            if bDebugMessages == true then LOG(sFunctionRef..': LC high enough so Will try and upgrade naval fac') end
                             if ConsiderUpgrading() then
                                 return sBPIDToBuild
                             end

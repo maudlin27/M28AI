@@ -160,7 +160,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiEnemyTorpBombersThreat = 'M28TeamEnemyTorpBomberThreat'
     refiEnemyAirOtherThreat = 'M28TeamEnemyAirOtherThreat'
     refiTimeOfLastAirStagingShortage = 'M28TeamTimeAirStagingShortage' --Gametimeseconds that a team member last had units that had nowhere to refuel
-    reftoEnemyExperimentalObjectives = 'M28TeamEnemyAirExp' --Table of enemy air experimentals that we need to destroy
+    reftoEnemyExperimentalAirObjectives = 'M28TeamEnemyAirExp' --Table of enemy air experimentals that we need to destroy
     --subrefiOurGunshipThreat - uses same ref as air subteam
     --subrefiOurBomberThreat - uses same ref as air subteam
 
@@ -1703,7 +1703,7 @@ function ConsiderPriorityNavalFactoryUpgrades(iM28Team)
     local sFunctionRef = 'ConsiderPriorityNavalFactoryUpgrades'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bDebugMessages == true then LOG(sFunctionRef..': tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech]='..tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech]) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech]='..tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech]) end
 
     if tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech] > 0 and tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech] < math.min(3, tTeamData[iM28Team][subrefiHighestEnemyNavyTech]) then
         local bWantUpgrade = false
@@ -1713,7 +1713,26 @@ function ConsiderPriorityNavalFactoryUpgrades(iM28Team)
                 bWantUpgrade = not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryNavalHQ))
 
                 if bWantUpgrade then
-                    M28Economy.FindAndUpgradeUnitOfCategory(oBrain, M28UnitInfo.refCategoryNavalHQ * M28UnitInfo.ConvertTechLevelToCategory(oBrain[M28Economy.refiOurHighestNavalFactoryTech]))
+                    --Campaign maps where still relatively early, or games where we have poor gross mass, where considering upgrading to T3
+                    if tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech] == 2 then
+                        if M28Map.bIsCampaignMap and GetGameTimeSeconds() <= 600 and tTeamData[iM28Team][subrefiTeamGrossMass] <= 20 then
+                            bWantUpgrade = false
+                        elseif tTeamData[iM28Team][subrefiTeamGrossMass] <= 10 * tTeamData[iM28Team][subrefiActiveM28BrainCount] then
+                            --Only upgrade to T3 if we have built a number of T2 units
+                            local tNavalFactories = oBrain:GetListOfUnits(M28UnitInfo.refCategoryNavalFactory * categories.TECH2, false, true)
+                            local iTotalBuildCount = 0
+                            for iFactory, oFactory in tNavalFactories do
+                                iTotalBuildCount = iTotalBuildCount + (oFactory[M28Factory.refiTotalBuildCount] or 0)
+                            end
+                            if iTotalBuildCount <= 8 then
+                                bWantUpgrade = false
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': We have lower naval tech than enemy, and dont have an active HQ upgrade, bWantUpgrade after low mass checks='..tostring(bWantUpgrade)) end
+                    if bWantUpgrade then
+                        M28Economy.FindAndUpgradeUnitOfCategory(oBrain, M28UnitInfo.refCategoryNavalHQ * M28UnitInfo.ConvertTechLevelToCategory(oBrain[M28Economy.refiOurHighestNavalFactoryTech]))
+                    end
                 end
             end
         end
