@@ -93,9 +93,8 @@ function GetNearestEnemyBrain(aiBrain)
                     if not (oBrain:IsDefeated()) and not (oBrain.M28IsDefeated) then
                         --Redundancy for AI like DD that may not trigger the aibrain hook
                         if not(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()]) then
-                            local iStartPositionX, iStartPositionZ = oBrain:GetArmyStartPos()
-                            M28Map.PlayerStartPoints[oBrain:GetArmyIndex()] = {iStartPositionX, GetSurfaceHeight(iStartPositionX, iStartPositionZ), iStartPositionZ}
-                            tAllAIBrainsByArmyIndex[oBrain:GetArmyIndex()] = oBrain
+                            M28Map.RecordBrainStartPoint(oBrain)
+
                         end
                         if bDebugMessages == true then
                             LOG(sFunctionRef .. ': Considering nearest enemy for our brain index '..aiBrain:GetArmyIndex()..'; enemy brain with index' .. oBrain:GetArmyIndex() .. ' and nickname '..(oBrain.Nickname or 'nil')..' is not defeated and is an enemy; M28Map.PlayerStartPoints='..repru( M28Map.PlayerStartPoints))

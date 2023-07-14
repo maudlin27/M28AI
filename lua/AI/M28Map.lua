@@ -16,6 +16,7 @@ local M28Land = import('/mods/M28AI/lua/AI/M28Land.lua')
 local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
 local M28Config = import('/mods/M28AI/lua/M28Config.lua')
 
+bPlayableAreaSetup = false
 bMapLandSetupComplete = false --set to true once have finished setting up map (used to decide how long to wait before starting main aibrain logic)
 bWaterZoneInitialCreation = false --set to true once have finished code for recording water zones (note WZ setup wont be fully complete yet)
 bWaterZoneFirstTeamInitialisation = false --set to true when the first team runs logic for creating team related variables for a water zone
@@ -692,7 +693,7 @@ function SetupPlayableAreaAndSegmentSizes(rCampaignPlayableAreaOverride)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SetupPlayableAreaAndSegmentSizes'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if bDebugMessages == true then LOG(sFunctionRef..': About to set playable area at time='..GetGameTimeSeconds()..'; ScenarioInfo.MapData.PlayableRect='..repru(ScenarioInfo.MapData.PlayableRect)..'; bMapLandSetupComplete='..tostring(bMapLandSetupComplete or false)..'; bIsCampaignMap='..tostring(bIsCampaignMap or false)..'; rCampaignPlayableAreaOverride='..repru(rCampaignPlayableAreaOverride)..'; Sync.NewPlayableArea='..repru(Sync.NewPlayableArea)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': About to set playable area at time='..GetGameTimeSeconds()..'; ScenarioInfo.MapData.PlayableRect='..repru(ScenarioInfo.MapData.PlayableRect)..'; bMapLandSetupComplete='..tostring(bMapLandSetupComplete or false)..'; bIsCampaignMap='..tostring(bIsCampaignMap or false)..'; rCampaignPlayableAreaOverride='..repru(rCampaignPlayableAreaOverride)..'; Sync.NewPlayableArea='..repru(Sync.NewPlayableArea)..'; bPlayableAreaSetup='..tostring(bPlayableAreaSetup)) end
     if ScenarioInfo.MapData.PlayableRect then --and (bMapLandSetupComplete or not(bIsCampaignMap)) then
         rMapPlayableArea = ScenarioInfo.MapData.PlayableRect
     else
@@ -6202,4 +6203,72 @@ function GetLandOrWaterZoneData(tLocation, bReturnTeamDataAsWell, iOptionalTeam)
             end
         end
     end
+end
+
+function RecordBrainStartPoint(oBrain)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordBrainStartPoint'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iStartPositionX, iStartPositionZ = oBrain:GetArmyStartPos()
+    local tStartPoint = {iStartPositionX, GetSurfaceHeight(iStartPositionX, iStartPositionZ), iStartPositionZ}
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering start position recorded for brain '..(oBrain.Nickname or 'nil')..' at time='..GetGameTimeSeconds()) end
+    --Adjust start point if it isn't on a valid plateau (e.g. means we should work on some coop maps)
+    if not(NavUtils.IsGenerated()) then
+        NavUtils.Generate()
+        SetupPlayableAreaAndSegmentSizes()
+    end
+
+    if not(NavUtils.GetTerrainLabel(refPathingTypeHover, tStartPoint)) then
+        if not(bIsCampaignMap) then M28Utilities.ErrorHandler('Brain '..(oBrain.Nickname or 'nil')..' with index '..oBrain:GetArmyIndex()..' has a start position that doesnt have a plateau reference and this isnt a campaign map') end
+        local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tStartPoint)
+        local bHaveValidStartPoint = false
+        local tAltStartPoint
+        for iAdjustBase = 1, 50 do
+            for iCurSegmentX = iSegmentX - iAdjustBase, iSegmentX + iAdjustBase, 1 do
+                for iCurSegmentZ = iSegmentZ - iAdjustBase, iSegmentZ + iAdjustBase, iAdjustBase * 2 do
+                    if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
+                        tAltStartPoint = GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering tAltStartPoint='..repru(tAltStartPoint)..'; rMapPotentialPlayableArea='..repru(rMapPotentialPlayableArea)..'; Hover label='..(NavUtils.GetTerrainLabel(refPathingTypeHover, tAltStartPoint) or 'nil')) end
+                        if tAltStartPoint[1] <= rMapPotentialPlayableArea[3] and tAltStartPoint[3] <= rMapPotentialPlayableArea[4] then
+                            if NavUtils.GetTerrainLabel(refPathingTypeHover, tAltStartPoint) then
+                                bHaveValidStartPoint = true
+                                break
+                            end
+                        end
+                    end
+                end
+                if bHaveValidStartPoint then break end
+            end
+            if bHaveValidStartPoint then break end
+            --Then do the left and right row (excl corners which ahve already done per the above)
+            for iCurSegmentX = iSegmentX - iAdjustBase, iSegmentX + iAdjustBase, iAdjustBase * 2 do
+                for iCurSegmentZ = iSegmentZ - iAdjustBase + 1, iSegmentZ + iAdjustBase - 1, 1 do
+                    if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
+                        tAltStartPoint = GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)
+                        if tAltStartPoint[1] <= rMapPotentialPlayableArea[3] and tAltStartPoint[3] <= rMapPotentialPlayableArea[4] then
+                            if NavUtils.GetTerrainLabel(refPathingTypeHover, tAltStartPoint) then
+                                bHaveValidStartPoint = true
+                                break
+                            end
+                        end
+                    end
+                end
+                if bHaveValidStartPoint then break end
+            end
+            if bHaveValidStartPoint then break end
+        end
+
+        if not(bHaveValidStartPoint) then M28Utilities.ErrorHandler('Have been through 50 adjacent segments and not found a valid start point for brain '..(oBrain.Nickname or 'nil')..' with start position '..repru(tStartPoint))
+        else
+            if bDebugMessages == true then LOG(sFunctionRef..': Changing start point for brain '..(oBrain.Nickname or 'nil')..' to be '..repru(tAltStartPoint)..' from tStartPoint of '..repru(tStartPoint)) end
+            tStartPoint = {tAltStartPoint[1], GetSurfaceHeight(tAltStartPoint[1], tAltStartPoint[3]), tAltStartPoint[3]}
+        end
+    end
+
+    PlayerStartPoints[oBrain:GetArmyIndex()] = {tStartPoint[1], tStartPoint[2], tStartPoint[3]}
+    M28Overseer.tAllAIBrainsByArmyIndex[oBrain:GetArmyIndex()] = oBrain
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

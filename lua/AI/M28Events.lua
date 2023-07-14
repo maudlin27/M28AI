@@ -1259,23 +1259,27 @@ function OnDetectedBy(oUnitDetected, iBrainIndex)
     end
 end
 
-function OnCreate(oUnit)
+function OnCreate(oUnit, bIgnoreMapSetup)
     if M28Utilities.bM28AIInGame and M28UnitInfo.IsUnitValid(oUnit) then
         local sFunctionRef = 'OnCreate'
-        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-        if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time'..GetGameTimeSeconds()..'; oUnit[M28OnCrRn]='..tostring(oUnit['M28OnCrRn'] or false)..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete or false)..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
-        if not(M28Map.bMapLandSetupComplete) then --Start of game ACU creation happens before we have setup the map
-            while not(M28Map.bMapLandSetupComplete) do
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time'..GetGameTimeSeconds()..'; oUnit[M28OnCrRn]='..tostring(oUnit['M28OnCrRn'] or false)..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete or false)..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; M28Map.bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation)) end
+        if (not(M28Map.bMapLandSetupComplete) or not(M28Map.bWaterZoneInitialCreation)) and not(bIgnoreMapSetup) then --Start of game ACU creation happens before we have setup the map
+            while not(M28Map.bMapLandSetupComplete) or not(M28Map.bWaterZoneInitialCreation) do
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 WaitTicks(1)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                if GetGameTimeSeconds() >= 5 and M28Map.bMapLandSetupComplete then
+                    M28Utilities.ErrorHandler('Water zone initial creation still not done, will stop waiting now')
+                    break
+                 end
             end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitTicks(1)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-            if M28UnitInfo.IsUnitValid(oUnit) then OnCreate(oUnit) end
+            if M28UnitInfo.IsUnitValid(oUnit) then OnCreate(oUnit, true) end
         else
             if not(oUnit['M28OnCrRn']) then
                 oUnit['M28OnCrRn'] = true
@@ -1424,9 +1428,7 @@ function OnCreateBrain(aiBrain, planName, bIsHuman)
         if bDebugMessages == true then LOG(sFunctionRef..': M28Map.bIsCampaignMap='..tostring(M28Map.bIsCampaignMap or false)) end
 
         --Logic to run for all brains
-        local iStartPositionX, iStartPositionZ = aiBrain:GetArmyStartPos()
-        M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()] = {iStartPositionX, GetSurfaceHeight(iStartPositionX, iStartPositionZ), iStartPositionZ}
-        M28Overseer.tAllAIBrainsByArmyIndex[aiBrain:GetArmyIndex()] = aiBrain
+        M28Map.RecordBrainStartPoint(aiBrain)
 
         if bIsHuman then
             LOG('Human player brain '..aiBrain.Nickname..' created; Index='..aiBrain:GetArmyIndex()..'; start position='..repru(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()]))

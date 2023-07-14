@@ -2319,66 +2319,66 @@ function ConsiderGettingUpgrades(iM28Team)
 end
 
 function TeamEconomyRefresh(iM28Team)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'TeamEconomyRefresh'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time='..GetGameTimeSeconds()..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete)..'; bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation)) end
+    if M28Map.bMapLandSetupComplete and M28Map.bWaterZoneInitialCreation then
+        tTeamData[iM28Team][subrefiTeamGrossEnergy] = 0
+        tTeamData[iM28Team][subrefiTeamNetEnergy] = 0
+        tTeamData[iM28Team][subrefiTeamGrossMass] = 0
+        tTeamData[iM28Team][subrefiTeamNetMass] = 0
+        tTeamData[iM28Team][subrefiTeamEnergyStored] = 0
+        tTeamData[iM28Team][subrefiTeamMassStored] = 0
+        tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] = 1
+        tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] = 1
+        tTeamData[iM28Team][subrefiLowestEnergyStorageCount] = 100
 
 
 
-    tTeamData[iM28Team][subrefiTeamGrossEnergy] = 0
-    tTeamData[iM28Team][subrefiTeamNetEnergy] = 0
-    tTeamData[iM28Team][subrefiTeamGrossMass] = 0
-    tTeamData[iM28Team][subrefiTeamNetMass] = 0
-    tTeamData[iM28Team][subrefiTeamEnergyStored] = 0
-    tTeamData[iM28Team][subrefiTeamMassStored] = 0
-    tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] = 1
-    tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] = 1
-    tTeamData[iM28Team][subrefiLowestEnergyStorageCount] = 100
 
 
+        for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
+            tTeamData[iM28Team][subrefiTeamGrossEnergy] = tTeamData[iM28Team][subrefiTeamGrossEnergy] + oBrain[M28Economy.refiGrossEnergyBaseIncome]
+            tTeamData[iM28Team][subrefiTeamGrossMass] = tTeamData[iM28Team][subrefiTeamGrossMass] + oBrain[M28Economy.refiGrossMassBaseIncome]
+            --Adjust gross values if the recorded values seem significantly differnet - decided to leave out as there seems to be a 1 tick delay which causes discrepencies
+            --[[if math.abs(oBrain[M28Economy.refiGrossEnergyBaseIncome] - oBrain:GetEconomyIncome('ENERGY')) >= math.max(30, oBrain[M28Economy.refiGrossEnergyBaseIncome] * 0.1) then
+                M28Utilities.ErrorHandler('We have calculated gross energy income to be '..oBrain[M28Economy.refiGrossEnergyBaseIncome]..'; including reclaim though it appears to be '..oBrain:GetEconomyIncome('ENERGY')..'; will use the system generated value as wouldnt expect reclaim to cause such a big difference', true)
+                oBrain[M28Economy.refiGrossEnergyBaseIncome] = oBrain:GetEconomyIncome('ENERGY')
+            end--]]
+
+            tTeamData[iM28Team][subrefiTeamNetEnergy] = tTeamData[iM28Team][subrefiTeamNetEnergy] + oBrain[M28Economy.refiNetEnergyBaseIncome]
+            tTeamData[iM28Team][subrefiTeamNetMass] = tTeamData[iM28Team][subrefiTeamNetMass] + oBrain[M28Economy.refiNetMassBaseIncome]
 
 
+            tTeamData[iM28Team][subrefiTeamEnergyStored] = tTeamData[iM28Team][subrefiTeamEnergyStored] + oBrain:GetEconomyStored('ENERGY')
+            tTeamData[iM28Team][subrefiTeamMassStored] = tTeamData[iM28Team][subrefiTeamMassStored] + oBrain:GetEconomyStored('MASS')
+            tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] = math.min(tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored], oBrain:GetEconomyStoredRatio('ENERGY'))
+            tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] = math.min(tTeamData[iM28Team][subrefiTeamLowestMassPercentStored], oBrain:GetEconomyStoredRatio('MASS'))
+            tTeamData[iM28Team][subrefiLowestEnergyStorageCount] = math.min(tTeamData[iM28Team][subrefiLowestEnergyStorageCount], oBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage))
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..oBrain.Nickname..'; Brain mass stored='..oBrain:GetEconomyStored('MASS')..'; Percent stored='..oBrain:GetEconomyStoredRatio('MASS')) end
+        end
 
-    for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
-        tTeamData[iM28Team][subrefiTeamGrossEnergy] = tTeamData[iM28Team][subrefiTeamGrossEnergy] + oBrain[M28Economy.refiGrossEnergyBaseIncome]
-        tTeamData[iM28Team][subrefiTeamGrossMass] = tTeamData[iM28Team][subrefiTeamGrossMass] + oBrain[M28Economy.refiGrossMassBaseIncome]
-        --Adjust gross values if the recorded values seem significantly differnet - decided to leave out as there seems to be a 1 tick delay which causes discrepencies
-        --[[if math.abs(oBrain[M28Economy.refiGrossEnergyBaseIncome] - oBrain:GetEconomyIncome('ENERGY')) >= math.max(30, oBrain[M28Economy.refiGrossEnergyBaseIncome] * 0.1) then
-            M28Utilities.ErrorHandler('We have calculated gross energy income to be '..oBrain[M28Economy.refiGrossEnergyBaseIncome]..'; including reclaim though it appears to be '..oBrain:GetEconomyIncome('ENERGY')..'; will use the system generated value as wouldnt expect reclaim to cause such a big difference', true)
-            oBrain[M28Economy.refiGrossEnergyBaseIncome] = oBrain:GetEconomyIncome('ENERGY')
-        end--]]
+        if tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] <= 0.05 and (GetGameTimeSeconds() >= 120 or tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] <= 0.001) then tTeamData[iM28Team][subrefbTeamIsStallingEnergy] = true end
+        if tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] == 0 and tTeamData[iM28Team][subrefiTeamMassStored] < tTeamData[iM28Team][subrefiActiveM28BrainCount] * 25 then
+            tTeamData[iM28Team][subrefbTeamIsStallingMass] = true
+            tTeamData[iM28Team][refiTimeOfLastMassStall] = GetGameTimeSeconds()
+        end
 
-        tTeamData[iM28Team][subrefiTeamNetEnergy] = tTeamData[iM28Team][subrefiTeamNetEnergy] + oBrain[M28Economy.refiNetEnergyBaseIncome]
-        tTeamData[iM28Team][subrefiTeamNetMass] = tTeamData[iM28Team][subrefiTeamNetMass] + oBrain[M28Economy.refiNetMassBaseIncome]
+        if bDebugMessages == true then LOG(sFunctionRef..': Prev team net mass before update='..repru(tTeamData[iM28Team][subreftiPrevTeamNetMass])) end
+        for iLastEntry = 5, 2, -1 do
+            tTeamData[iM28Team][subreftiPrevTeamNetMass][iLastEntry] = (tTeamData[iM28Team][subreftiPrevTeamNetMass][iLastEntry-1] or 0)
+        end
+        tTeamData[iM28Team][subreftiPrevTeamNetMass][1] = tTeamData[iM28Team][subrefiTeamNetMass]
+        if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Prev team net mass after update='..repru(tTeamData[iM28Team][subreftiPrevTeamNetMass])..'; team net mass='..tTeamData[iM28Team][subrefiTeamNetMass]..'; Team new gross mass='..tTeamData[iM28Team][subrefiTeamGrossMass]) end
 
+        ForkThread(ConsiderGettingUpgrades, iM28Team)
 
-        tTeamData[iM28Team][subrefiTeamEnergyStored] = tTeamData[iM28Team][subrefiTeamEnergyStored] + oBrain:GetEconomyStored('ENERGY')
-        tTeamData[iM28Team][subrefiTeamMassStored] = tTeamData[iM28Team][subrefiTeamMassStored] + oBrain:GetEconomyStored('MASS')
-        tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] = math.min(tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored], oBrain:GetEconomyStoredRatio('ENERGY'))
-        tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] = math.min(tTeamData[iM28Team][subrefiTeamLowestMassPercentStored], oBrain:GetEconomyStoredRatio('MASS'))
-        tTeamData[iM28Team][subrefiLowestEnergyStorageCount] = math.min(tTeamData[iM28Team][subrefiLowestEnergyStorageCount], oBrain:GetCurrentUnits(M28UnitInfo.refCategoryEnergyStorage))
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..oBrain.Nickname..'; Brain mass stored='..oBrain:GetEconomyStored('MASS')..'; Percent stored='..oBrain:GetEconomyStoredRatio('MASS')) end
-    end
+        ForkThread(M28Economy.ManageEnergyStalls, iM28Team)
 
-    if tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] <= 0.05 and (GetGameTimeSeconds() >= 120 or tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] <= 0.001) then tTeamData[iM28Team][subrefbTeamIsStallingEnergy] = true end
-    if tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] == 0 and tTeamData[iM28Team][subrefiTeamMassStored] < tTeamData[iM28Team][subrefiActiveM28BrainCount] * 25 then
-        tTeamData[iM28Team][subrefbTeamIsStallingMass] = true
-        tTeamData[iM28Team][refiTimeOfLastMassStall] = GetGameTimeSeconds()
-    end
-
-    if bDebugMessages == true then LOG(sFunctionRef..': Prev team net mass before update='..repru(tTeamData[iM28Team][subreftiPrevTeamNetMass])) end
-    for iLastEntry = 5, 2, -1 do
-        tTeamData[iM28Team][subreftiPrevTeamNetMass][iLastEntry] = (tTeamData[iM28Team][subreftiPrevTeamNetMass][iLastEntry-1] or 0)
-    end
-    tTeamData[iM28Team][subreftiPrevTeamNetMass][1] = tTeamData[iM28Team][subrefiTeamNetMass]
-    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Prev team net mass after update='..repru(tTeamData[iM28Team][subreftiPrevTeamNetMass])..'; team net mass='..tTeamData[iM28Team][subrefiTeamNetMass]..'; Team new gross mass='..tTeamData[iM28Team][subrefiTeamGrossMass]) end
-
-    ForkThread(ConsiderGettingUpgrades, iM28Team)
-
-    ForkThread(M28Economy.ManageEnergyStalls, iM28Team)
-
-    if tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.9 then
-        ForkThread(M28Economy.ManageMassOverflow, iM28Team)
+        if tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] >= 0.9 then
+            ForkThread(M28Economy.ManageMassOverflow, iM28Team)
+        end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
