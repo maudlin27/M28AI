@@ -408,7 +408,7 @@ function RecordGroundThreatForWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWat
     local sFunctionRef = 'RecordGroundThreatForWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 2880 and (iWaterZone == 2 or iWaterZone == 14) then bDebugMessages = true end
+
     --Track team total threat - first remove the previous entry, then add in the new entry
     --M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedDFThreat] - tWZTeamData[M28Map.subrefWZThreatAllyMobileDFTotal]
     --M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiAlliedIndirectThreat] - tWZTeamData[M28Map.subrefWZThreatAllyMobileIndirectTotal]
@@ -1246,9 +1246,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
     local sFunctionRef = 'ManageSpecificWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 2880 and (iWaterZone == 2 or iWaterZone == 14) then bDebugMessages = true
-    elseif GetGameTimeSeconds() <= 2880 and iWaterZone == 1 then bDebugMessages = true
-    end
+
 
     --Record enemy threat
     local tWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone]
@@ -1685,7 +1683,7 @@ function RecordClosestAdjacentRangesAndEnemies(tWZData, tWZTeamData, iPond, iWat
     local sFunctionRef = 'RecordClosestAdjacentRangesAndEnemies'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 2880 and (iWaterZone == 2 or iWaterZone == 14) then bDebugMessages = true end
+
 
     tWZTeamData[M28Map.reftoNearestCombatEnemies] = {}
     
@@ -1750,7 +1748,7 @@ function ConsiderOrdersForUnitsWithNoTarget(tWZData, iPond, iWaterZone, iTeam, t
     local sFunctionRef = 'ConsiderOrdersForUnitsWithNoTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 2880 and (iWaterZone == 2 or iWaterZone == 14) then bDebugMessages = true end
+
 
     --Handles logic for deciding where to send units to support other water zones (or returns units that could be used to support land zones), and also to handle bombardment logic
     local tUnassignedLandUnits
@@ -2370,8 +2368,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
     local sFunctionRef = 'ManageCombatUnitsInWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 2880 and (iWaterZone == 2 or iWaterZone == 14) then bDebugMessages = true
-    elseif GetGameTimeSeconds() >= 2400 and iWaterZone == 14 and GetGameTimeSeconds() <= 3200 then bDebugMessages = true end
+
 
     local tUnassignedLandUnits
     if bDebugMessages == true then LOG(sFunctionRef..': start of code for time '..GetGameTimeSeconds()..', iTeam='..iTeam..'; iPond='..iPond..'; iWaterZone='..iWaterZone..'; Is table of available combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))..'; Is table of available subs empty='..tostring(M28Utilities.IsTableEmpty(tAvailableSubmarines))..'; Are there enemy units in this or adjacent WZ='..tostring(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])) end
@@ -2938,7 +2935,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
     local sFunctionRef = 'ManageMAAInWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() <= 2880 and iWaterZone == 1 then bDebugMessages = true end
+
 
 
     local tRallyPoint = GetNearestWaterRallyPoint(tWZData, iTeam, iPond, iWaterZone)
@@ -3106,7 +3103,7 @@ function SendMAAToSupportWaterZone(tMAAToAdvance, iPond, iTeam, iWZToSupport, iM
     local sFunctionRef = 'SendMAAToSupportWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iStartingWZ == 1 then bDebugMessages = true end
+
 
     local iResisueOrderDistanceHover = 20 --higher than normal
 
