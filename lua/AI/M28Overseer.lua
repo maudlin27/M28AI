@@ -462,7 +462,10 @@ function NoRushMonitor()
 end
 
 function TestCustom(aiBrain)
-    --M28Map.DrawSpecificWaterZone(1)
+    M28Map.DrawWaterZones()
+    --[[if GetGameTimeSeconds() <= 20 then M28Map.DrawSpecificWaterZone(5)
+    else M28Map.DrawSpecificWaterZone(7)
+    end--]]
     --AiX 10.0
     --ScenarioInfo.Options.CheatMult = tostring(10.0)
     --ScenarioInfo.Options.BuildMult = tostring(10.0)
@@ -937,7 +940,7 @@ function OverseerManager(aiBrain)
          end--]]
 
         --if GetGameTimeSeconds() >= 2700 then import('/mods/M28AI/lua/M28Config.lua').M28ShowUnitNames = true end
-        --if GetGameTimeSeconds() >= 5 and GetGameTimeSeconds() <= 30 then TestCustom(aiBrain) end
+        if GetGameTimeSeconds() >= 3300 and GetGameTimeSeconds() <= 3310 then TestCustom(aiBrain) end
         --Enable below to help figure out infinite loops
         --[[if GetGameTimeSeconds() >= 173 and not(bSetHook) then
             bSetHook = true

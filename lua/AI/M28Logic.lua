@@ -33,6 +33,7 @@ function GetDirectFireWeaponPosition(oFiringUnit)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetDirectFireWeaponPosition'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local oBPFiringUnit = oFiringUnit:GetBlueprint()
     local tShotStartPosition
     if EntityCategoryContains(categories.DIRECTFIRE + M28UnitInfo.refCategoryFatboy, oBPFiringUnit.BlueprintId) == true then
@@ -74,12 +75,15 @@ function GetDirectFireWeaponPosition(oFiringUnit)
         else
             tShotStartPosition = oFiringUnit:GetPosition()
         end
+    else
+        tShotStartPosition = oFiringUnit:GetPosition()
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': end of code, tShotStartPosition='..repru(tShotStartPosition)..'; Surface height at this position='..GetSurfaceHeight(tShotStartPosition[1], tShotStartPosition[3])) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return tShotStartPosition
 end
 
-function IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, iAOE, bReturnDistanceThatBlocked)
+function IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, iAOE, bReturnDistanceThatBlocked, bAntiNavy)
     --If iAOE is specified then will end once reach the iAOE range
     --(aiBrain included as argument as want to retry CheckBlockingTerrain in the future)
     --bReturnDistanceThatBlocked - if true then returns either distance at which shot is blocked, or the distance+1 between the start and end position
@@ -101,17 +105,18 @@ function IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, iAOE, bRet
     if iFlatDistance > 1 then
         local iAngleInRadians = math.atan(math.abs((tShotEndPosition[2] - tShotStartPosition[2])) / iFlatDistance)
         local iShotHeightAtPoint
-        if bDebugMessages == true then LOG(sFunctionRef..': About to check if at any point on path shot will be lower than terrain; iAngle='..M28Utilities.ConvertAngleToRadians(iAngleInRadians)..'; startshot height='..tShotStartPosition[2]..'; target height='..tShotEndPosition[2]..'; iFlatDistance='..iFlatDistance) end
+        if bDebugMessages == true then LOG(sFunctionRef..': About to check if at any point on path shot will be lower than terrain; iAngle='..M28Utilities.ConvertAngleToRadians(iAngleInRadians)..'; startshot height='..tShotStartPosition[2]..'; target height='..tShotEndPosition[2]..'; iFlatDistance='..iFlatDistance..'; bAntiNavy='..tostring(bAntiNavy or false)) end
         local iEndPoint = math.max(1, math.floor(iFlatDistance - (iAOE or 0)))
         for iPointToTarget = 1, iEndPoint do
             --math.min(math.floor(iFlatDistance), math.max(math.floor(iStartDistance or 1),1)), math.floor(iFlatDistance) do
             --MoveTowardsTarget(tStartPos, tTargetPos, iDistanceToTravel, iAngle)
-            tTerrainPositionAtPoint = M28Utilities.MoveInDirection(tShotStartPosition, M28Utilities.GetAngleFromAToB(tShotStartPosition, tShotEndPosition), iPointToTarget, false, false, false)
-            if bDebugMessages == true then LOG(sFunctionRef..': iPointToTarget='..iPointToTarget..'; tTerrainPositionAtPoint='..repru(tTerrainPositionAtPoint)) end
+                                                --MoveInDirection(tStart,               iAngle,                                                             iDistance,      bKeepInMapBounds, bTravelUnderwater, bKeepInCampaignPlayableArea)
+            tTerrainPositionAtPoint = M28Utilities.MoveInDirection(tShotStartPosition, M28Utilities.GetAngleFromAToB(tShotStartPosition, tShotEndPosition), iPointToTarget, false,              bAntiNavy,              false)
+            if bDebugMessages == true then LOG(sFunctionRef..': iPointToTarget='..iPointToTarget..'; tTerrainPositionAtPoint='..repru(tTerrainPositionAtPoint)..'; Surface height at point='..GetSurfaceHeight(tTerrainPositionAtPoint[1], tTerrainPositionAtPoint[3])..'; Terrain height at point='..GetTerrainHeight(tTerrainPositionAtPoint[1], tTerrainPositionAtPoint[3])) end
             if bStartHigherThanEnd then iShotHeightAtPoint = tShotStartPosition[2] - math.sin(iAngleInRadians) * iPointToTarget
             else iShotHeightAtPoint = tShotStartPosition[2] + math.sin(iAngleInRadians) * iPointToTarget
             end
-            if iShotHeightAtPoint <= tTerrainPositionAtPoint[2] then
+            if iShotHeightAtPoint <= tTerrainPositionAtPoint[2] and (iShotHeightAtPoint < tTerrainPositionAtPoint[2] or not(bAntiNavy)) then
                 if not(iPointToTarget == iEndPoint and iShotHeightAtPoint == tTerrainPositionAtPoint[2]) then
                     if bDebugMessages == true then
                         LOG(sFunctionRef..': Shot blocked at this position; iPointToTarget='..iPointToTarget..'; iShotHeightAtPoint='..iShotHeightAtPoint..'; tTerrainPositionAtPoint='..tTerrainPositionAtPoint[2])
@@ -142,7 +147,7 @@ function IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, iAOE, bRet
     end
 end
 
-function IsShotBlocked(oFiringUnit, oTargetUnit)
+function IsShotBlocked(oFiringUnit, oTargetUnit, bAntiNavyAttack)
     --Returns true or false depending on if oFiringUnit can hit oTargetUnit in a straight line
     --intended for direct fire units only
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -218,12 +223,13 @@ function IsShotBlocked(oFiringUnit, oTargetUnit)
                 if bDebugMessages == true then LOG(sFunctionRef..': HighestBone='..sHighestBone..'; lowest bone='..sLowestBone..'; tShotEndPosition='..repru(tShotEndPosition)) end
             end
             --Have the shot end and start positions; Now check that not firing at underwater target
-            if tShotEndPosition[2] < GetSurfaceHeight(tShotEndPosition[1], tShotEndPosition[3]) then
+            if tShotEndPosition[2] < GetSurfaceHeight(tShotEndPosition[1], tShotEndPosition[3]) and not(bAntiNavyAttack) then
                 bShotIsBlocked = true
             else
                 --Have the shot end and start positions; now want to move along a line between the two and work out if terrain will block the shot
                 if bDebugMessages == true then LOG(sFunctionRef..': About to see if line is blocked. tShotStartPosition='..repru(tShotStartPosition)..'; tShotEndPosition='..repru(tShotEndPosition)..'; Terrain height at start='..GetTerrainHeight(tShotStartPosition[1], tShotStartPosition[3])..'; Terrain height at end='..GetTerrainHeight(tShotEndPosition[1], tShotEndPosition[3])) end
-                bShotIsBlocked = IsLineBlocked(oFiringUnit:GetAIBrain(), tShotStartPosition, tShotEndPosition)
+                                --IsLineBlocked(aiBrain,                 tShotStartPosition, tShotEndPosition, iAOE, bReturnDistanceThatBlocked, bAntiNavy)
+                bShotIsBlocked = IsLineBlocked(oFiringUnit:GetAIBrain(), tShotStartPosition, tShotEndPosition,  nil, nil,                   bAntiNavyAttack)
             end
         end
     end

@@ -651,15 +651,16 @@ function OnWeaponFired(oWeapon)
                 --M28 owned unit specific logic
                 if oUnit:GetAIBrain().M28AI then
                     --Shot is blocked logic
+
                     if bDebugMessages == true then LOG(sFunctionRef..': COnsidering if unit shot is blocked Time='..GetGameTimeSeconds()..', range category='..(oWeapon.Blueprint.RangeCategory or 'nil')..'; Is unit a relevant DF category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId))) end
-                    if oWeapon.Blueprint.RangeCategory == 'UWRC_DirectFire' and EntityCategoryContains(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId) then
-                        --Get weapon target if it is a DF weapon
+                    if (oWeapon.Blueprint.RangeCategory == 'UWRC_DirectFire' and EntityCategoryContains(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId)) or (oWeapon.Blueprint.RangeCategory == 'UWRC_AntiNavy' and EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId)) then
+                        --Get weapon target if it is a DF weapon or sub torpedo
                         local oTarget = oWeapon:GetCurrentTarget()
                         if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has just fired a shot. Do we have a valid target for our weapon='..tostring(M28UnitInfo.IsUnitValid(oTarget))..'; time last shot was blocked='..(oUnit[M28UnitInfo.refiTimeOfLastCheck] or 'nil')) end
                         if M28UnitInfo.IsUnitValid(oTarget) then
 
                             oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds()
-                            oUnit[M28UnitInfo.refbLastShotBlocked] = M28Logic.IsShotBlocked(oUnit, oTarget)
+                            oUnit[M28UnitInfo.refbLastShotBlocked] = M28Logic.IsShotBlocked(oUnit, oTarget, EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId))
                             if bDebugMessages == true then LOG(sFunctionRef..': oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; Is shot blocked='..tostring(oUnit[M28UnitInfo.refbLastShotBlocked])..'; built in blocking terrain result for low profile='..tostring(oUnit:GetAIBrain():CheckBlockingTerrain(oUnit:GetPosition(), oTarget:GetPosition(), 'Low'))..'; High profile='..tostring(oUnit:GetAIBrain():CheckBlockingTerrain(oUnit:GetPosition(), oTarget:GetPosition(), 'High'))) end
 
                             if oUnit[M28UnitInfo.refbLastShotBlocked] then
@@ -1262,7 +1263,7 @@ end
 function OnCreate(oUnit, bIgnoreMapSetup)
     if M28Utilities.bM28AIInGame and M28UnitInfo.IsUnitValid(oUnit) then
         local sFunctionRef = 'OnCreate'
-        local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time'..GetGameTimeSeconds()..'; oUnit[M28OnCrRn]='..tostring(oUnit['M28OnCrRn'] or false)..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete or false)..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; M28Map.bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation)) end

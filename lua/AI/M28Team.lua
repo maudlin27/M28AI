@@ -687,6 +687,8 @@ function AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone, bIsEnemyAirUnit)
     local sFunctionRef = 'AddUnitToWaterZoneForBrain'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     if not(M28Map.bWaterZoneInitialCreation) or not(M28Map.bWaterZoneFirstTeamInitialisation) then
         if GetGameTimeSeconds() >= 10 then
             M28Utilities.ErrorHandler('Trying to add unit to water zone but we havent setup initial water zone variables yet, will try waiting 1 second, bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation or false)..'; M28Map.bWaterZoneFirstTeamInitialisation='..tostring(M28Map.bWaterZoneFirstTeamInitialisation or false))
@@ -735,6 +737,7 @@ function AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone, bIsEnemyAirUnit)
                 tTeamData[aiBrain.M28Team][refbEnemyHasSub] = true
             end
         elseif IsAlly(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
+            oUnit[M28Navy.refiCurrentWZAssignmentValue] = 0 --dont want to retain orders in case it was from an adjacent zone
             table.insert(tWZTeamData[M28Map.subrefWZTAlliedUnits], oUnit)
             if M28Config.M28ShowUnitNames then oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'New WZ'..iWaterZone) end
 
@@ -1206,6 +1209,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                             local iSegmentX, iSegmentZ = M28Map.GetPathingSegmentFromPosition(oUnit:GetPosition())
                             local iWaterZone = M28Map.tWaterZoneBySegment[iSegmentX][iSegmentZ]
                             if iWaterZone > 0 and EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnit.UnitId) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will add unit to water zone') end
                                 AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone)
                             else
                                 local iPlateau, iLandZone
@@ -1215,7 +1219,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                     iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
                                 end
                                 if bDebugMessages == true then
-                                    LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname..' has iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; Will draw unit position if it has no plateau or zone. Unit state='..M28UnitInfo.GetUnitState(oUnit))
+                                    LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by brain '..oUnit:GetAIBrain().Nickname..' has iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; Will draw unit position if it has no plateau or zone. Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; iWaterZone='..(iWaterZone or 'nil'))
                                     if not(iPlateau) then
                                         M28Utilities.DrawLocation(oUnit:GetPosition())
                                     end
@@ -1235,8 +1239,10 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                         AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone)
                                     else
                                         --Does the unit already have orders, and is a non-naval unit? If so then wait and try to reassign it in a bit, as e.g. may be a land unit that can path across water so has taken a shortcut
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Unit doesnt have al and or water zone, is this a non amphibious or hover naval unit='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryAllNavy - categories.AMPHIBIOUS - categories.HOVER, oUnit.UnitId))..'; Nav utils naval label for unit position='..(NavUtils.GetLabel(M28Map.refPathingTypeNavy, oUnit:GetPosition()) or 'nil')) end
                                         if EntityCategoryContains(M28UnitInfo.refCategoryAllNavy, oUnit.UnitId) and (EntityCategoryContains(M28UnitInfo.refCategoryAllNavy - categories.AMPHIBIOUS - categories.HOVER, oUnit.UnitId) or (NavUtils.GetLabel(M28Map.refPathingTypeNavy, oUnit:GetPosition()) or 0) > 0) then
                                             local iCurPond = NavUtils.GetLabel(M28Map.refPathingTypeNavy, oUnit:GetPosition())
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Unit pond at cur position='..(NavUtils.GetLabel(M28Map.refPathingTypeNavy, oUnit:GetPosition()) or 'nil')) end
                                             if (iCurPond or 0) > 0 then
                                                 --Are in valid pond, find nearest valid water zone and add this segment to that water zone
                                                 iWaterZone = nil --redundancy
@@ -1263,14 +1269,21 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                                     end
                                                     if iWaterZone then break end
                                                 end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Tried searching nearby segments for water zone, iWaterZone='..(iWaterZone or 'nil')) end
                                                 if (iWaterZone or 0) > 0 then
                                                     M28Map.AddSegmentToWaterZone(iCurPond, iWaterZone, iSegmentX, iSegmentZ)
                                                     AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone)
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Will add unit to water zone '..iWaterZone) end
                                                 else
-                                                    M28Utilities.ErrorHandler('Unable to find nearby water zone despite having a valid pond, unitID='..oUnit.UnitId)
+                                                    M28Map.ConsiderUnitAddingPositionToWaterZone(oUnit)
+                                                    M28Utilities.ErrorHandler('Unable to find nearby water zone despite having a valid pond, unitID='..oUnit.UnitId..'; will try reassigning in a bit')
+                                                    ForkThread(DelayedUnitPlateauAssignment, aiBrain, oUnit, 10, bAlreadyUpdatedPosition, true)
                                                 end
                                             else
-                                                M28Utilities.ErrorHandler('Non amphibious Naval unit but not in a recognised poind')
+                                                --Reassign in a bit
+                                                M28Map.ConsiderUnitAddingPositionToWaterZone(oUnit)
+                                                ForkThread(DelayedUnitPlateauAssignment, aiBrain, oUnit, 10, bAlreadyUpdatedPosition, true)
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Have a non amphibious naval unit that isnt in a recognised pond, so will try to reassign in a bit') end
                                             end
                                         else
                                             --Reassign in a bit if we own it
@@ -2319,7 +2332,7 @@ function ConsiderGettingUpgrades(iM28Team)
 end
 
 function TeamEconomyRefresh(iM28Team)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'TeamEconomyRefresh'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time='..GetGameTimeSeconds()..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete)..'; bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation)) end

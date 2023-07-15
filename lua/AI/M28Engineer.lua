@@ -977,7 +977,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
             sBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oEngineer, false, false, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure)
         end
         if not(sBlueprintToBuild) then
-            if not(aiBrain[M28Overseer.refbCloseToUnitCap]) then
+            if not(aiBrain[M28Overseer.refbCloseToUnitCap]) and not(M28Map.bIsCampaignMap) and not(M28Overseer.bUnitRestrictionsArePresent) then
                 M28Utilities.ErrorHandler('sBlueprintToBuild is nil, could happen e.g. if try and get sparky to build sxomething it cant or try to build support factory without the HQ or if unit restrictions are present - refer to log for more details')
                 if not(iCategoryToBuild) then LOG(sFunctionRef..': No category to build. oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; UC='..GetEngineerUniqueCount(oEngineer))
                 else
@@ -2603,8 +2603,11 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
 
                                 if oNearestReclaimableEnemy[M28UnitInfo.refbIsCaptureTarget] then
                                     TrackEngineerAction(oEngineer, refActionCaptureUnit, false, 1)
-                                    M28Orders.IssueTrackedCapture(oEngineer, oNearestReclaimableEnemy, false, 'CapE')
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Told engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to capture enemy unit') end
+                                    --Dont capture if already capturing (redundancy)
+                                    if not(oEngineer:IsUnitState('Capturing')) then
+                                        M28Orders.IssueTrackedCapture(oEngineer, oNearestReclaimableEnemy, false, 'CapE')
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Told engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to capture enemy unit') end
+                                    end
                                 else
                                     TrackEngineerAction(oEngineer, refActionReclaimEnemyUnit, false, 1)
                                     M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaimableEnemy, false, 'RecE')
@@ -4581,8 +4584,10 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                     local oUnitToCapture = vOptionalVariable
                     if bDebugMessages == true then LOG(sFunctionRef..': oUnitToCapture='..oUnitToCapture.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToCapture)..'; iTotalBuildPowerWanted='..iTotalBuildPowerWanted..'; iEngiCount='..iEngiCount) end
                     while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
-                        if bDebugMessages == true then LOG(sFunctionRef..': About to tell engineer '..tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount])..' to capture unit '..oUnitToCapture.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToCapture)..'; iEngiCount='..iEngiCount) end
-                        M28Orders.IssueTrackedCapture(tEngineersOfTechWanted[iEngiCount], oUnitToCapture, false, 'Cap', false)
+                        if bDebugMessages == true then LOG(sFunctionRef..': About to tell engineer '..tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount])..' to capture unit '..oUnitToCapture.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToCapture)..'; iEngiCount='..iEngiCount..' unless it is already capturing') end
+                        if not(tEngineersOfTechWanted[iEngiCount]:IsUnitState('Capturing')) then
+                            M28Orders.IssueTrackedCapture(tEngineersOfTechWanted[iEngiCount], oUnitToCapture, false, 'Cap', false)
+                        end
                         TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign, false, iCurPriority)
                         UpdateBPTracking()
                     end
@@ -8188,6 +8193,14 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Want to assist naval fac, iBPWanted='..iBPWanted) end
         HaveActionToAssign(refActionAssistNavalFactory, 1, iBPWanted, false, false)
+    end
+
+    --If already have 1 naval fac build another if high mass
+    iCurPriority = iCurPriority + 1
+    if iExistingWaterFactory > 0 and iExistingWaterFactory < 4 and  M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 and not(bHaveLowPower) and GetGameTimeSeconds() - (tWZTeamData[M28Map.subrefiTimeNavalFacHadNothingToBuild] or -100) >= 30 then
+        iBPWanted = 15 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech]
+        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.8 then iBPWanted = iBPWanted * 1.5 end
+        HaveActionToAssign(refActionBuildNavalFactory, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech], iBPWanted, nil)
     end
 
     --Preemptive AA builder if we are at T3 and have decent mass income, and have friendly units in the WZ or intel coverage, and no enemy units
