@@ -71,6 +71,7 @@ function UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc)
 end
 
 function IssueTrackedClearCommands(oUnit)
+    if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'xsl01056' then M28Utilities.ErrorHandler('Clear audit trail', true, true) end
     --Update tracking for repairing units:
     if oUnit[reftiLastOrders] then
         local tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]]
@@ -465,6 +466,7 @@ function IssueTrackedReclaim(oUnit, oOrderTarget, bAddToExistingQueue, sOptional
         end
     end
     if (not(tLastOrder[subrefiOrderType] == refiOrderIssueReclaim and oOrderTarget == tLastOrder[subrefoOrderUnitTarget]) or (not(oUnit:IsUnitState('Reclaiming')))) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
+        
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
@@ -809,6 +811,7 @@ function IssueTrackedCapture(oUnit, oOrderTarget, bAddToExistingQueue, sOptional
 
 
     if not(tLastOrder[subrefiOrderType] == refiOrderIssueCapture and oOrderTarget == tLastOrder[subrefoOrderUnitTarget]) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
+
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1

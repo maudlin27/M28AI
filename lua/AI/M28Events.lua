@@ -1514,10 +1514,12 @@ function OnPlayableAreaChange(rect, voFlag)
 end
 
 function CaptureTriggerAdded(FunctionForOldUnit, FunctionForNewUnit, oUnit)
+    --Intended for campaign maps where a capture objective gets captured by the enemy, e.g. black sun control centre
+
     local sFunctionRef = 'CaptureTriggerAdded'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if M28Utilities.bM28AIInGame then
+    if M28Utilities.bM28AIInGame and M28Map.bIsCampaignMap and not(EntityCategoryContains(categories.MOBILE, oUnit.UnitId)) then
 
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
         if M28UnitInfo.IsUnitValid(oUnit) then
