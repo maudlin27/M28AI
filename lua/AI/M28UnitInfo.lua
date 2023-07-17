@@ -55,6 +55,7 @@ refiDFAOE = 'M28AOEDF' --aoe of a df weapon of a unit
 refiIndirectAOE = 'M28AOEIn' --aoe of an indirect weapon of a unit; includes manual ranges
 refiIndirectRange = 'M28UIR' --for non-manual fire weapons
 refiAntiNavyRange = 'M28UANR'
+refiCombatRange = 'M28UCRN' --Higher of antinavy, indirectrange and dfrange for a unit
 refiManualRange = 'M28UManR' --for manual fire weapons (e.g. TML)
 refiMissileDefenceRange = 'M28UMDefR' --For SMD and TMD
 refiAARange = 'M28UAAR'
@@ -1250,6 +1251,8 @@ function RecordUnitRange(oUnit)
         end
         --LOG('Considering unitID '..(oUnit.UnitId or 'nil')..'; is unit valid='..tostring(IsUnitValid(oUnit)))
     end
+    --Record unit best range
+    oUnit[refiCombatRange] = math.max(oUnit[refiDFRange] or 0), (oUnit[refiIndirectRange] or 0), (oUnit[refiAntiNavyRange] or 0)
     oUnit[refiStrikeDamage] = GetUnitStrikeDamage(oUnit)
 end
 

@@ -31,6 +31,7 @@ refiFactoryTypeOther = 4
 --Build count by BP
 refiBuildCountByBlueprint = 'M28FacBC' --against oFactory, returns table with key as the unitID, which returns the number of times the factory has been sent an order to build the unit
 refiTotalBuildCount = 'M28FacTotBC' --Total number of units the factory has built
+reftFactoryRallyPoint = 'M28FacRally' --Location to send units to when theyre built
 
 function GetMostExpensiveBlueprintOfCategory(iCategoryCondition)
     --Much more simplified version of 'GetBlueprintThatCanBuildOfCategory', for cases where we dont yet have the engineer so want a potential blueprint to work with
@@ -1878,6 +1879,50 @@ function IsFactoryReadyToBuild(oFactory)
     return false
 end
 
+function SetFactoryRallyPoint(oFactory)
+    --Search to the left of the factory as the first choice; if not in buildable area search to the right; then up; then down
+    local sFunctionRef = 'SetFactoryRallyPoint'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local tiAngles = {270, 0, 90, 180}
+    local oFactoryBP = oFactory:GetBlueprint()
+    local tiFactorySize = {oFactoryBP.Physics.SkirtSizeX, oFactoryBP.Physics.SkirtSizeZ, oFactoryBP.Physics.SkirtSizeX, oFactoryBP.Physics.SkirtSizeZ}
+    local tPotentialRally
+    local tPreferredRally
+    local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
+    local iBestRallyValue = -100
+    local iCurRallyValue
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start for factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' at time '..GetGameTimeSeconds()..'; tiFactoryRadius='..repru(tiFactorySize)..'; Factory position='..repru(oFactory:GetPosition())) end
+    for iEntry, iCurAngle in tiAngles do
+        for iDistAdjust = 4,2, -2 do
+            tPotentialRally = M28Utilities.MoveInDirection(oFactory:GetPosition(), iCurAngle, tiFactorySize[iEntry] * 0.6 + iDistAdjust, true, false, false)
+            if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tPotentialRally) then
+                iCurRallyValue = 4 - iEntry --Prefer them in the angle indicated
+                local tNearbyUnits = GetUnitsInRect(tPotentialRally[1] - 1, tPotentialRally[3] - 1, tPotentialRally[1] + 1, tPotentialRally[3] + 1)
+                if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
+                    iCurRallyValue = iCurRallyValue - 0.25
+                    local tNearbyStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tNearbyUnits)
+                    if M28Utilities.IsTableEmpty(tNearbyStructures) == false then
+                        iCurRallyValue = iCurRallyValue - 4
+                    end
+                end
+                if iDistAdjust > 3 and iDistAdjust <= 7 then iCurRallyValue = iCurRallyValue + 2 end
+                if bDebugMessages == true then LOG(sFunctionRef..': tPotentialRally='..repru(tPotentialRally)..'; iDistAdjust='..iDistAdjust..'; iCurAngle='..iCurAngle..'; iCurRallyValue='..iCurRallyValue..'; iBestRallyValue='..iBestRallyValue) end
+                if iCurRallyValue > iBestRallyValue then
+                    iBestRallyValue = iCurRallyValue
+                    tPreferredRally = tPotentialRally
+                end
+            end
+        end
+    end
+    if not(tPreferredRally) then tPreferredRally = oFactory:GetPosition() end
+    oFactory[reftFactoryRallyPoint] = {tPreferredRally[1], tPreferredRally[2], tPreferredRally[3]}
+    if not(oFactory:IsUnitState('Building')) then IssueClearFactoryCommands({oFactory}) end
+    IssueFactoryRallyPoint({oFactory}, oFactory[reftFactoryRallyPoint])
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDestroyingForMass)
     --If factory is idle then gets it to build something; if its not idle then keeps checking for up to 20 seconds, but will abort if the factory appears to be building something
     local sFunctionRef = 'DecideAndBuildUnitForFactory'
@@ -1924,6 +1969,10 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
             end
         end
         if bProceed then
+            --Set factory rally point if havent already
+            if M28Utilities.IsTableEmpty(oFactory[reftFactoryRallyPoint]) then
+                SetFactoryRallyPoint(oFactory)
+            end
             local sBPToBuild = DetermineWhatToBuild(aiBrain, oFactory)
             if bDebugMessages == true then
                 LOG(sFunctionRef .. ': oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; sBPToBuild=' .. (sBPToBuild or 'nil') .. '; Does factory have an empty command queue=' .. tostring(M28Utilities.IsTableEmpty(oFactory:GetCommandQueue())) .. '; Factory work progress=' .. oFactory:GetWorkProgress() .. '; Factory unit state=' .. M28UnitInfo.GetUnitState(oFactory))
@@ -2647,7 +2696,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
 
                 --Campaign specific - bombers if we lack gunship and bomber threat
                 iCurrentConditionToTry = iCurrentConditionToTry + 1
-                if iCurGunships == 0 and iFactoryTechLevel < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyAirFactoryTech] < 3 and (M28Map.bIsCampaignMap or M28Overseer.bUnitRestrictionsArePresent) and M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] == 0 and M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.subrefiOurBomberThreat] < iMaxCount00 then
+                if iCurGunships == 0 and iFactoryTechLevel < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiLowestFriendlyAirFactoryTech] < 3 and (M28Map.bIsCampaignMap or M28Overseer.bUnitRestrictionsArePresent) and M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] == 0 and M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.subrefiOurBomberThreat] < 1500 then
                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryGunship) then return sBPIDToBuild end --redundancy but unlikely we can build them
                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryBomber) then return sBPIDToBuild end
                 end
@@ -2986,12 +3035,12 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         end
     end
 
-    --Medium priority engineer if no immediate threats in this zone, are in a water start position, and want more engineers due to having mass but not needing power
+    --Medium priority engineer if no immediate threats in this zone, are in a water start position or high mass, and want more engineers due to having mass but not needing power
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Engi fi underwtaer start: tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]=' .. tostring(tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) .. '; tWZTeamData[M28Map.subrefTbWantBP]=' .. tostring(tWZTeamData[M28Map.subrefTbWantBP]) .. '; bHaveLowMass=' .. tostring(bHaveLowMass) .. '; aiBrain[M28Economy.refiGrossMassBaseIncome]=' .. aiBrain[M28Economy.refiGrossMassBaseIncome])
     end
-    if tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] then
+    if tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] or (not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.2)  then
         if tWZTeamData[M28Map.subrefTbWantBP] and (not (bHaveLowMass) or (aiBrain[M28Economy.refiGrossMassBaseIncome] >= iFactoryTechLevel * 6)) then
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then
                 return sBPIDToBuild

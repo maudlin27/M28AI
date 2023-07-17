@@ -157,79 +157,82 @@ function IsShotBlocked(oFiringUnit, oTargetUnit, bAntiNavyAttack)
 
     local bShotIsBlocked = false
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code') end
-    local tShotStartPosition = GetDirectFireWeaponPosition(oFiringUnit)
-    if tShotStartPosition then
-        if bDebugMessages == true then LOG(sFunctionRef..': tShotStartPosition='..repru(tShotStartPosition)) end
-        if tShotStartPosition[2] <= 0 then bShotIsBlocked = true
-        else
-            local tShotEndPosition = {}
-            local oBPTargetUnit = oTargetUnit:GetBlueprint()
-            local iLowestHeight = 1000
-            local iHighestHeight = -1000
-            local sLowestBone, sHighestBone
-            local tTargetUnitDefaultPosition = oTargetUnit:GetPosition()
-            --Work out where the shot is targetting - not all units will have a bone specified in the AI section, in which case just get the unit position
-            if oBPTargetUnit.AI and oBPTargetUnit.AI.TargetBones then
-                if bDebugMessages == true then LOG(sFunctionRef..': Have targetbones in the targetunit blueprint; repr='..repru(oBPTargetUnit.AI.TargetBones)) end
-                --Is the target higher or lower than the shooter? If higher, want the lowest target bone; if lower, want the highest target bone
-                for iBone, sBone in oBPTargetUnit.AI.TargetBones do
-                    if oTargetUnit:IsValidBone(sBone) == true then
-                        tShotEndPosition = oTargetUnit:GetPosition(sBone)
-                        if bDebugMessages == true then LOG(sFunctionRef..' Getting position for sBone='..sBone..'; position='..repru(tShotEndPosition)) end
-                        if tShotEndPosition[2] < iLowestHeight then
-                            iLowestHeight = tShotEndPosition[2]
-                            sLowestBone = sBone
-                        end
-                        if tShotEndPosition[2] > iHighestHeight then
-                            iHighestHeight = tShotEndPosition[2]
-                            sHighestBone = sBone
+    if oTargetUnit.CanBeKilled == false and oFiringUnit:GetAIBrain().M28AI then bShotIsBlocked = true
+    else
+        local tShotStartPosition = GetDirectFireWeaponPosition(oFiringUnit)
+        if tShotStartPosition then
+            if bDebugMessages == true then LOG(sFunctionRef..': tShotStartPosition='..repru(tShotStartPosition)) end
+            if tShotStartPosition[2] <= 0 then bShotIsBlocked = true
+            else
+                local tShotEndPosition = {}
+                local oBPTargetUnit = oTargetUnit:GetBlueprint()
+                local iLowestHeight = 1000
+                local iHighestHeight = -1000
+                local sLowestBone, sHighestBone
+                local tTargetUnitDefaultPosition = oTargetUnit:GetPosition()
+                --Work out where the shot is targetting - not all units will have a bone specified in the AI section, in which case just get the unit position
+                if oBPTargetUnit.AI and oBPTargetUnit.AI.TargetBones then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have targetbones in the targetunit blueprint; repr='..repru(oBPTargetUnit.AI.TargetBones)) end
+                    --Is the target higher or lower than the shooter? If higher, want the lowest target bone; if lower, want the highest target bone
+                    for iBone, sBone in oBPTargetUnit.AI.TargetBones do
+                        if oTargetUnit:IsValidBone(sBone) == true then
+                            tShotEndPosition = oTargetUnit:GetPosition(sBone)
+                            if bDebugMessages == true then LOG(sFunctionRef..' Getting position for sBone='..sBone..'; position='..repru(tShotEndPosition)) end
+                            if tShotEndPosition[2] < iLowestHeight then
+                                iLowestHeight = tShotEndPosition[2]
+                                sLowestBone = sBone
+                            end
+                            if tShotEndPosition[2] > iHighestHeight then
+                                iHighestHeight = tShotEndPosition[2]
+                                sHighestBone = sBone
+                            end
                         end
                     end
-                end
-                --Try alternative approach:
-                if sHighestBone == nil and oTargetUnit.GetBoneCount then
-                    local iBoneCount = oTargetUnit:GetBoneCount()
-                    local sBone
-                    if iBoneCount > 0 then
-                        for iCurBone = 0, iBoneCount - 1 do
-                            sBone = oTargetUnit:GetBoneName(iCurBone)
-                            if sBone then
-                                if oTargetUnit:IsValidBone(sBone) == true then
-                                    tShotEndPosition = oTargetUnit:GetPosition(sBone)
-                                    if bDebugMessages == true then LOG(sFunctionRef..' Getting position for sBone='..sBone..'; position='..repru(tShotEndPosition)) end
-                                    if tShotEndPosition[2] < iLowestHeight then
-                                        iLowestHeight = tShotEndPosition[2]
-                                        sLowestBone = sBone
-                                    end
-                                    if tShotEndPosition[2] > iHighestHeight then
-                                        iHighestHeight = tShotEndPosition[2]
-                                        sHighestBone = sBone
+                    --Try alternative approach:
+                    if sHighestBone == nil and oTargetUnit.GetBoneCount then
+                        local iBoneCount = oTargetUnit:GetBoneCount()
+                        local sBone
+                        if iBoneCount > 0 then
+                            for iCurBone = 0, iBoneCount - 1 do
+                                sBone = oTargetUnit:GetBoneName(iCurBone)
+                                if sBone then
+                                    if oTargetUnit:IsValidBone(sBone) == true then
+                                        tShotEndPosition = oTargetUnit:GetPosition(sBone)
+                                        if bDebugMessages == true then LOG(sFunctionRef..' Getting position for sBone='..sBone..'; position='..repru(tShotEndPosition)) end
+                                        if tShotEndPosition[2] < iLowestHeight then
+                                            iLowestHeight = tShotEndPosition[2]
+                                            sLowestBone = sBone
+                                        end
+                                        if tShotEndPosition[2] > iHighestHeight then
+                                            iHighestHeight = tShotEndPosition[2]
+                                            sHighestBone = sBone
+                                        end
                                     end
                                 end
                             end
                         end
                     end
                 end
-            end
-            if sHighestBone == nil then
-                tShotEndPosition = tTargetUnitDefaultPosition
-                if bDebugMessages == true then LOG(sFunctionRef..': Couldnt find a bone to target for target unit, so using its position instaed='..repru(tShotEndPosition)) end
-            else
-                if tTargetUnitDefaultPosition[2] > tShotStartPosition[2] then
-                    tShotEndPosition = oTargetUnit:GetPosition(sLowestBone)
+                if sHighestBone == nil then
+                    tShotEndPosition = tTargetUnitDefaultPosition
+                    if bDebugMessages == true then LOG(sFunctionRef..': Couldnt find a bone to target for target unit, so using its position instaed='..repru(tShotEndPosition)) end
                 else
-                    tShotEndPosition = oTargetUnit:GetPosition(sHighestBone)
+                    if tTargetUnitDefaultPosition[2] > tShotStartPosition[2] then
+                        tShotEndPosition = oTargetUnit:GetPosition(sLowestBone)
+                    else
+                        tShotEndPosition = oTargetUnit:GetPosition(sHighestBone)
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': HighestBone='..sHighestBone..'; lowest bone='..sLowestBone..'; tShotEndPosition='..repru(tShotEndPosition)) end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': HighestBone='..sHighestBone..'; lowest bone='..sLowestBone..'; tShotEndPosition='..repru(tShotEndPosition)) end
-            end
-            --Have the shot end and start positions; Now check that not firing at underwater target
-            if tShotEndPosition[2] < GetSurfaceHeight(tShotEndPosition[1], tShotEndPosition[3]) and not(bAntiNavyAttack) then
-                bShotIsBlocked = true
-            else
-                --Have the shot end and start positions; now want to move along a line between the two and work out if terrain will block the shot
-                if bDebugMessages == true then LOG(sFunctionRef..': About to see if line is blocked. tShotStartPosition='..repru(tShotStartPosition)..'; tShotEndPosition='..repru(tShotEndPosition)..'; Terrain height at start='..GetTerrainHeight(tShotStartPosition[1], tShotStartPosition[3])..'; Terrain height at end='..GetTerrainHeight(tShotEndPosition[1], tShotEndPosition[3])) end
-                                --IsLineBlocked(aiBrain,                 tShotStartPosition, tShotEndPosition, iAOE, bReturnDistanceThatBlocked, bAntiNavy)
-                bShotIsBlocked = IsLineBlocked(oFiringUnit:GetAIBrain(), tShotStartPosition, tShotEndPosition,  nil, nil,                   bAntiNavyAttack)
+                --Have the shot end and start positions; Now check that not firing at underwater target
+                if tShotEndPosition[2] < GetSurfaceHeight(tShotEndPosition[1], tShotEndPosition[3]) and not(bAntiNavyAttack) then
+                    bShotIsBlocked = true
+                else
+                    --Have the shot end and start positions; now want to move along a line between the two and work out if terrain will block the shot
+                    if bDebugMessages == true then LOG(sFunctionRef..': About to see if line is blocked. tShotStartPosition='..repru(tShotStartPosition)..'; tShotEndPosition='..repru(tShotEndPosition)..'; Terrain height at start='..GetTerrainHeight(tShotStartPosition[1], tShotStartPosition[3])..'; Terrain height at end='..GetTerrainHeight(tShotEndPosition[1], tShotEndPosition[3])) end
+                    --IsLineBlocked(aiBrain,                 tShotStartPosition, tShotEndPosition, iAOE, bReturnDistanceThatBlocked, bAntiNavy)
+                    bShotIsBlocked = IsLineBlocked(oFiringUnit:GetAIBrain(), tShotStartPosition, tShotEndPosition,  nil, nil,                   bAntiNavyAttack)
+                end
             end
         end
     end

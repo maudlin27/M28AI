@@ -384,6 +384,7 @@ tPondDetails = {}
             subrefWZBestEnemyAntiNavyRange = 'EnANavRng'
 
             reftoNearestCombatEnemies = 'WNrSufE'
+            subreftEnemyLongRangeUnits = 'WEnLRU' --Table of enemy 'longer range' units (e.g. T2PD+ in range), based on iLongRangeThreshold
 
             subrefWZTThreatAllyCombatTotal = 'AlCom'
             subrefWZThreatAlliedAntiNavy = 'AlANav'

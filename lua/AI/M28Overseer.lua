@@ -36,7 +36,7 @@ iNoRushRange = 0
 iNoRushTimer = 0 --Gametimeseconds that norush should end
 reftNoRushCentre = 'M28OverseerNRCtre' --against aiBrain
 reftNoRushM28StartPoints = { } --start positions for all norush buildable locations
-bActiveMissionChecker = false --true if are actively checking for mission objectives
+bActiveMissionChecker = false --true if are actively checking for mission objectives - now used for niche objectives to monitor
 bPacifistModeActive = false --true if we have set certain zones to never be attacked (e.g. Cybran mission 4)
 bHaveDisabledGunshipWeaponsForPacifism = false --true if we have disabled gunship weapons due to pacifism
 tiPacifistZonesByPlateau = {} --[iPlateau], returns iLandOrWaterZone, for any zone flagged as pacificst
@@ -462,6 +462,7 @@ function NoRushMonitor()
 end
 
 function TestCustom(aiBrain)
+    M28Map.DrawSpecificWaterZone(2)
     --M28Map.DrawWaterZones()
     --[[if GetGameTimeSeconds() <= 20 then M28Map.DrawSpecificWaterZone(5)
     else M28Map.DrawSpecificWaterZone(7)
@@ -940,7 +941,7 @@ function OverseerManager(aiBrain)
          end--]]
 
         --if GetGameTimeSeconds() >= 2700 then import('/mods/M28AI/lua/M28Config.lua').M28ShowUnitNames = true end
-        --if GetGameTimeSeconds() >= 3300 and GetGameTimeSeconds() <= 3310 then TestCustom(aiBrain) end
+        --if GetGameTimeSeconds() >= 120 and GetGameTimeSeconds() <= 125 then TestCustom(aiBrain) end
         --Enable below to help figure out infinite loops
         --[[if GetGameTimeSeconds() >= 173 and not(bSetHook) then
             bSetHook = true
@@ -1211,7 +1212,54 @@ function DelayedCybranFireBlackSun(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function M1AeonEndMissionBackupMonitor()
+    --Every 20s checks if have killed enemy ACU then waits another 20s before ending game (as default is far too long)
+    --Call via fork thread
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'M1AeonEndMissionBackupMonitor'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    if bDebugMessages == true then LOG(sFunctionRef..': start of code, for time '..GetGameTimeSeconds()..'; bActiveMissionChecker='..tostring(bActiveMissionChecker)..'; Is M7 UEF commander valid='..tostring(M28UnitInfo.IsUnitValid(ScenarioInfo.M7_FauxUEFCommanderUnit))) end
+    if not(bActiveMissionChecker) and M28UnitInfo.IsUnitValid(ScenarioInfo.M7_FauxUEFCommanderUnit) then
+        bActiveMissionChecker = true
+        while M28UnitInfo.IsUnitValid(ScenarioInfo.M7_FauxUEFCommanderUnit) do
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitSeconds(20)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Is UEF ACU still valid='..tostring( M28UnitInfo.IsUnitValid(ScenarioInfo.M7_FauxUEFCommanderUnit))) end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': UEF ACU is now dead, will wait 20s then start ending the game') end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(20)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        if bDebugMessages == true then LOG(sFunctionRef..': Is operation not ending yet via normal logic='..tostring(not(ScenarioInfo.OperationEnding))..'; Time='..GetGameTimeSeconds()) end
+        if ScenarioInfo.OperationEnding then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will wait another 15s to see if scenario ends') end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitSeconds(15)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        end --Wait another 15s to give the main mission a chance to end properly
+        ScenarioInfo.M7P4:ManualResult(true)
+        if bDebugMessages == true then LOG(sFunctionRef..': Will end operation safely, and then wait 10s and end operation') end
+        local ScenarioFramework = import('/lua/ScenarioFramework.lua')
+        local OpStrings   = import('/maps/scca_coop_a01.v0016/SCCA_Coop_A01_Strings.lua')
+        local Objectives = import('/lua/ScenarioFramework.lua').Objectives
+        ScenarioFramework.EndOperationSafety()
+        ScenarioFramework.Dialogue(OpStrings.A01_M07_116, false, true) -- Rhiza: "Glorious!"
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(5)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        ScenarioInfo.OpComplete = true
+        local secondary = Objectives.IsComplete(ScenarioInfo.M7S1) and Objectives.IsComplete(ScenarioInfo.M7S2)
+        local bonus = Objectives.IsComplete(ScenarioInfo.M1B1) and Objectives.IsComplete(ScenarioInfo.M1B2) and Objectives.IsComplete(ScenarioInfo.M1B3) and Objectives.IsComplete(ScenarioInfo.M6B1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(5.0)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        if bDebugMessages == true then LOG(sFunctionRef..': Will now end operation at time '..GetGameTimeSeconds()) end
+        ScenarioFramework.EndOperation(ScenarioInfo.OpComplete, ScenarioInfo.OpComplete, secondary, bonus)
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
 
 function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag, iOptionalWaitInSeconds)
     --NOTE: All of input variables are optional as sometimes we just call this due to a playable area size change
@@ -1430,7 +1478,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                     tLZOrWZData[M28Map.subrefbPacifistArea] = false
                 end
             end
-        --Cybran mission 6 - activate black sun (below is as a redundancy but doesnt actually trigger - are reliant on the oncapture event instead)
+            --Cybran mission 6 - activate black sun (below is as a redundancy but doesnt actually trigger - are reliant on the oncapture event instead)
         elseif ScenarioInfo.M3P2.Active and M28UnitInfo.IsUnitValid(ScenarioInfo.BlackSunWeapon) and ScenarioInfo.BlackSunWeapon:GetAIBrain().M28AI and ScenarioInfo.BlackSunWeapon:GetAIBrain():GetFactionIndex() == M28UnitInfo.refFactionCybran then
             if bDebugMessages == true then LOG(sFunctionRef..': Want to fire black sun to complete cybran campaign - will fire in a bit') end
             ForkThread(DelayedCybranFireBlackSun, ScenarioInfo.BlackSunWeapon:GetAIBrain())
@@ -1463,6 +1511,8 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
             if bDebugMessages == true then LOG(sFunctionRef..': Will wait a while and then look to include enemy Czar as a priority enemy air experimental target unless it is alrady recorded') end
             ForkThread(DelayedRecordingOfCzar, ScenarioInfo.Czar)
             --Cybran M6 - fire black sun if it is owned by M28 and we are on the objective to fire it
+        elseif ScenarioInfo.M7_FauxUEFCommanderUnit then
+            ForkThread(M1AeonEndMissionBackupMonitor)
         end
     end
 end
