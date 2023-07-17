@@ -15,6 +15,7 @@ local M28Orders = import('/mods/M28AI/lua/AI/M28Orders.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
+local NavUtils = import("/lua/sim/navutils.lua")
 
 --Variables against aiBrain:
 --ECONOMY VARIABLES - below 4 are to track values based on base production, ignoring reclaim. Provide per tick values so 10% of per second)
@@ -1107,6 +1108,15 @@ function ManageMassStalls(iTeam)
                                     --Factories, ACU and engineers - dont pause if >=85% done, or if is land factory that hasn't built many units (so e.g. if have just placed a land factory on a core expansion we dont immediately pause it)
                                     if bPauseNotUnpause and oUnit.GetWorkProgress and EntityCategoryContains(M28UnitInfo.refCategoryEngineer + categories.COMMAND + M28UnitInfo.refCategoryFactory, oUnit.UnitId) and ((oUnit:GetWorkProgress() or 0) >= 0.85 or (EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) and (oUnit[M28Factory.refiTotalBuildCount] or 0) <= 5)) then
                                         bApplyActionToUnit = false
+                                        --Air HQ - dont pause first ever unit or transport
+                                    elseif bPauseNotUnpause and EntityCategoryContains(M28UnitInfo.refCategoryAirHQ, oUnit.UnitId) and (oUnit[M28Factory.refiTotalBuildCount] == 0 or EntityCategoryContains(M28UnitInfo.refCategoryTransport, (oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] or 'ueb1105'))) then
+                                        bApplyActionToUnit = false
+                                    elseif bPauseNotUnpause and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) and oUnit[M28Factory.refiTotalBuildCount] <= 10 then
+                                        --Is this on a dif island to closest enemy base?
+                                        local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+                                        if tUnitLZTeamData and not(NavUtils.GetLabel(M28Map.refPathingTypeLand, oUnit:GetPosition()) == NavUtils.GetLabel(M28Map.refPathingTypeLand, tUnitLZTeamData[M28Map.reftClosestEnemyBase])) then
+                                            bApplyActionToUnit = true
+                                        end
                                         --SMD LOGIC - Check if already have 1 missile loaded before pausing
                                     elseif iCategoryRef == M28UnitInfo.refCategorySMD and oUnit.GetTacticalSiloAmmoCount and oUnit:GetTacticalSiloAmmoCount() >= 1 then
                                         if bDebugMessages == true then
@@ -1187,88 +1197,88 @@ function ManageMassStalls(iTeam)
 
 
                                     if iCategoryRef == categories.COMMAND then
-                                        --want in addition to above as ACU might have personal shield
-                                        if bPauseNotUnpause then
-                                            if oUnit:IsUnitState('Upgrading') then
-                                                bApplyActionToUnit = false
-                                            elseif oUnit.GetWorkProgress then
-                                                --if oUnit:GetWorkProgress() >= 0.85 then
-                                                bApplyActionToUnit = false
-                                                --dont pause t1 mex construction
-                                                if oUnit.GetFocusUnit and oUnit:GetFocusUnit() and oUnit:GetFocusUnit().UnitId and EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oUnit:GetFocusUnit().UnitId) then
-                                                    bApplyActionToUnit = false
-                                                end
-                                            end
-                                        end
+                                    --want in addition to above as ACU might have personal shield
+                                    if bPauseNotUnpause then
+                                    if oUnit:IsUnitState('Upgrading') then
+                                    bApplyActionToUnit = false
+                                    elseif oUnit.GetWorkProgress then
+                                    --if oUnit:GetWorkProgress() >= 0.85 then
+                                    bApplyActionToUnit = false
+                                    --dont pause t1 mex construction
+                                    if oUnit.GetFocusUnit and oUnit:GetFocusUnit() and oUnit:GetFocusUnit().UnitId and EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oUnit:GetFocusUnit().UnitId) then
+                                    bApplyActionToUnit = false
+                                    end
+                                    end
+                                    end
                                     end
 
 
                                     --Pause the unit
 
                                     if bApplyActionToUnit then
-                                        bWasUnitAlreadyPaused = oUnit[M28UnitInfo.refbPaused] --Means we will ignore the mass usage when calculating how much we have saved
-                                        oBP = oUnit:GetBlueprint()
-                                        iCurUnitMassUsage = oBP.Economy.MaintenanceConsumptionPerSecondMass
+                                    bWasUnitAlreadyPaused = oUnit[M28UnitInfo.refbPaused] --Means we will ignore the mass usage when calculating how much we have saved
+                                    oBP = oUnit:GetBlueprint()
+                                    iCurUnitMassUsage = oBP.Economy.MaintenanceConsumptionPerSecondMass
 
-                                        if (iCurUnitMassUsage or 0) == 0 or EntityCategoryContains(M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryMex + categories.COMMAND, oUnit.UnitId) then
-                                            --Approximate mass usage based on build rate as a very rough guide
-                                            --examples: Upgrading mex to T3 costs 11E per BP; T3 power is 8.4; T1 power is 6; Guncom is 30; Laser is 178; Strat bomber is 15
-                                            local iMassPerBP = 0.25 --e.g. building t1 land factory uses 4; building a titan uses 1.1; divide by 10 as dealing with values per tick
-                                            if EntityCategoryContains(categories.SILO, oUnit.UnitId) and oBP.Economy.BuildRate then
-                                                --Dealing with a silo so need to calculate mass usage differently
-                                                iCurUnitMassUsage = 0
-                                                for iWeapon, tWeapon in oBP.Weapon do
-                                                    if tWeapon.MaxProjectileStorage and tWeapon.ProjectileId then
-                                                        local oProjectileBP = __blueprints[tWeapon.ProjectileId]
-                                                        if oProjectileBP.Economy and oProjectileBP.Economy.BuildCostMass and oProjectileBP.Economy.BuildTime > 0 and oBP.Economy.BuildRate > 0 then
-                                                            iCurUnitMassUsage = oProjectileBP.Economy.BuildCostMass * oBP.Economy.BuildRate * iBuildRateMod / oProjectileBP.Economy.BuildTime
-                                                            --If are power stalling then assume we only save 80% of this, as might have adjacency
-                                                            if bPauseNotUnpause then iCurUnitMassUsage = iCurUnitMassUsage * 0.8 end
-                                                            break
-                                                        end
-                                                    end
-                                                end
-                                            else
-                                                if iCategoryRef == categories.COMMAND and oUnit[M28Orders.refiOrderCount] > 0 and oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]][M28Orders.subrefiOrderType] == M28Orders.refiOrderEnhancement then
-                                                    --Determine mass cost per BP
-                                                    local sUpgradeRef = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint]
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': aiBrain='..oUnit:GetAIBrain():GetArmyIndex()..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; sUpgradeRef='..(sUpgradeRef or 'nil')..'; Upgrade mass cost='..(M28UnitInfo.GetUpgradeMassCost(oUnit, sUpgradeRef) or 'nil')..'; Upgrade build time='..(M28UnitInfo.GetUpgradeBuildTime(oUnit, sUpgradeRef) or 'nil')) end
-                                                    iMassPerBP = M28UnitInfo.GetUpgradeMassCost(oUnit, sUpgradeRef) / (M28UnitInfo.GetUpgradeBuildTime(oUnit, sUpgradeRef) or 1)
-                                                end
+                                    if (iCurUnitMassUsage or 0) == 0 or EntityCategoryContains(M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryMex + categories.COMMAND, oUnit.UnitId) then
+                                    --Approximate mass usage based on build rate as a very rough guide
+                                    --examples: Upgrading mex to T3 costs 11E per BP; T3 power is 8.4; T1 power is 6; Guncom is 30; Laser is 178; Strat bomber is 15
+                                    local iMassPerBP = 0.25 --e.g. building t1 land factory uses 4; building a titan uses 1.1; divide by 10 as dealing with values per tick
+                                    if EntityCategoryContains(categories.SILO, oUnit.UnitId) and oBP.Economy.BuildRate then
+                                    --Dealing with a silo so need to calculate mass usage differently
+                                    iCurUnitMassUsage = 0
+                                    for iWeapon, tWeapon in oBP.Weapon do
+                                    if tWeapon.MaxProjectileStorage and tWeapon.ProjectileId then
+                                    local oProjectileBP = __blueprints[tWeapon.ProjectileId]
+                                    if oProjectileBP.Economy and oProjectileBP.Economy.BuildCostMass and oProjectileBP.Economy.BuildTime > 0 and oBP.Economy.BuildRate > 0 then
+                                    iCurUnitMassUsage = oProjectileBP.Economy.BuildCostMass * oBP.Economy.BuildRate * iBuildRateMod / oProjectileBP.Economy.BuildTime
+                                    --If are power stalling then assume we only save 80% of this, as might have adjacency
+                                    if bPauseNotUnpause then iCurUnitMassUsage = iCurUnitMassUsage * 0.8 end
+                                    break
+                                    end
+                                    end
+                                    end
+                                    else
+                                    if iCategoryRef == categories.COMMAND and oUnit[M28Orders.refiOrderCount] > 0 and oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]][M28Orders.subrefiOrderType] == M28Orders.refiOrderEnhancement then
+                                    --Determine mass cost per BP
+                                    local sUpgradeRef = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint]
+                                    if bDebugMessages == true then LOG(sFunctionRef..': aiBrain='..oUnit:GetAIBrain():GetArmyIndex()..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; sUpgradeRef='..(sUpgradeRef or 'nil')..'; Upgrade mass cost='..(M28UnitInfo.GetUpgradeMassCost(oUnit, sUpgradeRef) or 'nil')..'; Upgrade build time='..(M28UnitInfo.GetUpgradeBuildTime(oUnit, sUpgradeRef) or 'nil')) end
+                                    iMassPerBP = M28UnitInfo.GetUpgradeMassCost(oUnit, sUpgradeRef) / (M28UnitInfo.GetUpgradeBuildTime(oUnit, sUpgradeRef) or 1)
+                                    end
 
-                                                if oBP.Economy.BuildRate then
-                                                    --Reduce this massively if unit isn't actually building anything
-                                                    if bPauseNotUnpause then
-                                                        if (not(oUnit:IsUnitState('Building')) and not(oUnit:IsUnitState('Repairing')) and not(oUnit.GetWorkProgress and oUnit:GetWorkProgress() > 0) and not(oUnit:IsUnitState('Upgrading'))) then
-                                                            iCurUnitMassUsage = oBP.Economy.BuildRate * iBuildRateMod * 0.01
-                                                        else
-                                                            if M28UnitInfo.IsUnitValid(oUnit:GetFocusUnit()) then
-                                                                oFocusUnitBP = oUnit:GetFocusUnit():GetBlueprint()
-                                                                iCurUnitMassUsage = oBP.Economy.BuildRate * iBuildRateMod / oFocusUnitBP.Economy.BuildTime * oFocusUnitBP.Economy.BuildCostMass
-                                                                oUnit[refiLastMassUsage] = iCurUnitMassUsage
-                                                                if bDebugMessages == true then LOG(sFunctionRef..': Setting unit last mass usage to '..oUnit[refiLastMassUsage]..'; Build rate='..oBP.Economy.BuildRate..'; Focus unit build time='..oFocusUnitBP.Economy.BuildTime..'; Focus unit build cost mass='..oFocusUnitBP.Economy.BuildCostMass..'; Build rate mod='..iBuildRateMod) end
-                                                            else
-                                                                iCurUnitMassUsage = oBP.Economy.BuildRate * iBuildRateMod *  iMassPerBP
-                                                            end
-                                                        end
-                                                        if bDebugMessages == true then LOG(sFunctionRef..': Checking for what the unit is building or upgrading to get more accurate calculation, unit state='..M28UnitInfo.GetUnitState(oUnit)..'; mass usage after check='..iCurUnitMassUsage..'; Is focus unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit:GetFocusUnit()))) end
-                                                    else
-                                                        iCurUnitMassUsage = (oUnit[refiLastMassUsage] or oBP.Economy.BuildRate * iBuildRateMod * iMassPerBP)
-                                                    end
-                                                end
-                                            end
-                                        end
-                                        --We're working in ticks so adjust mass usage accordingly
-                                        iCurUnitMassUsage = iCurUnitMassUsage * 0.1
-                                        if bDebugMessages == true then
-                                            LOG(sFunctionRef .. ': Estimated mass usage=' .. iCurUnitMassUsage..'; About to call the function PauseOrUnpauseMassUsage on unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; iUnitsAdjusted before counting this unit='..iUnitsAdjusted)
-                                        end
+                                    if oBP.Economy.BuildRate then
+                                    --Reduce this massively if unit isn't actually building anything
+                                    if bPauseNotUnpause then
+                                    if (not(oUnit:IsUnitState('Building')) and not(oUnit:IsUnitState('Repairing')) and not(oUnit.GetWorkProgress and oUnit:GetWorkProgress() > 0) and not(oUnit:IsUnitState('Upgrading'))) then
+                                    iCurUnitMassUsage = oBP.Economy.BuildRate * iBuildRateMod * 0.01
+                                        else
+                                        if M28UnitInfo.IsUnitValid(oUnit:GetFocusUnit()) then
+                                        oFocusUnitBP = oUnit:GetFocusUnit():GetBlueprint()
+                                        iCurUnitMassUsage = oBP.Economy.BuildRate * iBuildRateMod / oFocusUnitBP.Economy.BuildTime * oFocusUnitBP.Economy.BuildCostMass
+                                        oUnit[refiLastMassUsage] = iCurUnitMassUsage
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Setting unit last mass usage to '..oUnit[refiLastMassUsage]..'; Build rate='..oBP.Economy.BuildRate..'; Focus unit build time='..oFocusUnitBP.Economy.BuildTime..'; Focus unit build cost mass='..oFocusUnitBP.Economy.BuildCostMass..'; Build rate mod='..iBuildRateMod) end
+                                        else
+                                        iCurUnitMassUsage = oBP.Economy.BuildRate * iBuildRateMod *  iMassPerBP
+                                    end
+                                    end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Checking for what the unit is building or upgrading to get more accurate calculation, unit state='..M28UnitInfo.GetUnitState(oUnit)..'; mass usage after check='..iCurUnitMassUsage..'; Is focus unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit:GetFocusUnit()))) end
+                                    else
+                                    iCurUnitMassUsage = (oUnit[refiLastMassUsage] or oBP.Economy.BuildRate * iBuildRateMod * iMassPerBP)
+                                    end
+                                    end
+                                    end
+                                    end
+                                    --We're working in ticks so adjust mass usage accordingly
+                                    iCurUnitMassUsage = iCurUnitMassUsage * 0.1
+                                    if bDebugMessages == true then
+                                    LOG(sFunctionRef .. ': Estimated mass usage=' .. iCurUnitMassUsage..'; About to call the function PauseOrUnpauseMassUsage on unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bPauseNotUnpause='..tostring(bPauseNotUnpause)..'; iUnitsAdjusted before counting this unit='..iUnitsAdjusted)
+                                    end
 
-                                        if not((iCurUnitMassUsage or 0) == 0) then iUnitsAdjusted = iUnitsAdjusted + 1 end
-                                        M28UnitInfo.PauseOrUnpauseMassUsage(oUnit, bPauseNotUnpause)
+                                    if not((iCurUnitMassUsage or 0) == 0) then iUnitsAdjusted = iUnitsAdjusted + 1 end
+                                    M28UnitInfo.PauseOrUnpauseMassUsage(oUnit, bPauseNotUnpause)
                                         --Cant move the below into unitinfo as get a crash if unitinfo tries to refernce the table of paused units
                                         --Have made localised variable which looks to fix the issue
-                                    end
+                                        end
                                 end
                                 if bApplyActionToUnit then
                                     if bPauseNotUnpause and not(bWasUnitAlreadyPaused) then

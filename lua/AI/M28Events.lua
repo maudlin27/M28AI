@@ -651,15 +651,16 @@ function OnWeaponFired(oWeapon)
                 --M28 owned unit specific logic
                 if oUnit:GetAIBrain().M28AI then
                     --Shot is blocked logic
+
                     if bDebugMessages == true then LOG(sFunctionRef..': COnsidering if unit shot is blocked Time='..GetGameTimeSeconds()..', range category='..(oWeapon.Blueprint.RangeCategory or 'nil')..'; Is unit a relevant DF category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId))) end
-                    if oWeapon.Blueprint.RangeCategory == 'UWRC_DirectFire' and EntityCategoryContains(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId) then
-                        --Get weapon target if it is a DF weapon
+                    if (oWeapon.Blueprint.RangeCategory == 'UWRC_DirectFire' and EntityCategoryContains(M28UnitInfo.refCategoryDFTank + M28UnitInfo.refCategoryNavalSurface * categories.DIRECTFIRE + M28UnitInfo.refCategorySeraphimDestroyer - M28UnitInfo.refCategoryMissileShip, oUnit.UnitId)) or (oWeapon.Blueprint.RangeCategory == 'UWRC_AntiNavy' and EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId)) then
+                        --Get weapon target if it is a DF weapon or sub torpedo
                         local oTarget = oWeapon:GetCurrentTarget()
                         if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has just fired a shot. Do we have a valid target for our weapon='..tostring(M28UnitInfo.IsUnitValid(oTarget))..'; time last shot was blocked='..(oUnit[M28UnitInfo.refiTimeOfLastCheck] or 'nil')) end
                         if M28UnitInfo.IsUnitValid(oTarget) then
 
                             oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds()
-                            oUnit[M28UnitInfo.refbLastShotBlocked] = M28Logic.IsShotBlocked(oUnit, oTarget)
+                            oUnit[M28UnitInfo.refbLastShotBlocked] = M28Logic.IsShotBlocked(oUnit, oTarget, EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId))
                             if bDebugMessages == true then LOG(sFunctionRef..': oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; Is shot blocked='..tostring(oUnit[M28UnitInfo.refbLastShotBlocked])..'; built in blocking terrain result for low profile='..tostring(oUnit:GetAIBrain():CheckBlockingTerrain(oUnit:GetPosition(), oTarget:GetPosition(), 'Low'))..'; High profile='..tostring(oUnit:GetAIBrain():CheckBlockingTerrain(oUnit:GetPosition(), oTarget:GetPosition(), 'High'))) end
 
                             if oUnit[M28UnitInfo.refbLastShotBlocked] then
@@ -1079,6 +1080,8 @@ function OnConstructed(oEngineer, oJustBuilt)
                     ForkThread(M28Factory.DecideAndBuildUnitForFactory, oEngineer:GetAIBrain(), oEngineer)
                     --Treat the unit just built as having micro active so it doesn't receive orders for a couple of seconds (so it can clear the factory)
                     if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryNavalFactory, oEngineer.UnitId) then
+                        --Also give unit a move order (queued onto its existing order)
+                        M28Orders.IssueTrackedMove(oJustBuilt, oEngineer[M28Factory.reftFactoryRallyPoint], 0.1, true, 'RollOff', false)
                         M28Micro.TrackTemporaryUnitMicro(oJustBuilt, 1.5) --i.e. want to increase likelihood that a unit has exited the land factory before it starts being given orders
                     end
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEngineer.UnitId) then
@@ -1259,23 +1262,27 @@ function OnDetectedBy(oUnitDetected, iBrainIndex)
     end
 end
 
-function OnCreate(oUnit)
+function OnCreate(oUnit, bIgnoreMapSetup)
     if M28Utilities.bM28AIInGame and M28UnitInfo.IsUnitValid(oUnit) then
         local sFunctionRef = 'OnCreate'
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-        if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time'..GetGameTimeSeconds()..'; oUnit[M28OnCrRn]='..tostring(oUnit['M28OnCrRn'] or false)..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete or false)..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
-        if not(M28Map.bMapLandSetupComplete) then --Start of game ACU creation happens before we have setup the map
-            while not(M28Map.bMapLandSetupComplete) do
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time'..GetGameTimeSeconds()..'; oUnit[M28OnCrRn]='..tostring(oUnit['M28OnCrRn'] or false)..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete or false)..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; M28Map.bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation)) end
+        if (not(M28Map.bMapLandSetupComplete) or not(M28Map.bWaterZoneInitialCreation)) and not(bIgnoreMapSetup) then --Start of game ACU creation happens before we have setup the map
+            while not(M28Map.bMapLandSetupComplete) or not(M28Map.bWaterZoneInitialCreation) do
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 WaitTicks(1)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                if GetGameTimeSeconds() >= 5 and M28Map.bMapLandSetupComplete then
+                    M28Utilities.ErrorHandler('Water zone initial creation still not done, will stop waiting now')
+                    break
+                 end
             end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitTicks(1)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-            if M28UnitInfo.IsUnitValid(oUnit) then OnCreate(oUnit) end
+            if M28UnitInfo.IsUnitValid(oUnit) then OnCreate(oUnit, true) end
         else
             if not(oUnit['M28OnCrRn']) then
                 oUnit['M28OnCrRn'] = true
@@ -1424,9 +1431,7 @@ function OnCreateBrain(aiBrain, planName, bIsHuman)
         if bDebugMessages == true then LOG(sFunctionRef..': M28Map.bIsCampaignMap='..tostring(M28Map.bIsCampaignMap or false)) end
 
         --Logic to run for all brains
-        local iStartPositionX, iStartPositionZ = aiBrain:GetArmyStartPos()
-        M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()] = {iStartPositionX, GetSurfaceHeight(iStartPositionX, iStartPositionZ), iStartPositionZ}
-        M28Overseer.tAllAIBrainsByArmyIndex[aiBrain:GetArmyIndex()] = aiBrain
+        M28Map.RecordBrainStartPoint(aiBrain)
 
         if bIsHuman then
             LOG('Human player brain '..aiBrain.Nickname..' created; Index='..aiBrain:GetArmyIndex()..'; start position='..repru(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()]))
@@ -1509,10 +1514,12 @@ function OnPlayableAreaChange(rect, voFlag)
 end
 
 function CaptureTriggerAdded(FunctionForOldUnit, FunctionForNewUnit, oUnit)
+    --Intended for campaign maps where a capture objective gets captured by the enemy, e.g. black sun control centre
+
     local sFunctionRef = 'CaptureTriggerAdded'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if M28Utilities.bM28AIInGame then
+    if M28Utilities.bM28AIInGame and M28Map.bIsCampaignMap and not(EntityCategoryContains(categories.MOBILE, oUnit.UnitId)) then
 
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
         if M28UnitInfo.IsUnitValid(oUnit) then

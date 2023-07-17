@@ -55,6 +55,7 @@ refiDFAOE = 'M28AOEDF' --aoe of a df weapon of a unit
 refiIndirectAOE = 'M28AOEIn' --aoe of an indirect weapon of a unit; includes manual ranges
 refiIndirectRange = 'M28UIR' --for non-manual fire weapons
 refiAntiNavyRange = 'M28UANR'
+refiCombatRange = 'M28UCRN' --Higher of antinavy, indirectrange and dfrange for a unit
 refiManualRange = 'M28UManR' --for manual fire weapons (e.g. TML)
 refiMissileDefenceRange = 'M28UMDefR' --For SMD and TMD
 refiAARange = 'M28UAAR'
@@ -202,9 +203,10 @@ refCategoryAirToGround = refCategoryBomber + refCategoryGunship + refCategoryCza
 
 --Naval units
 refCategoryFrigate = categories.NAVAL * categories.FRIGATE
-refCategoryNavalSurface = categories.NAVAL - categories.SUBMERSIBLE - categories.UNSELECTABLE - categories.UNTARGETABLE --NOTE: This includes structures (e.g. torp launcher and factory)
+refCategoryTorpedoLauncher = categories.ANTINAVY * categories.STRUCTURE
+refCategoryNavalSurface = categories.NAVAL + refCategoryTorpedoLauncher - categories.SUBMERSIBLE - categories.UNSELECTABLE - categories.UNTARGETABLE --NOTE: This includes structures (e.g. torp launcher and factory)
 refCategoryMobileNavalSurface = refCategoryNavalSurface * categories.MOBILE
-refCategoryAllNavy = categories.NAVAL - categories.UNSELECTABLE - categories.UNTARGETABLE
+refCategoryAllNavy = categories.NAVAL + refCategoryTorpedoLauncher - categories.UNSELECTABLE - categories.UNTARGETABLE
 refCategoryNavalAA = refCategoryAllNavy * categories.ANTIAIR
 refCategoryCruiser = categories.NAVAL * categories.CRUISER
 refCategorySalem = categories.NAVAL * categories.AMPHIBIOUS * categories.DIRECTFIRE
@@ -212,7 +214,6 @@ refCategorySeraphimDestroyer = categories.SUBMERSIBLE * categories.DESTROYER
 refCategoryDestroyer = categories.DESTROYER
 refCategoryCruiserCarrier = refCategoryCruiser + categories.NAVAL * categories.NAVALCARRIER
 refCategorySupportNavy = refCategoryCruiserCarrier + categories.SHIELD * categories.HOVER + categories.SHIELD * categories.NAVAL + categories.STEALTHFIELD * categories.HOVER + categories.STEALTHFIELD * categories.NAVAL --Intended for units we dont want on frontline unless in bombardment mode
-refCategoryTorpedoLauncher = categories.ANTINAVY * categories.STRUCTURE
 refCategoryAllAmphibiousAndNavy = categories.NAVAL + categories.AMPHIBIOUS + categories.HOVER + refCategoryTMD + refCategoryTorpedoLauncher + refCategorySonar + refCategoryStructureAA --NOTE: Structures have no category indicating whether they can be built on sea (instead they have aquatic ability) hence the need to include all structures
 refCategoryPondFixedCategory = refCategoryNavalSurface - categories.AMPHIBIOUS * categories.MOBILE + refCategoryTMD + refCategoryTorpedoLauncher + refCategorySonar + refCategoryStructureAA
 refCategoryNavyThatCanBeTorpedoed = categories.NAVAL + categories.AMPHIBIOUS + categories.STRUCTURE + categories.COMMAND + refCategoryEngineer - categories.HOVER --NOTE: Structures have no category indicating whether they can be built on sea (instead they have aquatic ability) hence the need to include all structures; Hover units cant be targeted
@@ -1250,6 +1251,8 @@ function RecordUnitRange(oUnit)
         end
         --LOG('Considering unitID '..(oUnit.UnitId or 'nil')..'; is unit valid='..tostring(IsUnitValid(oUnit)))
     end
+    --Record unit best range
+    oUnit[refiCombatRange] = math.max(oUnit[refiDFRange] or 0), (oUnit[refiIndirectRange] or 0), (oUnit[refiAntiNavyRange] or 0)
     oUnit[refiStrikeDamage] = GetUnitStrikeDamage(oUnit)
 end
 
@@ -1337,7 +1340,21 @@ function GetUnitUpgradeBlueprint(oUnitToUpgrade, bGetSupportFactory)
         if sUpgradeBP == '' then
             sUpgradeBP = nil
             if bDebugMessages == true then LOG(sFunctionRef..': Have no blueprint to upgrade to') end
-        elseif bDebugMessages == true then LOG(sFunctionRef..': Returning sUpgradeBP'..(sUpgradeBP or 'nil'))
+        elseif bDebugMessages == true then LOG(sFunctionRef..': Returning sUpgradeBP '..(sUpgradeBP or 'nil')..' subject to final unit restriction check')
+        end
+    end
+
+    if sUpgradeBP then
+        if not(oUnitToUpgrade:CanBuild(sUpgradeBP)) then
+            if bDebugMessages == true then LOG(sFunctionRef..': oUnitToUpgrade '..oUnitToUpgrade.UnitId..GetUnitLifetimeCount(oUnitToUpgrade)..' cant build sUpgradeBP='..sUpgradeBP..' e.g. due to unit restrictions') end
+            sUpgradeBP = nil
+        else
+            local Game = import("/lua/game.lua")
+            local iArmyIndex = oUnitToUpgrade.Army
+            if bDebugMessages == true then LOG(sFunctionRef..': oUnitToUpgrade '..oUnitToUpgrade.UnitId..GetUnitLifetimeCount(oUnitToUpgrade)..' checking if is restricted for sUpgradeBP='..sUpgradeBP..', isrestricted='..tostring(Game.IsRestricted(sUpgradeBP, iArmyIndex))) end
+            if Game.IsRestricted(sUpgradeBP, iArmyIndex) then
+                sUpgradeBP = nil
+            end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

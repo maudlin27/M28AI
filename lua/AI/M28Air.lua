@@ -1701,7 +1701,7 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam)
         local tCurBrainStaging = oBrain:GetListOfUnits(M28UnitInfo.refCategoryAirStaging, false, true)
         if M28Utilities.IsTableEmpty(tCurBrainStaging) == false then
             for iUnit, oAirStaging in tCurBrainStaging do
-                if M28UnitInfo.IsUnitValid(oAirStaging) then
+                if M28UnitInfo.IsUnitValid(oAirStaging) and oAirStaging:GetFractionComplete() == 1 then
                     --Does this have capacity?
                     iMaxCapacity = 4
                     if EntityCategoryContains(categories.MOBILE, oAirStaging.UnitId) then

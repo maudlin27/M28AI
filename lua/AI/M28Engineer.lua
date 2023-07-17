@@ -685,8 +685,25 @@ function SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, 
     else
         local iSegmentsToConsider
         if (tLZOrWZData[M28Map.subrefSegmentsConsideredThisTick] or 0) >= 50 and GetGameTimeSeconds() >= 60 then
-            if not(iOptionalMaxSegmentsToConsider) then iSegmentsToConsider = 3
-            else iSegmentsToConsider = math.min(5, iOptionalMaxSegmentsToConsider)
+            if not(iOptionalMaxSegmentsToConsider) then
+                iSegmentsToConsider = 3
+                if iPlateauOrZero == 0 then iSegmentsToConsider = 6
+                else iSegmentsToConsider = 3
+                end
+            else
+                if GetGameTimeSeconds() >= 150 and (GetGameTimeSeconds() >= 900 or M28Overseer.refiRoughTotalUnitsInGame >= 500) then
+                    if iPlateauOrZero == 0 then
+                        iSegmentsToConsider = math.min(10, iOptionalMaxSegmentsToConsider)
+                    else
+                        iSegmentsToConsider = math.min(5, iOptionalMaxSegmentsToConsider)
+                    end
+                else
+                    if iPlateauOrZero == 0 then
+                        iSegmentsToConsider = math.max(10, iOptionalMaxSegmentsToConsider)
+                    else
+                        iSegmentsToConsider = math.max(5, iOptionalMaxSegmentsToConsider)
+                    end
+                end
             end
         else
             if M28Overseer.refiRoughTotalUnitsInGame >= 500 then
@@ -703,9 +720,15 @@ function SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, 
         local iSegmentEnd = math.min(iTotalSegments, iSegmentStart + iSegmentsToConsider)
 
         --Cycle through every segment in the land/water zone and see if we can build the desired unit at the segment midpoint
-        if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through each segment to check for buildable locations. iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; iOptionalMaxSegmentsToConsider='..(iOptionalMaxSegmentsToConsider or 'nil')..'; iSegmentStart='..iSegmentStart..'; iTotalSegments='..iTotalSegments..'; iSegmentEnd='..iSegmentEnd) end
+        if bDebugMessages == true then
+            LOG(sFunctionRef..': About to cycle through each segment to check for buildable locations. iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; iOptionalMaxSegmentsToConsider='..(iOptionalMaxSegmentsToConsider or 'nil')..'; iSegmentStart='..iSegmentStart..'; iTotalSegments='..iTotalSegments..'; iSegmentEnd='..iSegmentEnd)
+            if iPlateauOrZero == 0 then
+                LOG(sFunctionRef..': Dealing with water zone, subrefWZSegments count='..table.getn(tLZOrWZData[M28Map.subrefWZSegments])..'MinSegX='..tLZOrWZData[M28Map.subrefWZMinSegX]..' Z'..tLZOrWZData[M28Map.subrefWZMinSegZ]..'; MaxX='..tLZOrWZData[M28Map.subrefWZMaxSegX]..' Z'..tLZOrWZData[M28Map.subrefWZMaxSegZ])
+            end
+        end
         for iSegmentCount = iSegmentStart, iSegmentEnd do
             tSegmentXZ = tLZOrWZData[iSegmentRef][iSegmentCount]
+            if bDebugMessages == true then LOG(sFunctionRef..': About to find buildable locations for segment X'..tSegmentXZ[1]..' Z'..tSegmentXZ[2]..'; iSegmentCount='..iSegmentCount) end
             FindBuildableLocationsForSegment(aiBrain, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tSegmentXZ[1], tSegmentXZ[2])
             tLZOrWZData[M28Map.subrefSegmentsConsideredThisTick] = (tLZOrWZData[M28Map.subrefSegmentsConsideredThisTick] or 0) + 1
         end
@@ -719,7 +742,13 @@ function GetPotentialBuildLocationsNearLocation(aiBrain, tLZOrWZData, iPlateauOr
     --Returns a table of potentail build locations (if there are any) for iSize building in the zone in question
     --If there aren't many build locations then will try searching for more
 
-    if (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] or 0) < 10 then
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetPotentialBuildLocationsNearLocation'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, iLandOrWaterZone='..iLandOrWaterZone..'; Time='..GetGameTimeSeconds()..'; iPlateauOrZero='..iPlateauOrZero..'; iSize='..iSize..'; tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize]='..(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] or 0)..'; Midpoint in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tLZOrWZData[M28Map.subrefMidpoint]))) end
+    if (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] or 0) < 10 or (M28Map.bIsCampaignMap and iSize >= 14) then
         --SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, iOptionalMaxSegmentsToConsider)
         SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, nil)
     end
@@ -730,6 +759,14 @@ function GetPotentialBuildLocationsNearLocation(aiBrain, tLZOrWZData, iPlateauOr
         local iCycleSize = 1
         if (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] or 0) >= 50 then
             iCycleSize = math.ceil((tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] or 0) / 40)
+            --Water zones are larger so can run more of a risk of not finding the right location with too large a cycle size
+            if iCycleSize >= 30 then
+                if iPlateauOrZero == 0 then
+                    iCycleSize = math.max(30, math.ceil(iCycleSize * 0.6))
+                else
+                    iCycleSize = math.max(30, math.ceil(iCycleSize * 0.8))
+                end
+            end
         end
         local iCurCount = 0
         for iSegmentX, tSubtable in tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize] do
@@ -743,8 +780,12 @@ function GetPotentialBuildLocationsNearLocation(aiBrain, tLZOrWZData, iPlateauOr
                 end
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': About to return tPotentialLocations with a size of '..table.getn(tPotentialLocations)..'; iCycleSize='..iCycleSize..'; Size of buidlable locations in total='..tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize]) end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return tPotentialLocations
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': Didnt find any build locations for size '..iSize) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function SearchForBuildableLocationsNearTarget(aiBrain, tLZOrWZData, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, iBaseSegmentX, iBaseSegmentZ, iAffectedDistanceRadius)
@@ -977,7 +1018,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
             sBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oEngineer, false, false, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure)
         end
         if not(sBlueprintToBuild) then
-            if not(aiBrain[M28Overseer.refbCloseToUnitCap]) then
+            if not(aiBrain[M28Overseer.refbCloseToUnitCap]) and not(M28Map.bIsCampaignMap) and not(M28Overseer.bUnitRestrictionsArePresent) then
                 M28Utilities.ErrorHandler('sBlueprintToBuild is nil, could happen e.g. if try and get sparky to build sxomething it cant or try to build support factory without the HQ or if unit restrictions are present - refer to log for more details')
                 if not(iCategoryToBuild) then LOG(sFunctionRef..': No category to build. oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; UC='..GetEngineerUniqueCount(oEngineer))
                 else
@@ -1249,10 +1290,12 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
     local tLastOrder = oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]]
     if tLastOrder[M28Orders.subrefsOrderBlueprint] and tLastOrder[M28Orders.subrefsOrderBlueprint] == sBlueprintToBuild then tLastBuildLocationForUnit = tLastOrder[M28Orders.subreftOrderPosition] end
     if bDebugMessages == true then
-        LOG(sFunctionRef..': iTeam='..aiBrain.M28Team..'; aiBrain='..aiBrain.Nickname..'; Time='..GetGameTimeSeconds()..'; tLastOrder reprs='..reprs(tLastOrder)..'; tLastBuildLocationForUnit if we think it is the same='..repru(tLastBuildLocationForUnit)..'; sBlueprintToBuild='..sBlueprintToBuild..'; Building size of BP to build='..M28UnitInfo.GetBuildingSize(sBlueprintToBuild))
+        local iEngineerSegmentX, iEngineerSegmentZ = M28Map.GetPathingSegmentFromPosition(oEngineer:GetPosition())
+        LOG(sFunctionRef..': iTeam='..aiBrain.M28Team..'; aiBrain='..aiBrain.Nickname..'; Time='..GetGameTimeSeconds()..'; tLastOrder reprs='..reprs(tLastOrder)..'; tLastBuildLocationForUnit if we think it is the same='..repru(tLastBuildLocationForUnit)..'; sBlueprintToBuild='..sBlueprintToBuild..'; Building size of BP to build='..M28UnitInfo.GetBuildingSize(sBlueprintToBuild)..'; Engineer position='..repru(oEngineer:GetPosition())..'; Dist to target='..M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), tTargetLocation)..'; iEngineerSegmentX='..iEngineerSegmentX..'Z='..iEngineerSegmentZ)
     end
 
     local bLocationBuildableImmediately
+    local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
     --Start of game - build factory closer to hydro if possible
     if GetGameTimeSeconds() <= 60 and EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, sBlueprintToBuild) then
         --Do we have hydro in this LZ? dont want to consider if water zone
@@ -1290,110 +1333,112 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; sBLueprintToBuild='..(sBlueprintToBuild or 'nil')..'; tTargetLocation='..repru(tTargetLocation)..'; tPotentialBuildLocations='..repru(tPotentialBuildLocations)..'; iOptionalMaxDistanceFromTargetLocation='..(iOptionalMaxDistanceFromTargetLocation or 'nil')..'; iMaxRange='..iMaxRange..'; iBuilderRange='..iBuilderRange..'; iNewBuildingRadius='..iNewBuildingRadius..'; bBuildTowardsHydro='..tostring(bBuildTowardsHydro)..'; tLocationToBuildTowards (e.g. for hydro)='..repru(tLocationToBuildTowards)..'; Engineer position='..repru(oEngineer:GetPosition())) end
     for iCurLocation, tCurLocation in tPotentialBuildLocations do
-        bLocationBuildableImmediately = true
-        iCurPriority = -100
-        iCurDistance = M28Utilities.GetDistanceBetweenPositions(tTargetLocation, tCurLocation)
-        if bDebugMessages == true then
-            LOG(sFunctionRef..': Considering location ref '..iCurLocation..'; tCurLocation='..repru(tCurLocation)..'; iCurDistance='..iCurDistance..'; iMaxRange='..iMaxRange..'; Can we build here='..tostring(oEngineer:GetAIBrain():CanBuildStructureAt(sBlueprintToBuild, tCurLocation)))
-            if tLastBuildLocationForUnit then LOG(sFunctionRef..': Rough dist to last build location='..M28Utilities.GetRoughDistanceBetweenPositions(tCurLocation, tLastBuildLocationForUnit)) end
-            M28Utilities.DrawLocation(tCurLocation)
-        end
-        if iCurDistance <= iMaxRange and aiBrain:CanBuildStructureAt(sBlueprintToBuild, tCurLocation) then
-            if iCurDistance <= iBuilderRange then
-                iCurPriority = iCurPriority + 3
-                if bDebugMessages == true then LOG(sFunctionRef..': Within build range so increasing priority by 3') end
-            else
-                bLocationBuildableImmediately = false
+        if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tCurLocation) then
+            bLocationBuildableImmediately = true
+            iCurPriority = -100
+            iCurDistance = M28Utilities.GetDistanceBetweenPositions(tTargetLocation, tCurLocation)
+            if bDebugMessages == true then
+                LOG(sFunctionRef..': Considering location ref '..iCurLocation..'; tCurLocation='..repru(tCurLocation)..'; iCurDistance='..iCurDistance..'; iMaxRange='..iMaxRange..'; Can we build here='..tostring(oEngineer:GetAIBrain():CanBuildStructureAt(sBlueprintToBuild, tCurLocation)))
+                if tLastBuildLocationForUnit then LOG(sFunctionRef..': Rough dist to last build location='..M28Utilities.GetRoughDistanceBetweenPositions(tCurLocation, tLastBuildLocationForUnit)) end
+                M28Utilities.DrawLocation(tCurLocation)
             end
-            rBuildAreaRect = Rect(tCurLocation[1] - iNewBuildingRadius, tCurLocation[3] - iNewBuildingRadius, tCurLocation[1] + iNewBuildingRadius, tCurLocation[3] + iNewBuildingRadius)
-            if bDebugMessages == true then LOG(sFunctionRef..': Will force debug on whether we have reclaim in rec, do we have reclaim='..tostring(M28Map.GetReclaimInRectangle(1, rBuildAreaRect, true))) end
-            if M28Map.GetReclaimInRectangle(1, rBuildAreaRect) == false then
-                iCurPriority = iCurPriority + 3
-                if bDebugMessages == true then LOG(sFunctionRef..': No reclaim in build area so increasing priority by 3') end
-            else
-                bLocationBuildableImmediately = false
-                if bDebugMessages == true then LOG(sFunctionRef..': Reclaim in build area so not increasing priority') end
-            end
-            if not(M28Conditions.AreMobileLandUnitsInRect(rBuildAreaRect)) then
-                if bDebugMessages == true then LOG(sFunctionRef..': No units in rect so increasing priority by 3') end
-                iCurPriority = iCurPriority + 4
-            else
-                bLocationBuildableImmediately = false
-            end
-            if iCurDistance <= 50 then
-                if iCurDistance <= math.max(10, iBuilderRange - 0.5) then
-                    iCurPriority = iCurPriority + 7
-                    if bDebugMessages == true then LOG(sFunctionRef..': Location is within 10 so increasing priority by 7') end
+            if iCurDistance <= iMaxRange and aiBrain:CanBuildStructureAt(sBlueprintToBuild, tCurLocation) then
+                if iCurDistance <= iBuilderRange then
+                    iCurPriority = iCurPriority + 3
+                    if bDebugMessages == true then LOG(sFunctionRef..': Within build range so increasing priority by 3') end
                 else
                     bLocationBuildableImmediately = false
-                    if iCurDistance <= 25 then
-                        iCurPriority = iCurPriority + 5
-                    else
-                        iCurPriority = iCurPriority + 3
-                    end
                 end
-            end
-            --General dist adjust
-            if iCurDistance >= 15 then
-                iCurPriority = iCurPriority - iCurDistance / iMaxRange * 6
-            end
-
-            --Adjust if can build immediately
-            if bLocationBuildableImmediately then
-                iCurPriority = iCurPriority + 1
-                if EntityCategoryContains(M28UnitInfo.refCategorySMD + M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryTMD, sBlueprintToBuild) then iCurPriority = iCurPriority + 4 end
-            end
-
-            --Adjust if was location of our last build order
-            if tLastBuildLocationForUnit and M28Utilities.GetRoughDistanceBetweenPositions(tLastBuildLocationForUnit, tCurLocation) <= 0.75 then
-                iCurPriority = iCurPriority + 1
-                if bDebugMessages == true then LOG(sFunctionRef..': Are close to our last build order location so increasing priority by 1') end
-            end
-
-            --Mass s torage specific - value higher mexes (wont bother with mass fabs)
-            if bCheckForStorageAdjacency then
-                local rAdjacencyRect = M28Utilities.GetRectAroundLocation(tCurLocation, 2.749) --If changing here also update m28events and m28economy
-                local tPotentiallyAdjacentMexes = GetUnitsInRect(rAdjacencyRect)
-                local iAdjacencyValue = 0
-                local iConstructionFactor
-                if M28Utilities.IsTableEmpty(tPotentiallyAdjacentMexes) == false then
-                    tPotentiallyAdjacentMexes = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tPotentiallyAdjacentMexes)
-                    if M28Utilities.IsTableEmpty(tPotentiallyAdjacentMexes) == false then
-                        for iMex, oMex in tPotentiallyAdjacentMexes do
-                            if M28Utilities.GetDistanceBetweenPositions(oMex:GetPosition(), tCurLocation) <= 2.25 then
-                                if oMex:GetFractionComplete() < 1 then
-                                    iConstructionFactor = oMex:GetFractionComplete() * 0.75
-                                else
-                                    iConstructionFactor = 1
-                                end
-                                iAdjacencyValue = iAdjacencyValue + (oMex:GetBlueprint().Economy.ProductionPerSecondMass or 0) * iConstructionFactor
-                            end
+                rBuildAreaRect = Rect(tCurLocation[1] - iNewBuildingRadius, tCurLocation[3] - iNewBuildingRadius, tCurLocation[1] + iNewBuildingRadius, tCurLocation[3] + iNewBuildingRadius)
+                if bDebugMessages == true then LOG(sFunctionRef..': Will force debug on whether we have reclaim in rec, do we have reclaim='..tostring(M28Map.GetReclaimInRectangle(1, rBuildAreaRect, true))) end
+                if M28Map.GetReclaimInRectangle(1, rBuildAreaRect) == false then
+                    iCurPriority = iCurPriority + 3
+                    if bDebugMessages == true then LOG(sFunctionRef..': No reclaim in build area so increasing priority by 3') end
+                else
+                    bLocationBuildableImmediately = false
+                    if bDebugMessages == true then LOG(sFunctionRef..': Reclaim in build area so not increasing priority') end
+                end
+                if not(M28Conditions.AreMobileLandUnitsInRect(rBuildAreaRect)) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': No units in rect so increasing priority by 3') end
+                    iCurPriority = iCurPriority + 4
+                else
+                    bLocationBuildableImmediately = false
+                end
+                if iCurDistance <= 50 then
+                    if iCurDistance <= math.max(10, iBuilderRange - 0.5) then
+                        iCurPriority = iCurPriority + 7
+                        if bDebugMessages == true then LOG(sFunctionRef..': Location is within 10 so increasing priority by 7') end
+                    else
+                        bLocationBuildableImmediately = false
+                        if iCurDistance <= 25 then
+                            iCurPriority = iCurPriority + 5
+                        else
+                            iCurPriority = iCurPriority + 3
                         end
                     end
                 end
-                iCurPriority = iCurPriority + iAdjacencyValue
-            end
-
-
-
-            --Build towards hydro adjust
-            if tLocationToBuildTowards then
-                local iCurDistTowardsBuildTowards = M28Utilities.GetDistanceBetweenPositions(tCurLocation, tLocationToBuildTowards)
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering adjustment for building towards hydro, iCurDistTowardsBuildTowards='..iCurDistTowardsBuildTowards..'; iCurPrioriyt='..iCurPriority..'; tiClosestDistByPriorityAndCount for this priority='..repru(tiClosestDistByPriorityAndCount[iCurPriority])..'; Are we equal or less than this distance='..tostring(iCurDistTowardsBuildTowards <= (tiClosestDistByPriorityAndCount[iCurPriority][1] or 100000))) end
-                if iCurDistTowardsBuildTowards <= (tiClosestDistByPriorityAndCount[iCurPriority][1] or 100000) then
-                    tiClosestDistByPriorityAndCount[iCurPriority] = {iCurDistTowardsBuildTowards, (tiClosestDistByPriorityAndCount[iCurPriority][2] or 0) + 1}
-                    iCurPriority = iCurPriority + tiClosestDistByPriorityAndCount[iCurPriority][2] * 0.1
-                    if bBuildTowardsHydro then iCurPriority = iCurPriority + 1 end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Increased priority due to being the closest for this base level to hydro, iCurPriority after uplift='..iCurPriority) end
+                --General dist adjust
+                if iCurDistance >= 15 then
+                    iCurPriority = iCurPriority - iCurDistance / iMaxRange * 6
                 end
+
+                --Adjust if can build immediately
+                if bLocationBuildableImmediately then
+                    iCurPriority = iCurPriority + 1
+                    if EntityCategoryContains(M28UnitInfo.refCategorySMD + M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryTMD, sBlueprintToBuild) then iCurPriority = iCurPriority + 4 end
+                end
+
+                --Adjust if was location of our last build order
+                if tLastBuildLocationForUnit and M28Utilities.GetRoughDistanceBetweenPositions(tLastBuildLocationForUnit, tCurLocation) <= 0.75 then
+                    iCurPriority = iCurPriority + 1
+                    if bDebugMessages == true then LOG(sFunctionRef..': Are close to our last build order location so increasing priority by 1') end
+                end
+
+                --Mass s torage specific - value higher mexes (wont bother with mass fabs)
+                if bCheckForStorageAdjacency then
+                    local rAdjacencyRect = M28Utilities.GetRectAroundLocation(tCurLocation, 2.749) --If changing here also update m28events and m28economy
+                    local tPotentiallyAdjacentMexes = GetUnitsInRect(rAdjacencyRect)
+                    local iAdjacencyValue = 0
+                    local iConstructionFactor
+                    if M28Utilities.IsTableEmpty(tPotentiallyAdjacentMexes) == false then
+                        tPotentiallyAdjacentMexes = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tPotentiallyAdjacentMexes)
+                        if M28Utilities.IsTableEmpty(tPotentiallyAdjacentMexes) == false then
+                            for iMex, oMex in tPotentiallyAdjacentMexes do
+                                if M28Utilities.GetDistanceBetweenPositions(oMex:GetPosition(), tCurLocation) <= 2.25 then
+                                    if oMex:GetFractionComplete() < 1 then
+                                        iConstructionFactor = oMex:GetFractionComplete() * 0.75
+                                    else
+                                        iConstructionFactor = 1
+                                    end
+                                    iAdjacencyValue = iAdjacencyValue + (oMex:GetBlueprint().Economy.ProductionPerSecondMass or 0) * iConstructionFactor
+                                end
+                            end
+                        end
+                    end
+                    iCurPriority = iCurPriority + iAdjacencyValue
+                end
+
+
+
+                --Build towards hydro adjust
+                if tLocationToBuildTowards then
+                    local iCurDistTowardsBuildTowards = M28Utilities.GetDistanceBetweenPositions(tCurLocation, tLocationToBuildTowards)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering adjustment for building towards hydro, iCurDistTowardsBuildTowards='..iCurDistTowardsBuildTowards..'; iCurPrioriyt='..iCurPriority..'; tiClosestDistByPriorityAndCount for this priority='..repru(tiClosestDistByPriorityAndCount[iCurPriority])..'; Are we equal or less than this distance='..tostring(iCurDistTowardsBuildTowards <= (tiClosestDistByPriorityAndCount[iCurPriority][1] or 100000))) end
+                    if iCurDistTowardsBuildTowards <= (tiClosestDistByPriorityAndCount[iCurPriority][1] or 100000) then
+                        tiClosestDistByPriorityAndCount[iCurPriority] = {iCurDistTowardsBuildTowards, (tiClosestDistByPriorityAndCount[iCurPriority][2] or 0) + 1}
+                        iCurPriority = iCurPriority + tiClosestDistByPriorityAndCount[iCurPriority][2] * 0.1
+                        if bBuildTowardsHydro then iCurPriority = iCurPriority + 1 end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Increased priority due to being the closest for this base level to hydro, iCurPriority after uplift='..iCurPriority) end
+                    end
+                end
+                --NOTE: Dont include adjustments after this poitn, as abovel ogic assumes we have got to the post-modifier priority for buildtowardshydro
             end
-            --NOTE: Dont include adjustments after this poitn, as abovel ogic assumes we have got to the post-modifier priority for buildtowardshydro
-        end
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering tCurLocation='..repru(tCurLocation)..'; iCurDistance='..iCurDistance..'; iCurPriority='..iCurPriority) end
-        if iCurPriority > iHighestPriority then
-            iHighestPriority = iCurPriority
-            iBestLocationRef = iCurLocation
-            if bDebugMessages == true then LOG(sFunctionRef..': Have a new best priority, iHighestPriority='..iHighestPriority) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering tCurLocation='..repru(tCurLocation)..'; iCurDistance='..iCurDistance..'; iCurPriority='..iCurPriority) end
+            if iCurPriority > iHighestPriority then
+                iHighestPriority = iCurPriority
+                iBestLocationRef = iCurLocation
+                if bDebugMessages == true then LOG(sFunctionRef..': Have a new best priority, iHighestPriority='..iHighestPriority) end
+            end
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Finished searching, is iBestLocationRef nil='..tostring(iBestLocationRef == nil)..'; Are we trying to build a shield='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, sBlueprintToBuild))) end
@@ -2534,6 +2579,8 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
     local iClosestDistUntilInRangeOfMobileEnemy = 100000
     local iClosestDistUntilInRangeOfStaticEnemy = 100000
     local iNearestReclaimableEnemy = 100000
+    local iNearestReclaimableDangerousEnemy = 100000
+    local oNearestReclaimableDangerousEnemy
     local iNearestEnemy = 100000
     local oNearestReclaimableEnemy
     local oNearestEnemy
@@ -2555,7 +2602,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
             if bDebugMessages == true then LOG(sFunctionRef..': Considering engineer '..(oEngineer.UnitId or 'nil')..'; iEngineer='..iEngineer..' with unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; refiAssignedAction='..(oEngineer[refiAssignedAction] or 'nil')) end
             bWantEngiToRun = false
             bEngiIsUnavailable = false
-            if not(oEngineer:IsUnitState('Attached')) and not(oEngineer[M28UnitInfo.refbSpecialMicroActive]) then
+            if not(oEngineer:IsUnitState('Attached')) and not(oEngineer[M28UnitInfo.refbSpecialMicroActive]) and not(oEngineer:IsUnitState('Capturing')) then
                 --First check for enemies that we want to run from/take action from
                 if bCheckForEnemies then
                     --If engi is building emergency PD or Arti then dont run
@@ -2569,7 +2616,8 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                             if bDebugMessages == true then LOG(sFunctionRef..': Is table of nearby enemies empty for engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'='..tostring(M28Utilities.IsTableEmpty(tNearbyEnemiesByZone))) end
                             if M28Utilities.IsTableEmpty(tNearbyEnemiesByZone) == false then
                                 for iUnit, oUnit in tNearbyEnemiesByZone do
-                                    if not(oUnit.Dead) then
+                                    --It's not possible to reclaim an under construction building
+                                    if not(oUnit.Dead) and (oUnit:GetFractionComplete() == 1 or not(oUnit:IsBeingBuilt())) then
                                         iCurUnitRange = (oUnit[M28UnitInfo.refiDFRange] or 0) + (oUnit[M28UnitInfo.refiIndirectRange] or 0)
                                         if bIsWaterZone then iCurUnitRange = math.max(iCurUnitRange, (oUnit[M28UnitInfo.refiAntiNavyRange] or 0)) end
                                         iCurDistToEnemy = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEngineer:GetPosition())
@@ -2578,9 +2626,16 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                             oNearestEnemy = oUnit
                                         end
                                         if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurUnitRange='..iCurUnitRange..'; iCurDistToEnemy='..iCurDistToEnemy..'; Is reclaimable='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryReclaimable, oUnit.UnitId))) end
-                                        if iCurDistToEnemy < iNearestReclaimableEnemy and EntityCategoryContains(M28UnitInfo.refCategoryReclaimable, oUnit.UnitId) then
-                                            iNearestReclaimableEnemy = iCurDistToEnemy
-                                            oNearestReclaimableEnemy = oUnit
+                                        if iCurDistToEnemy < iNearestReclaimableDangerousEnemy and EntityCategoryContains(M28UnitInfo.refCategoryReclaimable, oUnit.UnitId) then
+                                            if oUnit[M28UnitInfo.refiCombatRange] > 0 or EntityCategoryContains(categories.RECLAIM, oUnit.UnitId) then
+                                                --Dangerous enemy
+                                                iNearestReclaimableDangerousEnemy = iCurDistToEnemy
+                                                oNearestReclaimableDangerousEnemy = oUnit
+                                            end
+                                            if iCurDistToEnemy < iNearestReclaimableEnemy then
+                                                iNearestReclaimableEnemy = iCurDistToEnemy
+                                                oNearestReclaimableEnemy = oUnit
+                                            end
                                         end
                                         --Ignore land scouts and similar unthreatening units
                                         if iCurUnitRange > 0 and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout - categories.SERAPHIM, oUnit.UnitId)) then
@@ -2591,24 +2646,33 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                                 if iCurDistUntilInRange < iClosestDistUntilInRangeOfStaticEnemy then iClosestDistUntilInRangeOfStaticEnemy = iCurDistUntilInRange end
                                             end
                                         end
+                                    else
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Unit is dead or is being built, is table of g etguards empty='..tostring(M28Utilities.IsTableEmpty(oUnit:GetGuards()))) end
                                     end
                                 end
                                 --end
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': Checking for nearby enemies for engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; iNearestReclaimableEnemy='..iNearestReclaimableEnemy..'; iClosestDistUntilInRangeOfStaticEnemy='..iClosestDistUntilInRangeOfStaticEnemy) end
-
-                            if iNearestReclaimableEnemy < 20 and ((iClosestDistUntilInRangeOfStaticEnemy >= 10 and iNearestReclaimableEnemy <= oEngineer:GetBlueprint().Economy.MaxBuildDistance) or iNearestReclaimableEnemy <= (oEngineer:GetBlueprint().Economy.MaxBuildDistance + 7)) then
+                            local iEngiBuildDistance = oEngineer:GetBlueprint().Economy.MaxBuildDistance
+                            if iNearestReclaimableEnemy < 20 and ((iClosestDistUntilInRangeOfStaticEnemy >= 10 and iNearestReclaimableEnemy <= iEngiBuildDistance) or iNearestReclaimableEnemy <= (iEngiBuildDistance + 7)) then
                                 --Reclaim enemy
+                                --Switch the target to the nearest dangerous enemy if it is in our build range
+                                if iNearestReclaimableDangerousEnemy < iEngiBuildDistance and oNearestReclaimableDangerousEnemy then
+                                    oNearestReclaimableEnemy = oNearestReclaimableDangerousEnemy
+                                end
                                 bEngiIsUnavailable = true
-
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will reclaim or capture unit, is capture target='..tostring(oNearestReclaimableEnemy[M28UnitInfo.refbIsCaptureTarget])) end
                                 if oNearestReclaimableEnemy[M28UnitInfo.refbIsCaptureTarget] then
                                     TrackEngineerAction(oEngineer, refActionCaptureUnit, false, 1)
-                                    M28Orders.IssueTrackedCapture(oEngineer, oNearestReclaimableEnemy, false, 'CapE')
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Told engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to capture enemy unit') end
+                                    --Dont capture if already capturing (redundancy)
+                                    if not(oEngineer:IsUnitState('Capturing')) then
+                                        M28Orders.IssueTrackedCapture(oEngineer, oNearestReclaimableEnemy, false, 'CapE')
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Told engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to capture enemy unit') end
+                                    end
                                 else
                                     TrackEngineerAction(oEngineer, refActionReclaimEnemyUnit, false, 1)
                                     M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaimableEnemy, false, 'RecE')
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Told engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to reclaim enemy unit') end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Told engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to reclaim enemy unit '..oNearestReclaimableEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestReclaimableEnemy)..'; Is getguards empty='..tostring(M28Utilities.IsTableEmpty(oNearestReclaimableEnemy:GetGuards()))..'; Unit:IsBeingBuilt()='..tostring(oNearestReclaimableEnemy:IsBeingBuilt())) end
                                 end
                             else
                                 --Enemy not close enough to reclaim, do we want to run?
@@ -3593,6 +3657,7 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
                 end
 
                 if oNearestReclaim then
+                    if oEngineer:IsUnitState('Capturing') then M28Utilities.ErrorHandler('Are aborting an engineer that was capturing and telling it to reclaim instead', true, true) end
                     bGivenOrder = true
                     M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaim, false, 'ReclLZSeg')
                     if bDebugMessages == true then LOG(sFunctionRef..': Will send order to get reclaim at position '..repru(oNearestReclaim.CachePosition)..'; will draw a box around here; oNearestReclaim ID='..(oNearestReclaim.UnitId or 'nil')) M28Utilities.DrawLocation(oNearestReclaim.CachePosition) end
@@ -4581,8 +4646,10 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                     local oUnitToCapture = vOptionalVariable
                     if bDebugMessages == true then LOG(sFunctionRef..': oUnitToCapture='..oUnitToCapture.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToCapture)..'; iTotalBuildPowerWanted='..iTotalBuildPowerWanted..'; iEngiCount='..iEngiCount) end
                     while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
-                        if bDebugMessages == true then LOG(sFunctionRef..': About to tell engineer '..tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount])..' to capture unit '..oUnitToCapture.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToCapture)..'; iEngiCount='..iEngiCount) end
-                        M28Orders.IssueTrackedCapture(tEngineersOfTechWanted[iEngiCount], oUnitToCapture, false, 'Cap', false)
+                        if bDebugMessages == true then LOG(sFunctionRef..': About to tell engineer '..tEngineersOfTechWanted[iEngiCount].UnitId..M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount])..' to capture unit '..oUnitToCapture.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToCapture)..'; iEngiCount='..iEngiCount..' unless it is already capturing') end
+                        if not(tEngineersOfTechWanted[iEngiCount]:IsUnitState('Capturing')) then
+                            M28Orders.IssueTrackedCapture(tEngineersOfTechWanted[iEngiCount], oUnitToCapture, false, 'Cap', false)
+                        end
                         TrackEngineerAction(tEngineersOfTechWanted[iEngiCount], iActionToAssign, false, iCurPriority)
                         UpdateBPTracking()
                     end
@@ -7938,7 +8005,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': About to see if we want to build a naval factory, is this a core WZ base=' .. tostring(tWZTeamData[M28Map.subrefWZbCoreBase]) .. '; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] .. '; bHaveLowMass=' .. tostring(bHaveLowMass) .. '; bWantBP=' .. tostring(tWZTeamData[M28Map.subrefTbWantBP]))
     end
-    if (not (bHaveLowMass) or tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) and (not (bHaveLowPower) or (tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > 1 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or -100) >= 10)) and ((tWZTeamData[M28Map.subrefWZbCoreBase] and (tWZTeamData[M28Map.subrefTbWantBP] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 10000) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 6 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) or (tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 4 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (tWZTeamData[M28Map.subrefTbWantBP] or not (bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 12 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]))) then
+    if (not (bHaveLowMass) or tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) and (not (bHaveLowPower) or (tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > 1 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastEnergyStall] or -100) >= 10)) and ((tWZTeamData[M28Map.subrefWZbCoreBase] and (tWZTeamData[M28Map.subrefTbWantBP] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 10000 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.8) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 6 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) or (tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 4 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (tWZTeamData[M28Map.subrefTbWantBP] or not (bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 12 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]))) then
         if (M28Team.tTeamData[iTeam][M28Team.refiPriorityPondValues][M28Map.tiPondByWaterZone[iWaterZone]] or 0) > 0 or tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] then
             local iMaxFactories = 2
             if tWZTeamData[M28Map.subrefWZbContainsUnderwaterStart] then
@@ -8188,6 +8255,16 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Want to assist naval fac, iBPWanted='..iBPWanted) end
         HaveActionToAssign(refActionAssistNavalFactory, 1, iBPWanted, false, false)
+    end
+
+    --If already have 1 naval fac build another if high mass
+    iCurPriority = iCurPriority + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': More naval fac if already have some and have lots of mass stored, iCurPrioriyt='..iCurPriority..'; iExistingWaterFactory='..iExistingWaterFactory..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]..'; Time since last had nothing to build='..GetGameTimeSeconds() - (tWZTeamData[M28Map.subrefiTimeNavalFacHadNothingToBuild] or -100)..'; Have low power='..tostring(bHaveLowPower)) end
+    if iExistingWaterFactory > 0 and iExistingWaterFactory < 4 and  M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 and not(bHaveLowPower) and GetGameTimeSeconds() - (tWZTeamData[M28Map.subrefiTimeNavalFacHadNothingToBuild] or -100) >= 30 then
+        iBPWanted = 15 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech]
+        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.8 then iBPWanted = iBPWanted * 1.5 end
+        if bDebugMessages == true then LOG(sFunctionRef..': Want to assign BP to build a naval fac, iBPWanted='..iBPWanted) end
+        HaveActionToAssign(refActionBuildNavalFactory, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyNavalFactoryTech], iBPWanted, nil)
     end
 
     --Preemptive AA builder if we are at T3 and have decent mass income, and have friendly units in the WZ or intel coverage, and no enemy units
@@ -8940,6 +9017,8 @@ function RecordUnitAsCaptureTarget(oUnit, bOptionalOnlyRecordIfSameUnitIdInCaptu
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordUnitAsCaptureTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
 
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
     local tLZOrWZData
