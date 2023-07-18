@@ -9017,48 +9017,54 @@ function RecordUnitAsCaptureTarget(oUnit, bOptionalOnlyRecordIfSameUnitIdInCaptu
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordUnitAsCaptureTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-
-
-    local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
-    local tLZOrWZData
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..';  oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; Unit position='..repru(oUnit:GetPosition())..'; Unit owner='..oUnit:GetAIBrain().Nickname) end
-    if iLandOrWaterZone > 0 then
-        if iPlateauOrZero == 0 then
-            tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
-        else
-            tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+    if M28Map.bIsCampaignMap and not(EntityCategoryContains(categories.MOBILE, oUnit.UnitId)) then
+        while not(M28Map.bWaterZoneInitialCreation) do
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitSeconds(1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            if GetGameTimeSeconds() >= 10 then break end
         end
-        --If this was called via onunitcaptured then want to check if the same unitid was recorded in a table of capture targets:
-        local bWantToCaptureUnit = not(bOptionalOnlyRecordIfSameUnitIdInCaptureList)
-        if bOptionalOnlyRecordIfSameUnitIdInCaptureList then
-            if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToCapture]) == false then
-                for iCaptureTarget, oCaptureTarget in tLZOrWZData[M28Map.subreftoUnitsToCapture] do
-                    if oCaptureTarget.UnitId == oUnit.UnitId then
-                        bWantToCaptureUnit = true
+
+        local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+        local tLZOrWZData
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..';  oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; Unit position='..repru(oUnit:GetPosition())..'; Unit owner='..oUnit:GetAIBrain().Nickname) end
+        if iLandOrWaterZone > 0 then
+            if iPlateauOrZero == 0 then
+                tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+            else
+                tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+            end
+            --If this was called via onunitcaptured then want to check if the same unitid was recorded in a table of capture targets:
+            local bWantToCaptureUnit = not(bOptionalOnlyRecordIfSameUnitIdInCaptureList)
+            if bOptionalOnlyRecordIfSameUnitIdInCaptureList then
+                if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToCapture]) == false then
+                    for iCaptureTarget, oCaptureTarget in tLZOrWZData[M28Map.subreftoUnitsToCapture] do
+                        if oCaptureTarget.UnitId == oUnit.UnitId then
+                            bWantToCaptureUnit = true
+                            break
+                        end
+                    end
+                end
+            end
+
+            --Check we havent already recorded this unit
+            if bWantToCaptureUnit and oUnit[M28UnitInfo.refbIsCaptureTarget] and M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToCapture]) == false then
+                for iRecordedUnit, oRecordedUnit in tLZOrWZData[M28Map.subreftoUnitsToCapture] do
+                    if oRecordedUnit == oUnit then
+                        bWantToCaptureUnit = false
                         break
                     end
                 end
             end
-        end
 
-        --Check we havent already recorded this unit
-        if bWantToCaptureUnit and oUnit[M28UnitInfo.refbIsCaptureTarget] and M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToCapture]) == false then
-            for iRecordedUnit, oRecordedUnit in tLZOrWZData[M28Map.subreftoUnitsToCapture] do
-                if oRecordedUnit == oUnit then
-                    bWantToCaptureUnit = false
-                    break
-                end
+            --Record unit against zone as a capture target and flag so we dont try and reclaim it
+            if bDebugMessages == true then LOG(sFunctionRef..': bWantToCaptureUnit='..tostring(bWantToCaptureUnit)..'; oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')) end
+            if bWantToCaptureUnit then
+                if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToCapture]) then tLZOrWZData[M28Map.subreftoUnitsToCapture] = {} end
+                table.insert(tLZOrWZData[M28Map.subreftoUnitsToCapture], oUnit)
+                oUnit[M28UnitInfo.refbIsCaptureTarget] = true
+                if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of units to capture') end
             end
-        end
-
-        --Record unit against zone as a capture target and flag so we dont try and reclaim it
-        if bDebugMessages == true then LOG(sFunctionRef..': bWantToCaptureUnit='..tostring(bWantToCaptureUnit)..'; oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')) end
-        if bWantToCaptureUnit then
-            if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToCapture]) then tLZOrWZData[M28Map.subreftoUnitsToCapture] = {} end
-            table.insert(tLZOrWZData[M28Map.subreftoUnitsToCapture], oUnit)
-            oUnit[M28UnitInfo.refbIsCaptureTarget] = true
-            if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of units to capture') end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
