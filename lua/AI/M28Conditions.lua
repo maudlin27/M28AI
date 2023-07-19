@@ -1508,3 +1508,22 @@ function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iAdjac
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return bAreInScenario2
 end
+
+
+function GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, iCategory)
+    local iCount = 0
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
+        local tFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory,tLZTeamData[M28Map.subrefLZTAlliedUnits])
+        if M28Utilities.IsTableEmpty(tFactories) == false then
+            local sBeingBuilt
+            for iFactory, oFactory in tFactories do
+                sBeingBuilt = oFactory[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint]
+                if sBeingBuilt and EntityCategoryContains(iCategory, sBeingBuilt) then
+                    iCount = iCount + 1
+                end
+            end
+        end
+    end
+    return iCount
+
+end

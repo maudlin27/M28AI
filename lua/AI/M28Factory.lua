@@ -837,6 +837,17 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         end
     end
 
+    --ALso high priority engineers more generally if arent building any and want more
+    if tLZTeamData[M28Map.subrefTbWantBP] and iFactoryTechLevel >= 3 and (M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 250) then
+        local iCurBPWanted = tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][1] + tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][2] + tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][3]
+        if iCurBPWanted > 20 then
+            local iCurEngineersBeingBuilt = M28Conditions.GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryEngineer * categories.TECH3)
+            if (iCurEngineersBeingBuilt <= 2 or not(bHaveLowMass)) and iCurEngineersBeingBuilt * M28Engineer.tiBPByTech[3] < iCurBPWanted then
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+            end
+        end
+    end
+
     --Priority upgrade to T3 if have lots of T3 mexes, and no enemies in this zone (even if have enemies nearby), provided we have other factores in the zone that can build units
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if iFactoryTechLevel == 2 and aiBrain[M28Economy.refiOurHighestLandFactoryTech] == 2 and tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) and (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 10 or tLZTeamData[M28Map.subrefMexCountByTech][3] >= 4) and (not(M28Conditions.HaveLowPower(iTeam)) or (not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 100)) then
@@ -2245,16 +2256,19 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
         if tLZTeamData[M28Map.subrefTbWantBP] and iFactoryTechLevel >= M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] then
             --Do we have fewer than 5 engineers of this tech level in this zone and we have some mass stored? if so then build another engineer (also build another engineer if we have fewer than 3 engineers even with low mass)
             local iEngisOfTechInZone = 0
+            local iBPWanted = tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][1] + tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][2] + tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][3]
             local tEngisOfTechInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel), tLZTeamData[M28Map.subrefLZTAlliedUnits])
             if M28Utilities.IsTableEmpty(tEngisOfTechInZone) == false then
                 iEngisOfTechInZone = table.getn(tEngisOfTechInZone)
             end
-            if iEngisOfTechInZone < 3 or (iEngisOfTechInZone < 5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 0) or (iEngisOfTechInZone < 10 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 1000) then
+            if iEngisOfTechInZone < 3 or (iEngisOfTechInZone < 5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 0) or (iEngisOfTechInZone < 10 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 1000 or iBPWanted >= 100))
+            or (iEngisOfTechInZone < 50 and iBPWanted / 10 > iEngisOfTechInZone and iFactoryTechLevel >= 3 and (M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or M28Conditions.GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryEngineer * categories.TECH3) <= math.min(2, iBPWanted / M28Engineer.tiBPByTech[3]))) then
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then
                     return sBPIDToBuild
                 end
             end
         end
+
     else
         --Emergency air defence
         iCurrentConditionToTry = iCurrentConditionToTry + 1
@@ -2546,6 +2560,17 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 iCurrentConditionToTry = iCurrentConditionToTry + 1
                 if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirScout) == 0 then
                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirScout) then return sBPIDToBuild end
+                end
+
+                --Engineers if we need them for our core zone and are at T3 and are defending against arti, and are building <= 2 engineers in this zone
+                if tLZTeamData[M28Map.subrefTbWantBP] and iFactoryTechLevel >= 3 and (M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 500) then
+                    local iCurBPWanted = tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][1] + tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][2] + tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][3]
+                    if iCurBPWanted > 30 then
+                        local iCurEngineersBeingBuilt = M28Conditions.GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryEngineer * categories.TECH3)
+                        if (iCurEngineersBeingBuilt <= 2 or not(bHaveLowMass)) and iCurEngineersBeingBuilt * M28Engineer.tiBPByTech[3] < iCurBPWanted then
+                            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+                        end
+                    end
                 end
 
                 --Do we lack enough torpedo bombers to target enemy navy?
