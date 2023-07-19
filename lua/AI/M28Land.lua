@@ -2005,36 +2005,74 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
     local sFunctionRef = 'ManageRASSACUsInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    --Defending against arti - if have T3 arti or gameender then want to assist the shield with RAS SACUs (in addition to any engineers that are assisting it)
-    local tPriorityUnitsToShield
+    --Defending against arti - if have a gameender then first consider if have part-complete shield that want to construct
     local oShieldToAssist
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for zone '..iLandZone..'; at time '..GetGameTimeSeconds()..'; DefendAgainstArti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])) end
-    if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then
-        local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
-        tPriorityUnitsToShield = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryGameEnder, tLZData[M28Map.subrefMidpoint], 250, 'Ally')
-        if M28Utilities.IsTableEmpty(tPriorityUnitsToShield) then
-            tPriorityUnitsToShield = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedT3Arti, tLZData[M28Map.subrefMidpoint], 150, 'Ally')
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection]) == false and M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then
+        local tGameEndersForShielding = EntityCategoryFilterDown(M28UnitInfo.refCategoryGameEnder, tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection])
+        if M28Utilities.IsTableEmpty(tGameEndersForShielding) == false then
+            local oGameEnderToCover
+            for iGameEnder, oGameEnder in tGameEndersForShielding do
+                if M28Utilities.IsTableEmpty(oGameEnder[M28Building.reftoSpecialAssignedShields]) == false then
+                    oGameEnderToCover = oGameEnder
+                    break
+                end
+            end
+            if oGameEnderToCover then
+                --How much shielding do we have
+                local iNearestCompleteShield = 0
+                local oNearestCompleteShield
+                local iActiveShields = 0
+                local iCurShield, iMaxShield
+                for iShield, oShield in oGameEnder[M28Building.reftoSpecialAssignedShields] do
+                    if oShield:GetFractionComplete() < 1 and oShield:GetFractionComplete() > iNearestCompleteShield then
+                        iNearestCompleteShield = oShield:GetFractionComplete()
+                        oNearestCompleteShield = oShield
+                    else
+                        iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oShield, true)
+                        if iCurShield > 0 then iActiveShields = iActiveShields + 1 end
+                    end
+                end
+                if iActiveShields > 1 or (iActiveShields == 1 and iNearestCompleteShield >= 0.75) then
+                    --Do nothing
+                else
+                    oShieldToAssist = oNearestCompleteShield
+                end
+            end
         end
+
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Is table of priority units to shield empty='..tostring(M28Utilities.IsTableEmpty(tPriorityUnitsToShield))) end
-    if M28Utilities.IsTableEmpty(tPriorityUnitsToShield) == false then
-        --Get closest of these that has a shield
-        local iCurDist
-        local iClosestDist = 100000
-        local iCurShield, iMaxShield
-        for iUnit, oUnit in tPriorityUnitsToShield do
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering priority unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fraction compelte='..oUnit:GetFractionComplete()..'; Does it have a shield providing coverage='..tostring(M28UnitInfo.IsUnitValid(oUnit[M28Building.refoPriorityShieldProvidingCoverage]))) end
-            if oUnit:GetFractionComplete() >= 0.35 then
-                if M28UnitInfo.IsUnitValid(oUnit[M28Building.refoPriorityShieldProvidingCoverage]) then
-                    iCurDist = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], oUnit[M28Building.refoPriorityShieldProvidingCoverage]:GetPosition())
-                    if bDebugMessages == true then LOG(sFunctionRef..': Shield='..oUnit[M28Building.refoPriorityShieldProvidingCoverage].UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit[M28Building.refoPriorityShieldProvidingCoverage])..'; iCurDist='..iCurDist..'; iCloestDist='..iClosestDist) end
-                    if iCurDist < iClosestDist then
-                        --Is the shield still active?
-                        iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit[M28Building.refoPriorityShieldProvidingCoverage], true)
-                        if bDebugMessages == true then LOG(sFunctionRef..': iCurShield='..iCurShield) end
-                        if iCurShield > 0 or oUnit[M28Building.refoPriorityShieldProvidingCoverage]:GetFractionComplete() < 1 then
-                            iClosestDist = iCurDist
-                            oShieldToAssist = oUnit[M28Building.refoPriorityShieldProvidingCoverage]
+
+    --Defending against arti - if have T3 arti or gameender then want to assist the shield with RAS SACUs (in addition to any engineers that are assisting it)
+    if not(oShieldToAssist) then
+        local tPriorityUnitsToShield
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code for zone '..iLandZone..'; at time '..GetGameTimeSeconds()..'; DefendAgainstArti='..tostring(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti])) end
+        if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then
+            local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
+            tPriorityUnitsToShield = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryGameEnder, tLZData[M28Map.subrefMidpoint], 250, 'Ally')
+            if M28Utilities.IsTableEmpty(tPriorityUnitsToShield) then
+                tPriorityUnitsToShield = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedT3Arti, tLZData[M28Map.subrefMidpoint], 150, 'Ally')
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Is table of priority units to shield empty='..tostring(M28Utilities.IsTableEmpty(tPriorityUnitsToShield))) end
+        if M28Utilities.IsTableEmpty(tPriorityUnitsToShield) == false then
+            --Get closest of these that has a shield
+            local iCurDist
+            local iClosestDist = 100000
+            local iCurShield, iMaxShield
+            for iUnit, oUnit in tPriorityUnitsToShield do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering priority unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fraction compelte='..oUnit:GetFractionComplete()..'; Does it have a shield providing coverage='..tostring(M28UnitInfo.IsUnitValid(oUnit[M28Building.refoPriorityShieldProvidingCoverage]))) end
+                if oUnit:GetFractionComplete() >= 0.35 then
+                    if M28UnitInfo.IsUnitValid(oUnit[M28Building.refoPriorityShieldProvidingCoverage]) then
+                        iCurDist = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], oUnit[M28Building.refoPriorityShieldProvidingCoverage]:GetPosition())
+                        if bDebugMessages == true then LOG(sFunctionRef..': Shield='..oUnit[M28Building.refoPriorityShieldProvidingCoverage].UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit[M28Building.refoPriorityShieldProvidingCoverage])..'; iCurDist='..iCurDist..'; iCloestDist='..iClosestDist) end
+                        if iCurDist < iClosestDist then
+                            --Is the shield still active?
+                            iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit[M28Building.refoPriorityShieldProvidingCoverage], true)
+                            if bDebugMessages == true then LOG(sFunctionRef..': iCurShield='..iCurShield) end
+                            if iCurShield > 0 or oUnit[M28Building.refoPriorityShieldProvidingCoverage]:GetFractionComplete() < 1 then
+                                iClosestDist = iCurDist
+                                oShieldToAssist = oUnit[M28Building.refoPriorityShieldProvidingCoverage]
+                            end
                         end
                     end
                 end
@@ -2043,8 +2081,14 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
     end
     if oShieldToAssist then
         if bDebugMessages == true then LOG(sFunctionRef..': Have priority shield to assist') end
-        for iUnit, oUnit in tRASSACU do
-            M28Orders.IssueTrackedGuard(oUnit, oShieldToAssist, false, 'RASAGS', false)
+        if oShieldToAssist:GetFractionComplete() == 1 then
+            for iUnit, oUnit in tRASSACU do
+                M28Orders.IssueTrackedGuard(oUnit, oShieldToAssist, false, 'RASAGS', false)
+            end
+        else
+            for iUnit, oUnit in tRASSACU do
+                M28Orders.IssueTrackedRepair(oUnit, oShieldToAssist, false, 'RASRS', false)
+            end
         end
     else
         --If have mass stored then find the nearest quantum gatway and assist it for now, otherwise do nothing (if enemies in this LZ then will have been sent to the combat unit management already)
