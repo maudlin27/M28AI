@@ -537,7 +537,17 @@ function IssueTrackedRepair(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalO
         else tLastOrder = oUnit[reftiLastOrders][1]
         end
     end
-    if not(tLastOrder[subrefiOrderType] == refiOrderIssueRepair and oOrderTarget == tLastOrder[subrefoOrderUnitTarget]) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
+    local bIssueOrder = false
+    if (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) and not(tLastOrder[subrefiOrderType] == refiOrderIssueRepair and oOrderTarget == tLastOrder[subrefoOrderUnitTarget]) then
+        bIssueOrder = true
+    elseif oOrderTarget:GetFractionComplete() < 1 and not(oUnit:IsUnitState('Repairing')) and not(oUnit:IsUnitState('Building')) then
+        local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oOrderTarget:GetPosition(), oUnit:GetPosition())
+        local oTargetBP = oOrderTarget:GetBlueprint()
+        if iDistToTarget <= (oUnit:GetBlueprint().Economy.MaxBuildDistance or 0) + math.min((oTargetBP.Physics.SkirtSizeX or 0), (oTargetBP.Physics.SkirtSizeZ or 0)) then
+            bIssueOrder = true
+        end
+    end
+    if bIssueOrder then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
