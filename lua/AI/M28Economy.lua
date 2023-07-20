@@ -23,6 +23,8 @@ refiGrossEnergyBaseIncome = 'M28EnergyGrossIncome' --against aiBrain
 refiNetEnergyBaseIncome = 'M28EnergyNetIncome' --against aiBrain
 refiGrossMassBaseIncome = 'M28MassGrossIncome' --against aiBrain
 refiNetMassBaseIncome = 'M28MassNetIncome' --against aiBrain
+refiBrainResourceMultiplier = 'M28ResourceMod' --Against aiBrain, e.g. 1.5 if AiX 1.5
+refiBrainBuildRateMultiplier = 'M28BuildMod' --against aiBrain
 
 refiMaxMassStorage = 'M28MaxMassStorage' --against aiBrain
 refiMaxEnergyStorage = 'M28MaxEnergyStorage' --against aiBrain

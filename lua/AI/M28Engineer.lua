@@ -1490,6 +1490,8 @@ function GetLocationToMoveForConstruction(oUnit, tTargetLocation, sBlueprintID, 
     local sFunctionRef = 'GetLocationToMoveForConstruction'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and oUnit:GetAIBrain():GetArmyIndex() == 4 then bDebugMessages = true end
+
     local sPathing = M28UnitInfo.GetUnitPathingType(oUnit)
     local iPathingGroupWanted = NavUtils.GetLabel(sPathing, oUnit:GetPosition())
 
@@ -1497,16 +1499,27 @@ function GetLocationToMoveForConstruction(oUnit, tTargetLocation, sBlueprintID, 
     local iAngleFromTargetToBuilder = M28Utilities.GetAngleFromAToB(tTargetLocation, oUnit:GetPosition())
     local iBuildRange = oUnit:GetBlueprint().Economy.MaxBuildDistance
     local iDistanceWantedFromTarget = math.max(1, iBuildRange + (iBuildDistanceMod or 0))
+    local oBlueprint
+    local iBuildingRadius = 0
+    if sBlueprintID then
+        oBlueprint = __blueprints[sBlueprintID]
+        if oBlueprint then
+            iBuildingRadius = math.min(oBlueprint.Physics.SkirtSizeX, oBlueprint.Physics.SkirtSizeZ) - 0.01
+        end
+    end
+    iDistanceWantedFromTarget = iDistanceWantedFromTarget + iBuildingRadius
+
     if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; tTargetLocation='..repru(tTargetLocation)..'; sBlueprintID='..(sBlueprintID or 'nil')..'; iBuildDistanceMod='..(iBuildDistanceMod or 'nil')..'bDontReturnNilIfAlreadyInRangeOrNoNearbyLocation='..tostring(bDontReturnNilIfAlreadyInRangeOrNoNearbyLocation or false)) end
     if not(bDontReturnNilIfAlreadyInRangeOrNoNearbyLocation) then
         --Check if we are in range already
-        if bDebugMessages == true then LOG(sFunctionRef..': Checking if we are already in range of the target, distance='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tTargetLocation)..'; iDistanceWantedFromTarget='..iDistanceWantedFromTarget) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Checking if we are already in range of the target, distance='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tTargetLocation)..'; iDistanceWantedFromTarget='..iDistanceWantedFromTarget..'; iBuildingRadius='..iBuildingRadius) end
         if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tTargetLocation) <= iDistanceWantedFromTarget then
+            if bDebugMessages == true then LOG(sFunctionRef..': Target location is already in range') end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return nil
         end
     end
-    if sBlueprintID then iDistanceWantedFromTarget = iDistanceWantedFromTarget + M28UnitInfo.GetBuildingSize(sBlueprintID) * 0.5 end
+
     for iDistanceToMove = iDistanceWantedFromTarget, 1, -1 do
         tPotentialMoveLocation = M28Utilities.MoveInDirection(tTargetLocation,iAngleFromTargetToBuilder, iDistanceToMove, true, false, true)
         if NavUtils.GetLabel(sPathing, tPotentialMoveLocation) == iPathingGroupWanted then
