@@ -1100,6 +1100,9 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                     table.insert(tTeamData[iTeam][reftEnemyACUs], oUnit)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of enemy ACUs for team '..iTeam) end
                                 end
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryMissileShip, oUnit.UnitId) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have enemy missile ship '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; will record as mobile TML threat') end
+                                ForkThread(RecordMobileTMLThreatForAllEnemyTeams, oUnit)
                             end
 
                             --If enemy hasnt built omni yet check whether this is omni

@@ -4206,7 +4206,7 @@ function RecordPondDetails()
         local tShotStartPosition
         local tShotEndPosition
         local iAOE
-        local iPotentialSegmentX, iPotentialSegmentZ, iPotentialWaterZone
+        local iPotentialSegmentX, iPotentialSegmentZ
 
         --Want a brain in case we end up using the alternative 'line is blocked' built in functionality
         local aiBrain
@@ -4242,10 +4242,14 @@ function RecordPondDetails()
                         for iEntry, iDist in tiDistToTry do
                             for iAngleAdjust = iAngleInterval, 360, iAngleInterval do
                                 tPossibleWaterPosition = M28Utilities.MoveInDirection(tMex, iAngleAdjust, iDist, true, true, false) --Gets terrainheight rather than surface height
+                                if bDebugMessages == true then
+                                    local iTempSegmentX, iTempSegmentZ = GetPathingSegmentFromPosition(tPossibleWaterPosition)
+                                    LOG(sFunctionRef..': Considering mex '..repru(tMex)..'; iDist='..iDist..'; iAngleAdjust='..iAngleAdjust..'; tPossibleWaterPosition='..repru(tPossibleWaterPosition)..'; Is underwater='..tostring(IsUnderwater(tPossibleWaterPosition, false, iMinWaterDepth))..'; Pond for the segment at this position='..(tPondBySegment[iTempSegmentX][iTempSegmentZ] or 'nil'))
+                                end
                                 if IsUnderwater(tPossibleWaterPosition, false, iMinWaterDepth) then
+                                    --NOTE: We wont have water zone segments setup yet so cant refer to WZ by segment, only pond by segemnt
                                     iPotentialSegmentX, iPotentialSegmentZ = GetPathingSegmentFromPosition(tPossibleWaterPosition)
-                                    iPotentialWaterZone = tWaterZoneBySegment[iPotentialSegmentX][iPotentialSegmentZ]
-                                    if iPotentialWaterZone and tiPondByWaterZone[iPotentialWaterZone] == iPond then
+                                    if tPondBySegment[iPotentialSegmentX][iPotentialSegmentZ] == iPond then
                                         --Have a match, record the mex details:
                                         bInRange = true
                                         iCurMexDist = iDist
@@ -4263,7 +4267,7 @@ function RecordPondDetails()
                                         if iCurMexDist >= 30 then
                                             iAOE = 1
                                         end --most destroyers have an aoe attack (except sera)
-
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Have a mex that is near water, will see if expect to hit it from the water position? islineblocked='..tostring(M28Logic.IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, iAOE))) end
                                         if M28Logic.IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, iAOE) then
                                             tShotStartPosition[2] = tShotStartPosition[2] + 8
                                             tShotEndPosition[2] = tShotEndPosition[2] + 8
@@ -4440,14 +4444,14 @@ function RecordPondToExpandTo(aiBrain)
             if M28Utilities.IsTableEmpty(tPondSubtable) == false then
                 iCurPondValue = 0
                 iCurPondDefensiveValue = 0
-                if bDebugMessages == true then LOG(sFunctionRef..': iCurPondRef='..iCurPondRef..'; Repru of subtable='..repru(tPondSubtable)..'; ai brain start point='..repru(PlayerStartPoints[aiBrain:GetArmyIndex()])) end
+                if bDebugMessages == true then LOG(sFunctionRef..': iCurPondRef='..iCurPondRef..'; MaxX='..tPondSubtable[subrefPondMaxX]..'Z='..tPondSubtable[subrefPondMaxZ]..'; MinX='..tPondSubtable[subrefPondMinX]..'Z='..tPondSubtable[subrefPondMinZ]..'; Mex info='..repru(tPondSubtable[subrefPondMexInfo])..'; Midpoint='..repru(tPondSubtable[subrefPondMidpoint])..'; Segment count='..tPondSubtable[subrefiSegmentCount]) end
 
                 --Is the pond within 175 of our start position?  First see if X is within distance threshold:
                 if math.abs(tPondSubtable[subrefPondMinX] - PlayerStartPoints[aiBrain:GetArmyIndex()][1]) <= iDistanceThreshold or math.abs(PlayerStartPoints[aiBrain:GetArmyIndex()][1] - tPondSubtable[subrefPondMaxX]) <= iDistanceThreshold or (PlayerStartPoints[aiBrain:GetArmyIndex()][1] >= tPondSubtable[subrefPondMinX] and PlayerStartPoints[aiBrain:GetArmyIndex()][1] <= tPondSubtable[subrefPondMaxX]) then
                     --X is in range, is Z?
                     if math.abs(tPondSubtable[subrefPondMinZ] - PlayerStartPoints[aiBrain:GetArmyIndex()][3]) <= iDistanceThreshold or math.abs(PlayerStartPoints[aiBrain:GetArmyIndex()][3] - tPondSubtable[subrefPondMaxZ]) <= iDistanceThreshold or (PlayerStartPoints[aiBrain:GetArmyIndex()][3] >= tPondSubtable[subrefPondMinZ] and PlayerStartPoints[aiBrain:GetArmyIndex()][3] <= tPondSubtable[subrefPondMaxZ]) then
                         --X and Z are in range
-
+                        if bDebugMessages == true then LOG(sFunctionRef..': repru of pond mex info='..repru(tPondSubtable[subrefPondMexInfo])) end
 
                         for iMex, tMexInfo in tPondSubtable[subrefPondMexInfo] do
                             iCurMexValue = 0

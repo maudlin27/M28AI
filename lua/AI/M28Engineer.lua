@@ -5767,6 +5767,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Considering if we want to get TMD; is table of units wanting TMD empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]))) end
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]) == false then
         local oUnitWantingTMD = M28Building.GetUnitWantingTMD(tLZData, tLZTeamData)
+        if bDebugMessages == true then LOG(sFunctionRef..': Is oUnitWantingTMD valid unit='..tostring(M28UnitInfo.IsUnitValid(oUnitWantingTMD))) end
         if oUnitWantingTMD then
             iBPWanted = 40
             if not(bHaveLowMass) and not(bHaveLowPower) then iBPWanted = 70 end
@@ -7210,6 +7211,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         end
         --Get the unit closest to the nearest enemy base to protect first
         local oUnitWantingTMD = M28Building.GetUnitWantingTMD(tLZData, tLZTeamData)
+        if bDebugMessages == true then LOG(sFunctionRef..': Is oUnitWantingTMD valid='..tostring(M28UnitInfo.IsUnitValid(oUnitWantingTMD))..'; iBPWanted='..iBPWanted) end
         if oUnitWantingTMD then
             HaveActionToAssign(refActionBuildTMD, 2, iBPWanted,  oUnitWantingTMD)
         end
