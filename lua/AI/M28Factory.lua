@@ -505,7 +505,7 @@ end
 
 function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     local sFunctionRef = 'GetBlueprintToBuildForLandFactory'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iCategoryToBuild
@@ -775,7 +775,14 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 2 and aiBrain[M28Economy.refiGrossMassBaseIncome] >= 3 then iLifetimeCountWanted = iLifetimeCountWanted - 9
         end
         if iLifetimeCountWanted <= 5 then iLifetimeCountWanted = 5 end
-        if ConsiderUpgrading() then  return sBPIDToBuild end
+        --Increase lifetime count if our highest factory tech level is 1 and we dont have many other land or air factories
+        if iLifetimeCountWanted < 15 and aiBrain[M28Economy.refiOurHighestLandFactoryTech] == 1 and tLZTeamData[M28Map.subrefTbWantBP] and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory) < 4 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) < 8 then
+            iLifetimeCountWanted = math.min(15, iLifetimeCountWanted + 5)
+        end
+        if M28Conditions.GetFactoryLifetimeCount(oFactory, nil, true) >= iLifetimeCountWanted then
+
+            if ConsiderUpgrading() then  return sBPIDToBuild end
+        end
     end
 
     --Enemy nearby ACU and PD or T2 arti nearby, with no enemies in this actual LZ - get indirect fire as last resort
