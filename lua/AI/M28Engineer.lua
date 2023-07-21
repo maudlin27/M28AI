@@ -318,6 +318,7 @@ function CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOption
     local sFunctionRef = 'CanBuildAtLocation'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    if M28Utilities.GetDistanceBetweenPositions(tTargetLocation, {426.5, 29.26171875, 475.5}) <= 0.2 then bDebugMessages = true end
 
     if bDebugMessages == true then
         LOG(sFunctionRef..': About to see if we can build '..(sBlueprintToBuild or 'nil')..' at '..repru(tTargetLocation)..'; iEngiActionToIgnore='..(iEngiActionToIgnore or 'nil')..'; bClearActionsIfNotStartedBuilding='..tostring((bClearActionsIfNotStartedBuilding or false))..'; surface height at target='..GetSurfaceHeight(tTargetLocation[1], tTargetLocation[3])..'; aiBrain:CanBuildStructureAt(sBlueprintToBuild, tTargetLocation)='..tostring(aiBrain:CanBuildStructureAt(sBlueprintToBuild, tTargetLocation)))
@@ -341,6 +342,7 @@ function CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOption
 
             local iSkirtSizeRadius = __blueprints[sBlueprintToBuild].Physics.SkirtSizeX * 0.5
             if bCheckForQueuedBuildings == true then
+                if bDebugMessages == true then LOG(sFunctionRef..': Checking for queued buildings, iOptionalPlateauGroupOrZero='..(iOptionalPlateauGroupOrZero or 'nil')..'; iOptionalLandOrWaterZone='..(iOptionalLandOrWaterZone or 'nil')) end
                 if iOptionalPlateauGroupOrZero and iOptionalLandOrWaterZone then
                     --local iBuildingSize = M28UnitInfo.GetBuildingSize(sBlueprintToBuild)
                     local iBuildingRadius = math.floor(M28UnitInfo.GetBuildingSize(sBlueprintToBuild) * 0.5)
@@ -353,12 +355,15 @@ function CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOption
                         tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iOptionalLandOrWaterZone]][M28Map.subrefPondWaterZones][iOptionalLandOrWaterZone]
                         tLZOrWZTeamData = tLZOrWZData[M28Map.subrefWZTeamData][aiBrain.M28Team]
                     end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of queued buildings empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefQueuedBuildings]))..'; iBuildingRadius='..iBuildingRadius..'; tTargetLocation='..repru(tTargetLocation)) end
                     if tLZOrWZData and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefQueuedBuildings]) == false then
                         local iBaseX = math.floor(tTargetLocation[1])
                         local iBaseZ = math.floor(tTargetLocation[3])
-                        for iX = iBaseX - iBuildingRadius, iBaseX + iBuildingRadius, 1 do
+                        local iBuildingRadiusAdjust = math.ceil(iBuildingRadius)
+                        for iX = iBaseX - iBuildingRadiusAdjust, iBaseX + iBuildingRadiusAdjust, 1 do
                             if tLZOrWZData[M28Map.subrefQueuedLocationsByPosition][iX] then
-                                for iZ = iBaseZ - iBuildingRadius, iBaseZ + iBuildingRadius do
+                                if bDebugMessages == true then LOG(sFunctionRef..': Table of queued locations for iX '..iX..'='..repru(tLZOrWZData[M28Map.subrefQueuedLocationsByPosition][iX])..'; iBaseZ='..iBaseZ..'; iBuildingRadiusAdjust='..iBuildingRadiusAdjust) end
+                                for iZ = iBaseZ - iBuildingRadiusAdjust, iBaseZ + iBuildingRadiusAdjust do
                                     if tLZOrWZData[M28Map.subrefQueuedLocationsByPosition][iX][iZ] then
                                         bCanBuildStructure = false
                                         break
@@ -986,18 +991,20 @@ function DrawBuildableLocations(tLZOrWZData, iSize)
     end
 end
 
-function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAction, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy, tAlternativePositionToLookFrom, bLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZTeamData, bCalledFromGetBestLocation, sBlueprintOverride)
+function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAction, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy, tAlternativePositionToLookFrom, bNotYetUsedLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZTeamData, bCalledFromGetBestLocation, sBlueprintOverride)
     --Returns blueprint and location for oEngineer to build at and returns these or nil if no suitable locations can be found
     --iCatToBuildBy: Optional, specify if want to look for adjacency locations; Note to factor in 50% of the builder's size and 50% of the likely adjacency building size
     --iOptionalEngineerAction - ideally should populate this, will both help with debug and more importantly is used to track building sizes by action so can switch off parts of engineer logic when run out of build space
+
+    --NOTE: bNotYetUsedLookForQueuedBuildings isn't currently used (instead we just use bCheckForQueuedBuildings for mexes and always set it to true)
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetBlueprintAndLocationToBuild'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    if iOptionalEngineerAction == refActionBuildMex then bDebugMessages = true end
 
-
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for action (if specified) '..(iOptionalEngineerAction or 'nil')..', Engineer UC='..GetEngineerUniqueCount(oEngineer)..'; Engineer LC='..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; Techlevel='..M28UnitInfo.GetUnitTechLevel(oEngineer)..'; tAlternativePositionToLookFrom='..repru(tAlternativePositionToLookFrom or {'nil'})..'; bBuildCheapestStructure='..tostring((bBuildCheapestStructure or false))..'; All blueprints that meet the category='..repru(EntityCategoryGetUnitList(iCategoryToBuild))..'; iMaxAreaToSearch='..(iMaxAreaToSearch or 'nil')) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for action (if specified) '..(iOptionalEngineerAction or 'nil')..', Engineer UC='..GetEngineerUniqueCount(oEngineer)..'; Engineer ID and LC='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; Techlevel='..M28UnitInfo.GetUnitTechLevel(oEngineer)..'; tAlternativePositionToLookFrom='..repru(tAlternativePositionToLookFrom or {'nil'})..'; bBuildCheapestStructure='..tostring((bBuildCheapestStructure or false))..'; All blueprints that meet the category='..repru(EntityCategoryGetUnitList(iCategoryToBuild))..'; iMaxAreaToSearch='..(iMaxAreaToSearch or 'nil')..'; Time='..GetGameTimeSeconds()..'; Engineer brain='..oEngineer:GetAIBrain().Nickname) end
 
     --Get the blueprint to build
     --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, iOptionalCategoryThatMustBeAbleToBuild, bGetCheapest)
@@ -1160,7 +1167,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
                 for iCurResource, tCurResource in tResourceLocations do
                     if bDebugMessages == true then
                         --CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOptionalPlateauGroupOrZero, iOptionalLandOrWaterZone, iEngiActionToIgnore, bClearActionsIfNotStartedBuilding, bCheckForQueuedBuildings, bCheckForOverlappingBuildings)
-                        LOG(sFunctionRef..': Checking if can build '..sBlueprintToBuild..' on resource location '..repru(tCurResource)..'; result='..tostring(CanBuildAtLocation(aiBrain, sBlueprintToBuild, tCurResource, iPlateau, iLandZone, nil, false, true, false))..'; will draw locations we can build on in blue, and those we cant in red')
+                        LOG(sFunctionRef..': Checking if can build '..sBlueprintToBuild..' on resource location '..repru(tCurResource)..'; result='..tostring(CanBuildAtLocation(aiBrain, sBlueprintToBuild, tCurResource, iPlateau, iLandZone, nil, false, true, false))..'; will draw locations we can build on in blue, and those we cant in red. bCheckForQueuedBuildings='..tostring(bCheckForQueuedBuildings or false))
                         if CanBuildAtLocation(aiBrain, sBlueprintToBuild, tCurResource, iPlateauOrZero, iLandOrWaterZone, nil, false, bCheckForQueuedBuildings, false, false, false) then
                             M28Utilities.DrawLocation(tCurResource, 1)
                         else
@@ -1490,7 +1497,7 @@ function GetLocationToMoveForConstruction(oUnit, tTargetLocation, sBlueprintID, 
     local sFunctionRef = 'GetLocationToMoveForConstruction'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and oUnit:GetAIBrain():GetArmyIndex() == 4 then bDebugMessages = true end
+
 
     local sPathing = M28UnitInfo.GetUnitPathingType(oUnit)
     local iPathingGroupWanted = NavUtils.GetLabel(sPathing, oUnit:GetPosition())
@@ -4075,7 +4082,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     local sFunctionRef = 'ConsiderActionToAssign'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iActionToAssign == refActionBuildMex and iPlateauOrPond == 697 and iLandOrWaterZone == 4 then bDebugMessages = true end
 
     --Dont try getting any mroe BP for htis action if have run out of buildable locations
     local iExpectedBuildingSize = tiLastBuildingSizeFromActionForTeam[iTeam][iActionToAssign]
@@ -5537,6 +5544,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     end
 
     --Unclaimed mex in the zone
+    if iPlateau == 697 and iLandZone == 4 then bDebugMessages = true end
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then
         LOG(sFunctionRef..': Considering if unbuilt or part build mexes in t his LZ, is subrefMexUnbuiltLocations empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]))..'; Is subreftoPartBuiltMexes empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoPartBuiltMexes])))
@@ -5553,6 +5561,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 iBPWanted = 20
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': Have a total of '..table.getn(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations])..' unbuilt mex locations in this zone, iBPWanted='..iBPWanted..'; Highest friendly tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
         HaveActionToAssign(refActionBuildMex, 1, iBPWanted)
     elseif M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoPartBuiltMexes]) == false then
         --Do we have no engineers assigned to building a mex?
@@ -5570,10 +5579,12 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             --Refresh list of mexes
             RefreshPartBuiltMexList(tLZTeamData)
             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoPartBuiltMexes]) == false then
+                if bDebugMessages == true then LOG(sFunctionRef..': Want to assign 5 BP to complete a part built mex') end
                 HaveActionToAssign(refActionCompletePartBuiltMex, 1, 5)
             end
         end
     end
+    bDebugMessages = false
 
     --Very High priority factory if we have fewer than 4 (or if lwoer thre number of mexes in the LZ or small map and signif mass stored) and is a smaller map - takes priority over mex expansion
     iCurPriority = iCurPriority + 1

@@ -317,7 +317,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if aiBrain:GetArmyIndex() == 4 then bDebugMessages = true end
+
 
     --Are we already building something?
     if bDebugMessages == true then LOG(sFunctionRef..': ACU unit state='..M28UnitInfo.GetUnitState(oACU)) end
