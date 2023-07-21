@@ -5442,7 +5442,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --Start of game or low power - build hydro if one nearby, otherwise build pgen
     iCurPriority = iCurPriority + 1
-    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 10 then
+    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 200 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 10 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultipler] then
         if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroLocations]) == false then
             --Norush check
             if bDebugMessages == true then LOG(sFunctionRef..': CHecking if hydro prevented by norush, M28Overseer.bNoRushActive='..tostring(M28Overseer.bNoRushActive or false)..'; M28Conditions.NoRushPreventingHydro(tLZTeamData)='..tostring(M28Conditions.NoRushPreventingHydro(tLZTeamData) or false)) end
@@ -5585,6 +5585,36 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             end
         end
     end
+
+    --Early game transport wanting engineer (takes priority over factory if we have at least 2 in this zone)
+    iCurPriority = iCurPriority + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': iCurPriority='..iCurPriority..'; Is table of transports waiting for engineers empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTransportsWaitingForEngineers]))) end
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTransportsWaitingForEngineers]) == false then
+        --Check the table is still valid
+        local iEngisWantedForTransports = GetEngisWantedForTransports(tLZTeamData)
+        if bDebugMessages == true then LOG(sFunctionRef..': iEngisWantedForTransports after refresh='..iEngisWantedForTransports) end
+        if iEngisWantedForTransports > 0 then
+            if bDebugMessages == true then LOG(sFunctionRef..': want engineers to load onto transport if early game, will first check if we have at least 2 factories in this zone and if the transport has a lifetime count of 1 and we only have 1 transport, size of transport table='..table.getn(tLZTeamData[M28Map.reftoTransportsWaitingForEngineers])..'; Time='..GetGameTimeSeconds()) end
+            if table.getn(tLZTeamData[M28Map.reftoTransportsWaitingForEngineers]) == 1 and GetGameTimeSeconds() <= 900 then
+                local bFirstTransport = true
+                if M28UnitInfo.GetUnitLifetimeCount(tLZTeamData[M28Map.reftoTransportsWaitingForEngineers]) > 1 then bFirstTransport = false end
+                if bDebugMessages == true then LOG(sFunctionRef..': bFirstTransport='..tostring(bFirstTransport)) end
+                if bFirstTransport then
+                    local iFactoriesInLZ = 0
+                    local tFactoriesInLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                    if M28Utilities.IsTableEmpty(tFactoriesInLZ) == false then iFactoriesInLZ = table.getn(tFactoriesInLZ) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iFactoriesInLZ='..iFactoriesInLZ) end
+                    if iFactoriesInLZ >= 2 then
+                        --iActionToAssign,      iMinTechLevelWanted, i  BuildPowerWanted,                                                                       vOptionalVariable,  bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting
+                        --BP wanted - engineers already attached shouldn't be treated as available, however want BP wanted to be total not additional to avoid multiple unattached engineers being given the same order
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will seek engineers for transport') end
+                        HaveActionToAssign(refActionLoadOntoTransport, 1, iEngisWantedForTransports * tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]], nil, false,false) --Max 5 BP to make sure we only try loading 1 engi at a time
+                    end
+                end
+            end
+        end
+    end
+
 
     --Very High priority factory if we have fewer than 4 (or if lwoer thre number of mexes in the LZ or small map and signif mass stored) and is a smaller map - takes priority over mex expansion
     iCurPriority = iCurPriority + 1

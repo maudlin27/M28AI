@@ -1658,8 +1658,14 @@ function ManageEnergyStalls(iTeam)
                                                 if iActionRef == oUnit[M28Engineer.refiAssignedAction] then
                                                     bApplyActionToUnit = true
                                                     --Dont pause the last engi building power
-                                                    if bPauseNotUnpause and iActionRef == M28Engineer.refActionBuildPower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.7 then
-                                                        bApplyActionToUnit = false
+                                                    if bPauseNotUnpause then
+                                                        if iActionRef == M28Engineer.refActionBuildPower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.7 then
+                                                            bApplyActionToUnit = false
+                                                            --Dont pause T1 factory construction if we have a certain amount of gross energy income
+                                                        elseif iActionRef == M28Engineer.refActionBuildLandFactory and EntityCategoryContains(categories.TECH1, oUnit.UnitId) and oBrain[refiGrossEnergyBaseIncome] >= 26 and oUnit[M28Engineer.refbPrimaryBuilder] then
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': wont pause primary engineer building t1 land fac') end
+                                                            bApplyActionToUnit = false
+                                                        end
                                                     end
                                                     break
                                                 end

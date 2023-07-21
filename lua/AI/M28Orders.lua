@@ -71,7 +71,6 @@ function UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc)
 end
 
 function IssueTrackedClearCommands(oUnit)
-    if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'xsl01056' then M28Utilities.ErrorHandler('Clear audit trail', true, true) end
     --Update tracking for repairing units:
     if oUnit[reftiLastOrders] then
         local tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]]
