@@ -1240,6 +1240,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
+
     RefreshPriorityAirDefenceTargets(iAirSubteam)
     --Get the land or water zone of the priority unit that is closest to the enemy base that is closest to the air rally point and determine if its safe as a rally point
 
@@ -1254,6 +1255,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
         local iPossibleWaterZone
         local iBestRallyValue = -100000
         local iCurRallyValue
+        local bDontMoveCloserToEnemyBase = false
         local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
         for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
             iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
@@ -1395,8 +1397,11 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                         end
                     end
                     if bClosestBaseIsSafe then
+                        if bDebugMessages == true then LOG(sFunctionRef..': CLosest base is safe so will use as the starting point for support rally point') end
                         tSupportRallyPoint = tClosestBase
                     else
+                        if bDebugMessages == true then LOG(sFunctionRef..': Closest base isnt safe so will use preferred rally point as the support rally point') end
+                        bDontMoveCloserToEnemyBase = true
                         tSupportRallyPoint = tPreferredRallyPoint
                     end
                 else
@@ -1458,6 +1463,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                     end
 
                     if bDebugMessages == true then LOG(sFunctionRef..': Finished checking for support location, iPrevWaterZone='..(iPrevWaterZone or 'nil')..'; iPrevLandZone='..(iPrevLandZone or 'nil')) end
+                    if bCurTargetTooDangerous then bDontMoveCloserToEnemyBase = true end
                     --Update the support rally point, and record pathing of other land and air zones to it if havent previously
                     if not(iPrevWaterZone) and not(iPrevLandZone) then
                         --Use closest base
@@ -1471,26 +1477,25 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                             tSupportLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iPrevWaterZone]][M28Map.subrefPondWaterZones][iPrevWaterZone]
                         end
                         tSupportRallyPoint = {tSupportLZOrWZData[M28Map.subrefMidpoint][1], tSupportLZOrWZData[M28Map.subrefMidpoint][2], tSupportLZOrWZData[M28Map.subrefMidpoint][3]}
-
-                        if not(bCurTargetTooDangerous) then
-                            --Redundancy - check for enemy ground AA within range of the destination; if have any then move back towards base by 50
-                            local tNearbyEnemyAA = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryGroundAA, tSupportRallyPoint, 78, 'Enemy')
-                            if M28Utilities.IsTableEmpty(tNearbyEnemyAA) == false then
-                                for iAA, oAA in tNearbyEnemyAA do
-                                    if oAA[M28UnitInfo.refiAARange] >= 65 or M28Utilities.GetDistanceBetweenPositions(oAA:GetPosition(), tSupportRallyPoint) - (oAA[M28UnitInfo.refiAARange] or 0) <= 5 then
-                                        bCurTargetTooDangerous = true
-                                        break
-                                    end
+                        --Redundancy - check for enemy ground AA within range of the destination; if have any then move back towards base by 50
+                        local bMoveCloserToRally = false
+                        local tNearbyEnemyAA = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryGroundAA, tSupportRallyPoint, 78, 'Enemy')
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is tNearbyEnemyAA empty='..tostring(M28Utilities.IsTableEmpty(tNearbyEnemyAA))) end
+                        if M28Utilities.IsTableEmpty(tNearbyEnemyAA) == false then
+                            for iAA, oAA in tNearbyEnemyAA do
+                                if oAA[M28UnitInfo.refiAARange] >= 65 or M28Utilities.GetDistanceBetweenPositions(oAA:GetPosition(), tSupportRallyPoint) - (oAA[M28UnitInfo.refiAARange] or 0) <= 5 then
+                                    bMoveCloserToRally = true
+                                    break
                                 end
                             end
-                            if bCurTargetTooDangerous then
-                                bDebugMessages = true
-                                if bDebugMessages == true then LOG(sFunctionRef..': Have managed to end up with a support point wiht nearby enemy groundAA so will move support point back a bit, tSupportRallyPoint pre update='..repru(tSupportRallyPoint)) end
-                                tSupportRallyPoint = M28Utilities.MoveInDirection(tSupportRallyPoint, M28Utilities.GetAngleFromAToB(tSupportRallyPoint, tClosestBase), 50, true, false, M28Map.bIsCampaignMap)
-                                if bDebugMessages == true then LOG(sFunctionRef..': Rally point post update='..repru(tSupportRallyPoint)) end
-                            end
-
                         end
+                        if bMoveCloserToRally then
+                            bDontMoveCloserToEnemyBase = true
+                            if bDebugMessages == true then LOG(sFunctionRef..': Have managed to end up with a support point wiht nearby enemy groundAA so will move support point back a bit, tSupportRallyPoint pre update='..repru(tSupportRallyPoint)) end
+                            tSupportRallyPoint = M28Utilities.MoveInDirection(tSupportRallyPoint, M28Utilities.GetAngleFromAToB(tSupportRallyPoint, tClosestBase), 50, true, false, M28Map.bIsCampaignMap)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Rally point post update='..repru(tSupportRallyPoint)) end
+                        end
+
                         if bDebugMessages == true then LOG(sFunctionRef..': tSupportRallyPoint after updating for zones closer to a unit to support and having a vlocation closer than the nearest friendly base='..repru(tSupportRallyPoint)) end
                     end
 
@@ -1582,7 +1587,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
         end
         if tStartLZOrWZData then
             --Move the support rally point towards the enemy base if we have air control
-            if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then
+            if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and not(bDontMoveCloserToEnemyBase) then
                 if tStartLZOrWZTeamData[M28Map.refiModDistancePercent] <= 0.5 then
                     local iDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(tStartMidpoint, tStartLZOrWZTeamData[M28Map.reftClosestEnemyBase])
                     if iDistToEnemyBase >= 100 then
@@ -1665,7 +1670,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
 
         if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to move rally point closer to support point, M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl]='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] or false)) end
 
-        if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then
+        if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and not(bDontMoveCloserToEnemyBase) then
             local iDistBetweenSupportAndRally = M28Utilities.GetDistanceBetweenPositions(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])
             if iDistBetweenSupportAndRally >= 100 then
                 local iIntervalSize = 50
