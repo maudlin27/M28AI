@@ -686,6 +686,7 @@ function CheckUnitCap(aiBrain)
             tiCategoryToDestroy[3] = tiCategoryToDestroy[3] - M28UnitInfo.refCategoryPower
         end
 
+
         if bDebugMessages == true then LOG(sFunctionRef..': We are over the threshold for ctrlking units') end
         if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) > iUnitCap * 0.35 then tiCategoryToDestroy[0] = tiCategoryToDestroy[0] + M28UnitInfo.refCategoryEngineer end
         local iCumulativeCategory = tiCategoryToDestroy[4]
