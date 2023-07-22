@@ -1744,7 +1744,7 @@ end
 
 function OnMissileIntercepted(oLauncher, target, oTMD, position)
     --M28AI specific
-    if oLauncher:GetAIBrain().M28AI then
+    if not(oLauncher.Dead) and oLauncher:GetAIBrain().M28AI then
         local sFunctionRef = 'OnMissileIntercepted'
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)

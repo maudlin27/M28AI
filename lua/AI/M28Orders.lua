@@ -71,7 +71,6 @@ function UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc)
 end
 
 function IssueTrackedClearCommands(oUnit)
-    if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'xsl01056' then M28Utilities.ErrorHandler('Clear audit trail', true, true) end
     --Update tracking for repairing units:
     if oUnit[reftiLastOrders] then
         local tLastOrder = oUnit[reftiLastOrders][oUnit[refiOrderCount]]
@@ -392,7 +391,7 @@ function IssueTrackedMoveAndBuild(oUnit, tBuildLocation, sOrderBlueprint, tMoveT
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueBuild, [subrefsOrderBlueprint] = sOrderBlueprint, [subreftOrderPosition] = {tBuildLocation[1], tBuildLocation[2], tBuildLocation[3]}})
         IssueBuildMobile({ oUnit }, tBuildLocation, sOrderBlueprint, {})
         if sOrderBlueprint then
-            ForkThread(M28Engineer.TrackQueuedBuilding, oUnit, sOrderBlueprint, tBuildLocation)
+            M28Engineer.TrackQueuedBuilding(oUnit, sOrderBlueprint, tBuildLocation) --Cant do via fork thread or if are giving orders to 2 engineers at once they wont realise the location is queued
         else
             M28Utilities.ErrorHandler('Attempted to build something with no blueprint')
         end
@@ -420,7 +419,7 @@ function IssueTrackedBuild(oUnit, tOrderPosition, sOrderBlueprint, bAddToExistin
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueBuild, [subrefsOrderBlueprint] = sOrderBlueprint, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
         IssueBuildMobile({ oUnit }, tOrderPosition, sOrderBlueprint, {})
         if sOrderBlueprint then
-            ForkThread(M28Engineer.TrackQueuedBuilding, oUnit, sOrderBlueprint, tOrderPosition)
+            M28Engineer.TrackQueuedBuilding(oUnit, sOrderBlueprint, tOrderPosition) --Cnat do via fork thread or else engineers given orders in same cycle wont realise it's queued
         else
             M28Utilities.ErrorHandler('Attempted to give a construction order to unit with no order blueprint')
         end
@@ -537,7 +536,17 @@ function IssueTrackedRepair(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalO
         else tLastOrder = oUnit[reftiLastOrders][1]
         end
     end
-    if not(tLastOrder[subrefiOrderType] == refiOrderIssueRepair and oOrderTarget == tLastOrder[subrefoOrderUnitTarget]) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
+    local bIssueOrder = false
+    if (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) and not(tLastOrder[subrefiOrderType] == refiOrderIssueRepair and oOrderTarget == tLastOrder[subrefoOrderUnitTarget]) then
+        bIssueOrder = true
+    elseif oOrderTarget:GetFractionComplete() < 1 and not(oUnit:IsUnitState('Repairing')) and not(oUnit:IsUnitState('Building')) then
+        local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oOrderTarget:GetPosition(), oUnit:GetPosition())
+        local oTargetBP = oOrderTarget:GetBlueprint()
+        if iDistToTarget <= (oUnit:GetBlueprint().Economy.MaxBuildDistance or 0) + math.min((oTargetBP.Physics.SkirtSizeX or 0), (oTargetBP.Physics.SkirtSizeZ or 0)) then
+            bIssueOrder = true
+        end
+    end
+    if bIssueOrder then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1

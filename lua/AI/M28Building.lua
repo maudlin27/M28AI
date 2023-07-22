@@ -1502,76 +1502,242 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                         end
                     end
 
-                    if bDebugMessages == true then LOG(sFunctionRef..': iBestTargetValue for enemy base='..iBestTargetValue..'; if <20k then will consider other targets') end
-                    if iBestTargetValue < 80000 then --If have high value location for nearest enemy start then just go with this
-                        for iRef, iCategory in tEnemyCategoriesOfInterest do
-                            tEnemyUnitsOfInterest = aiBrain:GetUnitsAroundPoint(iCategory, oLauncher:GetPosition(), iMaxRange, 'Enemy')
-                            if M28Utilities.IsTableEmpty(tEnemyUnitsOfInterest) == false then
-                                for iUnit, oUnit in tEnemyUnitsOfInterest do
-                                    if M28UnitInfo.IsUnitValid(oUnit) then
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iPositionsConsideredThisTick='..iPositionsConsideredThisTick..'; Have we recently nuked this location='..tostring((HaventRecentlyNukedLocation(oUnit:GetPosition(), not(bCheckForSMD))) or false)) end
-                                        iCurNukeSegmentX, iCurNukeSegmentZ = GetNukeSegmentsFromPosition(oUnit:GetPosition())
-                                        if not(tiNukeSegmentsConsidered[iCurNukeSegmentX][iCurNukeSegmentZ]) then
-                                            if HaventRecentlyNukedLocation(oUnit:GetPosition(), not(bCheckForSMD)) then
-                                                RecordHaveConsideredNukeLocation(oUnit:GetPosition(), false)
-                                                iCurTargetValue = M28Logic.GetDamageFromBomb(aiBrain, oUnit:GetPosition(), iAOE, iDamage, 2, 2.5)
-                                                if bDebugMessages == true then LOG(sFunctionRef..': target oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurTargetValue='..iCurTargetValue..'; location='..repru(oUnit:GetPosition())..'; iPositionsConsideredThisTick='..iPositionsConsideredThisTick) end
-                                                --Stop looking if tried >=10 targets and have one that is at least 20k of value
+                    function ConsiderTableOfPotentialTargets(tEnemyUnitsOfInterest, bOverrideCheckForSMD, iOptionalMobileOverrideFactor)
+                        if M28Utilities.IsTableEmpty(tEnemyUnitsOfInterest) == false then
+                            for iUnit, oUnit in tEnemyUnitsOfInterest do
+                                if M28UnitInfo.IsUnitValid(oUnit) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iPositionsConsideredThisTick='..iPositionsConsideredThisTick..'; Have we recently nuked this location='..tostring((HaventRecentlyNukedLocation(oUnit:GetPosition(), not(bOverrideCheckForSMD))) or false)) end
+                                    iCurNukeSegmentX, iCurNukeSegmentZ = GetNukeSegmentsFromPosition(oUnit:GetPosition())
+                                    if not(tiNukeSegmentsConsidered[iCurNukeSegmentX][iCurNukeSegmentZ]) then
+                                        if HaventRecentlyNukedLocation(oUnit:GetPosition(), not(bOverrideCheckForSMD)) then
+                                            RecordHaveConsideredNukeLocation(oUnit:GetPosition(), false)
+                                            --GetDamageFromBomb(aiBrain, tBaseLocation,         iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies)
+                                            iCurTargetValue = M28Logic.GetDamageFromBomb(aiBrain, oUnit:GetPosition(), iAOE, iDamage,   2,                                  2.5,                    nil,                            nil,                nil,                            iOptionalMobileOverrideFactor)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': target oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurTargetValue='..iCurTargetValue..'; location='..repru(oUnit:GetPosition())..'; iPositionsConsideredThisTick='..iPositionsConsideredThisTick) end
+                                            --Stop looking if tried >=10 targets and have one that is at least 20k of value
+                                            if iCurTargetValue > iBestTargetValue then
+                                                iTimeSMDNeedsToHaveBeenBuiltFor = 230 - (M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oLauncher:GetPosition()) / iMissileSpeed + 10)
+                                                if bOverrideCheckForSMD and IsSMDBlockingTarget(aiBrain, oUnit:GetPosition(), oLauncher:GetPosition(), iTimeSMDNeedsToHaveBeenBuiltFor) then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': SMD is blocking the unit target '..repru(oUnit:GetPosition())..'; will limit damage to 4k; iTimeSMDNeedsToHaveBeenBuiltFor='..iTimeSMDNeedsToHaveBeenBuiltFor) end
+                                                    iCurTargetValue = 4000 end
                                                 if iCurTargetValue > iBestTargetValue then
-                                                    iTimeSMDNeedsToHaveBeenBuiltFor = 230 - (M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oLauncher:GetPosition()) / iMissileSpeed + 10)
-                                                    if bCheckForSMD and IsSMDBlockingTarget(aiBrain, oUnit:GetPosition(), oLauncher:GetPosition(), iTimeSMDNeedsToHaveBeenBuiltFor) then
-                                                        if bDebugMessages == true then LOG(sFunctionRef..': SMD is blocking the unit target '..repru(oUnit:GetPosition())..'; will limit damage to 4k; iTimeSMDNeedsToHaveBeenBuiltFor='..iTimeSMDNeedsToHaveBeenBuiltFor) end
-                                                        iCurTargetValue = 4000 end
-                                                    if iCurTargetValue > iBestTargetValue then
-                                                        bAlreadyConsideredBestAOETarget = false
-                                                        iBestTargetValue = iCurTargetValue
-                                                        tTarget = oUnit:GetPosition()
-                                                        if bDebugMessages == true then LOG(sFunctionRef..': New best target with value='..iBestTargetValue..'; iTimeSMDNeedsToHaveBeenBuiltFor='..iTimeSMDNeedsToHaveBeenBuiltFor) end
-                                                    end
-                                                end
-                                                --Note: Mass value of mexes is doubled, so 3 T3 mexes would give a value of 27600
-                                                if iPositionsConsideredThisTick >= 8 and iBestTargetValue >= iAbortThreshold then
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': Have a target with a decent amount of value and have already tried quite a few units.  iBestTargetValue='..iBestTargetValue..'; iPositionsConsideredThisTick='..iPositionsConsideredThisTick) end
-                                                    break
+                                                    bAlreadyConsideredBestAOETarget = false
+                                                    iBestTargetValue = iCurTargetValue
+                                                    tTarget = oUnit:GetPosition()
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': New best target with value='..iBestTargetValue..'; iTimeSMDNeedsToHaveBeenBuiltFor='..iTimeSMDNeedsToHaveBeenBuiltFor) end
                                                 end
                                             end
-                                        end
-                                        --Spread out calculations over a number of ticks due to their intesnity
-                                        if iPositionsConsideredThisTick >= 10 then
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Considered '..iPositionsConsideredThisTick..' targets, will wait 1 tick before considering more for performance reasons. iBestTargetValue='..iBestTargetValue) end
-                                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                                            WaitTicks(1)
-                                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-                                            iPositionsConsideredThisTick = 0
-                                            iTotalWaitCount = iTotalWaitCount + 1
-                                            if not(M28UnitInfo.IsUnitValid(oLauncher)) then
-                                                tTarget = nil
+                                            --Note: Mass value of mexes is doubled, so 3 T3 mexes would give a value of 27600
+                                            if iPositionsConsideredThisTick >= 8 and iBestTargetValue >= iAbortThreshold then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Have a target with a decent amount of value and have already tried quite a few units.  iBestTargetValue='..iBestTargetValue..'; iPositionsConsideredThisTick='..iPositionsConsideredThisTick) end
                                                 break
                                             end
-                                            --Lower requirements to stop searching over time
-                                            if iTotalWaitCount >= 20 then
-                                                iAbortThreshold = iAbortThreshold * 0.95
-                                                if iTotalWaitCount >= 100 then
-                                                    iAbortThreshold = math.min(iAbortThreshold * 0.95, 1000)
-                                                    if iTotalWaitCount >= 150 then break end
-                                                end
-                                                if iBestTargetValue >= iAbortThreshold then break end
+                                        end
+                                    end
+                                    --Spread out calculations over a number of ticks due to their intesnity
+                                    if iPositionsConsideredThisTick >= 10 then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Considered '..iPositionsConsideredThisTick..' targets, will wait 1 tick before considering more for performance reasons. iBestTargetValue='..iBestTargetValue) end
+                                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                        WaitTicks(1)
+                                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                                        iPositionsConsideredThisTick = 0
+                                        iTotalWaitCount = iTotalWaitCount + 1
+                                        if not(M28UnitInfo.IsUnitValid(oLauncher)) then
+                                            tTarget = nil
+                                            break
+                                        end
+                                        --Lower requirements to stop searching over time
+                                        if iTotalWaitCount >= 20 then
+                                            iAbortThreshold = iAbortThreshold * 0.95
+                                            if iTotalWaitCount >= 100 then
+                                                iAbortThreshold = math.min(iAbortThreshold * 0.95, 1000)
+                                                if iTotalWaitCount >= 150 then break end
                                             end
+                                            if iBestTargetValue >= iAbortThreshold then break end
                                         end
                                     end
                                 end
                             end
                         end
-                        if tTarget then tTarget, iBestTargetValue = M28Logic.GetBestAOETarget(aiBrain, tTarget, iAOE, iDamage, bCheckForSMD, oLauncher:GetPosition(), nil, nil, 2, 2.5) end
+                    end
+
+                    --Consider a defensive nuke as well if enemy has land experimentals or battleships that are relatively near a friendly base - treat as higher value than normal where not covered by SMD (e.g. if have yolona then only want defensive nukes if expect the nuke to land)
+                    local tEnemyClosestLandAndNavalThreats = {}
+                    local iDefensiveThreshold = 350
+                    local iBestValueOfDefensiveNuke = 0
+                    local iDefensiveNukePlateauAndZone = {}
+                    if M28Map.iMapSize <= 512 then iDefensiveThreshold = 225 end
+                    local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oLauncher:GetPosition(), true, iTeam)
+                    if tLZTeamData then
+                        iDefensiveThreshold = math.max(125, math.min(iDefensiveThreshold, M28Utilities.GetDistanceBetweenPositions(oLauncher:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase])) * 0.45)
+                    end
+                    local iCurUnitPlateauOrZero, iCurUnitZone
+                    local toClosestEnemyUntisByPlateauAndZone = {}
+
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering priority enemy land threats near our base, is table of enemy land experimenatls empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]))) end
+                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false then
+                        for iUnit, oUnit in  M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals] do
+                            if M28UnitInfo.IsUnitValid(oUnit) then
+                                iCurUnitPlateauOrZero, iCurUnitZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                                if (iCurUnitZone or 0) > 0 and (iCurUnitPlateauOrZero or -1) >= 0 then
+                                    local tUnitLZOrWZData, tUnitLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' that is '..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tUnitLZOrWZTeamData[M28Map.reftClosestFriendlyBase])..' dist to the closest friendly base; iDefensiveThreshold='..iDefensiveThreshold) end
+                                    if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tUnitLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) <= iDefensiveThreshold then
+                                        table.insert(tEnemyClosestLandAndNavalThreats, oUnit)
+                                        if not(toClosestEnemyUntisByPlateauAndZone[iCurUnitPlateauOrZero]) then toClosestEnemyUntisByPlateauAndZone[iCurUnitPlateauOrZero] = {} end
+                                        if not(toClosestEnemyUntisByPlateauAndZone[iCurUnitPlateauOrZero][iCurUnitZone]) then toClosestEnemyUntisByPlateauAndZone[iCurUnitPlateauOrZero][iCurUnitZone] = {} end
+                                        table.insert(toClosestEnemyUntisByPlateauAndZone[iCurUnitPlateauOrZero][iCurUnitZone], oUnit)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyBattleships]) == false then
+                        for iUnit, oUnit in  M28Team.tTeamData[iTeam][M28Team.reftEnemyBattleships] do
+                            if M28UnitInfo.IsUnitValid(oUnit) then
+                                iCurUnitPlateauOrZero, iCurUnitZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                                if (iCurUnitZone or 0) > 0 and (iCurUnitPlateauOrZero or -1) >= 0 then
+                                    local tUnitLZOrWZData, tUnitLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+                                    if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tUnitLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) <= iDefensiveThreshold then
+                                        table.insert(tEnemyClosestLandAndNavalThreats, oUnit)
+                                        if not(toClosestEnemyUntisByPlateauAndZone[iCurUnitPlateauOrZero]) then toClosestEnemyUntisByPlateauAndZone[iCurUnitPlateauOrZero] = {} end
+                                        if not(toClosestEnemyUntisByPlateauAndZone[iCurUnitPlateauOrZero][iCurUnitZone]) then toClosestEnemyUntisByPlateauAndZone[iCurUnitPlateauOrZero][iCurUnitZone] = {} end
+                                        table.insert(toClosestEnemyUntisByPlateauAndZone[iCurUnitPlateauOrZero][iCurUnitZone], oUnit)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    if M28Utilities.IsTableEmpty(tEnemyClosestLandAndNavalThreats) == false then
+                        local iMassValueOfThreats = M28UnitInfo.GetCombatThreatRating(tEnemyClosestLandAndNavalThreats, true, true)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Mass value of nearby threats='..iMassValueOfThreats) end
+                        if iMassValueOfThreats * 2 > iBestTargetValue and iMassValueOfThreats > 24000 then
+                            --Go through the actual zones and consider targeting units in here, but always checking for SMD even with yolona
+                            for iPlateauOrZero, tSubtable in toClosestEnemyUntisByPlateauAndZone do
+                                for iZone, tUnits in tSubtable do
+                                    if M28UnitInfo.GetCombatThreatRating(tUnits, true, true) >= 24000 then
+                                        local iBestValuePreCheck = iBestTargetValue
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Best target value pre check for experimental land untis in P'..iPlateauOrZero..'Z'..iZone..'='..iBestTargetValue) end
+                                        ConsiderTableOfPotentialTargets(tUnits, true, 0.8)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Best target value post check for experimental land untis in P'..iPlateauOrZero..'Z'..iZone..'='..iBestTargetValue) end
+                                        if iBestTargetValue > iBestValuePreCheck then
+                                            iBestValueOfDefensiveNuke = iBestTargetValue
+                                            iDefensiveNukePlateauAndZone = {iPlateauOrZero, iZone}
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+
+
+
+
+                    if bDebugMessages == true then LOG(sFunctionRef..': iBestTargetValue for enemy base='..iBestTargetValue..'; if <20k then will consider other targets') end
+                    if iBestTargetValue < 80000 then --If have high value location for nearest enemy start then just go with this
+                        for iRef, iCategory in tEnemyCategoriesOfInterest do
+                            ConsiderTableOfPotentialTargets(aiBrain:GetUnitsAroundPoint(iCategory, oLauncher:GetPosition(), iMaxRange, 'Enemy'), bCheckForSMD)
+
+                        end
+                        if iBestTargetValue > iBestValueOfDefensiveNuke then
+                            if tTarget then tTarget, iBestTargetValue = M28Logic.GetBestAOETarget(aiBrain, tTarget, iAOE, iDamage, bCheckForSMD, oLauncher:GetPosition(), nil, nil, 2, 2.5) end
+                        end
                         if bDebugMessages == true then LOG(sFunctionRef..': iBestTargetValue after getting best location='..iBestTargetValue..'; Best location for this target='..repru(tTarget)) end
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': If value is <14k then will clear target; iBestTargetValue='..iBestTargetValue..'; tTarget='..repru(tTarget or {'nil'})) end
-                    if iBestTargetValue < 14000 then tTarget = nil end --Increased vs M27 as will only apuse if no target
+                    if bDebugMessages == true then LOG(sFunctionRef..': If value is <14k then will clear target unless have yolona; iBestTargetValue='..iBestTargetValue..'; tTarget='..repru(tTarget or {'nil'})) end
+                    if iBestTargetValue < 14000 then
+                        if iBestTargetValue < 4000 or not(EntityCategoryContains(categories.EXPERIMENTAL, oLauncher.UnitId)) then
+                            tTarget = nil
+                        end
+                    end --Increased vs M27 as will only apuse if no target
+
+                    function ChangeTargetToClosestUnitToLauncher(tUnitsToConsider, iOptionalLeadingDistanceBaseAdjust)
+                        local iClosestEnemyDist = 100000
+                        local oClosestEnemyUnit
+                        local iCurEnemyDist
+                        local iBaseLeadingDistance = iOptionalLeadingDistanceBaseAdjust or iAOE * 0.7
+                        for iUnit, oUnit in tUnitsToConsider do
+                            iCurEnemyDist = M28Utilities.GetDistanceBetweenPositions(oLauncher:GetPosition(), oUnit:GetPosition())
+                            if iCurEnemyDist < iClosestEnemyDist then
+                                iClosestEnemyDist = iCurEnemyDist
+                                oClosestEnemyUnit = oUnit
+                            end
+                        end
+                        if oClosestEnemyUnit then
+                            --Base target is this unit
+                            local tPotentialAltTarget = oClosestEnemyUnit:GetPosition()
+                            --Ajdust for unit facing direction if it is moving
+                            local iUnitFacingAngle = M28UnitInfo.GetUnitFacingAngle(oClosestEnemyUnit)
+                            if oClosestEnemyUnit:IsUnitState('Moving') then
+                                tPotentialAltTarget = M28Utilities.MoveInDirection(oClosestEnemyUnit:GetPosition(), M28UnitInfo.GetUnitFacingAngle(oClosestEnemyUnit), iBaseLeadingDistance, true, false, true)
+                            end
+                            --Check the value of this isn't negative (due to friendly fire)
+                            if M28Logic.GetDamageFromBomb(aiBrain, tPotentialAltTarget, iAOE, iDamage,   2,                                  2.5,                    nil,                            nil,                nil,                            0.6) > 0 then
+                                tTarget = tPotentialAltTarget
+                                --Adjust the target further if it is far away
+                                local iCurDist = M28Utilities.GetDistanceBetweenPositions(tTarget, oLauncher:GetPosition())
+                                if iCurDist >= 300 then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Target is far away so will adjust further, tTarget pre adjust='..repru(tTarget)) end
+                                    tTarget = M28Utilities.MoveInDirection(tTarget, iUnitFacingAngle, math.min(iBaseLeadingDistance, (iCurDist - 300) / 30), true, false, true)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': tTarget post adjust='..repru(tTarget)) end
+                                end
+                            end
+
+                            if bDebugMessages == true then LOG(sFunctionRef..': tPotentialAltTarget='..repru(tPotentialAltTarget)..'; tTarget after update='..repru(tTarget)..' based on oClosestEnemyUnit='..oClosestEnemyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemyUnit)..' at position '..repru(oClosestEnemyUnit:GetPosition())..' with unit state='..M28UnitInfo.GetUnitState(oClosestEnemyUnit)..' and facing angle='..M28UnitInfo.GetUnitFacingAngle(oClosestEnemyUnit)..'; iAOE='..iAOE..'; Damage of bomb at potential target='..M28Logic.GetDamageFromBomb(aiBrain, tPotentialAltTarget, iAOE, iDamage,   2,                                  2.5,                    nil,                            nil,                nil,                            0.6)) end
+                        end
+                    end
+
+                    if tTarget and iBestTargetValue <= iBestValueOfDefensiveNuke and M28Utilities.IsTableEmpty(toClosestEnemyUntisByPlateauAndZone) == false and M28Utilities.IsTableEmpty(toClosestEnemyUntisByPlateauAndZone[toClosestEnemyUntisByPlateauAndZone[1]][toClosestEnemyUntisByPlateauAndZone[2]]) == false then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will launch a defensive nuke, positio before adjust='..repru(tTarget)) end
+                        --Doing a defensive nuke so target the enemy unit nearest us, and adjust slightly for its facing direction
+                        ChangeTargetToClosestUnitToLauncher(toClosestEnemyUntisByPlateauAndZone[toClosestEnemyUntisByPlateauAndZone[1]][toClosestEnemyUntisByPlateauAndZone[2]])
+                    elseif M28Utilities.IsTableEmpty(tTarget) == false then
+                        --Still check if significant threat is made of mobile units
+
+                        local tTargetZoneData, tTargetZoneTeamData = M28Map.GetLandOrWaterZoneData(tTarget, true, iTeam)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Arent firing as a defensvie unit, checking structure value in zone, tTargetZoneTeamData[M28Map.subrefThreatEnemyStructureTotalMass]='..(tTargetZoneTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 'nil')) end
+                        if (tTargetZoneTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) <  iBestTargetValue * 0.5 then
+                            --Are there enemy experimentals or battleships in this zone?
+                            local tEnemyExperimentalsAndBattleships = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryNavalSurface * categories.BATTLESHIP,tTargetZoneTeamData[M28Map.subrefTEnemyUnits])
+                            if M28Utilities.IsTableEmpty(tEnemyExperimentalsAndBattleships) then
+                                tEnemyExperimentalsAndBattleships = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryNavalSurface * categories.BATTLESHIP, tTarget, iAOE, 'Enemy')
+                                if bDebugMessages == true then LOG(sFunctionRef..': No enemy experimentals in the zone being targeting, is units around point empty='..tostring(M28Utilities.IsTableEmpty(tEnemyExperimentalsAndBattleships))) end
+                            end
+                            if M28Utilities.IsTableEmpty( tEnemyExperimentalsAndBattleships) == false then
+                                local bHaveMobileUnitsAndNoUnderConstruction = false
+                                local bHaveAttackingOrPatrollingUnits = false
+
+                                for iUnit, oUnit in tEnemyExperimentalsAndBattleships do
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Checking enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fraction complete='..oUnit:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)) end
+                                    if oUnit:GetFractionComplete() < 1 and oUnit:GetFractionComplete() >= 0.05 then
+                                        bHaveMobileUnitsAndNoUnderConstruction = false
+                                        break
+                                    else
+                                        if oUnit:IsUnitState('Moving') then
+                                            bHaveMobileUnitsAndNoUnderConstruction = true
+                                        elseif oUnit:IsUnitState('Attacking') or oUnit:IsUnitState('Patrolling') then
+                                            bHaveAttackingOrPatrollingUnits = true
+                                        end
+                                    end
+                                end
+                                local iDistanceAdjust
+                                if bHaveMobileUnitsAndNoUnderConstruction then iDistanceAdjust = iAOE * 0.75
+                                elseif bHaveAttackingOrPatrollingUnits then iDistanceAdjust = iAOE * 0.45
+                                end
+                                if iDistanceAdjust then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': tTarget before updating to nearest experimental or battleship='..repru(tTarget)) end
+                                    ChangeTargetToClosestUnitToLauncher(tEnemyExperimentalsAndBattleships)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': tTarget after updating to nearest experimental or battleship='..repru(tTarget)) end
+                                end
+                            end
+                        end
+                    end
                 end
 
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to launch at time '..GetGameTimeSeconds()..', tTarget='..repru(tTarget)) end
                 if tTarget then
                     --Launch missile
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will launch missile at tTarget='..repru(tTarget)) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will launch missile at tTarget='..repru(tTarget)..'; Cur time='..GetGameTimeSeconds()) end
                     if bTML then
                         M28Orders.IssueTrackedTMLMissileLaunch(oLauncher, tTarget, 0.25, false, 'TMLFire', true)
                         if M28UnitInfo.GetMissileCount(oLauncher) <= 1 then
@@ -1588,6 +1754,9 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                             M28Utilities.DrawLocation(tTarget, nil, iColour)
                         end
                     else
+                        if bDebugMessages == true then
+                            M28Utilities.DrawCircleAtTarget({ tTarget[1], tTarget[2], tTarget[3] }, 2, 200, iAOE)
+                        end
                         IssueNuke({oLauncher}, tTarget)
                         oLauncher[reftActiveNukeTarget] = {tTarget[1], tTarget[2], tTarget[3]}
                         --Unpause incase we paused previously

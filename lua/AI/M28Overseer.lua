@@ -49,6 +49,7 @@ refiExpectedRemainingCap = 'M28OverseerUnitCap' --number of units to be built be
 refiUnitCapCategoriesDestroyed = 'M28OverseerLstCatDest' --Last category destroyed by unit cap logic
 refiTemporarilySetAsAllyForTeam = 'M28TempSetAsAlly' --against brain, e.g. a civilian brain, returns the .M28Team number that the brain has been set as an ally of temporarily (to reveal civilians at start of game)
 
+
 refiRoughTotalUnitsInGame = 0 --Very rough count of units in game, so can use more optimised code if this gets high
 
 function GetNearestEnemyBrain(aiBrain)
@@ -684,6 +685,7 @@ function CheckUnitCap(aiBrain)
         if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower - categories.TECH1) == 0 then
             tiCategoryToDestroy[3] = tiCategoryToDestroy[3] - M28UnitInfo.refCategoryPower
         end
+
 
         if bDebugMessages == true then LOG(sFunctionRef..': We are over the threshold for ctrlking units') end
         if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) > iUnitCap * 0.35 then tiCategoryToDestroy[0] = tiCategoryToDestroy[0] + M28UnitInfo.refCategoryEngineer end

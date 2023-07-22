@@ -326,8 +326,8 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
         local tLZOrWZData
         local tLZOrWZTeamData
         local iTeam = oACU:GetAIBrain().M28Team
-        local iResourceMod = 1
-        if aiBrain.CheatEnabled then iResourceMod = M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainResourceMultipler] end
+        local iResourceMod = aiBrain[M28Economy.refiBrainResourceMultiplier]
+        --if aiBrain.CheatEnabled then iResourceMod = M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainResourceMultipler] end
         if iPlateauOrZero == 0 then
             tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLZOrWZ]][M28Map.subrefPondWaterZones][iLZOrWZ]
             tLZOrWZTeamData = tLZOrWZData[M28Map.subrefWZTeamData][aiBrain.M28Team]
@@ -389,17 +389,17 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
 
             end
             if bGoSecondAir then
-                iMinEnergyPerTickWanted = 22 * iResourceMod --ACU gives 2E, want equiv of 10 PGens
+                iMinEnergyPerTickWanted = 22 * math.min(iResourceMod, aiBrain[M28Economy.refiBrainBuildRateMultiplier]) --ACU gives 2E, want equiv of 10 PGens, assuming build rate is same as resource rate
             end
             local iCurLandFactories = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory)
             if iCurLandFactories == 0 then
                 if bDebugMessages == true then LOG(sFunctionRef..': Want ACU to build land factory') end
                 ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryLandFactory)
                 --do we have unbuilt nearby mexes (within 2 of ACU build range)? if so then build on them
-            elseif aiBrain.CheatEnabled and iResourceMod >= 1.3 and aiBrain:GetEconomyStored('MASS') >= 90 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 6 * M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainResourceMultipler] then
+            elseif aiBrain.CheatEnabled and iResourceMod >= 1.3 and aiBrain:GetEconomyStored('MASS') >= 90 and ((iResourceMod >= 1.5 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 6 * M28Team.tTeamData[aiBrain.M28Team][M28Team.refiHighestBrainResourceMultipler]) or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower) == 0) and (tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] or 0) >= 2 then
                 --Build a couple of PGen even if nearby hydro given cheat mult
                 ACUActionBuildPower(aiBrain, oACU)
-            elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 12 and ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, 2) then
+            elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 12 * iResourceMod and ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, 2) then
                 --Do nothing - have bene given an order to build a neaby mex
             elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] <= iMinEnergyPerTickWanted then
 
@@ -471,7 +471,24 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                     local iMexInLandZone = 0
                     if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZMexLocations]) == false then iMexInLandZone = table.getn(tLZOrWZData[M28Map.subrefLZMexLocations]) end
                     if bDebugMessages == true then LOG(sFunctionRef..': Hydro is nearby, Gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; iMexInLandZone='..iMexInLandZone..'; Gross base energy income='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]) end
-                    if aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(4, iMexInLandZone) * 0.2 * iResourceMod then
+                    --Do we have a hydro underconstruction in this land zone?
+                    local bHaveUnderConstructionFirstHydro = false
+                    if aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 12 * iResourceMod then
+                        local tHydroInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryHydro, tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits])
+                        if M28Utilities.IsTableEmpty(tHydroInZone) == false then
+                            bHaveUnderConstructionFirstHydro = true
+                            for iHydro, oHydro in tHydroInZone do
+                                if oHydro:GetFractionComplete() == 1 and oHydro:GetAIBrain() == aiBrain then
+                                    bHaveUnderConstructionFirstHydro = false
+                                    break
+                                end
+                            end
+                        end
+                    end
+                    if bHaveUnderConstructionFirstHydro and (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 1.2 * iResourceMod or tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] >= math.min(3, iMexInLandZone)) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have underconstruction hydro and equiv of 3 mexes or every mex in zone so will try and assist it') end
+                        ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData)
+                    elseif aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(4, iMexInLandZone) * 0.2 * aiBrain[M28Economy.refiBrainBuildRateMultiplier] or (aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(4, iMexInLandZone) * 0.2 * iResourceMod and aiBrain:GetEconomyStored('MASS') < 100) then
                         if bDebugMessages == true then LOG(sFunctionRef..': We ahve mexes in land zone and we havent built on all of them so will build a mex') end
                         ACUActionBuildMex(aiBrain, oACU)
                         if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then M28Utilities.ErrorHandler('ACU wants to build a mex but failed to find anywhere') end
@@ -613,12 +630,12 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
             end
 
         end
-        else
-            if bDebugMessages == true then LOG(sFunctionRef..': Are building so wont give any new orders') end
-        end
-        if bDebugMessages == true then LOG(sFunctionRef..': End of code, is ACU table of last orders empty='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))..'; Does ACU have valid order='..tostring(M28Conditions.DoesACUHaveValidOrder(oACU))) end
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    else
+        if bDebugMessages == true then LOG(sFunctionRef..': Are building so wont give any new orders') end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, is ACU table of last orders empty='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))..'; Does ACU have valid order='..tostring(M28Conditions.DoesACUHaveValidOrder(oACU))) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
 
 function GetUpgradePathForACU(oACU)
     --Records the order of upgrades we will want for the ACU
@@ -830,9 +847,26 @@ function GetACUUpgradeWanted(oACU)
                 else iResourceFactor = iResourceFactor * 1.25
                 end
             end
+            if aiBrain[M28Factory.refiHighestFactoryBuildCount] >= 20 + 10 * oACU[refiUpgradeCount] then
+
+                if M28Map.bIsCampaignMap then
+                    iResourceFactor = iResourceFactor * 0.7
+                else
+                    iResourceFactor = iResourceFactor * 0.8
+                end
+                if aiBrain[M28Factory.refiHighestFactoryBuildCount] >= 30 + 15 * oACU[refiUpgradeCount] then
+                    if M28Map.bIsCampaignMap then
+                        iResourceFactor = iResourceFactor * 0.7
+                        if aiBrain[M28Factory.refiHighestFactoryBuildCount] >= 60 then iResourceFactor = iResourceFactor * 0.75 end
+                    else
+                        iResourceFactor = iResourceFactor * 0.85
+                    end
+
+                end
+            end
 
             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingACUs]) == false then iActiveACUUpgrades = table.getn(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingACUs]) end
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering if we have enough resources to get this upgrade, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Net mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]..'; Other active upgrades='..iActiveACUUpgrades..'; Is safe to get upgrade='..tostring(M28Conditions.SafeToUpgradeUnit(oACU))..'; iEnergyCostPerTick='..iEnergyCostPerTick..'; iMassCostPerTick='..iMassCostPerTick..'; iResourceFactor'..iResourceFactor..'; iDistToEnemyBase='..iDistToEnemyBase..'; oACU[refiUpgradeCount]='..oACU[refiUpgradeCount]..'; aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]='..tostring(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand])..'; Have low mass='..tostring(M28Conditions.HaveLowMass(aiBrain))..'; iResourceFactor='..iResourceFactor) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering if we have enough resources to get this upgrade, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Net mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]..'; Other active upgrades='..iActiveACUUpgrades..'; Is safe to get upgrade='..tostring(M28Conditions.SafeToUpgradeUnit(oACU))..'; iEnergyCostPerTick='..iEnergyCostPerTick..'; iMassCostPerTick='..iMassCostPerTick..'; iResourceFactor'..iResourceFactor..'; iDistToEnemyBase='..iDistToEnemyBase..'; oACU[refiUpgradeCount]='..oACU[refiUpgradeCount]..'; aiBrain[M28Map.refbCanPathToEnemyBaseWithLand]='..tostring(aiBrain[M28Map.refbCanPathToEnemyBaseWithLand])..'; Have low mass='..tostring(M28Conditions.HaveLowMass(aiBrain))..'; iResourceFactor='..iResourceFactor..'; aiBrain[M28Factory.refiHighestFactoryBuildCount]='..aiBrain[M28Factory.refiHighestFactoryBuildCount]) end
             if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= (45 * iActiveACUUpgrades * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] + iEnergyCostPerTick * 1.35) * iResourceFactor then
                 --Do we have enough gross mass?
                 if bDebugMessages == true then LOG(sFunctionRef..': Have enough gross energy, do we have enough gross mass?') end
@@ -842,7 +876,7 @@ function GetACUUpgradeWanted(oACU)
                     if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= (iActiveACUUpgrades * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] + 100 * iEnergyCostPerTick * 2) * iResourceFactor and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 5 * iResourceFactor) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= iEnergyCostPerTick * math.min(2.5, iResourceFactor * 0.4) then
                         --Do we have enoguh net mass?
                         if bDebugMessages == true then LOG(sFunctionRef..': Have enough net energy, do we have enough net mass or so much gross mass that we can still proceed?') end
-                        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= (iActiveACUUpgrades * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] + 3.5 * iMassCostPerTick * 3) * iResourceFactor or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= iMassCostPerTick * math.min(2.5, iResourceFactor * 0.4) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= math.min(3, iResourceFactor) * tEnhancement.BuildCostMass * 0.5 then
+                        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= (iActiveACUUpgrades * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] + 3.5 * iMassCostPerTick * 3) * iResourceFactor or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= iMassCostPerTick * math.min(2.5, iResourceFactor * 0.4) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= math.min(3, iResourceFactor) * tEnhancement.BuildCostMass * 0.5 or (M28Map.bIsCampaignMap and aiBrain[M28Factory.refiHighestFactoryBuildCount] >= 30) then
                             sUpgradeWanted = sPotentialUpgrade
                         end
                     end
@@ -2109,7 +2143,7 @@ function GetACUOrder(aiBrain, oACU)
                                             end
                                             --No nearby enemies - consider building power if have low level of it and lots of mass
                                             if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftoNearestDFEnemies]) then
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want more power for high mass levels, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; not(M28Conditions.HaveLowMass(aiBrain)='..tostring(not(M28Conditions.HaveLowMass(aiBrain))..'; Want more power='..tostring(M28Conditions.WantMorePower(iTeam)))) end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want more power for high mass levels, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; not(M28Conditions.HaveLowMass(aiBrain)='..tostring(not(M28Conditions.HaveLowMass(aiBrain)))..'; Want more power='..tostring(M28Conditions.WantMorePower(iTeam))) end
                                                 if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 50 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.3 and not(M28Conditions.HaveLowMass(aiBrain)) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 2 and oACU:HasEnhancement('AdvancedEngineering'))) and (M28Conditions.WantMorePower(iTeam) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.7) then
                                                     ACUActionBuildPower(aiBrain, oACU)
                                                 end

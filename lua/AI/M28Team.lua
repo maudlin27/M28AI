@@ -111,6 +111,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     reftEnemyArtiAndExpStructure = 'M28TeamEArtiExp'
     reftEnemyNukeLaunchers = 'M28TeamENuke'
     reftEnemySMD = 'M28TeamESMD'
+    reftEnemyBattleships = 'M28TeamEBS' --table of enemy battleships
     refbEnemySMDBuiltSinceLastNukeCheck = 'M28TeamESMDBuilt' --True when enemy SMD is detected, used to decide to rerun logic for identifying nuke land zone targets for deciding whether to build nuke
     refbEnemySMDDiedSinceLastNukeCheck = 'M28TeamESMDDied' --True when enemy SMD is dies, used to decide to rerun logic for identifying nuke land zone targets for deciding whether to build nuke
     refbEnemyHasSub = 'M28EnemyHasSub' --true if enemy has sub - used to be more cautious with ACU
@@ -220,7 +221,7 @@ tLandSubteamData = {} --tLandSubteamData[oBrain.M28LandSubteam] results in the b
 
 
 --Other variables dependent on above:
-tEnemyBigThreatCategories = { [reftEnemyLandExperimentals] = M28UnitInfo.refCategoryLandExperimental, [reftEnemyArtiAndExpStructure] = M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalStructure, [reftEnemyNukeLaunchers] = M28UnitInfo.refCategorySML, [reftEnemySMD] = M28UnitInfo.refCategorySMD }
+tEnemyBigThreatCategories = { [reftEnemyLandExperimentals] = M28UnitInfo.refCategoryLandExperimental, [reftEnemyArtiAndExpStructure] = M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalStructure, [reftEnemyNukeLaunchers] = M28UnitInfo.refCategorySML, [reftEnemySMD] = M28UnitInfo.refCategorySMD, [reftEnemyBattleships] = M28UnitInfo.refCategoryNavalSurface * categories.BATTLESHIP }
 
 
 function CreateNewLandSubteam(iPlateau, iIsland, tM28BrainsInSubteam)
@@ -544,6 +545,11 @@ function CreateNewTeam(aiBrain)
                 if oBrain.CheatEnabled then
                     tTeamData[iTotalTeamCount][refiHighestBrainResourceMultipler] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainResourceMultipler], tonumber(ScenarioInfo.Options.CheatMult or 1.5))
                     tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier] = math.max(tTeamData[iTotalTeamCount][refiHighestBrainBuildMultiplier], tonumber(ScenarioInfo.Options.BuildMult or 1.5))
+                    oBrain[M28Economy.refiBrainResourceMultiplier] = tonumber(ScenarioInfo.Options.CheatMult or 1.5)
+                    oBrain[M28Economy.refiBrainBuildRateMultiplier] = tonumber(ScenarioInfo.Options.BuildMult or 1.5)
+                else
+                    oBrain[M28Economy.refiBrainResourceMultiplier] = 1
+                    oBrain[M28Economy.refiBrainBuildRateMultiplier] = 1
                 end
             end
             bHaveM28BrainInTeam = true
@@ -1100,6 +1106,9 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                     table.insert(tTeamData[iTeam][reftEnemyACUs], oUnit)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Added unit to table of enemy ACUs for team '..iTeam) end
                                 end
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryMissileShip, oUnit.UnitId) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have enemy missile ship '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; will record as mobile TML threat') end
+                                ForkThread(RecordMobileTMLThreatForAllEnemyTeams, oUnit)
                             end
 
                             --If enemy hasnt built omni yet check whether this is omni
@@ -1406,7 +1415,6 @@ end
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateUnitPond'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    --if bDebugMessages == true then M28Utilities.ErrorHandler('Audit trail', true, true) end
 
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, bIsEnemy='..tostring((bIsEnemy or false))..'; Unit brain index='..oUnit:GetAIBrain():GetArmyIndex()..'; Unit assigned pond='..(oUnit[refiAssignedPond] or 'nil')..'; Contains fixed pond category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryPondFixedCategory, oUnit.UnitId))) end

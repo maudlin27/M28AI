@@ -984,13 +984,15 @@ function CalculateAirTravelPath(iStartPlateauOrZero, iStartLandOrWaterZone, iEnd
                     --Backup - also check for potentially further away land zones as sometimes can have a thin LZ adjacent to us meaning the other one that is nearby doesnt get considered (not such an issue for water zones given their size)
                     for iSidewaysAngleAdjust = -90, 90, 180 do
                         local tNearbySideways = M28Utilities.MoveInDirection(tPositionAlongPath, iAngleStartToEnd + iSidewaysAngleAdjust, iBackupSidewaysDistance, true, false, false)
-                        if bDebugMessages == true then LOG(sFunctionRef..': tPositionAlongPath='..repru(tPositionAlongPath)..'; Angle='..iAngleStartToEnd + iSidewaysAngleAdjust..'; iBackupSidewaysDistance='..iBackupSidewaysDistance..'; tNearbySideways='..repru(tNearbySideways)..'; Playable area='..repru(M28Map.rMapPlayableArea)) end
-                        local iSidewaysPlateauOrZero, iSidewaysZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tNearbySideways)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Checking sideways points, iSidewaysAngleAdjust='..iSidewaysAngleAdjust..'; iSidewaysPlateauOrZero='..(iSidewaysPlateauOrZero or 'nil')..'; iSidewaysZone='..(iSidewaysZone or 'nil')) end
-                        --Only include land zones (as water zones are much larger)
-                        if iSidewaysPlateauOrZero > 0 and (iSidewaysZone or 0) > 0 then
-                            if not(tiLandZonesByPlateau[iSidewaysPlateauOrZero]) then tiLandZonesByPlateau[iSidewaysPlateauOrZero] = {} end
-                            tiLandZonesByPlateau[iSidewaysPlateauOrZero][iSidewaysZone] = true
+                        if M28Conditions.IsLocationInPlayableArea(tNearbySideways) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': tPositionAlongPath='..repru(tPositionAlongPath)..'; Angle='..iAngleStartToEnd + iSidewaysAngleAdjust..'; iBackupSidewaysDistance='..iBackupSidewaysDistance..'; tNearbySideways='..repru(tNearbySideways)..'; Playable area='..repru(M28Map.rMapPlayableArea)) end
+                            local iSidewaysPlateauOrZero, iSidewaysZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tNearbySideways)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Checking sideways points, iSidewaysAngleAdjust='..iSidewaysAngleAdjust..'; iSidewaysPlateauOrZero='..(iSidewaysPlateauOrZero or 'nil')..'; iSidewaysZone='..(iSidewaysZone or 'nil')) end
+                            --Only include land zones (as water zones are much larger)
+                            if iSidewaysPlateauOrZero > 0 and (iSidewaysZone or 0) > 0 then
+                                if not(tiLandZonesByPlateau[iSidewaysPlateauOrZero]) then tiLandZonesByPlateau[iSidewaysPlateauOrZero] = {} end
+                                tiLandZonesByPlateau[iSidewaysPlateauOrZero][iSidewaysZone] = true
+                            end
                         end
                     end
                 end
