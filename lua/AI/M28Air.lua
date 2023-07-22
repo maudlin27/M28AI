@@ -1254,6 +1254,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
         local iPossibleWaterZone
         local iBestRallyValue = -100000
         local iCurRallyValue
+        local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
         for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
             iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
             if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..oBrain.Nickname..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; Start point='..repru(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])) end
@@ -1455,6 +1456,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                             --No valid plateau so ignore this position
                         end
                     end
+
                     if bDebugMessages == true then LOG(sFunctionRef..': Finished checking for support location, iPrevWaterZone='..(iPrevWaterZone or 'nil')..'; iPrevLandZone='..(iPrevLandZone or 'nil')) end
                     --Update the support rally point, and record pathing of other land and air zones to it if havent previously
                     if not(iPrevWaterZone) and not(iPrevLandZone) then
@@ -1462,10 +1464,32 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                         tSupportRallyPoint = tClosestBase
                     else
                         --We have a valid support zone
+                        local tSupportLZOrWZData
                         if iPrevLandZone then
-                            tSupportRallyPoint = M28Map.tAllPlateaus[iPrevPlateau][M28Map.subrefPlateauLandZones][iPrevLandZone][M28Map.subrefMidpoint]
+                            tSupportLZOrWZData = M28Map.tAllPlateaus[iPrevPlateau][M28Map.subrefPlateauLandZones][iPrevLandZone]
                         else
-                            tSupportRallyPoint = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iPrevWaterZone]][M28Map.subrefPondWaterZones][iPrevWaterZone][M28Map.subrefMidpoint]
+                            tSupportLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iPrevWaterZone]][M28Map.subrefPondWaterZones][iPrevWaterZone]
+                        end
+                        tSupportRallyPoint = {tSupportLZOrWZData[M28Map.subrefMidpoint][1], tSupportLZOrWZData[M28Map.subrefMidpoint][2], tSupportLZOrWZData[M28Map.subrefMidpoint][3]}
+
+                        if not(bCurTargetTooDangerous) then
+                            --Redundancy - check for enemy ground AA within range of the destination; if have any then move back towards base by 50
+                            local tNearbyEnemyAA = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryGroundAA, tSupportRallyPoint, 78, 'Enemy')
+                            if M28Utilities.IsTableEmpty(tNearbyEnemyAA) == false then
+                                for iAA, oAA in tNearbyEnemyAA do
+                                    if oAA[M28UnitInfo.refiAARange] >= 65 or M28Utilities.GetDistanceBetweenPositions(oAA:GetPosition(), tSupportRallyPoint) - (oAA[M28UnitInfo.refiAARange] or 0) <= 5 then
+                                        bCurTargetTooDangerous = true
+                                        break
+                                    end
+                                end
+                            end
+                            if bCurTargetTooDangerous then
+                                bDebugMessages = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have managed to end up with a support point wiht nearby enemy groundAA so will move support point back a bit, tSupportRallyPoint pre update='..repru(tSupportRallyPoint)) end
+                                tSupportRallyPoint = M28Utilities.MoveInDirection(tSupportRallyPoint, M28Utilities.GetAngleFromAToB(tSupportRallyPoint, tClosestBase), 50, true, false, M28Map.bIsCampaignMap)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Rally point post update='..repru(tSupportRallyPoint)) end
+                            end
+
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': tSupportRallyPoint after updating for zones closer to a unit to support and having a vlocation closer than the nearest friendly base='..repru(tSupportRallyPoint)) end
                     end

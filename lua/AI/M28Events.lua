@@ -667,6 +667,12 @@ function OnWeaponFired(oWeapon)
                                 --Reset after 20s if we havent fired any more shots at the target
                                 --function DelayChangeVariable(oVariableOwner, sVariableName, vVariableValue, iDelayInSeconds, sOptionalOwnerConditionRef, iMustBeLessThanThisTimeValue, iMustBeMoreThanThisTimeValue, vMustNotEqualThisValue)
                                 M28Utilities.DelayChangeVariable(oUnit, M28UnitInfo.refbLastShotBlocked, false, 20, M28UnitInfo.refiTimeOfLastCheck, GetGameTimeSeconds() + 0.01)
+                                --Increase shot blocked count if this is a longer ranged naval unit firing at a structure
+                                if oUnit[M28UnitInfo.refiCombatRange] > 50 and EntityCategoryContains(M28UnitInfo.refCategoryNavalSurface, oUnit.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oTarget.UnitId) then
+                                    oTarget[M28UnitInfo.refiTargetShotBlockedCount] = (oTarget[M28UnitInfo.refiTargetShotBlockedCount] or 0) + 1
+                                end
+                            elseif oUnit[M28UnitInfo.refiCombatRange] > 50 and EntityCategoryContains(M28UnitInfo.refCategoryNavalSurface, oUnit.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oTarget.UnitId) then
+                                oTarget[M28UnitInfo.refiTargetShotBlockedCount] = 0
                             end
                         end
                     end
