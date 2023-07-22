@@ -4086,7 +4086,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     local sFunctionRef = 'ConsiderActionToAssign'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iActionToAssign == refActionLoadOntoTransport then bDebugMessages = true end
 
     --Dont try getting any mroe BP for htis action if have run out of buildable locations
     local iExpectedBuildingSize = tiLastBuildingSizeFromActionForTeam[iTeam][iActionToAssign]
@@ -4118,17 +4118,16 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
         --Reduce BP for high modifiers where we have at least 50% mass stored and dont have spare engineers
         if iTotalBuildPowerWanted > 60 and M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier] >= 1.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 and tLZOrWZTeamData[M28Map.subrefTbWantBP] and (tLZOrWZTeamData[M28Map.subrefSpareBPByTech][1] == 0 and tLZOrWZTeamData[M28Map.subrefSpareBPByTech][2] == 0 and tLZOrWZTeamData[M28Map.subrefSpareBPByTech][3] == 0) then
             --Only half BP for building the first power if we have lots of power already
-            if not(iActionToAssign == refActionBuildPower) or (iMinTechWanted == 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultipler] * 500) then
+            if not(iActionToAssign == refActionLoadOntoTransport) and (not(iActionToAssign == refActionBuildPower) or (iMinTechWanted == 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] * M28Team.tTeamData[iTeam][M28Team.refiHighestBrainResourceMultipler] * 500)) then
                 iTotalBuildPowerWanted = iTotalBuildPowerWanted * math.max(1 / M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier], 0.4)
                 if bDebugMessages == true then LOG(sFunctionRef..': Halfing build power wanted') end
             end
         end
 
         --Reclaim specific - limit BP to 5 if we have recenlty failed to find something to reclaim
-        if tLZOrWZData[M28Map.subrefiTimeFailedToGetReclaim] and GetGameTimeSeconds() - tLZOrWZData[M28Map.subrefiTimeFailedToGetReclaim] <= 3 then
+        if (iActionToAssign == refActionReclaimArea or iActionToAssign == refActionReclaimTrees) and tLZOrWZData[M28Map.subrefiTimeFailedToGetReclaim] and GetGameTimeSeconds() - tLZOrWZData[M28Map.subrefiTimeFailedToGetReclaim] <= 3 then
             if bDebugMessages == true then LOG(sFunctionRef..': Time since last failed to get reclaim for this zone='..GetGameTimeSeconds() - tLZOrWZData[M28Map.subrefiTimeFailedToGetReclaim]..'; BP wanted before limitation='..iTotalBuildPowerWanted..'; will cap at 5') end
             iTotalBuildPowerWanted = math.min(5, iTotalBuildPowerWanted)
-
         end
 
 
@@ -5599,7 +5598,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             if bDebugMessages == true then LOG(sFunctionRef..': want engineers to load onto transport if early game, will first check if we have at least 2 factories in this zone and if the transport has a lifetime count of 1 and we only have 1 transport, size of transport table='..table.getn(tLZTeamData[M28Map.reftoTransportsWaitingForEngineers])..'; Time='..GetGameTimeSeconds()) end
             if table.getn(tLZTeamData[M28Map.reftoTransportsWaitingForEngineers]) == 1 and GetGameTimeSeconds() <= 900 then
                 local bFirstTransport = true
-                if M28UnitInfo.GetUnitLifetimeCount(tLZTeamData[M28Map.reftoTransportsWaitingForEngineers]) > 1 then bFirstTransport = false end
+                if (M28UnitInfo.GetUnitLifetimeCount(tLZTeamData[M28Map.reftoTransportsWaitingForEngineers][1] or 1)) > 1 then bFirstTransport = false end
                 if bDebugMessages == true then LOG(sFunctionRef..': bFirstTransport='..tostring(bFirstTransport)) end
                 if bFirstTransport then
                     local iFactoriesInLZ = 0
@@ -5616,7 +5615,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             end
         end
     end
-
 
     --Very High priority factory if we have fewer than 4 (or if lwoer thre number of mexes in the LZ or small map and signif mass stored) and is a smaller map - takes priority over mex expansion
     iCurPriority = iCurPriority + 1

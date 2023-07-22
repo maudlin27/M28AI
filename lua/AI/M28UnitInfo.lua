@@ -22,6 +22,13 @@ refFactionSeraphim = 4
 refFactionNomads = 5
 refFactionUnrecognised = 6
 
+--Transport clamp types
+refClampSmall = 1
+refClampMedium = 2
+refClampLarge = 3
+refClampExperimental = 4 --Incase ever decide to support nomads experimental transports
+refClampStinger = 5
+
 --Variables against units;
 refiLastWeaponEvent = 'M28LastWep' --Gametimeseconds that last updated onweapon
 reftLastKnownPositionByTeam = 'M28UnitLastPos' --[x] is the M28 team ref, returns the last known position of the unit
@@ -1635,6 +1642,34 @@ end
 
 function GetUnitUniqueRef(oUnit)
     return oUnit:GetAIBrain():GetArmyIndex()..oUnit.UnitId..GetUnitLifetimeCount(oUnit)
+end
+
+function GetClampsByType(oTransport)
+    --small, medium, large, experimental, and stinger,
+    --    refClampSmall = 1
+    --    refClampMedium = 2
+    --    refClampLarge = 3
+    --    refClampExperimental = 4 --Incase ever decide to support nomads experimental transports
+    --    refClampStinger = 5
+    local tiClampsByType = {
+        ['uea0203'] = { [refClampSmall] = 0, [refClampMedium] = 0, [refClampLarge] = 0, [refClampExperimental] = 0, [refClampStinger] = 1 }, --Stinger
+        ['uea0107'] = { [refClampSmall] = 2, [refClampMedium] = 0, [refClampLarge] = 1, [refClampExperimental] = 0, [refClampStinger] = 0 }, --UEF T1
+        ['ura0107'] = { [refClampSmall] = 2, [refClampMedium] = 0, [refClampLarge] = 1, [refClampExperimental] = 0, [refClampStinger] = 0 }, --Cybran t1
+        ['uaa0107'] = { [refClampSmall] = 2, [refClampMedium] = 0, [refClampLarge] = 1, [refClampExperimental] = 0, [refClampStinger] = 0 }, --Aeon T1 (in some cases it can carry more)
+        ['xsa0107'] = { [refClampSmall] = 0, [refClampMedium] = 2, [refClampLarge] = 1, [refClampExperimental] = 0, [refClampStinger] = 0 }, --Sera T1
+        ['uea0104'] = { [refClampSmall] = 2, [refClampMedium] = 0, [refClampLarge] = 3, [refClampExperimental] = 0, [refClampStinger] = 0 }, --UEF T2
+        ['ura0104'] = { [refClampSmall] = 2, [refClampMedium] = 0, [refClampLarge] = 2, [refClampExperimental] = 0, [refClampStinger] = 0 }, --Cybran T2
+        ['uaa0104'] = { [refClampSmall] = 4, [refClampMedium] = 0, [refClampLarge] = 2, [refClampExperimental] = 0, [refClampStinger] = 0 }, --Aeon T2 (in some cases it can carry more)
+        ['xsa0104'] = { [refClampSmall] = 0, [refClampMedium] = 0, [refClampLarge] = 4, [refClampExperimental] = 0, [refClampStinger] = 0 }, --Sera T2
+        ['xea0306'] = { [refClampSmall] = 4, [refClampMedium] = 0, [refClampLarge] = 6, [refClampExperimental] = 0, [refClampStinger] = 0 }, --UEF T3
+    }
+    local tiUnitClampsByType =  tiClampsByType[oTransport.UnitId]
+    if not(tiUnitClampsByType) then
+        if EntityCategoryContains(categories.TECH1, oTransport.UnitId) then tiUnitClampsByType =  tiClampsByType['uea0107']
+        else tiUnitClampsByType = tiClampsByType['ura0104']
+        end
+    end
+    return tiUnitClampsByType
 end
 
 function GetTransportMaxCapacity(oTransport, iTechLevelToLoad)

@@ -31,11 +31,13 @@ tDistanceAdjustXZ = {} --Used for gunships to space out
     refoStrikeDamageAssigned = 'M28SDA' --against the bomber, records the unit against which its strike damage has been assigned
     reftScoutAssignedPlateauAndZoneRef = 'M28SPlLZRef' --against scout, returns {iPlateauOrZero, iLZOrWZRef} that the scout is assigned to,  iPlateauOrZero is 0 for water zone
     refiEngisWanted = 'M28TrnEWnt' --Number of engineers a transport wants
+    refiTransportTimeSpentWaiting = 'M28TrnTimW' --Time that transport has been waiting for engineers - so will go with fewer engineers for higher values
     refiTargetIslandForDrop = 'M28TrnTgIsl' --Target island for a transport to drop
     refiTargetZoneForDrop = 'M28TrnTgLZ' --target zone for a transport to drop (e.g. it may be dropping the same island its currently on but further away)
     refoPriorityTargetOverride = 'M28NvxTOvrd' --e.g. used against novax satellite, for if want to add logic similar to M27 where attacks on high value targets are coordinated
     refiTimeOfLastOverride = 'M28TimLastOvrd' --e.g. could be used against novax satellite in combination with above - see M27 logic
     refoNovaxLastTarget = 'M28NovLastTarget' --needed in addition to order tracking since we only track if doing an issueattack
+
 
 
 function RecordNewAirUnitForTeam(iTeam, oUnit)
@@ -4245,13 +4247,77 @@ function GetTransportEngiCargoAndRemainingCapacity(oUnit, iEngiTechLevel)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': About to try and get cargo for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; is oUnit.GetCargo nil='..tostring(oUnit.GetCargo == nil)..'; Does unit contain transport category='..tostring(EntityCategoryContains(categories.TRANSPORTATION, oUnit.UnitId))..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
     local tCargo = oUnit:GetCargo()
+    local tiClampsByType = M28UnitInfo.GetClampsByType(oUnit)
     local iCargoSize = 0
     if M28Utilities.IsTableEmpty(tCargo) == false then
         iCargoSize = table.getn(tCargo)
+        local iCurCargoTechLevel
+        local iCurClampType
+
+        for iCargo, oCargo in tCargo do
+            if tiClampsByType[M28UnitInfo.refClampStinger] > 0 then
+                iCurClampType = M28UnitInfo.refClampStinger
+            else
+                iCurCargoTechLevel = M28UnitInfo.GetUnitTechLevel(oCargo)
+                if iCurCargoTechLevel == 3 or EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oCargo.UnitId) then
+                    iCurClampType = M28UnitInfo.refClampLarge
+                elseif iCurCargoTechLevel <= 1 then
+                    iCurClampType = M28UnitInfo.refClampSmall
+                elseif iCurCargoTechLevel <= 2 then
+                    iCurClampType = M28UnitInfo.refClampMedium
+                elseif iCurCargoTechLevel == 4 then
+                    iCurClampType = M28UnitInfo.refClampExperimental
+                else
+                    --Redundancy
+                    iCurClampType = M28UnitInfo.refClampLarge
+                end
+            end
+            if tiClampsByType[iCurClampType] > 0 then
+                tiClampsByType[iCurClampType] = tiClampsByType[iCurClampType] - 1
+            else
+                --Find the next largest clamp and reset
+                if bDebugMessages == true then LOG(sFunctionRef..': Dont have enough of the smallest clamp type, iCurClampType='..iCurClampType..'; tiClampsByType='..repru(tiClampsByType)) end
+                for iClampType, iClampsAvailable in tiClampsByType do
+                    if iClampsAvailable > 0 then
+                        tiClampsByType[iClampType] = tiClampsByType[iClampType] - 1
+                        if iClampType == M28UnitInfo.refClampMedium then
+                            --if bDebugMessages == true then LOG(sFunctionRef..': Splitting medium out as it can take 2 small units') end
+                            tiClampsByType[M28UnitInfo.refClampSmall] = tiClampsByType[M28UnitInfo.refClampSmall] + 1
+                        elseif iClampType == M28UnitInfo.refClampLarge then
+                            if iCurClampType == M28UnitInfo.refClampSmall then
+                                --if bDebugMessages == true then LOG(sFunctionRef..': Splitting large out as it can take 4 small units') end
+                                tiClampsByType[M28UnitInfo.refClampSmall] = tiClampsByType[M28UnitInfo.refClampSmall] + 3
+                            else
+                                --if bDebugMessages == true then LOG(sFunctionRef..': Splitting large out as it can take 2 medium units') end
+                                tiClampsByType[M28UnitInfo.refClampMedium] = tiClampsByType[M28UnitInfo.refClampMedium] + 1
+                            end
+                        end
+                    end
+                end
+            end
+        end
     end
-    local iTotalCapacity = M28UnitInfo.GetTransportMaxCapacity(oUnit, iEngiTechLevel)
+
+    --How many of the tech level wanted can we fit in?
+    local tiTechLevelCountByClamp = {[M28UnitInfo.refClampSmall] = {[1]=1,[2]=0,[3]=0,[4]=0},
+                                     [M28UnitInfo.refClampMedium] = {[1]=2,[2]=1,[3]=0,[4]=0},
+                                     [M28UnitInfo.refClampLarge] = {[1]=4,[2]=2,[3]=1,[4]=0},
+                                     [M28UnitInfo.refClampExperimental] = {[1]=1,[2]=1,[3]=1,[4]=1},
+                                     [M28UnitInfo.refClampStinger] = {[1]=1,[2]=1,[3]=0,[4]=0}}
+
+
+    local iCurLevelCapacity = 0
+    for iClampType, iClampsAvailable in tiClampsByType do
+        if iClampsAvailable > 0 then
+
+            iCurLevelCapacity = iCurLevelCapacity + tiTechLevelCountByClamp[iClampType][iEngiTechLevel] * iClampsAvailable
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, iCurLevelCapacity='..iCurLevelCapacity..'; iCargoSize='..iCargoSize..'; iEngiTechLevel='..iEngiTechLevel..'; tiClampsByType='..repru(tiClampsByType)) end
+
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    return iCargoSize, iTotalCapacity - iCargoSize
+    return iCargoSize, iCurLevelCapacity
+    --return iCargoSize, iTotalCapacity - iCargoSize
 end
 
 function ManageTransports(iTeam, iAirSubteam)
@@ -4291,7 +4357,7 @@ function ManageTransports(iTeam, iAirSubteam)
                 local tLZData = M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauLandZones][iLandZoneToTravelTo]
                 --Decide how many engineers we want to drop on this LZ
                 iEngisHave, iEngiRemainingCapacity = GetTransportEngiCargoAndRemainingCapacity(oUnit, iTechLevel)
-                if iEngisHave >= 4 or (iEngiRemainingCapacity < 2 and iEngisHave > 0) then
+                if iEngisHave >= 4 or iEngiRemainingCapacity < 0 or (iEngiRemainingCapacity == 1 and iEngisHave >= 3) then
                     iExtraEngisWanted = 0
                 else
                     --First calculate how many we want (ignoring ones we already have):
@@ -4299,12 +4365,18 @@ function ManageTransports(iTeam, iAirSubteam)
                     if iExtraEngisWanted == 2 then iExtraEngisWanted = 1 end --Only want 1 engi for 1-2 mex plateaus (as wont be building land fac)
                     --Cap engis at 4 (fewer if likely T2 or T3 engis), and also reduce for the number of engineers we already have
                     iExtraEngisWanted = math.min(5 - iTechLevel, 4 - iEngisHave, math.max(0, iExtraEngisWanted - iEngisHave), iEngiRemainingCapacity)
+                    --Reduce extra engis wanted if we have been waiting a while
+                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have been waiting a while, in which case do we want to reduce engineers wnated, time spent waiting='..(oUnit[refiTransportTimeSpentWaiting] or 'nil')..'; iEngisHave='..iEngisHave..'; iExtraEngisWanted pre adjust='..iExtraEngisWanted) end
+                    if (oUnit[refiTransportTimeSpentWaiting] or 0) >= 30 and iEngisHave >= 1 and iEngisHave >= iExtraEngisWanted then
+                        iExtraEngisWanted = 0
+                    end
                 end
                 local bGetMoreEngis = false
                 if bDebugMessages == true then LOG(sFunctionRef..': iExtraEngisWanted='..iExtraEngisWanted..'; iEngisHave='..iEngisHave..'; iTechLevel='..iTechLevel..'; Mex count of target island='..M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauIslandMexCount][iIslandToTravelTo]..'; iEngiRemainingCapacity='..iEngiRemainingCapacity) end
                 if iExtraEngisWanted == 0 and iEngisHave == 0 then
                     M28Utilities.ErrorHandler('Dont have any engis but dont want any, something has gone wrong')
                 elseif iExtraEngisWanted > 0 then
+                    oUnit[refiTransportTimeSpentWaiting] = (oUnit[refiTransportTimeSpentWaiting] or 0) + 1
                     --Want to wait for more engineers unless have some already and arent on a core LZ
                     local iCurPlateauOrZero, iCurLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
 
@@ -4347,6 +4419,7 @@ function ManageTransports(iTeam, iAirSubteam)
 
                 end
                 if not(bGetMoreEngis) then
+                    oUnit[refiTransportTimeSpentWaiting] = 0
                     --Have enough engineers (or arent on core lZ so dont want to delay by going back for more) - unload at the target land zone
                     M28Orders.IssueTrackedTransportUnload(oUnit, tLZData[M28Map.subrefMidpoint], 10, false, 'TRLZUnl', false)
                     oUnit[refiTargetIslandForDrop] = iIslandToTravelTo

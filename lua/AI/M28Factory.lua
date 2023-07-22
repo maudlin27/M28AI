@@ -310,7 +310,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                         end
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': iLowestTechWanted='..(iLowestTechWanted or 'nil')..'; iCurUnitTechLevel='..iCurUnitTechLevel) end
-                    if (iLowestTechWanted or 3) > math.max(1, iCurUnitTechLevel) then
+                    if (iLowestTechWanted or 1) > math.max(1, iCurUnitTechLevel) then
                         --Do we already have a number of units of this tech level?
                         if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iCurUnitTechLevel)) >= 5 then
                             sBPIDToBuild = nil
@@ -736,6 +736,13 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 end
             end
         end
+    end
+
+    --Engineers for transport - build engineers as high priority if no enemies in this zone
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTransportsWaitingForEngineers]) == false and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Want engineers as have transport waiting for them') end
+        if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
     end
 
     --Core expansions - build 1 tank if havent already (t1 facs only)

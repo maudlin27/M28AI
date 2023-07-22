@@ -1244,7 +1244,9 @@ function OnTransportLoad(oUnit, oTransport, bone)
 end
 
 function OnTransportUnload(oUnit, oTransport, bone)
-
+    if M28UnitInfo.IsUnitValid(oTransport) and oTransport:GetAIBrain().M28AI then
+        oTransport[M28Air.refiTransportTimeSpentWaiting] = 0
+    end
 end
 
 function OnDetectedBy(oUnitDetected, iBrainIndex)
