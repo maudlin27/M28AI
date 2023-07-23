@@ -641,6 +641,8 @@ function CheckUnitCap(aiBrain)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     --local iUnitCap = tonumber(ScenarioInfo.Options.UnitCap)
     --Use below method in case a mod has changed this
     local oArmy = aiBrain:GetArmyIndex()
@@ -684,6 +686,17 @@ function CheckUnitCap(aiBrain)
         --If have no T2+ power, then dont include T1 power in units to ctrlK
         if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower - categories.TECH1) == 0 then
             tiCategoryToDestroy[3] = tiCategoryToDestroy[3] - M28UnitInfo.refCategoryPower
+        end
+
+        --If have no asfs then exclude inties from cat 2
+        if bDebugMessages == true then LOG(sFunctionRef..': Cur T2+ power='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower - categories.TECH1)..'; Cur ASFs='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirAA * categories.TECH3)) end
+        if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirAA * categories.TECH3) == 0 then
+            tiCategoryToDestroy[2] = tiCategoryToDestroy[2] - M28UnitInfo.refCategoryAirAA
+            tiCategoryToDestroy[1] = tiCategoryToDestroy[1] - M28UnitInfo.refCategoryAirAA
+            if bDebugMessages == true then LOG(sFunctionRef..': Excluding inties from being ctrlkd from category 1 and 2') end
+            if iUnitCap >= 500 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirAA) <= 50 then
+                tiCategoryToDestroy[0] = tiCategoryToDestroy[1] - M28UnitInfo.refCategoryAirAA
+            end
         end
 
 

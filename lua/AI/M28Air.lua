@@ -1860,8 +1860,10 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam)
         --If close to unit cap consider ctrl-King unit if it is close to the rally point
         if (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) == 0 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap] or -100) <= 10 then
             --Ctrlk units if close to rally point and aibrain owner is close to unit cap
+            local iCtrlKCount = 0
             for iUnit, oUnit in tUnitsUnableToRefuel do
-                if oUnit:GetAIBrain()[M28Overseer.refbCloseToUnitCap] and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 10 then
+                if oUnit:GetAIBrain()[M28Overseer.refbCloseToUnitCap] and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 10 and iCtrlKCount < 3 then
+                    iCtrlKCount = iCtrlKCount + 1
                     M28Orders.IssueTrackedKillUnit(oUnit)
                 else
                     M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 10, false, 'UCWntStgn', false)
