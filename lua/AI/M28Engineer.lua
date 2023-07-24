@@ -743,7 +743,7 @@ function SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function GetPotentialBuildLocationsNearLocation(aiBrain, tLZOrWZData, iPlateauOrZero, iLandOrWaterZone, iSize)
+function GetPotentialBuildLocationsNearLocation(aiBrain, tLZOrWZData, iPlateauOrZero, iLandOrWaterZone, iSize, iOptionalMaxCycleSize)
     --Returns a table of potentail build locations (if there are any) for iSize building in the zone in question
     --If there aren't many build locations then will try searching for more
 
@@ -753,7 +753,7 @@ function GetPotentialBuildLocationsNearLocation(aiBrain, tLZOrWZData, iPlateauOr
 
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, iLandOrWaterZone='..iLandOrWaterZone..'; Time='..GetGameTimeSeconds()..'; iPlateauOrZero='..iPlateauOrZero..'; iSize='..iSize..'; tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize]='..(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] or 0)..'; Midpoint in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tLZOrWZData[M28Map.subrefMidpoint]))) end
-    if (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] or 0) < 10 or (M28Map.bIsCampaignMap and iSize >= 14) then
+    if (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] or 0) < 10 or (M28Map.bIsCampaignMap and iSize >= 14) or (iOptionalMaxCycleSize or 100) <= 20 then
         --SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, iOptionalMaxSegmentsToConsider)
         SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, nil)
     end
@@ -773,6 +773,7 @@ function GetPotentialBuildLocationsNearLocation(aiBrain, tLZOrWZData, iPlateauOr
                 end
             end
         end
+        if iOptionalMaxCycleSize then iCycleSize = math.min(iOptionalMaxCycleSize, iOptionalMaxCycleSize) end
         local iCurCount = 0
         for iSegmentX, tSubtable in tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize] do
             for iSegmentZ, bInclude in tSubtable do
@@ -1213,7 +1214,10 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
                 end
 
                 if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have searched all segments in the land zone before, tLocation='..repru(tTargetLocation)..'; sBlueprintToBuild='..sBlueprintToBuild..'; iSize='..iSize..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize]='..repru(tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize])..'; Segments considered for build locations='..repru(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize])..'; Total segments in LZ (nil if wZ)='..(tLZOrWZData[M28Map.subrefLZTotalSegmentCount] or 'nil')..'; Is table of build locations empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize]))) end
-                tPotentialBuildLocations = GetPotentialBuildLocationsNearLocation(aiBrain, tLZOrWZData, iPlateauOrZero, iLandOrWaterZone, iSize)
+                local iCycleSizeLimit
+                if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield * categories.TECH3, sBlueprintToBuild) and (M28Map.bIsCampaignMap or not(M28Map.refbCloseToUnitCap)) then iCycleSizeLimit = 4 end
+                --GetPotentialBuildLocationsNearLocation(aiBrain, tLZOrWZData, iPlateauOrZero, iLandOrWaterZone, iSize, iOptionalMaxCycleSize)
+                tPotentialBuildLocations = GetPotentialBuildLocationsNearLocation(aiBrain, tLZOrWZData, iPlateauOrZero, iLandOrWaterZone, iSize, iCycleSizeLimit)
                 if M28Utilities.IsTableEmpty(tPotentialBuildLocations) then
                     if tLZOrWZData[M28Map.subrefLZbCoreBase] then
                         M28Utilities.ErrorHandler('Run out of build locations for iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iSize='..iSize, true)
@@ -1262,6 +1266,13 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
         end
     end
     return nil, nil
+end
+
+function ResetFailedShieldBuildDistance(oUnit, iDelayInSeconds)
+    WaitSeconds(iDelayInSeconds)
+    if M28UnitInfo.IsUnitValid(oUnit) then
+        oUnit[refiFailedShieldBuildDistance] = nil
+    end
 end
 
 function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLocation, tPotentialBuildLocations, iOptionalMaxDistanceFromTargetLocation, bAlreadyTriedAlternatives)
@@ -1454,6 +1465,8 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
         if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
             for iUnit, oUnit in tNearbyUnits do
                 oUnit[refiFailedShieldBuildDistance] = math.max(iOptionalMaxDistanceFromTargetLocation + 1, (oUnit[refiFailedShieldBuildDistance] or 0))
+                --Reset this after 6 minutes (we might have more buildable areas open up)
+                ForkThread(ResetFailedShieldBuildDistance, oUnit, 360)
                 if bDebugMessages == true then LOG(sFunctionRef..': Set shield failed idstance for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to '..oUnit[refiFailedShieldBuildDistance]) end
             end
         end
@@ -4765,7 +4778,7 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
     local bAssistSMD = false
     --Does this LZ have enough value?
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want SMD for iPlateau '..iPlateau..'; iLandZone '..iLandZone..'; LZ building vlaue='..(tLZTeamData[M28Map.subrefLZSValue] or 'nil')) end
-    if tLZTeamData[M28Map.subrefLZSValue] >= 11000 then
+    if tLZTeamData[M28Map.subrefLZSValue] >= 11000 or tLZTeamData[M28Map.reftObjectiveSMDLocation] then
         local tSMD = EntityCategoryFilterDown(M28UnitInfo.refCategorySMD, tLZTeamData[M28Map.subrefLZTAlliedUnits])
         local iSMDsWeHave = 0
         local iSMDsWithNoMissiles = 0
@@ -4814,6 +4827,7 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
         if bHaveLowMass then
             iSMDWanted = math.min(3, iEnemyNukes * 2 / 3, iSMDWanted)
         end
+        if iSMDWanted <= 0 and tLZTeamData[M28Map.M28Map.reftObjectiveSMDLocation] then iSMDWanted = 1 end
         if bDebugMessages == true then LOG(sFunctionRef..': iSMDsWeHave='..iSMDsWeHave..'; iSMDWanted='..iSMDWanted..'; iSMDsWithNoMissiles='..iSMDsWithNoMissiles) end
         if iSMDsWeHave < iSMDWanted or iSMDsWithNoMissiles > 0 then
             if bHaveLowMass or iSMDsWeHave > 0 then iBPWanted = 150
@@ -4948,7 +4962,7 @@ function GetBPForShieldAssistance(tLZTeamData, iTeam)
     return iBPWanted
 end
 
-function GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, bCoreZone, bHaveLowMass, bWantMorePower, bConsideringSecondShield, iLandZoneRef)
+function GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, bCoreZone, bHaveLowMass, bWantMorePower, bConsideringSecondShield, iLandZoneRef, iPlateau)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetBPMinTechAndUnitForFixedShields'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -4962,9 +4976,9 @@ function GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, bCoreZone, bHave
     local iHighMassThreshold = 15000
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; Is table of units wanting fixed shields empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitWantingFixedShield]))..'; bConsideringSecondShield='..tostring(bConsideringSecondShield or false)) end
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitWantingFixedShield]) == false then
-        --Early in a campaign (less than 20m in) - dont get shield if dont have good mass
+        --Early in a campaign (less than 20m in) - dont get shield if dont have good mass, unless on Aeon mission 5 where need to build shields to defend civilians
         local bGetShield = true
-        if M28Map.bIsCampaignMap and bHaveLowMass and GetGameTimeSeconds() <= 1200 then --First 20m
+        if M28Map.bIsCampaignMap and bHaveLowMass and GetGameTimeSeconds() <= 1200 and not(ScenarioInfo.Ariel and ScenarioInfo.UEF and ScenarioInfo.Colonies) then --First 20m
             --Does enemy have a >=60% complete arti, and game is at least 10m old?
             if GetGameTimeSeconds() >= 600 then
                 if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoT3Arti]) == false then
@@ -4982,12 +4996,16 @@ function GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, bCoreZone, bHave
                 bGetShield = false
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': bGetShield='..tostring(bGetShield)) end
         if bGetShield then
 
             --Shield the highest value unit in this LZ that wants a shield
             if bConsideringSecondShield then iHighestMassValue = iHighMassThreshold end --will only try shielding if we have very high value target (e.g. t3 arti or experimental) that is unshielded
             local iCurMass
+            local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
             for iUnit, oUnit in tLZTeamData[M28Map.reftoLZUnitWantingFixedShield] do
+                --Increase likelihood the build location we want is available
+                SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateau, iLandZoneRef, 10)
                 iCurMass = oUnit:GetBlueprint().Economy.BuildCostMass
                 if iCurMass > iHighestMassValue then
                     --Check we are likely to be able ot build a shield nearby
@@ -5722,7 +5740,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     iCurPriority = iCurPriority + 1
     if (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 500 then
 
-        local iBPWanted, iTechLevelWanted, oUnitToShield = GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, true, bHaveLowMass, bWantMorePower, false, iLandZone)
+        local iBPWanted, iTechLevelWanted, oUnitToShield = GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, true, bHaveLowMass, bWantMorePower, false, iLandZone, iPlateau)
         if iBPWanted > 0 then
             iBPWanted = math.min(iBPWanted, 40)
 
@@ -6001,7 +6019,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     iCurPriority = iCurPriority + 1
     if (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 500 then
 
-        local iBPWanted, iTechLevelWanted, oUnitToShield = GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, true, bHaveLowMass, bWantMorePower, true, iLandZone)
+        local iBPWanted, iTechLevelWanted, oUnitToShield = GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, true, bHaveLowMass, bWantMorePower, true, iLandZone, iPlateau)
         if iBPWanted > 0 then
             iBPWanted = math.min(iBPWanted, 40)
 
@@ -6210,7 +6228,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     --Shielding
     iCurPriority = iCurPriority + 1
     local iTechlevelWanted, oUnitToShield
-    iBPWanted, iTechLevelWanted, oUnitToShield = GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, true, bHaveLowMass, bWantMorePower, false, iLandZone)
+    iBPWanted, iTechLevelWanted, oUnitToShield = GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, true, bHaveLowMass, bWantMorePower, false, iLandZone, iPlateau)
     if iBPWanted > 0 then
         if bDebugMessages == true then LOG(sFunctionRef..': Want to build a shield, iBPWanted='..iBPWanted..'; bHaveLowMass='..tostring(bHaveLowMass)..'; bWantMorePower='..tostring(bWantMorePower)..'; oUnitToShield='..oUnitToShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToShield)..'; iTechLevelWanted='..iTechLevelWanted) end
         HaveActionToAssign(refActionBuildShield, iTechLevelWanted, iBPWanted, oUnitToShield)
@@ -6985,7 +7003,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     local sFunctionRef = 'ConsiderMinorLandZoneEngineerAssignment'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iPlateau == 25 and (iLandZone == 23 or iLandZone == 20) and tLZTeamData[M28Map.subrefLZCoreExpansion] == nil then bDebugMessages = true end
 
     --if bDebugMessages == true then M28Map.DrawSpecificLandZone(iPlateau, iLandZone, 1) end
     local iBPWanted
@@ -7018,34 +7036,96 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     iCurPriority = iCurPriority + 1
     local iHighestTechEngiAvailable
     local bExpansionOnSameIslandAsBase = false
+    if bDebugMessages == true then LOG(sFunctionRef..': do we want this zone as an expansion point? iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Time='..GetGameTimeSeconds()..'; tLZTeamData[M28Map.subrefLZCoreExpansion]='..tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false)..'; tLZTeamData[M28Map.subrefLZCoreExpansion] is nil='..tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] == nil)..'; tLZTeamData[M28Map.subrefLZExpansionOverride]='..tostring(tLZTeamData[M28Map.subrefLZExpansionOverride] or false)..'; tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][1]='..(tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][1] or 'nil')) end
     if tLZTeamData[M28Map.subrefLZCoreExpansion] == nil or (tLZTeamData[M28Map.subrefLZExpansionOverride] and not(tLZTeamData[M28Map.subrefLZCoreExpansion])) then
-        bExpansionOnSameIslandAsBase = false
-        if tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase]) then bExpansionOnSameIslandAsBase = true end
-        if tLZData[M28Map.subrefLZMexCount] > 0 and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tLZData[M28Map.subrefLZIslandRef]] >= 3 and not(bExpansionOnSameIslandAsBase) then
-            iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
-            if iHighestTechEngiAvailable > 0 then
-                local bHaveCoreLZ = false
-                for iEntry, iIslandLZ in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandLandZones][tLZData[M28Map.subrefLZIslandRef]] do
-                    if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iIslandLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] or M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iIslandLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZCoreExpansion] then
-                        bHaveCoreLZ = true
-                        break
+        local bCheckTravelPath = M28Map.bIsCampaignMap
+        if not(bCheckTravelPath) or M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint]) then
+            bExpansionOnSameIslandAsBase = false
+            if tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase]) then
+                bExpansionOnSameIslandAsBase = true
+                if bCheckTravelPath then
+                    bExpansionOnSameIslandAsBase = false
+                    --Check we can actually travel here by land
+                    local iNearestBasePlateau, iNearestBaseLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tLZTeamData[M28Map.reftClosestFriendlyBase])
+                    if (iNearestBaseLandZone or 0) > 0 then
+                        local iEntryNumber = tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iNearestBaseLandZone]
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef..': iEntryNumber='..(iEntryNumber or 'nil')..'; iNearestBasePlateau='..(iNearestBasePlateau or 'nil')..'; LZ Ref based on this entry number='..(tLZData[M28Map.subrefLZPathingToOtherLandZones][iEntryNumber][M28Map.subrefLZNumber] or 'nil')..'; iNearestBaseLandZone='..iNearestBaseLandZone)
+                            if not(iEntryNumber) then LOG(sFunctionRef..': Dont have a ref for iNearestBaseLandZone='..iNearestBaseLandZone..'; All refs='..repru(tLZData[M28Map.subrefLZPathingToOtherLZEntryRef])) end
+                        end
+                        if iEntryNumber then
+                            local tTravelPath = tLZData[M28Map.subrefLZPathingToOtherLandZones][iEntryNumber][M28Map.subrefLZPath]
+                            if bDebugMessages == true then LOG(sFunctionRef..': tTravelPath='..repru(tTravelPath)) end
+                            if M28Utilities.IsTableEmpty(tTravelPath) == false then
+                                bExpansionOnSameIslandAsBase = true
+                                for iPath, iPathLZ in tTravelPath do
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iPathLZ='..iPathLZ..'; Is in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iPathLZ][M28Map.subrefMidpoint]))) end
+                                    if not(M28Conditions.IsLocationInPlayableArea(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iPathLZ][M28Map.subrefMidpoint])) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': iPathLZ is not in the playable area so dont want to make this an expansion') end
+                                        bExpansionOnSameIslandAsBase = false
+                                        break
+                                    end
+                                end
+                            end
+                        end
                     end
                 end
-                if not(bHaveCoreLZ) or tLZTeamData[M28Map.subrefLZExpansionOverride] then
-                    --Build a land factory
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': tLZData[M28Map.subrefLZMexCount]='..tLZData[M28Map.subrefLZMexCount]..'; Island mex count='..M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tLZData[M28Map.subrefLZIslandRef]]..'; bExpansionOnSameIslandAsBase='..tostring(bExpansionOnSameIslandAsBase)..'; tLZData[M28Map.subrefLZIslandRef]='..tLZData[M28Map.subrefLZIslandRef]..'; Closest firendly base island ref='..NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase])) end
+            if tLZData[M28Map.subrefLZMexCount] > 0 and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tLZData[M28Map.subrefLZIslandRef]] >= 3 and not(bExpansionOnSameIslandAsBase) then
+                iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
+                if bDebugMessages == true then LOG(sFunctionRef..': iHighestTechEngiAvailable='..iHighestTechEngiAvailable) end
+                if iHighestTechEngiAvailable > 0 then
+                    local bHaveCoreLZ = false
+                    for iEntry, iIslandLZ in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandLandZones][tLZData[M28Map.subrefLZIslandRef]] do
+                        if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iIslandLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] or M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iIslandLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZCoreExpansion] then
+                            if bDebugMessages == true then LOG(sFunctionRef..': iIslandlZ'..iIslandLZ..' in the island '..tLZData[M28Map.subrefLZIslandRef]..' is either a core base or expansion, Is core base='..tostring(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iIslandLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] or false)..'; Is core expansion='..tostring(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iIslandLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZCoreExpansion] or false)..'; bCheckTravelPath='..tostring(bCheckTravelPath)) end
+                            if not(bCheckTravelPath) then
+                                bHaveCoreLZ = true
+                                break
+                            else
+                                --Check we can actually travel here by land
+                                local iEntryNumber = tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iIslandLZ]
+                                if bDebugMessages == true then LOG(sFunctionRef..': iEntryNumber='..(iEntryNumber or 'nil')..'; LZ Ref based on this entry number='..(tLZData[M28Map.subrefLZPathingToOtherLandZones][iEntryNumber][M28Map.subrefLZNumber] or 'nil')..'; iIslandLZ='..iIslandLZ) end
+                                if iEntryNumber then
+                                    local tTravelPath = tLZData[M28Map.subrefLZPathingToOtherLandZones][iEntryNumber][M28Map.subrefLZPath]
+                                    if bDebugMessages == true then LOG(sFunctionRef..': tTravelPath='..repru(tTravelPath)) end
+                                    if M28Utilities.IsTableEmpty(tTravelPath) == false then
+                                        bHaveCoreLZ = true
+                                        for iPath, iPathLZ in tTravelPath do
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering iPathLZ='..iPathLZ..'; Is in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iPathLZ][M28Map.subrefMidpoint]))) end
+                                            if not(M28Conditions.IsLocationInPlayableArea(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iPathLZ][M28Map.subrefMidpoint])) then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': iPathLZ is not in the playable area so dont think we have a core LZ after all') end
+                                                bHaveCoreLZ = false
+                                                break
+                                            end
+                                        end
+                                        if bHaveCoreLZ then break end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Updating core expansion flag, bHaveCoreLZ='..tostring(bHaveCoreLZ)..'; Have override='..tostring(tLZTeamData[M28Map.subrefLZExpansionOverride] or false)) end
+                    if not(bHaveCoreLZ) or tLZTeamData[M28Map.subrefLZExpansionOverride] then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will set this location as the core expansion location') end
+                        --Build a land factory
+                        tLZTeamData[M28Map.subrefLZCoreExpansion] = true
+                    else
+                        tLZTeamData[M28Map.subrefLZCoreExpansion] = false
+                    end
+                end
+            else
+                if bDebugMessages == true then LOG(sFunctionRef..': Will update core expansion flag, tLZTeamData[M28Map.subrefLZExpansionOverride]='..tostring(tLZTeamData[M28Map.subrefLZExpansionOverride] or false)) end
+                if tLZTeamData[M28Map.subrefLZExpansionOverride] then
                     tLZTeamData[M28Map.subrefLZCoreExpansion] = true
                 else
                     tLZTeamData[M28Map.subrefLZCoreExpansion] = false
                 end
             end
-        else
-            if tLZTeamData[M28Map.subrefLZExpansionOverride] then
-                tLZTeamData[M28Map.subrefLZCoreExpansion] = true
-            else
-                tLZTeamData[M28Map.subrefLZCoreExpansion] = false
-            end
         end
     end
+    bDebugMessages = false
     local iFactoriesWanted = 0
     local iExistingLandFactory = 0
     if tLZTeamData[M28Map.subrefLZCoreExpansion] then
@@ -7292,9 +7372,9 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     end
 
     --SMD if very high value and enemy has nukes
-    if tLZTeamData[M28Map.subrefLZSValue] >= 60000 or (tLZTeamData[M28Map.subrefLZSValue] >= 20000 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false) then
+    if tLZTeamData[M28Map.subrefLZSValue] >= 60000 or (tLZTeamData[M28Map.subrefLZSValue] >= 20000 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false) or tLZTeamData[M28Map.reftObjectiveSMDLocation] then
         --Make sure we have at least 2 T3 mex in this zone (or no T2 and T1 mexes)
-        if tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10) then
+        if (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 or (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 10)) or (tLZTeamData[M28Map.reftObjectiveSMDLocation] and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ])) then
 
             local bAssistSMD = false
             iBPWanted, bAssistSMD = GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, false, bHaveLowMass, bWantMorePower)
@@ -7320,7 +7400,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     --Shielding
     iCurPriority = iCurPriority + 1
     local iTechlevelWanted, oUnitToShield
-    iBPWanted, iTechlevelWanted, oUnitToShield = GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, false, bHaveLowMass, bWantMorePower, false, iLandZone)
+    iBPWanted, iTechlevelWanted, oUnitToShield = GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, false, bHaveLowMass, bWantMorePower, false, iLandZone, iPlateau)
     if iBPWanted > 0 then
         HaveActionToAssign(refActionBuildShield, iTechLevelWanted, iBPWanted, oUnitToShield)
         if bDebugMessages == true then LOG(sFunctionRef..': Have just tried to assign an action to shield unit '..oUnitToShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToShield)) end
@@ -7707,7 +7787,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     --Extra (second) shielding in a high mass scenario - will only try to shield t3 arti/game ender
     iCurPriority = iCurPriority + 1
     if (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 500 then
-        local iBPWanted, iTechLevelWanted, oUnitToShield = GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, true, bHaveLowMass, bWantMorePower, true, iLandZone)
+        local iBPWanted, iTechLevelWanted, oUnitToShield = GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, true, bHaveLowMass, bWantMorePower, true, iLandZone, iPlateau)
         if iBPWanted > 0 then
             iBPWanted = math.min(iBPWanted, 40)
 

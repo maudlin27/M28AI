@@ -297,6 +297,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             reftoTransportsWaitingForEngineers = 'TWntEng' --Table of any transports in this LZ wanting engineers
             refiTimeLastBuiltAtFactory = 'TLstBFac' --Gametimeseconds that a factory last tried ot build (used to make sure we spread things out by several ticks)
             reftoGroundFireFriendlyTarget = 'TGFTrg' --Location of a ground fire target that we wont be trying to target via normal means, e..g intended for Cybran mission 2 where need to ground fire temples that dont show as enemies and cant be reclaimed
+            reftObjectiveSMDLocation = 'TSMDOL' --For campaign maps - locaiton of SMD to complete objective
 
 --Pond and naval variables
     --General
@@ -2847,6 +2848,8 @@ function ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iPlateau, iStartLan
     local sFunctionRef = 'ConsiderAddingTargetLandZoneToDistanceFromBaseTable'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    if iPlateau == 25 and (iStartLandZone == 20 or iStartLandZone == 1) and (iTargetLandZone == 20 or iTargetLandZone == 1) then bDebugMessages = true LOG(sFunctionRef..': not(tbTempConsideredLandPathingForLZ[iPlateau][iStartLandZone][iTargetLandZone])='..tostring(not(tbTempConsideredLandPathingForLZ[iPlateau][iStartLandZone][iTargetLandZone]))..'; repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLZEntryRef])='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLZEntryRef])..'; repru of pathing='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLandZones])) else bDebugMessages = false end
+
     --Have we not already considered this?
     if not(tbTempConsideredLandPathingForLZ[iPlateau][iStartLandZone][iTargetLandZone]) then
 
@@ -2896,6 +2899,7 @@ function ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iPlateau, iStartLan
             if not(tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLandZones]) then
                 tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLandZones] = {}
                 tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLZEntryRef] = {}
+                if iStartLandZone == 20 and iPlateau == 25 then bDebugMessages = true LOG(sFunctionRef..': Have just cleared the pathing to other LZ entry ref table for iStartLandZone='..iStartLandZone..'; iPlateau='..iPlateau) end
                 iPosition = 1
             else
                 for iExistingLandZone, tExistingSubtable in tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLandZones] do
@@ -2911,6 +2915,7 @@ function ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iPlateau, iStartLan
             if not(tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZPathingToOtherLandZones]) then
                 tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZPathingToOtherLandZones] = {}
                 tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZPathingToOtherLZEntryRef] = {}
+                if iStartLandZone == 20 and iPlateau == 25 then bDebugMessages = true LOG(sFunctionRef..': Have just cleared the pathing to target LZ entry ref table for iTargetLandZone='..iTargetLandZone..'; iPlateau='..iPlateau) end
                 iOppositePosition = 1
             else
                 for iExistingLandZone, tExistingSubtable in tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZPathingToOtherLandZones] do
@@ -2952,10 +2957,12 @@ function ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iPlateau, iStartLan
             if bDebugMessages == true then LOG(sFunctionRef..': Path for goign the opposite direction='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZPathingToOtherLandZones][iOppositePosition][subrefLZPath])..'; path for going the normal direction='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLandZones][iPosition][subrefLZPath])..'; iPosition='..iPosition..'; iOppositePosition='..iOppositePosition) end
 
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Finsihed recording for iPlateau='..iPlateau..'; iStartLandZone='..iStartLandZone..'; subrefLZPathingToOtherLandZones='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLandZones])..'; will now do repru of the target land zone pathing to other land zones='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZPathingToOtherLandZones])) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finsihed recording for iPlateau='..iPlateau..'; iStartLandZone='..iStartLandZone..'; subrefLZPathingToOtherLandZones='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLandZones])..'; will now do repru of the target land zone pathing to other land zones='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZPathingToOtherLandZones])..'; bWillUpdateLZEntryRefLater='..tostring(bWillUpdateLZEntryRefLater or false)) end
         if not(bWillUpdateLZEntryRefLater) then
             UpdateLZPathingEntryReferences(iPlateau, iStartLandZone)
             UpdateLZPathingEntryReferences(iPlateau, iTargetLandZone)
+            if iStartLandZone == 20 or iTargetLandZone == 20 then bDebugMessages = true end
+            if bDebugMessages == true then LOG(sFunctionRef..': Have just finished updating pathing entry refs, iStartLandZone='..iStartLandZone..'; iTargetLandZone='..iTargetLandZone..'; subrefLZPathingToOtherLandZones for start='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLZEntryRef])..'; Same for target='..repru(repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZPathingToOtherLZEntryRef]))..'; repru of pathing to other zones for start zone='..repru(repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLandZones]))) end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -2983,6 +2990,12 @@ local function RecordMaxAdjacencyTravelDistance()
 end
 
 function UpdateLZPathingEntryReferences(iPlateau, iLandZone)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'UpdateLZPathingEntryReferences'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if iLandZone == 20 and iPlateau == 25 then bDebugMessages = true end
+
     local tLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
     if M28Utilities.IsTableEmpty(tLZData[subrefLZPathingToOtherLandZones]) == false then
         local iCurCount = 0
@@ -2991,6 +3004,8 @@ function UpdateLZPathingEntryReferences(iPlateau, iLandZone)
             tLZData[subrefLZPathingToOtherLZEntryRef][tPathData[subrefLZNumber]] = iCurCount
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code for iPlateau '..iPlateau..'; iLandZone '..iLandZone..'; Is table of pathing to other land zones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[subrefLZPathingToOtherLandZones]))..'; Pathing entry ref repru='..repru(tLZData[subrefLZPathingToOtherLZEntryRef])..'; repru of pathing to other zones='..repru(tLZData[subrefLZPathingToOtherLandZones])) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 local function RecordPathingBetweenZones()
@@ -3005,6 +3020,7 @@ local function RecordPathingBetweenZones()
             if bDebugMessages == true then LOG(sFunctionRef..': Considering iCurLandZone='..iCurLandZone..' for plateau '..iCurPlateau..'; will go through every other LZ in the plateau and consider adding to the table of other land zones near this') end
             local tStartPoint = tAllPlateaus[iCurPlateau][subrefPlateauLandZones][iCurLandZone][subrefMidpoint]
             for iTargetLandZone, tTargetLZInfo in tPlateauSubtable[subrefPlateauLandZones] do
+                if iCurPlateau == 25 and (iCurLandZone == 20 or iCurLandZone == 1) and (iTargetLandZone == 20 or iTargetLandZone == 1) then bDebugMessages = true else bDebugMessages = false end
                 if bDebugMessages == true then LOG(sFunctionRef..': Will consider iTargetLandZone='..iTargetLandZone..' for starting LZ '..iCurLandZone) end
                 if not(iTargetLandZone == iCurLandZone) then
                     ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iCurPlateau, iCurLandZone, iTargetLandZone, tStartPoint, true)
@@ -3014,6 +3030,8 @@ local function RecordPathingBetweenZones()
         --Now record the entry refs
         local iCurCount
         for iCurLandZone, tLandZoneInfo in tPlateauSubtable[subrefPlateauLandZones] do
+            if iCurLandZone == 20 and iCurPlateau == 25 then bDebugMessages = true else bDebugMessages = false end
+            if bDebugMessages == true then LOG(sFunctionRef..': About to update LZ pathing entry references for iCurLandZone='..iCurLandZone..'; in iCurPlateau='..iCurPlateau) end
             UpdateLZPathingEntryReferences(iCurPlateau, iCurLandZone)
         end
     end
@@ -3083,6 +3101,7 @@ local function RecordTravelDistBetweenZonesOverTime()
         for iStartLZ, tLandZoneInfo in tPlateauSubtable[subrefPlateauLandZones] do
             if bDebugMessages == true then LOG(sFunctionRef..': About to consider all other land zones in plateau '..iPlateau..' for iStartLZ='..iStartLZ) end
             for iEndLZ,  tLandZoneInfo in tPlateauSubtable[subrefPlateauLandZones] do
+                if iPlateau == 25 and (iStartLZ == 20 or iStartLZ == 1) and (iEndLZ == 20 or iEndLZ == 1) then bDebugMessages = true else bDebugMessages = false end
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering iEndLZ='..iEndLZ) end
                 if not(iStartLZ == iEndLZ) then
                     iCurCount = iCurCount + 1
@@ -6295,7 +6314,11 @@ function GetTravelDistanceBetweenLandZones(iPlateau, iStartLZ, iEndLZ)
     local sFunctionRef = 'GetTravelDistanceBetweenLandZones'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
     local tStartLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLZ]
+
+    if iPlateau == 25 and (iStartLZ == 20 or iStartLZ == 1) and (iEndLZ == 20 or iEndLZ == 1) then bDebugMessages = true if bDebugMessages == true then LOG(sFunctionRef..': Is the table value nil='..tostring(tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ] == nil)) end else bDebugMessages = false end
+
     if not(tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ]) then
         if not(tStartLZData[subrefLZTravelDistToOtherLandZones]) then tStartLZData[subrefLZTravelDistToOtherLandZones] = {} end
         if not(tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau]) then tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau] = {} end

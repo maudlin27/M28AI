@@ -279,9 +279,9 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
             --Engineers - dont build if we have spare engineers at our current LZ
             local iMaxSpareWanted = 1
             if not(M28Conditions.TeamHasLowMass(aiBrain.M28Team)) then
-                iMaxSpareWanted = math.max(2, 1 + math.floor(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamLowestMassPercentStored] * 10)) * M28Engineer.tiBPByTech[iFactoryTechLevel]
+                iMaxSpareWanted = math.max(2, 1 + math.floor((M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamLowestMassPercentStored] or 0) * 10)) * M28Engineer.tiBPByTech[iFactoryTechLevel]
             end
-            if tLZTeamData[M28Map.subrefSpareBPByTech][iFactoryTechLevel] > iMaxSpareWanted then
+            if (tLZTeamData[M28Map.subrefSpareBPByTech][iFactoryTechLevel] or 0) > iMaxSpareWanted then
                 if bDebugMessages == true then LOG(sFunctionRef..': Have sufficient spare engineers, iMaxSpareWanted='..iMaxSpareWanted) end
                 sBPIDToBuild = nil
             end
@@ -303,18 +303,24 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                 local iCurUnitTechLevel = M28UnitInfo.GetBlueprintTechLevel(sBPIDToBuild)
                 if iCurUnitTechLevel < 3 then
                     local iLowestTechWanted
-                    for iTech, iBPWanted in tLZTeamData[M28Map.subrefTBuildPowerByTechWanted] do
-                        if iBPWanted > 0 then
-                            iLowestTechWanted = iTech
-                            break
+                    if not(tLZTeamData[M28Map.subrefTBuildPowerByTechWanted]) then
+                        if not(tLZTeamData[M28Map.subrefTBuildPowerByTechWanted]) then
+                            if GetGameTimeSeconds() >= 60 then M28Utilities.ErrorHandler('Dont have BP by tech set for zone containing factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)) end
+                        else
+                            for iTech, iBPWanted in tLZTeamData[M28Map.subrefTBuildPowerByTechWanted] do
+                                if iBPWanted > 0 then
+                                    iLowestTechWanted = iTech
+                                    break
+                                end
+                            end
                         end
-                    end
-                    if bDebugMessages == true then LOG(sFunctionRef..': iLowestTechWanted='..(iLowestTechWanted or 'nil')..'; iCurUnitTechLevel='..iCurUnitTechLevel) end
-                    if (iLowestTechWanted or 1) > math.max(1, iCurUnitTechLevel) then
-                        --Do we already have a number of units of this tech level?
-                        if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iCurUnitTechLevel)) >= 5 then
-                            sBPIDToBuild = nil
-                            if bDebugMessages == true then LOG(sFunctionRef..': We already have 5 engineers of this tech level, and dont want more of this tech, iLowestTechWanted='..iLowestTechWanted..', iCurUnitTechLevel='..iCurUnitTechLevel) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iLowestTechWanted='..(iLowestTechWanted or 'nil')..'; iCurUnitTechLevel='..iCurUnitTechLevel) end
+                        if (iLowestTechWanted or 1) > math.max(1, iCurUnitTechLevel) then
+                            --Do we already have a number of units of this tech level?
+                            if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iCurUnitTechLevel)) >= 5 then
+                                sBPIDToBuild = nil
+                                if bDebugMessages == true then LOG(sFunctionRef..': We already have 5 engineers of this tech level, and dont want more of this tech, iLowestTechWanted='..iLowestTechWanted..', iCurUnitTechLevel='..iCurUnitTechLevel) end
+                            end
                         end
                     end
                 end
@@ -351,6 +357,11 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
             if aiBrain:GetCurrentUnits(categories[sBPIDToBuild]) >= 50 then
                 sBPIDToBuild = nil
             end
+        elseif sBPIDToBuild then
+            if EntityCategoryContains(M28UnitInfo.refCategoryNavalSurface, sBPIDToBuild) and aiBrain:GetCurrentUnits(categories[sBPIDToBuild]) >= 60 then
+                sBPIDToBuild = nil
+            end
+
         end
         --Cap MAA levels
         if sBPIDToBuild and EntityCategoryContains(M28UnitInfo.refCategoryMAA - categories.TECH3, sBPIDToBuild) then
