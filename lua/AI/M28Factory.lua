@@ -1909,6 +1909,12 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryIndirect) then return sBPIDToBuild end
             end
         end
+
+        --Build land scouts if need more if in LZ expansion with poor radar coverage
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if tLZTeamData[M28Map.refiRadarCoverage] < 50 and tLZTeamData[M28Map.refbWantLandScout] then
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandScout) then return sBPIDToBuild end
+        end
     end
 
 

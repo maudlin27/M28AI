@@ -8507,6 +8507,23 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
         end
     end
 
+    --Under construction unit
+    iCurPriority = iCurPriority + 1
+    if iHighestTechEngiAvailable > 0 then
+        iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
+        if iHighestTechEngiAvailable > 0 then
+            local tBuildingsInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, M28UnitInfo.subrefWZTAlliedUnits)
+            if M28Utilities.IsTableEmpty(tBuildingsInZone) == false then
+                for iUnit, oUnit in tBuildingsInZone do
+                    if oUnit:GetFractionComplete() < 1 then
+                        HaveActionToAssign(refActionRepairUnit, 1, 5, oUnit)
+                        break
+                    end
+                end
+            end
+        end
+    end
+
     --Lower priority sending engineeres to other land and water zones
     --Send engineer to a land zone adjacent to this that wants support and lacks factories
     iCurPriority = iCurPriority + 1
