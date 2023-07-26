@@ -1537,7 +1537,7 @@ function GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, iCateg
 
 end
 
-function IsNearbyStructureThatWeCanReachWithIndirect(tLZData, tLZTeamData)
+function IsNearbyStructureThatWeCanReachWithIndirect(tLZData, tLZTeamData, iTeam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'IsNearbyStructureThatWeCanReachWithIndirect'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)

@@ -3531,7 +3531,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
     if bDebugMessages == true then LOG(sFunctionRef..': Checking if want to request indirect reinforcements for dif plateau threat, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; enemies in this or adjacent='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; bWantIndirectReinforcements='..tostring(bWantIndirectReinforcements)..'; Valid structure in other plateau='..tostring(tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere])..'; Highest friendly land fac tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]) end
     if not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and not(bWantIndirectReinforcements) and M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere]) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 3 then
-        bWantIndirectReinforcements = M28Conditions.IsNearbyStructureThatWeCanReachWithIndirect(tLZData, tLZTeamData)
+        bWantIndirectReinforcements = M28Conditions.IsNearbyStructureThatWeCanReachWithIndirect(tLZData, tLZTeamData, iTeam)
     end
     UpdateIfLandZoneWantsSupport(tLZTeamData, iPlateau, iLandZone, iTeam, bWantDFReinforcements, bWantIndirectReinforcements)
     if bDebugMessages == true then LOG(sFunctionRef..': Just recorded if this LZ wants support, bWantDFReinforcements='..tostring(bWantDFReinforcements)..'; bWantIndirectReinforcements='..tostring(bWantIndirectReinforcements)..'; tLZTeamData[M28Map.subrefbLZWantsSupport] = '..tostring(tLZTeamData[M28Map.subrefbLZWantsSupport])..'; tLZTeamData[M28Map.subrefbLZWantsDFSupport]='..tostring(tLZTeamData[M28Map.subrefbLZWantsDFSupport])) end
@@ -3936,7 +3936,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                 if bDebugMessages == true then LOG(sFunctionRef..': Have had MML firing recently near TMD so want more indirect fire support') end
                 bWantIndirectSupport = true
             elseif not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and not(bWantIndirectSupport) and M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere]) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 3 then
-                bWantIndirectSupport = M28Conditions.IsNearbyStructureThatWeCanReachWithIndirect(tLZData, tLZTeamData)
+                bWantIndirectSupport = M28Conditions.IsNearbyStructureThatWeCanReachWithIndirect(tLZData, tLZTeamData, iTeam)
             end
             UpdateIfLandZoneWantsSupport(tLZTeamData, iPlateau, iLandZone, iTeam, false, bWantIndirectSupport)
         end

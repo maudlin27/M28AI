@@ -354,7 +354,9 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
         if sBPIDToBuild and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] <= 1 and (aiBrain[M28Overseer.refiExpectedRemainingCap] < 40 or (aiBrain[M28Overseer.refiExpectedRemainingCap] < 70 and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] == 0)) then
             --Dont build anything if already have lots of it
             if bDebugMessages == true then LOG(sFunctionRef..': Are close to unit cap, sBPIDToBuild after initial close to unit override='..(sBPIDToBuild or 'nil')..'; Current units owned of this already='..aiBrain:GetCurrentUnits(categories[sBPIDToBuild])) end
-            if aiBrain:GetCurrentUnits(categories[sBPIDToBuild]) >= 50 then
+            local iCurUnitsOfCategory = aiBrain:GetCurrentUnits(categories[sBPIDToBuild])
+
+            if iCurUnitsOfCategory >= 150 or (iCurUnitsOfCategory >= 50 and (aiBrain[M28Overseer.refiExpectedRemainingCap] or 0) <= 35 and (iCurUnitsOfCategory >= 100 or ((oFactory[refiTotalBuildCount] or 0) + iCurUnitsOfCategory >= 100 and EntityCategoryContains(categories.TECH1 + categories.TECH2, sBPIDToBuild)))) then
                 sBPIDToBuild = nil
             end
         elseif sBPIDToBuild then
@@ -425,7 +427,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
                         for iPath, iPathLZ in tTravelPath do
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering iPathLZ='..iPathLZ..'; Is in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iPathLZ][M28Map.subrefMidpoint]))) end
                             if not(M28Conditions.IsLocationInPlayableArea(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iPathLZ][M28Map.subrefMidpoint])) then
-                                if bDebugMessages == true then LOG(sFunctionRef..': iPathLZ is not in the playable area so dont want to make this an expansion') end
+                                if bDebugMessages == true then LOG(sFunctionRef..': iPathLZ is not in the playable area so want to treat same island as being false') end
                                 bInSameIsland = false
                                 break
                             end

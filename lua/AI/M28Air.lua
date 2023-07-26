@@ -2903,20 +2903,30 @@ function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if bTargetAAAndShieldsFirst then
-        if bDebugMessages == true then LOG(sFunctionRef..': Will split up targets between those iwth AA category and those without') end
-        local iSearchCategory = M28UnitInfo.refCategoryGroundAA + M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryMobileLandShield + M28UnitInfo.refCategoryShieldBoat
-        local tEnemyAAAndShields = EntityCategoryFilterDown(iSearchCategory, tEnemyTargets)
-        if M28Utilities.IsTableEmpty(tEnemyAAAndShields) then
-            if bDebugMessages == true then LOG(sFunctionRef..': Have no enemy AA so will call this again and assign targets to all enemy units, without order to target AA first') end
-            AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam, bForceGroundFire, false)
-        else
-            if bDebugMessages == true then LOG(sFunctionRef..': Will call this function again targeting just the enemy AA units') end
-            AssignTorpOrBomberTargets(tAvailableBombers, tEnemyAAAndShields, iAirSubteam, bForceGroundFire, false)
-            if bDebugMessages == true then LOG(sFunctionRef..': Have finished targeting the enemy AA units, is available bombers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))) end
-            if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
-                local tOtherTargets = EntityCategoryFilterDown(categories.ALLUNITS - iSearchCategory, tEnemyTargets)
-                if M28Utilities.IsTableEmpty(tOtherTargets) == false then
-                    AssignTorpOrBomberTargets(tAvailableBombers, tOtherTargets, iAirSubteam, bForceGroundFire, false)
+        if bDebugMessages == true then LOG(sFunctionRef..': Will split up targets between those iwth AA category and those without; also priority enemy ACUs ahead of all this') end
+        if M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] >= 2000 and EntityCategoryContains(M28UnitInfo.refCategoryBomber, tAvailableBombers[1].UnitId) then
+            local tEnemyACU = EntityCategoryFilterDown(categories.COMMAND, tEnemyTargets)
+            if M28Utilities.IsTableEmpty(tEnemyACU) == false then
+                if M28UnitInfo.GetCombatThreatRating(tAvailableBombers, false, true) >= 15000 then
+                    AssignTorpOrBomberTargets(tAvailableBombers, tEnemyACU, iAirSubteam, bForceGroundFire, false)
+                end
+            end
+        end
+        if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
+            local iSearchCategory = M28UnitInfo.refCategoryGroundAA + M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryMobileLandShield + M28UnitInfo.refCategoryShieldBoat
+            local tEnemyAAAndShields = EntityCategoryFilterDown(iSearchCategory, tEnemyTargets)
+            if M28Utilities.IsTableEmpty(tEnemyAAAndShields) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Have no enemy AA so will call this again and assign targets to all enemy units, without order to target AA first') end
+                AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam, bForceGroundFire, false)
+            else
+                if bDebugMessages == true then LOG(sFunctionRef..': Will call this function again targeting just the enemy AA units') end
+                AssignTorpOrBomberTargets(tAvailableBombers, tEnemyAAAndShields, iAirSubteam, bForceGroundFire, false)
+                if bDebugMessages == true then LOG(sFunctionRef..': Have finished targeting the enemy AA units, is available bombers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))) end
+                if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
+                    local tOtherTargets = EntityCategoryFilterDown(categories.ALLUNITS - iSearchCategory, tEnemyTargets)
+                    if M28Utilities.IsTableEmpty(tOtherTargets) == false then
+                        AssignTorpOrBomberTargets(tAvailableBombers, tOtherTargets, iAirSubteam, bForceGroundFire, false)
+                    end
                 end
             end
         end
@@ -2970,6 +2980,11 @@ function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam
                     iTotalStrikeDamageWanted = iTotalStrikeDamageWanted * 1.5
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryStructureAA + categories.COMMAND + M28UnitInfo.refCategoryGroundAA * categories.TECH3, oEnemyUnit.UnitId) then
                     iTotalStrikeDamageWanted = iTotalStrikeDamageWanted * 1.2
+                    if EntityCategoryContains(categories.COMMAND, oEnemyUnit.UnitId) then
+                        --Check if under a fixed shield
+                        local iShieldHealth = M28Logic.IsTargetUnderShield(aiBrain, oEnemyUnit, 0, true, false, true, true)
+                        iTotalStrikeDamageWanted = iTotalStrikeDamageWanted + (iShieldHealth or 0)
+                    end
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering targeting oEnemyUnit='..(oEnemyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyUnit)..'; oEnemyUnit[refiStrikeDamageAssigned]='..(oEnemyUnit[refiStrikeDamageAssigned] or 'nil')..'; iTotalStrikeDamageWanted='..iTotalStrikeDamageWanted)) end
                 while (oEnemyUnit[refiStrikeDamageAssigned] or 0) < iTotalStrikeDamageWanted do
@@ -3001,7 +3016,7 @@ function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam
                             M28Orders.IssueTrackedAggressiveMove(oClosestUnit, oEnemyUnit:GetPosition(), 6, false, 'AMTrp', false)
                         else
                             --Bomber - ground fire
-                                     --IssueTrackedGroundAttack(oUnit,      tOrderPosition,         iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder, oOptionalLinkedUnitTarget)
+                            --IssueTrackedGroundAttack(oUnit,      tOrderPosition,         iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder, oOptionalLinkedUnitTarget)
                             M28Orders.IssueTrackedGroundAttack(oClosestUnit, oEnemyUnit:GetPosition(), 1,                       false,              'ABGrn',            false,                   oEnemyUnit)
                         end
                     end
