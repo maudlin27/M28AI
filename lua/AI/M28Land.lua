@@ -966,6 +966,7 @@ function RecordClosestAdjacentEnemiesAndGetBestEnemyRange(tLZData, tLZTeamData, 
 
 
     tLZTeamData[M28Map.reftoNearestDFEnemies] = {}
+    tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere] = nil
     local iEnemyBestMobileDFRange = 0
     local iEnemyBestStructureDFRange = 0
     local iEnemyBestMobileIndirectRange = 0
@@ -1050,6 +1051,48 @@ function RecordClosestAdjacentEnemiesAndGetBestEnemyRange(tLZData, tLZTeamData, 
             end
         end
     end
+
+    --Record nearest enemy structure if this land zone is large enough and has no enemies (for performance reasons - dont want to risk doing this calculation on tiny zones/mini plateaus near an enemy base), and currently planned use is only for indirect fire units as a backup target
+    if bDebugMessages == true then LOG(sFunctionRef..': Will check for nearby enemy structures if no enemies in this LZ, iPlateau='..iPlateau..'; iLandZOne='..iLandZone..'; Enemies in this or adj LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; Total segment count='..tLZData[M28Map.subrefLZTotalSegmentCount]..'; Segment size='..M28Map.iLandZoneSegmentSize..'; is table of other land and water zones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]))) end
+    if not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and tLZData[M28Map.subrefLZTotalSegmentCount] >= 150 / M28Map.iLandZoneSegmentSize then
+        M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefMidpoint])
+        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
+            local iClosestEnemyDist = 10000
+            local oClosestEnemy
+            local iCurDist
+            for iEntry, tSubtable in tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering iPlateauOrPond='..tSubtable[M28Map.subrefiPlateauOrPond]..'; Is water zone='..tostring(tSubtable[M28Map.subrefbIsWaterZone])..'; Distance='..tSubtable[M28Map.subrefiDistance]..'; iEntry='..iEntry) end
+                if tSubtable[M28Map.subrefiDistance] >= 170 and (iEntry >= 7 or tSubtable[M28Map.subrefiDistance] >= 320) then break end
+                if not(iPlateau == tSubtable[M28Map.subrefiPlateauOrPond]) and not(tSubtable[M28Map.subrefbIsWaterZone]) then
+                    --Have a nearby land zone in a different plateau, check if there are enemy units in this LZ and (if so) if any of them are structures
+                    local tAdjLZData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
+                    if not(tAdjLZData[M28Map.subrefbPacifistArea]) then
+                        local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]))) end
+                        if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                            local tEnemyStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tAdjLZTeamData[M28Map.subrefTEnemyUnits])
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy structures empty='..tostring(M28Utilities.IsTableEmpty(tEnemyStructures))) end
+                            if M28Utilities.IsTableEmpty(tEnemyStructures) == false then
+                                for iUnit, oUnit in tEnemyStructures do
+                                    if M28UnitInfo.IsUnitValid(oUnit) then
+                                        iCurDist = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], oUnit:GetPosition())
+                                        if iCurDist <= iClosestEnemyDist then
+                                            oClosestEnemy = oUnit
+                                            iClosestEnemyDist = iCurDist
+                                            if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurDist='..iCurDist..'; this is the closest unit for now, will cycle through any remaining') end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished searching for enemy structure in nearby different plateau, oClosestEnemy='..(oClosestEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestEnemy) or 'nli')) end
+            tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere] = oClosestEnemy
+        end
+    end
+
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, iEnemyBestMobileDFRange='..iEnemyBestMobileDFRange..'; iEnemyBestStructureDFRange='..iEnemyBestStructureDFRange..'; iEnemyBestMobileIndirectRange='..iEnemyBestMobileIndirectRange) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return iEnemyBestMobileDFRange, iEnemyBestStructureDFRange, iEnemyBestMobileIndirectRange
@@ -3224,6 +3267,21 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 M28Utilities.ErrorHandler('Combat unit with no DF or indirect range')
             end
         end
+
+        --Indirect special 'bombardment' type logic against nearby different plateaus
+        if M28Utilities.IsTableEmpty(tIndirectUnits) == false and M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere]) then
+            local tOrderPosition = tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere]:GetPosition()
+            for iUnit, oUnit in tIndirectUnits do
+                --Note - issue on maps like air wars - the range factors in height so if the target plateau is very far away it can lead to strange results
+                if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tOrderPosition) > oUnit[M28UnitInfo.refiIndirectRange] - 1 then
+                    M28Orders.IssueTrackedAggressiveMove(oUnit, tOrderPosition, 3, false, 'InPlBom', false)
+                else
+                    M28Orders.IssueTrackedGroundAttack(oUnit, tOrderPosition, 3, false, 'InPlAGBm', false, tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere])
+                end
+            end
+            tIndirectUnits = {}
+        end
+
         --Do we have adjacent zones wanting reinforcements?
         local iIndirectLZToSupport
         local iDFLZToSupport
@@ -3285,7 +3343,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
             end
             if not(iDFLZToSupport) then iDFLZToSupport = iClosestDFLZRef end
             --If still not found somewhere to support, check for nearby islands wanting support
-            if bDebugMessages == true then LOG(sFunctionRef..': Checking for LZs to send DF units to support at time '..GetGameTimeSeconds()..' for LZ '..iLandZone..' on island '..tLZData[M28Map.subrefLZIslandRef]..', pre island iDFLZToSupport='..(iDFLZToSupport or 'nil')..'; is pathing to other islands empty='..tostring(tLZData[M28Map.subrefLZPathingToOtherIslands] or false)) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Checking for LZs to send DF units to support at time '..GetGameTimeSeconds()..' for LZ '..(iLandZone or 'nil')..' on island '..(tLZData[M28Map.subrefLZIslandRef] or 'nil')..', pre island iDFLZToSupport='..(iDFLZToSupport or 'nil')..'; is pathing to other islands empty='..tostring(tLZData[M28Map.subrefLZPathingToOtherIslands] or false)) end
             if not(iDFLZToSupport) and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherIslands]) == false then
                 --Do we have amphibious or hover units in our available units?
                 if bDebugMessages == true then LOG(sFunctionRef..': Is table of amphib combat empty='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryAmphibiousCombat, tDFUnits)))) end
@@ -3467,6 +3525,13 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 bWantIndirectReinforcements = true
             end
         end
+    end
+
+    --Enemy structure in nearby plateau that we can probably reach
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Checking if want to request indirect reinforcements for dif plateau threat, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; enemies in this or adjacent='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; bWantIndirectReinforcements='..tostring(bWantIndirectReinforcements)..'; Valid structure in other plateau='..tostring(tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere])..'; Highest friendly land fac tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]) end
+    if not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and not(bWantIndirectReinforcements) and M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere]) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 3 then
+        bWantIndirectReinforcements = M28Conditions.IsNearbyStructureThatWeCanReachWithIndirect(tLZData, tLZTeamData)
     end
     UpdateIfLandZoneWantsSupport(tLZTeamData, iPlateau, iLandZone, iTeam, bWantDFReinforcements, bWantIndirectReinforcements)
     if bDebugMessages == true then LOG(sFunctionRef..': Just recorded if this LZ wants support, bWantDFReinforcements='..tostring(bWantDFReinforcements)..'; bWantIndirectReinforcements='..tostring(bWantIndirectReinforcements)..'; tLZTeamData[M28Map.subrefbLZWantsSupport] = '..tostring(tLZTeamData[M28Map.subrefbLZWantsSupport])..'; tLZTeamData[M28Map.subrefbLZWantsDFSupport]='..tostring(tLZTeamData[M28Map.subrefbLZWantsDFSupport])) end
@@ -3866,9 +3931,12 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
             if bDebugMessages == true then LOG(sFunctionRef..': Will update if this land zone wants some DF support='..tostring(bWantDFSupport)..'; bWantIndirectSupport='..tostring(bWantIndirectSupport)) end
         else
             local bWantIndirectSupport = false
+            if bDebugMessages == true then LOG(sFunctionRef..': Are there enemis in this or adjacent LZ, for iPlateau='..iPlateau..'; iLandZone='..iLandZone..'='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; Do we have a valid nearby structure in other plateau='..tostring( M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere]))..'; Our highest land tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]) end
             if GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMD] or -100) <= 10 and not(tLZData[M28Map.subrefbPacifistArea]) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Have had MML firing recently near TMD so want more indirect fire support') end
                 bWantIndirectSupport = true
+            elseif not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and not(bWantIndirectSupport) and M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere]) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 3 then
+                bWantIndirectSupport = M28Conditions.IsNearbyStructureThatWeCanReachWithIndirect(tLZData, tLZTeamData)
             end
             UpdateIfLandZoneWantsSupport(tLZTeamData, iPlateau, iLandZone, iTeam, false, bWantIndirectSupport)
         end
@@ -3964,10 +4032,8 @@ function AssignValuesToLandZones(iTeam)
                         --Is this a core base land zone?
                         if bDebugMessages == true then LOG(sFunctionRef..': iCurValue based on this zone='..iCurValue..'; iFriendlyBuildingValue='..iFriendlyBuildingValue..'; Checking if we are a friendly land zone - tiPlateauAndLZWithFriendlyStartPosition='..repru(tiPlateauAndLZWithFriendlyStartPosition)..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedUnits]))) end
                         if tiPlateauAndLZWithFriendlyStartPosition[iPlateau][iLandZone] or tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbCoreBaseOverride] then
-                            bDebugMessages = true
                             tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] = true
                             if bDebugMessages == true then LOG(sFunctionRef..': Core LZ='..iLandZone..' for plateau '..iPlateau..'; All adjacent zones='..repru(tLandZoneData[M28Map.subrefLZAdjacentLandZones])..'; tiPlateauAndLZWithFriendlyStartPosition[iPlateau][iLandZone]=nil='..tostring(tiPlateauAndLZWithFriendlyStartPosition[iPlateau][iLandZone] == nil)..'; tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbCoreBaseOverride]='..tostring(tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbCoreBaseOverride] or false)..'; Island ref='..(tLandZoneData[M28Map.subrefLZIslandRef] or 'nil')) end
-                            bDebugMessages = false
                         elseif M28Utilities.IsTableEmpty(tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedUnits]) == false then
                             --Are we adjacent to a core zone and we contain a factory or high value unit? If so then treat us as a core LZ
                             bAdjacentToCoreFactory = false
@@ -3980,10 +4046,8 @@ function AssignValuesToLandZones(iTeam)
                                     end
                                 end
                                 if bAdjacentToCoreFactory and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(iBaseCategory, tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedUnits])) == false then
-                                    bDebugMessages = true
                                     if bDebugMessages == true then LOG(sFunctionRef..': Are adjacent to a core factory, and have iBaseCategory units in this zone, iLandZone='..iLandZone..'; iPlateau='..iPlateau) end
                                     tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] = true
-                                    bDebugMessages = false
                                 end
                             end
 

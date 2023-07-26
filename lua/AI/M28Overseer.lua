@@ -463,7 +463,11 @@ function NoRushMonitor()
 end
 
 function TestCustom(aiBrain)
-    M28Map.DrawSpecificWaterZone(2)
+    local ScenarioFramework = import('/lua/ScenarioFramework.lua')
+    local tLZData = M28Map.tAllPlateaus[25][M28Map.subrefPlateauLandZones][4]
+    local rRect = M28Utilities.GetRectAroundLocation({512,0,512}, 512)
+    --ScenarioFramework.SetPlayableArea(rRect)
+    --M28Map.DrawSpecificLandZone(25, 4, 4)
     --M28Map.DrawWaterZones()
     --[[if GetGameTimeSeconds() <= 20 then M28Map.DrawSpecificWaterZone(5)
     else M28Map.DrawSpecificWaterZone(7)
@@ -661,9 +665,9 @@ function CheckUnitCap(aiBrain)
         if iUnitCap - iCurUnits < 10 then iMaxToDestroy = math.max(10, iMaxToDestroy) end
         local tUnitsToDestroy
         local tiCategoryToDestroy = {
-            [0] = categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryAirStaging - M28UnitInfo.refCategoryT1Mex + M28UnitInfo.refCategoryAllAir * categories.TECH2 - M28UnitInfo.refCategoryTransport * categories.TECH2 - M28UnitInfo.refCategoryTorpBomber * categories.TECH2,
+            [0] = categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryAirStaging - M28UnitInfo.refCategoryT1Mex + M28UnitInfo.refCategoryAllAir * categories.TECH2 - M28UnitInfo.refCategoryTransport * categories.TECH2 - M28UnitInfo.refCategoryTorpBomber * categories.TECH2 -M28UnitInfo.refCategoryAllHQFactories,
             [1] = M28UnitInfo.refCategoryAllAir * categories.TECH1 + categories.NAVAL * categories.MOBILE * categories.TECH1,
-            [2] = M28UnitInfo.refCategoryMobileLand * categories.TECH2 - categories.COMMAND - M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryAirScout + M28UnitInfo.refCategoryAirAA * categories.TECH1,
+            [2] = M28UnitInfo.refCategoryMobileLand * categories.TECH2 - categories.COMMAND - M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryAirScout * categories.TECH1 + M28UnitInfo.refCategoryAirAA * categories.TECH1,
             [3] = M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND,
             [4] = M28UnitInfo.refCategoryWall + M28UnitInfo.refCategoryEngineer - categories.TECH3 + M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryLandScout,
         }

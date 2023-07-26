@@ -2873,6 +2873,14 @@ function GetCategoryToBuildOrAssistFromAction(iActionToAssign, iMinTechLevel, ai
                 if not(M28Utilities.DoesCategoryContainCategory(categories.TECH3 + categories.EXPERIMENTAL + M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryPower * categories.TECH2, iCategoryToBuild)) then
                     iCategoryToBuild = nil
                 end
+            elseif (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) <= 1 and aiBrain:GetCurrentUnits(iCategoryToBuild) >= 100 then
+                if M28Utilities.DoesCategoryContainCategory(categories.TECH3 + categories.EXPERIMENTAL + M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryPower * categories.TECH2, iCategoryToBuild) and aiBrain:GetCurrentUnits(iCategoryToBuild) > 150 then
+                    --Do nothing
+                else
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have lots of the target category to build so wont build any more') end
+                    iCategoryToBuild = nil
+                end
+
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Is iCategoryToBuild nil after unit cap adjustment='..tostring(iCategoryToBuild == nil)) end
         end
@@ -7003,7 +7011,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     local sFunctionRef = 'ConsiderMinorLandZoneEngineerAssignment'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iPlateau == 25 and (iLandZone == 23 or iLandZone == 20) and tLZTeamData[M28Map.subrefLZCoreExpansion] == nil then bDebugMessages = true end
+
 
     --if bDebugMessages == true then M28Map.DrawSpecificLandZone(iPlateau, iLandZone, 1) end
     local iBPWanted
@@ -7036,10 +7044,14 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     iCurPriority = iCurPriority + 1
     local iHighestTechEngiAvailable
     local bExpansionOnSameIslandAsBase = false
+
     if bDebugMessages == true then LOG(sFunctionRef..': do we want this zone as an expansion point? iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Time='..GetGameTimeSeconds()..'; tLZTeamData[M28Map.subrefLZCoreExpansion]='..tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false)..'; tLZTeamData[M28Map.subrefLZCoreExpansion] is nil='..tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] == nil)..'; tLZTeamData[M28Map.subrefLZExpansionOverride]='..tostring(tLZTeamData[M28Map.subrefLZExpansionOverride] or false)..'; tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][1]='..(tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][1] or 'nil')) end
     if tLZTeamData[M28Map.subrefLZCoreExpansion] == nil or (tLZTeamData[M28Map.subrefLZExpansionOverride] and not(tLZTeamData[M28Map.subrefLZCoreExpansion])) then
         local bCheckTravelPath = M28Map.bIsCampaignMap
         if not(bCheckTravelPath) or M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint]) then
+            local iEnemyBaseStraightLineDist = 200
+            local iTravelLimit = 600 --If takes more than this to travel to the nearest friendly base, and we are more than iEnemyBaseStraightLineDist from the nearest enemy base on a straight line basis, then will consider a land expansion point
+
             bExpansionOnSameIslandAsBase = false
             if tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase]) then
                 bExpansionOnSameIslandAsBase = true
@@ -7066,13 +7078,20 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                                         break
                                     end
                                 end
+                                if bExpansionOnSameIslandAsBase then
+                                    --Still consider as expansion point if far away
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Expansion is on same island as base, checking if it is still really far away such that we want to considera n expansion point, travel dist='..tLZData[M28Map.subrefLZPathingToOtherLandZones][iEntryNumber][M28Map.subrefLZTravelDist]..'; Dist to enemy base (straight line)='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])) end
+                                    if tLZData[M28Map.subrefLZPathingToOtherLandZones][iEntryNumber][M28Map.subrefLZTravelDist] >= iTravelLimit and M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]) >= iEnemyBaseStraightLineDist then
+                                        bExpansionOnSameIslandAsBase = false
+                                    end
+                                end
                             end
                         end
                     end
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': tLZData[M28Map.subrefLZMexCount]='..tLZData[M28Map.subrefLZMexCount]..'; Island mex count='..M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tLZData[M28Map.subrefLZIslandRef]]..'; bExpansionOnSameIslandAsBase='..tostring(bExpansionOnSameIslandAsBase)..'; tLZData[M28Map.subrefLZIslandRef]='..tLZData[M28Map.subrefLZIslandRef]..'; Closest firendly base island ref='..NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase])) end
-            if tLZData[M28Map.subrefLZMexCount] > 0 and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tLZData[M28Map.subrefLZIslandRef]] >= 3 and not(bExpansionOnSameIslandAsBase) then
+            if (tLZData[M28Map.subrefLZMexCount] > 0 or (M28Map.bIsCampaignMap and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tLZData[M28Map.subrefLZIslandRef]] >= 4)) and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tLZData[M28Map.subrefLZIslandRef]] >= 3 and not(bExpansionOnSameIslandAsBase) then
                 iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
                 if bDebugMessages == true then LOG(sFunctionRef..': iHighestTechEngiAvailable='..iHighestTechEngiAvailable) end
                 if iHighestTechEngiAvailable > 0 then
@@ -7084,7 +7103,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                                 bHaveCoreLZ = true
                                 break
                             else
-                                --Check we can actually travel here by land
+                                --Check we can actually travel here by land and it isn't too far away
                                 local iEntryNumber = tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iIslandLZ]
                                 if bDebugMessages == true then LOG(sFunctionRef..': iEntryNumber='..(iEntryNumber or 'nil')..'; LZ Ref based on this entry number='..(tLZData[M28Map.subrefLZPathingToOtherLandZones][iEntryNumber][M28Map.subrefLZNumber] or 'nil')..'; iIslandLZ='..iIslandLZ) end
                                 if iEntryNumber then
@@ -7100,7 +7119,15 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                                                 break
                                             end
                                         end
-                                        if bHaveCoreLZ then break end
+                                        if bHaveCoreLZ then
+                                            --Ignore if this location is far away
+                                            if tLZData[M28Map.subrefLZPathingToOtherLandZones][iEntryNumber][M28Map.subrefLZTravelDist] >= iTravelLimit then
+                                                bHaveCoreLZ = false
+                                            end
+                                            if bHaveCoreLZ then
+                                                break
+                                            end
+                                        end
                                     end
                                 end
                             end
@@ -7177,18 +7204,19 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         if bHaveLowMass then iFactoriesWanted = math.max(1, math.floor(iFactoriesWanted * 0.5)) end
         if bDebugMessages == true then LOG(sFunctionRef..': iFactoriesWanted after adjusting for enemy units='..iFactoriesWanted..'; iExistingLandFactory='..iExistingLandFactory) end
         if iExistingLandFactory < iFactoriesWanted then
-            local bWantAirNotLand = M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
+            --Dont want to build air factories at a core expansion point, instead only want land
+            --[[local bWantAirNotLand = M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
             local iFactoryAction
             if bWantAirNotLand then iFactoryAction = refActionBuildAirFactory
             else
                 if bDebugMessages == true then LOG(sFunctionRef..': Want to build land factory not air factory4') end
                 iFactoryAction = refActionBuildLandFactory
-            end
+            end--]]
             iBPWanted = 10
             if bExistingFactoryIsComplete then iBPWanted = 5 end
             local iMaxTechLevelIfAny
             if iExistingLandFactory == 0 then iMaxTechLevelIfAny = 1 end
-            HaveActionToAssign(iFactoryAction, 1, iBPWanted, iMaxTechLevelIfAny)
+            HaveActionToAssign(refActionBuildLandFactory, 1, iBPWanted, iMaxTechLevelIfAny)
         end
     end
 
@@ -7262,16 +7290,17 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     --Assign more BP to factories
     iCurPriority = iCurPriority + 1
     if iExistingLandFactory < iFactoriesWanted then
+        --Dont want to build air factories at a core expansion point, instead only want land
         iBPWanted = 10
         if not(bHaveLowMass) then iBPWanted = math.min(30, 3 * tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]]) end
-        local bWantAirNotLand = M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
+        --[[local bWantAirNotLand = M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
         local iFactoryAction
         if bWantAirNotLand then iFactoryAction = refActionBuildAirFactory
         else
             if bDebugMessages == true then LOG(sFunctionRef..': Want to build land factory not air factory5') end
             iFactoryAction = refActionBuildLandFactory
-        end
-        HaveActionToAssign(iFactoryAction, 1, iBPWanted, nil)
+        end--]]
+        HaveActionToAssign(refActionBuildLandFactory, 1, iBPWanted, nil)
     end
 
     --Unclaimed mex in the zone
@@ -7838,7 +7867,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     --Low priority T2 radar creep
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': T2 radar creep - bHaveLowMass='..tostring(bHaveLowMass)..'; bWantMorePower='..tostring(bWantMorePower)..'; Radar coverage='..tLZTeamData[M28Map.refiRadarCoverage]..'; Map size='..M28Map.iMapSize..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; tLZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZTeamData[M28Map.subrefMexCountByTech])) end
-    if not(bHaveLowMass) and not(bWantMorePower) and tLZTeamData[M28Map.refiRadarCoverage] < 100 and M28Map.iMapSize > 512 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 18 and (tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][2] >= 2) then
+    if not(bHaveLowMass) and not(bWantMorePower) and tLZTeamData[M28Map.refiRadarCoverage] < 100 and M28Map.iMapSize > 512 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 18 or M28Map.bIsCampaignMap) and (tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or tLZTeamData[M28Map.subrefMexCountByTech][2] >= 2 or tLZTeamData[M28Map.subrefLZSValue] >= 1750) then
         --Check we dont have any radar here already (redundancy for radar coverage)
         local tExistingRadar = EntityCategoryFilterDown(M28UnitInfo.refCategoryRadar, tLZTeamData[M28Map.subrefLZTAlliedUnits])
         local bHaveRadar = false
@@ -7852,7 +7881,10 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         end
         if bDebugMessages == true then LOG(sFunctionRef..': bHaveRadar='..tostring(bHaveRadar)) end
         if not(bHaveRadar) then
-            HaveActionToAssign(refActionBuildT2Radar, 2, 10)
+            --Are we able to build radar? assume we can if we have access to T3 factories for simplicity
+            if not(M28Map.bIsCampaignMap) or not(M28Overseer.bUnitRestrictionsArePresent) or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 then
+                HaveActionToAssign(refActionBuildT2Radar, 2, 10)
+            end
         end
     end
 

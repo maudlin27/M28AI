@@ -1536,3 +1536,36 @@ function GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, iCateg
     return iCount
 
 end
+
+function IsNearbyStructureThatWeCanReachWithIndirect(tLZData, tLZTeamData)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'IsNearbyStructureThatWeCanReachWithIndirect'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local bWantIndirectReinforcements = false
+
+    local iAngleToMidpoint = M28Utilities.GetAngleFromAToB(tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere]:GetPosition(), tLZData[M28Map.subrefMidpoint])
+    local iDistToMidpoint = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere]:GetPosition(), tLZData[M28Map.subrefMidpoint])
+    local tMoveTowardsMidpoint = M28Utilities.MoveInDirection(tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere]:GetPosition(), iAngleToMidpoint, math.min(70, iDistToMidpoint), false, false, false)
+    local iCurLZIslandRef = tLZData[M28Map.subrefLZIslandRef]
+    if not(iCurLZIslandRef) then
+        iCurLZIslandRef = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint]) --We dont record island refs for all plateaus hence the redundancy
+        if iCurLZIslandRef then tLZData[M28Map.subrefLZIslandRef] = iCurLZIslandRef end
+    end
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Nearest structure='..tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere].UnitId..M28UnitInfo.GetUnitLifetimeCount(tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere])..' at position '..repru(tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere]:GetPosition())..'; This LZ midpoint='..repru(tLZData[M28Map.subrefMidpoint])..'; iAngleToMidpoint='..iAngleToMidpoint..'; iDistToMidpoint='..iDistToMidpoint..'; tMoveTowardsMidpoint='..repru(tMoveTowardsMidpoint)..'; Island pathing of tMoveTowardsMidpoint='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tMoveTowardsMidpoint) or -1)..'; Island ref of LZ='..(tLZData[M28Map.subrefLZIslandRef] or 'nil')..'; iCurLZIslandRef='..(iCurLZIslandRef or 'nil')) end
+    if (NavUtils.GetLabel(M28Map.refPathingTypeLand, tMoveTowardsMidpoint) or -1) == iCurLZIslandRef then
+        --Can we build T3 mobile arti?
+        if not(M28Map.bIsCampaignMap or M28Overseer.bUnitRestrictionsArePresent) then
+            bWantIndirectReinforcements = true
+        else
+            local oFirstM28Brain = M28Team.GetFirstActiveM28Brain(iTeam)
+            if oFirstM28Brain:GetCurrentUnits(M28UnitInfo.refCategoryIndirect * categories.TECH3) > 0 then
+                bWantIndirectReinforcements = true
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': bWantIndirectReinforcements after checking for nearby structure='..tostring(bWantIndirectReinforcements)) end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return bWantIndirectReinforcements
+end

@@ -2527,6 +2527,7 @@ function ManageBombers(iTeam, iAirSubteam)
     local iOurBomberThreat = 0
 
     if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
+        if table.getn(tAvailableBombers) >= 30 then bDebugMessages = true end
         --Simple logic for now as placeholder in case we get given bombers - attack nearest enemy to rally point in up to a 300 range
         --GetAirThreatLevel(tUnits,      bEnemyUnits, bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo, bBlueprintThreat)
         iOurBomberThreat = M28UnitInfo.GetAirThreatLevel(tAvailableBombers, false,      false,          false,              true,                   false,              false)
@@ -2894,25 +2895,26 @@ function ManageTorpedoBombers(iTeam, iAirSubteam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam, bForceGroundFire, bTargetAAFirst)
+function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam, bForceGroundFire, bTargetAAAndShieldsFirst)
     --NOTE: If want to prioritise by category then do by changing tEnemyTargets and calling this function multiple times
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AssignTorpOrBomberTargets'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bTargetAAFirst then
+    if bTargetAAAndShieldsFirst then
         if bDebugMessages == true then LOG(sFunctionRef..': Will split up targets between those iwth AA category and those without') end
-        local tEnemyAA = EntityCategoryFilterDown(M28UnitInfo.refCategoryGroundAA, tEnemyTargets)
-        if M28Utilities.IsTableEmpty(tEnemyAA) then
+        local iSearchCategory = M28UnitInfo.refCategoryGroundAA + M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryMobileLandShield + M28UnitInfo.refCategoryShieldBoat
+        local tEnemyAAAndShields = EntityCategoryFilterDown(iSearchCategory, tEnemyTargets)
+        if M28Utilities.IsTableEmpty(tEnemyAAAndShields) then
             if bDebugMessages == true then LOG(sFunctionRef..': Have no enemy AA so will call this again and assign targets to all enemy units, without order to target AA first') end
             AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam, bForceGroundFire, false)
         else
             if bDebugMessages == true then LOG(sFunctionRef..': Will call this function again targeting just the enemy AA units') end
-            AssignTorpOrBomberTargets(tAvailableBombers, tEnemyAA, iAirSubteam, bForceGroundFire, false)
+            AssignTorpOrBomberTargets(tAvailableBombers, tEnemyAAAndShields, iAirSubteam, bForceGroundFire, false)
             if bDebugMessages == true then LOG(sFunctionRef..': Have finished targeting the enemy AA units, is available bombers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))) end
             if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
-                local tOtherTargets = EntityCategoryFilterDown(categories.ALLUNITS - M28UnitInfo.refCategoryGroundAA, tEnemyTargets)
+                local tOtherTargets = EntityCategoryFilterDown(categories.ALLUNITS - iSearchCategory, tEnemyTargets)
                 if M28Utilities.IsTableEmpty(tOtherTargets) == false then
                     AssignTorpOrBomberTargets(tAvailableBombers, tOtherTargets, iAirSubteam, bForceGroundFire, false)
                 end
@@ -2966,6 +2968,8 @@ function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam
                 --If dealing with an anti-air unit then increase strike damage wanted by 50% to allow for some of the torps dying
                 if EntityCategoryContains(M28UnitInfo.refCategoryCruiserCarrier, oEnemyUnit.UnitId) then
                     iTotalStrikeDamageWanted = iTotalStrikeDamageWanted * 1.5
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryStructureAA + categories.COMMAND + M28UnitInfo.refCategoryGroundAA * categories.TECH3, oEnemyUnit.UnitId) then
+                    iTotalStrikeDamageWanted = iTotalStrikeDamageWanted * 1.2
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering targeting oEnemyUnit='..(oEnemyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyUnit)..'; oEnemyUnit[refiStrikeDamageAssigned]='..(oEnemyUnit[refiStrikeDamageAssigned] or 'nil')..'; iTotalStrikeDamageWanted='..iTotalStrikeDamageWanted)) end
                 while (oEnemyUnit[refiStrikeDamageAssigned] or 0) < iTotalStrikeDamageWanted do
