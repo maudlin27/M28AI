@@ -1133,6 +1133,10 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                                     end
                                 end
                             end
+                            if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1 then
+                                iLandFactoriesWantedBeforeAir = iLandFactoriesWantedBeforeAir + 1
+                                iAirFactoriesForEveryLandFactory = iAirFactoriesForEveryLandFactory * 0.8
+                            end
                             if iLandFactoriesHave >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 1 and M28Map.bIsCampaignMap then
                                 iAirFactoriesForEveryLandFactory = math.max(iAirFactoriesForEveryLandFactory, 1)
                                 iLandFactoriesWantedBeforeAir = math.min(iLandFactoriesWantedBeforeAir, 3)
