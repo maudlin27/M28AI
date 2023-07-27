@@ -2228,7 +2228,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
     local sFunctionRef = 'ManageCombatUnitsInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iLandZone == 5 and GetGameTimeSeconds() >= 1380 then bDebugMessages = true end
 
     if bDebugMessages == true then LOG(sFunctionRef..': start of code, iTeam='..iTeam..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is table of available combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))..'; iFriendlyBestMobileDFRange='..iFriendlyBestMobileDFRange..'; iFriendlyBestMobileIndirectRange='..iFriendlyBestMobileIndirectRange..'; Are there enemy units in this or adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; bWantIndirectReinforcements='..tostring(bWantIndirectReinforcements or false)..'; tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]='..tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal]..'; subrefLZThreatAllyMobileIndirectByRange='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectByRange])..'; subrefLZThreatAllyMobileDFByRange='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange])..'; Enemy mobile DF='..repru(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange])..'; Threat of tAvailableCombatUnits='..M28UnitInfo.GetCombatThreatRating(tAvailableCombatUnits, false, false, false)) end
 
@@ -2819,7 +2819,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
                         bAttackWithEverything = true
                     else
-                        if bDebugMessages == true then LOG(sFunctionRef..': No enemies in this zone, distance of nearest enemy to midpoint='..M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToMidpoint:GetPosition(), tLZData[M28Map.subrefMidpoint])..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]='..tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': No enemies in this zone, distance of nearest enemy to midpoint='..M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToMidpoint:GetPosition(), tLZData[M28Map.subrefMidpoint])..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]='..tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]..'; Is nearest structure to midpoint valid='..tostring(M28UnitInfo.IsUnitValid(oNearestEnemyStructureToMidpoint))) end
 
                         if oNearestEnemyToMidpoint then
                             local iDistToNearestEnemy
@@ -2828,12 +2828,21 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 --Attack with everything unless nearest enemy unit is a structure and we have indirect threat in this zone or that zone that outranges it
 
                                 bAttackWithEverything = true
+                            elseif oNearestEnemyStructureToMidpoint and M28Utilities.GetDistanceBetweenPositions(oNearestEnemyStructureToMidpoint:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= 160 and iFriendlyBestMobileIndirectRange >= 50 then
+                                bAttackWithEverything = true
                             end
+                            if bDebugMessages == true and oNearestEnemyStructureToMidpoint then LOG(sFunctionRef..': oNearestEnemyStructureToMidpoint='..oNearestEnemyStructureToMidpoint.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyStructureToMidpoint)..'; Distance to midpoint='..M28Utilities.GetDistanceBetweenPositions(oNearestEnemyStructureToMidpoint:GetPosition(), tLZData[M28Map.subrefMidpoint])..'; IF range='..iFriendlyBestMobileIndirectRange..'; bAttackWithEverything='..tostring(bAttackWithEverything)) end
                         end
                         if not(bAttackWithEverything) then
                             --Still attack if we have significant threat
                             if table.getn(tAvailableCombatUnits) >= 60 then bAttackWithEverything = true end
                         end
+                    end
+                else
+                    --Are we close to a core zone and enemy has a structure threat in this zone and we haev indirect fire?
+                    if bDebugMessages == true and oNearestEnemyStructureToMidpoint then LOG(sFunctionRef..': Non core zone, oNearestEnemyStructureToMidpoint'..oNearestEnemyStructureToMidpoint.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyStructureToMidpoint)..'; Dist to closest friendly base from this zone midpoint='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestFriendlyBase])..'; Enemy structure value='..tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] >= 100) end
+                    if oNearestEnemyStructureToMidpoint and iFriendlyBestMobileIndirectRange >= 50 and tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] >= 100 and M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestFriendlyBase]) <= 175 then
+                        bAttackWithEverything = true
                     end
                 end
                 local tOurDFAndT1ArtiUnits = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandCombat, tAvailableCombatUnits)
@@ -2955,9 +2964,11 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 else
                     if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
                         bWantReinforcements = true
-                        if bDebugMessages == true then LOG(sFunctionRef..': We have no friendly units in this LZ but enemy has units here or adjacent LZ so want reinforcements') end
+                        if bDebugMessages == true then LOG(sFunctionRef..': We have no friendly units in this LZ but enemy has units here or adjacent LZ so want reinforcements. iFriendlyBestMobileIndirectRange='..iFriendlyBestMobileIndirectRange..'; Is there a valid enemy structure to midpoint='..tostring(M28UnitInfo.IsUnitValid(oNearestEnemyStructureToMidpoint))) end
                     end
-                    bAttackWithEverything = false
+                    if iFriendlyBestMobileIndirectRange == 0 or not(oNearestEnemyStructureToMidpoint) then
+                        bAttackWithEverything = false
+                    end
                 end
                 if not(bAttackWithEverything) and oNearestEnemyToMidpoint and (tLZTeamData[M28Map.subrefLZbCoreBase] or tLZTeamData[M28Map.subrefLZCoreExpansion]) then
                     --Is enemy almost in range of the midpoint for this zone such that we want to attack even though we will probably lose?
