@@ -7153,7 +7153,6 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             end
         end
     end
-    bDebugMessages = false
     local iFactoriesWanted = 0
     local iExistingLandFactory = 0
     if tLZTeamData[M28Map.subrefLZCoreExpansion] then

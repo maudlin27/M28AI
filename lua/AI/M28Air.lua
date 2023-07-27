@@ -2527,7 +2527,7 @@ function ManageBombers(iTeam, iAirSubteam)
     local iOurBomberThreat = 0
 
     if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
-        if table.getn(tAvailableBombers) >= 30 then bDebugMessages = true end
+
         --Simple logic for now as placeholder in case we get given bombers - attack nearest enemy to rally point in up to a 300 range
         --GetAirThreatLevel(tUnits,      bEnemyUnits, bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo, bBlueprintThreat)
         iOurBomberThreat = M28UnitInfo.GetAirThreatLevel(tAvailableBombers, false,      false,          false,              true,                   false,              false)

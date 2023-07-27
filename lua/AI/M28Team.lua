@@ -1597,7 +1597,7 @@ end
 
 function ConsiderPriorityLandFactoryUpgrades(iM28Team)
     --Starts a land factory upgrade if we need one urgently (e.g. we are outteched, or have high gross mass so will want access to T3)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderPriorityLandFactoryUpgrades'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --Enemy has better land tech than us, and we have no active land upgrades
@@ -2202,7 +2202,7 @@ end
 
 function ConsiderNormalUpgrades(iM28Team)
     --We should have already considered high priority upgrades before, now we want to consider upgrades if we have the eco to support upgrades generally
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderNormalUpgrades'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

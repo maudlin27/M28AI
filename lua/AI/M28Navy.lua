@@ -1352,10 +1352,11 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                                     table.insert(tAvailableSubmarines, oUnit)
                                 elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryNavalAA, oUnit.UnitId) then
                                     table.insert(tAvailableMAA, oUnit)
-                                elseif ((oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) > 0) and EntityCategoryContains(M28UnitInfo.refCategoryNavalSurface + categories.HOVER - M28UnitInfo.refCategoryLandExperimental * categories.AMPHIBIOUS - M28UnitInfo.refCategoryLandCombat * categories.AMPHIBIOUS, oUnit.UnitId) then
+                                elseif ((oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) > 0) and EntityCategoryContains(M28UnitInfo.refCategoryNavalSurface + categories.HOVER - M28UnitInfo.refCategoryLandExperimental * categories.AMPHIBIOUS - M28UnitInfo.refCategoryLandCombat * categories.AMPHIBIOUS + M28UnitInfo.refCategorySeraphimDestroyer, oUnit.UnitId) then
                                     table.insert(tAvailableCombatUnits, oUnit)
                                     table.insert(tWZTeamData[M28Map.subrefWZTAlliedCombatUnits], oUnit)
                                 else
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Have an amphibious unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; AntiNavyRange='..(oUnit[M28UnitInfo.refiAntiNavyRange] or 0)) end
                                     table.insert(tAmphibiousUnits, oUnit)
                                 end
                                 if bIncludeUnit then
@@ -1515,6 +1516,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                 local tRemainingLandUnits = ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tAvailableCombatUnits, tAvailableSubmarines, tUnavailableUnitsInThisWZ)
                 if M28Utilities.IsTableEmpty(tRemainingLandUnits) == false then
                     for iUnit, oUnit in tRemainingLandUnits do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to table of amphibious units from table of remaining land units') end
                         table.insert(tAmphibiousUnits, oUnit)
                     end
                 end
@@ -3037,7 +3039,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
                 else
                     --Scenario 3 - want to retreat (but only retreat units from this WZ)
                     bWantReinforcements = true
-                                                                --GetCombatThreatRating(tUnits,         bEnemyUnits, bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly, bBlueprintThreat)
+                    --GetCombatThreatRating(tUnits,         bEnemyUnits, bJustGetMassValue, bIndirectFireThreatOnly, bAntiNavyOnly, bAddAntiNavy, bSubmersibleOnly, bLongRangeThreatOnly, bBlueprintThreat)
                     local iAvailableCombatThreat = M28UnitInfo.GetCombatThreatRating(tCombatUnitsOfUse, false,          false,          false,                  false,          true,           false,          false)
                     local tSubRallyPoint
                     local sMessage
