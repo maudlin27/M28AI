@@ -3751,7 +3751,7 @@ function FilterEngineersOfTechAndEngiCountForFaction(iOptionalFactionRequired, t
 end
 
 function ActiveShieldMonitor(oUnitToProtect, tLZTeamData, iTeam)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ActiveShieldMonitor'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -3902,9 +3902,22 @@ function ActiveShieldMonitor(oUnitToProtect, tLZTeamData, iTeam)
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': Finished telling engineers of right faction to build, Is table of engineers of wrong faction empty='..tostring(M28Utilities.IsTableEmpty(toEngineersOfWrongFaction))) end
                             if M28Utilities.IsTableEmpty(toEngineersOfWrongFaction) == false then
-                                if oFirstEngineerOfRightFaction then
+                                if not(oFirstEngineerOfRightFaction) then
+                                    if (table.getn(toEngineersOfWrongFaction) >= 5 or (iActiveShields == 0 and oUnitToProtect:GetFractionComplete() >= 0.2))and iConstructedShields + iPartConstructedShields < 2 then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Have so many engineers of the wrong faction that will just try and get them to build a shield') end
+                                        for iEngineer, oEngineer in toEngineersOfWrongFaction do
+                                            local sBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryFixedShield * categories.TECH3, oEngineer, false, false, false, nil, false)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Checking what shields engineer '..(oEngineer.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineer) or 'nil')..' can build as backup as dont have right faction; iOptionalFactionRequired='..(iOptionalFactionRequired or 'nil')..'; Will try and build unit '..(sBlueprintToBuild or 'nil')..' at position '..repru(tPositionToBuild)) end
+                                            if sBlueprintToBuild then
+                                                M28Orders.IssueTrackedBuild(oEngineer, tPositionToBuild, sBlueprintToBuild, false, 'SBkEBS')
+                                            end
+                                        end
+                                    end
+                                else
                                     for iEngineer, oEngineer in toEngineersOfWrongFaction do
+                                        --if not(oEngineer == oFirstEngineerOfRightFaction) then
                                         M28Orders.IssueTrackedGuard(oEngineer, oFirstEngineerOfRightFaction, false, 'SpEGE', false)
+                                        --end
                                     end
                                 end
                             end
@@ -4108,7 +4121,9 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     local sFunctionRef = 'ConsiderActionToAssign'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iActionToAssign == refActionSpecialShieldDefence then bDebugMessages = true
+    elseif iActionToAssign == refActionRepairUnit and iTotalBuildPowerWanted >= 1000 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 6000 then bDebugMessages = true
+    end
 
     --Dont try getting any mroe BP for htis action if have run out of buildable locations
     local iExpectedBuildingSize = tiLastBuildingSizeFromActionForTeam[iTeam][iActionToAssign]
@@ -5547,6 +5562,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     --Protect game-ender or similar high avlue target (very high priority on assumption if we have built such a unit we shouldnt have to worry about lack of resources for this
     iCurPriority = iCurPriority + 1
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection]) == false then
+        bDebugMessages = true
         if bDebugMessages == true then LOG(sFunctionRef..': Want to assign units to active shield protection, will list out each unit for this zone that wants active protection')
             for iUnit, oUnit in tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection] do
                 LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Mass cost='..oUnit:GetBlueprint().Economy.BuildCostMass)
@@ -5564,6 +5580,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         --Only use T3 engineers (even if we already have t3 engineers assigned) as want to make sure we can quickly get good concentrated build power
         --function HaveActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist)
         HaveActionToAssign(refActionSpecialShieldDefence, 3, iBPWanted,         nil,                nil,                    nil,                        nil,                            true)
+        bDebugMessages = false
     end
 
     --Start of game - if low power and dont ahve 12 gross energy yet, then ahve 1 engi on tree reclaim duty
@@ -6236,7 +6253,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --Shielding
     iCurPriority = iCurPriority + 1
-    local iTechlevelWanted, oUnitToShield
+    local iTechLevelWanted, oUnitToShield
     iBPWanted, iTechLevelWanted, oUnitToShield = GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, true, bHaveLowMass, bWantMorePower, false, iLandZone, iPlateau)
     if iBPWanted > 0 then
         if bDebugMessages == true then LOG(sFunctionRef..': Want to build a shield, iBPWanted='..iBPWanted..'; bHaveLowMass='..tostring(bHaveLowMass)..'; bWantMorePower='..tostring(bWantMorePower)..'; oUnitToShield='..oUnitToShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToShield)..'; iTechLevelWanted='..iTechLevelWanted) end
@@ -6969,10 +6986,14 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --Spare engi - assist under construction building if we dont have low mass or energy
     iCurPriority = iCurPriority + 1
-    if iHighestTechEngiAvailable > 0 and not(bHaveLowMass) and not(bHaveLowPower) then
+    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 6000 then bDebugMessages = true end
+    if bDebugMessages == true then LOG(sFunctionRef..': Spare engineer action, iHighestTechEngiAvaialble='..iHighestTechEngiAvailable..'; Have low mass='..tostring(bHaveLowMass)..'; Mass stored on team='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; Have low power='..tostring(bHaveLowPower)) end
+    if iHighestTechEngiAvailable > 0 and (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 5000) and not(bHaveLowPower) then
         --Dont assist part complete shields due to risk we are using for active shielding
         local oBuildingToAssist = GetPartCompleteBuildingInZone(iTeam, iPlateau, iLandZone, M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryExperimentalLevel - M28UnitInfo.refCategoryFixedShield, false)
+        if bDebugMessages == true then LOG(sFunctionRef..': oBuildingToAssist='..(oBuildingToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oBuildingToAssist) or 'nil')) end
         if oBuildingToAssist then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will assign all remaining engineers to repair building') end
             HaveActionToAssign(refActionRepairUnit, 1, 100000, oBuildingToAssist, true)
         end
     end
@@ -7428,8 +7449,8 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
 
     --Shielding
     iCurPriority = iCurPriority + 1
-    local iTechlevelWanted, oUnitToShield
-    iBPWanted, iTechlevelWanted, oUnitToShield = GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, false, bHaveLowMass, bWantMorePower, false, iLandZone, iPlateau)
+    local iTechLevelWanted, oUnitToShield
+    iBPWanted, iTechLevelWanted, oUnitToShield = GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, false, bHaveLowMass, bWantMorePower, false, iLandZone, iPlateau)
     if iBPWanted > 0 then
         HaveActionToAssign(refActionBuildShield, iTechLevelWanted, iBPWanted, oUnitToShield)
         if bDebugMessages == true then LOG(sFunctionRef..': Have just tried to assign an action to shield unit '..oUnitToShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToShield)) end
