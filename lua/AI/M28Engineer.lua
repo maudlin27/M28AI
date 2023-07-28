@@ -3580,6 +3580,7 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
         local sTotalReclaimValueRef
         local iReclaimValuePerEngi
         local bGivenOrder = false
+        local oNearestReclaim
 
         local iMinReclaimIndividualValue = (iMinIndividualValueOverride or 1)
 
@@ -3600,7 +3601,7 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
         if iMaxDistanceToEngineer < math.min(M28Map.iReclaimSegmentSizeX, M28Map.iReclaimSegmentSizeZ) then bCheckTerrain = true end
         local sReclaimTableRef
         if bWantEnergyNotMass then sReclaimTableRef = M28Map.refSegmentReclaimTotalEnergy
-        else sReclaimTableRef = M28Map.refReclaimTotalMass
+        else sReclaimTableRef = M28Map.refReclaimHighestIndividualReclaim --M28Map.refReclaimTotalMass
         end
 
         local bDontConsiderPlayableArea = not(M28Map.bIsCampaignMap)
@@ -3654,7 +3655,6 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
             end
 
             if M28Utilities.IsTableEmpty(tNearbyReclaim) == false then
-                local oNearestReclaim
                 local iNearestReclaim = 10000
                 local iNearestReclaimWithAnyValue = 10000
                 local oNearestAnyValueReclaim
@@ -3706,7 +3706,7 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
                     if oEngineer:IsUnitState('Capturing') then M28Utilities.ErrorHandler('Are aborting an engineer that was capturing and telling it to reclaim instead', true, true) end
                     bGivenOrder = true
                     M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaim, false, 'ReclLZSeg')
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will send order to get reclaim at position '..repru(oNearestReclaim.CachePosition)..'; will draw a box around here; oNearestReclaim ID='..(oNearestReclaim.UnitId or 'nil')) M28Utilities.DrawLocation(oNearestReclaim.CachePosition) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will send order to get reclaim at position '..repru(oNearestReclaim.CachePosition)..'; will draw a box around here; oNearestReclaim ID='..(oNearestReclaim.UnitId or 'nil')..'; mass value='..(oNearestReclaim.MaxMassReclaim or 'nil')) M28Utilities.DrawLocation(oNearestReclaim.CachePosition) end
                 else
                     if bDebugMessages == true then LOG(sFunctionRef..': Dont have any reclaim of sufficient value; iMinReclaimIndividualValue='..iMinReclaimIndividualValue) end
                 end
@@ -3722,6 +3722,10 @@ function GetEngineerToReclaimNearbyArea(oEngineer, iPriorityOverride, tLZOrWZTea
         elseif not(bGivenOrder) then
             --Flag that this zone has failed to find anything for engineers to reclaim, so we limit BP to assign to 5
             tLZOrWZData[M28Map.subrefiTimeFailedToGetReclaim] = GetGameTimeSeconds()
+            --If there is a valid reclaim nearby (it just is too low value) then also give order to reclaim this
+            if oNearestReclaim and not(oEngineer:IsUnitState('Capturing')) then
+                M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaim, false, 'ReclBLZSeg')
+            end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -7107,7 +7111,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                     end
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': tLZData[M28Map.subrefLZMexCount]='..tLZData[M28Map.subrefLZMexCount]..'; Island mex count='..M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tLZData[M28Map.subrefLZIslandRef]]..'; bExpansionOnSameIslandAsBase='..tostring(bExpansionOnSameIslandAsBase)..'; tLZData[M28Map.subrefLZIslandRef]='..tLZData[M28Map.subrefLZIslandRef]..'; Closest firendly base island ref='..NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase])) end
+            if bDebugMessages == true then LOG(sFunctionRef..': tLZData[M28Map.subrefLZMexCount]='..(tLZData[M28Map.subrefLZMexCount] or 'nil')..'; Island mex count='..(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tLZData[M28Map.subrefLZIslandRef]] or 'nil')..'; bExpansionOnSameIslandAsBase='..tostring(bExpansionOnSameIslandAsBase or false)..'; tLZData[M28Map.subrefLZIslandRef]='..(tLZData[M28Map.subrefLZIslandRef] or 'nil')..'; Closest firendly base island ref='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase]) or 'nil')) end
             if (tLZData[M28Map.subrefLZMexCount] > 0 or (M28Map.bIsCampaignMap and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tLZData[M28Map.subrefLZIslandRef]] >= 4)) and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tLZData[M28Map.subrefLZIslandRef]] >= 3 and not(bExpansionOnSameIslandAsBase) then
                 iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
                 if bDebugMessages == true then LOG(sFunctionRef..': iHighestTechEngiAvailable='..iHighestTechEngiAvailable) end
@@ -7356,6 +7360,34 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         end
     end
 
+    --nearby zones with unclaimed mexes and no engineers traveling there
+    iCurPriority = iCurPriority + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering if we have available engineers to send to another LZ. GetHighestTechEngiAvailable='..GetHighestTechEngiAvailable(toAvailableEngineersByTech)) end
+    iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
+    local iNearbyZonesWantingEngineers = 0
+    local iPrevEngisAvailable
+    local tLZWantingBPConsidered = {}
+    local iAdjLZ
+    if iHighestTechEngiAvailable > 0 then
+        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
+            for iPathingRef, tPathingDetails in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
+                if tPathingDetails[M28Map.subrefLZTravelDist] <= tLZData[M28Map.subrefLZFurthestAdjacentLandZoneTravelDist] then
+                    iAdjLZ = tPathingDetails[M28Map.subrefLZNumber]
+                    local tAdjLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
+                    local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
+                    if tAdjLZTeamData[M28Map.subrefTbWantBP] and tAdjLZTeamData[M28Map.subrefTBuildPowerByTechWanted][1] > 0 and M28Utilities.IsTableEmpty(tAdjLZData[M28Map.subrefMexUnbuiltLocations]) == false and M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEngineersTravelingHere]) and not(tAdjLZTeamData[M28Map.subrefLZCoreExpansion]) and not(tAdjLZTeamData[M28Map.subrefLZbCoreBase]) and M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]) then
+                        HaveActionToAssign(refActionMoveToLandZone, 1, iNearbyZonesWantingEngineers * 5 + 5, iAdjLZ, true)
+                        iNearbyZonesWantingEngineers = iNearbyZonesWantingEngineers + 1
+                        iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
+                        if iHighestTechEngiAvailable == 0 then break end
+                    end
+                else
+                    break --Table shoudl be sorted closest first so if we are too far away now the later entries should be ignored
+                end
+            end
+        end
+    end
+
     --High priority reclaim if are low on mass or energy
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then
@@ -7492,10 +7524,6 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     --(ANY CHANGES TO BELOW - REPLICATE FOR BOTH CORE AND NONCORE BUILDERS) Adjacent LZ that wants engineers and has unbuilt mexes (only chekc if we have available engineers)
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we have available engineers to send to another LZ. GetHighestTechEngiAvailable='..GetHighestTechEngiAvailable(toAvailableEngineersByTech)) end
     iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
-    local iNearbyZonesWantingEngineers = 0
-    local iPrevEngisAvailable
-    local tLZWantingBPConsidered = {}
-    local iAdjLZ
     if iHighestTechEngiAvailable > 0 then
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
             for iPathingRef, tPathingDetails in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
@@ -7670,18 +7698,22 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     --(ANY CHANGES TO BELOW - REPLICATE FOR BOTH CORE AND NONCORE BUILDERS) Other non adjacent LZ on this plateau that wants engineers (low priority) - prioritise those nearest this zone
     iCurPriority = iCurPriority + 1
     iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
+    if bDebugMessages == true then LOG(sFunctionRef..': About to check for further away zones wanting BP, iHighestTechEngiAvailable='..iHighestTechEngiAvailable..'; iCurPriority='..iCurPriority) end
     if iHighestTechEngiAvailable > 0 then
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
             for iPathingRef, tPathingDetails in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
                 iAdjLZ = tPathingDetails[M28Map.subrefLZNumber]
+                if bDebugMessages == true then LOG(sFunctionRef..': Lower priority logic to send engineers to another LZ, iAdjLZ='..iAdjLZ..'; Have we alreayd considered='..tostring(tLZWantingBPConsidered[iAdjLZ] or false)) end
                 if not(tLZWantingBPConsidered[iAdjLZ]) then
                     tLZWantingBPConsidered[iAdjLZ] = true
                     local tiBPByTechWanted = GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ, iPathingRef, iHighestTechEngiAvailable, false)
+                    if bDebugMessages == true then LOG(sFunctionRef..': tiBPByTechWanted='..repru(tiBPByTechWanted)) end
                     if tiBPByTechWanted then
                         for iTech = 1, iHighestTechEngiAvailable, 1 do
                             if tiBPByTechWanted[iTech] > 0 then
                                 iPrevEngisAvailable = table.getn(toAvailableEngineersByTech[iTech])
                                 HaveActionToAssign(refActionMoveToLandZone, iTech, (iNearbyZonesWantingEngineers + 1) * 5, iAdjLZ, true)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Sending engineers to nearby zone, BPWanted='..(iNearbyZonesWantingEngineers + 1) * 5) end
                                 if table.getn(toAvailableEngineersByTech[iTech]) < iPrevEngisAvailable then
                                     iNearbyZonesWantingEngineers = iNearbyZonesWantingEngineers + 1
                                 end

@@ -667,7 +667,7 @@ function CloseToEnemyUnit(tStartPosition, tUnitsToCheck, iDistThreshold, iTeam, 
     local sFunctionRef = 'CloseToEnemyUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iDistThreshold == 135 then bDebugMessages = true end
 
     local iCurDist
     if bDebugMessages == true then

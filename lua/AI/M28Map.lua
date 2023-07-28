@@ -58,7 +58,7 @@ tReclaimSegmentsToUpdate = {} --[n] where n is the count, returns {segmentX,segm
 tReclaimAreas = {} --Stores reclaim info for each segment: tReclaimAreas[iSegmentX][iSegmentZ][x]; if x=1 returns total mass in area; if x=2 then returns position of largest reclaim in the area, if x=3 returns how many platoons have been sent here since the game started
     refReclaimTotalMass = 1
     refReclaimSegmentMidpoint = 2
-    --refReclaimHighestIndividualReclaim = 3
+    refReclaimHighestIndividualReclaim = 3
     --reftReclaimTimeOfLastEngineerDeathByArmyIndex = 4 --Table: [a] where a is the army index, and it returns the time the last engineer died
     --refReclaimTimeLastEnemySightedByArmyIndex = 5
     --refsSegmentMidpointLocationRef = 6
@@ -6235,6 +6235,7 @@ function UpdateReclaimDataNearSegments(iBaseSegmentX, iBaseSegmentZ, iSegmentRan
                 end
                 --tReclaimAreas[iCurX][iCurZ][refiReclaimTotalPrev] = (tReclaimAreas[iCurX][iCurZ][refReclaimTotalMass] or 0)
                 tReclaimAreas[iCurX][iCurZ][refReclaimTotalMass] = iTotalMassValue
+                tReclaimAreas[iCurX][iCurZ][refReclaimHighestIndividualReclaim] = iLargestCurReclaim
                 --tReclaimAreas[iCurX][iCurZ][refReclaimHighestIndividualReclaim] = iLargestCurReclaim
                 --iHighestReclaimInASegment = math.max(iHighestReclaimInASegment, iTotalMassValue)
                 tReclaimAreas[iCurX][iCurZ][refSegmentReclaimTotalEnergy] = iTotalEnergyValue

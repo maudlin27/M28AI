@@ -520,6 +520,11 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
 
                 --Logic specific to M28 units dealing damage
                 if M28UnitInfo.IsUnitValid(oUnitCausingDamage) and oUnitCausingDamage:GetAIBrain().M28AI then
+                    --Update so unit isnt treated as having shot blocked
+                    oUnitCausingDamage[M28UnitInfo.refbLastShotBlocked] = false
+                    oUnitCausingDamage[M28UnitInfo.refiTimeOfLastUnblockedShot] = GetGameTimeSeconds()
+                    if M28UnitInfo.IsUnitValid(self) and (self[M28UnitInfo.refiTargetShotBlockedCount] or 0) > 0 then self[M28UnitInfo.refiTargetShotBlockedCount] = self[M28UnitInfo.refiTargetShotBlockedCount] - 10 end
+
                     --T3/experimental arti specific
                     if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oUnitCausingDamage.UnitId) then
                         --Reset the arti shot count if damaged a high value unit
@@ -658,7 +663,7 @@ function OnWeaponFired(oWeapon)
                         local oTarget = oWeapon:GetCurrentTarget()
                         if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has just fired a shot. Do we have a valid target for our weapon='..tostring(M28UnitInfo.IsUnitValid(oTarget))..'; time last shot was blocked='..(oUnit[M28UnitInfo.refiTimeOfLastCheck] or 'nil')) end
                         if M28UnitInfo.IsUnitValid(oTarget) then
-
+                            if not(oUnit[M28UnitInfo.refbLastShotBlocked]) then oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] = math.max(oUnit[M28UnitInfo.refiTimeOfLastCheck], (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or 0)) end
                             oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds()
                             oUnit[M28UnitInfo.refbLastShotBlocked] = M28Logic.IsShotBlocked(oUnit, oTarget, EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId))
                             if bDebugMessages == true then LOG(sFunctionRef..': oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; Is shot blocked='..tostring(oUnit[M28UnitInfo.refbLastShotBlocked])..'; built in blocking terrain result for low profile='..tostring(oUnit:GetAIBrain():CheckBlockingTerrain(oUnit:GetPosition(), oTarget:GetPosition(), 'Low'))..'; High profile='..tostring(oUnit:GetAIBrain():CheckBlockingTerrain(oUnit:GetPosition(), oTarget:GetPosition(), 'High'))) end
