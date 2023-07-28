@@ -64,7 +64,7 @@ refoGameEnderBeingShielded = 'M28BuildSpecShdlTarg' --against a shield, records 
 --T3 arti specific
 reftiPlateauAndZonesInRange = 'M28BuildArtiPlatAndZInRange' --entries in order of distance, 1,2,3 etc, returns {iPlateauOrZero, iLandOrWaterZoneRef}
 
-function CheckIfUnitWantsFixedShield(oUnit, bCheckForNearbyShields)
+function CheckIfUnitWantsFixedShield(oUnit, bCheckForNearbyShields, iOptionalShieldsWantedOverride)
     --Intended to be called whenever something happens that means oUnit may want to change whehter it is recorded as wanting a shield, e.g.:
     --oUnit dies (done via OnUnitDeath)
     --oUnit construction is started (done via OnConstructionStarted)
@@ -78,7 +78,7 @@ function CheckIfUnitWantsFixedShield(oUnit, bCheckForNearbyShields)
 
 
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at game time '..GetGameTimeSeconds()..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bCheckForNearbyShields='..tostring(bCheckForNearbyShields or false)..'; oUnit[refbUnitWantsShielding] before update='..tostring(oUnit[refbUnitWantsShielding] or false)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at game time '..GetGameTimeSeconds()..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bCheckForNearbyShields='..tostring(bCheckForNearbyShields or false)..'; oUnit[refbUnitWantsShielding] before update='..tostring(oUnit[refbUnitWantsShielding] or false)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; iOptionalShieldsWantedOverride='..(iOptionalShieldsWantedOverride or 'nil')) end
 
     local iShieldsWanted = 0
     local iShieldCoverage = 0
@@ -87,15 +87,19 @@ function CheckIfUnitWantsFixedShield(oUnit, bCheckForNearbyShields)
         iShieldCoverage = table.getn(oUnit[reftoShieldsProvidingCoverage])
     end
 
+    --Determine shields wanted
     if M28UnitInfo.IsUnitValid(oUnit) then
-        local oBP = oUnit:GetBlueprint()
-        --Dont get shields for other shields (to avoid infinite shields)
-        if bDebugMessages == true then LOG(sFunctionRef..': Unit mass cost='..oBP.Economy.BuildCostMass..'; Shieldm ax health='..(oBP.Defense.Shield.ShieldMaxHealth or 0)) end
-        if oBP.Economy.BuildCostMass >= 2000 and (oBP.Defense.Shield.ShieldMaxHealth or 0) == 0 then
-            if bDebugMessages == true then LOG(sFunctionRef..': Unit health='..oBP.Defense.Health..'; Defending against t3 arti for iTeam'..oUnit:GetAIBrain().M28Team..'='..tostring(M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refbDefendAgainstArti] or false)) end
-            if oBP.Defense.Health / oBP.Economy.BuildCostMass < 1 or EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) or ((M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refbDefendAgainstArti] or M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiEnemyAirToGroundThreat] >= 12000) and oBP.Economy.BuildCostMass >= 3000 and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId)) then
-                if M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refbDefendAgainstArti] and oBP.Economy.BuildCostMass >= 12000 then iShieldsWanted = 2
-                else iShieldsWanted = 1
+        if iOptionalShieldsWantedOverride then iShieldsWanted = iOptionalShieldsWantedOverride
+        else
+            local oBP = oUnit:GetBlueprint()
+            --Dont get shields for other shields (to avoid infinite shields)
+            if bDebugMessages == true then LOG(sFunctionRef..': Unit mass cost='..oBP.Economy.BuildCostMass..'; Shieldm ax health='..(oBP.Defense.Shield.ShieldMaxHealth or 0)) end
+            if oBP.Economy.BuildCostMass >= 2000 and (oBP.Defense.Shield.ShieldMaxHealth or 0) == 0 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Unit health='..oBP.Defense.Health..'; Defending against t3 arti for iTeam'..oUnit:GetAIBrain().M28Team..'='..tostring(M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refbDefendAgainstArti] or false)) end
+                if oBP.Defense.Health / oBP.Economy.BuildCostMass < 1 or EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) or ((M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refbDefendAgainstArti] or M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiEnemyAirToGroundThreat] >= 12000) and oBP.Economy.BuildCostMass >= 3000 and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId)) then
+                    if M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refbDefendAgainstArti] and oBP.Economy.BuildCostMass >= 12000 then iShieldsWanted = 2
+                    else iShieldsWanted = 1
+                    end
                 end
             end
         end
@@ -312,6 +316,7 @@ function RecordUnitsInRangeOfTMLAndAnyTMDProtection(oTML, tOptionalUnitsToConsid
                     oTMDBrain = oBrain
                     break
                 end
+
                 local tTeamNearbyTMD = oTMDBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryTMD, oTML:GetPosition(), iTMLRange + 13, 'Ally')
                 if M28Utilities.IsTableEmpty(tTeamNearbyTMD) == false then
                     for iUnit, oUnit in tTeamNearbyTMD do
@@ -331,6 +336,29 @@ function RecordUnitsInRangeOfTMLAndAnyTMDProtection(oTML, tOptionalUnitsToConsid
             end
         end
     end
+    --Below not needed - had put it in when thought was reason TML wasnt firing but the civilians in campaign were already assigned teams as had updated the iscivilian flag for campaign
+    --[[if not(tOptionalUnitsToConsider) and M28Map.bIsCampaignMap then
+        local iTMLIndex = oTML:GetAIBrain():GetArmyIndex()
+        for iBrain, oBrain in ArmyBrains do
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering oBrain='..oBrain.Nickname..'; M28Team='..(oBrain.M28Team or 'nil')..'; IsEnemy='..tostring(IsEnemy(iTMLIndex, oBrain:GetArmyIndex()))) end
+            if not(oBrain.M28Team) and IsEnemy(iTMLIndex, oBrain:GetArmyIndex()) then
+                local tTeamUnitsToProtect = oBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryProtectFromTML, oTML:GetPosition(), iTMLRange, 'Ally')
+                if M28Utilities.IsTableEmpty(tTeamUnitsToProtect) == false then
+                    for iUnit, oUnit in tTeamUnitsToProtect do
+                        local bAlreadyIncluded = false
+                        if M28Utilities.IsTableEmpty(tUnitsToProtect) == false then
+                            for iRecorded, oRecorded in tUnitsToProtect do
+                                if oRecorded == oUnit then bAlreadyIncluded = true break end
+                            end
+                        end
+                        if not(bAlreadyIncluded) then
+                            table.insert(tUnitsToProtect, oUnit)
+                        end
+                    end
+                end
+            end
+        end
+    end--]]
 
     if bDebugMessages == true then LOG(sFunctionRef..': Is table of units to protect empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToProtect))..'; Is table of TMD empty='..tostring(M28Utilities.IsTableEmpty(tNearbyTMD))) end
     if M28Utilities.IsTableEmpty(tUnitsToProtect) == false then
@@ -340,8 +368,10 @@ function RecordUnitsInRangeOfTMLAndAnyTMDProtection(oTML, tOptionalUnitsToConsid
                 --Update various tracking variables based on whether TMD are protecting this unit or not (i.e. updates TML for potential targets, TMD for units theyre covering, and units for TML that have hte unit in their range)
                 RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tNearbyTMD)
                 iCurTeam = oUnit:GetAIBrain().M28Team
-                if not(tiTeamsWithUnitsThatMightWantTMD[iCurTeam]) then tiTeamsWithUnitsThatMightWantTMD[iCurTeam] = {} end
-                table.insert(tiTeamsWithUnitsThatMightWantTMD[iCurTeam], oUnit)
+                if iCurTeam then
+                    if not(tiTeamsWithUnitsThatMightWantTMD[iCurTeam]) then tiTeamsWithUnitsThatMightWantTMD[iCurTeam] = {} end
+                    table.insert(tiTeamsWithUnitsThatMightWantTMD[iCurTeam], oUnit)
+                end
                 if bDebugMessages == true then LOG(sFunctionRef..': Finished considering if unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is protected from the TML by TMD') end
             end
         end
@@ -446,6 +476,8 @@ function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordIfUnitIsProtectedFromTMLByTMD'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
 
     local bTMLAlreadyRecordedAgainstUnit = false
     if M28Utilities.IsTableEmpty(oUnit[reftTMLInRangeOfThisUnit]) == false then
@@ -829,20 +861,20 @@ function UpdateLZUnitsWantingTMDForUnitDeath(oUnit)
                 if tLZTeamData[M28Map.reftUnitsWantingTMD][iOrigIndex] then
                     if M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.reftUnitsWantingTMD][iOrigIndex]) then --I.e. this should run the logic to decide whether we want to keep this entry of the table or remove it
                         --We want to keep the entry; Move the original index to be the revised index number (so if e.g. a table of 1,2,3 removed 2, then this would've resulted in the revised index being 2 (i.e. it starts at 1, then icnreases by 1 for the first valid entry); this then means we change the table index for orig index 3 to be 2
-                        if (iOrigIndex ~= iRevisedIndex) then
-                            tLZTeamData[M28Map.reftUnitsWantingTMD][iRevisedIndex] = tLZTeamData[M28Map.reftUnitsWantingTMD][iOrigIndex]
-                            tLZTeamData[M28Map.reftUnitsWantingTMD][iOrigIndex] = nil
-                        end
-                        iRevisedIndex = iRevisedIndex + 1 --i.e. this will be the position of where the next value that we keep will be located
-                    else
-                        tLZTeamData[M28Map.reftUnitsWantingTMD][iOrigIndex] = nil
-                    end
-                end
+            if (iOrigIndex ~= iRevisedIndex) then
+            tLZTeamData[M28Map.reftUnitsWantingTMD][iRevisedIndex] = tLZTeamData[M28Map.reftUnitsWantingTMD][iOrigIndex]
+            tLZTeamData[M28Map.reftUnitsWantingTMD][iOrigIndex] = nil
             end
+            iRevisedIndex = iRevisedIndex + 1 --i.e. this will be the position of where the next value that we keep will be located
+            else
+            tLZTeamData[M28Map.reftUnitsWantingTMD][iOrigIndex] = nil
+            end
+            end
+            end
+            end
+            end
+            oUnit[refbUnitWantsMoreTMD] = false --redundancy
         end
-    end
-    oUnit[refbUnitWantsMoreTMD] = false --redundancy
-end
 
 function GetUnitWantingTMD(tLZData, tLZTeamData)
     --Gets the unit closest to the nearest enemy base that wants TMD; also refreshes the table for any dead units
@@ -1227,7 +1259,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
             if bTML then
                 --tEnemyCategoriesOfInterest = iTMLHighPriorityCategories
             else --SML
-                tEnemyCategoriesOfInterest = {M28UnitInfo.refCategoryExperimentalStructure, M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategorySML, M28UnitInfo.refCategoryT3Mex + M28UnitInfo.refCategoryT3Power, M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryStructure * categories.TECH3 + M28UnitInfo.refCategoryFixedT2Arti - M28UnitInfo.refCategoryExperimentalStructure - M28UnitInfo.refCategoryFixedT3Arti - M28UnitInfo.refCategorySML - M28UnitInfo.refCategoryT3Mex - M28UnitInfo.refCategorySMD - M28UnitInfo.refCategoryT3Power, M28UnitInfo.refCategoryNavalSurface * categories.TECH3 + M28UnitInfo.refCategoryNavalSurface * categories.EXPERIMENTAL}
+                tEnemyCategoriesOfInterest = {M28UnitInfo.refCategoryExperimentalStructure, M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategorySML + categories.COMMAND, M28UnitInfo.refCategoryT3Mex + M28UnitInfo.refCategoryT3Power, M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryStructure * categories.TECH3 + M28UnitInfo.refCategoryFixedT2Arti - M28UnitInfo.refCategoryExperimentalStructure - M28UnitInfo.refCategoryFixedT3Arti - M28UnitInfo.refCategorySML - M28UnitInfo.refCategoryT3Mex - M28UnitInfo.refCategorySMD - M28UnitInfo.refCategoryT3Power, M28UnitInfo.refCategoryNavalSurface * categories.TECH3 + M28UnitInfo.refCategoryNavalSurface * categories.EXPERIMENTAL}
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Will consider missile target. iMinRange='..(iMinRange or 'nil')..'; iAOE='..(iAOE or 'nil')..'; iDamage='..(iDamage or 'nil')..'; bSML='..tostring((bSML or false))) end
 
@@ -1263,6 +1295,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                             end
                         end
                     end
+
                     local oBestTarget
                     --Below was M27's appraoch to getting TML targets
                     --[[aiBrain:GetUnitsAroundPoint(iTMLHighPriorityCategories, tStartPos, iMaxRange, 'Enemy')
@@ -1650,6 +1683,7 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                             tTarget = nil
                         end
                     end --Increased vs M27 as will only apuse if no target
+
 
                     function ChangeTargetToClosestUnitToLauncher(tUnitsToConsider, iOptionalLeadingDistanceBaseAdjust)
                         local iClosestEnemyDist = 100000

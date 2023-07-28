@@ -571,6 +571,17 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
             iT3ArtiMissedShotFactor = M28Building.GetArtiValueFactorForShotFailures((tLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] or 0))
         end
 
+        local iACUExtraFactor = 1
+        if M28Map.bIsCampaignMap or ScenarioInfo.Options.Victory == "demoralization" then
+
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftEnemyACUs]) == false and table.getn(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftEnemyACUs]) > 1 and ScenarioInfo.Options.Share == 'FullShare' then
+                iACUExtraFactor = 2
+            else
+                iACUExtraFactor = 5
+            end
+        end
+        -- not(aiBrain[M27Overseer.refiActiveEnemyBrains] > 1 and ScenarioInfo.Options.Share == 'FullShare')
+
         for iUnit, oUnit in tEnemiesInRange do
             if bDebugMessages == true then
                 if M28UnitInfo.IsUnitValid(oUnit) then
@@ -634,6 +645,11 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
                         if bT3ArtiShotReduction then
                             iMassFactor = iMassFactor * iT3ArtiMissedShotFactor
                         end
+                        --Increase mass factor for ACUs if we are in assassination or campaign
+                        if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+                            iMassFactor = iMassFactor * iACUExtraFactor
+                        end
+
                         iTotalDamage = iTotalDamage + oCurBP.Economy.BuildCostMass * oUnit:GetFractionComplete() * iMassFactor
                         --Increase further for SML and SMD that might have a missile
                         if EntityCategoryContains(M28UnitInfo.refCategorySML - M28UnitInfo.refCategoryBattleship, oUnit.UnitId) then
@@ -678,15 +694,15 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': Finished considering the unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTotalDamage='..iTotalDamage..'; oCurBP.Economy.BuildCostMass='..oCurBP.Economy.BuildCostMass..'; oUnit:GetFractionComplete()='..oUnit:GetFractionComplete()..'; iMassFactor after considering if unit is mobile='..iMassFactor..'; distance between unit and target='..M28Utilities.GetDistanceBetweenPositions(tBaseLocation, oUnit:GetPosition())) end
                     end
+                    end
                 end
             end
         end
-    end
-    if bDebugMessages == true then LOG(sFunctionRef..': Finished going through units in the aoe, iTotalDamage in mass='..iTotalDamage..'; tBaseLocation='..repru(tBaseLocation)..'; iAOE='..iAOE..'; iDamage='..iDamage) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished going through units in the aoe, iTotalDamage in mass='..iTotalDamage..'; tBaseLocation='..repru(tBaseLocation)..'; iAOE='..iAOE..'; iDamage='..iDamage) end
 
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    return iTotalDamage
-end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return iTotalDamage
+    end
 
 function GetBestAOETarget(aiBrain, tBaseLocation, iAOE, iDamage, bOptionalCheckForSMD, tSMLLocationForSMDCheck, iOptionalTimeSMDNeedsToHaveBeenBuiltFor, iSMDRangeAdjust, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, iOptionalMaxDistanceCheckOptions, iMobileValueOverrideFactorWithin75Percent, iOptionalShieldReductionFactor)
     --Calcualtes the most damaging location for an aoe target; also returns the damage dealt

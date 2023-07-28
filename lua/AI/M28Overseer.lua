@@ -463,7 +463,11 @@ function NoRushMonitor()
 end
 
 function TestCustom(aiBrain)
-    M28Map.DrawSpecificWaterZone(2)
+    local ScenarioFramework = import('/lua/ScenarioFramework.lua')
+    local tLZData = M28Map.tAllPlateaus[25][M28Map.subrefPlateauLandZones][4]
+    local rRect = M28Utilities.GetRectAroundLocation({512,0,512}, 512)
+    --ScenarioFramework.SetPlayableArea(rRect)
+    --M28Map.DrawSpecificLandZone(25, 4, 4)
     --M28Map.DrawWaterZones()
     --[[if GetGameTimeSeconds() <= 20 then M28Map.DrawSpecificWaterZone(5)
     else M28Map.DrawSpecificWaterZone(7)
@@ -641,6 +645,8 @@ function CheckUnitCap(aiBrain)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     --local iUnitCap = tonumber(ScenarioInfo.Options.UnitCap)
     --Use below method in case a mod has changed this
     local oArmy = aiBrain:GetArmyIndex()
@@ -659,9 +665,9 @@ function CheckUnitCap(aiBrain)
         if iUnitCap - iCurUnits < 10 then iMaxToDestroy = math.max(10, iMaxToDestroy) end
         local tUnitsToDestroy
         local tiCategoryToDestroy = {
-            [0] = categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryAirStaging - M28UnitInfo.refCategoryT1Mex + M28UnitInfo.refCategoryAllAir * categories.TECH2 - M28UnitInfo.refCategoryTransport * categories.TECH2 - M28UnitInfo.refCategoryTorpBomber * categories.TECH2,
+            [0] = categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryAirStaging - M28UnitInfo.refCategoryT1Mex + M28UnitInfo.refCategoryAllAir * categories.TECH2 - M28UnitInfo.refCategoryTransport * categories.TECH2 - M28UnitInfo.refCategoryTorpBomber * categories.TECH2 -M28UnitInfo.refCategoryAllHQFactories,
             [1] = M28UnitInfo.refCategoryAllAir * categories.TECH1 + categories.NAVAL * categories.MOBILE * categories.TECH1,
-            [2] = M28UnitInfo.refCategoryMobileLand * categories.TECH2 - categories.COMMAND - M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryAirScout + M28UnitInfo.refCategoryAirAA * categories.TECH1,
+            [2] = M28UnitInfo.refCategoryMobileLand * categories.TECH2 - categories.COMMAND - M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryAirScout * categories.TECH1 + M28UnitInfo.refCategoryAirAA * categories.TECH1,
             [3] = M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND,
             [4] = M28UnitInfo.refCategoryWall + M28UnitInfo.refCategoryEngineer - categories.TECH3 + M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND - M28UnitInfo.refCategoryLandScout,
         }
@@ -686,39 +692,56 @@ function CheckUnitCap(aiBrain)
             tiCategoryToDestroy[3] = tiCategoryToDestroy[3] - M28UnitInfo.refCategoryPower
         end
 
+        --If have no asfs then exclude inties from cat 2
+        if bDebugMessages == true then LOG(sFunctionRef..': Cur T2+ power='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower - categories.TECH1)..'; Cur ASFs='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirAA * categories.TECH3)) end
+        if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirAA * categories.TECH3) == 0 then
+            tiCategoryToDestroy[2] = tiCategoryToDestroy[2] - M28UnitInfo.refCategoryAirAA
+            tiCategoryToDestroy[1] = tiCategoryToDestroy[1] - M28UnitInfo.refCategoryAirAA
+            if bDebugMessages == true then LOG(sFunctionRef..': Excluding inties from being ctrlkd from category 1 and 2') end
+            if iUnitCap >= 500 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirAA) <= 50 then
+                tiCategoryToDestroy[0] = tiCategoryToDestroy[1] - M28UnitInfo.refCategoryAirAA
+            end
+        end
+
+        if M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] <= 2 then
+            --If have no t3 gunships then keep t2 in cat 0
+            if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryGunship * categories.TECH3) == 0 then
+                tiCategoryToDestroy[0] = tiCategoryToDestroy[0] - M28UnitInfo.refCategoryGunship
+            end
+        end
 
         if bDebugMessages == true then LOG(sFunctionRef..': We are over the threshold for ctrlking units') end
         if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) > iUnitCap * 0.35 then tiCategoryToDestroy[0] = tiCategoryToDestroy[0] + M28UnitInfo.refCategoryEngineer end
         local iCumulativeCategory = tiCategoryToDestroy[4]
         for iAdjustmentLevel = 4, 0, -1 do
-            if iAdjustmentLevel < 4 then
-                iCumulativeCategory = iCumulativeCategory + tiCategoryToDestroy[iAdjustmentLevel]
-            end
-            if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitsDestroyed so far='..iCurUnitsDestroyed..'; iMaxToDestroy='..iMaxToDestroy..'; iAdjustmentLevel='..iAdjustmentLevel..'; iCurUnits='..iCurUnits..'; Unit cap='..iUnitCap..'; iThreshold='..iThreshold) end
-            if iCurUnits > (iUnitCap - iThreshold * iAdjustmentLevel) or iCurUnitsDestroyed == 0 then
-                tUnitsToDestroy = aiBrain:GetListOfUnits(tiCategoryToDestroy[iAdjustmentLevel], false, false)
-                if M28Utilities.IsTableEmpty(tUnitsToDestroy) == false then
-                    M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] = math.min((M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100), iAdjustmentLevel)
-                    for iUnit, oUnit in tUnitsToDestroy do
-                        if oUnit.Kill then
-                            if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitsDestroyed so far='..iCurUnitsDestroyed..'; Will destroy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to avoid going over unit cap') end
-                            M28Orders.IssueTrackedKillUnit(oUnit)
-                            if EntityCategoryContains(M28UnitInfo.refCategoryWall, oUnit.UnitId) then
-                                iCurUnitsDestroyed = iCurUnitsDestroyed + 0.25
-                            else
-                                iCurUnitsDestroyed = iCurUnitsDestroyed + 1
-                            end
-                            if iCurUnitsDestroyed >= iMaxToDestroy then break end
-                        end
-                    end
-                end
-                if iCurUnitsDestroyed >= iMaxToDestroy then break end
-            else
-                break
-            end
-        end
-        aiBrain[refiUnitCapCategoriesDestroyed] = iCumulativeCategory
-        if bDebugMessages == true then LOG(sFunctionRef..': FInished destroying units, iCurUnitsDestroyed='..iCurUnitsDestroyed) end
+        if iAdjustmentLevel < 4 then
+        iCumulativeCategory = iCumulativeCategory + tiCategoryToDestroy[iAdjustmentLevel]
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitsDestroyed so far='..iCurUnitsDestroyed..'; iMaxToDestroy='..iMaxToDestroy..'; iAdjustmentLevel='..iAdjustmentLevel..'; iCurUnits='..iCurUnits..'; Unit cap='..iUnitCap..'; iThreshold='..iThreshold) end
+    if iCurUnits > (iUnitCap - iThreshold * iAdjustmentLevel) or iCurUnitsDestroyed == 0 then
+    tUnitsToDestroy = aiBrain:GetListOfUnits(tiCategoryToDestroy[iAdjustmentLevel], false, false)
+    if M28Utilities.IsTableEmpty(tUnitsToDestroy) == false then
+    M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] = math.min((M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100), iAdjustmentLevel)
+    for iUnit, oUnit in tUnitsToDestroy do
+    if oUnit.Kill then
+    if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitsDestroyed so far='..iCurUnitsDestroyed..'; Will destroy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to avoid going over unit cap') end
+    M28Orders.IssueTrackedKillUnit(oUnit)
+    if EntityCategoryContains(M28UnitInfo.refCategoryWall, oUnit.UnitId) then
+    iCurUnitsDestroyed = iCurUnitsDestroyed + 0.25
+    else
+    iCurUnitsDestroyed = iCurUnitsDestroyed + 1
+    end
+    if iCurUnitsDestroyed >= iMaxToDestroy then break end
+    end
+    end
+    end
+    if iCurUnitsDestroyed >= iMaxToDestroy then break end
+    else
+    break
+    end
+    end
+    aiBrain[refiUnitCapCategoriesDestroyed] = iCumulativeCategory
+    if bDebugMessages == true then LOG(sFunctionRef..': FInished destroying units, iCurUnitsDestroyed='..iCurUnitsDestroyed) end
     else
         --Only reset cap if we havent reached the higher ctrlk thresholds, unless we have a massive amount of headroom
         if aiBrain[refbCloseToUnitCap] and (iCurUnits < iUnitCap * 0.5 - 25 or (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) > 1) then
@@ -1515,6 +1538,77 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
             --Cybran M6 - fire black sun if it is owned by M28 and we are on the objective to fire it
         elseif ScenarioInfo.M7_FauxUEFCommanderUnit then
             ForkThread(M1AeonEndMissionBackupMonitor)
+        elseif ScenarioInfo.M1P1Obj.Active and Target.MarkArea and Target.Requirements and Target.Category == categories.uab4301 then --Aeon mission 5 - build UEF T3 shield
+            M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] = true
+            if bDebugMessages == true then LOG(sFunctionRef..': Want to build T3 shielding for Aeon M5') end
+            local iOurBrainIndex = M28Team.GetFirstActiveM28Brain(iTeam):GetArmyIndex()
+            for iTarget, tRequirements in Target.Requirements do
+                local tRect = import("/lua/sim/scenarioutilities.lua").AreaToRect(tRequirements.Area)
+                local tBaseAreaForRect = {tRect['x0'], tRect['y0'], tRect['x1'], tRect['y1']}
+                if bDebugMessages == true then LOG(sFunctionRef..': rRect='..repru(tBaseAreaForRect)..'; tRequirements.Area='..reprs(tRequirements.Area)..'; AreaToRect='..repru(import("/lua/sim/scenarioutilities.lua").AreaToRect(tRequirements.Area))) end
+                if tBaseAreaForRect then
+                    local iRadiusAdjust = -16
+                    local rRect = Rect(tBaseAreaForRect[1] - iRadiusAdjust, tBaseAreaForRect[2] - iRadiusAdjust, tBaseAreaForRect[3] + iRadiusAdjust, tBaseAreaForRect[4] + iRadiusAdjust)
+                    if bDebugMessages == true then LOG(sFunctionRef..': rRect to search after adjust='..repru(rRect)) end
+                    local tUnitsInRect = GetUnitsInRect(rRect)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of units in rec empty='..tostring(M28Utilities.IsTableEmpty(tUnitsInRect))) end
+                    if M28Utilities.IsTableEmpty(tUnitsInRect) == false then
+                        local tBuildingsInRect = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tUnitsInRect)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of tBuildingsInRect empty='..tostring(M28Utilities.IsTableEmpty(tBuildingsInRect))) end
+                        if M28Utilities.IsTableEmpty(tBuildingsInRect) == false then
+                            for iUnit, oUnit in tBuildingsInRect do
+                                if not(IsEnemy(oUnit:GetAIBrain():GetArmyIndex(), iOurBrainIndex)) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Sending unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to function to assign shielding requirement') end
+                                    M28Building.CheckIfUnitWantsFixedShield(oUnit, true, 1)
+                                end
+                            end
+                        end
+                    end
+                    local tMidpoint = {(tBaseAreaForRect[1] + tBaseAreaForRect[3]) * 0.5, 0, (tBaseAreaForRect[2] + tBaseAreaForRect[4]) * 0.5}
+                    local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tMidpoint)
+                    local tMidpointLZData, tMidpointLZTeamData = M28Map.GetLandOrWaterZoneData(tMidpoint, true, iTeam)
+                    local iTotalSegments = table.getn(tMidpointLZData[M28Map.subrefLZSegments])
+                    local iSegmentStart = (tMidpointLZData[M28Map.subrefiLastSegmentEntryConsideredForBuilding] or 0)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Midpoint='..repru(tMidpoint)..'; iLandOrWaterZone='..iLandOrWaterZone..'; iTotalSegments='..iTotalSegments..'; iSegmentStart='..iSegmentStart) end
+                    local iCurCycleCount = 0
+                    local iWaitCycleCount = 0
+                    while iSegmentStart < iTotalSegments * 0.9 do
+                        iCurCycleCount = iCurCycleCount + 1
+                        iWaitCycleCount = iWaitCycleCount + 1
+                        if iWaitCycleCount >= 100 then
+                            iWaitCycleCount = 0
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            WaitTicks(1)
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                        end
+                        if iCurCycleCount >= 10000 then break end
+                        M28Engineer.SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, math.min(100, math.floor(iTotalSegments * 0.1)))
+                        iTotalSegments = table.getn(tMidpointLZData[M28Map.subrefLZSegments])
+                        iSegmentStart = (tMidpointLZData[M28Map.subrefiLastSegmentEntryConsideredForBuilding] or 0)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; iTotalSegments='..iTotalSegments..'; iSegmentStart='..iSegmentStart) end
+                    end
+                end
+            end
+            --Aeon Mission 5 - build SMD
+        elseif ScenarioInfo.M1P2Obj.Active and Target.MarkArea and Target.Category == categories.uab4302 and Target.Areas then
+            local ScenarioUtilities = import("/lua/sim/scenarioutilities.lua")
+
+            for iArea, sArea in Target.Areas do
+                local tRect = ScenarioUtilities.AreaToRect(sArea)
+                local tBaseAreaForRect = {tRect['x0'], tRect['y0'], tRect['x1'], tRect['y1']}
+                if bDebugMessages == true then LOG(sFunctionRef..': tRect='..repru(tRect)..'; tBaseAreaForRect='..repru(tBaseAreaForRect)..'; sArea='..sArea) end
+                if tBaseAreaForRect then
+                    local tMidpoint = {(tBaseAreaForRect[1] + tBaseAreaForRect[3]) * 0.5, 0, (tBaseAreaForRect[2] + tBaseAreaForRect[4]) * 0.5}
+                    local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tMidpoint)
+                    if iPlateauOrZero > 0 and (iLandOrWaterZone or 0) > 0 then
+                        local tMidpointLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
+                        tMidpointLZTeamData[M28Map.reftObjectiveSMDLocation] = {tMidpoint[1], GetSurfaceHeight(tMidpoint[1], tMidpoint[3]), tMidpoint[3]}
+                        if bDebugMessages == true then LOG(sFunctionRef..': Set SMD location for iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; Location='..repru(tMidpointLZTeamData[M28Map.reftObjectiveSMDLocation])) end
+                    end
+
+                end
+            end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

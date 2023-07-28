@@ -46,7 +46,7 @@ iMapWaterHeight = 0 --Surface height of water on the map
 tMassPoints = {} --[x] is an integer count, returns the location of a mass point; stores all mexes on the map
 tHydroPoints = {} --[x] is an integer count, returns the location of a hydro point; stores all hydro points on the map
 tMexByPathingAndGrouping = {} --Stores position of each mex based on the pathing group that it's part of; [a][b][c]: [a] = pathing type ('Land' etc.); [b] = Segment grouping; [c] = Mex position
-tHydroByPathingAndGrouping = {} --as above but for hydros
+tHydroNearStart = {} --[x] is an integer count, records any hydro that we have recorded as being in a starting zone of any player (done so on high hydro maps we can avoid assigning these to zones again)
 
 --Player start points
 PlayerStartPoints = {} --[x] is aiBrain army index, returns the start position {x,y,z}; Will be updated whenever a brain is created, index is the army index, i.e. do PlayerStartPoints[aiBrain:GetArmyIndex()] to get a table {x,y,z} that is the army's start position; more convenient than aiBrain:GetArmyStartPos() which returns x and z values but not as a table
@@ -193,6 +193,8 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefiTimeOfLastEnemyUnitPosUpdate = 'EnPosTim' --Gametimeseconds that we updated the last known position of enemy units in this zone
             subrefTEnemyUnits = 'Enemies' --table of all enemy units in the land zone or water zone (same ref used for WZ)
             reftoNearestDFEnemies = 'NearestDF' --Table of enemy DF units in this LZ, plus the nearest DF unit in each adjacnet LZ, with proximity based on unit distance and unit range (i.e. the dist until the unit is in range)
+            refoNearestStructureInOtherPlateauIfNoEnemiesHere = 'NearSPl' --If dealing with a large enough land zone, this will record here the closest enemy structure in another plateau near to this land zone, if there is one
+
             --Ground threat values for land zones (also against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam])
             subrefTThreatEnemyCombatTotal = 'ECTotal'
             subrefLZTThreatAllyCombatTotal = 'ACTotal'
@@ -297,6 +299,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             reftoTransportsWaitingForEngineers = 'TWntEng' --Table of any transports in this LZ wanting engineers
             refiTimeLastBuiltAtFactory = 'TLstBFac' --Gametimeseconds that a factory last tried ot build (used to make sure we spread things out by several ticks)
             reftoGroundFireFriendlyTarget = 'TGFTrg' --Location of a ground fire target that we wont be trying to target via normal means, e..g intended for Cybran mission 2 where need to ground fire temples that dont show as enemies and cant be reclaimed
+            reftObjectiveSMDLocation = 'TSMDOL' --For campaign maps - locaiton of SMD to complete objective
 
 --Pond and naval variables
     --General
@@ -2055,7 +2058,9 @@ local function AssignMexesALandZone()
     local tiStartResourcesByBrainIndex = {}
 
     local iStraightLineThreshold = 70 --Ignore locations that are more than this distance away
+    local iHydroStraightLineThreshold = iStraightLineThreshold + 5
     local iTravelDistThreshold = 75 --Ignore locations that are more than this land travel distance away
+    local iHydroTravelDistThreshold = iTravelDistThreshold + 5
     if bIsCampaignMap then
         iStraightLineThreshold = 40
         iTravelDistThreshold = 45
@@ -2185,6 +2190,113 @@ local function AssignMexesALandZone()
                         iMaxZ = math.max(tMex[3], iMaxZ)
                     end
                     M28Utilities.DrawRectangle(Rect(iMinX - 0.1, iMinZ - 0.1, iMaxX + 0.1, iMaxZ + 0.1), iColour, 1000, 10)
+                end
+            end
+        end
+    end
+
+    --Now assign any hydros near to a start zone to the start zone
+    for iHydro, tHydro in tHydroPoints do
+        --Get closest start position to this hydro
+        local iPlateau = NavUtils.GetLabel(refPathingTypeHover, tHydro)
+        --Get the start position closest to this mex (if there are any close enough that we might want the mex to be part of the start zone)
+        iClosestDistTravel = iHydroTravelDistThreshold --Ignore points whose travel distance is further away than this
+        iClosestBrainIndex = nil
+        iClosestStraightLineDist = 100000
+        iClosestStraightLineIndex = nil
+        iClosestStraightLineTravelDist = 100000
+        local tiBrainsWithinThreshold = {}
+        for iBrainIndex, tStartPoint in tRelevantStartPointsByIndex do
+            if tiStartIndexPlateauAndLZ[iBrainIndex][1] == iPlateau then
+                iCurDistStraightLine = M28Utilities.GetDistanceBetweenPositions(tHydro, tStartPoint)
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering hydro at '..repru(tHydro)..' vs start point at '..repru(tStartPoint)..'; iCurDistStraightLine='..iCurDistStraightLine..'; iHydroStraightLineThreshold='..iHydroStraightLineThreshold..'; iClosestStraightLineTravelDist='..iClosestStraightLineTravelDist) end
+                if iCurDistStraightLine <= iHydroStraightLineThreshold then
+                    table.insert(tiBrainsWithinThreshold, {iBrainIndex, iCurDistStraightLine})
+                    if iCurDistStraightLine < iClosestStraightLineTravelDist then
+                        iClosestStraightLineTravelDist = iCurDistStraightLine
+                        iClosestStraightLineIndex = iBrainIndex
+                    end
+                end
+            end
+        end
+        if iClosestStraightLineIndex then
+            iClosestDistTravel = M28Utilities.GetTravelDistanceBetweenPositions(tHydro, tRelevantStartPointsByIndex[iClosestStraightLineIndex], refPathingTypeLand)
+            iClosestBrainIndex = iClosestStraightLineIndex
+            for iEntry, tiIndexAndDist in tiBrainsWithinThreshold do
+                if bDebugMessages == true then LOG(sFunctionRef..': iClosestStraightLineIndex='..iClosestStraightLineIndex..'; tiIndexAndDist='..repru(tiIndexAndDist)..'; tRelevantStartPointsByIndex[tiIndexAndDist[1]]='..repru(tRelevantStartPointsByIndex[tiIndexAndDist[1]])..'; tHydro='..repru(tHydro)) end
+                if tiIndexAndDist[2] < iClosestDistTravel and not(tiIndexAndDist[1] == iClosestStraightLineIndex) then
+                    iCurDistTravel = M28Utilities.GetTravelDistanceBetweenPositions(tHydro, tRelevantStartPointsByIndex[tiIndexAndDist[1]], refPathingTypeLand)
+                    if bDebugMessages == true then LOG(sFunctionRef..': iCurDistTravel='..(iCurDistTravel or 'nil')..'; iClosestDistTravel='..iClosestDistTravel) end
+                    if iCurDistTravel < iClosestDistTravel then
+                        iClosestDistTravel = iCurDistTravel
+                        iClosestBrainIndex = tiIndexAndDist[1]
+                    end
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Searching for closest brain index to tHydro '..repru(tHydro)..' that is close enough, iClosestBrainIndex='..(iClosestBrainIndex or 'nil')) end
+        if iClosestBrainIndex then
+            if not(tiStartResourcesByBrainIndex[iClosestBrainIndex]) then tiStartResourcesByBrainIndex[iClosestBrainIndex] = {} end
+            table.insert(tiStartResourcesByBrainIndex[iClosestBrainIndex], tHydro)
+            RecordHydroInLandZone(tHydro, iPlateau, tiStartIndexPlateauAndLZ[iClosestBrainIndex][2], true)
+            if bDebugMessages == true then LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLandZone='..(tiStartIndexPlateauAndLZ[iClosestBrainIndex][2] or 'nil')..'; Adding iHydro='..iHydro..'; at position '..repru(tHydro)..'; to the start position for aiBrain index='..(iClosestBrainIndex or 'nil')..' which is at '..repru(tRelevantStartPointsByIndex[iClosestBrainIndex])..'; iClosestDistTravel='..iClosestDistTravel) end
+        end
+    end
+    for iPlateau, tPlateauSubtable in tAllPlateaus do
+        if M28Utilities.IsTableEmpty(tPlateauSubtable[subrefPlateauMexes]) == false then
+            for iMex, tMex in tPlateauSubtable[subrefPlateauMexes] do
+                --Only consider if mex isnt underwater
+                if tMex[2] >= iMapWaterHeight then
+                    --Find the closest start point
+                    iClosestDistTravel = iTravelDistThreshold --Ignore points whose travel distance is further away than this
+                    iClosestBrainIndex = nil
+                    iClosestStraightLineDist = 100000
+                    iClosestStraightLineIndex = nil
+                    iClosestStraightLineTravelDist = 100000
+                    local tiBrainsWithinThreshold = {}
+                    --Get the start position closest to this mex (if there are any close enough that we might want the mex to be part of the start zone)
+                    for iBrainIndex, tStartPoint in tRelevantStartPointsByIndex do
+                        if tiStartIndexPlateauAndLZ[iBrainIndex][1] == iPlateau then
+                            iCurDistStraightLine = M28Utilities.GetDistanceBetweenPositions(tMex, tStartPoint)
+                            if bDebugMessages == true then LOG(sFunctionRef..': iCurDistStraightLine='..iCurDistStraightLine..'; iStraightLineThreshold='..iStraightLineThreshold..'; iClosestStraightLineTravelDist='..iClosestStraightLineTravelDist) end
+                            if iCurDistStraightLine <= iStraightLineThreshold then
+                                table.insert(tiBrainsWithinThreshold, {iBrainIndex, iCurDistStraightLine})
+                                if iCurDistStraightLine < iClosestStraightLineTravelDist then
+                                    iClosestStraightLineTravelDist = iCurDistStraightLine
+                                    iClosestStraightLineIndex = iBrainIndex
+                                end
+                                --[[
+                                --Get the land pathing distance
+                                iCurDistTravel = M28Utilities.GetTravelDistanceBetweenPositions(tMex, tStartPoint, refPathingTypeLand)
+                                if iCurDistTravel < iClosestDistTravel then
+                                    iClosestDistTravel = iCurDistTravel
+                                    iClosestBrainIndex = iBrainIndex
+                                end--]]
+                            end
+                        end
+                    end
+                    if iClosestStraightLineIndex then
+                        iClosestDistTravel = M28Utilities.GetTravelDistanceBetweenPositions(tMex, tRelevantStartPointsByIndex[iClosestStraightLineIndex], refPathingTypeLand)
+                        iClosestBrainIndex = iClosestStraightLineIndex
+                        for iEntry, tiIndexAndDist in tiBrainsWithinThreshold do
+                            if bDebugMessages == true then LOG(sFunctionRef..': iClosestStraightLineIndex='..iClosestStraightLineIndex..'; tiIndexAndDist='..repru(tiIndexAndDist)..'; tRelevantStartPointsByIndex[tiIndexAndDist[1]]='..repru(tRelevantStartPointsByIndex[tiIndexAndDist[1]])..'; tMex='..repru(tMex)) end
+                            if tiIndexAndDist[2] < iClosestDistTravel and not(tiIndexAndDist[1] == iClosestStraightLineIndex) then
+                                iCurDistTravel = M28Utilities.GetTravelDistanceBetweenPositions(tMex, tRelevantStartPointsByIndex[tiIndexAndDist[1]], refPathingTypeLand)
+                                if bDebugMessages == true then LOG(sFunctionRef..': iCurDistTravel='..(iCurDistTravel or 'nil')..'; iClosestDistTravel='..iClosestDistTravel) end
+                                if iCurDistTravel < iClosestDistTravel then
+                                    iClosestDistTravel = iCurDistTravel
+                                    iClosestBrainIndex = tiIndexAndDist[1]
+                                end
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Searching for closest brain index to tMex '..repru(tMex)..' that is close enough, iClosestBrainIndex='..(iClosestBrainIndex or 'nil')) end
+                    if iClosestBrainIndex then
+                        if not(tiStartResourcesByBrainIndex[iClosestBrainIndex]) then tiStartResourcesByBrainIndex[iClosestBrainIndex] = {} end
+                        table.insert(tiStartResourcesByBrainIndex[iClosestBrainIndex], tMex)
+                        AddMexToLandZone(iPlateau, tiStartIndexPlateauAndLZ[iClosestBrainIndex][2], iMex, tiPlateauLandZoneByMexRef)
+                        if bDebugMessages == true then LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLandZone='..(tiStartIndexPlateauAndLZ[iClosestBrainIndex][2] or 'nil')..'; Adding iMex='..iMex..'; at position '..repru(tMex)..'; to the start position for aiBrain index='..(iClosestBrainIndex or 'nil')..' which is at '..repru(tRelevantStartPointsByIndex[iClosestBrainIndex])) end
+                    end
                 end
             end
         end
@@ -2543,25 +2655,44 @@ local function RecordLandZoneMidpointAndUnbuiltMexes()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function RecordHydroInLandZone(tHydro, iPlateau, iLandZone, bNearStartPosition)
+    if not(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefHydroLocations]) then tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefHydroLocations] = {} end
+    table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefHydroLocations], tHydro)
+    if M28Conditions.CanBuildOnHydroLocation(tHydro) then
+        table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefHydroUnbuiltLocations], tHydro)
+    end
+    if bNearStartPosition then table.insert(tHydroNearStart, tHydro) end
+end
 
-
-local function RecordHydroInLandZones()
+local function RecordAllHydroInLandZones()
     --Updates land zone data to include details of any hydro locations in the land zone
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'RecordHydroInLandZones'
+    local sFunctionRef = 'RecordAllHydroInLandZones'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if M28Utilities.IsTableEmpty(tHydroPoints) == false then
         local iPlateau, iLandZone
+        local bAlreadyRecorded = false
 
         for iHydro, tHydro in tHydroPoints do
             iPlateau, iLandZone = GetPlateauAndLandZoneReferenceFromPosition(tHydro)
             if bDebugMessages == true then LOG(sFunctionRef..': Considering iHydro='..iHydro..'; tHydro='..repru(tHydro)..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
             if iLandZone > 0 then
-                if bDebugMessages == true then LOG(sFunctionRef..': Have a hydro location, CanBuildOnHydro='..tostring(M28Conditions.CanBuildOnHydroLocation(tHydro))) end
-                table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefHydroLocations], tHydro)
-                if M28Conditions.CanBuildOnHydroLocation(tHydro) then
-                    table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefHydroUnbuiltLocations], tHydro)
+                --Check not already recorded
+                bAlreadyRecorded = false
+                if M28Utilities.IsTableEmpty(tHydroNearStart) == false then
+                    for iRecorded, tRecorded in tHydroNearStart do
+                        if M28Utilities.GetRoughDistanceBetweenPositions(tRecorded, tHydro) <= 1 then
+                            bAlreadyRecorded = true
+                            break
+                        end
+                    end
+                end
+                if not(bAlreadyRecorded) then
+
+
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have a hydro location, CanBuildOnHydro='..tostring(M28Conditions.CanBuildOnHydroLocation(tHydro))) end
+                    RecordHydroInLandZone(tHydro, iPlateau, iLandZone, false)
                 end
             end
         end
@@ -2577,17 +2708,31 @@ local function RecordHydroInWaterZones()
 
     if M28Utilities.IsTableEmpty(tHydroPoints) == false then
         local iWaterZone
+        local bAlreadyRecorded
 
         for iHydro, tHydro in tHydroPoints do
             iWaterZone = GetWaterZoneFromPosition(tHydro)
             if bDebugMessages == true then LOG(sFunctionRef..': Considering iHydro='..iHydro..'; tHydro='..repru(tHydro)..'; iWaterZone='..(iWaterZone or 'nil')) end
             if iWaterZone > 0 then
-                if bDebugMessages == true then LOG(sFunctionRef..': Have a hydro location, CanBuildOnHydro='..tostring(M28Conditions.CanBuildOnHydroLocation(tHydro))) end
-                if not(tPondDetails[tiPondByWaterZone[iWaterZone]][subrefPondWaterZones][iWaterZone][subrefHydroLocations]) then tPondDetails[tiPondByWaterZone[iWaterZone]][subrefPondWaterZones][iWaterZone][subrefHydroLocations] = {} end
-                table.insert(tPondDetails[tiPondByWaterZone[iWaterZone]][subrefPondWaterZones][iWaterZone][subrefHydroLocations], tHydro)
-                if M28Conditions.CanBuildOnHydroLocation(tHydro) then
-                    if not(tPondDetails[tiPondByWaterZone[iWaterZone]][subrefPondWaterZones][iWaterZone][subrefHydroUnbuiltLocations]) then tPondDetails[tiPondByWaterZone[iWaterZone]][subrefPondWaterZones][iWaterZone][subrefHydroUnbuiltLocations] = {} end
-                    table.insert(tPondDetails[tiPondByWaterZone[iWaterZone]][subrefPondWaterZones][iWaterZone][subrefHydroUnbuiltLocations], tHydro)
+                --Check not already recorded
+                bAlreadyRecorded = false
+                if M28Utilities.IsTableEmpty(tHydroNearStart) == false then
+                    for iRecorded, tRecorded in tHydroNearStart do
+                        if M28Utilities.GetRoughDistanceBetweenPositions(tRecorded, tHydro) <= 1 then
+                            bAlreadyRecorded = true
+                            break
+                        end
+                    end
+                end
+                if not(bAlreadyRecorded) then
+
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have a hydro location, CanBuildOnHydro='..tostring(M28Conditions.CanBuildOnHydroLocation(tHydro))) end
+                    if not(tPondDetails[tiPondByWaterZone[iWaterZone]][subrefPondWaterZones][iWaterZone][subrefHydroLocations]) then tPondDetails[tiPondByWaterZone[iWaterZone]][subrefPondWaterZones][iWaterZone][subrefHydroLocations] = {} end
+                    table.insert(tPondDetails[tiPondByWaterZone[iWaterZone]][subrefPondWaterZones][iWaterZone][subrefHydroLocations], tHydro)
+                    if M28Conditions.CanBuildOnHydroLocation(tHydro) then
+                        if not(tPondDetails[tiPondByWaterZone[iWaterZone]][subrefPondWaterZones][iWaterZone][subrefHydroUnbuiltLocations]) then tPondDetails[tiPondByWaterZone[iWaterZone]][subrefPondWaterZones][iWaterZone][subrefHydroUnbuiltLocations] = {} end
+                        table.insert(tPondDetails[tiPondByWaterZone[iWaterZone]][subrefPondWaterZones][iWaterZone][subrefHydroUnbuiltLocations], tHydro)
+                    end
                 end
             end
         end
@@ -2705,6 +2850,7 @@ function ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iPlateau, iStartLan
     local sFunctionRef = 'ConsiderAddingTargetLandZoneToDistanceFromBaseTable'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
     --Have we not already considered this?
     if not(tbTempConsideredLandPathingForLZ[iPlateau][iStartLandZone][iTargetLandZone]) then
 
@@ -2810,10 +2956,11 @@ function ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iPlateau, iStartLan
             if bDebugMessages == true then LOG(sFunctionRef..': Path for goign the opposite direction='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZPathingToOtherLandZones][iOppositePosition][subrefLZPath])..'; path for going the normal direction='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLandZones][iPosition][subrefLZPath])..'; iPosition='..iPosition..'; iOppositePosition='..iOppositePosition) end
 
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Finsihed recording for iPlateau='..iPlateau..'; iStartLandZone='..iStartLandZone..'; subrefLZPathingToOtherLandZones='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLandZones])..'; will now do repru of the target land zone pathing to other land zones='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZPathingToOtherLandZones])) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finsihed recording for iPlateau='..iPlateau..'; iStartLandZone='..iStartLandZone..'; subrefLZPathingToOtherLandZones='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLandZones])..'; will now do repru of the target land zone pathing to other land zones='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZPathingToOtherLandZones])..'; bWillUpdateLZEntryRefLater='..tostring(bWillUpdateLZEntryRefLater or false)) end
         if not(bWillUpdateLZEntryRefLater) then
             UpdateLZPathingEntryReferences(iPlateau, iStartLandZone)
             UpdateLZPathingEntryReferences(iPlateau, iTargetLandZone)
+            if bDebugMessages == true then LOG(sFunctionRef..': Have just finished updating pathing entry refs, iStartLandZone='..iStartLandZone..'; iTargetLandZone='..iTargetLandZone..'; subrefLZPathingToOtherLandZones for start='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLZEntryRef])..'; Same for target='..repru(repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZPathingToOtherLZEntryRef]))..'; repru of pathing to other zones for start zone='..repru(repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZPathingToOtherLandZones]))) end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -2841,6 +2988,11 @@ local function RecordMaxAdjacencyTravelDistance()
 end
 
 function UpdateLZPathingEntryReferences(iPlateau, iLandZone)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'UpdateLZPathingEntryReferences'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
     local tLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
     if M28Utilities.IsTableEmpty(tLZData[subrefLZPathingToOtherLandZones]) == false then
         local iCurCount = 0
@@ -2849,6 +3001,8 @@ function UpdateLZPathingEntryReferences(iPlateau, iLandZone)
             tLZData[subrefLZPathingToOtherLZEntryRef][tPathData[subrefLZNumber]] = iCurCount
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code for iPlateau '..iPlateau..'; iLandZone '..iLandZone..'; Is table of pathing to other land zones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[subrefLZPathingToOtherLandZones]))..'; Pathing entry ref repru='..repru(tLZData[subrefLZPathingToOtherLZEntryRef])..'; repru of pathing to other zones='..repru(tLZData[subrefLZPathingToOtherLandZones])) end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 local function RecordPathingBetweenZones()
@@ -2872,6 +3026,7 @@ local function RecordPathingBetweenZones()
         --Now record the entry refs
         local iCurCount
         for iCurLandZone, tLandZoneInfo in tPlateauSubtable[subrefPlateauLandZones] do
+            if bDebugMessages == true then LOG(sFunctionRef..': About to update LZ pathing entry references for iCurLandZone='..iCurLandZone..'; in iCurPlateau='..iCurPlateau) end
             UpdateLZPathingEntryReferences(iCurPlateau, iCurLandZone)
         end
     end
@@ -2986,10 +3141,12 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
         end
         return false
     end
+
     for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains] do
         if bDebugMessages == true then LOG(sFunctionRef..': Cycling through friedly active brains in iTeam='..iTeam..'; oBrain.Nickname='..(oBrain.Nickname or 'nil')..' with start position '..repru(PlayerStartPoints[oBrain:GetArmyIndex()])..'; bIsCampaignMap='..tostring(bIsCampaignMap)..'; Land result for brain start='..(NavUtils.GetTerrainLabel(refPathingTypeLand, PlayerStartPoints[oBrain:GetArmyIndex()]) or 'nil')..'; Brain type='..(oBrain.BrainType or 'nil')..'; Playable area='..repru(rMapPlayableArea)) end
-        --Campaign specific - check this is on a valid land zone
-        if not(bIsCampaignMap) or not(oBrain.BrainType == "AI") or oBrain.M28AI or ((NavUtils.GetTerrainLabel(refPathingTypeLand, PlayerStartPoints[oBrain:GetArmyIndex()]) or 0) > 0 and IsInPlayableArea(PlayerStartPoints[oBrain:GetArmyIndex()])) then
+        --Campaign specific - ignore any start positions other than M28 (prevoiusly would allow any on valid land zones, but led to too many issues due to poor placement of these in some campaign maps)
+        --Old logic: if not(bIsCampaignMap) or not(oBrain.BrainType == "AI") or oBrain.M28AI or ((NavUtils.GetTerrainLabel(refPathingTypeLand, PlayerStartPoints[oBrain:GetArmyIndex()]) or 0) > 0 and IsInPlayableArea(PlayerStartPoints[oBrain:GetArmyIndex()])) then
+        if not(bIsCampaignMap) or oBrain.M28AI then
             tAllyBases[oBrain:GetArmyIndex()] = PlayerStartPoints[oBrain:GetArmyIndex()]
             tBrainsByIndex[oBrain:GetArmyIndex()] = oBrain
         end
@@ -3498,7 +3655,7 @@ local function SetupLandZones()
 
     RecordLandZoneMidpointAndUnbuiltMexes()
     if bDebugMessages == true then LOG(sFunctionRef..': Finished recording land zone midpoint and unbuilt mexes system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
-    RecordHydroInLandZones()
+    RecordAllHydroInLandZones()
     ReorderLandZoneSegmentsForEachPlateau()
     RecordAdjacentLandZones()
     RecordMassStorageLocationsForEachLandZone()
@@ -3539,17 +3696,17 @@ function RecordIslands()
         if bDebugMessages == true then LOG(sFunctionRef..': iTotalLandZoneCount='..iTotalLandZoneCount..'; bUseDistanceForNearestIslandLZ='..tostring(bUseDistanceForNearestIslandLZ)) end
     end
 
-    --First record every island where there are mexes in the plateau
+    --First record every island where there are mexes in the plateau or the location is relatively large
     for iPlateau, tPlateauSubtable in tAllPlateaus do
         if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; About to record any islands for plateau '..iPlateau..'; if it has mexes, tPlateauSubtable[subrefPlateauTotalMexCount]='..tPlateauSubtable[subrefPlateauTotalMexCount]) end
-        if tPlateauSubtable[subrefPlateauTotalMexCount] > 0 then
+        if tPlateauSubtable[subrefPlateauTotalMexCount] > 0 or tPlateauSubtable[subrefPlateauMaxRadius] >= 50 then
             tPlateauSubtable[subrefPlateauIslandLandZones] = {}
             tPlateauSubtable[subrefPlateauIslandMexCount] = { }
             local tLandZonesWithoutIslands = {}
             for iLandZone, tLZData in tPlateauSubtable[subrefPlateauLandZones] do
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering iLandZone='..iLandZone..'; in Plateau '..iPlateau..'; Amphibious label='..(NavUtils.GetTerrainLabel(refPathingTypeLand, tLZData[subrefMidpoint]) or 'nil')) end
                 tLZData[subrefLZIslandRef] = NavUtils.GetTerrainLabel(refPathingTypeLand, tLZData[subrefMidpoint])
-                if tLZData[subrefLZIslandRef] > 0 then
+                if (tLZData[subrefLZIslandRef] or -1) > 0 then
                     if not(tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]]) then tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]] = {} end
                     table.insert(tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]], iLandZone)
                     tPlateauSubtable[subrefPlateauIslandMexCount][tLZData[subrefLZIslandRef]] = (tPlateauSubtable[subrefPlateauIslandMexCount][tLZData[subrefLZIslandRef]] or 0) + tLZData[subrefLZMexCount]
@@ -6153,7 +6310,10 @@ function GetTravelDistanceBetweenLandZones(iPlateau, iStartLZ, iEndLZ)
     local sFunctionRef = 'GetTravelDistanceBetweenLandZones'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
     local tStartLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLZ]
+
+
     if not(tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ]) then
         if not(tStartLZData[subrefLZTravelDistToOtherLandZones]) then tStartLZData[subrefLZTravelDistToOtherLandZones] = {} end
         if not(tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau]) then tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau] = {} end

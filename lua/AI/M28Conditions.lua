@@ -861,7 +861,9 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
                         elseif iAverageCurAirAndLandFactories >= 4 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] > 0 and M28Map.iMapSize > 256 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] < 8000 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.75 then
                             --Dont want more factories
                             if bDebugMessages == true then LOG(sFunctionRef..': Cap on number of factories for larger maps') end
-
+                        elseif iAverageCurAirAndLandFactories < 2 and iAverageCurAirAndLandFactories * 0.8 < M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 200 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': We have equiv of 3 mexes per player or 200 mass stored so want at least 2 factories') end
+                            bWantMoreFactories = true
                             --If we dont have at least 25% mass stored, do we have an enemy in the same plateau as us who is within 300 land travel distance?
                         elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] < 0.25 or (iAverageCurAirAndLandFactories == 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] < 0.4 and GetGameTimeSeconds() <= 300) then
                             local iStartPlateau, iStartLandZone
@@ -874,7 +876,9 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
                                     end
                                 end
                             end
+
                         else
+                            if bDebugMessages == true then LOG(sFunctionRef..': Want more factories general') end
                             bWantMoreFactories = true
                         end
                     end
@@ -1132,6 +1136,10 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                                         end
                                     end
                                 end
+                            end
+                            if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1 then
+                                iLandFactoriesWantedBeforeAir = iLandFactoriesWantedBeforeAir + 1
+                                iAirFactoriesForEveryLandFactory = iAirFactoriesForEveryLandFactory * 0.8
                             end
                             if iLandFactoriesHave >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 1 and M28Map.bIsCampaignMap then
                                 iAirFactoriesForEveryLandFactory = math.max(iAirFactoriesForEveryLandFactory, 1)
@@ -1531,4 +1539,37 @@ function GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, iCateg
     end
     return iCount
 
+end
+
+function IsNearbyStructureThatWeCanReachWithIndirect(tLZData, tLZTeamData, iTeam)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'IsNearbyStructureThatWeCanReachWithIndirect'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local bWantIndirectReinforcements = false
+
+    local iAngleToMidpoint = M28Utilities.GetAngleFromAToB(tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere]:GetPosition(), tLZData[M28Map.subrefMidpoint])
+    local iDistToMidpoint = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere]:GetPosition(), tLZData[M28Map.subrefMidpoint])
+    local tMoveTowardsMidpoint = M28Utilities.MoveInDirection(tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere]:GetPosition(), iAngleToMidpoint, math.min(70, iDistToMidpoint), false, false, false)
+    local iCurLZIslandRef = tLZData[M28Map.subrefLZIslandRef]
+    if not(iCurLZIslandRef) then
+        iCurLZIslandRef = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint]) --We dont record island refs for all plateaus hence the redundancy
+        if iCurLZIslandRef then tLZData[M28Map.subrefLZIslandRef] = iCurLZIslandRef end
+    end
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Nearest structure='..tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere].UnitId..M28UnitInfo.GetUnitLifetimeCount(tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere])..' at position '..repru(tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere]:GetPosition())..'; This LZ midpoint='..repru(tLZData[M28Map.subrefMidpoint])..'; iAngleToMidpoint='..iAngleToMidpoint..'; iDistToMidpoint='..iDistToMidpoint..'; tMoveTowardsMidpoint='..repru(tMoveTowardsMidpoint)..'; Island pathing of tMoveTowardsMidpoint='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tMoveTowardsMidpoint) or -1)..'; Island ref of LZ='..(tLZData[M28Map.subrefLZIslandRef] or 'nil')..'; iCurLZIslandRef='..(iCurLZIslandRef or 'nil')) end
+    if (NavUtils.GetLabel(M28Map.refPathingTypeLand, tMoveTowardsMidpoint) or -1) == iCurLZIslandRef then
+        --Can we build T3 mobile arti?
+        if not(M28Map.bIsCampaignMap or M28Overseer.bUnitRestrictionsArePresent) then
+            bWantIndirectReinforcements = true
+        else
+            local oFirstM28Brain = M28Team.GetFirstActiveM28Brain(iTeam)
+            if oFirstM28Brain:GetCurrentUnits(M28UnitInfo.refCategoryIndirect * categories.TECH3) > 0 then
+                bWantIndirectReinforcements = true
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': bWantIndirectReinforcements after checking for nearby structure='..tostring(bWantIndirectReinforcements)) end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return bWantIndirectReinforcements
 end

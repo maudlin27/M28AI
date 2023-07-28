@@ -1617,8 +1617,8 @@ function ConsiderPriorityLandFactoryUpgrades(iM28Team)
                 bWantUpgrade = not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryLandHQ))
 
                 if bWantUpgrade and (iExistingBrainsWithHQUpgrades < tTeamData[iM28Team][subrefiActiveM28BrainCount] * 0.5 or tTeamData[iM28Team][subrefiTeamMassStored] >= 450 * tTeamData[iM28Team][subrefiActiveM28BrainCount]) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will try and upgrade a factory HQ') end
-                    M28Economy.FindAndUpgradeUnitOfCategory(oBrain, M28UnitInfo.refCategoryLandHQ * M28UnitInfo.ConvertTechLevelToCategory(oBrain[M28Economy.refiOurHighestLandFactoryTech]))
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will try and upgrade a land factory HQ subject to how many units the factory has built') end
+                    M28Economy.FindAndUpgradeUnitOfCategory(oBrain, M28UnitInfo.refCategoryLandHQ * M28UnitInfo.ConvertTechLevelToCategory(oBrain[M28Economy.refiOurHighestLandFactoryTech]), 7)
                 elseif not(bWantUpgrade) then
                     iExistingBrainsWithHQUpgrades = iExistingBrainsWithHQUpgrades + 1
                 end
