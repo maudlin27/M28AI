@@ -1215,7 +1215,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
 
                 if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have searched all segments in the land zone before, tLocation='..repru(tTargetLocation)..'; sBlueprintToBuild='..sBlueprintToBuild..'; iSize='..iSize..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize]='..repru(tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize])..'; Segments considered for build locations='..repru(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize])..'; Total segments in LZ (nil if wZ)='..(tLZOrWZData[M28Map.subrefLZTotalSegmentCount] or 'nil')..'; Is table of build locations empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize]))) end
                 local iCycleSizeLimit
-                if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield * categories.TECH3, sBlueprintToBuild) and (M28Map.bIsCampaignMap or not(M28Map.refbCloseToUnitCap)) then iCycleSizeLimit = 4 end
+                if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield * categories.TECH3, sBlueprintToBuild) and (M28Map.bIsCampaignMap or not(M28Overseer.refbCloseToUnitCap)) then iCycleSizeLimit = 4 end
                 --GetPotentialBuildLocationsNearLocation(aiBrain, tLZOrWZData, iPlateauOrZero, iLandOrWaterZone, iSize, iOptionalMaxCycleSize)
                 tPotentialBuildLocations = GetPotentialBuildLocationsNearLocation(aiBrain, tLZOrWZData, iPlateauOrZero, iLandOrWaterZone, iSize, iCycleSizeLimit)
                 if M28Utilities.IsTableEmpty(tPotentialBuildLocations) then
@@ -4121,9 +4121,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     local sFunctionRef = 'ConsiderActionToAssign'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iActionToAssign == refActionSpecialShieldDefence then bDebugMessages = true
-    elseif iActionToAssign == refActionRepairUnit and iTotalBuildPowerWanted >= 1000 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 6000 then bDebugMessages = true
-    end
+
 
     --Dont try getting any mroe BP for htis action if have run out of buildable locations
     local iExpectedBuildingSize = tiLastBuildingSizeFromActionForTeam[iTeam][iActionToAssign]
@@ -5562,7 +5560,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     --Protect game-ender or similar high avlue target (very high priority on assumption if we have built such a unit we shouldnt have to worry about lack of resources for this
     iCurPriority = iCurPriority + 1
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection]) == false then
-        bDebugMessages = true
         if bDebugMessages == true then LOG(sFunctionRef..': Want to assign units to active shield protection, will list out each unit for this zone that wants active protection')
             for iUnit, oUnit in tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection] do
                 LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Mass cost='..oUnit:GetBlueprint().Economy.BuildCostMass)
@@ -5580,7 +5577,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         --Only use T3 engineers (even if we already have t3 engineers assigned) as want to make sure we can quickly get good concentrated build power
         --function HaveActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting, iOptionalSpecificFactionWanted, bDontUseLowerTechEngineersToAssist)
         HaveActionToAssign(refActionSpecialShieldDefence, 3, iBPWanted,         nil,                nil,                    nil,                        nil,                            true)
-        bDebugMessages = false
     end
 
     --Start of game - if low power and dont ahve 12 gross energy yet, then ahve 1 engi on tree reclaim duty
@@ -6986,7 +6982,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --Spare engi - assist under construction building if we dont have low mass or energy
     iCurPriority = iCurPriority + 1
-    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 6000 then bDebugMessages = true end
     if bDebugMessages == true then LOG(sFunctionRef..': Spare engineer action, iHighestTechEngiAvaialble='..iHighestTechEngiAvailable..'; Have low mass='..tostring(bHaveLowMass)..'; Mass stored on team='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored]..'; Have low power='..tostring(bHaveLowPower)) end
     if iHighestTechEngiAvailable > 0 and (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 5000) and not(bHaveLowPower) then
         --Dont assist part complete shields due to risk we are using for active shielding
@@ -8532,7 +8527,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     if iHighestTechEngiAvailable > 0 then
         iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
         if iHighestTechEngiAvailable > 0 then
-            local tBuildingsInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, M28UnitInfo.subrefWZTAlliedUnits)
+            local tBuildingsInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tWZTeamData[M28Map.subrefWZTAlliedUnits])
             if M28Utilities.IsTableEmpty(tBuildingsInZone) == false then
                 for iUnit, oUnit in tBuildingsInZone do
                     if oUnit:GetFractionComplete() < 1 then
