@@ -1572,7 +1572,6 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
             if bDebugMessages == true then  LOG('Have a capture mission, is target empty='..tostring(M28Utilities.IsTableEmpty(Target))) end
             --Record every unit to be captured
             if M28Utilities.IsTableEmpty(Target.Units) == false then
-                local iPlateauOrZero, iLandOrWaterZone
                 for iEntry, oUnit in Target.Units do
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering iEntry='..iEntry..' in Target; Is valid unit='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
                     if M28UnitInfo.IsUnitValid(oUnit) then
@@ -1580,16 +1579,30 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                         if bDebugMessages == true then LOG(sFunctionRef..': WIll record unit as capture target assuming it is in a land zone') end
                     end
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': size of target units='..table.getn(Target.Units)) end
+                --If only have 1 unit (i.e. is a key location) then flag to fortify
+                if table.getn(Target.Units) == 1 then
+                    local oFirstM28Brain
+                    for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
+                        oFirstM28Brain = oBrain
+                        break
+                    end
+                    local iTeam = oFirstM28Brain.M28Team
+
+                    local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(Target.Units[1]:GetPosition(), true, iTeam)
+                    tUnitLZTeamData[M28Map.subrefLZFortify] = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': flagged to fortify zone') end
+                end
             end
         elseif M28Utilities.IsTableEmpty(Target.Units) == false then
             local bOnlyHaveAllies = true
             local bHaveLowHealthAlly = true
             local oFirstM28Brain
-            local iTeam = oFirstM28Brain.M28Team
             for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
                 oFirstM28Brain = oBrain
                 break
             end
+            local iTeam = oFirstM28Brain.M28Team
             local tUnitsToRepair = {}
             for iUnit, oUnit in Target.Units do
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit)))
@@ -1681,6 +1694,19 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                             end
                         end
                     end
+                end
+                --If only have 1 unit (i.e. is a key location) then flag to fortify
+                if table.getn(Target.Units) == 1 then
+                    local oFirstM28Brain
+                    for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
+                        oFirstM28Brain = oBrain
+                        break
+                    end
+                    local iTeam = oFirstM28Brain.M28Team
+
+                    local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(Target.Units[1]:GetPosition(), true, iTeam)
+                    tUnitLZTeamData[M28Map.subrefLZFortify] = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': flagged to fortify zone for repair target') end
                 end
             elseif bOnlyHaveAllies then
                 for iUnit, oUnit in Target.Units do

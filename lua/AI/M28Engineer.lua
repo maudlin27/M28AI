@@ -7347,6 +7347,46 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         HaveActionToAssign(refActionSpecialShieldDefence, 3, iBPWanted,         nil,                nil,                    nil,                        nil,                            true)
     end
 
+    --Fortify zone (if flagged to fortify)
+    iCurPriority = iCurPriority + 1
+    if tLZTeamData[M28Map.subrefLZFortify] and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 2 then
+        local bHaveSufficientTech = false
+        local tT2PlusFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory - categories.TECH1, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+        if M28Utilities.IsTableEmpty(tT2PlusFactories) == false then
+            for iUnit, oUnit in tT2PlusFactories do
+                if oUnit:GetFractionComplete() >= 1 and oUnit:GetAIBrain().M28AI then
+                    bHaveSufficientTech = true
+                    break
+                end
+            end
+        end
+        if bHaveSufficientTech then
+            --If have capture targets then try and protect these, otherwise base destination on midpoint of the zone
+            local tPointForPDConstruction
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoUnitsToCapture]) == false then
+                for iUnit, oUnit in tLZTeamData[M28Map.subreftoUnitsToCapture] do
+                    if M28UnitInfo.IsUnitValid(oUnit) then
+                        tPointForPDConstruction = oUnit:GetPosition()
+                        break
+                    end
+                end
+            end
+            if not(tPointForPDConstruction) then
+                tPointForPDConstruction = M28Utilities.MoveInDirection(tLZData[M28Map.subrefMidpoint], M28Utilities.GetAngleFromAToB(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]), 40, true, false, M28Map.bIsCampaignMap)
+            end
+            local iCurPDThreat = GetPDThreatAboveRangeThresholdAlongPath(iPlateau, iLandZone, tLZData, tLZTeamData, iTeam, 40, tPointForPDConstruction)
+
+            if bDebugMessages == true then LOG(sFunctionRef..': Want PD for a zone that we want to fortify, iCurPDThreat='..(iCurPDThreat or 'nil')..'; Have sufficient tech='..tostring(bHaveSufficientTech)..'; tPointForPDConstruction='..repru(tPointForPDConstruction)..'; Midpoint of zone='..repru(tLZData[M28Map.subrefMidpoint])) end
+            if iCurPDThreat <= 2100 then
+                iBPWanted = 40
+                if not(bHaveLowMass) and not(bHaveLowPower) then iBPWanted = 80 end
+                local iPDTechLevelWanted = 2
+                HaveActionToAssign(refActionBuildEmergencyPD, iPDTechLevelWanted, iBPWanted, tPointForPDConstruction)
+                if bDebugMessages == true then LOG(sFunctionRef..': Will build emergency PD, iPDTechLevelWanted='..iPDTechLevelWanted..'; iBPWanted='..iBPWanted) end
+            end
+        end
+    end
+
     --Assign more BP to factories
     iCurPriority = iCurPriority + 1
     if iExistingLandFactory < iFactoriesWanted then

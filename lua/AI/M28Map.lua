@@ -187,6 +187,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZCoreExpansion = 'ZExp' --true if considered the main land zone for an expansion (e.g. on an island); nil if we havent considered yet if it is a core expansion, and false if we have considered and it isnt
             subrefbCoreBaseOverride = 'ZCreO' --true if we want to make this locatio na core zone even if it doesnt meet the normal criteria (e.g. to be used when we run out of places to build in our actual core LZ)
             subrefLZExpansionOverride = 'ZExpO' --true if want to make this location a core expansion even if doesnt meet normal criteria (e.g. if we use transport to drop somewhere on same island but far away, then building land facs there may be of use)
+            subrefLZFortify = 'ZFor' --True if we want to fortify this firebase, e.g. for scenarios like M2 UEF
             subrefAlliedACU = 'AACU' --table of ACU units for the land zone (so can factor into decisions on support and attack)
             subrefLZTAlliedUnits = 'Allies' --USE SAME REF AS FOR WATER ZONES - table of all allied units in the land zone, tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam][subrefLZTAlliedUnits]
             subrefLZTAlliedCombatUnits = 'AllComb' --table of allied units that are to be considered for combat orders

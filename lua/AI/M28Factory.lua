@@ -827,7 +827,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         end
     end
 
-    --T1 factory that has built loads of units - consider upgrading
+    --T1 factory that has built loads of units or is in a location for fortifying (with access to T2 tech already) - consider upgrading
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Checking if want to upgrade T1 factory to T2 due to having built lots of units, enemies in this zone empty='..tostring( M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]))..'; Tech level='..iFactoryTechLevel..'; M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]) empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]))..'; Lifetime count='..M28Conditions.GetFactoryLifetimeCount(oFactory, nil, true)) end
     if iFactoryTechLevel == 1 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) and not(M28Conditions.HaveLowPower(iTeam)) then
@@ -844,6 +844,8 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         if iLifetimeCountWanted < 15 and aiBrain[M28Economy.refiOurHighestLandFactoryTech] == 1 and tLZTeamData[M28Map.subrefTbWantBP] and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory) < 4 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) < 8 then
             iLifetimeCountWanted = math.min(15, iLifetimeCountWanted + 5)
         end
+        if tLZTeamData[M28Map.subrefLZFortify] and aiBrain[M28Economy.refiOurHighestLandFactoryTech] >= 2 then iLifetimeCountWanted = 2 end
+        if bDebugMessages == true then LOG(sFunctionRef..': iLifetimeCountWanted='..iLifetimeCountWanted..'; actual count='..M28Conditions.GetFactoryLifetimeCount(oFactory, nil, true)) end
         if M28Conditions.GetFactoryLifetimeCount(oFactory, nil, true) >= iLifetimeCountWanted then
 
             if ConsiderUpgrading() then  return sBPIDToBuild end
@@ -1029,7 +1031,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         end
         if iFactoryTechLevel == 2 and iFactoryTechLevel == M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryLandCombat - categories.TECH1) < math.min(3, aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer - categories.TECH1)) then
             if bDebugMessages == true then
-                LOG(sFunctionRef .. ': Cur skirmishers=' .. aiBrain:GetCurrentUnits(M28UnitInfo.refCategorySkirmisher * categories.TECH2) .. '; Cur DF tnaks=' .. ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat * categories.TECH2)..'; subrefbLZWantsIndirectSupport='..tostring(tLZTeamData[M28Map.subrefbLZWantsIndirectSupport] or false))
+                LOG(sFunctionRef .. ': Cur skirmishers=' .. aiBrain:GetCurrentUnits(M28UnitInfo.refCategorySkirmisher * categories.TECH2) .. '; Cur DF tnaks=' .. aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat * categories.TECH2)..'; subrefbLZWantsIndirectSupport='..tostring(tLZTeamData[M28Map.subrefbLZWantsIndirectSupport] or false))
             end
             if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and aiBrain:GetCurrentUnits(M28UnitInfo.refCategorySkirmisher * categories.TECH2) > math.max(2, aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat * categories.TECH2)) then
                 --Does enemy have structure threat in this or adjacent LZ? if so then prioritise MML instead unless we already have at least 5
