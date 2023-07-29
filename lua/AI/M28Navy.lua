@@ -1953,6 +1953,7 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
     local iClosestUnitDist = 100000
     local tClosestEnemyBase = tWZTeamData[M28Map.reftClosestEnemyBase]
     local tOurBase = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
+    local bConsiderGroundAttack = false
     for iUnit, oUnit in tPotentialBombardmentUnits do
         if not(oClosestFriendlyUnitToEnemyBase) then oClosestFriendlyUnitToEnemyBase = oUnit end --redundancy to make sure we always have a closest unit
         iOurBestIndirectRange = math.max(iOurBestIndirectRange, (oUnit[M28UnitInfo.refiIndirectRange] or 0))
@@ -2117,6 +2118,7 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
             end
             if oClosestEnemyUnit then
                 tBombardmentMainTarget = oClosestEnemyUnit:GetPosition()
+                bConsiderGroundAttack = true
             else --Dont have a valid closest enemy unit and are outside playable area
                 --Adjust to the nearest location on map to the bombardment target
 
@@ -2351,9 +2353,25 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
                         if not (oBuildingToAttack) or (bBlockedSoMove and tBlockedShotActualMoveLocation) then
                             --ToDo - figure out solution to both cliff temporarily blocking (where if we dont attack-move we are ok)
                             --ToDo - and the converse where we are ok but if we move towards the target a cliff ends up blocking us until we move further away
+                            local oOptionalBombardLinkedTarget
                             if bBlockedSoMove and tBlockedShotActualMoveLocation then
                                 M28Orders.IssueTrackedMove(oUnit, tBlockedShotActualMoveLocation, 4, false, 'NBlckM', false)
                             else
+                                if bConsiderGroundAttack then
+                                    --Change back to false if no units at the target
+                                    bConsiderGroundAttack = false
+                                    local tRect = M28Utilities.GetRectAroundLocation(tBombardmentMainTarget, 1)
+                                    local tUnitsInRect = GetUnitsInRect(tRect)
+                                    if M28Utilities.IsTableEmpty(tUnitsInRect) == false then
+                                        for iUnit, oUnit in tUnitsInRect do
+                                            if not(oUnit:GetAIBrain().M28Team == iTeam) and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) and not(M28UnitInfo.CanSeeUnit(aiBrain, oUnit, true)) then
+                                                oOptionalBombardLinkedTarget = oUnit
+                                                bConsiderGroundAttack = true
+                                                break
+                                            end
+                                        end
+                                    end
+                                end
                                 bEnemyUnitsNearlyInRange = false
                                 if ((oUnit[M28UnitInfo.refbLastShotBlocked] and (GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or -100)) >= 10 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastCheck] or -100) < 6) or (bIgnoreLowThreats and EntityCategoryContains(categories.TECH3 + M28UnitInfo.refCategoryMissileShip, oUnit.UnitId))) and M28Utilities.GetDistanceBetweenPositions(tBombardmentMainTarget, oUnit:GetPosition()) > math.max((oUnit[M28UnitInfo.refiDFRange] or 0), (oUnit[M28UnitInfo.refiIndirectRange] or 0)) then
                                     --Check if enemy has non-air units near us that could hit us or if we can do an issuemove instead of attackmove to get within range of the desired location
@@ -2372,7 +2390,11 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
                                 if (bIgnoreLowThreats or (oUnit[M28UnitInfo.refbLastShotBlocked] and (GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or -100)) >= 10 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastCheck] or -100) < 6)) and (not(bEnemyUnitsNearlyInRange) or M28UnitInfo.GetUnitHealthPercent(oUnit) >= 0.75) then
                                     M28Orders.IssueTrackedMove(oUnit, tBombardmentMainTarget, 10, false, 'MBombard', false)
                                 else
-                                    M28Orders.IssueTrackedAggressiveMove(oUnit, tBombardmentMainTarget, 10, false, 'ABombard', false)
+                                    if bConsiderGroundAttack and ((oUnit[M28UnitInfo.refiDFAOE] or 0) > 0 or (oUnit[M28UnitInfo.refiIndirectAOE] or 0) > 0) then
+                                        M28Orders.IssueTrackedGroundAttack(oUnit, tBombardmentMainTarget, 1.5, false, 'AGBombrd', false, oOptionalBombardLinkedTarget)
+                                    else
+                                        M28Orders.IssueTrackedAggressiveMove(oUnit, tBombardmentMainTarget, 10, false, 'ABombard', false)
+                                    end
                                 end
                             end
                         else
@@ -2403,7 +2425,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
     local sFunctionRef = 'ManageCombatUnitsInWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iWaterZone == 20 then bDebugMessages = true end
+
 
     local tUnassignedLandUnits
     if bDebugMessages == true then LOG(sFunctionRef..': start of code for time '..GetGameTimeSeconds()..', iTeam='..iTeam..'; iPond='..iPond..'; iWaterZone='..iWaterZone..'; Is table of available combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))..'; Is table of available subs empty='..tostring(M28Utilities.IsTableEmpty(tAvailableSubmarines))..'; Are there enemy units in this or adjacent WZ='..tostring(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])) end

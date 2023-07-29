@@ -990,6 +990,7 @@ function AddUnitToBigThreatTable(iTeam, oUnit)
                 if not(bAlreadyInTable) then
 
                     if bDebugMessages == true then LOG(sFunctionRef..': About to add unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to reference table. Is table empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iTeam][sReferenceTable]))..'; Unit fraction complete='..oUnit:GetFractionComplete()..'; T3 resource generation units held by owner='..oUnit:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryT3Mex + M28UnitInfo.refCategoryRASSACU + M28UnitInfo.refCategoryParagon)) end
+                    if not(tTeamData[iTeam][sReferenceTable]) then tTeamData[iTeam][sReferenceTable] = {} end
                     table.insert(tTeamData[iTeam][sReferenceTable], oUnit)
                     if not(oUnit[M28UnitInfo.reftbInArmyIndexBigThreatTable]) then oUnit[M28UnitInfo.reftbInArmyIndexBigThreatTable] = {} end
                     oUnit[M28UnitInfo.reftbInArmyIndexBigThreatTable][iTeam] = true
@@ -1119,6 +1120,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                             --Track enemy big threats
                             if bDebugMessages == true then LOG(sFunctionRef..': Is unit a big threat category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryBigThreatCategories, oUnit.UnitId))) end
                             if EntityCategoryContains(M28UnitInfo.refCategoryBigThreatCategories, oUnit.UnitId) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will try and add unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to big threat table, aiBrain='..(aiBrain.Nickname or 'nil')..' team='..(aiBrain.M28Team or 'nil')) end
                                 AddUnitToBigThreatTable(aiBrain.M28Team, oUnit)
                             end
 

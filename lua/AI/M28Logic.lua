@@ -451,9 +451,10 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
     end
     if bDebugMessages == true then LOG(sFunctionRef..': Near start, Time='..GetGameTimeSeconds()..'; bCheckForShields='..tostring(bCheckForShields)..'; tBaseLocation='..repru(tBaseLocation)..'; iAOE='..iAOE..'; iDamage='..iDamage..'; bCumulativeShieldHealthCheck='..tostring(bCumulativeShieldHealthCheck or false)..'; iOptionalSizeAdjust='..(iOptionalSizeAdjust or 'nil')..'; iOptionalModIfNeedMultipleShots='..(iOptionalModIfNeedMultipleShots or 'nil')..'; iMobileValueOverrideFactorWithin75Percent='..(iMobileValueOverrideFactorWithin75Percent or 'nil')..'; bT3ArtiShotReduction='..tostring(bT3ArtiShotReduction or false)..'; iOptionalShieldReductionFactor='..(iOptionalShieldReductionFactor or 'nil')) end
     local tEnemiesInRange = aiBrain:GetUnitsAroundPoint(iCategoryToSearch, tBaseLocation, iAOE + 4, 'Enemy')
+    local tLZOrWZData
     --Expand enemies in range with any unseen enemies (e.g. these will be enemies that are firing at us or we have intel of previously but have now lost)
-    if bIncludePreviouslySeenEnemies then
-        local tLZOrWZData
+    if bIncludePreviouslySeenEnemies or M28Map.bIsCampaignMap then
+
         local tLZOrWZTeamData
         local iPlateauOrZero, iLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tBaseLocation)
 
@@ -466,8 +467,8 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
                 tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][aiBrain.M28Team]
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering unseen enemies, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLZOrWZ='..(iLZOrWZ or 'nil')..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]))) end
-        if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering unseen enemies, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLZOrWZ='..(iLZOrWZ or 'nil')..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]))..'; is table of capture units empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToCapture]))..'; Is tLZOrWZTeamData empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData))) end
+        if bIncludePreviouslySeenEnemies and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false then
             for iUnit, oUnit in tLZOrWZTeamData[M28Map.subrefTEnemyUnits] do
                 if bDebugMessages == true then
                     if M28UnitInfo.IsUnitValid(oUnit) then
@@ -581,7 +582,7 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
             end
         end
         -- not(aiBrain[M27Overseer.refiActiveEnemyBrains] > 1 and ScenarioInfo.Options.Share == 'FullShare')
-
+        local bCheckForCaptureTarget = M28Map.bIsCampaignMap
         for iUnit, oUnit in tEnemiesInRange do
             if bDebugMessages == true then
                 if M28UnitInfo.IsUnitValid(oUnit) then
@@ -594,6 +595,16 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
                 --Is the unit within range of the aoe?
                 iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBaseLocation)
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Distance to base location='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBaseLocation)..'; iAOE='..iAOE) end
+                --Special logic for campaign
+                if bCheckForCaptureTarget and oUnit[M28UnitInfo.refbIsCaptureTarget] and oUnit.CanTakeDamage then
+                    if iCurDist <= iAOE + 3 then
+                        iTotalDamage = iTotalDamage - 10000
+                        if oUnit.UnitId == 'uec1902' then iTotalDamage = iTotalDamage - 50000 end --Black sun control centre
+                    else
+                        if oUnit.UnitId == 'uec1902' then iTotalDamage = iTotalDamage - 10000 end --Black sun control centre
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': oUnit is a capture target='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; reducing damage from bomb, iCurDist='..iCurDist..'; Damage after reduction (but may still have other units)='..iTotalDamage) end
+                end
                 if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBaseLocation) <= iAOE then
                     --Is the unit shielded by more than 90% of our damage?
                     --IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisHealth, bReturnShieldHealthInstead, bIgnoreMobileShields, bTreatPartCompleteAsComplete, bCumulativeShieldHealth)
@@ -694,15 +705,30 @@ function GetDamageFromBomb(aiBrain, tBaseLocation, iAOE, iDamage, iFriendlyUnitD
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': Finished considering the unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iTotalDamage='..iTotalDamage..'; oCurBP.Economy.BuildCostMass='..oCurBP.Economy.BuildCostMass..'; oUnit:GetFractionComplete()='..oUnit:GetFractionComplete()..'; iMassFactor after considering if unit is mobile='..iMassFactor..'; distance between unit and target='..M28Utilities.GetDistanceBetweenPositions(tBaseLocation, oUnit:GetPosition())) end
                     end
-                    end
                 end
+
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Finished going through units in the aoe, iTotalDamage in mass='..iTotalDamage..'; tBaseLocation='..repru(tBaseLocation)..'; iAOE='..iAOE..'; iDamage='..iDamage) end
-
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        return iTotalDamage
+        if bCheckForCaptureTarget and M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToCapture]) == false then
+            if bDebugMessages == true then LOG(sFunctionRef..': Have capture targets for this zone') end
+            for iCaptureTarget, oCaptureTarget in tLZOrWZData[M28Map.subreftoUnitsToCapture] do
+                iCurDist = M28Utilities.GetDistanceBetweenPositions(oCaptureTarget:GetPosition(), tBaseLocation)
+                if M28UnitInfo.IsUnitValid(oCaptureTarget) and iCurDist <= iAOE + 3 then
+                    iTotalDamage = iTotalDamage - 10000
+                    if oCaptureTarget.UnitId == 'uec1902' then iTotalDamage = iTotalDamage - 60000 end --Black sun control centre
+                elseif iCurDist <= iAOE + 45 then
+                    iTotalDamage = iTotalDamage - 5000
+                    if oCaptureTarget.UnitId == 'uec1902' then iTotalDamage = iTotalDamage - 30000 end --Black sun control centre
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': oCaptureTarget='..(oCaptureTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oCaptureTarget) or 'nil')..'; damage after update='..iTotalDamage) end
+            end
+        end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished going through units in the aoe, iTotalDamage in mass='..iTotalDamage..'; tBaseLocation='..repru(tBaseLocation)..'; iAOE='..iAOE..'; iDamage='..iDamage) end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return iTotalDamage
+end
 
 function GetBestAOETarget(aiBrain, tBaseLocation, iAOE, iDamage, bOptionalCheckForSMD, tSMLLocationForSMDCheck, iOptionalTimeSMDNeedsToHaveBeenBuiltFor, iSMDRangeAdjust, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, iOptionalMaxDistanceCheckOptions, iMobileValueOverrideFactorWithin75Percent, iOptionalShieldReductionFactor)
     --Calcualtes the most damaging location for an aoe target; also returns the damage dealt

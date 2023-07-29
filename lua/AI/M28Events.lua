@@ -663,7 +663,7 @@ function OnWeaponFired(oWeapon)
                         local oTarget = oWeapon:GetCurrentTarget()
                         if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has just fired a shot. Do we have a valid target for our weapon='..tostring(M28UnitInfo.IsUnitValid(oTarget))..'; time last shot was blocked='..(oUnit[M28UnitInfo.refiTimeOfLastCheck] or 'nil')) end
                         if M28UnitInfo.IsUnitValid(oTarget) then
-                            if not(oUnit[M28UnitInfo.refbLastShotBlocked]) then oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] = math.max(oUnit[M28UnitInfo.refiTimeOfLastCheck], (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or 0)) end
+                            if not(oUnit[M28UnitInfo.refbLastShotBlocked]) then oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] = math.max((oUnit[M28UnitInfo.refiTimeOfLastCheck] or -100), (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or -100)) end
                             oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds()
                             oUnit[M28UnitInfo.refbLastShotBlocked] = M28Logic.IsShotBlocked(oUnit, oTarget, EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId))
                             if bDebugMessages == true then LOG(sFunctionRef..': oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; Is shot blocked='..tostring(oUnit[M28UnitInfo.refbLastShotBlocked])..'; built in blocking terrain result for low profile='..tostring(oUnit:GetAIBrain():CheckBlockingTerrain(oUnit:GetPosition(), oTarget:GetPosition(), 'Low'))..'; High profile='..tostring(oUnit:GetAIBrain():CheckBlockingTerrain(oUnit:GetPosition(), oTarget:GetPosition(), 'High'))) end
@@ -1553,7 +1553,7 @@ end
 
 function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target, IsLoading, loadedTag)
     local sFunctionRef = 'ObjectiveAdded'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; if map setup not complete then will wait for it to be complete') end
     --Wait until map setup complete

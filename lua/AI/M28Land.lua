@@ -2112,7 +2112,7 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
                             --Is the shield still active?
                             iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit[M28Building.refoPriorityShieldProvidingCoverage], true)
                             if bDebugMessages == true then LOG(sFunctionRef..': iCurShield='..iCurShield) end
-                            if iCurShield > 0 or oUnit[M28Building.refoPriorityShieldProvidingCoverage]:GetFractionComplete() < 1 then
+                            if iCurShield > 0 or (oUnit[M28Building.refoPriorityShieldProvidingCoverage]:GetFractionComplete() < 1 and (not(oUnit[M28Engineer.refbDontIncludeAsPartCompleteBuildingForConstruction]) or oUnit[M28Building.refoPriorityShieldProvidingCoverage]:GetFractionComplete() <= 0.75)) then
                                 iClosestDist = iCurDist
                                 oShieldToAssist = oUnit[M28Building.refoPriorityShieldProvidingCoverage]
                             end

@@ -67,6 +67,7 @@ refiFailedShieldBuildDistance = 'M28EngFailedShieldBuildDist' --against a buildi
 refoUnitActivelyShielding = 'M28EngUntActShd' --against the engineer, gives the unit e.g. gameender it is providing special shielding services to
 refbActiveUnitShieldingThread = 'M28EngActivShld' --against the gameender/similar unit, true if it has a thread that isa ctively trying to use engineers to protect it
 reftEngineersActivelyShielding = 'M28EngActiveEngShd' --against the gameender/similar unit, contains table of all the engineers assigned toa ctively try and protect it
+refbDontIncludeAsPartCompleteBuildingForConstruction = 'M28EngActiveShdD' --True if shield is being used for active special shielding defence - i.e. will check for this flag to make sure a normal build shield action doenst assist it
 
 
 
@@ -2933,6 +2934,8 @@ function GetPartCompleteBuildingInZone(iTeam, iPlateauOrPond, iLandOrWaterZone, 
     local sFunctionRef = 'GetPartCompleteBuildingInZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     if bDebugMessages == true then
         local tBlueprints = EntityCategoryGetUnitList(iCategoryWanted)
         LOG(sFunctionRef..': Start of code at game time seconds='..GetGameTimeSeconds()..', will list out every blueprint of iCategoryWanted='..reprs(tBlueprints))
@@ -2950,8 +2953,8 @@ function GetPartCompleteBuildingInZone(iTeam, iPlateauOrPond, iLandOrWaterZone, 
         local tBuildingsOfCategory = EntityCategoryFilterDown(iCategoryWanted, tLZOrWZTeamData[sAlliedUnitRef])
         if M28Utilities.IsTableEmpty(tBuildingsOfCategory) == false then
             for iUnit, oUnit in tBuildingsOfCategory do
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fractino compelte='..oUnit:GetFractionComplete()) end
-                if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() < 1 and not(oUnit[M28Building.refoGameEnderBeingShielded]) and not(oUnit:IsUnitState('BeingUpgraded')) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fractino compelte='..oUnit:GetFractionComplete()..'; oUnit[refbDontIncludeAsPartCompleteBuildingForConstruction]='..tostring(oUnit[refbDontIncludeAsPartCompleteBuildingForConstruction] or false)) end
+                if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() < 1 and not(oUnit[M28Building.refoGameEnderBeingShielded]) and not(oUnit:IsUnitState('BeingUpgraded')) and not(oUnit[refbDontIncludeAsPartCompleteBuildingForConstruction]) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Found a part complete building '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; Fraction complete='..oUnit:GetFractionComplete()..', will return this') end
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     return oUnit
@@ -3835,6 +3838,43 @@ function ActiveShieldMonitor(oUnitToProtect, tLZTeamData, iTeam)
                     local tiEntriesToRemove = {}
                     for iShield, oShield in oUnitToProtect[M28Building.reftoSpecialAssignedShields] do
                         if M28UnitInfo.IsUnitValid(oShield) then
+                            if not(oShield[refbDontIncludeAsPartCompleteBuildingForConstruction]) then
+                                oShield[refbDontIncludeAsPartCompleteBuildingForConstruction] = true
+
+                                --Clear any assisting or building engineers who dont have the special shield action (to avoid a unit that is constructing a shield using this)
+                                local tGuardingEngineers = oShield:GetGuards()
+                                if bDebugMessages == true then LOG(sFunctionRef..': Is table of guarding engineers empty='..tostring(M28Utilities.IsTableEmpty(tGuardingEngineers))) end
+                                if M28Utilities.IsTableEmpty(tGuardingEngineers) == false then
+                                    for iGuard, oGuard in tGuardingEngineers do
+                                        if not(oGuard[refiAssignedAction] == refActionSpecialShieldDefence) then
+                                            M28Orders.IssueTrackedClearCommands(oGuard)
+                                        end
+                                    end
+                                end
+                                --Also check every engineer in this zone
+                                local tEngineersInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                                if M28Utilities.IsTableEmpty(tEngineersInZone) == false then
+                                    for iPotentialEngineer, oPotentialEngineer in tEngineersInZone do
+                                        if M28UnitInfo.IsUnitValid(oPotentialEngineer) then
+                                            if oPotentialEngineer[refiAssignedAction] == refActionBuildShield or oPotentialEngineer[refiAssignedAction] == refActionBuildSecondShield or oPotentialEngineer[refiAssignedAction] == refActionAssistShield then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': have engineer with action '..oPotentialEngineer[refiAssignedAction]..'; Engineer='..oPotentialEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oPotentialEngineer)..'; Focus unit='..(oPotentialEngineer:GetFocusUnit().UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oPotentialEngineer:GetFocusUnit()) or 'nil')) end
+                                                if oPotentialEngineer:GetFocusUnit()[refbDontIncludeAsPartCompleteBuildingForConstruction] or oPotentialEngineer:GetFocusUnit()[refiAssignedAction] == refActionSpecialShieldDefence then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Will clear engineer orders') end
+                                                    M28Orders.IssueTrackedClearCommands(oPotentialEngineer)
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                                --Check shield isnt on a priority list to assist
+                                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]) == false then
+                                    for iCurShieldEntry = table.getn(tLZTeamData[M28Map.reftPriorityShieldsToAssist]), 1, -1 do
+                                        if tLZTeamData[M28Map.reftPriorityShieldsToAssist][iCurShieldEntry][refbDontIncludeAsPartCompleteBuildingForConstruction] then
+                                            table.remove(tLZTeamData[M28Map.reftPriorityShieldsToAssist], iCurShieldEntry)
+                                        end
+                                    end
+                                end
+                            end
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering assigned shield oShield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; Fraction complete='..oShield:GetFractionComplete()) end
                             if oShield:GetFractionComplete() == 1 then
                                 iConstructedShields = iConstructedShields + 1
@@ -4385,7 +4425,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                         --Has a building been queued for this land zone even if we havent found an engineer to assist? (e.g. rare cases where engineer queues order then briefly drops out of the land zone list of engineers)
                         if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefQueuedBuildings]) == false and not(bShouldIgnoreUnderConstruction) and not(tbIgnoreEngineerAssistance[iActionToAssign]) then
                             for iEntry, tQueuedDetails in tLZOrWZTeamData[M28Map.subrefQueuedBuildings] do
-                                if EntityCategoryContains(iCategoryWanted, tQueuedDetails[M28Map.subrefBuildingID]) and M28UnitInfo.IsUnitValid(tQueuedDetails[M28Map.subrefPrimaryBuilder]) then
+                                if EntityCategoryContains(iCategoryWanted, tQueuedDetails[M28Map.subrefBuildingID]) and M28UnitInfo.IsUnitValid(tQueuedDetails[M28Map.subrefPrimaryBuilder]) and not(tQueuedDetails[M28Map.subrefPrimaryBuilder]:GetFocusUnit()[refbDontIncludeAsPartCompleteBuildingForConstruction]) and not(tQueuedDetails[M28Map.subrefPrimaryBuilder][refiAssignedAction] == refActionSpecialShieldDefence) then
                                     oEngineerToAssist = tQueuedDetails[M28Map.subrefPrimaryBuilder]
                                     break
                                 end
@@ -6795,7 +6835,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 table.remove(tLZData[M28Map.subreftoUnitsToCapture], iCurCount)
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Have units to capture for zone '..iLandZone..' after freshing them is table empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]))) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Have units to capture for zone '..iLandZone..'; after freshing them is table empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]))) end
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]) == false then
             local oUnitToCapture = M28Utilities.GetNearestUnit(tLZData[M28Map.subreftoUnitsToCapture], tLZData[M28Map.subrefMidpoint])
             if bDebugMessages == true then LOG(sFunctionRef..': Unit to cpature='..oUnitToCapture.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToCapture)) end
@@ -6952,8 +6992,8 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         local tBuildings = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tLZTeamData[M28Map.subrefLZTAlliedUnits])
         if M28Utilities.IsTableEmpty(tBuildings) == false then
             for iUnit, oUnit in tBuildings do
-                --Dont assist a part built shield as it may be for special shielding logic
-                if oUnit:GetFractionComplete() < 1 and not(EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oUnit.UnitId)) then
+                --Dont assist a part built shield being built for special shielding logic
+                if oUnit:GetFractionComplete() < 1 and not(oUnit[refbDontIncludeAsPartCompleteBuildingForConstruction]) then
                     HaveActionToAssign(refActionRepairUnit, 1, 5, oUnit)
                     break
                 end
@@ -7494,7 +7534,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 table.remove(tLZData[M28Map.subreftoUnitsToCapture], iCurCount)
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Have units to capture for zone '..iLandZone..' after freshing them is table empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]))) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Have units to capture for zone '..iLandZone..', after freshing them is table empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]))) end
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]) == false then
             local oUnitToCapture = M28Utilities.GetNearestUnit(tLZData[M28Map.subreftoUnitsToCapture], tLZData[M28Map.subrefMidpoint])
             if bDebugMessages == true then LOG(sFunctionRef..': Unit to cpature='..oUnitToCapture.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToCapture)) end
@@ -7974,7 +8014,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         if M28Utilities.IsTableEmpty(tBuildings) == false then
             for iUnit, oUnit in tBuildings do
                 --Dont assist part complete shields as may be for special shielding logic
-                if oUnit:GetFractionComplete() < 1 and not(EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oUnit.UnitId)) then
+                if oUnit:GetFractionComplete() < 1 and not(oUnit[refbDontIncludeAsPartCompleteBuildingForConstruction]) then
                     HaveActionToAssign(refActionRepairUnit, 1, 5, oUnit)
                     break
                 end
@@ -8530,6 +8570,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
                 table.remove(tWZData[M28Map.subreftoUnitsToCapture], iCurCount)
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finishedupdating if have units to capture for zone, after freshing them is table empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subreftoUnitsToCapture]))) end
         if M28Utilities.IsTableEmpty(tWZData[M28Map.subreftoUnitsToCapture]) == false then
             local oUnitToCapture = M28Utilities.GetNearestUnit(tWZData[M28Map.subreftoUnitsToCapture], tWZData[M28Map.subrefMidpoint])
             HaveActionToAssign(refActionCaptureUnit, 1, 25, oUnitToCapture)
@@ -9248,7 +9289,7 @@ end
 
 function RecordUnitAsCaptureTarget(oUnit, bOptionalOnlyRecordIfSameUnitIdInCaptureList)
     --bOptionalOnlyRecordIfSameUnitIdInCaptureList - true if we only want to record oUnit if a unit with the same .UnitId is in the zone as a capture target - i.e. intended where a unit is captured that can be captured back
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordUnitAsCaptureTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if M28Map.bIsCampaignMap and not(EntityCategoryContains(categories.MOBILE, oUnit.UnitId)) then
@@ -9292,7 +9333,7 @@ function RecordUnitAsCaptureTarget(oUnit, bOptionalOnlyRecordIfSameUnitIdInCaptu
             end
 
             --Record unit against zone as a capture target and flag so we dont try and reclaim it
-            if bDebugMessages == true then LOG(sFunctionRef..': bWantToCaptureUnit='..tostring(bWantToCaptureUnit)..'; oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')) end
+            if bDebugMessages == true then LOG(sFunctionRef..': bWantToCaptureUnit='..tostring(bWantToCaptureUnit)..'; oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')) end
             if bWantToCaptureUnit then
                 if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subreftoUnitsToCapture]) then tLZOrWZData[M28Map.subreftoUnitsToCapture] = {} end
                 table.insert(tLZOrWZData[M28Map.subreftoUnitsToCapture], oUnit)

@@ -503,7 +503,6 @@ function IssueTrackedGroundAttack(oUnit, tOrderPosition, iDistanceToReissueOrder
 end
 
 function IssueTrackedGuard(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
-
     UpdateRecordedOrders(oUnit)
     --Issue order if we arent already trying to attack them
     local tLastOrder

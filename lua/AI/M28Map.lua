@@ -173,7 +173,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         subrefLZIslandRef = 'Island' --the island ref of the land zone (can also get by using NavUtils.GetLabel(refPathingTypeHover) for the midpoint
 
         --Capture and repair (done on zone rather than team basis, since intended for civilian targets and/or objectives so want to consider for all M28 teams; same ref used for water zones
-        subreftoUnitsToCapture = 'UnitsToCap'
+        subreftoUnitsToCapture = 'UnitsToCap' --AGAINST ZONEData not TEAMZoneData
         subreftoUnitsToRepair = 'UnitsToRep'
         --Mission objective specific - disable targeting logic
         subrefbPacifistArea = 'PacAre' --true if this is a pacificst area
