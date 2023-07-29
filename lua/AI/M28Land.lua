@@ -2066,7 +2066,7 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
                 local oNearestCompleteShield
                 local iActiveShields = 0
                 local iCurShield, iMaxShield
-                for iShield, oShield in oGameEnder[M28Building.reftoSpecialAssignedShields] do
+                for iShield, oShield in oGameEnderToCover[M28Building.reftoSpecialAssignedShields] do
                     if oShield:GetFractionComplete() < 1 and oShield:GetFractionComplete() > iNearestCompleteShield then
                         iNearestCompleteShield = oShield:GetFractionComplete()
                         oNearestCompleteShield = oShield
