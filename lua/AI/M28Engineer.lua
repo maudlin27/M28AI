@@ -9223,10 +9223,44 @@ function GetMaxShieldSearchRangeForEngineer(oFirstEngineer, iCategoryWanted)
     return iMaxSearchRange
 end
 
-function ClearEngineersBuildingUnit(oEngineer, oJustBuilt)
+function ClearEngineersBuildingUnit(oEngineer, oJustBuilt, bClearEngineersBuildingAtSameLocation)
     --Note - oJustBuilt can also be a unit under construction (e.g. if we want to cancel construction and reclaim it)
     local iAction = oEngineer[refiAssignedAction]
-    if tiActionOrder[iAction] == M28Orders.refiOrderIssueBuild and not (tbIgnoreEngineerAssistance[iAction]) then
+
+    function ClearEngineerIfActionObseleteNow(oCurEngineer, bCalledViaRepairTracking)
+        local bClearEngineer = false
+        if M28UnitInfo.IsUnitValid(oCurEngineer) and not (oCurEngineer:IsUnitState('Reclaiming')) then
+            --Does it have the same action, or alternatitvely is it trying to build something at this location that will now be blocked?
+            local tLastOrder = oCurEngineer[M28Orders.reftiLastOrders][oCurEngineer[M28Orders.refiOrderCount]]
+            local iOrderDistToJustBuilt
+            if M28Utilities.IsTableEmpty(tLastOrder[M28Orders.subreftOrderPosition]) == false then iOrderDistToJustBuilt = M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subreftOrderPosition], oJustBuilt:GetPosition()) end
+            if iOrderDistToJustBuilt <= 1 or tLastOrder[M28Orders.subrefoOrderUnitTarget] == oJustBuilt then
+                bClearEngineer = true
+            elseif bCalledViaRepairTracking and oCurEngineer:GetFocusUnit() == oJustBuilt then
+                bClearEngineer = true
+                --Are we building something near here that is now blocked?
+            elseif iOrderDistToJustBuilt and iOrderDistToJustBuilt <= 10 and tLastOrder[M28Orders.subrefsOrderBlueprint] then
+                local oBlueprint = __blueprints[tLastOrder[M28Orders.subrefsOrderBlueprint]]
+                local iBuildingRadius = math.min(oBlueprint.Physics.SkirtSizeX, oBlueprint.Physics.SkirtSizeZ) * 0.5
+                if iOrderDistToJustBuilt < iBuildingRadius * 1.45 then --1.4142 should be enough, 1.45 used for prudence
+                    --do more precise check
+                    if math.abs(tLastOrder[M28Orders.subreftOrderPosition][1] - oJustBuilt:GetPosition()[1]) < iBuildingRadius and math.abs(tLastOrder[M28Orders.subreftOrderPosition][3] - oJustBuilt:GetPosition()[3]) < iBuildingRadius then
+                        bClearEngineer = true
+                    end
+                end
+
+            end
+            if bClearEngineer then M28Orders.IssueTrackedClearCommands(oCurEngineer) end
+        end
+    end
+
+    if (tiActionOrder[iAction] == M28Orders.refiOrderIssueBuild and not (tbIgnoreEngineerAssistance[iAction])) or (oJustBuilt:GetFractionComplete() == 1 and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oJustBuilt.UnitId)) then
+        --FIrst clear any engineers tracked as repariing this building
+        if M28Utilities.IsTableEmpty(oJustBuilt[M28Orders.toUnitsOrderedToRepairThis]) == false then
+            for iCurEngineer = table.getn(oJustBuilt[M28Orders.toUnitsOrderedToRepairThis]), 1, -1 do
+                ClearEngineerIfActionObseleteNow(oJustBuilt[M28Orders.toUnitsOrderedToRepairThis][iCurEngineer], true)
+            end
+        end
         local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oEngineer:GetPosition())
         if (iLandOrWaterZone or 0) > 0 then
             local tLZOrWZTeamData
@@ -9241,19 +9275,12 @@ function ClearEngineersBuildingUnit(oEngineer, oJustBuilt)
                 local tAllEngineers = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits])
                 if M28Utilities.IsTableEmpty(tAllEngineers) == false then
                     for iUnit, oUnit in tAllEngineers do
-                        if M28UnitInfo.IsUnitValid(oUnit) and oUnit[refiAssignedAction] == iAction and not (oUnit:IsUnitState('Reclaiming')) then
-                            local tLastOrder = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
-                            if (M28Utilities.IsTableEmpty(tLastOrder[M28Orders.subreftOrderPosition]) == false and M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subreftOrderPosition], oJustBuilt:GetPosition()) <= 1) or tLastOrder[M28Orders.subrefoOrderUnitTarget] == oJustBuilt then
-                                M28Orders.IssueTrackedClearCommands(oUnit)
-                            end
-                        end
+                        ClearEngineerIfActionObseleteNow(oUnit, false)
                     end
                 end
             end
-
         end
     end
-
 end
 
 function ClearEngineersWhoseTargetIsNowBlockedByUnitConstructionStarted(oEngineer, oConstruction)

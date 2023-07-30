@@ -1129,7 +1129,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEngineer.UnitId) then
                     --Clear any engineers trying to build this unit if we just built a building or experimental
                     if EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId) then
-                        M28Engineer.ClearEngineersBuildingUnit(oEngineer, oJustBuilt)
+                        M28Engineer.ClearEngineersBuildingUnit(oEngineer, oJustBuilt, true)
                     end
                 end
 
