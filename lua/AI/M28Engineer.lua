@@ -68,7 +68,7 @@ refoUnitActivelyShielding = 'M28EngUntActShd' --against the engineer, gives the 
 refbActiveUnitShieldingThread = 'M28EngActivShld' --against the gameender/similar unit, true if it has a thread that isa ctively trying to use engineers to protect it
 reftEngineersActivelyShielding = 'M28EngActiveEngShd' --against the gameender/similar unit, contains table of all the engineers assigned toa ctively try and protect it
 refbDontIncludeAsPartCompleteBuildingForConstruction = 'M28EngActiveShdD' --True if shield is being used for active special shielding defence - i.e. will check for this flag to make sure a normal build shield action doenst assist it
-
+refiTimeOfLastShieldRepairOrder = 'M28EngTimeLastOrd' --For units that are repairing, dont want to reissue the same order multiple times
 
 
 --Actions for engineers (dont have as local variables due to cap on how many local variables we can have)
@@ -424,10 +424,25 @@ function CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOption
                     iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
                 end
                 local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
-                if tLZData[M28Map.subrefBuildLocationBlacklistByPosition][math.floor(tTargetLocation[1])][math.floor(tTargetLocation[3])] then
-                    bCanBuildStructure = false
+                if bDebugMessages == true then LOG(sFunctionRef..': Checking against blacklist for the floor of target location and in the building radius, is blacklist nil for floor='..tostring(tLZData[M28Map.subrefBuildLocationBlacklistByPosition][math.floor(tTargetLocation[1])][math.floor(tTargetLocation[3])] == nil)..'; FloorX='..math.floor(tTargetLocation[1])..'; FloorZ='..math.floor(tTargetLocation[3])) end
+                local iFloorX = math.floor(tTargetLocation[1])
+                local iFloorZ = math.floor(tTargetLocation[3])
+                for iBlacklistX = iFloorX - iSkirtSizeRadius, iFloorX + iSkirtSizeRadius do
+                    if tLZData[M28Map.subrefBuildLocationBlacklistByPosition][iBlacklistX] then
+                        for iBlacklistZ = iFloorZ - iSkirtSizeRadius, iFloorZ + iSkirtSizeRadius do
+                            if tLZData[M28Map.subrefBuildLocationBlacklistByPosition][iBlacklistX][iBlacklistZ] then
+                                bCanBuildStructure = false
+                                break
+                            end
+                        end
+                        if not(bCanBuildStructure) then break end
+                    end
                 end
-                --Old blacklist approach (commented out)
+                --Approach for v18 and earlier
+                --[[if tLZData[M28Map.subrefBuildLocationBlacklistByPosition][math.floor(tTargetLocation[1])][math.floor(tTargetLocation[3])] then
+                    bCanBuildStructure = false
+                end--]]
+                --Even older blacklist approach (commented out) - from a while before v18, not sure when
                 --[[if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefBuildLocationBlacklistByPosition]) == false then
                     for iEntry, tBlacklistData in tLZData[M28Map.subrefBuildLocationBlacklist] do
                         local iDistThreshold = tLZData[M28Map.subrefBuildLocationBlacklist][table.getn(tLZData[M28Map.subrefBuildLocationBlacklist])][M28Map.subrefBlacklistSize] + iSkirtSizeRadius
@@ -454,6 +469,8 @@ function CheckIfBuildableLocationsNearPositionStillValid(aiBrain, tLocation, bCh
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --Check if the locations near tLocation are still valid - e.g. usually called if we have just built a unit (so unlikely to be valid) or have identified a blacklist location
 
+
+
     if not(aiBrain.M28IsDefeated) then
         local iPlateauOrZero, iLandOrWaterZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tLocation)
         local tLZOrWZData, sBlueprintSizeRef
@@ -471,7 +488,9 @@ function CheckIfBuildableLocationsNearPositionStillValid(aiBrain, tLocation, bCh
         if (iLandOrWaterZone or 0) > 0 then
             local iBaseSegmentX, iBaseSegmentZ = M28Map.GetPathingSegmentFromPosition(tLocation)
             local iAffectedDistanceRadius = iBuildingRadius + iMaxBuildingSize * 0.5
-            if bDebugMessages == true then LOG(sFunctionRef..': Want to see if existing build locations are still valid, iAffectedDistanceRadius='..iAffectedDistanceRadius..'; iBaseSegmentX='..iBaseSegmentX..'; iBaseSegmentZ='..iBaseSegmentZ..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; Buildable locations before update for size 8=='..(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][8] or 'nil')) end
+            if bDebugMessages == true then
+                LOG(sFunctionRef..': Want to see if existing build locations are still valid, iAffectedDistanceRadius='..iAffectedDistanceRadius..'; iBaseSegmentX='..iBaseSegmentX..'; iBaseSegmentZ='..iBaseSegmentZ..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; Buildable locations before update for size 8=='..(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][8] or 'nil')..'; bCheckLastBlacklistEntry='..tostring(bCheckLastBlacklistEntry or false))
+            end
             CheckIfSegmentsStillBuildable(aiBrain, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, iBaseSegmentX, iBaseSegmentZ, iAffectedDistanceRadius, bCheckLastBlacklistEntry)
 
             --Search for more building locations for every building where we havent considered the full amount if we havent considered any this cycle
@@ -751,6 +770,7 @@ function GetPotentialBuildLocationsNearLocation(aiBrain, tLZOrWZData, iPlateauOr
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetPotentialBuildLocationsNearLocation'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
 
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, iLandOrWaterZone='..iLandOrWaterZone..'; Time='..GetGameTimeSeconds()..'; iPlateauOrZero='..iPlateauOrZero..'; iSize='..iSize..'; tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize]='..(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] or 0)..'; Midpoint in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tLZOrWZData[M28Map.subrefMidpoint]))) end
@@ -1488,6 +1508,7 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
             return tAltBestLocation
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, tPotentialBuildLocations[iBestLocationRef]='..repru(tPotentialBuildLocations[iBestLocationRef])) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     if iBestLocationRef then return tPotentialBuildLocations[iBestLocationRef]
     else return nil
@@ -3410,6 +3431,8 @@ function RecordBlacklistLocation(tLocation, iRadius, iResetTimeInSeconds, oOptio
     local sFunctionRef = 'RecordBlacklistLocation'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     --oOptionalUnitToTrack - i.e. should have experimental units under construction specified here - if specified, means iresettimeinseconds only triggers if that unit doesnt exist, as a redundancy for if we failed to pickup the event when it died
     --iResetTimeInSeconds - per above, if  oOptionalUnitToTrack is specififed then this only triggers if hte unit no longer exists after waiting iResetTimeInSeconds
 
@@ -3430,6 +3453,7 @@ function RecordBlacklistLocation(tLocation, iRadius, iResetTimeInSeconds, oOptio
         local iBaseX = math.floor(tLocation[1])
         local iBaseZ = math.floor(tLocation[3])
         local iSegmentRadius = math.floor(iRadius / M28Map.iLandZoneSegmentSize)
+        if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through every position for iSegmentRadius='..iSegmentRadius..'; iBaseX='..iBaseX..'; iBaseZ='..iBaseZ) end
         for iX = iBaseX - iSegmentRadius, iBaseX + iSegmentRadius do
             for iZ = iBaseZ - iSegmentRadius, iBaseZ + iSegmentRadius do
                 if not(tLZOrWZData[M28Map.subrefBuildLocationBlacklistByPosition][iX][iZ]) then
@@ -3438,6 +3462,7 @@ function RecordBlacklistLocation(tLocation, iRadius, iResetTimeInSeconds, oOptio
                         tLZOrWZData[M28Map.subrefBuildLocationBlacklistByPosition][iX] = {}
                     end
                     tLZOrWZData[M28Map.subrefBuildLocationBlacklistByPosition][iX][iZ] = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Added blacklist to location iX='..iX..'; iZ='..iZ..'; iResetTimeInSeconds='..(iResetTimeInSeconds or 'nil')) end
                     if (iResetTimeInSeconds or 0) >= 0 then
                         ForkThread(DelayedBlacklistReset, tLZOrWZData, iX, iZ, iResetTimeInSeconds, oOptionalUnitToTrack)
                     end
@@ -3758,7 +3783,7 @@ function FilterEngineersOfTechAndEngiCountForFaction(iOptionalFactionRequired, t
 end
 
 function ActiveShieldMonitor(oUnitToProtect, tLZTeamData, iTeam)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ActiveShieldMonitor'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -3912,6 +3937,7 @@ function ActiveShieldMonitor(oUnitToProtect, tLZTeamData, iTeam)
                 function ConstructNewShield()
                     --Need to construct a new shield (need to be wanting to do this for at least a tick due to delay in constructionstarting triggering due to forked thread)
                     local tPositionToBuild
+                    local tAltPositionToBuild
                     if bDebugMessages == true then LOG(sFunctionRef..': ConstructNewShield: repru of locations for priority shield='..repru(oUnitToProtect[M28Building.reftLocationsForPriorityShield])..'; sLikelyShieldBlueprint='..(sLikelyShieldBlueprint or 'nil')..'; iPreviousAction='..(iPreviousAction or 'nil')..'; oLowestConstructedShieldHealth='..(oLowestConstructedShieldHealth.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oLowestConstructedShieldHealth) or 'nil')..'; ') end
                     if not(iPreviousAction == refiShieldActionConstruct) then
                         --If previous action was to assist, then clear all engineers to avoid the risk we keep building something we want to be left part complete
@@ -3921,24 +3947,37 @@ function ActiveShieldMonitor(oUnitToProtect, tLZTeamData, iTeam)
                             end
                         end
                     else
+
                         for iEntry, tLocation in oUnitToProtect[M28Building.reftLocationsForPriorityShield] do
                             --basic check whether we can build (we should already be able to)
                             if bDebugMessages == true then LOG(sFunctionRef..': Can we build sLikelyShieldBlueprint '..sLikelyShieldBlueprint..' at tLocation '..repru(tLocation)..'='..tostring(aiBrain:CanBuildStructureAt(sLikelyShieldBlueprint, tLocation))) end
                             if aiBrain:CanBuildStructureAt(sLikelyShieldBlueprint, tLocation) then
-                                tPositionToBuild = tLocation
-                                break
+                                if tPositionToBuild then
+                                    tAltPositionToBuild = tLocation
+                                    break
+                                else
+                                    tPositionToBuild = tLocation
+                                end
                             end
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': tPositionToBuild='..repru(tPositionToBuild)) end
                         if tPositionToBuild then
                             local toEngineersOfWrongFaction = {}
                             local oFirstEngineerOfRightFaction
+                            local iEngineerBuildOrderCount = 0
                             for iEngineer, oEngineer in oUnitToProtect[reftEngineersActivelyShielding] do
                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; Does this contain the required faction='..tostring(EntityCategoryContains(iEngineerFactionRequired, oEngineer.UnitId))) end
                                 if EntityCategoryContains(iEngineerFactionRequired, oEngineer.UnitId) then
+                                    iEngineerBuildOrderCount = iEngineerBuildOrderCount + 1
                                     local sBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iShieldCategoryToBuild, oEngineer, false, false, false, nil, false)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Checking what shields engineer '..(oEngineer.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineer) or 'nil')..' can build; iOptionalFactionRequired='..(iOptionalFactionRequired or 'nil')..'; Will try and build unit '..sBlueprintToBuild..' at position '..repru(tPositionToBuild)) end
-                                    M28Orders.IssueTrackedBuild(oEngineer, tPositionToBuild, sBlueprintToBuild, false, 'SpEBS')
+                                    --Have the 4th engineer try to build in the alt location, so if the main location is blocked we may still get construction started
+                                    if iEngineerBuildOrderCount == 4 and tAltPositionToBuild then
+                                        M28Orders.IssueTrackedBuild(oEngineer, tAltPositionToBuild, sBlueprintToBuild, false, 'SpAEBS')
+                                    else
+                                        M28Orders.IssueTrackedBuild(oEngineer, tPositionToBuild, sBlueprintToBuild, false, 'SpEBS')
+                                    end
+
                                     if not(oFirstEngineerOfRightFaction) then oFirstEngineerOfRightFaction = oEngineer end
                                 else
                                     table.insert(toEngineersOfWrongFaction, oEngineer)
@@ -4031,7 +4070,14 @@ function ActiveShieldMonitor(oUnitToProtect, tLZTeamData, iTeam)
                     if oShield:GetFractionComplete() < 1 then
                         if bDebugMessages == true then LOG(sFunctionRef..': AssistShield: Will repair shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..' with fraction complete '..oShield:GetFractionComplete()) end
                         for iEngineer, oEngineer in oUnitToProtect[reftEngineersActivelyShielding] do
-                            M28Orders.IssueTrackedRepair(oEngineer, oShield, false, 'SpecShR', false)
+                            --Issue where engineers are given repair order but do nothing - will try adding small delay in case issue is being given same order every tick
+                            if GetGameTimeSeconds() - (oEngineer[refiTimeOfLastShieldRepairOrder] or -10) < 1 and oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]][M28Orders.subrefoOrderUnitTarget] == oShield then
+                                if bDebugMessages == true then LOG(sFunctionRef..': It has been less than 1s since we last gave order to repair') end
+                            else
+                                oEngineer[refiTimeOfLastShieldRepairOrder] = GetGameTimeSeconds()
+                                if bDebugMessages == true then LOG(sFunctionRef..': Engineer unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; Is state repairing='..tostring(oEngineer:IsUnitState('Repairing'))..'; Engineer work progress='..(oEngineer:GetWorkProgress() or 'nil')) end
+                                M28Orders.IssueTrackedRepair(oEngineer, oShield, false, 'SpecShR', false)
+                            end
                         end
                     else
                         if bDebugMessages == true then LOG(sFunctionRef..': AssistShield: Will assist shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..' with fraction complete '..oShield:GetFractionComplete()) end

@@ -851,8 +851,39 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                         if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti, oConstruction.UnitId) then
                             M28Building.ReserveLocationsForGameEnder(oConstruction)
                             --Record shields against the gameender/T3 arti if they are in the reserved location
-                        elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oConstruction.UnitId) and oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionSpecialShieldDefence then
-                            M28Building.AssignShieldToGameEnder(oConstruction, oEngineer)
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oConstruction.UnitId) then
+                            if oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionSpecialShieldDefence then
+                                M28Building.AssignShieldToGameEnder(oConstruction, oEngineer)
+                            else
+                                --Consider adding normal shields to the gameender defence if they are built very near to a game ender location
+                                if oConstruction:GetAIBrain().M28AI and oEngineer:GetAIBrain().M28AI then
+                                    local iShieldRadius = (oConstruction:GetBlueprint().Defense.Shield.ShieldSize or 0) * 0.5
+                                    if iShieldRadius > 10 then --larger than a T2 aeon shield
+                                        local iTeam = oEngineer:GetAIBrain().M28Team
+                                        local tShieldLZData, tShieldLZTeamData = M28Map.GetLandOrWaterZoneData(oConstruction:GetPosition(), true, iTeam)
+                                        local bHaveMatch = false
+
+                                        if M28Utilities.IsTableEmpty(tShieldLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection]) == false then
+                                            for iGameEnder, oGameEnder in tShieldLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection] do
+                                                if M28Utilities.IsTableEmpty(oGameEnder[M28Building.reftLocationsForPriorityShield]) == false then
+                                                    for iLocation, tLocation in oGameEnder[M28Building.reftLocationsForPriorityShield] do
+                                                        if M28Utilities.GetRoughDistanceBetweenPositions(tLocation, oConstruction:GetPosition()) <= 3 then
+                                                            if M28Utilities.GetDistanceBetweenPositions(oConstruction:GetPosition(), oGameEnder:GetPosition()) <= iShieldRadius * 0.9 then
+                                                                bDebugMessages = true
+                                                                if bDebugMessages == true then LOG(sFunctionRef..': Fixed shield construction '..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..' built by engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; will be assigned to a game ender shield as it is close to oGameEnder '..oGameEnder.UnitId..M28UnitInfo.GetUnitLifetimeCount(oGameEnder)) end
+                                                                bHaveMatch = true
+                                                                M28Building.AssignShieldToGameEnder(oConstruction, oEngineer)
+                                                                break
+                                                            end
+                                                        end
+                                                    end
+                                                    if bHaveMatch then break end
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                            end
 
                         end
                         M28Building.CheckIfUnitWantsFixedShield(oConstruction, true)

@@ -544,6 +544,7 @@ function IssueTrackedRepair(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalO
         if iDistToTarget <= (oUnit:GetBlueprint().Economy.MaxBuildDistance or 0) + math.min((oTargetBP.Physics.SkirtSizeX or 0), (oTargetBP.Physics.SkirtSizeZ or 0)) then
             bIssueOrder = true
         end
+
     end
     if bIssueOrder then
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end

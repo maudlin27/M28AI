@@ -2333,7 +2333,7 @@ end
 
 function ReserveLocationsForGameEnder(oUnit)
     --Reserve locations to provide shield coverage for oUnit
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ReserveLocationsForGameEnder'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -2413,9 +2413,10 @@ function ReserveLocationsForGameEnder(oUnit)
         end
         if bDebugMessages == true then LOG(sFunctionRef..': iMostBuildLocations='..iMostBuildLocations) end
 
-        if iMostBuildLocations >= 2 then
-            --Can build at least 2 shields, which is good enough - now figure out the best faction engineer that could realistically build the shield by locating the closest factory of each faction type
+        if iMostBuildLocations >= 1 then
+            --Figure out the best faction engineer that could realistically build the shield by locating the closest factory of each faction type
             local tLZTeamData = tLZData[M28Map.subrefLZTeamData][aiBrain.M28Team]
+            local iRecordedCount = 0
             if not(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection]) then tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection] = {} end
             table.insert(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection], oUnit)
             RecordNearbyFactoryForShieldEngineers(oUnit)
@@ -2425,6 +2426,7 @@ function ReserveLocationsForGameEnder(oUnit)
                 oUnit[reftLocationsForPriorityShield] = {}
                 if bDebugMessages == true then LOG(sFunctionRef..': Recording priority shield locations, tLocations='..repru(tiShieldBuildLocationOptions[iBestOptionCountRef])) end
                 for iLocation, tLocation in tiShieldBuildLocationOptions[iBestOptionCountRef] do
+                    iRecordedCount = iRecordedCount + 1
                     table.insert(oUnit[reftLocationsForPriorityShield], {tLocation[1], tLocation[2], tLocation[3]})
                     --Blacklist the location
                     M28Engineer.RecordBlacklistLocation(tLocation, iNewBuildingRadius, 600, oUnit)
@@ -2433,6 +2435,67 @@ function ReserveLocationsForGameEnder(oUnit)
                         M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(tLocation, iNewBuildingRadius), 3, 100)
                     end
                 end
+                --Add other shield locations if there are any and we want more to get to 3
+                if iRecordedCount < 3 then
+                    for iShieldOption, tShieldLocations in tiShieldBuildLocationOptions do
+                        if not(iShieldOption == iBestOptionCountRef) then
+                            for iLocation, tLocation in tShieldLocations do
+                                if M28Conditions.CanBuildAtLocation(aiBrain, sBlueprintToBuild, tLocation, iPlateau, iLandZone, nil, false, true, true, true) then
+                                    iRecordedCount = iRecordedCount + 1
+                                    table.insert(oUnit[reftLocationsForPriorityShield], {tLocation[1], tLocation[2], tLocation[3]})
+                                    --Blacklist the location
+                                    M28Engineer.RecordBlacklistLocation(tLocation, iNewBuildingRadius, 600, oUnit)
+                                    if bDebugMessages == true then
+                                        LOG(sFunctionRef..': Added further shild build location '..repru(tLocation)..' against the game ender and will record blacklist, Will draw shield location')
+                                        M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(tLocation, iNewBuildingRadius), 4, 100)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+
+                --Update any buildable locaitons around here
+                if iRecordedCount > 0 then
+                    for iLocation, tLocation in oUnit[reftLocationsForPriorityShield] do
+                        M28Engineer.CheckIfBuildableLocationsNearPositionStillValid(aiBrain, tLocation, true, 5)
+                    end
+                end
+
+
+                --CLear any engineers with queued orders that will conflict with a shield location
+                local tEngineersInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                if M28Utilities.IsTableEmpty(tEngineersInZone) == false then
+                    local bClearEngineer
+                    local tEngineersToClear = {}
+                    for iEngineer, oEngineer in tEngineersInZone do
+                        bClearEngineer = false
+                        if M28Utilities.IsTableEmpty(oEngineer[M28Engineer.reftQueuedBuildings]) == false then
+                            for iQueueRef, tQueueDetails in oEngineer[M28Engineer.reftQueuedBuildings] do
+                                if tQueueDetails[M28Engineer.subrefBuildingLocation] then
+                                    for iReservedLocation, tReservedLocation in oUnit[reftLocationsForPriorityShield] do
+                                        if M28Utilities.GetDistanceBetweenPositions(tReservedLocation, tQueueDetails[M28Engineer.subrefBuildingLocation]) - tQueueDetails[M28Engineer.subrefBuildingRadius] < 0 then
+                                            bDebugMessages = true
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Have queued building '..tQueueDetails[M28Engineer.subrefBuildingID]..' at location that is within '..M28Utilities.GetDistanceBetweenPositions(tReservedLocation, tQueueDetails[M28Engineer.subrefBuildingLocation])..' of a shield reserved location, with building radius of '..tQueueDetails[M28Engineer.subrefBuildingRadius]..' so will clear the engineer') end
+                                            bClearEngineer = true
+                                            table.insert(tEngineersToClear, oEngineer)
+                                            break
+                                        end
+                                    end
+                                    if bClearEngineer then break end
+                                end
+                            end
+                        end
+                    end
+                    bDebugMessages = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of engineers to clear empty='..tostring(M28Utilities.IsTableEmpty(tEngineersToClear))) end
+                    if M28Utilities.IsTableEmpty(tEngineersToClear) == false then
+                        for iEngineer, oEngineer in tEngineersToClear do
+                            M28Orders.IssueTrackedClearCommands(oEngineer)
+                        end
+                    end
+                end
+
 
             end
             --[[for iOption, tLocations in tiShieldBuildLocationOptions do
@@ -2613,7 +2676,7 @@ function UpdateTrackingOfDeadFactoryProvidingEngineers(oUnit)
     RemoveFactoryFromZoneList(oUnit)
 end
 
-function AssignShieldToGameEnder(oConstruction, oEngineer)
+function AssignShieldToGameEnder(oConstruction, oEngineer, oOptionalBackupGameEnderToAssignTo)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AssignShieldToGameEnder'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -2627,11 +2690,14 @@ function AssignShieldToGameEnder(oConstruction, oEngineer)
         local iTeam = aiBrain.M28Team
         local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
         if not(oEngineer[M28Engineer.refoUnitActivelyShielding]) then
-            M28Utilities.ErrorHandler('Dont have a unit recorded that the engineer is actively shielding, will just get the first gameender in the zone')
-            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection]) == false then
-                for iUnit, oUnit in tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection] do
-                    oGameEnder = oUnit
-                    break
+            oGameEnder = oOptionalBackupGameEnderToAssignTo
+            if not(oGameEnder) then
+                M28Utilities.ErrorHandler('Dont have a unit recorded that the engineer is actively shielding, will just get the first gameender in the zone')
+                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection]) == false then
+                    for iUnit, oUnit in tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection] do
+                        oGameEnder = oUnit
+                        break
+                    end
                 end
             end
         else
