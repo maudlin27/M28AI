@@ -565,6 +565,15 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
                     end
                 end
             end
+        elseif not(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]) then
+            local iAltPlateau
+            iAltPlateau, iLandZone = GetPathingOverridePlateauAndLandZone(tPosition, bOptionalShouldBePathable, oOptionalPathingUnit)
+            if tAllPlateaus[iAltPlateau][subrefPlateauLandZones][iLandZone] then
+                iPlateau = iAltPlateau
+            else
+                iPlateau = nil
+                iLandZone = nil
+            end
         end
     end
     --LOG('GetPlateauAndLandZoneReferenceFromPosition - end of code, iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil'))
@@ -6061,10 +6070,13 @@ function CreateReclaimSegment(iReclaimSegmentX, iReclaimSegmentZ)
     local sFunctionRef = 'CreateReclaimSegment'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ] = {}
     tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint] = GetReclaimLocationFromSegment(iReclaimSegmentX, iReclaimSegmentZ)
     --tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refsSegmentMidpointLocationRef] = M28Utilities.ConvertLocationToReference(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint])
     local iPlateau, iLandZone = GetPlateauAndLandZoneReferenceFromPosition(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint])
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, iReclaimSegmentX='..iReclaimSegmentX..'Z'..iReclaimSegmentZ..'; Time of '..GetGameTimeSeconds()..'; iPlateau='..(iPlateau or 'nil')..'; iLandZOne='..(iLandZone or 'nil')) end
     if (iPlateau or 0) == 0 then
         --If we get the reclaim location, is it in a pathable area, or within 2 of a pathable area?
         local rRect = M28Utilities.GetRectAroundLocation(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint], iReclaimSegmentSizeX * 0.5)
@@ -6098,7 +6110,9 @@ function CreateReclaimSegment(iReclaimSegmentX, iReclaimSegmentZ)
     if bDebugMessages == true then LOG(sFunctionRef..': Adding iReclaimSegmentX-Z'..iReclaimSegmentX..'-'..iReclaimSegmentZ..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
     if (iLandZone or 0) > 0 then
         --Record in the land zone
-        if not(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefReclaimSegments]) then tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefReclaimSegments] = {} end
+        if not(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefReclaimSegments]) then
+            tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefReclaimSegments] = {}
+        end
         table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefReclaimSegments], {iReclaimSegmentX, iReclaimSegmentZ})
         if bDebugMessages == true then
             LOG(sFunctionRef..': Finished adding reclaim segment to LZ, all reclaim segments for this LZ='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefReclaimSegments]))
