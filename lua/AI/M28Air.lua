@@ -3728,7 +3728,22 @@ function ManageAirScouts(iTeam, iAirSubteam)
                             M28Map.tPondDetails[M28Map.tiPondByWaterZone[iCurLZOrWZ]][M28Map.subrefPondWaterZones][iCurLZOrWZ][M28Map.subrefWZTeamData][iTeam][M28Map.refiTimeLastHadVisual] = GetGameTimeSeconds()
                         else
                             --Land zone
-                            M28Map.tAllPlateaus[iCurPlateauOrZero][M28Map.subrefPlateauLandZones][iCurLZOrWZ][M28Map.subrefLZTeamData][iTeam][M28Map.refiTimeLastHadVisual] = GetGameTimeSeconds()
+                            local tScoutLZTeamData = M28Map.tAllPlateaus[iCurPlateauOrZero][M28Map.subrefPlateauLandZones][iCurLZOrWZ][M28Map.subrefLZTeamData][iTeam]
+
+                            if not(tScoutLZTeamData) then
+                                local iAltPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, oUnit:GetPosition())
+                                if (iAltPlateau or 0) > 0 and not(iAltPlateau == iCurPlateauOrZero) then
+                                    iCurPlateauOrZero = iAltPlateau
+                                    tScoutLZTeamData = M28Map.tAllPlateaus[iCurPlateauOrZero][M28Map.subrefPlateauLandZones][iCurLZOrWZ][M28Map.subrefLZTeamData][iTeam]
+                                end
+                                if not(tScoutLZTeamData) then
+                                    iCurPlateauOrZero, iCurLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                                    tScoutLZTeamData = M28Map.tAllPlateaus[iCurPlateauOrZero][M28Map.subrefPlateauLandZones][iCurLZOrWZ][M28Map.subrefLZTeamData][iTeam]
+                                end
+                            end
+                            if tScoutLZTeamData then
+                                tScoutLZTeamData[M28Map.refiTimeLastHadVisual] = GetGameTimeSeconds()
+                            end
                         end
                     end
                 end

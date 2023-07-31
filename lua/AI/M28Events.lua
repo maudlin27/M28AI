@@ -869,7 +869,6 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                                                     for iLocation, tLocation in oGameEnder[M28Building.reftLocationsForPriorityShield] do
                                                         if M28Utilities.GetRoughDistanceBetweenPositions(tLocation, oConstruction:GetPosition()) <= 3 then
                                                             if M28Utilities.GetDistanceBetweenPositions(oConstruction:GetPosition(), oGameEnder:GetPosition()) <= iShieldRadius * 0.9 then
-                                                                bDebugMessages = true
                                                                 if bDebugMessages == true then LOG(sFunctionRef..': Fixed shield construction '..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..' built by engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; will be assigned to a game ender shield as it is close to oGameEnder '..oGameEnder.UnitId..M28UnitInfo.GetUnitLifetimeCount(oGameEnder)) end
                                                                 bHaveMatch = true
                                                                 M28Building.AssignShieldToGameEnder(oConstruction, oEngineer)

@@ -261,6 +261,8 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
     local sFunctionRef = 'UpdateUnitPositionsAndLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     local iRevisedIndex = 1
     local iTableSize = table.getn(tUnits)
     local iActualPlateau, iActualLandZone
@@ -270,7 +272,7 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
     if bUpdateTimeOfLastEnemyPositionCheck and not(bUseLastKnownPosition) then tLZTeamData[M28Map.subrefiTimeOfLastEnemyUnitPosUpdate] = GetGameTimeSeconds() end
     if tLZTeamData[M28Map.refiRadarCoverage] >= 70 then bUseActualPositionIfEnemy = true end
 
-    if bDebugMessages == true then LOG('Start of code at time '..GetGameTimeSeconds()..', reprs of tUnits='..reprs(tUnits)) end
+    if bDebugMessages == true then LOG('Start of code at time '..GetGameTimeSeconds()..', reprs of tUnits='..reprs(tUnits)..'; bUseLastKnownPosition='..tostring(bUseLastKnownPosition or false)) end
     for iOrigIndex=1, iTableSize do
         if not(tUnits[iOrigIndex]) or tUnits[iOrigIndex].Dead then
             --Remove the entry
@@ -310,8 +312,14 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
 
             --Is the plateau and zone correct?
             if bDebugMessages == true then
-                LOG('Updating unit position for unit '..tUnits[iOrigIndex].UnitId..M28UnitInfo.GetUnitLifetimeCount(tUnits[iOrigIndex])..'; iRecordedPlateau='..iRecordedPlateau..'; iActualPlateau='..(iActualPlateau or 'nil')..';  iRecordedLandZone='..(iRecordedLandZone or 'nil')..'; iActualLandZone='..(iActualLandZone or 'nil')..'; Unit actual position='..repru(tUnits[iOrigIndex]:GetPosition())..'; Plateau ref using navutils of actual position='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tUnits[iOrigIndex]:GetPosition()) or 'nil'))
+                LOG('Updating unit position for unit '..tUnits[iOrigIndex].UnitId..M28UnitInfo.GetUnitLifetimeCount(tUnits[iOrigIndex])..'; iRecordedPlateau='..iRecordedPlateau..'; iActualPlateau='..(iActualPlateau or 'nil')..';  iRecordedLandZone='..(iRecordedLandZone or 'nil')..'; iActualLandZone='..(iActualLandZone or 'nil')..'; Unit actual position='..repru(tUnits[iOrigIndex]:GetPosition())..'; Plateau ref using navutils of actual position='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tUnits[iOrigIndex]:GetPosition()) or 'nil')..'; Last known position='..repru(tUnits[iOrigIndex][M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; Hover nav utils of unit position='..(NavUtils.GetLabel(M28Map.refPathingTypeHover, tUnits[iOrigIndex]:GetPosition()) or 'nil'))
                 M28Utilities.DrawLocation(tUnits[iOrigIndex]:GetPosition())
+            end
+            --If the plateau has changed, and the new one has no valid location, then update the position to the actual position (due to issue with e.g. air units where if they fly over a cliff at the point intel is lost then it causes an error when trying to add them to another zone)
+            if not(iRecordedPlateau == iActualPlateau) and bUseLastKnownPosition and (iActualLandZone or 0) > 0 then
+                local tRevisedPosition = tUnits[iOrigIndex]:GetPosition()
+                tUnits[iOrigIndex][M28UnitInfo.reftLastKnownPositionByTeam][iTeam] = {tRevisedPosition[1], tRevisedPosition[2], tRevisedPosition[3]}
+                iActualPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tRevisedPosition)
             end
             if iRecordedPlateau == iActualPlateau and iRecordedLandZone == iActualLandZone then
                 --No change needed for unit

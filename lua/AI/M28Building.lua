@@ -2333,7 +2333,7 @@ end
 
 function ReserveLocationsForGameEnder(oUnit)
     --Reserve locations to provide shield coverage for oUnit
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ReserveLocationsForGameEnder'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -2475,7 +2475,6 @@ function ReserveLocationsForGameEnder(oUnit)
                                 if tQueueDetails[M28Engineer.subrefBuildingLocation] then
                                     for iReservedLocation, tReservedLocation in oUnit[reftLocationsForPriorityShield] do
                                         if M28Utilities.GetDistanceBetweenPositions(tReservedLocation, tQueueDetails[M28Engineer.subrefBuildingLocation]) - tQueueDetails[M28Engineer.subrefBuildingRadius] < 0 then
-                                            bDebugMessages = true
                                             if bDebugMessages == true then LOG(sFunctionRef..': Have queued building '..tQueueDetails[M28Engineer.subrefBuildingID]..' at location that is within '..M28Utilities.GetDistanceBetweenPositions(tReservedLocation, tQueueDetails[M28Engineer.subrefBuildingLocation])..' of a shield reserved location, with building radius of '..tQueueDetails[M28Engineer.subrefBuildingRadius]..' so will clear the engineer') end
                                             bClearEngineer = true
                                             table.insert(tEngineersToClear, oEngineer)
@@ -2487,7 +2486,6 @@ function ReserveLocationsForGameEnder(oUnit)
                             end
                         end
                     end
-                    bDebugMessages = true
                     if bDebugMessages == true then LOG(sFunctionRef..': Is table of engineers to clear empty='..tostring(M28Utilities.IsTableEmpty(tEngineersToClear))) end
                     if M28Utilities.IsTableEmpty(tEngineersToClear) == false then
                         for iEngineer, oEngineer in tEngineersToClear do

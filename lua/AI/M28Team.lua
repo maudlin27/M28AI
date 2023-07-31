@@ -657,30 +657,64 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
                 if bDebugMessages == true then LOG(sFunctionRef..': Unit already has a plateau and LZ assigned but is dif from the desired one so will remove from its current zone first') end
                 RemoveUnitFromCurrentLandZone(aiBrain, oUnit)--]]
         end
-    end--]]
+    end
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Considering adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to iPlateau '..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..' for brain '..aiBrain.Nickname..'; bAddToZone='..tostring(bAddToZone)..'; Is enemy='..tostring(IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()))..'; Is ally='..tostring(IsAlly(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()))) end
     if bAddToZone then
-        if not(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) then oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam] = {} end
-        oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][aiBrain.M28Team] = {iPlateau, iLandZone}
-        if IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
-            if bDebugMessages == true then LOG(sFunctionRef..': Is an enemy so will add to list of enemy air units or enemy units depending on if it is air, Is team data for this plateau and land zone empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team]))..'; aiBrain='..aiBrain.Nickname..'; team='..aiBrain.M28Team..'; Unit position='..repru(oUnit:GetPosition())..'; bIsEnemyAirUnit='..tostring(bIsEnemyAirUnit or false)..'; M28Map.bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation or false)) end
-            if bIsEnemyAirUnit then
-                table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.reftLZEnemyAirUnits], oUnit)
-            else
-                if bDebugMessages == true then LOG(sFunctionRef..': About to add enemy to table of enemy units, iPlateau='..(iPlateau or 'nil')..'; iLandZOne='..(iLandZone or 'nil')..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is this a T2 arti unit='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId))) end
-                table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefTEnemyUnits], oUnit)
-                --T2 arti tracking - consider firebase
-                if EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) then
-                    M28Land.ConsiderIfHaveEnemyFirebase(aiBrain.M28Team, oUnit)
+        local iPlateauRef = iPlateau
+        local iLandZoneRef = iLandZone
+        local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData]
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to add unit to zone, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; is LZTeamData nil='..tostring(tLZTeamData == nil)..'; is oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam] nil='..tostring(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam] == nil)..'; Unit position='..repru(oUnit:GetPosition())) end
+        if M28Utilities.IsTableEmpty(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]) then
+            oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam] = {}
+            if M28Utilities.IsTableEmpty(tLZTeamData) then
+                iPlateauRef, iLandZoneRef = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                tLZTeamData = M28Map.tAllPlateaus[iPlateauRef][M28Map.subrefPlateauLandZones][iLandZoneRef][M28Map.subrefLZTeamData]
+                if bDebugMessages == true then LOG(sFunctionRef..': Got the closest plateau and zone to position, iPlateauRef='..(iPlateauRef or 'nil')..'; iLandZoneRef='..(iLandZoneRef or 'nil')..'; is tLZTeamData empty='..tostring(tLZTeamData == nil)) end
+            end
+        else
+            --Backup - sometimes if an enemy unit goes over a cliff on larger maps there can be an inconsistency where the plateau is different to the land zone; in such cases the land zone logic should update the unit position, but also want to avoid an unhandled error here
+            if M28Utilities.IsTableEmpty(tLZTeamData) then
+                iPlateauRef = oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][aiBrain.M28Team][1]
+                iLandZoneRef = oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][aiBrain.M28Team][2]
+                tLZTeamData = M28Map.tAllPlateaus[iPlateauRef][M28Map.subrefPlateauLandZones][iLandZoneRef][M28Map.subrefLZTeamData]
+            end
+        end
+
+        if tLZTeamData then
+            oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][aiBrain.M28Team] = {iPlateauRef, iLandZoneRef}
+            if IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
+                if bDebugMessages == true then
+                    LOG(sFunctionRef..': Is an enemy so will add to list of enemy air units or enemy units depending on if it is air, Is team data for this plateau and land zone empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauRef][M28Map.subrefPlateauLandZones][iLandZoneRef][M28Map.subrefLZTeamData][aiBrain.M28Team]))..'; aiBrain='..aiBrain.Nickname..'; team='..aiBrain.M28Team..'; Unit position='..repru(oUnit:GetPosition())..'; bIsEnemyAirUnit='..tostring(bIsEnemyAirUnit or false)..'; M28Map.bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation or false))
+                    if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauRef][M28Map.subrefPlateauLandZones][iLandZoneRef][M28Map.subrefLZTeamData][aiBrain.M28Team]) then
+                        M28Utilities.DrawLocation(oUnit:GetPosition(), 2)
+                    end
                 end
+                if bIsEnemyAirUnit then
+                    table.insert(M28Map.tAllPlateaus[iPlateauRef][M28Map.subrefPlateauLandZones][iLandZoneRef][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.reftLZEnemyAirUnits], oUnit)
+                else
+                    if bDebugMessages == true then LOG(sFunctionRef..': About to add enemy to table of enemy units, iPlateauRef='..(iPlateauRef or 'nil')..'; iLandZoneRef='..(iLandZoneRef or 'nil')..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is this a T2 arti unit='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId))) end
+                    table.insert(M28Map.tAllPlateaus[iPlateauRef][M28Map.subrefPlateauLandZones][iLandZoneRef][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefTEnemyUnits], oUnit)
+                    --T2 arti tracking - consider firebase
+                    if EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) then
+                        M28Land.ConsiderIfHaveEnemyFirebase(aiBrain.M28Team, oUnit)
+                    end
+                end
+            elseif IsAlly(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
+                table.insert(M28Map.tAllPlateaus[iPlateauRef][M28Map.subrefPlateauLandZones][iLandZoneRef][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTAlliedUnits], oUnit)
+                if M28Config.M28ShowUnitNames then oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'New P'..iPlateauRef..'LZ'..iLandZoneRef) end
+                if EntityCategoryContains(M28UnitInfo.refCategoryTMD, oUnit.UnitId) then
+                    M28Building.AlliedTMDFirstRecorded(aiBrain.M28Team, oUnit)
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Add unit as a friendly unit to Plateau-LZ='..iPlateauRef..'-'..iLandZoneRef..' and team='..aiBrain.M28Team..'; Is table of friendly units empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauRef][M28Map.subrefPlateauLandZones][iLandZoneRef][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTAlliedUnits]))) end
             end
-        elseif IsAlly(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
-            table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTAlliedUnits], oUnit)
-            if M28Config.M28ShowUnitNames then oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'New P'..iPlateau..'LZ'..iLandZone) end
-            if EntityCategoryContains(M28UnitInfo.refCategoryTMD, oUnit.UnitId) then
-                M28Building.AlliedTMDFirstRecorded(aiBrain.M28Team, oUnit)
+        elseif iPlateauRef == 0 and iLandZoneRef then
+            if (GetGameTimeSeconds() - (oUnit['BackupZoneAssignmentTime'] or -1)) >= 1 then
+                oUnit['BackupZoneAssignmentTime'] = GetGameTimeSeconds() --Preemptive to stop potential infinite loop if we call addunittolandzone from addunittowaterzone
+                AddUnitToWaterZoneForBrain(aiBrain, oUnit, iLandZoneRef, bIsEnemyAirUnit)
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Add unit as a friendly unit to Plateau-LZ='..iPlateau..'-'..iLandZone..' and team='..aiBrain.M28Team..'; Is table of friendly units empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTAlliedUnits]))) end
+        else
+            M28Utilities.ErrorHandler('Still dont have valid plateau and land zone combination for air unit')
+            if bDebugMessages == true then LOG(sFunctionRef..': oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]='..repru(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam])..'; unit pos='..repru(oUnit:GetPosition())) end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -730,6 +764,7 @@ function AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone, bIsEnemyAirUnit)
         oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][aiBrain.M28Team] = iWaterZone
         local iPond = M28Map.tiPondByWaterZone[iWaterZone]
         local tWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][aiBrain.M28Team]
+        --NOTE: If run into same issue that had with land zones (of not having valid plateau/land zone combination), DO NOT call the 'addunittolandzone' function from here, or else will create an infinite loop
         if bDebugMessages == true then LOG(sFunctionRef..': iPond='..(iPond or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Team='..(aiBrain.M28Team or 'nil')..'; IsEnemy='..tostring(IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()))..'; Is tWZTeamData empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData))) end
         if IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
             if bDebugMessages == true then LOG(sFunctionRef..': Is an enemy so will add to list of enemy air units or enemy units depending on if it is air; aiBrain='..aiBrain.Nickname..'; team='..aiBrain.M28Team..'; Unit position='..repru(oUnit:GetPosition())..'; bIsEnemyAirUnit='..tostring(bIsEnemyAirUnit or false)) end
