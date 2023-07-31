@@ -58,7 +58,7 @@ tReclaimSegmentsToUpdate = {} --[n] where n is the count, returns {segmentX,segm
 tReclaimAreas = {} --Stores reclaim info for each segment: tReclaimAreas[iSegmentX][iSegmentZ][x]; if x=1 returns total mass in area; if x=2 then returns position of largest reclaim in the area, if x=3 returns how many platoons have been sent here since the game started
     refReclaimTotalMass = 1
     refReclaimSegmentMidpoint = 2
-    --refReclaimHighestIndividualReclaim = 3
+    refReclaimHighestIndividualReclaim = 3
     --reftReclaimTimeOfLastEngineerDeathByArmyIndex = 4 --Table: [a] where a is the army index, and it returns the time the last engineer died
     --refReclaimTimeLastEnemySightedByArmyIndex = 5
     --refsSegmentMidpointLocationRef = 6
@@ -173,7 +173,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
         subrefLZIslandRef = 'Island' --the island ref of the land zone (can also get by using NavUtils.GetLabel(refPathingTypeHover) for the midpoint
 
         --Capture and repair (done on zone rather than team basis, since intended for civilian targets and/or objectives so want to consider for all M28 teams; same ref used for water zones
-        subreftoUnitsToCapture = 'UnitsToCap'
+        subreftoUnitsToCapture = 'UnitsToCap' --AGAINST ZONEData not TEAMZoneData
         subreftoUnitsToRepair = 'UnitsToRep'
         --Mission objective specific - disable targeting logic
         subrefbPacifistArea = 'PacAre' --true if this is a pacificst area
@@ -187,6 +187,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZCoreExpansion = 'ZExp' --true if considered the main land zone for an expansion (e.g. on an island); nil if we havent considered yet if it is a core expansion, and false if we have considered and it isnt
             subrefbCoreBaseOverride = 'ZCreO' --true if we want to make this locatio na core zone even if it doesnt meet the normal criteria (e.g. to be used when we run out of places to build in our actual core LZ)
             subrefLZExpansionOverride = 'ZExpO' --true if want to make this location a core expansion even if doesnt meet normal criteria (e.g. if we use transport to drop somewhere on same island but far away, then building land facs there may be of use)
+            subrefLZFortify = 'ZFor' --True if we want to fortify this firebase, e.g. for scenarios like M2 UEF
             subrefAlliedACU = 'AACU' --table of ACU units for the land zone (so can factor into decisions on support and attack)
             subrefLZTAlliedUnits = 'Allies' --USE SAME REF AS FOR WATER ZONES - table of all allied units in the land zone, tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam][subrefLZTAlliedUnits]
             subrefLZTAlliedCombatUnits = 'AllComb' --table of allied units that are to be considered for combat orders
@@ -564,6 +565,15 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
                     end
                 end
             end
+        elseif not(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]) then
+            local iAltPlateau
+            iAltPlateau, iLandZone = GetPathingOverridePlateauAndLandZone(tPosition, bOptionalShouldBePathable, oOptionalPathingUnit)
+            if tAllPlateaus[iAltPlateau][subrefPlateauLandZones][iLandZone] then
+                iPlateau = iAltPlateau
+            else
+                iPlateau = nil
+                iLandZone = nil
+            end
         end
     end
     --LOG('GetPlateauAndLandZoneReferenceFromPosition - end of code, iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil'))
@@ -592,8 +602,6 @@ function GetClosestPlateauOrZeroAndZoneToPosition(tPosition)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
-
-
     local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tPosition)
 
     if bDebugMessages == true then LOG(sFunctionRef..': tPosition='..repru(tPosition)..'; iSegmentX='..(iSegmentX or 'nil')..' iSegmentZ='..(iSegmentZ or 'nil')..'; Is override for this nil='..tostring(tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX][iSegmentZ] == nil)..'; GetPositionFromPathingSegments(iSegmentX, iSegmentZ)='..repru(GetPositionFromPathingSegments(iSegmentX, iSegmentZ))..'; Hover nav utils for segment midpoint='..(NavUtils.GetLabel(refPathingTypeHover, GetPositionFromPathingSegments(iSegmentX, iSegmentZ)) or 'nil')..'; Hover nav utils for tPosition='..(NavUtils.GetLabel(refPathingTypeHover, tPosition) or 'nil')..'; tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX][iSegmentZ]='..repru(tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX][iSegmentZ])..'; tLandZoneBySegment[iSegmentX][iSegmentZ]='..(tLandZoneBySegment[iSegmentX][iSegmentZ] or 'nil')..'; tWaterZoneBySegment[iSegmentX][iSegmentZ]='..(tWaterZoneBySegment[iSegmentX][iSegmentZ] or 'nil')) end
@@ -604,8 +612,12 @@ function GetClosestPlateauOrZeroAndZoneToPosition(tPosition)
         return tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX][iSegmentZ][1], tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX][iSegmentZ][2]
     else
         local iPlateau = NavUtils.GetLabel(refPathingTypeHover, GetPositionFromPathingSegments(iSegmentX, iSegmentZ))
+        local iLandZone = tLandZoneBySegment[iSegmentX][iSegmentZ]
+        local tLZData
+        if iLandZone and iPlateau then tLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone] end
+
         if bDebugMessages == true then LOG(sFunctionRef..': Position from segments='..repru(GetPositionFromPathingSegments(iSegmentX, iSegmentZ))..'; iPlateau for this='..(iPlateau or 'nil')) end
-        if (iPlateau or 0) <= 0 or (tLandZoneBySegment[iSegmentX][iSegmentZ] == nil and tWaterZoneBySegment[iSegmentX][iSegmentZ] == nil) then
+        if not(iPlateau) or (not(tLZData) and tWaterZoneBySegment[iSegmentX][iSegmentZ] == nil) then
             --Need to get an override if dont already have one
             local iAltPlateau, iAltLZOrWZ
             local iFailureCount = 0
@@ -630,7 +642,7 @@ function GetClosestPlateauOrZeroAndZoneToPosition(tPosition)
                                             iAltLZOrWZ = tWaterZoneBySegment[iSegmentX+ iXAdjust][iSegmentZ+ iZAdjust]
                                             iAltPlateau = 0
                                         end
-                                        if (iAltLZOrWZ or 0) > 0 then
+                                        if (iAltLZOrWZ or 0) > 0 and (iAltPlateau == 0 or tAllPlateaus[iAltPlateau][subrefPlateauLandZones][iAltLZOrWZ]) then
                                             if bDebugMessages == true then LOG(sFunctionRef..': Have adjusted segments which have valid values, iAltLZOrWZ='..iAltLZOrWZ..'; iXAdjust='..iXAdjust..'; iZAdjust='..iZAdjust) end
                                             tNearestPlateauOrZeroAndZoneSegmentOverride[iSegmentX][iSegmentZ] = {[1] = iAltPlateau, [2] = iAltLZOrWZ}
                                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -640,6 +652,9 @@ function GetClosestPlateauOrZeroAndZoneToPosition(tPosition)
                                             iFailureCount = iFailureCount + 1
                                             if iFailureCount >= 20 then
                                                 M28Utilities.ErrorHandler('Have a valid plateau for SegmentX-Z='..(iSegmentX + iXAdjust)..'-'..(iSegmentZ + iZAdjust)..' but not a valid land or water zone, and have failed '..iFailureCount..' times now (will reset count after this)')
+                                                if bDebugMessages == true then LOG(sFunctionRef..': iAltPlateau='..iAltPlateau..'; iAltLZOrWZ='..iAltLZOrWZ..'; Is LZ info for this nil='..tostring(tAllPlateaus[iAltPlateau][subrefPlateauLandZones][iAltLZOrWZ] == nil)..'; Hover label for segment at this adjustment='..(NavUtils.GetTerrainLabel(refPathingTypeHover, tMidpoint) or 'nil')..'; tMidpoint='..repru(tMidpoint))
+                                                    M28Utilities.DrawLocation(tMidpoint, 2)
+                                                end
                                                 iFailureCount = 0
                                             end
                                         end
@@ -663,6 +678,7 @@ function GetClosestPlateauOrZeroAndZoneToPosition(tPosition)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return 0, tWaterZoneBySegment[iSegmentX][iSegmentZ]
             else
+
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return iPlateau, tLandZoneBySegment[iSegmentX][iSegmentZ]
             end
@@ -6054,10 +6070,13 @@ function CreateReclaimSegment(iReclaimSegmentX, iReclaimSegmentZ)
     local sFunctionRef = 'CreateReclaimSegment'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ] = {}
     tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint] = GetReclaimLocationFromSegment(iReclaimSegmentX, iReclaimSegmentZ)
     --tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refsSegmentMidpointLocationRef] = M28Utilities.ConvertLocationToReference(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint])
     local iPlateau, iLandZone = GetPlateauAndLandZoneReferenceFromPosition(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint])
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, iReclaimSegmentX='..iReclaimSegmentX..'Z'..iReclaimSegmentZ..'; Time of '..GetGameTimeSeconds()..'; iPlateau='..(iPlateau or 'nil')..'; iLandZOne='..(iLandZone or 'nil')) end
     if (iPlateau or 0) == 0 then
         --If we get the reclaim location, is it in a pathable area, or within 2 of a pathable area?
         local rRect = M28Utilities.GetRectAroundLocation(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint], iReclaimSegmentSizeX * 0.5)
@@ -6091,7 +6110,9 @@ function CreateReclaimSegment(iReclaimSegmentX, iReclaimSegmentZ)
     if bDebugMessages == true then LOG(sFunctionRef..': Adding iReclaimSegmentX-Z'..iReclaimSegmentX..'-'..iReclaimSegmentZ..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
     if (iLandZone or 0) > 0 then
         --Record in the land zone
-        if not(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefReclaimSegments]) then tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefReclaimSegments] = {} end
+        if not(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefReclaimSegments]) then
+            tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefReclaimSegments] = {}
+        end
         table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefReclaimSegments], {iReclaimSegmentX, iReclaimSegmentZ})
         if bDebugMessages == true then
             LOG(sFunctionRef..': Finished adding reclaim segment to LZ, all reclaim segments for this LZ='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefReclaimSegments]))
@@ -6235,6 +6256,7 @@ function UpdateReclaimDataNearSegments(iBaseSegmentX, iBaseSegmentZ, iSegmentRan
                 end
                 --tReclaimAreas[iCurX][iCurZ][refiReclaimTotalPrev] = (tReclaimAreas[iCurX][iCurZ][refReclaimTotalMass] or 0)
                 tReclaimAreas[iCurX][iCurZ][refReclaimTotalMass] = iTotalMassValue
+                tReclaimAreas[iCurX][iCurZ][refReclaimHighestIndividualReclaim] = iLargestCurReclaim
                 --tReclaimAreas[iCurX][iCurZ][refReclaimHighestIndividualReclaim] = iLargestCurReclaim
                 --iHighestReclaimInASegment = math.max(iHighestReclaimInASegment, iTotalMassValue)
                 tReclaimAreas[iCurX][iCurZ][refSegmentReclaimTotalEnergy] = iTotalEnergyValue

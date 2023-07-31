@@ -10,6 +10,16 @@ function OnFirstUpdate()
     M28OnFirstUpdate()
     if M28Config.M28RunVeryFast == true then
         ConExecute("WLD_GameSpeed 15")
+        ForkThread(
+                function()
+                    WaitSeconds(1.5)
+                    WaitSeconds(1.5)
+
+                    ConExecute('path_armybudget = 6500')
+                    ConExecute('path_backgroundbudget = 3000')
+                    ConExecute('path_maxinstantworkunits = 1250')
+                end
+        )
     end
     --WaitSeconds(3) --If we try to wait it causes an error
     --Thanks to Sprouto for providing the below - it didnt solve the issue I was having, but have left this in in case it is of use at solving other issues, as Sprouto mentioned the sim can sometimes get overloaded and for the clost of some memory the below can avoid most issues

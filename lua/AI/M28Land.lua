@@ -261,6 +261,8 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
     local sFunctionRef = 'UpdateUnitPositionsAndLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     local iRevisedIndex = 1
     local iTableSize = table.getn(tUnits)
     local iActualPlateau, iActualLandZone
@@ -270,7 +272,7 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
     if bUpdateTimeOfLastEnemyPositionCheck and not(bUseLastKnownPosition) then tLZTeamData[M28Map.subrefiTimeOfLastEnemyUnitPosUpdate] = GetGameTimeSeconds() end
     if tLZTeamData[M28Map.refiRadarCoverage] >= 70 then bUseActualPositionIfEnemy = true end
 
-    if bDebugMessages == true then LOG('Start of code at time '..GetGameTimeSeconds()..', reprs of tUnits='..reprs(tUnits)) end
+    if bDebugMessages == true then LOG('Start of code at time '..GetGameTimeSeconds()..', reprs of tUnits='..reprs(tUnits)..'; bUseLastKnownPosition='..tostring(bUseLastKnownPosition or false)) end
     for iOrigIndex=1, iTableSize do
         if not(tUnits[iOrigIndex]) or tUnits[iOrigIndex].Dead then
             --Remove the entry
@@ -310,8 +312,14 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
 
             --Is the plateau and zone correct?
             if bDebugMessages == true then
-                LOG('Updating unit position for unit '..tUnits[iOrigIndex].UnitId..M28UnitInfo.GetUnitLifetimeCount(tUnits[iOrigIndex])..'; iRecordedPlateau='..iRecordedPlateau..'; iActualPlateau='..(iActualPlateau or 'nil')..';  iRecordedLandZone='..(iRecordedLandZone or 'nil')..'; iActualLandZone='..(iActualLandZone or 'nil')..'; Unit actual position='..repru(tUnits[iOrigIndex]:GetPosition())..'; Plateau ref using navutils of actual position='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tUnits[iOrigIndex]:GetPosition()) or 'nil'))
+                LOG('Updating unit position for unit '..tUnits[iOrigIndex].UnitId..M28UnitInfo.GetUnitLifetimeCount(tUnits[iOrigIndex])..'; iRecordedPlateau='..iRecordedPlateau..'; iActualPlateau='..(iActualPlateau or 'nil')..';  iRecordedLandZone='..(iRecordedLandZone or 'nil')..'; iActualLandZone='..(iActualLandZone or 'nil')..'; Unit actual position='..repru(tUnits[iOrigIndex]:GetPosition())..'; Plateau ref using navutils of actual position='..(NavUtils.GetLabel(M28Map.refPathingTypeLand, tUnits[iOrigIndex]:GetPosition()) or 'nil')..'; Last known position='..repru(tUnits[iOrigIndex][M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; Hover nav utils of unit position='..(NavUtils.GetLabel(M28Map.refPathingTypeHover, tUnits[iOrigIndex]:GetPosition()) or 'nil'))
                 M28Utilities.DrawLocation(tUnits[iOrigIndex]:GetPosition())
+            end
+            --If the plateau has changed, and the new one has no valid location, then update the position to the actual position (due to issue with e.g. air units where if they fly over a cliff at the point intel is lost then it causes an error when trying to add them to another zone)
+            if not(iRecordedPlateau == iActualPlateau) and bUseLastKnownPosition and (iActualLandZone or 0) > 0 then
+                local tRevisedPosition = tUnits[iOrigIndex]:GetPosition()
+                tUnits[iOrigIndex][M28UnitInfo.reftLastKnownPositionByTeam][iTeam] = {tRevisedPosition[1], tRevisedPosition[2], tRevisedPosition[3]}
+                iActualPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tRevisedPosition)
             end
             if iRecordedPlateau == iActualPlateau and iRecordedLandZone == iActualLandZone then
                 --No change needed for unit
@@ -2066,7 +2074,7 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
                 local oNearestCompleteShield
                 local iActiveShields = 0
                 local iCurShield, iMaxShield
-                for iShield, oShield in oGameEnder[M28Building.reftoSpecialAssignedShields] do
+                for iShield, oShield in oGameEnderToCover[M28Building.reftoSpecialAssignedShields] do
                     if oShield:GetFractionComplete() < 1 and oShield:GetFractionComplete() > iNearestCompleteShield then
                         iNearestCompleteShield = oShield:GetFractionComplete()
                         oNearestCompleteShield = oShield
@@ -2112,7 +2120,7 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
                             --Is the shield still active?
                             iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit[M28Building.refoPriorityShieldProvidingCoverage], true)
                             if bDebugMessages == true then LOG(sFunctionRef..': iCurShield='..iCurShield) end
-                            if iCurShield > 0 or oUnit[M28Building.refoPriorityShieldProvidingCoverage]:GetFractionComplete() < 1 then
+                            if iCurShield > 0 or (oUnit[M28Building.refoPriorityShieldProvidingCoverage]:GetFractionComplete() < 1 and (not(oUnit[M28Engineer.refbDontIncludeAsPartCompleteBuildingForConstruction]) or oUnit[M28Building.refoPriorityShieldProvidingCoverage]:GetFractionComplete() <= 0.75)) then
                                 iClosestDist = iCurDist
                                 oShieldToAssist = oUnit[M28Building.refoPriorityShieldProvidingCoverage]
                             end
@@ -3048,7 +3056,11 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                     end
 
                                         --Attackmove (unless we have far more threat in this zone)
-                                elseif tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > 5000 and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 10 and not((oUnit[M28UnitInfo.refiDFRange] or 0) >= 64 or EntityCategoryContains(M28UnitInfo.refCategorySkirmisher, oUnit.UnitID)) then
+                                elseif tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > 5000 and not((oUnit[M28UnitInfo.refiDFRange] or 0) >= 64 or EntityCategoryContains(M28UnitInfo.refCategorySkirmisher, oUnit.UnitID)) and
+                                        ((tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 6) or
+                                        --If lots of T1 arti want to keep moving with experimentals/other units or theyll get slaughtered
+                                                (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 1.1 and EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) and (tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] >= 400 or EntityCategoryContains(M28UnitInfo.refCategoryIndirect + M28UnitInfo.refCategorySkirmisher, oNearestEnemyToMidpoint.UnitId)))) then
+
                                     M28Orders.IssueTrackedMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], (oUnit[M28UnitInfo.refiDFRange] or oUnit[M28UnitInfo.refiIndirectRange]) * 0.5, false, 'MWE'..iLandZone, false)
                                 else
                                     M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'AWE'..iLandZone)

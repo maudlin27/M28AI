@@ -38,6 +38,7 @@ reftbConsideredForAssignmentByTeam = 'M28UnitConsideredForAssignment' --[x] is t
 refiDFMassThreatOverride = 'M28BaseMassOverride' --e.g. for ACUs, will override the mass value suggested by the blueprint
 refbShieldIsDisabled = 'M28UnitShieldDisabled'
 refiTimeOfLastCheck = 'M28UnitTimeOfLastCheck' --Currently used for shot is blocked (M27 also used for T3 arti adjacency, when first detected enemy SMD)
+refiTimeOfLastUnblockedShot = 'M28UnitTimeLastUnblockedShot'
 refbLastShotBlocked = 'M28UnitLastShotBlocked' --Used for DF units to indicate if last shot was blocked
 refiTargetShotBlockedCount = 'M28UnitTrgSBlC' --Number of times a long range unit has failed to hit this (used for naval units targeting structures - change how this is increased if want to expand usage)
 refiTimeOfLastOverchargeShot = 'M28UnitTimeLastOvercharge' --Gametimeseconds

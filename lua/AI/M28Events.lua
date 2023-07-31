@@ -520,6 +520,11 @@ function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble 
 
                 --Logic specific to M28 units dealing damage
                 if M28UnitInfo.IsUnitValid(oUnitCausingDamage) and oUnitCausingDamage:GetAIBrain().M28AI then
+                    --Update so unit isnt treated as having shot blocked
+                    oUnitCausingDamage[M28UnitInfo.refbLastShotBlocked] = false
+                    oUnitCausingDamage[M28UnitInfo.refiTimeOfLastUnblockedShot] = GetGameTimeSeconds()
+                    if M28UnitInfo.IsUnitValid(self) and (self[M28UnitInfo.refiTargetShotBlockedCount] or 0) > 0 then self[M28UnitInfo.refiTargetShotBlockedCount] = self[M28UnitInfo.refiTargetShotBlockedCount] - 10 end
+
                     --T3/experimental arti specific
                     if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oUnitCausingDamage.UnitId) then
                         --Reset the arti shot count if damaged a high value unit
@@ -658,7 +663,7 @@ function OnWeaponFired(oWeapon)
                         local oTarget = oWeapon:GetCurrentTarget()
                         if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has just fired a shot. Do we have a valid target for our weapon='..tostring(M28UnitInfo.IsUnitValid(oTarget))..'; time last shot was blocked='..(oUnit[M28UnitInfo.refiTimeOfLastCheck] or 'nil')) end
                         if M28UnitInfo.IsUnitValid(oTarget) then
-
+                            if not(oUnit[M28UnitInfo.refbLastShotBlocked]) then oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] = math.max((oUnit[M28UnitInfo.refiTimeOfLastCheck] or -100), (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or -100)) end
                             oUnit[M28UnitInfo.refiTimeOfLastCheck] = GetGameTimeSeconds()
                             oUnit[M28UnitInfo.refbLastShotBlocked] = M28Logic.IsShotBlocked(oUnit, oTarget, EntityCategoryContains(M28UnitInfo.refCategorySubmarine, oUnit.UnitId))
                             if bDebugMessages == true then LOG(sFunctionRef..': oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; Is shot blocked='..tostring(oUnit[M28UnitInfo.refbLastShotBlocked])..'; built in blocking terrain result for low profile='..tostring(oUnit:GetAIBrain():CheckBlockingTerrain(oUnit:GetPosition(), oTarget:GetPosition(), 'Low'))..'; High profile='..tostring(oUnit:GetAIBrain():CheckBlockingTerrain(oUnit:GetPosition(), oTarget:GetPosition(), 'High'))) end
@@ -846,8 +851,38 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                         if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryFixedT3Arti, oConstruction.UnitId) then
                             M28Building.ReserveLocationsForGameEnder(oConstruction)
                             --Record shields against the gameender/T3 arti if they are in the reserved location
-                        elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oConstruction.UnitId) and oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionSpecialShieldDefence then
-                            M28Building.AssignShieldToGameEnder(oConstruction, oEngineer)
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oConstruction.UnitId) then
+                            if oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionSpecialShieldDefence then
+                                M28Building.AssignShieldToGameEnder(oConstruction, oEngineer)
+                            else
+                                --Consider adding normal shields to the gameender defence if they are built very near to a game ender location
+                                if oConstruction:GetAIBrain().M28AI and oEngineer:GetAIBrain().M28AI then
+                                    local iShieldRadius = (oConstruction:GetBlueprint().Defense.Shield.ShieldSize or 0) * 0.5
+                                    if iShieldRadius > 10 then --larger than a T2 aeon shield
+                                        local iTeam = oEngineer:GetAIBrain().M28Team
+                                        local tShieldLZData, tShieldLZTeamData = M28Map.GetLandOrWaterZoneData(oConstruction:GetPosition(), true, iTeam)
+                                        local bHaveMatch = false
+
+                                        if M28Utilities.IsTableEmpty(tShieldLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection]) == false then
+                                            for iGameEnder, oGameEnder in tShieldLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection] do
+                                                if M28Utilities.IsTableEmpty(oGameEnder[M28Building.reftLocationsForPriorityShield]) == false then
+                                                    for iLocation, tLocation in oGameEnder[M28Building.reftLocationsForPriorityShield] do
+                                                        if M28Utilities.GetRoughDistanceBetweenPositions(tLocation, oConstruction:GetPosition()) <= 3 then
+                                                            if M28Utilities.GetDistanceBetweenPositions(oConstruction:GetPosition(), oGameEnder:GetPosition()) <= iShieldRadius * 0.9 then
+                                                                if bDebugMessages == true then LOG(sFunctionRef..': Fixed shield construction '..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..' built by engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; will be assigned to a game ender shield as it is close to oGameEnder '..oGameEnder.UnitId..M28UnitInfo.GetUnitLifetimeCount(oGameEnder)) end
+                                                                bHaveMatch = true
+                                                                M28Building.AssignShieldToGameEnder(oConstruction, oEngineer)
+                                                                break
+                                                            end
+                                                        end
+                                                    end
+                                                    if bHaveMatch then break end
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                            end
 
                         end
                         M28Building.CheckIfUnitWantsFixedShield(oConstruction, true)
@@ -1093,7 +1128,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEngineer.UnitId) then
                     --Clear any engineers trying to build this unit if we just built a building or experimental
                     if EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId) then
-                        M28Engineer.ClearEngineersBuildingUnit(oEngineer, oJustBuilt)
+                        M28Engineer.ClearEngineersBuildingUnit(oEngineer, oJustBuilt, true)
                     end
                 end
 
@@ -1567,7 +1602,6 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
             if bDebugMessages == true then  LOG('Have a capture mission, is target empty='..tostring(M28Utilities.IsTableEmpty(Target))) end
             --Record every unit to be captured
             if M28Utilities.IsTableEmpty(Target.Units) == false then
-                local iPlateauOrZero, iLandOrWaterZone
                 for iEntry, oUnit in Target.Units do
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering iEntry='..iEntry..' in Target; Is valid unit='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
                     if M28UnitInfo.IsUnitValid(oUnit) then
@@ -1575,16 +1609,30 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                         if bDebugMessages == true then LOG(sFunctionRef..': WIll record unit as capture target assuming it is in a land zone') end
                     end
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': size of target units='..table.getn(Target.Units)) end
+                --If only have 1 unit (i.e. is a key location) then flag to fortify
+                if table.getn(Target.Units) == 1 then
+                    local oFirstM28Brain
+                    for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
+                        oFirstM28Brain = oBrain
+                        break
+                    end
+                    local iTeam = oFirstM28Brain.M28Team
+
+                    local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(Target.Units[1]:GetPosition(), true, iTeam)
+                    tUnitLZTeamData[M28Map.subrefLZFortify] = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': flagged to fortify zone') end
+                end
             end
         elseif M28Utilities.IsTableEmpty(Target.Units) == false then
             local bOnlyHaveAllies = true
             local bHaveLowHealthAlly = true
             local oFirstM28Brain
-            local iTeam = oFirstM28Brain.M28Team
             for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
                 oFirstM28Brain = oBrain
                 break
             end
+            local iTeam = oFirstM28Brain.M28Team
             local tUnitsToRepair = {}
             for iUnit, oUnit in Target.Units do
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit)))
@@ -1676,6 +1724,19 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                             end
                         end
                     end
+                end
+                --If only have 1 unit (i.e. is a key location) then flag to fortify
+                if table.getn(Target.Units) == 1 then
+                    local oFirstM28Brain
+                    for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
+                        oFirstM28Brain = oBrain
+                        break
+                    end
+                    local iTeam = oFirstM28Brain.M28Team
+
+                    local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(Target.Units[1]:GetPosition(), true, iTeam)
+                    tUnitLZTeamData[M28Map.subrefLZFortify] = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': flagged to fortify zone for repair target') end
                 end
             elseif bOnlyHaveAllies then
                 for iUnit, oUnit in Target.Units do

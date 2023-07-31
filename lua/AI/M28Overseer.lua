@@ -463,9 +463,19 @@ function NoRushMonitor()
 end
 
 function TestCustom(aiBrain)
-    local ScenarioFramework = import('/lua/ScenarioFramework.lua')
+
+    --Setons hover label testing
+    --[[local NavUtils = import("/lua/sim/navutils.lua")
+    local tLocations = {{667.5, 20.4453125, 244.5 },{709.44091796875, 36.008731842041, 215.21347045898},{668.9853515625, 33.445762634277, 243.86209106445}}
+    for iLocation, tLocation in tLocations do
+        M28Utilities.DrawLocation(tLocation, iLocation)
+        LOG('TestCustom: Hover label for position '..iLocation..'='..(NavUtils.GetLabel(M28Map.refPathingTypeHover, tLocation) or 'nil')..'; Terrain label='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tLocation) or 'nil'))
+    end--]]
+
+
+    --[[local ScenarioFramework = import('/lua/ScenarioFramework.lua')
     local tLZData = M28Map.tAllPlateaus[25][M28Map.subrefPlateauLandZones][4]
-    local rRect = M28Utilities.GetRectAroundLocation({512,0,512}, 512)
+    local rRect = M28Utilities.GetRectAroundLocation({512,0,512}, 512)--]]
     --ScenarioFramework.SetPlayableArea(rRect)
     --M28Map.DrawSpecificLandZone(25, 4, 4)
     --M28Map.DrawWaterZones()
@@ -708,40 +718,49 @@ function CheckUnitCap(aiBrain)
             if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryGunship * categories.TECH3) == 0 then
                 tiCategoryToDestroy[0] = tiCategoryToDestroy[0] - M28UnitInfo.refCategoryGunship
             end
+            --Dont exclude T2 tanks if we have no t3 tanks
+            if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMobileLand * categories.TECH3) == 0 then
+                tiCategoryToDestroy[2] = M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND
+                if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryGunship) > 0 then
+                    tiCategoryToDestroy[2] = M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND + M28UnitInfo.refCategoryBomber * categories.TECH1
+                end
+            end
         end
+
+
 
         if bDebugMessages == true then LOG(sFunctionRef..': We are over the threshold for ctrlking units') end
         if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer) > iUnitCap * 0.35 then tiCategoryToDestroy[0] = tiCategoryToDestroy[0] + M28UnitInfo.refCategoryEngineer end
         local iCumulativeCategory = tiCategoryToDestroy[4]
         for iAdjustmentLevel = 4, 0, -1 do
-        if iAdjustmentLevel < 4 then
-        iCumulativeCategory = iCumulativeCategory + tiCategoryToDestroy[iAdjustmentLevel]
-    end
-    if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitsDestroyed so far='..iCurUnitsDestroyed..'; iMaxToDestroy='..iMaxToDestroy..'; iAdjustmentLevel='..iAdjustmentLevel..'; iCurUnits='..iCurUnits..'; Unit cap='..iUnitCap..'; iThreshold='..iThreshold) end
-    if iCurUnits > (iUnitCap - iThreshold * iAdjustmentLevel) or iCurUnitsDestroyed == 0 then
-    tUnitsToDestroy = aiBrain:GetListOfUnits(tiCategoryToDestroy[iAdjustmentLevel], false, false)
-    if M28Utilities.IsTableEmpty(tUnitsToDestroy) == false then
-    M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] = math.min((M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100), iAdjustmentLevel)
-    for iUnit, oUnit in tUnitsToDestroy do
-    if oUnit.Kill then
-    if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitsDestroyed so far='..iCurUnitsDestroyed..'; Will destroy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to avoid going over unit cap') end
-    M28Orders.IssueTrackedKillUnit(oUnit)
-    if EntityCategoryContains(M28UnitInfo.refCategoryWall, oUnit.UnitId) then
-    iCurUnitsDestroyed = iCurUnitsDestroyed + 0.25
-    else
-    iCurUnitsDestroyed = iCurUnitsDestroyed + 1
-    end
-    if iCurUnitsDestroyed >= iMaxToDestroy then break end
-    end
-    end
-    end
-    if iCurUnitsDestroyed >= iMaxToDestroy then break end
-    else
-    break
-    end
-    end
-    aiBrain[refiUnitCapCategoriesDestroyed] = iCumulativeCategory
-    if bDebugMessages == true then LOG(sFunctionRef..': FInished destroying units, iCurUnitsDestroyed='..iCurUnitsDestroyed) end
+            if iAdjustmentLevel < 4 then
+                iCumulativeCategory = iCumulativeCategory + tiCategoryToDestroy[iAdjustmentLevel]
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitsDestroyed so far='..iCurUnitsDestroyed..'; iMaxToDestroy='..iMaxToDestroy..'; iAdjustmentLevel='..iAdjustmentLevel..'; iCurUnits='..iCurUnits..'; Unit cap='..iUnitCap..'; iThreshold='..iThreshold) end
+            if iCurUnits > (iUnitCap - iThreshold * iAdjustmentLevel) or iCurUnitsDestroyed == 0 then
+                tUnitsToDestroy = aiBrain:GetListOfUnits(tiCategoryToDestroy[iAdjustmentLevel], false, false)
+                if M28Utilities.IsTableEmpty(tUnitsToDestroy) == false then
+                    M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] = math.min((M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100), iAdjustmentLevel)
+                    for iUnit, oUnit in tUnitsToDestroy do
+                        if oUnit.Kill then
+                            if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitsDestroyed so far='..iCurUnitsDestroyed..'; Will destroy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to avoid going over unit cap') end
+                            M28Orders.IssueTrackedKillUnit(oUnit)
+                            if EntityCategoryContains(M28UnitInfo.refCategoryWall, oUnit.UnitId) then
+                                iCurUnitsDestroyed = iCurUnitsDestroyed + 0.25
+                            else
+                                iCurUnitsDestroyed = iCurUnitsDestroyed + 1
+                            end
+                            if iCurUnitsDestroyed >= iMaxToDestroy then break end
+                        end
+                    end
+                end
+                if iCurUnitsDestroyed >= iMaxToDestroy then break end
+            else
+                break
+            end
+        end
+        aiBrain[refiUnitCapCategoriesDestroyed] = iCumulativeCategory
+        if bDebugMessages == true then LOG(sFunctionRef..': FInished destroying units, iCurUnitsDestroyed='..iCurUnitsDestroyed) end
     else
         --Only reset cap if we havent reached the higher ctrlk thresholds, unless we have a massive amount of headroom
         if aiBrain[refbCloseToUnitCap] and (iCurUnits < iUnitCap * 0.5 - 25 or (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) > 1) then
@@ -966,7 +985,7 @@ function OverseerManager(aiBrain)
          end--]]
 
         --if GetGameTimeSeconds() >= 2700 then import('/mods/M28AI/lua/M28Config.lua').M28ShowUnitNames = true end
-        --if GetGameTimeSeconds() >= 120 and GetGameTimeSeconds() <= 125 then TestCustom(aiBrain) end
+        --if GetGameTimeSeconds() >= 60 and GetGameTimeSeconds() <= 180 then TestCustom(aiBrain) end
         --Enable below to help figure out infinite loops
         --[[if GetGameTimeSeconds() >= 173 and not(bSetHook) then
             bSetHook = true
