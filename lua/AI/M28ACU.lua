@@ -407,8 +407,22 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
 
                 --Do we want to build a hydro (so get mexes first then hydro) or build pgen?
 
-                if bDebugMessages == true then LOG(sFunctionRef..': Will adjust build order depending on if have hydro nearby. Is table of land zone hydros empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefHydroLocations]))) end
-                if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefHydroLocations]) then
+
+                local bHydroBuildOrder = false
+                --On crag dunes the hydro travel distance is 102 away and going for early hydro (with 4 mexes) causes power stall; top players BO appears to be normal no-hydro BO
+                    --For theta passage the travel distance is 62.5
+                    --For Cadmium green its 51.9
+                if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefHydroLocations]) == false then
+                    for iEntry, tHydro in tLZOrWZData[M28Map.subrefHydroLocations] do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Travel dist to hydro='..M28Utilities.GetTravelDistanceBetweenPositions(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()], tHydro, M28Map.refPathingTypeLand)) end
+                        if M28Utilities.GetTravelDistanceBetweenPositions(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()], tHydro, M28Map.refPathingTypeLand) <= 80 then
+                            bHydroBuildOrder = true
+                            break
+                        end
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Will adjust build order depending on if have hydro nearby. Is table of land zone hydros empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefHydroLocations]))..'; bHydroBuildOrder='..tostring(bHydroBuildOrder)) end
+                if not(bHydroBuildOrder) then
                     --Per discord gameplay and training pinned build order for going land facs with no hydro:
                     --ACU:      Landfac - 2 PG - 2 Mex - 1 PG - 2 Mex - 3 PG - Landfac - PG - Landfac
                     if bDebugMessages == true then LOG(sFunctionRef..': No hydro locations so will build power or mex depending on income') end
@@ -546,14 +560,17 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                 else
                     local iMexInLandZone = 0
                     if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZMexLocations]) == false then iMexInLandZone = table.getn(tLZOrWZData[M28Map.subrefLZMexLocations]) end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if want to build more mexes, iMexInLandZone='..iMexInLandZone..'; Gross mass='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; iResourceMod='..iResourceMod..'; Is table of unbuilt mexes empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]))..'; Mex count by tech='..repru(tLZOrWZTeamData[M28Map.subrefMexCountByTech])) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if want to build more mexes, iMexInLandZone='..iMexInLandZone..'; Mex count for LZ='..tLZOrWZData[M28Map.subrefLZMexCount]..'; Gross mass='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; iResourceMod='..iResourceMod..'; Is table of unbuilt mexes empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]))..'; Mex count by tech='..repru(tLZOrWZTeamData[M28Map.subrefMexCountByTech])) end
                     if aiBrain[M28Economy.refiGrossMassBaseIncome] < iMexInLandZone * 0.2 * iResourceMod then
                         ACUActionBuildMex(aiBrain, oACU)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will try building another mex') end
                     elseif M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false and tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] < iMexInLandZone then
                         ACUActionBuildMex(aiBrain, oACU)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will try building more mexes') end
                     else
                         --Finish the initial BO
                         oACU[refbDoingInitialBuildOrder] = false
+                        if bDebugMessages == true then LOG(sFunctionRef..': Finishing initial build order') end
                     end
                 end
             end

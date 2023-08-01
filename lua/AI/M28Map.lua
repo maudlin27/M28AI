@@ -1201,6 +1201,8 @@ local function AddMexToLandZone(iPlateau, iOptionalLandZone, iPlateauMexRef, tTe
     local sFunctionRef = 'AddMexToLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     --Get the land zone that we are using (/create a new land zone if we haven't had one specified to be used):
     local iLandZone
     if iOptionalLandZone then iLandZone = iOptionalLandZone
@@ -1214,32 +1216,59 @@ local function AddMexToLandZone(iPlateau, iOptionalLandZone, iPlateauMexRef, tTe
         if M28Utilities.IsTableEmpty(tAllPlateaus[iPlateau][subrefPlateauMexes]) or not(tOptionalMexLocationIfAddingDuringGame) then
             M28Utilities.ErrorHandler('Dont have any mexes recorded for iPlateau '..(iPlateau or 'nil')..'; or havent specified a value for tOptionalMexLocationIfAddingDuringGame')
         else
-            local iExistingCount = table.getn(tAllPlateaus[iPlateau][subrefPlateauMexes])
-            table.insert(tAllPlateaus[iPlateau][subrefPlateauMexes], {tOptionalMexLocationIfAddingDuringGame[1], tOptionalMexLocationIfAddingDuringGame[2], tOptionalMexLocationIfAddingDuringGame[3]})
-            iPlateauMexRef = iExistingCount + 1
-            if M28Conditions.CanBuildOnMexLocation(tOptionalMexLocationIfAddingDuringGame) then
-                local tLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
-                if not(tLZData[subrefMexUnbuiltLocations]) then tLZData[subrefMexUnbuiltLocations] = {} end
-                table.insert(tLZData[subrefMexUnbuiltLocations], { tOptionalMexLocationIfAddingDuringGame[1], tOptionalMexLocationIfAddingDuringGame[2], tOptionalMexLocationIfAddingDuringGame[3] })
-                if bDebugMessages == true then LOG(sFunctionRef..': Added mex to table of unbuilt mex locations, iExistingCount='..iExistingCount..'; iPlateauMexRef='..iPlateauMexRef) end
+            local bAlreadyIncluded = false
+            for iEntry, tMex in tAllPlateaus[iPlateau][subrefPlateauMexes] do
+                if tMex[1] == tOptionalMexLocationIfAddingDuringGame[1] and tMex[3] == tOptionalMexLocationIfAddingDuringGame[3] then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Mex '..repru(tOptionalMexLocationIfAddingDuringGame)..' is already included, tMex='..repru(tMex)) end
+                    bAlreadyIncluded = true
+                    break
+                end
+            end
+            if not(bAlreadyIncluded) then
+                local iExistingCount = table.getn(tAllPlateaus[iPlateau][subrefPlateauMexes])
+
+                table.insert(tAllPlateaus[iPlateau][subrefPlateauMexes], {tOptionalMexLocationIfAddingDuringGame[1], tOptionalMexLocationIfAddingDuringGame[2], tOptionalMexLocationIfAddingDuringGame[3]})
+                iPlateauMexRef = iExistingCount + 1
+                if M28Conditions.CanBuildOnMexLocation(tOptionalMexLocationIfAddingDuringGame) then
+                    local tLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
+                    if not(tLZData[subrefMexUnbuiltLocations]) then tLZData[subrefMexUnbuiltLocations] = {} end
+                    table.insert(tLZData[subrefMexUnbuiltLocations], { tOptionalMexLocationIfAddingDuringGame[1], tOptionalMexLocationIfAddingDuringGame[2], tOptionalMexLocationIfAddingDuringGame[3] })
+                    if bDebugMessages == true then LOG(sFunctionRef..': Added mex to table of unbuilt mex locations, iExistingCount='..iExistingCount..'; iPlateauMexRef='..iPlateauMexRef) end
+                end
             end
         end
-
     end
 
     --Add the mex to this land zone
+    local bAlreadyRecorded = false
+    local tThisMexLocation = {tAllPlateaus[iPlateau][subrefPlateauMexes][iPlateauMexRef][1], tAllPlateaus[iPlateau][subrefPlateauMexes][iPlateauMexRef][2], tAllPlateaus[iPlateau][subrefPlateauMexes][iPlateauMexRef][3]}
     if not(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexCount]) then
         M28Utilities.ErrorHandler('No mex count for iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil'))
         tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexCount] = 0
+    else
+        --Have we already recorded this mex (redundancy for strange issue where getting same mex recorded twice sometimes)
+
+        for iMex, tMex in tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexLocations] do
+            if tMex[1] == tThisMexLocation[1] and tMex[3] == tThisMexLocation[3] then
+                M28Utilities.ErrorHandler('Already recorded mex, will ignore', true)
+                if bDebugMessages == true then
+                    LOG(sFunctionRef..': Have already recorded mex, tMex='..repru(tMex)..'; iMex='..iMex..'; tThisMexLocation='..repru(tThisMexLocation))
+                end
+                bAlreadyRecorded = true
+                break
+            end
+        end
     end
-    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexCount] = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexCount] + 1
-    table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexLocations], tAllPlateaus[iPlateau][subrefPlateauMexes][iPlateauMexRef])
-    if tTempPlateauLandZoneByMexRef[iPlateau] then tTempPlateauLandZoneByMexRef[iPlateau][iPlateauMexRef] = iLandZone end
-    if bDebugMessages == true then LOG(sFunctionRef..': iPlateauMexRef='..(iPlateauMexRef or 'nil')..'; tAllPlateaus[iPlateau][subrefPlateauMexes][iPlateauMexRef] repru='..repru(tAllPlateaus[iPlateau][subrefPlateauMexes][iPlateauMexRef])) end
-    local iCurSegmentX, iCurSegmentZ = GetPathingSegmentFromPosition(tAllPlateaus[iPlateau][subrefPlateauMexes][iPlateauMexRef])
-    if not(tLandZoneBySegment[iCurSegmentX][iCurSegmentZ] == iLandZone) then
-        RecordSegmentLandZone(iCurSegmentX, iCurSegmentZ, iPlateau, iLandZone)
-        if bDebugMessages == true then LOG(sFunctionRef..': Hvae recorded a new land zone for segment '..iCurSegmentX..'-'..iCurSegmentZ..' for iPlateau '..iPlateau..'; iLandZone='..iLandZone) end
+    if not(bAlreadyRecorded) then
+        tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexCount] = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexCount] + 1
+        table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexLocations], tThisMexLocation)
+        if tTempPlateauLandZoneByMexRef[iPlateau] then tTempPlateauLandZoneByMexRef[iPlateau][iPlateauMexRef] = iLandZone end
+        if bDebugMessages == true then LOG(sFunctionRef..': iPlateauMexRef='..(iPlateauMexRef or 'nil')..'; tAllPlateaus[iPlateau][subrefPlateauMexes][iPlateauMexRef] repru='..repru(tAllPlateaus[iPlateau][subrefPlateauMexes][iPlateauMexRef])..'; table.getn of mexes for LZ='..table.getn(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexLocations])..'; Recorded mex count='..tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZMexCount]) end
+        local iCurSegmentX, iCurSegmentZ = GetPathingSegmentFromPosition(tAllPlateaus[iPlateau][subrefPlateauMexes][iPlateauMexRef])
+        if not(tLandZoneBySegment[iCurSegmentX][iCurSegmentZ] == iLandZone) then
+            RecordSegmentLandZone(iCurSegmentX, iCurSegmentZ, iPlateau, iLandZone)
+            if bDebugMessages == true then LOG(sFunctionRef..': Hvae recorded a new land zone for segment '..iCurSegmentX..'-'..iCurSegmentZ..' for iPlateau '..iPlateau..'; iLandZone='..iLandZone) end
+        end
     end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -2084,9 +2113,12 @@ local function AssignMexesALandZone()
     local iClosestStraightLineDist
     local iClosestStraightLineIndex
     local iClosestStraightLineTravelDist
+    
+    local tbStartingMexesRecordedByPlateau = {} --Tracks if we have already recorded a mex as near a brain start so we dont try and re-record it
 
-    for iPlateau, tPlateauSubtable in tAllPlateaus do
+    for iPlateau, tPlateauSubtable in tAllPlateaus do        
         if M28Utilities.IsTableEmpty(tPlateauSubtable[subrefPlateauMexes]) == false then
+            tbStartingMexesRecordedByPlateau[iPlateau] = {}
             for iMex, tMex in tPlateauSubtable[subrefPlateauMexes] do
                 --Only consider if mex isnt underwater
                 if tMex[2] >= iMapWaterHeight then
@@ -2137,6 +2169,7 @@ local function AssignMexesALandZone()
                     if iClosestBrainIndex then
                         if not(tiStartResourcesByBrainIndex[iClosestBrainIndex]) then tiStartResourcesByBrainIndex[iClosestBrainIndex] = {} end
                         table.insert(tiStartResourcesByBrainIndex[iClosestBrainIndex], tMex)
+                        tbStartingMexesRecordedByPlateau[iPlateau][iMex] = true
                         AddMexToLandZone(iPlateau, tiStartIndexPlateauAndLZ[iClosestBrainIndex][2], iMex, tiPlateauLandZoneByMexRef)
                         if bDebugMessages == true then LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLandZone='..(tiStartIndexPlateauAndLZ[iClosestBrainIndex][2] or 'nil')..'; Adding iMex='..iMex..'; at position '..repru(tMex)..'; to the start position for aiBrain index='..(iClosestBrainIndex or 'nil')..' which is at '..repru(tRelevantStartPointsByIndex[iClosestBrainIndex])) end
                     end
@@ -2261,57 +2294,61 @@ local function AssignMexesALandZone()
     for iPlateau, tPlateauSubtable in tAllPlateaus do
         if M28Utilities.IsTableEmpty(tPlateauSubtable[subrefPlateauMexes]) == false then
             for iMex, tMex in tPlateauSubtable[subrefPlateauMexes] do
-                --Only consider if mex isnt underwater
-                if tMex[2] >= iMapWaterHeight then
-                    --Find the closest start point
-                    iClosestDistTravel = iTravelDistThreshold --Ignore points whose travel distance is further away than this
-                    iClosestBrainIndex = nil
-                    iClosestStraightLineDist = 100000
-                    iClosestStraightLineIndex = nil
-                    iClosestStraightLineTravelDist = 100000
-                    local tiBrainsWithinThreshold = {}
-                    --Get the start position closest to this mex (if there are any close enough that we might want the mex to be part of the start zone)
-                    for iBrainIndex, tStartPoint in tRelevantStartPointsByIndex do
-                        if tiStartIndexPlateauAndLZ[iBrainIndex][1] == iPlateau then
-                            iCurDistStraightLine = M28Utilities.GetDistanceBetweenPositions(tMex, tStartPoint)
-                            if bDebugMessages == true then LOG(sFunctionRef..': iCurDistStraightLine='..iCurDistStraightLine..'; iStraightLineThreshold='..iStraightLineThreshold..'; iClosestStraightLineTravelDist='..iClosestStraightLineTravelDist) end
-                            if iCurDistStraightLine <= iStraightLineThreshold then
-                                table.insert(tiBrainsWithinThreshold, {iBrainIndex, iCurDistStraightLine})
-                                if iCurDistStraightLine < iClosestStraightLineTravelDist then
-                                    iClosestStraightLineTravelDist = iCurDistStraightLine
-                                    iClosestStraightLineIndex = iBrainIndex
-                                end
-                                --[[
-                                --Get the land pathing distance
-                                iCurDistTravel = M28Utilities.GetTravelDistanceBetweenPositions(tMex, tStartPoint, refPathingTypeLand)
-                                if iCurDistTravel < iClosestDistTravel then
-                                    iClosestDistTravel = iCurDistTravel
-                                    iClosestBrainIndex = iBrainIndex
-                                end--]]
-                            end
-                        end
-                    end
-                    if iClosestStraightLineIndex then
-                        iClosestDistTravel = M28Utilities.GetTravelDistanceBetweenPositions(tMex, tRelevantStartPointsByIndex[iClosestStraightLineIndex], refPathingTypeLand)
-                        iClosestBrainIndex = iClosestStraightLineIndex
-                        for iEntry, tiIndexAndDist in tiBrainsWithinThreshold do
-                            if bDebugMessages == true then LOG(sFunctionRef..': iClosestStraightLineIndex='..iClosestStraightLineIndex..'; tiIndexAndDist='..repru(tiIndexAndDist)..'; tRelevantStartPointsByIndex[tiIndexAndDist[1]]='..repru(tRelevantStartPointsByIndex[tiIndexAndDist[1]])..'; tMex='..repru(tMex)) end
-                            if tiIndexAndDist[2] < iClosestDistTravel and not(tiIndexAndDist[1] == iClosestStraightLineIndex) then
-                                iCurDistTravel = M28Utilities.GetTravelDistanceBetweenPositions(tMex, tRelevantStartPointsByIndex[tiIndexAndDist[1]], refPathingTypeLand)
-                                if bDebugMessages == true then LOG(sFunctionRef..': iCurDistTravel='..(iCurDistTravel or 'nil')..'; iClosestDistTravel='..iClosestDistTravel) end
-                                if iCurDistTravel < iClosestDistTravel then
-                                    iClosestDistTravel = iCurDistTravel
-                                    iClosestBrainIndex = tiIndexAndDist[1]
+                --Ignore if we have already recorded this mex above
+                if not(tbStartingMexesRecordedByPlateau[iPlateau][iMex]) then
+                    --Only consider if mex isnt underwater
+                    if tMex[2] >= iMapWaterHeight then
+                        --Find the closest start point
+                        iClosestDistTravel = iTravelDistThreshold --Ignore points whose travel distance is further away than this
+                        iClosestBrainIndex = nil
+                        iClosestStraightLineDist = 100000
+                        iClosestStraightLineIndex = nil
+                        iClosestStraightLineTravelDist = 100000
+                        local tiBrainsWithinThreshold = {}
+                        --Get the start position closest to this mex (if there are any close enough that we might want the mex to be part of the start zone)
+                        for iBrainIndex, tStartPoint in tRelevantStartPointsByIndex do
+                            if tiStartIndexPlateauAndLZ[iBrainIndex][1] == iPlateau then
+                                iCurDistStraightLine = M28Utilities.GetDistanceBetweenPositions(tMex, tStartPoint)
+                                if bDebugMessages == true then LOG(sFunctionRef..': iCurDistStraightLine='..iCurDistStraightLine..'; iStraightLineThreshold='..iStraightLineThreshold..'; iClosestStraightLineTravelDist='..iClosestStraightLineTravelDist) end
+                                if iCurDistStraightLine <= iStraightLineThreshold then
+                                    table.insert(tiBrainsWithinThreshold, {iBrainIndex, iCurDistStraightLine})
+                                    if iCurDistStraightLine < iClosestStraightLineTravelDist then
+                                        iClosestStraightLineTravelDist = iCurDistStraightLine
+                                        iClosestStraightLineIndex = iBrainIndex
+                                    end
+                                    --[[
+                                    --Get the land pathing distance
+                                    iCurDistTravel = M28Utilities.GetTravelDistanceBetweenPositions(tMex, tStartPoint, refPathingTypeLand)
+                                    if iCurDistTravel < iClosestDistTravel then
+                                        iClosestDistTravel = iCurDistTravel
+                                        iClosestBrainIndex = iBrainIndex
+                                    end--]]
                                 end
                             end
                         end
-                    end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Searching for closest brain index to tMex '..repru(tMex)..' that is close enough, iClosestBrainIndex='..(iClosestBrainIndex or 'nil')) end
-                    if iClosestBrainIndex then
-                        if not(tiStartResourcesByBrainIndex[iClosestBrainIndex]) then tiStartResourcesByBrainIndex[iClosestBrainIndex] = {} end
-                        table.insert(tiStartResourcesByBrainIndex[iClosestBrainIndex], tMex)
-                        AddMexToLandZone(iPlateau, tiStartIndexPlateauAndLZ[iClosestBrainIndex][2], iMex, tiPlateauLandZoneByMexRef)
-                        if bDebugMessages == true then LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLandZone='..(tiStartIndexPlateauAndLZ[iClosestBrainIndex][2] or 'nil')..'; Adding iMex='..iMex..'; at position '..repru(tMex)..'; to the start position for aiBrain index='..(iClosestBrainIndex or 'nil')..' which is at '..repru(tRelevantStartPointsByIndex[iClosestBrainIndex])) end
+                        if iClosestStraightLineIndex then
+                            iClosestDistTravel = M28Utilities.GetTravelDistanceBetweenPositions(tMex, tRelevantStartPointsByIndex[iClosestStraightLineIndex], refPathingTypeLand)
+                            iClosestBrainIndex = iClosestStraightLineIndex
+                            for iEntry, tiIndexAndDist in tiBrainsWithinThreshold do
+                                if bDebugMessages == true then LOG(sFunctionRef..': iClosestStraightLineIndex='..iClosestStraightLineIndex..'; tiIndexAndDist='..repru(tiIndexAndDist)..'; tRelevantStartPointsByIndex[tiIndexAndDist[1]]='..repru(tRelevantStartPointsByIndex[tiIndexAndDist[1]])..'; tMex='..repru(tMex)) end
+                                if tiIndexAndDist[2] < iClosestDistTravel and not(tiIndexAndDist[1] == iClosestStraightLineIndex) then
+                                    iCurDistTravel = M28Utilities.GetTravelDistanceBetweenPositions(tMex, tRelevantStartPointsByIndex[tiIndexAndDist[1]], refPathingTypeLand)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': iCurDistTravel='..(iCurDistTravel or 'nil')..'; iClosestDistTravel='..iClosestDistTravel) end
+                                    if iCurDistTravel < iClosestDistTravel then
+                                        iClosestDistTravel = iCurDistTravel
+                                        iClosestBrainIndex = tiIndexAndDist[1]
+                                    end
+                                end
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Searching for closest brain index to tMex '..repru(tMex)..' that is close enough, iClosestBrainIndex='..(iClosestBrainIndex or 'nil')) end
+                        if iClosestBrainIndex then
+                            if not(tiStartResourcesByBrainIndex[iClosestBrainIndex]) then tiStartResourcesByBrainIndex[iClosestBrainIndex] = {} end
+                            table.insert(tiStartResourcesByBrainIndex[iClosestBrainIndex], tMex)
+                            
+                            AddMexToLandZone(iPlateau, tiStartIndexPlateauAndLZ[iClosestBrainIndex][2], iMex, tiPlateauLandZoneByMexRef)
+                            if bDebugMessages == true then LOG(sFunctionRef..': iPlateau='..iPlateau..'; iLandZone='..(tiStartIndexPlateauAndLZ[iClosestBrainIndex][2] or 'nil')..'; Adding iMex='..iMex..'; at position '..repru(tMex)..'; to the start position for aiBrain index='..(iClosestBrainIndex or 'nil')..' which is at '..repru(tRelevantStartPointsByIndex[iClosestBrainIndex])) end
+                        end
                     end
                 end
             end
@@ -2325,16 +2362,19 @@ local function AssignMexesALandZone()
         if bDebugMessages == true then LOG(sFunctionRef..': tPlateauSubtable[subrefPlateauMexes]='..repru(tPlateauSubtable[subrefPlateauMexes])) end
         if M28Utilities.IsTableEmpty(tPlateauSubtable[subrefPlateauMexes]) == false then
             for iMex, tMex in tPlateauSubtable[subrefPlateauMexes] do
-                if bDebugMessages == true then LOG(sFunctionRef..': iMex='..iMex..'; tMex='..repru(tMex)) end
-                if not(IsUnderwater(tMex, false, 0.1)) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Plateau='..iPlateau..': Considering mex with plateau mex ref='..iMex..'; position='..repru(tMex)..'; tiPlateauLandZoneByMexRef for this ref='..(tiPlateauLandZoneByMexRef[iPlateau][iMex] or 'nil')) end
-                    if not(tiPlateauLandZoneByMexRef[iPlateau][iMex]) then
-                        AddMexToLandZone(iPlateau, nil, iMex, tiPlateauLandZoneByMexRef)
-                        iCurLandZone = tiPlateauLandZoneByMexRef[iPlateau][iMex]
-                        if bDebugMessages == true then LOG(sFunctionRef..': Added mex '..iMex..' with position '..repru(tMex)..' to land zone, tiPlateauLandZoneByMexRef='..(tiPlateauLandZoneByMexRef[iPlateau][iMex] or 'nil')) end
+                --Only do this if we didnt record as part of start position (as we already add nearby mexes as part of that)
+                if not(tbStartingMexesRecordedByPlateau[iPlateau][iMex]) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': iMex='..iMex..'; tMex='..repru(tMex)) end
+                    if not(IsUnderwater(tMex, false, 0.1)) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Plateau='..iPlateau..': Considering mex with plateau mex ref='..iMex..'; position='..repru(tMex)..'; tiPlateauLandZoneByMexRef for this ref='..(tiPlateauLandZoneByMexRef[iPlateau][iMex] or 'nil')) end
+                        if not(tiPlateauLandZoneByMexRef[iPlateau][iMex]) then
+                            AddMexToLandZone(iPlateau, nil, iMex, tiPlateauLandZoneByMexRef)
+                            iCurLandZone = tiPlateauLandZoneByMexRef[iPlateau][iMex]
+                            if bDebugMessages == true then LOG(sFunctionRef..': Added mex '..iMex..' with position '..repru(tMex)..' to land zone, tiPlateauLandZoneByMexRef='..(tiPlateauLandZoneByMexRef[iPlateau][iMex] or 'nil')) end
 
-                        --Cycle through each other mex in the plateau and if it is within iNearbyMexRange then assign it to the same group if it hasnt had a group assigned already
-                        AddNearbyMexesToLandZone(iPlateau, iCurLandZone, tMex, 0)
+                            --Cycle through each other mex in the plateau and if it is within iNearbyMexRange then assign it to the same group if it hasnt had a group assigned already
+                            AddNearbyMexesToLandZone(iPlateau, iCurLandZone, tMex, 0)
+                        end
                     end
                 end
             end
