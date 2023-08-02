@@ -2572,7 +2572,6 @@ function WaterZoneTeamInitialisation(iTeam)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at gamestime='..GetGameTimeSeconds()..', iTeam='..iTeam) end
     for iPond, tPondSubtable in M28Map.tPondDetails do
         for iWaterZone, tWZData in tPondSubtable[M28Map.subrefPondWaterZones] do
-            iCurPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tWZData[M28Map.subrefMidpoint])
             if bDebugMessages == true then LOG(sFunctionRef..': Setting starting values for iPond='..iPond..'; iWaterZone='..iWaterZone) end
             if not(tWZData[M28Map.subrefWZTeamData]) then tWZData[M28Map.subrefWZTeamData] = {} end
             if not(tWZData[M28Map.subrefWZTeamData][iTeam]) then tWZData[M28Map.subrefWZTeamData][iTeam] = {} end
@@ -2632,7 +2631,10 @@ function WaterZoneTeamInitialisation(iTeam)
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiEnemyAirOtherThreat] = 0
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefAlliedACU] = {}
 
-            if not(tTeamData[iTeam][subrefiWaterZonesWantingSignificantMAAByPlateau][iCurPlateau]) then tTeamData[iTeam][subrefiWaterZonesWantingSignificantMAAByPlateau][iCurPlateau] = {} end
+            iCurPlateau = NavUtils.GetLabel(M28Map.refPathingTypeHover, tWZData[M28Map.subrefMidpoint])
+            if iCurPlateau then
+                if not(tTeamData[iTeam][subrefiWaterZonesWantingSignificantMAAByPlateau][iCurPlateau]) then tTeamData[iTeam][subrefiWaterZonesWantingSignificantMAAByPlateau][iCurPlateau] = {} end
+            end
         end
     end
     --Record any start positions of friendly M28AI that are on water as waterstartposition for team data

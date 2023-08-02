@@ -1334,8 +1334,35 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': oEnemyToTarget='..oEnemyToTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToTarget)..'; iClosestDist='..iClosestDist..'; iDistToBeInRange='..iDistToBeInRange..'; ACU DF range='..(oACU[M28UnitInfo.refiDFRange] or 0)) end
                 if iClosestDist and iClosestDist + iDistToBeInRange <= oACU[M28UnitInfo.refiDFRange]  then
-                    --Retreat temporarily
-                    local tRallyPoint = M28Land.GetNearestLandRallyPoint(tLZData, oACU:GetAIBrain().M28Team, iPlateau, iLandZone, 2, true)
+                    --Retreat temporarily - if aren't in a core zone then retreat to rally point
+                    local tRallyPoint
+                    if tLZTeamData[M28Map.subrefLZbCoreBase] then
+                        --Retreat from nearest enemy
+                        local iAngleFromEnemyToACU = M28Utilities.GetAngleFromAToB(oEnemyToTarget:GetPosition(), oACU:GetPosition())
+                        tRallyPoint = M28Utilities.MoveInDirection(oACU:GetPosition(), iAngleFromEnemyToACU, 6, true, true, M28Map.bIsCampaignMap)
+                        --Check this is in the same plateau, otherwise move it
+                        local iRallyPlateau = NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tRallyPoint)
+                        if iRallyPlateau == iPlateau then
+                            --Do nothing
+                        else
+                            local bHavePlateauInSameArea = false
+                            --Search for position in the same plateau
+                            for iAngleAdjust = -20, 20, 20 do
+                                for iDist = 7, 28, 7 do
+                                    tRallyPoint = M28Utilities.MoveInDirection(oACU:GetPosition(), iAngleAdjust + iAngleFromEnemyToACU, 6, true, true, M28Map.bIsCampaignMap)
+                                    iRallyPlateau = NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tRallyPoint)
+                                    if iRallyPlateau == iPlateau then
+                                        bHavePlateauInSameArea = true
+                                        break
+                                    end
+                                end
+                                if bHavePlateauInSameArea then break end
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Are in core zone so will move away from nearest enemy, tRallyPoint='..repru(tRallyPoint)) end
+                    else
+                        tRallyPoint = M28Land.GetNearestLandRallyPoint(tLZData, oACU:GetAIBrain().M28Team, iPlateau, iLandZone, 2, true)
+                    end
                     M28Orders.IssueTrackedMove(oACU, tRallyPoint, 6, false, 'ACUKit', false)
                 else
                     --Attack-move towards enemy
