@@ -3744,7 +3744,7 @@ function RecordIslands()
     if iMapSize >= 512 then --10km+
         local iTotalLandZoneCount = 0
         for iPlateau, tPlateauSubtable in tAllPlateaus do
-            iTotalLandZoneCount = iTotalLandZoneCount + tPlateauSubtable[subrefLandZoneCount]
+            iTotalLandZoneCount = iTotalLandZoneCount + (tPlateauSubtable[subrefLandZoneCount] or 0)
         end
         if iTotalLandZoneCount >= 45 or (iTotalLandZoneCount >= 30 and iMapSize >= 512) then
             bUseDistanceForNearestIslandLZ = true
@@ -3755,7 +3755,7 @@ function RecordIslands()
     --First record every island where there are mexes in the plateau or the location is relatively large
     for iPlateau, tPlateauSubtable in tAllPlateaus do
         if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; About to record any islands for plateau '..iPlateau..'; if it has mexes, tPlateauSubtable[subrefPlateauTotalMexCount]='..tPlateauSubtable[subrefPlateauTotalMexCount]) end
-        if tPlateauSubtable[subrefPlateauTotalMexCount] > 0 or tPlateauSubtable[subrefPlateauMaxRadius] >= 50 then
+        if (tPlateauSubtable[subrefPlateauTotalMexCount] or 0) > 0 or (tPlateauSubtable[subrefPlateauMaxRadius] or 0) >= 50 then
             tPlateauSubtable[subrefPlateauIslandLandZones] = {}
             tPlateauSubtable[subrefPlateauIslandMexCount] = { }
             local tLandZonesWithoutIslands = {}
@@ -3948,6 +3948,10 @@ function RecordIslands()
             end
             M28Profiler.FunctionProfiler(sFunctionRef..': Pathing', M28Profiler.refProfilerEnd)
             if bDebugMessages == true then LOG(sFunctionRef..': Finished recording for iPlateau='..iPlateau) end
+        else
+            if not(tPlateauSubtable[subrefPlateauLandZones]) then
+                M28Utilities.ErrorHandler('Have no land zone recorded for plateau '..iPlateau, false, true)
+            end
         end
     end
 

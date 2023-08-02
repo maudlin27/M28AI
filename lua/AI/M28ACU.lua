@@ -1847,7 +1847,7 @@ function GetACUOrder(aiBrain, oACU)
     M28Orders.UpdateRecordedOrders(oACU)
 
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; oACU[refbDoingInitialBuildOrder]='..tostring(oACU[refbDoingInitialBuildOrder])..'; ACU unit state='..M28UnitInfo.GetUnitState(oACU)..'; iPlateau='..(iPlateauOrZero or 'nil')..'; iLandZone='..(iLandOrWaterZone or 'nil')..'; Can ACU use overcharge='..tostring(M28Conditions.CanUnitUseOvercharge(oACU:GetAIBrain(), oACU))..'; ACU position='..repru(oACU:GetPosition())..'; ACU Orders (before updates)='..reprs(oACU[M28Orders.reftiLastOrders])..'; Is special micro active='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive] or false)..'; Time to stop micro='..(oACU[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')..'; Brian nickname='..aiBrain.Nickname..'; reftSpecialObjectiveMoveLocation='..repru(oACU[reftSpecialObjectiveMoveLocation])) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code for brain '..oACU:GetAIBrain().Nickname..', time='..GetGameTimeSeconds()..'; oACU[refbDoingInitialBuildOrder]='..tostring(oACU[refbDoingInitialBuildOrder])..'; ACU unit state='..M28UnitInfo.GetUnitState(oACU)..'; iPlateau='..(iPlateauOrZero or 'nil')..'; iLandZone='..(iLandOrWaterZone or 'nil')..'; Can ACU use overcharge='..tostring(M28Conditions.CanUnitUseOvercharge(oACU:GetAIBrain(), oACU))..'; ACU position='..repru(oACU:GetPosition())..'; ACU Orders (before updates)='..reprs(oACU[M28Orders.reftiLastOrders])..'; Is special micro active='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive] or false)..'; Time to stop micro='..(oACU[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')..'; Brian nickname='..aiBrain.Nickname..'; reftSpecialObjectiveMoveLocation='..repru(oACU[reftSpecialObjectiveMoveLocation])) end
 
     --Is the ACU busy with something?
     if oACU:IsUnitState('Upgrading') then
@@ -1892,6 +1892,7 @@ function GetACUOrder(aiBrain, oACU)
                 if bDebugMessages == true then LOG(sFunctionRef..': ACU not in land zone and is doing initial order so referred to early game order logic') end
             elseif (iLandOrWaterZone or 0) > 0 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false then
                 --Are enemies in this zone, decide if we want to attack them - get closest enemy to ACU, and ignore any structures that are more than 10 from being in range of ACU
+                --Exception - we have no factory in this zone, and the enemy isn't a combat unit
                 local iClosestDist = 100000
                 local iClosestUntilInRange = 100000
                 local iClosestMobileThreatUntilInRange = 100000
@@ -1917,10 +1918,23 @@ function GetACUOrder(aiBrain, oACU)
                     end
                 end
                 local iOurRange = (oACU[M28UnitInfo.refiDFRange] or 0)
+                if bDebugMessages == true then LOG(sFunctionRef..': Deciding whether to go with early game orders despite enemy having units in this zone, subrefTThreatEnemyCombatTotal='..(tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; iOurRange='..iOurRange..'; iClosestUntilInRange='..iClosestUntilInRange..'; iClosestMobileThreatUntilInRange='..iClosestMobileThreatUntilInRange) end
                 --Ignore nearby enemy if will be a while before in our range, with the threshold depending on if it is is a mobile threat or not
                 if iClosestUntilInRange > (iOurRange + 15) and iCurDistUntilInRange > 15 and iClosestMobileThreatUntilInRange > 25 then
                     bProceedWithLogic = false
                     GetACUEarlyGameOrders(aiBrain, oACU) --Avoid some scenarios where ACU might get stuck in 'run to core zone' mode
+                elseif iClosestMobileThreatUntilInRange > 25 or (aiBrain[M28Economy.refiBrainBuildRateMultiplier] >= 3 and iClosestMobileThreatUntilInRange > 1) or aiBrain[M28Economy.refiBrainBuildRateMultiplier] >= 6 then
+                    local tFactoriesOwned = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryFactory, false, true)
+                    local bHaveNoFactory = true
+                    if M28Utilities.IsTableEmpty(tFactoriesOwned) == false then
+                        for iFactory, oFactory in tFactoriesOwned do
+                            if oFactory:GetFractionComplete() == 1 then bHaveNoFactory = false break end
+                        end
+                    end
+                    if bHaveNoFactory then
+                        bProceedWithLogic = false
+                        GetACUEarlyGameOrders(aiBrain, oACU) --Avoid some scenarios where ACU might get stuck in 'run to core zone' mode
+                    end
                 end
             end
             if not(oACU[refbDoingInitialBuildOrder]) then bProceedWithLogic = true end
