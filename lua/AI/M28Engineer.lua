@@ -2955,16 +2955,16 @@ function GetPartCompleteBuildingInZone(iTeam, iPlateauOrPond, iLandOrWaterZone, 
     local sFunctionRef = 'GetPartCompleteBuildingInZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if bIsWaterZone then bDebugMessages = true end
 
     if bDebugMessages == true then
         local tBlueprints = EntityCategoryGetUnitList(iCategoryWanted)
-        LOG(sFunctionRef..': Start of code at game time seconds='..GetGameTimeSeconds()..', will list out every blueprint of iCategoryWanted='..reprs(tBlueprints))
+        LOG(sFunctionRef..': Start of code at game time seconds='..GetGameTimeSeconds()..', will list out every blueprint of iCategoryWanted='..reprs(tBlueprints)..'; iPlateauOrPond='..iPlateauOrPond)
     end
     local tLZOrWZTeamData
     local sAlliedUnitRef
     if bIsWaterZone then
-        tLZOrWZTeamData = M28Map.tAllPlateaus[iPlateauOrPond][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefWZTeamData][iTeam]
+        tLZOrWZTeamData = M28Map.tPondDetails[iPlateauOrPond][M28Map.subrefPondWaterZones][iLandOrWaterZone][M28Map.subrefWZTeamData][iTeam]
         sAlliedUnitRef = M28Map.subrefWZTAlliedUnits
     else
         tLZOrWZTeamData = M28Map.tAllPlateaus[iPlateauOrPond][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
@@ -2972,6 +2972,7 @@ function GetPartCompleteBuildingInZone(iTeam, iPlateauOrPond, iLandOrWaterZone, 
     end
     if M28Utilities.IsTableEmpty(tLZOrWZTeamData[sAlliedUnitRef]) == false then
         local tBuildingsOfCategory = EntityCategoryFilterDown(iCategoryWanted, tLZOrWZTeamData[sAlliedUnitRef])
+        if bDebugMessages == true then LOG(sFunctionRef..': Is table of buildings of category empty='..tostring(M28Utilities.IsTableEmpty(tBuildingsOfCategory))) end
         if M28Utilities.IsTableEmpty(tBuildingsOfCategory) == false then
             for iUnit, oUnit in tBuildingsOfCategory do
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering oUnit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fractino compelte='..oUnit:GetFractionComplete()..'; oUnit[refbDontIncludeAsPartCompleteBuildingForConstruction]='..tostring(oUnit[refbDontIncludeAsPartCompleteBuildingForConstruction] or false)) end
@@ -4211,7 +4212,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     local sFunctionRef = 'ConsiderActionToAssign'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iActionToAssign == refActionBuildNavalFactory then bDebugMessages = true end
 
     --Dont try getting any mroe BP for htis action if have run out of buildable locations
     local iExpectedBuildingSize = tiLastBuildingSizeFromActionForTeam[iTeam][iActionToAssign]
@@ -4433,7 +4434,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                     else iUnderConstructionCategory = iCategoryWanted
                     end
                     oBuildingToAssist = GetPartCompleteBuildingInZone(iTeam, iPlateauOrPond, iLandOrWaterZone, iUnderConstructionCategory, bIsWaterZone)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Finished checking to see if we have a unit of the desired category. oBuildingToAssist='..(oBuildingToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oBuildingToAssist) or 'nil')) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Finished checking to see if we have a unit of the desired category. oBuildingToAssist='..(oBuildingToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oBuildingToAssist) or 'nil')..'; bIsWaterZone='..tostring(bIsWaterZone)) end
                 end
 
                 if oBuildingToAssist then
@@ -8171,7 +8172,7 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     local sFunctionRef = 'ConsiderWaterZoneEngineerAssignment'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iWaterZone == 14 and M28Utilities.IsTableEmpty(tEngineers) == false then bDebugMessages = true end
 
     local iBPWanted
     local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
@@ -8182,7 +8183,9 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
     if tWZTeamData[M28Map.subrefWZbCoreBase] then
         local tExistingWaterFactory = EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tWZTeamData[M28Map.subrefWZTAlliedUnits])
         if M28Utilities.IsTableEmpty(tExistingWaterFactory) == false then
-            iExistingWaterFactory = table.getn(tExistingWaterFactory)
+            for iFactory, oFactory in tExistingWaterFactory do
+                if oFactory:GetFractionComplete() == 1 then iExistingWaterFactory = iExistingWaterFactory + 1 end
+            end
         end
     end
 

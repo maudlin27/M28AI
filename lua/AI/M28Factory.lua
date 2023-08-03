@@ -2843,7 +2843,7 @@ end
 
 function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     local sFunctionRef = 'GetBlueprintToBuildForNavalFactory'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iCategoryToBuild
@@ -2930,11 +2930,14 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     if iFactoryTechLevel <= 1 then
         iCombatCategory = M28UnitInfo.refCategoryFrigate
         if iCurFrigates >= 75 then bConsiderBuildingMoreCombat = false end
+        if bDebugMessages == true then LOG(sFunctionRef..' Combat category is to just build frigates') end
     elseif iFactoryTechLevel <= 2 then
         if iCurFrigates < 75 and math.random(0, 1) == 1 then
             iCombatCategory = M28UnitInfo.refCategoryFrigate
+            if bDebugMessages == true then LOG(sFunctionRef..' Combat category is to build frigates instead of destroyers') end
         else
             iCombatCategory = M28UnitInfo.refCategoryDestroyer
+            if bDebugMessages == true then LOG(sFunctionRef..' Combat category is to build destroyer') end
         end
     else
         --T3+
@@ -3049,9 +3052,10 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     --Have at least 1 of the current combat category unit
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if bDebugMessages == true then
-        LOG(sFunctionRef .. ': Number of combat category units we have=' .. aiBrain:GetCurrentUnits(iCombatCategory))
+        LOG(sFunctionRef .. ': Number of combat category units we have=' .. aiBrain:GetCurrentUnits(iCombatCategory)..'; bConsiderBuildingMoreCombat='..tostring(bConsiderBuildingMoreCombat))
     end
     if bConsiderBuildingMoreCombat and aiBrain:GetCurrentUnits(iCombatCategory) == 0 then
+        if bDebugMessages == true then LOG(sFunctionRef..': will try and build more of combat category') end
         if ConsiderBuildingCategory(iCombatCategory) then
             return sBPIDToBuild
         end
@@ -3062,7 +3066,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; About ot check if want to upgrade factory, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Is table of active upgrades for WZ empty=' .. tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefActiveUpgrades])))
     end
-    if iFactoryTechLevel < 3 then
+    if iFactoryTechLevel < 3 and (oFactory[refiTotalBuildCount] >= 5 or iFactoryTechLevel < aiBrain[M28Economy.refiOurHighestNavalFactoryTech]) then
         local iActiveFactoryUpgrades = 0
         if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefActiveUpgrades]) == false then
             for iUnit, oUnit in tWZTeamData[M28Map.subrefActiveUpgrades] do

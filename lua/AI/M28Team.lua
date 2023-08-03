@@ -1757,7 +1757,7 @@ function ConsiderPriorityAirFactoryUpgrades(iM28Team)
 end
 
 function ConsiderPriorityNavalFactoryUpgrades(iM28Team)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderPriorityNavalFactoryUpgrades'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -1766,25 +1766,38 @@ function ConsiderPriorityNavalFactoryUpgrades(iM28Team)
     if tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech] > 0 and tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech] < math.min(3, tTeamData[iM28Team][subrefiHighestEnemyNavyTech]) then
         local bWantUpgrade = false
         for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering brain '..oBrain.Nickname..'; Highest naval tech='..oBrain[M28Economy.refiOurHighestNavalFactoryTech]..'; Highest air tech='..oBrain[M28Economy.refiOurHighestAirFactoryTech]..'; Highest enemy naval tech='..tTeamData[iM28Team][subrefiHighestEnemyNavyTech]) end
             if oBrain[M28Economy.refiOurHighestNavalFactoryTech] > 0 and oBrain[M28Economy.refiOurHighestAirFactoryTech] < math.min(3, tTeamData[iM28Team][subrefiHighestEnemyNavyTech]) then
                 --Do we have any active air factory upgrades?
                 bWantUpgrade = not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryNavalHQ))
 
                 if bWantUpgrade then
-                    --Campaign maps where still relatively early, or games where we have poor gross mass, where considering upgrading to T3
-                    if tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech] == 2 then
-                        if M28Map.bIsCampaignMap and GetGameTimeSeconds() <= 600 and tTeamData[iM28Team][subrefiTeamGrossMass] <= 20 then
+                    --First check total build count of naval factories
+                    local tNavalFactories
+                    if tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech] == 2 then tNavalFactories = oBrain:GetListOfUnits(M28UnitInfo.refCategoryNavalFactory * categories.TECH2, false, true)
+                    else tNavalFactories = oBrain:GetListOfUnits(M28UnitInfo.refCategoryNavalFactory, false, true)
+                    end
+                    local iTotalBuildCount = 0
+                    if M28Utilities.IsTableEmpty(tNavalFactories) == false then
+                        for iFactory, oFactory in tNavalFactories do
+                            iTotalBuildCount = iTotalBuildCount + (oFactory[M28Factory.refiTotalBuildCount] or 0)
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iTotalBuildCount='..iTotalBuildCount..'; tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech]='..tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech]) end
+
+                    --Campaign maps where still relatively early, or games where we have poor gross mass, where considering upgrading to T3 (or T2 if have built fewer than 4 units)
+                    if iTotalBuildCount <= 8 and tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech] <= 2 then
+                        local iEcoConditionFactor = 1
+                        if tTeamData[iM28Team][subrefiHighestFriendlyNavalFactoryTech] == 1 then iEcoConditionFactor = 0.3 end
+                        if M28Map.bIsCampaignMap and GetGameTimeSeconds() <= 600 and tTeamData[iM28Team][subrefiTeamGrossMass] <= 20 * iEcoConditionFactor then
                             bWantUpgrade = false
-                        elseif tTeamData[iM28Team][subrefiTeamGrossMass] <= 10 * tTeamData[iM28Team][subrefiActiveM28BrainCount] then
+                        elseif tTeamData[iM28Team][subrefiTeamGrossMass] <= 10 * tTeamData[iM28Team][subrefiActiveM28BrainCount] * iEcoConditionFactor then
                             --Only upgrade to T3 if we have built a number of T2 units
-                            local tNavalFactories = oBrain:GetListOfUnits(M28UnitInfo.refCategoryNavalFactory * categories.TECH2, false, true)
-                            local iTotalBuildCount = 0
-                            for iFactory, oFactory in tNavalFactories do
-                                iTotalBuildCount = iTotalBuildCount + (oFactory[M28Factory.refiTotalBuildCount] or 0)
-                            end
                             if iTotalBuildCount <= 8 then
                                 bWantUpgrade = false
                             end
+                        elseif iTotalBuildCount <= 4 then
+                            bWantUpgrade = false
                         end
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': We have lower naval tech than enemy, and dont have an active HQ upgrade, bWantUpgrade after low mass checks='..tostring(bWantUpgrade)) end
@@ -1926,11 +1939,29 @@ function ConsiderPriorityMexUpgrades(iM28Team)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function AddPotentialUnitsToShortlist(toUnitShortlist, tPotentialUnits, bDontCheckIfSafe)
+function AddPotentialUnitsToShortlist(toUnitShortlist, tPotentialUnits, bDontCheckIfSafe, iOptionalHighestTechBuildCountRequirement)
     if M28Utilities.IsTableEmpty(tPotentialUnits) == false then
         for iUnit, oUnit in tPotentialUnits do
-            if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit:IsUnitState('Upgrading')) and oUnit:GetFractionComplete() == 1 and (bDontCheckIfSafe or M28Conditions.SafeToUpgradeUnit(oUnit)) then
-                table.insert(toUnitShortlist, oUnit)
+            if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit:IsUnitState('Upgrading')) and oUnit:GetFractionComplete() == 1 then
+                local bUnitIsHighestTechFactoryForOptionalCount = false
+                if not(iOptionalHighestTechBuildCountRequirement) then bUnitIsHighestTechFactoryForOptionalCount = true
+                else
+                    local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnit)
+                    if iUnitTechLevel >= 3 then bUnitIsHighestTechFactoryForOptionalCount = true
+                    else
+                        if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) then
+                            if iUnitTechLevel >= oUnit:GetAIBrain()[M28Economy.refiOurHighestLandFactoryTech] then bUnitIsHighestTechFactoryForOptionalCount = true end
+
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oUnit.UnitId) then
+                            if iUnitTechLevel >= oUnit:GetAIBrain()[M28Economy.refiOurHighestAirFactoryTech] then bUnitIsHighestTechFactoryForOptionalCount = true end
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oUnit.UnitId) then
+                            if iUnitTechLevel >= oUnit:GetAIBrain()[M28Economy.refiOurHighestNavalFactoryTech] then bUnitIsHighestTechFactoryForOptionalCount = true end
+                        end
+                    end
+                end
+                if (not(bUnitIsHighestTechFactoryForOptionalCount) or iOptionalHighestTechBuildCountRequirement <= (oUnit[M28Factory.refiTotalBuildCount] or 0)) and (bDontCheckIfSafe or M28Conditions.SafeToUpgradeUnit(oUnit)) then
+                    table.insert(toUnitShortlist, oUnit)
+                end
             end
         end
     end
@@ -2043,7 +2074,7 @@ function GetSafeHQUpgrade(iM28Team, bOnlyConsiderLandFactory)
 end
 
 function GetAnyMexOrFactoryToUpgrade(iM28Team)
-    --Backup logic for finding an upgrade if we have failed to find one through previous searches for a mex or factory
+    --Backup logic for finding an upgrade if we have failed to find one through previous searches for a mex or factory; requires the factory to have built something though
 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetAnyMexOrFactoryToUpgrade'
@@ -2053,12 +2084,13 @@ function GetAnyMexOrFactoryToUpgrade(iM28Team)
     local tPotentialUnits
     local bPrioritiseFactory = false
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()) end
+
     --First consider any t1 factories
     for iBrain, oBrain in tTeamData[iM28Team][subreftoFriendlyActiveM28Brains] do
         --if oBrain[M28Economy.refiOurHighestAirFactoryTech] == 1 then
         if not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryAirHQ * categories.TECH1)) then
             tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryAirHQ * categories.TECH1, false, true)
-            AddPotentialUnitsToShortlist(toUnitsThatCouldUpgrade, tPotentialUnits, true)
+            AddPotentialUnitsToShortlist(toUnitsThatCouldUpgrade, tPotentialUnits, true, 1)
         end
         --[[elseif oBrain[M28Economy.refiOurHighestAirFactoryTech] == 2 then
             if not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryAirHQ)) then
@@ -2069,12 +2101,12 @@ function GetAnyMexOrFactoryToUpgrade(iM28Team)
         --if oBrain[M28Economy.refiOurHighestLandFactoryTech] == 1 then
         if not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryLandHQ * categories.TECH1)) then
             tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryLandHQ * categories.TECH1, false, true)
-            AddPotentialUnitsToShortlist(toUnitsThatCouldUpgrade, tPotentialUnits, true)
+            AddPotentialUnitsToShortlist(toUnitsThatCouldUpgrade, tPotentialUnits, true, 4)
         end
 
         if not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryNavalHQ * categories.TECH1)) then
             tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryNavalHQ * categories.TECH1, false, true)
-            AddPotentialUnitsToShortlist(toUnitsThatCouldUpgrade, tPotentialUnits, true)
+            AddPotentialUnitsToShortlist(toUnitsThatCouldUpgrade, tPotentialUnits, true, 4)
         end
         --[[elseif oBrain[M28Economy.refiOurHighestLandFactoryTech] == 2 then
             if not(DoesBrainHaveActiveHQUpgradesOfCategory(oBrain, M28UnitInfo.refCategoryLandHQ)) then
@@ -2091,19 +2123,19 @@ function GetAnyMexOrFactoryToUpgrade(iM28Team)
             if oBrain[M28Economy.refiOurHighestAirFactoryTech] >= 3 then
                 tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryAirFactory - categories.TECH3, false, true)
                 if bDebugMessages == true then LOG(sFunctionRef..': We have T3+ air for brain '..oBrian.Nickname..' so will upgrade t2 support factories to T3, oBrain[M28Economy.refiOurHighestAirFactoryTech]='..(oBrain[M28Economy.refiOurHighestAirFactoryTech] or 'nil')..'; Is tPotentialUnits empty='..tostring(M28Utilities.IsTableEmpty(tPotentialUnits))) end
-                AddPotentialUnitsToShortlist(toUnitsThatCouldUpgrade, tPotentialUnits, true)
+                AddPotentialUnitsToShortlist(toUnitsThatCouldUpgrade, tPotentialUnits, true, 1)
             end
             if oBrain[M28Economy.refiOurHighestLandFactoryTech] >= 3 then
                 tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryLandFactory - categories.TECH3, false, true)
                 if bDebugMessages == true then LOG(sFunctionRef..': We have T3+ land for brain '..oBrain.Nickname..' so will upgrade t2 support factories to T3, oBrain[M28Economy.refiOurHighestLandFactoryTech]='..(oBrain[M28Economy.refiOurHighestLandFactoryTech] or 'nil')..'; Is tPotentialUnits empty='..tostring(M28Utilities.IsTableEmpty(tPotentialUnits))) end
-                AddPotentialUnitsToShortlist(toUnitsThatCouldUpgrade, tPotentialUnits, true)
+                AddPotentialUnitsToShortlist(toUnitsThatCouldUpgrade, tPotentialUnits, true, 4)
             end
             if oBrain[M28Economy.refiOurHighestNavalFactoryTech] >= 3 then
                 tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryNavalFactory - categories.TECH3, false, true)
-                AddPotentialUnitsToShortlist(toUnitsThatCouldUpgrade, tPotentialUnits, true)
+                AddPotentialUnitsToShortlist(toUnitsThatCouldUpgrade, tPotentialUnits, true, 4)
             else
                 tPotentialUnits = oBrain:GetListOfUnits(M28UnitInfo.refCategoryNavalFactory * categories.TECH1, false, true)
-                AddPotentialUnitsToShortlist(toUnitsThatCouldUpgrade, tPotentialUnits, true)
+                AddPotentialUnitsToShortlist(toUnitsThatCouldUpgrade, tPotentialUnits, true, 4)
             end
         end
 

@@ -1261,7 +1261,7 @@ function RecordUnitRange(oUnit)
         --LOG('Considering unitID '..(oUnit.UnitId or 'nil')..'; is unit valid='..tostring(IsUnitValid(oUnit)))
     end
     --Record unit best range
-    oUnit[refiCombatRange] = math.max(oUnit[refiDFRange] or 0), (oUnit[refiIndirectRange] or 0), (oUnit[refiAntiNavyRange] or 0)
+    oUnit[refiCombatRange] = math.max((oUnit[refiDFRange] or 0), (oUnit[refiIndirectRange] or 0), (oUnit[refiAntiNavyRange] or 0))
     oUnit[refiStrikeDamage] = GetUnitStrikeDamage(oUnit)
 end
 
