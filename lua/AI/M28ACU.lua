@@ -582,25 +582,31 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                             ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData,     M28UnitInfo.refCategoryLandFactory, M28Engineer.refActionBuildLandFactory)
                         end
                         --If we are overflowing mass and have a unit upgrading in the zone then assist that instead (e.g. intended for maps where loads of reclaim that causes us to overflow)
-                    elseif aiBrain:GetEconomyStoredRatio('MASS') >= 0.9 and aiBrain:GetEconomyStored('MASS') >= 100 and tLZOrWZData[M28Map.subrefTotalMassReclaim] >= 1000 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefActiveUpgrades]) == false then
-                        local iHighestFractionComplete = 0
+                    else
                         local oUnitToAssist
-                        for iUpgrading, oUpgrading in  tLZOrWZTeamData[M28Map.subrefActiveUpgrades] do
-                            if M28UnitInfo.IsUnitValid(oUpgrading) then
-                                if oUpgrading:GetWorkProgress() < 1 and oUpgrading:GetWorkProgress() > iHighestFractionComplete then
-                                    iHighestFractionComplete = oUpgrading:GetWorkProgress()
-                                    oUnitToAssist = oUpgrading
+                        if aiBrain:GetEconomyStoredRatio('MASS') >= 0.9 and aiBrain:GetEconomyStored('MASS') >= 100 and tLZOrWZData[M28Map.subrefTotalMassReclaim] >= 1000 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefActiveUpgrades]) == false then
+                            local iHighestFractionComplete = 0
+                            local oUnitToAssist
+                            for iUpgrading, oUpgrading in  tLZOrWZTeamData[M28Map.subrefActiveUpgrades] do
+                                if M28UnitInfo.IsUnitValid(oUpgrading) then
+                                    if oUpgrading:GetWorkProgress() < 1 and oUpgrading:GetWorkProgress() > iHighestFractionComplete then
+                                        iHighestFractionComplete = oUpgrading:GetWorkProgress()
+                                        oUnitToAssist = oUpgrading
+                                    end
                                 end
                             end
                         end
-                        M28Orders.IssueTrackedGuard(oACU, oUnitToAssist, false, 'ACUEGAssist', false)
-                    elseif M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false and tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] < iMexInLandZone then
-                        ACUActionBuildMex(aiBrain, oACU)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will try building more mexes') end
-                    else
-                    --Finish the initial BO
-                        oACU[refbDoingInitialBuildOrder] = false
-                        if bDebugMessages == true then LOG(sFunctionRef..': Finishing initial build order') end
+                        if bDebugMessages == true then LOG(sFunctionRef..': oUnitToAssist='..(oUnitToAssist.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnitToAssist) or 'nil')) end
+                        if M28UnitInfo.IsUnitValid(oUnitToAssist) then
+                            M28Orders.IssueTrackedGuard(oACU, oUnitToAssist, false, 'ACUEGAssist', false)
+                        elseif M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false and tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] < iMexInLandZone then
+                            ACUActionBuildMex(aiBrain, oACU)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will try building more mexes') end
+                        else
+                            --Finish the initial BO
+                            oACU[refbDoingInitialBuildOrder] = false
+                            if bDebugMessages == true then LOG(sFunctionRef..': Finishing initial build order') end
+                        end
                     end
                 end
             end
