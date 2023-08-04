@@ -2019,7 +2019,7 @@ end
 
 function MovePotentialBlockingUnitsFromFactory(oFactory)
     local sFunctionRef = 'MovePotentialBlockingUnitsFromFactory'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local aiBrain = oFactory:GetAIBrain()
@@ -2045,7 +2045,7 @@ end
 
 function DelayedCheckIfFactoryBuildingAndRetry(oFactory)
     local sFunctionRef = 'DelayedCheckIfFactoryBuildingAndRetry'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iStartTime = GetGameTimeSeconds()
@@ -2077,7 +2077,7 @@ end
 function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDestroyingForMass)
     --If factory is idle then gets it to build something; if its not idle then keeps checking for up to 20 seconds, but will abort if the factory appears to be building something
     local sFunctionRef = 'DecideAndBuildUnitForFactory'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
