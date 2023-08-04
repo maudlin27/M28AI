@@ -144,10 +144,10 @@ function IssueTrackedClearCommands(oUnit)
 
     --Clear orders:
     IssueClearCommands({oUnit})
-    --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ual02087' and oUnit:GetAIBrain():GetArmyIndex() == 3 then
-        LOG('Just issuedclearcommands to unit ual02087 at time '..GetGameTimeSeconds())
+    if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uel01013' and oUnit:GetAIBrain():GetArmyIndex() == 6 then
+        LOG('Just issuedclearcommands to unit uel01013 at time '..GetGameTimeSeconds())
         M28Utilities.ErrorHandler('Audit trail', true, true)
-    end--]]
+    end
 
     --Unit name
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit) end
@@ -376,7 +376,7 @@ function IssueTrackedMoveAndBuild(oUnit, tBuildLocation, sOrderBlueprint, tMoveT
             end
         end
     end
-    --LOG('IssueTrackedMoveAndBuild: oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bDontAlreadyHaveOrder='..tostring(bDontAlreadyHaveOrder or false))
+    --if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uel01013' then LOG('IssueTrackedMoveAndBuild: oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bDontAlreadyHaveOrder='..tostring(bDontAlreadyHaveOrder or false)) end
     if bDontAlreadyHaveOrder then
         if not(bAddToExistingQueue) then
             --LOG('IssueTrackedMoveAndBuild: Will clear commands of the unit')
