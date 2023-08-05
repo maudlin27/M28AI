@@ -2440,7 +2440,7 @@ function ReserveLocationsForGameEnder(oUnit)
                     for iShieldOption, tShieldLocations in tiShieldBuildLocationOptions do
                         if not(iShieldOption == iBestOptionCountRef) then
                             for iLocation, tLocation in tShieldLocations do
-                                if M28Conditions.CanBuildAtLocation(aiBrain, sBlueprintToBuild, tLocation, iPlateau, iLandZone, nil, false, true, true, true) then
+                                if M28Engineer.CanBuildAtLocation(aiBrain, sBlueprintToBuild, tLocation, iPlateau, iLandZone, nil, false, true, true, true) then
                                     iRecordedCount = iRecordedCount + 1
                                     table.insert(oUnit[reftLocationsForPriorityShield], {tLocation[1], tLocation[2], tLocation[3]})
                                     --Blacklist the location

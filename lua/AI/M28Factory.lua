@@ -16,6 +16,7 @@ local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 local NavUtils = import("/lua/sim/navutils.lua")
 local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
+local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
 
 local reftBlueprintPriorityOverride = 'M28FactoryPreferredBlueprintByCategory' --[x] is the blueprint ref, if there's a priority override it returns a numerical value (higher number = higher priority)
 local refiTimeSinceLastOrderCheck = 'M28FactoryTimeSinceLastCheck' --against factory, gametime in seconds when the factory was last checked to consider an order
@@ -32,6 +33,7 @@ refiFactoryTypeOther = 4
 refiBuildCountByBlueprint = 'M28FacBC' --against oFactory, returns table with key as the unitID, which returns the number of times the factory has been sent an order to build the unit
 refiTotalBuildCount = 'M28FacTotBC' --against oFactory, Total number of units the factory has built
 reftFactoryRallyPoint = 'M28FacRally' --against oFactory, Location to send units to when theyre built
+refiFirstTimeOfLastOrder = 'M28FOrTim' --against oFactory, time that we gave an order for the factory to build a unit (cleared when a unit is built or a different blueprint order is given) - used to spot for factories with units blocking them
 
 --Variables against brain
 refiHighestFactoryBuildCount = 'M28FacBrTotBC' --against aiBrain, Highest build count of a factory
@@ -1197,7 +1199,10 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             end
             if iCurIsland == iEnemyIsland and math.min(8 - M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount], aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))) > math.max(1, aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMobileLand * categories.DIRECTFIRE * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))) then
                 if bCanPathToEnemyWithLand then
-                    if ConsiderBuildingCategory(M28UnitInfo.refCategorySkirmisher * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) then
+                    if iFactoryTechLevel == 2 and ConsiderBuildingCategory(M28UnitInfo.refCategorySkirmisher * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) then
+                        return sBPIDToBuild
+                    --Initial T3 tanks - want tanks instead of sniperbots if enemy has lower health units/isnt at T3
+                    elseif iFactoryTechLevel == 3 and oFactory[refiTotalBuildCount] >= 5 and (oFactory[refiTotalBuildCount] >= 15 or (M28Team.tTeamData[iTeam][M28Team.refiEnemyHighestMobileLandHealth] >= 2400 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 3)) and ConsiderBuildingCategory(M28UnitInfo.refCategorySkirmisher * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) then
                         return sBPIDToBuild
                     elseif ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) then
                         return sBPIDToBuild
@@ -2015,6 +2020,63 @@ function SetFactoryRallyPoint(oFactory)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function MovePotentialBlockingUnitsFromFactory(oFactory)
+    local sFunctionRef = 'MovePotentialBlockingUnitsFromFactory'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local aiBrain = oFactory:GetAIBrain()
+
+    local rRect = M28Utilities.GetRectAroundLocation(oFactory:GetPosition(), M28UnitInfo.GetBuildingSize(oFactory.UnitId) * 0.5 - 0.2)
+    local tUnitsInRect = GetUnitsInRect(rRect)
+    if bDebugMessages == true then LOG(sFunctionRef..': Factory doesnt seem to have been trying to build something for a long time so will check for units nearby that arent attached, are complete, and are blocking it. Is tUnitsInRect empty='..tostring(M28Utilities.IsTableEmpty(tUnitsInRect))) end
+    if M28Utilities.IsTableEmpty(tUnitsInRect) == false then
+        local tMobileLandInRect = EntityCategoryFilterDown(M28UnitInfo.refCategoryMobileLand, tUnitsInRect)
+        if M28Utilities.IsTableEmpty(tMobileLandInRect) == false then
+            for iUnit, oUnit in tMobileLandInRect do
+                if oUnit:GetFractionComplete() == 1 and oUnit:GetAIBrain().M28AI and oUnit:GetAIBrain().M28Team == aiBrain.M28Team then
+                    --Move the unit
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will try and move potential blocking unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                    M28Orders.IssueTrackedMove(oUnit, oFactory[reftFactoryRallyPoint], 0, false, 'FacBlock', true)
+                    M28Micro.TrackTemporaryUnitMicro(oUnit, 2)
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function DelayedCheckIfFactoryBuildingAndRetry(oFactory)
+    local sFunctionRef = 'DelayedCheckIfFactoryBuildingAndRetry'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iStartTime = GetGameTimeSeconds()
+    local iBuildCount = (oFactory[refiTotalBuildCount] or 0)
+    local iWaitCount = 0
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    WaitSeconds(1)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    iWaitCount = iWaitCount + 1
+    --Check if factory has been stuck
+    while M28UnitInfo.IsUnitValid(oFactory) and oFactory[refiTotalBuildCount] == iBuildCount and oFactory:GetWorkProgress() == 0 and not(oFactory:IsUnitState('Upgrading')) and not(oFactory:IsUnitState('Building')) do
+        if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; iWaitCount='..iWaitCount..'; oFactory[refiFirstTimeOfLastOrder]='..(oFactory[refiFirstTimeOfLastOrder] or 'nil')) end
+        if iWaitCount >= 5 then
+            if oFactory[refiFirstTimeOfLastOrder] and GetGameTimeSeconds() - (oFactory[refiFirstTimeOfLastOrder] or 0) >= 5 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will try and get a new order for the factory and clear blocking units') end
+                MovePotentialBlockingUnitsFromFactory(oFactory)
+                DecideAndBuildUnitForFactory(oFactory:GetAIBrain(), oFactory, true, false)
+            end
+            break
+        end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitSeconds(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        iWaitCount = iWaitCount + 1
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDestroyingForMass)
     --If factory is idle then gets it to build something; if its not idle then keeps checking for up to 20 seconds, but will abort if the factory appears to be building something
     local sFunctionRef = 'DecideAndBuildUnitForFactory'
@@ -2051,6 +2113,7 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                 end
                 break
             end
+
             if iTicksWaited >= 200 then
                 if not(oFactory:GetAIBrain()[M28Overseer.refbCloseToUnitCap]) then
                     M28Utilities.ErrorHandler('oFactory has waited more than 200 ticks and still isnt showing as ready to build, oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; brain nickname=' .. oFactory:GetAIBrain().Nickname .. '; Work progress=' .. oFactory:GetWorkProgress() .. '; Factory fraction complete=' .. oFactory:GetFractionComplete() .. '; Factory status=' .. M28UnitInfo.GetUnitState(oFactory) .. '; Is command queue empty=' .. tostring(M28Utilities.IsTableEmpty(oFactory:GetCommandQueue())) .. '; iWorkProgressStart=' .. (iWorkProgressStart or 'nil'), true)
@@ -2058,6 +2121,13 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                 break
             elseif iTicksWaited >= 40 then
                 iTicksToWait = math.min(iTicksToWait + 1, 10)
+                if iTicksWaited >= 50 and oFactory:GetWorkProgress() == 0 and not(oFactory:IsUnitState('Upgrading')) and not(oFactory[M28UnitInfo.refbPaused]) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have a facotry stuck at 0 work progress, factory order blueprint='..(oFactory[M28Orders.reftiLastOrders][oFactory[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] or 'nil')..'; oFactory[refiFirstTimeOfLastOrder]='..(oFactory[refiFirstTimeOfLastOrder] or 'nil')) end
+                    if oFactory[M28Orders.reftiLastOrders][oFactory[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] and ((oFactory[refiFirstTimeOfLastOrder] and GetGameTimeSeconds() - oFactory[refiFirstTimeOfLastOrder] >= 5) or (M28Utilities.IsTableEmpty(oFactory:GetCommandQueue()) == false)) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' has been waiting a while and isnt ready, will see if issue is a blocking unit') end
+                        MovePotentialBlockingUnitsFromFactory(oFactory)
+                    end
+                end
             end
         end
         if bProceed then
@@ -2074,6 +2144,19 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                 if EntityCategoryContains(M28UnitInfo.refCategoryFactory, sBPToBuild) then
                     M28Economy.UpgradeUnit(oFactory, true)
                 else
+                    --Do we already have this order? If so then want to start tracking how long we have had this order for, and consider redundancies after a while in case a unit is blocking us
+                    if bDebugMessages == true then LOG(sFunctionRef..': oFactory[refiFirstTimeOfLastOrder]='..(oFactory[refiFirstTimeOfLastOrder] or 'nil')..'; Time from now='..(GetGameTimeSeconds() - (oFactory[refiFirstTimeOfLastOrder] or GetGameTimeSeconds()))..'; Is factory paused='..tostring(oFactory[M28UnitInfo.refbPaused])) end
+                    if oFactory[refiFirstTimeOfLastOrder] and not(oFactory[M28UnitInfo.refbPaused]) and oFactory[M28Orders.reftiLastOrders][oFactory[M28Orders.refiOrderCount]][M28Orders.subrefsOrderBlueprint] == sBPToBuild then
+                        if GetGameTimeSeconds() - (oFactory[refiFirstTimeOfLastOrder] or -100) >= 5 then --If changing the time from 5s need to also change it in the delayedcheck function
+                            --Redundancy with code here - would expect this to be called via DelayedCheckifFactoryBuildingAndRetry
+                            MovePotentialBlockingUnitsFromFactory(oFactory)
+
+                        end
+                    else
+                        oFactory[refiFirstTimeOfLastOrder] = GetGameTimeSeconds()
+                        if bDebugMessages == true then LOG(sFunctionRef..': Setting refiFirstTimeOfLastOrder='..oFactory[refiFirstTimeOfLastOrder]) end
+                        ForkThread(DelayedCheckIfFactoryBuildingAndRetry, oFactory)
+                    end
                     M28Orders.IssueTrackedFactoryBuild(oFactory, sBPToBuild, bDontWait)
                 end
             else
@@ -2930,11 +3013,14 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     if iFactoryTechLevel <= 1 then
         iCombatCategory = M28UnitInfo.refCategoryFrigate
         if iCurFrigates >= 75 then bConsiderBuildingMoreCombat = false end
+        if bDebugMessages == true then LOG(sFunctionRef..' Combat category is to just build frigates') end
     elseif iFactoryTechLevel <= 2 then
         if iCurFrigates < 75 and math.random(0, 1) == 1 then
             iCombatCategory = M28UnitInfo.refCategoryFrigate
+            if bDebugMessages == true then LOG(sFunctionRef..' Combat category is to build frigates instead of destroyers') end
         else
             iCombatCategory = M28UnitInfo.refCategoryDestroyer
+            if bDebugMessages == true then LOG(sFunctionRef..' Combat category is to build destroyer') end
         end
     else
         --T3+
@@ -3049,9 +3135,10 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     --Have at least 1 of the current combat category unit
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if bDebugMessages == true then
-        LOG(sFunctionRef .. ': Number of combat category units we have=' .. aiBrain:GetCurrentUnits(iCombatCategory))
+        LOG(sFunctionRef .. ': Number of combat category units we have=' .. aiBrain:GetCurrentUnits(iCombatCategory)..'; bConsiderBuildingMoreCombat='..tostring(bConsiderBuildingMoreCombat))
     end
     if bConsiderBuildingMoreCombat and aiBrain:GetCurrentUnits(iCombatCategory) == 0 then
+        if bDebugMessages == true then LOG(sFunctionRef..': will try and build more of combat category') end
         if ConsiderBuildingCategory(iCombatCategory) then
             return sBPIDToBuild
         end
@@ -3062,7 +3149,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; About ot check if want to upgrade factory, iFactoryTechLevel=' .. iFactoryTechLevel .. '; Is table of active upgrades for WZ empty=' .. tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefActiveUpgrades])))
     end
-    if iFactoryTechLevel < 3 then
+    if iFactoryTechLevel < 3 and (oFactory[refiTotalBuildCount] >= 5 or iFactoryTechLevel < aiBrain[M28Economy.refiOurHighestNavalFactoryTech]) then
         local iActiveFactoryUpgrades = 0
         if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefActiveUpgrades]) == false then
             for iUnit, oUnit in tWZTeamData[M28Map.subrefActiveUpgrades] do
@@ -3346,12 +3433,10 @@ function UpdateLastBuiltTracker(oFactory, sBlueprint)
         oFactory[refiBuildCountByBlueprint] = {}
     end
     oFactory[refiBuildCountByBlueprint][sBlueprint] = (oFactory[refiBuildCountByBlueprint][sBlueprint] or 0) + 1
-    oFactory[refiTotalBuildCount] = (oFactory[refiTotalBuildCount] or 0) + 1
 
     --facs - track when last built to reduce risk of power stalling by building at multiple all at once (air fac) or mass stalling with land facs
     local aiBrain = oFactory:GetAIBrain()
 
-    oFactory:GetAIBrain()[refiHighestFactoryBuildCount] = math.max((oFactory:GetAIBrain()[refiHighestFactoryBuildCount] or 0), oFactory[refiTotalBuildCount])
 
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oFactory:GetPosition())
     local tLZOrWZTeamData

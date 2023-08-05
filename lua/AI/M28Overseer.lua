@@ -464,6 +464,7 @@ end
 
 function TestCustom(aiBrain)
 
+
     --Setons hover label testing
     --[[local NavUtils = import("/lua/sim/navutils.lua")
     local tLocations = {{667.5, 20.4453125, 244.5 },{709.44091796875, 36.008731842041, 215.21347045898},{668.9853515625, 33.445762634277, 243.86209106445}}
@@ -477,7 +478,7 @@ function TestCustom(aiBrain)
     local tLZData = M28Map.tAllPlateaus[25][M28Map.subrefPlateauLandZones][4]
     local rRect = M28Utilities.GetRectAroundLocation({512,0,512}, 512)--]]
     --ScenarioFramework.SetPlayableArea(rRect)
-    --M28Map.DrawSpecificLandZone(25, 4, 4)
+    M28Map.DrawSpecificLandZone(2, 1, 4)
     --M28Map.DrawWaterZones()
     --[[if GetGameTimeSeconds() <= 20 then M28Map.DrawSpecificWaterZone(5)
     else M28Map.DrawSpecificWaterZone(7)
@@ -985,7 +986,7 @@ function OverseerManager(aiBrain)
          end--]]
 
         --if GetGameTimeSeconds() >= 2700 then import('/mods/M28AI/lua/M28Config.lua').M28ShowUnitNames = true end
-        --if GetGameTimeSeconds() >= 60 and GetGameTimeSeconds() <= 180 then TestCustom(aiBrain) end
+        --if GetGameTimeSeconds() >= 20 and GetGameTimeSeconds() <= 40 then TestCustom(aiBrain) end
         --Enable below to help figure out infinite loops
         --[[if GetGameTimeSeconds() >= 173 and not(bSetHook) then
             bSetHook = true
