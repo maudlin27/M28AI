@@ -1010,10 +1010,10 @@ function HaveEnoughThreatToAttack(tLZTeamData, iOurCombatThreat, iEnemyCombatThr
         return true
     elseif tLZTeamData[M28Map.subrefLZbCoreBase] and iOurCombatThreat > iEnemyCombatThreat * 0.8 then
         return true
-    elseif iOurCombatThreat >= 15000 and iOurCombatThreat > (iEnemyCombatThreat + iFirebaseThreatAdjust) * 0.9 and M28Utilities.IsTableEmpty(M28Team.TeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]) == false then
+    elseif iOurCombatThreat >= 15000 and iOurCombatThreat > (iEnemyCombatThreat + iFirebaseThreatAdjust) * 0.9 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]) == false then
         --Does enemy have gameender or lots of T3 arti? in which case want to lower threshold
         local iEnemyArtiCount = 0
-        for iUnit, oUnit in M28Team.TeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure] do
+        for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure] do
             if M28UnitInfo.IsUnitValid(oUnit) then
                 if oUnit:GetFractionComplete() >= 0.8 then
                     if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, oUnit.UnitId) then

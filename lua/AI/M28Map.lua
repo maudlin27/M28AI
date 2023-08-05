@@ -1873,7 +1873,7 @@ local function AssignRemainingSegmentsToLandZones()
         end
 
     end
-    bDebugMessages = false
+
     --Cycle through every nth segment on the map - only consider every iMaxSegmentSearchDistance 'th segment (for performance reasons), and check if it has nearby land zones, and if not then create a new land zone at this position
     local iXTotalIntervals = math.floor(iMaxLandSegmentX / iMaxSegmentSearchDistance)
     local iXDifToSegmentSize = iMaxLandSegmentX - iMaxSegmentSearchDistance * iXTotalIntervals
@@ -3727,7 +3727,6 @@ local function SetupLandZones()
     ForkThread(RecordTravelDistBetweenZonesOverTime)
 
     --If debug is enabled, draw land zones (different colour for each land zone on a plateau)
-    bDebugMessages = true
     if bDebugMessages == true then
         LOG(sFunctionRef..': Finished generating all land zones, will now draw them. System time='..GetSystemTimeSecondsOnlyForProfileUse())
         DrawLandZones()

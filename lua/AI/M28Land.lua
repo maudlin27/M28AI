@@ -3063,10 +3063,10 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                         M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'FBAWE'..iLandZone)
                                     end
 
-                                        --Attackmove (unless we have far more threat in this zone)
+                                    --Attackmove (unless we have far more threat in this zone)
                                 elseif tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > 5000 and not((oUnit[M28UnitInfo.refiDFRange] or 0) >= 64 or EntityCategoryContains(M28UnitInfo.refCategorySkirmisher, oUnit.UnitID)) and
                                         ((tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 6) or
-                                        --If lots of T1 arti want to keep moving with experimentals/other units or theyll get slaughtered
+                                                --If lots of T1 arti want to keep moving with experimentals/other units or theyll get slaughtered
                                                 (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 1.1 and EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) and (tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] >= 400 or EntityCategoryContains(M28UnitInfo.refCategoryIndirect + M28UnitInfo.refCategorySkirmisher, oNearestEnemyToMidpoint.UnitId)))) then
 
                                     M28Orders.IssueTrackedMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], (oUnit[M28UnitInfo.refiDFRange] or oUnit[M28UnitInfo.refiIndirectRange]) * 0.5, false, 'MWE'..iLandZone, false)
@@ -3610,6 +3610,9 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
     --Record enemy threat
     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
     local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+
+
+
     if bDebugMessages == true then LOG(sFunctionRef..': About to update threat for iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTeam='..iTeam..'; Is LZTeamData empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData))) end
     RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone)
     RecordAirThreatForLandZone(tLZTeamData, iTeam, iPlateau, iLandZone)
@@ -3679,7 +3682,7 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                         table.insert(tMobileStealths, oUnit)
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryRASSACU, oUnit.UnitId) and not(bUseRASInCombat) then
                         table.insert(tRASSACU, oUnit)
-                    elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryMobileLand - categories.COMMAND, oUnit.UnitId) then
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryMobileLand - categories.COMMAND, oUnit.UnitId) or (oUnit[M28UnitInfo.refiCombatRange] > 0 and EntityCategoryContains(categories.AMPHIBIOUS * categories.MOBILE - categories.AIR, oUnit.UnitId)) then
                         --Tanks, skirmishers, and indirect fire units - handled by main combat unit manager
                         bIncludeUnit = false
                         bLandZoneOrAdjHasUnitsWantingScout = true

@@ -1026,12 +1026,15 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                     --Do we have a land zone?
                     if iLandZone > 0 then
                         local iEnemyAirToGroundNearbyThreat = tLZTeamData[M28Map.refiEnemyAirToGroundThreat]
+                        local iFriendlyAAThreat = tLZTeamData[M28Map.subrefLZThreatAllyGroundAA]
                         --If there are big enemy threats then run if we arent adjacnet to a core LZ
                         local bAdjacentToCoreLZ = false
                         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                             for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
-                                if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][oACU:GetAIBrain().M28Team][M28Map.subrefLZbCoreBase] then bAdjacentToCoreLZ = true end
-                                iEnemyAirToGroundNearbyThreat = iEnemyAirToGroundNearbyThreat + M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][oACU:GetAIBrain().M28Team][M28Map.refiEnemyAirToGroundThreat]
+                                local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][oACU:GetAIBrain().M28Team]
+                                if tAdjLZTeamData[M28Map.subrefLZbCoreBase] then bAdjacentToCoreLZ = true end
+                                iEnemyAirToGroundNearbyThreat = iEnemyAirToGroundNearbyThreat + tAdjLZTeamData[M28Map.refiEnemyAirToGroundThreat]
+                                iFriendlyAAThreat = iFriendlyAAThreat + tAdjLZTeamData[M28Map.subrefLZThreatAllyMAA]
                             end
                         end
 
@@ -1049,10 +1052,10 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
 
                         end
                         if not(bWantToRun) then
-
-                            --If significant air to ground threat and not in adjacent to core base LZ then also run
-                            if iEnemyAirToGroundNearbyThreat > 0 and not(bAdjacentToCoreLZ) and (iMaxShield == 0 or tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] < tLZTeamData[M28Map.refiEnemyAirToGroundThreat] * 0.5) and (iEnemyAirToGroundNearbyThreat > 150 or not(oACU[refbUseACUAggressively])) then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Significant air to ground threat so want to run') end
+                            if bDebugMessages == true then LOG(sFunctionRef..': deciding if want to run from air, iEnemyAirToGroundNearbyThreat='..iEnemyAirToGroundNearbyThreat..'; iFriendlyAAThreat='..iFriendlyAAThreat) end
+                            --If significant air to ground threat and not in adjacent to core base LZ then also run; however adjust if have nearby MAA
+                            if (iEnemyAirToGroundNearbyThreat > iFriendlyAAThreat * 2.5 or iEnemyAirToGroundNearbyThreat >= 1000) and not(bAdjacentToCoreLZ) and (iMaxShield == 0 or tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] < tLZTeamData[M28Map.refiEnemyAirToGroundThreat] * 0.5) and (iEnemyAirToGroundNearbyThreat > 150 or not(oACU[refbUseACUAggressively])) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Significant air to ground threat so want to run, iFriendlyAAThreat='..iFriendlyAAThreat) end
                                 bWantToRun = true
                             else
                                 local iEnemyNearbyThreat = (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
@@ -1090,6 +1093,10 @@ function DoesACUWantToRun(iPlateau, iLandZone, tLZData, tLZTeamData, oACU)
                                     if bAgainstEnemyACUAndMightWin then iACUFactor = 1
                                     elseif bAdjacentToCoreLZ then iACUFactor = 0.9
                                     elseif iPercentageToFriendlyBase <= 0.4 then iACUFactor = 0.8
+                                    elseif iPercentageToFriendlyBase <= 0.6 then
+                                        if M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.9 then iACUFactor = 0.7
+                                        else iACUFactor = 0.6
+                                        end
                                     end
                                     --NOTE: subrefLZTThreatAllyCombatTotal includes the ACU threat
                                     if not(oACU[refbUseACUAggressively]) and (iACUThreat * iACUFactor + iAllyNearbyThreat < iEnemyNearbyThreat) then
