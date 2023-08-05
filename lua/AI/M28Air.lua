@@ -2089,6 +2089,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, time='..GetGameTimeSeconds()..'; Is tAvailableAirAA empty='..tostring(M28Utilities.IsTableEmpty(tAvailableAirAA))) end
     --Update threat level
     M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] = M28UnitInfo.GetAirThreatLevel(tAvailableAirAA, false, true) + M28UnitInfo.GetAirThreatLevel(tAirForRefueling, false, true) + M28UnitInfo.GetAirThreatLevel(tUnavailableUnits, false, true)
+    local iAdjacentGroundAAMax = M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.15 --Even if we want to consider attacking adjacent zones, thsi is the max groundAA to permit
 
     --Update if we have air control and/or are far behind on air
     if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] >= 200 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] < M28Team.tTeamData[iTeam][M28Team.refiEnemyAirAAThreat] * 0.75 then
@@ -2156,6 +2157,13 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                         end
                     end
                     if bAddAdjacentZones then
+                        local iAdjacentAASearchType
+                        if refiAASearchType == refiAvoidOnlyGroundAA or refiAASearchType == refiIgnoreAllAA then
+                            iAdjacentAASearchType = refiAvoidOnlyGroundAA
+                        else
+                            iAdjacentAASearchType = refiAASearchType
+                        end
+
                         local bIncludeCurZone
                         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                             for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
@@ -2165,7 +2173,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                     bIncludeCurZone = M28Conditions.IsPositionCloseToZoneEdge(iPlateau, iAdjLZ, iOptionalMaxDistToEdgeOfAdjacentZone, tOptionalStartPointForEdgeOfAdacentZone)
                                 end
                                 if bIncludeCurZone then
-                                    AddEnemyAirInLandZoneIfNoAA(iPlateau, iAdjLZ, false, refiAASearchType)
+                                    AddEnemyAirInLandZoneIfNoAA(iPlateau, iAdjLZ, false, iAdjacentAASearchType, iAdjacentGroundAAMax)
                                 end
                             end
                         end
@@ -2176,7 +2184,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                                     bIncludeCurZone = M28Conditions.IsPositionCloseToZoneEdge(0, tSubtable[M28Map.subrefAWZRef], iOptionalMaxDistToEdgeOfAdjacentZone, tOptionalStartPointForEdgeOfAdacentZone)
                                 end
                                 if bIncludeCurZone then
-                                    AddEnemyAirInWaterZoneIfNoAA(tSubtable[M28Map.subrefAWZRef], false, refiAASearchType)
+                                    AddEnemyAirInWaterZoneIfNoAA(tSubtable[M28Map.subrefAWZRef], false, iAdjacentAASearchType, iAdjacentGroundAAMax)
                                 end
                             end
                         end

@@ -1003,13 +1003,28 @@ function WantToEcoDueToEnemyFirebase(iTeam, tLZTeamData, iPlateau)
     return false
 end
 
-function HaveEnoughThreatToAttack(tLZTeamData, iOurCombatThreat, iEnemyCombatThreat, iFirebaseThreatAdjust, bHaveSignificantCombatCloserToFirebase)
+function HaveEnoughThreatToAttack(tLZTeamData, iOurCombatThreat, iEnemyCombatThreat, iFirebaseThreatAdjust, bHaveSignificantCombatCloserToFirebase, iTeam)
     if iOurCombatThreat > iEnemyCombatThreat * 1.4 then
         return true
     elseif  iOurCombatThreat > iEnemyCombatThreat and ((iFirebaseThreatAdjust > 0 and bHaveSignificantCombatCloserToFirebase) or tLZTeamData[M28Map.subrefLZTValue] > iOurCombatThreat * 0.5 or M28Map.iMapSize <= 256 or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefAlliedACU]) == false) then
         return true
     elseif tLZTeamData[M28Map.subrefLZbCoreBase] and iOurCombatThreat > iEnemyCombatThreat * 0.8 then
         return true
+    elseif iOurCombatThreat >= 15000 and iOurCombatThreat > (iEnemyCombatThreat + iFirebaseThreatAdjust) * 0.9 and M28Utilities.IsTableEmpty(M28Team.TeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]) == false then
+        --Does enemy have gameender or lots of T3 arti? in which case want to lower threshold
+        local iEnemyArtiCount = 0
+        for iUnit, oUnit in M28Team.TeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure] do
+            if M28UnitInfo.IsUnitValid(oUnit) then
+                if oUnit:GetFractionComplete() >= 0.8 then
+                    if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, oUnit.UnitId) then
+                        iEnemyArtiCount = iEnemyArtiCount + 3
+                    else
+                        iEnemyArtiCount = iEnemyArtiCount + 1
+                    end
+                    if iEnemyArtiCount >= 3 then return true end
+                end
+            end
+        end
     end
     return false
 end
