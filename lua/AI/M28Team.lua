@@ -156,7 +156,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     reftoEnemyTorpBombers = 'M28TeamEnemyTorpUnits' --table of enemy units that are torpedo bombers
     reftoEnemyAirOther = 'M28TeamEnemyAirOtherUnits' --AIr scouts and transports
     reftoEnemyUnitsWithNoLZ = 'M28TeamEnemyNoLZAir' --AIr units that arent currently over a land zone
-    refiEnemyAirAAThreat = 'M28TeamEnemyAirAAThreat'
+    refiEnemyAirAAThreat = 'M28TeamEnemyAirAAThreat' --For entire team
     refiEnemyAirToGroundThreat = 'M28TeamEnemyAirToGroundThreat'
     refiEnemyTorpBombersThreat = 'M28TeamEnemyTorpBomberThreat'
     refiEnemyAirOtherThreat = 'M28TeamEnemyAirOtherThreat'
@@ -164,6 +164,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     reftoEnemyExperimentalAirObjectives = 'M28TeamEnemyAirExp' --Table of enemy air experimentals that we need to destroy
     --subrefiOurGunshipThreat - uses same ref as air subteam
     --subrefiOurBomberThreat - uses same ref as air subteam
+    --subrefiOurAirAAThreat - uses same ref as air subteam
 
     refiTimeOfLastTransportShortlistUpdate = 'M28TeamAirTimeTransportShortlist' --Gametimeseconds that last updated the list of potential locations to do transport engi drops to
     reftTransportIslandDropShortlist = 'M28TeamAirTransportShortlist' --key is 1,2....x, returns {iPlateau, iIsland} - shortlist of plateau and island references that want to consider a transport drop for
@@ -194,10 +195,13 @@ tAirSubteamData = {}
     refbFarBehindOnAir = 'M28ASTFarBehindOnAir' --true if we are far behind on air
     refbHaveAirControl = 'M28ASTHaveAirControl'
     reftACUExpAndPriorityDefenceOnSubteam = 'M28ASTACUExp' --Friendly ACUs and experimentals
-    subrefiOurAirAAThreat = 'M28ASTOurAirAA' --Our AirAA threat
+
+    --NOTE: Some of below are used for team as well (AirAA, Gunship, and Bomber (non-torp) threats)
+    subrefiOurAirAAThreat = 'M28ASTOurAirAA' --Our AirAA threat; also used as a team variable
     subrefiOurGunshipThreat = 'M28ASTOurGShip' --Our gunship threat; also used as a team variable
     subrefiOurTorpBomberThreat = 'M28ASTOurTBmbT' --Our torp bomber threat
     subrefiOurBomberThreat = 'M28ASTOurBomb' --Our bomber threat; also used as a team variable
+
     refbTooMuchGroundNavalAAForTorpBombers = 'M28TooMuchAAForTorps' --true if have avoided targeting a water zone with torps due to groundAA threat in a water zone
     refbNoAvailableTorpsForEnemies = 'M28NoAvailTorps' --true if have enemy naval unit in a wz we want to defend, and we lack available torp bombers
     reftAirSubRallyPoint = 'M28ASTRally' --Contains the location of the air subteam's rally point

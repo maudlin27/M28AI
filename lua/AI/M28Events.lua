@@ -986,6 +986,10 @@ function OnConstructed(oEngineer, oJustBuilt)
                     ForkThread(M28Land.UpdateZoneIntelForRadar, oJustBuilt)
                 elseif EntityCategoryContains(M28UnitInfo.refCategorySonar, oJustBuilt.UnitId) then
                     ForkThread(M28Navy.UpdateZoneIntelForSonar, oJustBuilt)
+
+                    --Air staging - reset timer on when we last needed one
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryAirStaging, oJustBuilt.UnitId) then
+                    M28Team.tTeamData[oJustBuilt:GetAIBrain().M28Team][M28Team.refiTimeOfLastAirStagingShortage] = 0
                 end
 
                 --Track non-M28AI wall segments
@@ -1131,8 +1135,11 @@ function OnConstructed(oEngineer, oJustBuilt)
                     if bDebugMessages == true then LOG(sFunctionRef..': A factory has just built a unit so will get the next order for the factory') end
                     ForkThread(M28Factory.DecideAndBuildUnitForFactory, oEngineer:GetAIBrain(), oEngineer)
                     --Treat the unit just built as having micro active so it doesn't receive orders for a couple of seconds (so it can clear the factory)
-                    if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryNavalFactory, oEngineer.UnitId) then
+                    if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryNavalFactory, oEngineer.UnitId) and EntityCategoryContains(categories.MOBILE - categories.AIR, oJustBuilt.UnitId) then
                         --Also give unit a move order (queued onto its existing order)
+                        if M28Utilities.IsTableEmpty(oEngineer[M28Factory.reftFactoryRallyPoint]) then
+                            M28Factory.SetFactoryRallyPoint(oEngineer)
+                        end
                         M28Orders.IssueTrackedMove(oJustBuilt, oEngineer[M28Factory.reftFactoryRallyPoint], 0.1, true, 'RollOff', false)
                         M28Micro.TrackTemporaryUnitMicro(oJustBuilt, 1.5) --i.e. want to increase likelihood that a unit has exited the land factory before it starts being given orders
                     end
@@ -1244,6 +1251,14 @@ function OnReclaimFinished(oEngineer, oReclaim)
                     local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
                     M28Engineer.GetEngineerToReclaimNearbyArea(oEngineer, nil, tLZTeamData, iPlateau, iLandZone, M28Conditions.WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone), false)
                 end
+            end
+        elseif EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
+            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
+            if (iLandZone or 0) > 0 then
+                local iTeam =  oEngineer:GetAIBrain().M28Team
+                local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+                local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+                M28ACU.ConsiderNearbyReclaim(iPlateau, iLandZone, tLZData, tLZTeamData, oEngineer, true)
             end
         elseif M28Utilities.IsTableEmpty(oReclaim[M28Engineer.reftUnitsReclaimingUs]) == false then
             local tEngineersToClear = {}
@@ -1477,7 +1492,7 @@ function OnCreateBrain(aiBrain, planName, bIsHuman)
     local sFunctionRef = 'OnCreateBrain'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if bDebugMessages == true then LOG(sFunctionRef..': aiBrain has just been created at time '..GetGameTimeSeconds()..'; Brain nickname='..(aiBrain.Nickname or 'nil')..'; Has setup been run='..tostring(aiBrain['M28BrainSetupRun'] or false)..'; Brain type='..(aiBrain.BrainType or 'nil')..'; M28Team (if brain setup)='..(aiBrain.M28Team or 'nil')..'; aiBrain.Civilian='..tostring(aiBrain.Civilian or false)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': aiBrain has just been created at time '..GetGameTimeSeconds()..'; Brain nickname='..(aiBrain.Nickname or 'nil')..'; Has setup been run='..tostring(aiBrain['M28BrainSetupRun'] or false)..'; Brain type='..(aiBrain.BrainType or 'nil')..'; M28Team (if brain setup)='..(aiBrain.M28Team or 'nil')..'; aiBrain.Civilian='..tostring(aiBrain.Civilian or false)..'; .M28AI='..tostring(aiBrain.M28AI or false)..'; .M27AI='..tostring(aiBrain.M27AI or false)) end
     if not(aiBrain['M28BrainSetupRun']) then
         if M28Config.M28RunProfiling then ForkThread(M28Profiler.ProfilerActualTimePerTick) end
         if bIsHuman == nil then

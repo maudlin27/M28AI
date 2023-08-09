@@ -176,9 +176,11 @@ end
 function UpdateTeamAirThreats(iTeam)
     M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] = 0
     M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] = 0
+    M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] = 0
     for iEntry, iAirSubteam in M28Team.tTeamData[iTeam][M28Team.subrefAirSubteamsInTeam] do
         M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] + (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] or 0)
         M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] + (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] or 0)
+        M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] + (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] or 0)
     end
 end
 
@@ -2014,8 +2016,14 @@ function AssignAirAATargets(tAvailableAirAA, tEnemyTargets)
     if M28Utilities.IsTableEmpty(tAvailableAirAA) == false and M28Utilities.IsTableEmpty(tEnemyAirAAUnits) == false then
         --Assign more threat to enemy AirAA units since where there's 1 more are likely to follow, and want to overwhelm
         for iUnit, oUnit in tEnemyAirAAUnits do
-            iThreatWanted = M28UnitInfo.GetAirThreatLevel({ oUnit }, true, true, false, true, true, true) * 3 --Will reset the cur assigned threat to 0 when calling below funciton, ehnce doing *3 here is in addition to what assigned before
+            iThreatWanted = M28UnitInfo.GetAirThreatLevel({ oUnit }, true, true, false, true, true, true) * 7 --Will reset the cur assigned threat to 0 when calling below funciton, ehnce doing *3 here is in addition to what assigned before
             ConsiderAttackingUnit(oUnit, iThreatWanted)
+        end
+        if M28Utilities.IsTableEmpty(tAvailableAirAA) == false and table.getn(tEnemyAirAAUnits) >= 5 then
+            for iUnit, oUnit in tEnemyAirAAUnits do
+                iThreatWanted = M28UnitInfo.GetAirThreatLevel({ oUnit }, true, true, false, true, true, true) * 16 --Will reset the cur assigned threat to 0 when calling below funciton, ehnce doing *3 here is in addition to what assigned before
+                ConsiderAttackingUnit(oUnit, iThreatWanted)
+            end
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, is table of available airaa empty='..tostring(M28Utilities.IsTableEmpty(tAvailableAirAA))) end
@@ -3352,6 +3360,13 @@ function ManageGunships(iTeam, iAirSubteam)
                 end
                 if bDebugMessages == true then LOG('AddEnemyGroundUnitsToTargetsSubjectToAA: Deciding whether to add units for land zone '..iLandOrWaterZone..' plateau '..iPlateauOrZero..'; bOnlyIncludeIfMexToProtect='..tostring(bOnlyIncludeIfMexToProtect)..'; IsHighValueZoneToProtect='..tostring(IsHighValueZoneToProtect())) end
                 if not(bOnlyIncludeIfMexToProtect) or IsHighValueZoneToProtect() then
+
+                    if IsHighValueZoneToProtect() then
+                        if tLZOrWZTeamData[M28Map.subrefLZThreatEnemyGroundAA] <= 200 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] then iGunshipThreatFactorWanted = math.min(iGunshipThreatFactorWanted, math.max(iGunshipThreatFactorWanted * 0.5, 2))
+                        else iGunshipThreatFactorWanted = math.min(iGunshipThreatFactorWanted, math.max(iGunshipThreatFactorWanted * 0.8, 3))
+                        end
+                    end
+
                     local iMaxEnemyGroundAA
                     if iGunshipThreatFactorWanted == 0 then
                         iMaxEnemyGroundAA = -1 --   -1 is used to denote infinite in this case
@@ -3371,7 +3386,7 @@ function ManageGunships(iTeam, iAirSubteam)
                     else
                         bTooMuchAA = DoesEnemyHaveAAThreatAlongPath(iTeam, iGunshipPlateauOrZero, iGunshipLandOrWaterZone, iPlateauOrZero, iLandOrWaterZone, not(bCheckForAirAA), iMaxEnemyGroundAA, iSpecificAirAAThreatLimit)
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering zone '..iLandOrWaterZone..'; iPlateauOrZero='..iPlateauOrZero..'; bTooMuchAA='..tostring(bTooMuchAA)..'; bCheckForAirAA='..tostring(bCheckForAirAA or false)..'; iMaxEnemyGroundAA='..(iMaxEnemyGroundAA or 'nil')..'; iSpecificAirAAThreatLimit='..iSpecificAirAAThreatLimit) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering zone '..iLandOrWaterZone..'; iPlateauOrZero='..iPlateauOrZero..'; bTooMuchAA='..tostring(bTooMuchAA)..'; bCheckForAirAA='..tostring(bCheckForAirAA or false)..'; iMaxEnemyGroundAA='..(iMaxEnemyGroundAA or 'nil')..'; iSpecificAirAAThreatLimit='..iSpecificAirAAThreatLimit..'; iOurGunshipThreat='..iOurGunshipThreat..'; iGunshipThreatFactorWanted='..iGunshipThreatFactorWanted) end
 
                     if not (bTooMuchAA) then
                         --Add enemy air units in the plateau/land zone to list of enemy unit targets

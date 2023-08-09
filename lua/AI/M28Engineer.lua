@@ -5541,7 +5541,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 end
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': We have T2 or better, iCurPDThreat='..iCurPDThreat..'; iAppraochingACUThreat='..iApproachingACUThreat) end
+        if bDebugMessages == true then LOG(sFunctionRef..': We have T2 or better, iCurPDThreat='..iCurPDThreat..'; iAppraochingACUThreat='..iApproachingACUThreat..'; iRangeThreshold='..iRangeThreshold..'; tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange]='..repru(tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange])..'; iLandZone='..iLandZone) end
         if iCurPDThreat <= 470 then
             iBPWanted = 40
             if not(bHaveLowMass) and not(bHaveLowPower) then iBPWanted = 80 end
@@ -5672,12 +5672,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         HaveActionToAssign(refActionSpecialShieldDefence, 3, iBPWanted,         nil,                nil,                    nil,                        nil,                            true)
     end
 
-    --Start of game - if low power and dont ahve 12 gross energy yet, then ahve 1 engi on tree reclaim duty
-    iCurPriority = iCurPriority + 1
-    if bDebugMessages == true then LOG(sFunctionRef..': Early game tree reclaim: bHaveLowPower='..tostring(bHaveLowPower)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Want to relcaim energy nt mass='..tostring(M28Conditions.WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone))) end
-    if bHaveLowPower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 12 and M28Conditions.WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone) then
-        HaveActionToAssign(refActionReclaimArea, 1, 5, true)
-    end
+
 
     --Unclaimed mex in the zone
     iCurPriority = iCurPriority + 1
@@ -5906,6 +5901,13 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
+    --Start of game - if low power and dont ahve 12 gross energy yet, then ahve 1 engi on tree reclaim duty
+    iCurPriority = iCurPriority + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': Early game tree reclaim: bHaveLowPower='..tostring(bHaveLowPower)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Want to relcaim energy nt mass='..tostring(M28Conditions.WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone))) end
+    if bHaveLowPower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 12 and M28Conditions.WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone) then
+        HaveActionToAssign(refActionReclaimArea, 1, 5, true)
+    end
+
     iCurPriority = iCurPriority + 1
     local iCoreWZWantingSupportAsLowerPriority
     --If have adjacent waterzone that has unbuilt mexes or is a core WZ, wants engineers and has no combat threat then assign engi
@@ -6050,7 +6052,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             end
         else
             --We have T2 tech (or only need T1 due to enemy not having gun), so want to build PD
-            local iRangeThreshold = 35 --Range of Aeon guncom
+            local iRangeThreshold = 30 --typical guncom range
             if not(bHaveSufficientTech) then iRangeThreshold = 1 end
             --Increase PD threat if enemy is in another zone that has PD in it
             local iCurPDThreat = GetPDThreatAboveRangeThresholdAlongPath(iPlateau, iLandZone, tLZData, tLZTeamData, iTeam, iRangeThreshold, tNearestEnemyACU)
@@ -6074,17 +6076,46 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             end
 
             if bDebugMessages == true then LOG(sFunctionRef..': We have T2 or better or want T1 PD for nongun ACU, iCurPDThreat='..iCurPDThreat..'; iAppraochingACUThreat='..iApproachingACUThreat..'; bHaveSufficientTech='..tostring(bHaveSufficientTech)) end
-            if (bHaveSufficientTech or iCurPDThreat == 0) and (iCurPDThreat <= math.max(1200, iApproachingACUThreat * 1.75) or (iCurPDThreat <= 2400 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 200 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0))) then
-                iBPWanted = 40
-                if not(bHaveLowMass) and not(bHaveLowPower) then iBPWanted = 80 end
-                local tTargetBuildLocation
-                if tNearestEnemyACU then
-                    tTargetBuildLocation = GetStartSearchPositionForEmergencyPD(tNearestEnemyACU, tLZData[M28Map.subrefMidpoint], iPlateau, iLandZone)
+            if (bHaveSufficientTech or iCurPDThreat == 0) and (iCurPDThreat <= math.max(1200, iApproachingACUThreat * 1.5) or (iCurPDThreat <= 2400 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 200 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0) and (iApproachingACUThreat >= 1400 or (M28Team.tTeamData[iTeam][M28Team.refbEnemyHasUpgradedACU] and iApproachingACUThreat >= 1000)))) then
+                --Do we have friendly mobile units iwth decent range in this zone or an adjacent zone? if so then reduce the threat needed
+                local iNearbyMobileThreat = 0
+                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange]) == false then
+                    for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange] do
+                        if iRange >= iRangeThreshold then
+                            iNearbyMobileThreat = iNearbyMobileThreat + iThreat
+                        end
+                    end
                 end
-                local iPDTechLevelWanted = 2
-                if not(bHaveSufficientTech) then iPDTechLevelWanted = 1 end
-                HaveActionToAssign(refActionBuildEmergencyPD, iPDTechLevelWanted, iBPWanted, tTargetBuildLocation)
-                if bDebugMessages == true then LOG(sFunctionRef..': Will build emergency PD, iPDTechLevelWanted='..iPDTechLevelWanted) end
+
+                if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                    for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                        local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                        if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange]) == false then
+                            for iRange, iThreat in tAdjLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange] do
+                                if iRange >= iRangeThreshold then
+                                    iNearbyMobileThreat = iNearbyMobileThreat + iThreat * 0.5
+                                end
+                            end
+                        end
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': iNearbyMobileThreat='..iNearbyMobileThreat..'; iCurPDThreat='..iCurPDThreat..'; iApproachingACUThreat='..iApproachingACUThreat..'; Dist between ACU and this LZ midpoint='..M28Utilities.GetDistanceBetweenPositions(tNearestEnemyACU, tLZData[M28Map.subrefMidpoint])) end
+                if iNearbyMobileThreat < 200 or iCurPDThreat < iApproachingACUThreat or iCurPDThreat + iNearbyMobileThreat < iApproachingACUThreat * 1.75 then
+                    local iACUThreatFactorWanted = 1.75
+                    if iCurPDThreat >= 2400 and M28Utilities.GetDistanceBetweenPositions(tNearestEnemyACU, tLZData[M28Map.subrefMidpoint]) >= 80 then iACUThreatFactorWanted = 1.4 end
+                    if iCurPDThreat + iNearbyMobileThreat < iApproachingACUThreat * iACUThreatFactorWanted then
+                        iBPWanted = 40
+                        if not(bHaveLowMass) and not(bHaveLowPower) then iBPWanted = 80 end
+                        local tTargetBuildLocation
+                        if tNearestEnemyACU then
+                            tTargetBuildLocation = GetStartSearchPositionForEmergencyPD(tNearestEnemyACU, tLZData[M28Map.subrefMidpoint], iPlateau, iLandZone)
+                        end
+                        local iPDTechLevelWanted = 2
+                        if not(bHaveSufficientTech) then iPDTechLevelWanted = 1 end
+                        HaveActionToAssign(refActionBuildEmergencyPD, iPDTechLevelWanted, iBPWanted, tTargetBuildLocation)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will build emergency PD, iPDTechLevelWanted='..iPDTechLevelWanted) end
+                    end
+                end
             end
         end
     end
@@ -6446,7 +6477,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Want to try and reclaim, bObjectiveToReclaim='..tostring(bObjectiveToReclaim)) end
-        HaveActionToAssign(refActionReclaimFriendlyUnit, 1, math.max(10, 10 * table.getn(tLZTeamData[M28Map.subreftoUnitsToReclaim])), nil, not(bObjectiveToReclaim))
+        HaveActionToAssign(refActionReclaimFriendlyUnit, 1, math.min(2 * tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]], math.max(10, 10 * table.getn(tLZTeamData[M28Map.subreftoUnitsToReclaim]))), nil, not(bObjectiveToReclaim))
     end
 
     --T2 arti if enemy has sniper bots or fatboy, or a firebase that threatens this zone
@@ -7607,7 +7638,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Want to reclaim friendly unit, bObjectiveToReclaim='..tostring(bObjectiveToReclaim)) end
-        HaveActionToAssign(refActionReclaimFriendlyUnit, 1, math.max(5, 5 * table.getn(tLZTeamData[M28Map.subreftoUnitsToReclaim])), nil, not(bObjectiveToReclaim))
+        HaveActionToAssign(refActionReclaimFriendlyUnit, 1, math.min(1.5 * tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]], math.max(5, 5 * table.getn(tLZTeamData[M28Map.subreftoUnitsToReclaim]))), nil, not(bObjectiveToReclaim))
     end
 
     --Unclaimed hydro in the zone (and we have less than 4k power in our team)
