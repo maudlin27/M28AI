@@ -88,7 +88,6 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
                 --Do we have locations for transports to drop?
 
                 if (M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportIslandDropShortlist]) == false or M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist]) == false) and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryTransport) == 0 then
-                    bDebugMessages = true
                     local refbQueuedTransport = 'M28QueuedTransport'
                     if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have already queued up transport for this unit='..tostring(oUnitToUpgrade[refbQueuedTransport] or false)..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportIslandDropShortlist]='..repru(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportIslandDropShortlist])..'; M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist]='..repru(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist])) end
 

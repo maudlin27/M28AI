@@ -486,7 +486,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
         if not(bDontConsiderBuildingMAA) and tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA] < tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted] and (M28UnitInfo.GetUnitTechLevel(oFactory) >= 2 or (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoAllEnemyAir]) == false and (not(bDontConsiderBuildingMAA) or tLZTargetTeamData[M28Map.refiEnemyAirToGroundThreat] > 0))) then
             --Dont get MAA if no enemy air units in this zone or adjacent zone, and the existing MAA threat is more than 50% of any mobile DF +IF threat
             local bStillWantMAA = true
-            if tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted] < 40 and tLZTargetTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 then
+            if (tLZTargetTeamData[M28Map.subrefLZMAAThreatWanted] or 0) < 30 and tLZTargetTeamData[M28Map.refiEnemyAirToGroundThreat] == 0 and (tLZTargetTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) * 0.25 < (tLZTargetTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0) then
                 bStillWantMAA = false
             elseif M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoAllEnemyAir]) then
                 local bNoAdjAirThreat = true
@@ -513,6 +513,7 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
                         if iAirAAThreatHave < iAirAAThreatWanted then
                             iMaxMAARatioWanted = math.min(1, iMaxMAARatioWanted * 3 * iAirAAThreatWanted / iAirAAThreatHave)
                         end
+                        if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 1000 then iMaxMAARatioWanted = iMaxMAARatioWanted * 1.5 end
                         if iAdjMAAThreat * iMaxMAARatioWanted > iAdjDFAndIFThreat then
                             bStillWantMAA = false
                         end
