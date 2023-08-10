@@ -314,7 +314,7 @@ end
 
 function GetACUEarlyGameOrders(aiBrain, oACU)
     local sFunctionRef = 'GetACUEarlyGameOrders'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
@@ -412,12 +412,19 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                 --On crag dunes the hydro travel distance is 102 away and going for early hydro (with 4 mexes) causes power stall; top players BO appears to be normal no-hydro BO
                     --For theta passage the travel distance is 62.5
                     --For Cadmium green its 51.9
+                local tClosestHydroToACU
                 if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefHydroLocations]) == false then
+                    local iClosestDistToACU = 100000
+                    local iCurHydroDist
                     for iEntry, tHydro in tLZOrWZData[M28Map.subrefHydroLocations] do
                         if bDebugMessages == true then LOG(sFunctionRef..': Travel dist to hydro='..M28Utilities.GetTravelDistanceBetweenPositions(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()], tHydro, M28Map.refPathingTypeLand)) end
                         if M28Utilities.GetTravelDistanceBetweenPositions(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()], tHydro, M28Map.refPathingTypeLand) <= 80 then
                             bHydroBuildOrder = true
-                            break
+                            iCurHydroDist = M28Utilities.GetTravelDistanceBetweenPositions(tHydro, oACU:GetPosition(), M28Map.refPathingTypeLand)
+                            if iCurHydroDist < iClosestDistToACU then
+                                iClosestDistToACU = iCurHydroDist
+                                tClosestHydroToACU = {tHydro[1], tHydro[2], tHydro[3]}
+                            end
                         end
                     end
                 end
@@ -505,10 +512,20 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                             end
                         end
                     end
+                    local bHaveUnbuiltMexNearHydro = false
+                    if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false then
+                        local iDistanceThreshold = 80 - 5 * (tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3])
+
+                        for iMex, tMex in tLZOrWZData[M28Map.subrefMexUnbuiltLocations] do
+                            if M28Utilities.GetTravelDistanceBetweenPositions(tMex, tClosestHydroToACU, M28Map.refPathingTypeLand) <= iDistanceThreshold then
+                                bHaveUnbuiltMexNearHydro = true
+                            end
+                        end
+                    end
                     if bHaveUnderConstructionFirstHydro and (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 1.2 * iResourceMod or tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] >= math.min(3, iMexInLandZone)) then
                         if bDebugMessages == true then LOG(sFunctionRef..': Have underconstruction hydro and equiv of 3 mexes or every mex in zone so will try and assist it') end
                         ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData)
-                    elseif aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(4, iMexInLandZone) * 0.2 * aiBrain[M28Economy.refiBrainBuildRateMultiplier] or (aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(4, iMexInLandZone) * 0.2 * iResourceMod and aiBrain:GetEconomyStored('MASS') < 100) then
+                    elseif bHaveUnbuiltMexNearHydro and aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(4, iMexInLandZone) * 0.2 * aiBrain[M28Economy.refiBrainBuildRateMultiplier] or (aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(4, iMexInLandZone) * 0.2 * iResourceMod and aiBrain:GetEconomyStored('MASS') < 100) then
                         if bDebugMessages == true then LOG(sFunctionRef..': We ahve mexes in land zone and we havent built on all of them so will build a mex') end
                         ACUActionBuildMex(aiBrain, oACU)
                         if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then M28Utilities.ErrorHandler('ACU wants to build a mex but failed to find anywhere') end
