@@ -215,6 +215,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZThreatEnemyBestStructureDFRange = 'EBSDFR'
             subrefLZThreatEnemyBestMobileIndirectRange = 'EBIR'
             subrefThreatEnemyStructureTotalMass = 'ESTM' --Used for LZ and WZ, returns total mass in buildings
+            subrefiAvailableMobileShieldThreat = 'LMST' --mass value of friendly mobile shields in the land zone
 
 
             subrefLZThreatEnemyStructureDFByRange = 'ESDFByRange'

@@ -176,9 +176,11 @@ end
 function UpdateTeamAirThreats(iTeam)
     M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] = 0
     M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] = 0
+    M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] = 0
     for iEntry, iAirSubteam in M28Team.tTeamData[iTeam][M28Team.subrefAirSubteamsInTeam] do
         M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] + (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurGunshipThreat] or 0)
         M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] + (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] or 0)
+        M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] = M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] + (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] or 0)
     end
 end
 
@@ -1940,11 +1942,11 @@ function AssignAirAATargets(tAvailableAirAA, tEnemyTargets)
             end
             if bDebugMessages == true then
                 local iEnemyPlateauOrZero, iEnemyLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oClosestUnit:GetPosition())
-                LOG(sFunctionRef..': iClosestUnitDist='..iClosestUnitDist..'; oClosestUnit='..oClosestUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestUnit)..'; will issue attack order if far away; iEnemyPlateauOrZero='..iEnemyPlateauOrZero..'; iEnemyLandOrWaterZone='..iEnemyLandOrWaterZone..'; bDontCheckPlayableArea='..tostring(bDontCheckPlayableArea)..'; tBasePosition='..repru(tBasePosition)..'; In playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tBasePosition)))
+                LOG(sFunctionRef..': iClosestUnitDist='..iClosestUnitDist..'; oClosestUnit='..oClosestUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestUnit)..'; will issue attack order if far away and have visibility; iEnemyPlateauOrZero='..iEnemyPlateauOrZero..'; iEnemyLandOrWaterZone='..iEnemyLandOrWaterZone..'; bDontCheckPlayableArea='..tostring(bDontCheckPlayableArea)..'; tBasePosition='..repru(tBasePosition)..'; In playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tBasePosition))..'; Can see enemy='..tostring(M28UnitInfo.CanSeeUnit(oClosestUnit:GetAIBrain(), oEnemyUnit, true)))
             end
             if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tBasePosition) then
                 --Manual attack order on czar as wehn doing move ended up losing 60 asfs and not even breaking the shield
-                if iClosestUnitDist >= 120 or EntityCategoryContains(M28UnitInfo.refCategoryCzar, oEnemyUnit.UnitId) then
+                if (iClosestUnitDist >= 120 or EntityCategoryContains(M28UnitInfo.refCategoryCzar, oEnemyUnit.UnitId) or (iClosestUnitDist <= 40 and EntityCategoryContains(M28UnitInfo.refCategoryBomber * categories.TECH3 + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL, oEnemyUnit.UnitId))) and (M28UnitInfo.CanSeeUnit(oClosestUnit:GetAIBrain(), oEnemyUnit, true) or oClosestUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefoOrderUnitTarget] == oEnemyUnit) then
                     M28Orders.IssueTrackedAttack(oClosestUnit, oEnemyUnit, false, 'AAAA', false)
                 else
                     M28Orders.IssueTrackedMove(oClosestUnit, tBasePosition, 3, false, 'AAAM', false)
@@ -1982,12 +1984,12 @@ function AssignAirAATargets(tAvailableAirAA, tEnemyTargets)
                 end--]]
                 if bDebugMessages == true then LOG(sFunctionRef..': Wanted to target unit at position '..repru(oEnemyUnit:GetPosition())) end
                 --if not(bInterceptTargetFound) then
-                    local iAngleToTarget = M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), oEnemyUnit:GetPosition())
-                    local tViaPoint = M28Utilities.MoveInDirection(oClosestUnit:GetPosition(), iAngleToTarget, 40, true, false, true)
-                    if M28Conditions.IsLocationInPlayableArea(tViaPoint) then
-                        M28Orders.IssueTrackedMove(oClosestUnit, tViaPoint, 10, false, 'AAPAV', false)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Found a via point that is in the playable area='..repru(tViaPoint)) end
-                    end
+                local iAngleToTarget = M28Utilities.GetAngleFromAToB(oClosestUnit:GetPosition(), oEnemyUnit:GetPosition())
+                local tViaPoint = M28Utilities.MoveInDirection(oClosestUnit:GetPosition(), iAngleToTarget, 40, true, false, true)
+                if M28Conditions.IsLocationInPlayableArea(tViaPoint) then
+                    M28Orders.IssueTrackedMove(oClosestUnit, tViaPoint, 10, false, 'AAPAV', false)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Found a via point that is in the playable area='..repru(tViaPoint)) end
+                end
                 --end
             end
             iCurValueAssigned = iCurValueAssigned + M28UnitInfo.GetAirThreatLevel({ oClosestUnit }, false, true, false, true, true, true)
@@ -2014,8 +2016,14 @@ function AssignAirAATargets(tAvailableAirAA, tEnemyTargets)
     if M28Utilities.IsTableEmpty(tAvailableAirAA) == false and M28Utilities.IsTableEmpty(tEnemyAirAAUnits) == false then
         --Assign more threat to enemy AirAA units since where there's 1 more are likely to follow, and want to overwhelm
         for iUnit, oUnit in tEnemyAirAAUnits do
-            iThreatWanted = M28UnitInfo.GetAirThreatLevel({ oUnit }, true, true, false, true, true, true) * 3 --Will reset the cur assigned threat to 0 when calling below funciton, ehnce doing *3 here is in addition to what assigned before
+            iThreatWanted = M28UnitInfo.GetAirThreatLevel({ oUnit }, true, true, false, true, true, true) * 7 --Will reset the cur assigned threat to 0 when calling below funciton, ehnce doing *3 here is in addition to what assigned before
             ConsiderAttackingUnit(oUnit, iThreatWanted)
+        end
+        if M28Utilities.IsTableEmpty(tAvailableAirAA) == false and table.getn(tEnemyAirAAUnits) >= 5 then
+            for iUnit, oUnit in tEnemyAirAAUnits do
+                iThreatWanted = M28UnitInfo.GetAirThreatLevel({ oUnit }, true, true, false, true, true, true) * 16 --Will reset the cur assigned threat to 0 when calling below funciton, ehnce doing *3 here is in addition to what assigned before
+                ConsiderAttackingUnit(oUnit, iThreatWanted)
+            end
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, is table of available airaa empty='..tostring(M28Utilities.IsTableEmpty(tAvailableAirAA))) end
@@ -2082,6 +2090,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageAirAAUnits'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
 
 
     --Get available airAA units (owned by M28 brains in our subteam):
@@ -2167,7 +2176,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                         local bIncludeCurZone
                         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                             for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
-                                if bDebugMessages == true then LOG(sFunctionRef..': About to consider for iAdjLZ='..iAdjLZ..'; Dist between midpoints='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ])) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': About to consider for iAdjLZ='..iAdjLZ..'; Dist between midpoints='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefMidpoint])) end
                                 if not(iOptionalMaxDistToEdgeOfAdjacentZone) then bIncludeCurZone = true
                                 else
                                     bIncludeCurZone = M28Conditions.IsPositionCloseToZoneEdge(iPlateau, iAdjLZ, iOptionalMaxDistToEdgeOfAdjacentZone, tOptionalStartPointForEdgeOfAdacentZone)
@@ -2431,6 +2440,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                         AddEnemyAirInLandZoneIfNoAA(tSubtable[M28Map.subrefiPlateauOrPond], tSubtable[M28Map.subrefiLandOrWaterZoneRef], false, iAASearchType)
                     end
                     if M28Utilities.IsTableEmpty(tEnemyAirTargets) == false then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will assign available AirAA against enemy air target') end
                         AssignAirAATargets(tAvailableAirAA, tEnemyAirTargets)
                         if M28Utilities.IsTableEmpty(tAvailableAirAA) then break end
                     end
@@ -3352,6 +3362,13 @@ function ManageGunships(iTeam, iAirSubteam)
                 end
                 if bDebugMessages == true then LOG('AddEnemyGroundUnitsToTargetsSubjectToAA: Deciding whether to add units for land zone '..iLandOrWaterZone..' plateau '..iPlateauOrZero..'; bOnlyIncludeIfMexToProtect='..tostring(bOnlyIncludeIfMexToProtect)..'; IsHighValueZoneToProtect='..tostring(IsHighValueZoneToProtect())) end
                 if not(bOnlyIncludeIfMexToProtect) or IsHighValueZoneToProtect() then
+
+                    if IsHighValueZoneToProtect() then
+                        if tLZOrWZTeamData[M28Map.subrefLZThreatEnemyGroundAA] <= 200 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] then iGunshipThreatFactorWanted = math.min(iGunshipThreatFactorWanted, math.max(iGunshipThreatFactorWanted * 0.5, 2))
+                        else iGunshipThreatFactorWanted = math.min(iGunshipThreatFactorWanted, math.max(iGunshipThreatFactorWanted * 0.8, 3))
+                        end
+                    end
+
                     local iMaxEnemyGroundAA
                     if iGunshipThreatFactorWanted == 0 then
                         iMaxEnemyGroundAA = -1 --   -1 is used to denote infinite in this case
@@ -3371,7 +3388,7 @@ function ManageGunships(iTeam, iAirSubteam)
                     else
                         bTooMuchAA = DoesEnemyHaveAAThreatAlongPath(iTeam, iGunshipPlateauOrZero, iGunshipLandOrWaterZone, iPlateauOrZero, iLandOrWaterZone, not(bCheckForAirAA), iMaxEnemyGroundAA, iSpecificAirAAThreatLimit)
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering zone '..iLandOrWaterZone..'; iPlateauOrZero='..iPlateauOrZero..'; bTooMuchAA='..tostring(bTooMuchAA)..'; bCheckForAirAA='..tostring(bCheckForAirAA or false)..'; iMaxEnemyGroundAA='..(iMaxEnemyGroundAA or 'nil')..'; iSpecificAirAAThreatLimit='..iSpecificAirAAThreatLimit) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering zone '..iLandOrWaterZone..'; iPlateauOrZero='..iPlateauOrZero..'; bTooMuchAA='..tostring(bTooMuchAA)..'; bCheckForAirAA='..tostring(bCheckForAirAA or false)..'; iMaxEnemyGroundAA='..(iMaxEnemyGroundAA or 'nil')..'; iSpecificAirAAThreatLimit='..iSpecificAirAAThreatLimit..'; iOurGunshipThreat='..iOurGunshipThreat..'; iGunshipThreatFactorWanted='..iGunshipThreatFactorWanted) end
 
                     if not (bTooMuchAA) then
                         --Add enemy air units in the plateau/land zone to list of enemy unit targets
