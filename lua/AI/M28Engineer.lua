@@ -6154,9 +6154,9 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             if bDebugMessages == true then LOG(sFunctionRef..': iEnemyThreat='..iEnemyThreat) end
             if iCurPDThreat < iEnemyThreat * 3 then
                 --Are the enemies in an adjacent zone with none in this zone? if so factor in PD in that zone as well
+                local iClosestDist = 100000
                 if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) then
                     local iCurDist
-                    local iClosestDist = 100000
                     local oClosestUnit
                     for iUnit, oUnit in tLZTeamData[M28Map.reftoNearestDFEnemies] do
                         if M28UnitInfo.IsUnitValid(oUnit) then
@@ -6172,26 +6172,43 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     end
                 end
                 if iCurPDThreat < iEnemyThreat * 3 then
+                    --Is this early-game, with a relatively low enemy threat, and do we have nearby combat units that can deal with the enemy?
+                    local bWantToGetPD = true
 
-                    iBPWanted = 40
-                    if not(bHaveLowMass) and not(bHaveLowPower) then iBPWanted = 80 end
-                    local tEnemiesToConsider = {}
-                    local oNearestEnemy
-                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
-                        for iUnit, oUnit in tLZTeamData[M28Map.reftoNearestDFEnemies] do
-                            if M28UnitInfo.IsUnitValid(oUnit) then
-                                table.insert(tEnemiesToConsider, oUnit)
+                    if iEnemyThreat <= 400 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 and GetGameTimeSeconds() <= 600 then
+                        local iNearbyFriendlyMobileThreat = tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]
+                        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                            for iEntry, tAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                                local tAltLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                                iNearbyFriendlyMobileThreat = iNearbyFriendlyMobileThreat + (tAltLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 0)
                             end
                         end
+                        if iNearbyFriendlyMobileThreat > iEnemyThreat * 1.2 then
+                            bWantToGetPD = false
+                        end
                     end
-                    if M28Utilities.IsTableEmpty(tEnemiesToConsider) == false then
-                        if not(oNearestEnemy) then oNearestEnemy = M28Utilities.GetNearestUnit(tLZTeamData[M28Map.reftoNearestDFEnemies], tLZData[M28Map.subrefMidpoint], true, M28Map.refPathingTypeLand) end
-                        if oNearestEnemy then
-                            local tTargetBuildLocation = GetStartSearchPositionForEmergencyPD(oNearestEnemy:GetPosition(), tLZData[M28Map.subrefMidpoint], iPlateau, iLandZone)
-                            local iMinTechWanted = 1
-                            if iCurPDThreat > 0 then iMinTechWanted = 2 end
-                            HaveActionToAssign(refActionBuildEmergencyPD, iMinTechWanted, iBPWanted, tTargetBuildLocation)
-                            if bDebugMessages == true then LOG(sFunctionRef..': Will build emergency PD to stop enemy ground threat, iMinTechWanted='..iMinTechWanted) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': bWantToGetPD='..tostring(bWantToGetPD)..'; iEnemyThreat='..iEnemyThreat..'; Highest tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
+                    if bWantToGetPD then
+                        iBPWanted = 40
+                        if not(bHaveLowMass) and not(bHaveLowPower) then iBPWanted = 80 end
+                        local tEnemiesToConsider = {}
+                        local oNearestEnemy
+                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
+                            for iUnit, oUnit in tLZTeamData[M28Map.reftoNearestDFEnemies] do
+                                if M28UnitInfo.IsUnitValid(oUnit) then
+                                    table.insert(tEnemiesToConsider, oUnit)
+                                end
+                            end
+                        end
+                        if M28Utilities.IsTableEmpty(tEnemiesToConsider) == false then
+                            if not(oNearestEnemy) then oNearestEnemy = M28Utilities.GetNearestUnit(tLZTeamData[M28Map.reftoNearestDFEnemies], tLZData[M28Map.subrefMidpoint], true, M28Map.refPathingTypeLand) end
+                            if oNearestEnemy then
+                                local tTargetBuildLocation = GetStartSearchPositionForEmergencyPD(oNearestEnemy:GetPosition(), tLZData[M28Map.subrefMidpoint], iPlateau, iLandZone)
+                                local iMinTechWanted = 1
+                                if iCurPDThreat > 0 then iMinTechWanted = 2 end
+                                HaveActionToAssign(refActionBuildEmergencyPD, iMinTechWanted, iBPWanted, tTargetBuildLocation)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will build emergency PD to stop enemy ground threat, iMinTechWanted='..iMinTechWanted) end
+                            end
                         end
                     end
                 end

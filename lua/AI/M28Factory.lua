@@ -275,6 +275,12 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                     if bDebugMessages == true then LOG(sFunctionRef..': want to build percival instead of titan') end
                 end
             end
+            --Aeon - build blazes instead of obsidians initially if dont have much power
+        elseif sBPIDToBuild == 'ual0202' and (aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 95 or aiBrain:GetEconomyStoredRatio('ENERGY') < 0.95 or (oFactory[refiBuildCountByBlueprint]['xal0203'] or 0) < 2 ) then
+            if oFactory:CanBuild('xal0203') then
+                if bDebugMessages == true then LOG(sFunctionRef..': Switching to build blaze instead of obsidian') end
+                sBPIDToBuild = 'xal0203'
+            end
         end
 
         if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, sBPIDToBuild) then
@@ -610,6 +616,8 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     local iCategoryToBuild
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oFactory:GetPosition(), true, oFactory)
     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
@@ -634,7 +642,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     --if iFactoryTechLevel < 3 and iFactoryTechLevel < M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] then
     local tLandFactoriesInLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
     for iLZFactory, oLZFactory in tLandFactoriesInLZ do
-        if not (oLZFactory == oFactory) and M28UnitInfo.GetUnitTechLevel(oLZFactory) > iFactoryTechLevel then
+        if not (oLZFactory == oFactory) and oLZFactory:GetFractionComplete() == 1 and M28UnitInfo.GetUnitTechLevel(oLZFactory) > iFactoryTechLevel then
             bHaveHighestLZTech = false
             break
         end
@@ -1278,6 +1286,18 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         local iUnitCountToUpgrade = 25
         if iFactoryTechLevel < aiBrain[M28Economy.refiOurHighestLandFactoryTech] then
             iUnitCountToUpgrade = iUnitCountToUpgrade - 10
+            local iUpgradingCount = 0
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) == false then
+                for iUpgrade, oUpgrade in M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs] do
+                    if M28UnitInfo.IsUnitValid(oUpgrade) and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUpgrade.UnitId) then
+                        iUpgradingCount = iUpgradingCount + 1
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': iUpgradingCount='..iUpgradingCount..'; iUnitCountToUpgrade pre this='..iUnitCountToUpgrade) end
+            iUnitCountToUpgrade = iUnitCountToUpgrade + (iUpgradingCount + (iUpgradingCount - 1)) * 6
+
+
         else
             if iFactoryTechLevel < M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] then
                 iUnitCountToUpgrade = iUnitCountToUpgrade - 5
@@ -1310,13 +1330,23 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         if bHaveLowMass then iUnitCountToUpgrade = iUnitCountToUpgrade + 15 end
         if tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] then iUnitCountToUpgrade = iUnitCountToUpgrade + 15 end
         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.4 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) then
-            iUnitCountToUpgrade = iUnitCountToUpgrade * 0.5
-            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.8 then iUnitCountToUpgrade = iUnitCountToUpgrade * 0.5 end
+            if bDebugMessages == true then LOG(sFunctionRef..': No enemy units in this zone and at least 40% mass stored so reducing unit count to upgrade by 25% from '..iUnitCountToUpgrade) end
+            iUnitCountToUpgrade = iUnitCountToUpgrade * 0.75
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.8 or (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) and GetGameTimeSeconds() - (oFactory[refiTimeSinceLastFailedToGetOrder] or -100) <= 5 and tLZTeamData[M28Map.subrefLZbCoreBase]) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Either have at least 80% mass stored or it has been a while since we had nothing to build so reducing unit count to upgrade by 50% from '..iUnitCountToUpgrade) end
+                iUnitCountToUpgrade = iUnitCountToUpgrade * 0.5
+            end
         end
-        if (GetGameTimeSeconds() - (oFactory[refiTimeSinceLastFailedToGetOrder] or -100)) <= 5 then iUnitCountToUpgrade = iUnitCountToUpgrade * 2 end
-        if M28Utilities.IsTableEmpty(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades])) then iUnitCountToUpgrade = iUnitCountToUpgrade * 0.75 end
+        if (GetGameTimeSeconds() - (oFactory[refiTimeSinceLastFailedToGetOrder] or -100)) <= 5 and (iFactoryTechLevel >= aiBrain[M28Economy.refiOurHighestLandFactoryTech] or not(tLZTeamData[M28Map.subrefLZbCoreBase])) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Not had anythign to build recently and we either have our highest tech or are not at a core base, so doubling unit count required') end
+            iUnitCountToUpgrade = iUnitCountToUpgrade * 2
+        end
+        if M28Utilities.IsTableEmpty(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades])) then
+            if bDebugMessages == true then LOG(sFunctionRef..': No active upgrades in this zone so reducing the unit count to upgrade by 25% from '..iUnitCountToUpgrade) end
+            iUnitCountToUpgrade = iUnitCountToUpgrade * 0.75
+        end
         iCurrentConditionToTry = iCurrentConditionToTry + 1
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to upgrade factory, iFactoryTechLevel='..(iFactoryTechLevel or 'nil')..'; Highest friendly tech='..(M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] or 'nil')..'; Time since last had no order='..(GetGameTimeSeconds() - (oFactory[refiTimeSinceLastFailedToGetOrder] or -100))..'; Is table of active upgrades empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]))..'; iUnitCountToUpgrade='..iUnitCountToUpgrade) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to upgrade factory, iFactoryTechLevel='..(iFactoryTechLevel or 'nil')..'; Highest friendly tech='..(M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] or 'nil')..'; Time since last had no order='..(GetGameTimeSeconds() - (oFactory[refiTimeSinceLastFailedToGetOrder] or -100))..'; Is table of active upgrades empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]))..'; iUnitCountToUpgrade='..iUnitCountToUpgrade..'; Factory lifetime build count='..M28Conditions.GetFactoryLifetimeCount(oFactory, nil, true)) end
         if M28Conditions.GetFactoryLifetimeCount(oFactory, nil, true) >= iUnitCountToUpgrade then
             if bDebugMessages == true then LOG(sFunctionRef..': Will try and upgrade factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)) end
             if ConsiderUpgrading() then return sBPIDToBuild end
