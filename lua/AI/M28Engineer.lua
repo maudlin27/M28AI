@@ -125,7 +125,7 @@ refActionBuildSecondTMD = 48
 refActionBuildNavalFactory = 49
 refActionAssistNavalFactory = 50
 refActionNavalSpareAction = 51
-refActionBuildWall = 52
+refActionBuildWall = 52 --E.g. for building walls around T1 PD
 refActionBuildT3MexOnly = 53
 refActionAssistMexUpgrade = 54
 refActionSAMCreep = 55 --Intended to gradually expand SAM coverage for mexes
@@ -187,6 +187,7 @@ tiActionCategory = {
     [refActionBuildExperimentalNavy] = categories.NAVAL * categories.EXPERIMENTAL - categories.UNSELECTABLE - categories.UNTARGETABLE,
     [refActionBuildGameEnder] = M28UnitInfo.refCategoryGameEnder,
     [refActionBuildLandExperimental] = M28UnitInfo.refCategoryLandExperimental,
+    [refActionBuildWall] = M28UnitInfo.refCategoryWall
 }
 
 tiActionOrder = {
@@ -229,7 +230,7 @@ tiActionOrder = {
     [refActionBuildQuantumGateway] = M28Orders.refiOrderIssueBuild,
     [refActionBuildSecondLandFactory] = M28Orders.refiOrderIssueBuild,
     [refActionBuildTML] = M28Orders.refiOrderIssueBuild,
-    [refActionLoadOntoTransport] = M28Orders.refiOrderLoadOntoTransport,
+    [refActionLoadOntoTransport] = M28Orders.refiOrderLoadOntoTransport, --sometimes will be a move order
     [refActionAssistShield] = M28Orders.refiOrderIssueGuard,
     [refActionReclaimEnemyUnit] = M28Orders.refiOrderIssueReclaim,
     [refActionBuildSecondMassStorage] = M28Orders.refiOrderIssueBuild,
@@ -240,6 +241,7 @@ tiActionOrder = {
     [refActionCaptureUnit] = M28Orders.refiOrderIssueCapture,
     [refActionRepairUnit] = M28Orders.refiOrderIssueRepair,
     [refActionSpecialShieldDefence] = M28Orders.refiOrderIssueBuild, --Sometimes will want to be idle
+    [refActionBuildWall] = M28Orders.refiOrderIssueBuild,
 }
 
 --Adjacent categories to search for for a particular action
@@ -289,6 +291,7 @@ tbIgnoreEngineerAssistance = { --Any actions where we dont want to assist an eng
     [refActionCompletePartBuiltMex] = true,
     [refActionAssistShield] = true,
     [refActionLoadOntoTransport] = true,
+    [refActionBuildWall] = true,
 }
 
 tbActionsWithFactionSpecificLogic = { --Any actions where it is important to know what factions we have available when deciding what to build
@@ -2729,7 +2732,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                 --First check for enemies that we want to run from/take action from
                 if bCheckForEnemies then
                     --If engi is building emergency PD or Arti then dont run
-                    if not(oEngineer[refiAssignedAction] == refActionBuildEmergencyPD or oEngineer[refiAssignedAction] == refActionBuildEmergencyArti) then
+                    if not(oEngineer[refiAssignedAction] == refActionBuildEmergencyPD or oEngineer[refiAssignedAction] == refActionBuildEmergencyArti or oEngineer[refiAssignedAction] == refActionBuildWall) then
                         --Is the engineer reclaiming, or alternatively building something whose fraction complete is almost done?
                         if not(oEngineer:IsUnitState('Reclaiming') or ((oEngineer:IsUnitState('Repairing') or oEngineer:IsUnitState('Building')) and oEngineer:GetFocusUnit() and oEngineer:GetFocusUnit():GetFractionComplete() >= 0.9 and oEngineer:GetFocusUnit():GetFractionComplete() < 1) or (oEngineer:IsUnitState('Capturing') and oEngineer:GetWorkProgress() >= 0.75)) then
                             local tNearbyEnemiesByZone = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryNavalSurface + M28UnitInfo.refCategorySubmarine, oEngineer:GetPosition(), iEnemyUnitSearchRange, 'Enemy')
@@ -9750,4 +9753,56 @@ function CheckForSpecialCampaignCaptureTargets()
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 
+end
+
+function GetLocationToBuildWall(oEngineer, oJustBuilt, sWallBP)
+    --Builds wall around nearby T1 PD (if there is any), subject to blacklist
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetLocationToBuildWall'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local oPDToSurround
+    if EntityCategoryContains(M28UnitInfo.refCategoryPD * categories.TECH1, oJustBuilt.UnitId) then
+        oPDToSurround = oJustBuilt
+    else
+        --Search nearby for T1 PD
+        local tNearbyUnits = GetUnitsInRect(M28Utilities.GetRectAroundLocation(oJustBuilt:GetPosition(), 1.9))
+        if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
+            local tNearbyPD = EntityCategoryFilterDown(M28UnitInfo.refCategoryPD * categories.TECH1, tNearbyUnits)
+            if M28Utilities.IsTableEmpty(tNearbyPD) == false then
+                local iCurDist
+                local iClosestDist = 10000
+                if table.getn(tNearbyPD) > 1 then
+                    for iPD, oPD in tNearbyPD do
+                        iCurDist = M28Utilities.GetRoughDistanceBetweenPositions(oPD:GetPosition(), oJustBuilt:GetPosition())
+                        if iCurDist < iClosestDist then
+                            iClosestDist = iCurDist
+                            oPDToSurround = oPD
+                        end
+                    end
+                else
+                    oPDToSurround = tNearbyPD[1]
+                end
+            end
+        end
+    end
+    if oPDToSurround then
+        local tPDToSurround = oPDToSurround:GetPosition()
+        --Get first location around the PD that is available for building, if any
+        local aiBrain = oEngineer:GetAIBrain()
+        for iXAdjust = -1, 1, 1 do
+            for iZAdjust = -1, 1, 1 do
+                if not(iXAdjust == 0 and iZAdjust == 0) then
+                    local tTargetLocation = {tPDToSurround[1] + iXAdjust, tPDToSurround[2], tPDToSurround[3] + iZAdjust}
+                    tTargetLocation[2] = GetSurfaceHeight(tTargetLocation[1], tTargetLocation[3])
+                    if bDebugMessages == true then LOG(sFunctionRef..': Can engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' that has just built unit '..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..' at position '..repru(oJustBuilt:GetPosition())..' build at tTargetLocation '..repru(tTargetLocation)..'='..tostring(CanBuildAtLocation(aiBrain, sWallBP, tTargetLocation, nil, nil, nil, false, true, false, true))..'; Simple can build check='..tostring(aiBrain:CanBuildStructureAt(sWallBP, tTargetLocation))) end
+                    if CanBuildAtLocation(aiBrain, sWallBP, tTargetLocation, nil, nil, nil, false, true, false, true) then
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        return tTargetLocation
+                    end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

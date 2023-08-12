@@ -1049,6 +1049,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                 --Logic based on the unit that was just built:
 
                 --Check build locations for units not built at a factory
+                local bDontClearEngineer = false
                 if EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId) then
 
                     if not(oJustBuilt[M28UnitInfo.refbConstructionStart]) then
@@ -1106,6 +1107,17 @@ function OnConstructed(oEngineer, oJustBuilt)
                         M28Engineer.tiActionAdjacentCategory[M28Engineer.refActionBuildLandFactory] = nil
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oJustBuilt.UnitId) then
                         ForkThread(M28Building.GetT3ArtiTarget, oJustBuilt)
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryPD * categories.TECH1 + M28UnitInfo.refCategoryWall, oJustBuilt.UnitId) then
+                        --Build T1 walls around T1 PD
+                        local sWallBP = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28Engineer.tiActionCategory[M28Engineer.refActionBuildWall], oEngineer)
+                        if sWallBP then
+                            local tWallBuildLocation = M28Engineer.GetLocationToBuildWall(oEngineer, oJustBuilt, sWallBP)
+                            if tWallBuildLocation then
+                                M28Orders.IssueTrackedBuild(oEngineer, tWallBuildLocation, sWallBP, false, 'Wall')
+                                M28Engineer.TrackEngineerAction(oEngineer, M28Engineer.refActionBuildWall, true, 1)
+                                bDontClearEngineer = true
+                            end
+                        end
                     end
                     --Clear engineers that just built this
 
@@ -1154,7 +1166,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                     oEngineer:GetAIBrain()[M28Factory.refiHighestFactoryBuildCount] = math.max((oEngineer:GetAIBrain()[M28Factory.refiHighestFactoryBuildCount] or 0), (oEngineer[M28Factory.refiTotalBuildCount] or 0))
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEngineer.UnitId) then
                     --Clear any engineers trying to build this unit if we just built a building or experimental
-                    if EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId) then
+                    if not(bDontClearEngineer) and EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId) then
                         M28Engineer.ClearEngineersBuildingUnit(oEngineer, oJustBuilt, true)
                     end
                 end
