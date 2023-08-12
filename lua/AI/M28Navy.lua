@@ -3517,7 +3517,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
         end
 
         local bConsiderAttackingStructuresInstead = false
-        if iClosestZoneWithStructuresDist < 500 and M28Utilities.IsTableEmpty(tCombatAAByOrigRef) == false and M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZOtherWaterZones]) == false then
+        if M28UnitInfo.IsUnitValid(oEnemyStructureToTarget) and iClosestZoneWithStructuresDist < 500 and M28Utilities.IsTableEmpty(tCombatAAByOrigRef) == false and M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZOtherWaterZones]) == false then
             bConsiderAttackingStructuresInstead = true
         else
             tCombatAAByOrigRef = nil

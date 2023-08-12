@@ -26,9 +26,9 @@ reftEngineerStuckCheckLastPosition = 'M28CEngSP' --Position engineer was at when
 function AreMobileLandUnitsInRect(rRectangleToSearch)
     --returns true if have mobile land units in rRectangleToSearch
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-
     local sFunctionRef = 'AreMobileUnitsInRect'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local tBlockingUnits = GetUnitsInRect(rRectangleToSearch)
     if M28Utilities.IsTableEmpty(tBlockingUnits) then
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

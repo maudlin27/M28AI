@@ -1371,6 +1371,10 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
     local bCheckForStorageAdjacency = EntityCategoryContains(M28UnitInfo.refCategoryMassStorage, sBlueprintToBuild)
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; sBLueprintToBuild='..(sBlueprintToBuild or 'nil')..'; tTargetLocation='..repru(tTargetLocation)..'; tPotentialBuildLocations='..repru(tPotentialBuildLocations)..'; iOptionalMaxDistanceFromTargetLocation='..(iOptionalMaxDistanceFromTargetLocation or 'nil')..'; iMaxRange='..iMaxRange..'; iBuilderRange='..iBuilderRange..'; iNewBuildingRadius='..iNewBuildingRadius..'; bBuildTowardsHydro='..tostring(bBuildTowardsHydro)..'; tLocationToBuildTowards (e.g. for hydro)='..repru(tLocationToBuildTowards)..'; Engineer position='..repru(oEngineer:GetPosition())) end
+    local tiTopThreeLocationRefs = {}
+    local tiTopThreePriorities = {-100, -100, -100}
+    local iPriorityValueOfNoUnits = 1 --i.e. priority adjust if no units in build area
+    local iMaxRanking = table.getn(tiTopThreePriorities)
     for iCurLocation, tCurLocation in tPotentialBuildLocations do
         if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tCurLocation) then
             bLocationBuildableImmediately = true
@@ -1390,18 +1394,19 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
                 end
                 rBuildAreaRect = Rect(tCurLocation[1] - iNewBuildingRadius, tCurLocation[3] - iNewBuildingRadius, tCurLocation[1] + iNewBuildingRadius, tCurLocation[3] + iNewBuildingRadius)
                 if bDebugMessages == true then LOG(sFunctionRef..': Will force debug on whether we have reclaim in rec, do we have reclaim='..tostring(M28Map.GetReclaimInRectangle(1, rBuildAreaRect, true))) end
-                if M28Map.GetReclaimInRectangle(1, rBuildAreaRect) == false then
-                    iCurPriority = iCurPriority + 3
-                    if bDebugMessages == true then LOG(sFunctionRef..': No reclaim in build area so increasing priority by 3') end
+                if M28Map.GetReclaimInRectangle(1, rBuildAreaRect) == false then --Less of an issue now that FAF clears trees that are in the way (but still relevant for rocks and tree groups)
+                    iCurPriority = iCurPriority + 2
+                    if bDebugMessages == true then LOG(sFunctionRef..': No reclaim in build area so increasing priority by 2') end
                 else
                     bLocationBuildableImmediately = false
                     if bDebugMessages == true then LOG(sFunctionRef..': Reclaim in build area so not increasing priority') end
                 end
                 if not(M28Conditions.AreMobileLandUnitsInRect(rBuildAreaRect)) then
-                    if bDebugMessages == true then LOG(sFunctionRef..': No units in rect so increasing priority by 3') end
+                    if bDebugMessages == true then LOG(sFunctionRef..': No units in rect so increasing priority by 4') end
                     iCurPriority = iCurPriority + 4
                 else
                     bLocationBuildableImmediately = false
+                    if iCurDistance <= iBuilderRange then iCurPriority = iCurPriority - 2 end
                 end
                 if iCurDistance <= 50 then
                     if iCurDistance <= math.max(10, iBuilderRange - 0.5) then
@@ -1409,7 +1414,10 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
                         if bDebugMessages == true then LOG(sFunctionRef..': Location is within 10 so increasing priority by 7') end
                     else
                         bLocationBuildableImmediately = false
-                        if iCurDistance <= 25 then
+                        if iCurDistance <= 15 then
+                            iCurPriority = iCurPriority + 6
+                        elseif iCurDistance <= 25 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Location within 25 so increasing priority by 5') end
                             iCurPriority = iCurPriority + 5
                         else
                             iCurPriority = iCurPriority + 3
@@ -1467,12 +1475,30 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
                         tiClosestDistByPriorityAndCount[iCurPriority] = {iCurDistTowardsBuildTowards, (tiClosestDistByPriorityAndCount[iCurPriority][2] or 0) + 1}
                         iCurPriority = iCurPriority + tiClosestDistByPriorityAndCount[iCurPriority][2] * 0.1
                         if bBuildTowardsHydro then iCurPriority = iCurPriority + 1 end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Increased priority due to being the closest for this base level to hydro, iCurPriority after uplift='..iCurPriority) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Increased priority due to being the closest for this base level to hydro or zone midpoint, iCurPriority after uplift='..iCurPriority) end
                     end
                 end
                 --NOTE: Dont include adjustments after this poitn, as abovel ogic assumes we have got to the post-modifier priority for buildtowardshydro
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Considering tCurLocation='..repru(tCurLocation)..'; iCurDistance='..iCurDistance..'; iCurPriority='..iCurPriority) end
+            --[[ Started drafting code below so we would only check for units in rec for the top 3 entries, but decided to scrap as already checking for htis above via M28Conditions check for mobile units
+            --Only record if is top priority, or close enough to top priority that positions might change after factoring in units in rectangle
+            if iCurPriority > tiTopThreePriorities[iMaxRanking] and iCurPriority + iPriorityValueOfNoUnits > tiTopThreePriorities[1] then
+                for iCurRanking = 1, iMaxRanking, 1 do
+                    if iCurPriority > tiTopThreePriorities[iCurRanking] then
+                        --Reorder existing entries
+                        if iCurRanking < iMaxRanking then
+                            for iRanking = iMaxRanking, iCurRanking + 1, -1 do
+                                tiTopThreePriorities[iRanking] = tiTopThreePriorities[iRanking - 1]
+                                tiTopThreeLocationRefs[iRanking] = tiTopThreeLocationRefs[iRanking - 1]
+                            end
+                        end
+                        tiTopThreePriorities[iCurRanking] = iCurPriority
+                        tiTopThreeLocationRefs[iCurRanking] = iCurLocation
+                        break
+                    end
+                end
+            end--]]
             if iCurPriority > iHighestPriority then
                 iHighestPriority = iCurPriority
                 iBestLocationRef = iCurLocation
@@ -1480,7 +1506,47 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
             end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Finished searching, is iBestLocationRef nil='..tostring(iBestLocationRef == nil)..'; Are we trying to build a shield='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, sBlueprintToBuild))) end
+    --Adjust priorities for units in rect
+
+    --[[if tiTopThreeLocationRefs[2] then
+        local iCurPriority
+        local bDontHaveUnitsInBuildArea
+        for iEntry, iRef in tiTopThreeLocationRefs do
+            iCurPriority = tiTopThreePriorities[iEntry]
+            bDontHaveUnitsInBuildArea = true
+            local tNearbyUnits = GetUnitsInRect(M28Utilities.GetRectAroundLocation(tTargetLocation, iNewBuildingRadius - 0.5))
+            if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
+                bDontHaveUnitsInBuildArea = false
+            end
+            if bDebugMessages == true then
+                LOG(sFunctionRef..': bDontHaveUnitsInBuildArea='..tostring(bDontHaveUnitsInBuildArea)..'; iEntry='..iEntry..'; Priority before='..tiTopThreePriorities[iEntry]..'; iPriorityValueOfNoUnits='..iPriorityValueOfNoUnits)
+                M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(tTargetLocation, iNewBuildingRadius - 0.5), 3, 50, nil)
+            end
+            if bDontHaveUnitsInBuildArea then
+                tiTopThreePriorities[iEntry] = tiTopThreePriorities[iEntry] + iPriorityValueOfNoUnits
+            end
+        end
+    end
+
+    iHighestPriority = tiTopThreePriorities[1]
+    iBestLocationRef = tiTopThreeLocationRefs[1]--]]
+
+    if bDebugMessages == true then
+
+        LOG(sFunctionRef..': Finished searching, is iBestLocationRef nil='..tostring(iBestLocationRef == nil)..'; Are we trying to build a shield='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, sBlueprintToBuild)))
+        if iBestLocationRef then
+            local tCurLocation = tPotentialBuildLocations[iBestLocationRef]
+            local rBuildAreaRect = Rect(tCurLocation[1] - iNewBuildingRadius, tCurLocation[3] - iNewBuildingRadius, tCurLocation[1] + iNewBuildingRadius, tCurLocation[3] + iNewBuildingRadius)
+            local tUnitsInBuildArea = GetUnitsInRect(rBuildAreaRect)
+            LOG(sFunctionRef..': Are there mobile units in this rect='..tostring(M28Conditions.AreMobileLandUnitsInRect(rBuildAreaRect))..'; is tUnitsInBuildArea empty='..tostring(M28Utilities.IsTableEmpty(tUnitsInBuildArea))..'; Will draw build area rect')
+            if tUnitsInBuildArea then
+                for iUnit, oUnit in tUnitsInBuildArea do
+                    LOG(sFunctionRef..': Unit in build area: iUnit='..iUnit..'; Unit ID and LC='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit is mobile land='..tostring(EntityCategoryContains(categories.MOBILE * categories.LAND, oUnit.UnitId)))
+                end
+            end
+            M28Utilities.DrawRectangle(rBuildAreaRect, 3)
+        end
+    end
     if not(iBestLocationRef) and EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, sBlueprintToBuild) then
         local tNearbyUnits = GetUnitsInRect(M28Utilities.GetRectAroundLocation(tTargetLocation, 2))
         if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
