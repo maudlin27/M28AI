@@ -1304,11 +1304,16 @@ function OnTransportLoad(oUnit, oTransport, bone)
         local aiBrain = oTransport:GetAIBrain()
         if aiBrain.M28AI then
             --Reduce engis wanted (in case of delay between this being updated and engineer logic running)
-            if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryTransport, oTransport.UnitId) then
-                if oTransport[M28Air.refiEngisWanted] then
-                    oTransport[M28Air.refiEngisWanted] = math.max(0, oTransport[M28Air.refiEngisWanted] - 1)
+            if EntityCategoryContains(M28UnitInfo.refCategoryTransport, oTransport.UnitId) then
+                if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
+                    if oTransport[M28Air.refiEngisWanted] then
+                        oTransport[M28Air.refiEngisWanted] = math.max(0, oTransport[M28Air.refiEngisWanted] - 1)
+                    end
                 end
+                --Clear the last assigned unit
+                oTransport[M28Air.refoTransportUnitTryingToLoad] = nil
             end
+
         end
     end
 end

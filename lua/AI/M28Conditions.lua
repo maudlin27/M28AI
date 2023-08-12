@@ -192,10 +192,12 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
             return true
         else
             --If engineer is moving but it doesnt have an assignment, or its assignment isnt to move, then make it available, unless it has special micro active
-            if oEngineer[M28UnitInfo.refbSpecialMicroActive] then return false
+            if oEngineer[M28UnitInfo.refbSpecialMicroActive] then
+                if bDebugMessages == true then LOG(sFunctionRef..': Special micro is active') end
+                return false
             else
                 local iLastOrderType = oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]][M28Orders.subrefiOrderType]
-                if bDebugMessages == true then LOG(sFunctionRef..': Engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' owned by '..oEngineer:GetAIBrain().Nickname..' has a last order type of '..(iLastOrderType or 'nil')..'; and an action assigned of '..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')..'; Order for this action='..(M28Engineer.tiActionOrder[oEngineer[M28Engineer.refiAssignedAction]] or 'nil')) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' owned by '..oEngineer:GetAIBrain().Nickname..' has a last order type of '..(iLastOrderType or 'nil')..'; and an action assigned of '..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')..'; Order for this action='..(M28Engineer.tiActionOrder[oEngineer[M28Engineer.refiAssignedAction]] or 'nil')..'; oEngineer[refiEngineerStuckCheckCount]='..(oEngineer[refiEngineerStuckCheckCount] or 'nil')) end
                 --Rare case where engineer acn be given a move order yet doesn't move - below is to try and mitigate it
                 if oEngineer:IsUnitState('Moving') and oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove and not(bDebugOnly) then
                     if (oEngineer[refiEngineerStuckCheckCount] or 0) == 0 then
@@ -207,6 +209,7 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                             oEngineer[refiEngineerStuckCheckCount] = 0
                             if M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(),oEngineer[reftEngineerStuckCheckLastPosition]) <= 0.01 then
                                 --Engineer is stuck, clear its orders and treat as available
+                                if bDebugMessages == true then LOG(sFunctionRef..': Engineer appears stuck, oEngineer[refiEngineerStuckCheckCount]='..oEngineer[refiEngineerStuckCheckCount]) end
                                 M28Orders.IssueTrackedClearCommands(oEngineer)
                                 oEngineer[reftEngineerStuckCheckLastPosition] = nil
                                 return true
@@ -216,7 +219,7 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                 end
 
                 if iLastOrderType == M28Orders.refiOrderIssueMove then
-                    if oEngineer[M28Engineer.refiAssignedAction] and M28Engineer.tiActionOrder[oEngineer[M28Engineer.refiAssignedAction]] == iLastOrderType then
+                    if oEngineer[M28Engineer.refiAssignedAction] and (M28Engineer.tiActionOrder[oEngineer[M28Engineer.refiAssignedAction]] == iLastOrderType or oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionLoadOntoTransport) then
                         --Engineer not available, unless its order was to move to a land or water zone, in which case check if it is now in that land or water zone
                         if oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionMoveToLandZone then
                             local iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
@@ -310,23 +313,28 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                                 end
                             end
                         else
+                            if bDebugMessages == true then LOG(sFunctionRef..': Engineer doesnt appear to be available') end
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             return false
                         end
                     else
+                        if bDebugMessages == true then LOG(sFunctionRef..': Engineer either doesnt have an assigned action or its current orders are inconsistent with that action, so returning true') end
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         return true
                     end
                 elseif (iLastOrderType == M28Orders.refiOrderIssueGuard or iLastOrderType == M28Orders.refiOrderIssueCapture) and not(M28UnitInfo.IsUnitValid(oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.subrefoOrderUnitTarget]])) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Guard or capture order where target no longer valid so available') end
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     return true
                 else
+                    if bDebugMessages == true then LOG(sFunctionRef..'; Will return false') end
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     return false
                 end
             end
         end
     else
+        if bDebugMessages == true then LOG(sFunctionRef..': Core unit state or construciton means engineer unavailable') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return false
     end

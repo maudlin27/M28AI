@@ -17,6 +17,7 @@ local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
 local M28Logic = import('/mods/M28AI/lua/AI/M28Logic.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 local M28Chat = import('/mods/M28AI/lua/AI/M28Chat.lua')
+local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 
 --Global
 tAirZonePathingFromZoneToZone = {} --[x]: 1 if land zone start, 0 if water; [y]: Plateau (if land) or 0 if water; [z]: Land/Water zone; [a]: 1 if land zone end, 0 if water; [b]: Plateau (if land) end, 0 if water; [c]: Land/water zone; returns table that contains subreftPlateauAndLandZonesInPath and subreftWaterZonesInPath, each of which will list out in no order the land and water zones that will come across or near
@@ -32,6 +33,7 @@ tDistanceAdjustXZ = {} --Used for gunships to space out
     reftScoutAssignedPlateauAndZoneRef = 'M28SPlLZRef' --against scout, returns {iPlateauOrZero, iLZOrWZRef} that the scout is assigned to,  iPlateauOrZero is 0 for water zone
     refiEngisWanted = 'M28TrnEWnt' --Number of engineers a transport wants
     refiTransportTimeSpentWaiting = 'M28TrnTimW' --Time that transport has been waiting for engineers - so will go with fewer engineers for higher values
+    refoTransportUnitTryingToLoad = 'M28TrUnLd' --When a unit is given an order to load into a transport directly,  it gets recorded against this for the transport
     refiTargetIslandForDrop = 'M28TrnTgIsl' --Target island for a transport to drop
     refiTargetZoneForDrop = 'M28TrnTgLZ' --target zone for a transport to drop (e.g. it may be dropping the same island its currently on but further away)
     refoPriorityTargetOverride = 'M28NvxTOvrd' --e.g. used against novax satellite, for if want to add logic similar to M27 where attacks on high value targets are coordinated
@@ -3998,7 +4000,7 @@ function UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam)
                                     if bDebugMessages == true then LOG(sFunctionRef..': iClosestBasePlateau='..(iClosestBasePlateau or 'nil')..'; iClosestBaseLandZone='..(iClosestBaseLandZone or 'nil')) end
                                     if (iClosestBaseLandZone or 0) > 0 and iClosestBasePlateau == iPlateau then
                                         iTravelDistance = M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iClosestBaseLandZone, iLandZone)
-                                        if bDebugMessages == true then LOG(sFunctionRef..': iTravelDistance='..iTravelDistance) end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': iClosestBaseLandZone='..iClosestBaseLandZone..'; iTravelDistance='..iTravelDistance) end
                                         if iTravelDistance >= 275 then
                                             --Want to consider dropping this location during the game
                                             AddZoneToPotentialSameIslandDropZones(iTeam, iPlateau, iLandZone)
@@ -4322,6 +4324,7 @@ function GetFarAwayLandZoneOnCurrentIslandForTransportToTravelTo(iTeam, oUnit)
         for iEntry, tiPlateauAndZone in tShortlist do
             local tLZData = M28Map.tAllPlateaus[tiPlateauAndZone[1]][M28Map.subrefPlateauLandZones][tiPlateauAndZone[2]]
             iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering zone with distance of '..iCurDist) end
             if iCurDist < iClosestDist then
                 --Is it safe to travel here?
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering iEntry='..iEntry..'; tiPlateauAndZone='..repru(tiPlateauAndZone)..'; iCurPlateauOrZero='..iCurPlateauOrZero..'; iCurLandOrWaterZone='..iCurLandOrWaterZone..'; Does enemy have aa threat along path='..tostring(DoesEnemyHaveAAThreatAlongPath(iTeam, iCurPlateauOrZero, iCurLandOrWaterZone, tiPlateauAndZone[1], tiPlateauAndZone[2], false, 60))) end
@@ -4461,6 +4464,9 @@ function ManageTransports(iTeam, iAirSubteam)
                 iEngisHave, iEngiRemainingCapacity = GetTransportEngiCargoAndRemainingCapacity(oUnit, iTechLevel)
                 if iEngisHave >= 4 or iEngiRemainingCapacity < 0 or (iEngiRemainingCapacity == 1 and iEngisHave >= 3) then
                     iExtraEngisWanted = 0
+                elseif iEngisHave >= 1 and oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] == M28Orders.refiOrderUnloadTransport then
+                    --Want transport to drop with what it has
+                    iExtraEngisWanted = 0
                 else
                     --First calculate how many we want (ignoring ones we already have):
                     iExtraEngisWanted = M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauIslandMexCount][iIslandToTravelTo]
@@ -4468,90 +4474,147 @@ function ManageTransports(iTeam, iAirSubteam)
                     --Cap engis at 4 (fewer if likely T2 or T3 engis), and also reduce for the number of engineers we already have
                     iExtraEngisWanted = math.min(5 - iTechLevel, 4 - iEngisHave, math.max(0, iExtraEngisWanted - iEngisHave), iEngiRemainingCapacity)
                     --Reduce extra engis wanted if we have been waiting a while
-                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have been waiting a while, in which case do we want to reduce engineers wnated, time spent waiting='..(oUnit[refiTransportTimeSpentWaiting] or 'nil')..'; iEngisHave='..iEngisHave..'; iExtraEngisWanted pre adjust='..iExtraEngisWanted) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have been waiting a while, in which case do we want to reduce engineers wnated, time spent waiting='..(oUnit[refiTransportTimeSpentWaiting] or 'nil')..'; iEngisHave='..iEngisHave..'; iExtraEngisWanted pre adjust='..iExtraEngisWanted..'; Dist to zone midpoint='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])) end
                     if (oUnit[refiTransportTimeSpentWaiting] or 0) >= 30 and iEngisHave >= 1 and iEngisHave >= iExtraEngisWanted then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Time spent waiting >= 30 so dont want more engineers') end
                         iExtraEngisWanted = 0
+                    elseif iEngisHave >= 2 then
+                        local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])
+                        if iDistToTarget <= 250 and iEngisHave >= 3 and ((oUnit[refiTransportTimeSpentWaiting] or 0) >= 2 and not(M28UnitInfo.IsUnitValid(oUnit[refoTransportUnitTryingToLoad]))) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Have been waiting for at least 2 seconds and no engineers trying to load so dont want more engineers') end
+                            iExtraEngisWanted = 0
+                        elseif (oUnit[refiTransportTimeSpentWaiting] or 0) >= 10 then
+                            if iDistToTarget <= 350 then
+                                if iEngisHave >= 3 then
+                                    iExtraEngisWanted = 0
+                                elseif iDistToTarget <= 240 then
+                                    iExtraEngisWanted = 0
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': iExtraEngisWanted after dist check='..iExtraEngisWanted) end
+                        end
                     end
                 end
-                local bGetMoreEngis = false
-                if bDebugMessages == true then LOG(sFunctionRef..': iExtraEngisWanted='..iExtraEngisWanted..'; iEngisHave='..iEngisHave..'; iTechLevel='..iTechLevel..'; Mex count of target island='..M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauIslandMexCount][iIslandToTravelTo]..'; iEngiRemainingCapacity='..iEngiRemainingCapacity) end
-                if iExtraEngisWanted == 0 and iEngisHave == 0 then
+                    local bGetMoreEngis = false
+                    if bDebugMessages == true then LOG(sFunctionRef..': iExtraEngisWanted='..iExtraEngisWanted..'; iEngisHave='..iEngisHave..'; iTechLevel='..iTechLevel..'; Mex count of target island='..M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauIslandMexCount][iIslandToTravelTo]..'; iEngiRemainingCapacity='..iEngiRemainingCapacity) end
+                    if iExtraEngisWanted == 0 and iEngisHave == 0 then
                     M28Utilities.ErrorHandler('Dont have any engis but dont want any, something has gone wrong')
-                elseif iExtraEngisWanted > 0 then
+                    elseif iExtraEngisWanted > 0 then
                     oUnit[refiTransportTimeSpentWaiting] = (oUnit[refiTransportTimeSpentWaiting] or 0) + 1
                     --Want to wait for more engineers unless have some already and arent on a core LZ
                     local iCurPlateauOrZero, iCurLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
 
                     local tCurLZOrWZTeamData
+                    local tCurLZOrWZData
                     if iCurPlateauOrZero > 0 then
-                        --Dealing with a land zone so it might have a land factory
-                        tCurLZOrWZTeamData = M28Map.tAllPlateaus[iCurPlateauOrZero][M28Map.subrefPlateauLandZones][iCurLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
+                    --Dealing with a land zone so it might have a land factory
+                    tCurLZOrWZData = M28Map.tAllPlateaus[iCurPlateauOrZero][M28Map.subrefPlateauLandZones][iCurLandOrWaterZone]
+                    tCurLZOrWZTeamData = tCurLZOrWZData[M28Map.subrefLZTeamData][iTeam]
                     else
-                        tCurLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iCurLandOrWaterZone]][M28Map.subrefPondWaterZones][iCurLandOrWaterZone][M28Map.subrefWZTeamData][iTeam]
+                    tCurLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iCurLandOrWaterZone]][M28Map.subrefPondWaterZones][iCurLandOrWaterZone]
+                    tCurLZOrWZTeamData = tCurLZOrWZData[M28Map.subrefWZTeamData][iTeam]
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurLandOrWaterZone='..(iCurLandOrWaterZone or 'nil')..'; Is this a core base='..tostring(tCurLZOrWZTeamData[M28Map.subrefLZbCoreBase] or false)) end
                     if tCurLZOrWZTeamData[M28Map.subrefLZbCoreBase] or iEngisHave == 0 then
-                        bGetMoreEngis = true
-                        oUnit[refiEngisWanted] = iExtraEngisWanted
-                        --Get more engis
-                        if tCurLZOrWZTeamData[M28Map.subrefLZbCoreBase] then
-                            --Do nothing re orders - dont want to override transport orders incase engineers are trying to load onto it
-                            --However, want to record that we are waiting for an engineer if not already recorded
-                            local bRecordAgainstLZ = true
-                            if M28Utilities.IsTableEmpty(tCurLZOrWZTeamData[M28Map.reftoTransportsWaitingForEngineers]) == false then
-                                for iRecordedTransport, oRecordedTransport in tCurLZOrWZTeamData[M28Map.reftoTransportsWaitingForEngineers] do
-                                    if oRecordedTransport == oUnit then
-                                        bRecordAgainstLZ = false
-                                    end
-                                end
-                            end
-                            if bRecordAgainstLZ then
-                                table.insert(tCurLZOrWZTeamData[M28Map.reftoTransportsWaitingForEngineers], oUnit)
-                            end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Transport is in core base iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurLandOrWaterZone='..(iCurLandOrWaterZone or 'nil')..'; is table of transports waiting for engineers empty='..tostring(M28Utilities.IsTableEmpty(tCurLZOrWZTeamData[M28Map.reftoTransportsWaitingForEngineers]))) end
-                        else
-                            --Want engineers, but not on core base, so move to core base
-                            if M28Utilities.IsTableEmpty(tCurLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) then M28Utilities.ErrorHandler('Dont have a closest friendly base for iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurLandOrWaterZone='..(iCurLandOrWaterZone or 'nil')) end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Transport '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' wants engineers but not in core base so will move there iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurLandOrWaterZone='..(iCurLandOrWaterZone or 'nil')..'; Is transport valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; tCurLZOrWZTeamData[M28Map.reftClosestFriendlyBase]='..repru(tCurLZOrWZTeamData[M28Map.reftClosestFriendlyBase])..'; Unit last order position='..repru(oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition])) end
-                            --IssueTrackedMove(oUnit, tOrderPosition,                           iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
-                            M28Orders.IssueTrackedMove(oUnit, tCurLZOrWZTeamData[M28Map.reftClosestFriendlyBase], 10,                   false,              'TWntE',            false)
+                    bGetMoreEngis = true
+                    oUnit[refiEngisWanted] = iExtraEngisWanted
+                    --Get more engis
+                    if tCurLZOrWZTeamData[M28Map.subrefLZbCoreBase] then
 
-                        end
+                    if M28UnitInfo.IsUnitValid(oUnit[refoTransportUnitTryingToLoad]) and not(oUnit[refoTransportUnitTryingToLoad]:IsUnitState('Attached')) then
+                    --Do nothing re orders if transport already has an engineer assigned to load onto it (as dont want to override transport orders incase engineers are trying to load onto it)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Already have an engineer assigned to load onto this transport='..oUnit[refoTransportUnitTryingToLoad].UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit[refoTransportUnitTryingToLoad])) end
+                    else
+                    --Find the closest engineer to us that has an order to load onto a transport, if there is one, otherwise move to the midpoint
+                    local tHoldingLocation
+                    local oClosestLoadingEngineer
+                    local iClosestLoadingEngineerDist = 1000
+                    local iCurEngiDist
+                    local tEngineersInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tCurLZOrWZTeamData[M28Map.subrefLZTAlliedUnits])
+                    for iEngineer, oEngineer in tEngineersInZone do
+                    if M28UnitInfo.IsUnitValid(oEngineer) and oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionLoadOntoTransport and not(oEngineer:IsUnitState('Attached')) then
+                    iCurEngiDist = M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), oUnit:GetPosition())
+                    if iCurEngiDist < iClosestLoadingEngineerDist then
+                    iClosestLoadingEngineerDist = iCurEngiDist
+                    oClosestLoadingEngineer = oEngineer
                     end
+                    end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iClosestLoadingEngineerDist='..iClosestLoadingEngineerDist..'; oClosestLoadingEngineer='..(oClosestLoadingEngineer.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oClosestLoadingEngineer) or 'nil')) end
+                    if oClosestLoadingEngineer then
+                    tHoldingLocation = oClosestLoadingEngineer:GetPosition()
+                    --If we are close to the engineer then instead get the engineer to give an order to load onto this transport, if we dont have such an engineer recorded
+
+                    if iClosestLoadingEngineerDist <= 12 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will try and get closest loading engineer to load onto transport, unit state='..M28UnitInfo.GetUnitState(oClosestLoadingEngineer)) end
+                    M28Orders.IssueTrackedTransportLoad(oClosestLoadingEngineer, oUnit, false, 'TrLEng', false)
+                    else
+                    M28Orders.IssueTrackedMove(oUnit, tHoldingLocation, 5,                   false,              'TRlWtE',            false)
+                    end
+                    else
+                    tHoldingLocation = {tCurLZOrWZData[M28Map.subrefMidpoint][1], tCurLZOrWZData[M28Map.subrefMidpoint][2], tCurLZOrWZData[M28Map.subrefMidpoint][3]}
+                    M28Orders.IssueTrackedMove(oUnit, tHoldingLocation, 5,                   false,              'TRlWtE',            false)
+                    end
+
+
+                    end
+
+                    --However, want to record that we are waiting for an engineer if not already recorded
+                    local bRecordAgainstLZ = true
+                    if M28Utilities.IsTableEmpty(tCurLZOrWZTeamData[M28Map.reftoTransportsWaitingForEngineers]) == false then
+                    for iRecordedTransport, oRecordedTransport in tCurLZOrWZTeamData[M28Map.reftoTransportsWaitingForEngineers] do
+                    if oRecordedTransport == oUnit then
+                    bRecordAgainstLZ = false
+                    end
+                    end
+                    end
+                    if bRecordAgainstLZ then
+                    table.insert(tCurLZOrWZTeamData[M28Map.reftoTransportsWaitingForEngineers], oUnit)
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Transport is in core base iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurLandOrWaterZone='..(iCurLandOrWaterZone or 'nil')..'; is table of transports waiting for engineers empty='..tostring(M28Utilities.IsTableEmpty(tCurLZOrWZTeamData[M28Map.reftoTransportsWaitingForEngineers]))) end
+                    else
+                    --Want engineers, but not on core base, so move to core base
+                    if M28Utilities.IsTableEmpty(tCurLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) then M28Utilities.ErrorHandler('Dont have a closest friendly base for iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurLandOrWaterZone='..(iCurLandOrWaterZone or 'nil')) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Transport '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' wants engineers but not in core base so will move there iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurLandOrWaterZone='..(iCurLandOrWaterZone or 'nil')..'; Is transport valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; tCurLZOrWZTeamData[M28Map.reftClosestFriendlyBase]='..repru(tCurLZOrWZTeamData[M28Map.reftClosestFriendlyBase])..'; Unit last order position='..repru(oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]][M28Orders.subreftOrderPosition])) end
+                --IssueTrackedMove(oUnit, tOrderPosition,                           iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
+                M28Orders.IssueTrackedMove(oUnit, tCurLZOrWZTeamData[M28Map.reftClosestFriendlyBase], 10,                   false,              'TWntE',            false)
+
+                end
+                end
 
                 end
                 if not(bGetMoreEngis) then
-                    oUnit[refiTransportTimeSpentWaiting] = 0
-                    --Have enough engineers (or arent on core lZ so dont want to delay by going back for more) - unload at the target land zone
-                    M28Orders.IssueTrackedTransportUnload(oUnit, tLZData[M28Map.subrefMidpoint], 10, false, 'TRLZUnl', false)
-                    oUnit[refiTargetIslandForDrop] = iIslandToTravelTo
-                    oUnit[refiTargetZoneForDrop] = iLandZoneToTravelTo
-                    --Set this as an expansion zone if it is in same isalnd (as normal logic wont flag it as an expansion)
-                    if bTravelToSameIsland then
-                        local tTargetLZData =  M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauLandZones][iLandZoneToTravelTo]
-                        local tLZTeamData = tTargetLZData[M28Map.subrefLZTeamData][iTeam]
-                        if not(tLZTeamData[M28Map.subrefLZCoreExpansion]) and (tLZData[M28Map.subrefLZMexCount] >= 3 or (M28Map.bIsCampaignMap and (M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToRepair]) == false or M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]) == false))) then
-                            tLZTeamData[M28Map.subrefLZExpansionOverride] = true
-                        end
-                    end
-
-                    --Remove this location from the shortlist
-                    if bTravelToSameIsland then
-                        for iEntry, tiPlateauAndLandZone in M28Team.tTeamData[iTeam][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist] do
-                            if tiPlateauAndLandZone[2] == iLandZoneToTravelTo then
-                                table.remove(M28Team.tTeamData[iTeam][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist], iEntry)
-                                break
-                            end
-                        end
-                    else
-                        for iEntry, tiPlateauAndIsland in M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist] do
-                            if tiPlateauAndIsland[1] == iPlateauToTravelTo and tiPlateauAndIsland[2] == iIslandToTravelTo then
-                                table.remove(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist], iEntry)
-                                break
-                            end
-                        end
-                    end
+                oUnit[refiTransportTimeSpentWaiting] = 0
+                --Have enough engineers (or arent on core lZ so dont want to delay by going back for more) - unload at the target land zone
+                M28Orders.IssueTrackedTransportUnload(oUnit, tLZData[M28Map.subrefMidpoint], 10, false, 'TRLZUnl', false)
+                oUnit[refiTargetIslandForDrop] = iIslandToTravelTo
+                oUnit[refiTargetZoneForDrop] = iLandZoneToTravelTo
+                --Set this as an expansion zone if it is in same isalnd (as normal logic wont flag it as an expansion)
+                if bTravelToSameIsland then
+                local tTargetLZData =  M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauLandZones][iLandZoneToTravelTo]
+                local tLZTeamData = tTargetLZData[M28Map.subrefLZTeamData][iTeam]
+                if not(tLZTeamData[M28Map.subrefLZCoreExpansion]) and (tLZData[M28Map.subrefLZMexCount] >= 3 or (M28Map.bIsCampaignMap and (M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToRepair]) == false or M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]) == false))) then
+                tLZTeamData[M28Map.subrefLZExpansionOverride] = true
                 end
+                end
+
+                --Remove this location from the shortlist
+                if bTravelToSameIsland then
+                for iEntry, tiPlateauAndLandZone in M28Team.tTeamData[iTeam][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist] do
+                    if tiPlateauAndLandZone[2] == iLandZoneToTravelTo then
+                    table.remove(M28Team.tTeamData[iTeam][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist], iEntry)
+                break
+                end
+                end
+                else
+                    for iEntry, tiPlateauAndIsland in M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist] do
+                if tiPlateauAndIsland[1] == iPlateauToTravelTo and tiPlateauAndIsland[2] == iIslandToTravelTo then
+                table.remove(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist], iEntry)
+                    break
+                    end
+                    end
+                    end
+                    end
 
             else
                 if bDebugMessages == true then LOG(sFunctionRef..': We dont have island to travel to so unload') end

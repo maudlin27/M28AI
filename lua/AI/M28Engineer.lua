@@ -7438,9 +7438,9 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     end
     local iFactoriesWanted = 0
     local iExistingLandFactory = 0
+    local bExistingFactoryIsComplete = false
     if tLZTeamData[M28Map.subrefLZCoreExpansion] then
         local tExistingLandFactory = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
-        local bExistingFactoryIsComplete = false
         if M28Utilities.IsTableEmpty(tExistingLandFactory) == false then
             iExistingLandFactory = table.getn(tExistingLandFactory)
             for iUnit, oUnit in tExistingLandFactory do
@@ -7486,21 +7486,49 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         end
         if bHaveLowMass then iFactoriesWanted = math.max(1, math.floor(iFactoriesWanted * 0.5)) end
         if bDebugMessages == true then LOG(sFunctionRef..': iFactoriesWanted after adjusting for enemy units='..iFactoriesWanted..'; iExistingLandFactory='..iExistingLandFactory) end
-        if iExistingLandFactory < iFactoriesWanted then
-            --Dont want to build air factories at a core expansion point, instead only want land
-            --[[local bWantAirNotLand = M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
-            local iFactoryAction
-            if bWantAirNotLand then iFactoryAction = refActionBuildAirFactory
-            else
-                if bDebugMessages == true then LOG(sFunctionRef..': Want to build land factory not air factory4') end
-                iFactoryAction = refActionBuildLandFactory
-            end--]]
-            iBPWanted = 10
-            if bExistingFactoryIsComplete then iBPWanted = 5 end
-            local iMaxTechLevelIfAny
-            if iExistingLandFactory == 0 then iMaxTechLevelIfAny = 1 end
-            HaveActionToAssign(refActionBuildLandFactory, 1, iBPWanted, iMaxTechLevelIfAny)
+    end
+
+    --Do we want emergency PD?
+    if iExistingLandFactory >= 1 and tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and (tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) == 0 then
+        --Does enemy have any units that can outrange a PD? If so then dont bother building
+        local iHighestNearbyEnemyRange = math.max((tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0), tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] or 0)
+        if iHighestNearbyEnemyRange <= 25 then
+            if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                    local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                    iHighestNearbyEnemyRange = math.max(iHighestNearbyEnemyRange, (tAdjLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0), tAdjLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] or 0)
+                end
+            end
+            if iHighestNearbyEnemyRange <= 25 then
+                local iExistingStructureThreat = 0
+                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange]) == false then
+                    for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange] do
+                        iExistingStructureThreat = iExistingStructureThreat + iThreat
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': iThreat of existing PD='..iThreat..'; will get emergency PD if below threshold') end
+                if iExistingStructureThreat < 400 then
+                    HaveActionToAssign(refActionBuildEmergencyPD, 1, 40, tLZData[M28Map.subrefMidpoint])
+                end
+            end
         end
+    end
+
+    iCurPriority = iCurPriority + 1
+    if iExistingLandFactory < iFactoriesWanted then
+        --Dont want to build air factories at a core expansion point, instead only want land
+        --[[local bWantAirNotLand = M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
+        local iFactoryAction
+        if bWantAirNotLand then iFactoryAction = refActionBuildAirFactory
+        else
+            if bDebugMessages == true then LOG(sFunctionRef..': Want to build land factory not air factory4') end
+            iFactoryAction = refActionBuildLandFactory
+        end--]]
+        iBPWanted = 10
+        if bExistingFactoryIsComplete then iBPWanted = 5 end
+        local iMaxTechLevelIfAny
+        if iExistingLandFactory == 0 then iMaxTechLevelIfAny = 1 end
+        HaveActionToAssign(refActionBuildLandFactory, 1, iBPWanted, iMaxTechLevelIfAny)
     end
 
     if bDebugMessages == true then LOG(sFunctionRef..': About to consider what actions we want to give engineers for iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTeam='..iTeam..'; Is table of unbuilt mex locations empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]))..'; Is table of part complete mexes empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoPartBuiltMexes]))) end
