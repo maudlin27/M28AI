@@ -416,9 +416,14 @@ function TMDJustBuilt(oTMD)
 end
 
 function RecordTMLAndTMDForUnitJustBuilt(oUnit)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordTMLAndTMDForUnitJustBuilt'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local oTMDBrain = oUnit:GetAIBrain()
     local iTMDTeam = oTMDBrain.M28Team
     local tNearbyTMD = oTMDBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryTMD, oUnit:GetPosition(), iTMLMissileRange + 2, 'Ally')
+
     for iTMLTeam = 1, M28Team.iTotalTeamCount do
         --Get all TML in range of this TMD
         if not(iTMDTeam == iTMLTeam) then
@@ -429,6 +434,7 @@ function RecordTMLAndTMDForUnitJustBuilt(oUnit)
                     break
                 end
                 local tTeamNearbyTML = oTMLBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryTML, oUnit:GetPosition(), iTMLMissileRange + 2, 'Ally')
+                if bDebugMessages == true then LOG(sFunctionRef..': Is table of TML in TML missile range of this unit empty='..tostring(M28Utilities.IsTableEmpty(tTeamNearbyTML))) end
                 if M28Utilities.IsTableEmpty(tTeamNearbyTML) == false then
                     for iTML, oTML in tTeamNearbyTML do
                         RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tNearbyTMD) --This will do a distance check from the unit to the TMD
@@ -437,6 +443,37 @@ function RecordTMLAndTMDForUnitJustBuilt(oUnit)
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function RecordTMLAndTMDForEnemyUnitTargetJustDetected(oUnit, iTMLTeam)
+    --Intended if an M28 TML owner detects an enemy target
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordTMLAndTMDForEnemyUnitTargetJustDetected'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local oTMDBrain = oUnit:GetAIBrain()
+    local iTMDTeam = oTMDBrain.M28Team
+    local tNearbyTMD = oTMDBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryTMD, oUnit:GetPosition(), iTMLMissileRange + 2, 'Ally')
+
+
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyActiveBrains]) == false then
+        local oTMLBrain
+        for iBrain, oBrain in M28Team.tTeamData[iTMLTeam][M28Team.subreftoFriendlyActiveBrains] do
+            oTMLBrain = oBrain
+            break
+        end
+        local tTeamNearbyTML = oTMLBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryTML, oUnit:GetPosition(), iTMLMissileRange + 2, 'Ally')
+        if bDebugMessages == true then LOG(sFunctionRef..': Is table of TML in TML missile range of this unit empty='..tostring(M28Utilities.IsTableEmpty(tTeamNearbyTML))) end
+        if M28Utilities.IsTableEmpty(tTeamNearbyTML) == false then
+            for iTML, oTML in tTeamNearbyTML do
+                if bDebugMessages == true then LOG(sFunctionRef..': Are in range of oTML='..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)..'; will record if is protected by TMD') end
+                RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tNearbyTMD) --This will do a distance check from the unit to the TMD
+            end
+        end
+    end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function IsTMDProtectingUnitFromTML(oTMD, oUnit, oTML, iOptionalBuildingSize)
