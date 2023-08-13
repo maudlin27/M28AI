@@ -440,7 +440,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                         local iMexInLandZone = 0
                         if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZMexLocations]) == false then iMexInLandZone = table.getn(tLZOrWZData[M28Map.subrefLZMexLocations]) end
                         local iMaxMexesBeforeHydro = 4
-                        if iMexInLandZone > 4 then iMaxMexesBeforeHydro = 3 end
+                        if iMexInLandZone > 4 and aiBrain:GetEconomyStored('MASS') >= 25 then iMaxMexesBeforeHydro = 3 end
                         if bDebugMessages == true then LOG(sFunctionRef..': Deciding on ACU action for where no hydro nearby, gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; Gross energy income='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; iMexInLandZone='..iMexInLandZone..'; iMinEnergyPerTickWanted='..iMinEnergyPerTickWanted..'; iCurLandFactories='..iCurLandFactories) end
                         if aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(2, iMexInLandZone) * 0.2 * iResourceMod then
                             if bDebugMessages == true then LOG(sFunctionRef..': Want at least 2 mexes') end
@@ -1427,7 +1427,9 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                 local iEnemyHighestDFInThisLZ = 0
                 if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]) == false then
                     for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange] do
-                        if iThreat >= 20 then iEnemyHighestDFInThisLZ = math.max(iEnemyHighestDFInThisLZ, iRange) end
+                        if iThreat >= 20 then
+                            iEnemyHighestDFInThisLZ = math.max(iEnemyHighestDFInThisLZ, iRange)
+                        end
                     end
                 end
 
@@ -1439,7 +1441,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                     end
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': oEnemyToTarget='..oEnemyToTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToTarget)..'; iClosestDist='..iClosestDist..'; iDistToBeInRange='..iDistToBeInRange..'; ACU DF range='..(oACU[M28UnitInfo.refiDFRange] or 0)) end
-                if iClosestDist and iClosestDist + iDistToBeInRange <= oACU[M28UnitInfo.refiDFRange]  then
+                if iClosestDist and iClosestDist + iDistToBeInRange <= oACU[M28UnitInfo.refiDFRange] and (M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.75 or tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 165) then
                     --Retreat temporarily - if aren't in a core zone then retreat to rally point
                     local tRallyPoint
                     if tLZTeamData[M28Map.subrefLZbCoreBase] then

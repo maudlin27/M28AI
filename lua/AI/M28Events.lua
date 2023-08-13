@@ -609,7 +609,6 @@ function OnWeaponFired(oWeapon)
         local sFunctionRef = 'OnWeaponFired'
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code; does the weapon have a valid unit='..tostring(M28UnitInfo.IsUnitValid(oWeapon.unit))..'; Weapon unitID='..(oWeapon.unit.UnitId or 'nil')..'; oWeapon[M28UnitInfo.refiLastWeaponEvent]='..(oWeapon[M28UnitInfo.refiLastWeaponEvent] or 'nil')) end
-
         local oUnit = oWeapon.unit
         if oUnit and oUnit.GetUnitId and oUnit.GetAIBrain then
             local oParentBrain = oUnit:GetAIBrain()
@@ -619,7 +618,7 @@ function OnWeaponFired(oWeapon)
                 if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' has just fired a shot, Time='..GetGameTimeSeconds()..'; oWeapon[M28UnitInfo.refiLastWeaponEvent]='..(oWeapon[M28UnitInfo.refiLastWeaponEvent] or 'nil')..'; is salvo data nil='..tostring(oUnit.CurrentSalvoData == nil)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; Is unit state attacking='..tostring(oUnit:IsUnitState('Attacking'))..'; reprs of Weapon salvo data='..reprs(oWeapon.CurrentSalvoData)..'; reprs of weapon='..reprs(oWeapon)..'; Weapon blueprint='..reprs(oWeapon.Blueprint)..'; Is rack size highest value='..tostring((oWeapon.CurrentRackSalvoNumber or 0) >= (oWeapon.Blueprint.RackSalvoSize or 0))..'; Is salvo size highest value='..tostring((oWeapon.CurrentSalvoNumber or 0) >= (oWeapon.Blueprint.MuzzleSalvoSize or 0))..'; oWeapon.CurrentRackSalvoNumber='..(oWeapon.CurrentRackSalvoNumber or 'nil')..'; oWeapon.Blueprint.RackSalvoSize='..oWeapon.Blueprint.RackSalvoSize..';oWeapon.CurrentSalvoNumber='..(oWeapon.CurrentSalvoNumber or 'nil')..'; Muzzle salvo size='..(oWeapon.Blueprint.MuzzleSalvoSize or 0)) end
                 if (oWeapon.CurrentRackSalvoNumber or 0) >= (oWeapon.Blueprint.RackSalvoSize or 0) and (oWeapon.CurrentSalvoNumber or 0) >= (oWeapon.Blueprint.MuzzleSalvoSize or 0) then
 
-                    M28Micro.TurnAirUnitAndMoveToTarget(oParentBrain, oUnit, M28Team.tAirSubteamData[oParentBrain.M28AirSubteam][M28Team.reftAirSubRallyPoint], 25, 1)
+                    ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oParentBrain, oUnit, M28Team.tAirSubteamData[oParentBrain.M28AirSubteam][M28Team.reftAirSubRallyPoint], 25, 1)
                 end
 
 

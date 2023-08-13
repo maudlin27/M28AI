@@ -1018,11 +1018,20 @@ function WantToEcoDueToEnemyFirebase(iTeam, tLZTeamData, iPlateau)
 end
 
 function HaveEnoughThreatToAttack(tLZTeamData, iOurCombatThreat, iEnemyCombatThreat, iFirebaseThreatAdjust, bHaveSignificantCombatCloserToFirebase, iTeam)
+    local sFunctionRef = 'HaveEnoughThreatToAttack'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+
+    if iOurCombatThreat >= 45.9 and iEnemyCombatThreat >= 40 and iOurCombatThreat <= 60 and iEnemyCombatThreat <= 60 then bDebugMessages = true end
+    if bDebugMessages == true then LOG(sFunctionRef..': Deciding if have enough combat threat to attack, iOurCombatThreat='..iOurCombatThreat..'; iEnemyCombatThreat='..iEnemyCombatThreat..'; iFirebaseThreatAdjust='..iFirebaseThreatAdjust..'; bHaveSignificantCombatCloserToFirebase='..tostring(bHaveSignificantCombatCloserToFirebase)..'; iTeam='..(iTeam or 'nil')..'; LZ value='..tLZTeamData[M28Map.subrefLZTValue]..'; Map size='..M28Map.iMapSize..'; Time='..GetGameTimeSeconds()..'; subrefLZSValue='..tLZTeamData[M28Map.subrefLZSValue]) end
     if iOurCombatThreat > iEnemyCombatThreat * 1.4 then
         return true
     elseif  iOurCombatThreat > iEnemyCombatThreat and ((iFirebaseThreatAdjust > 0 and bHaveSignificantCombatCloserToFirebase) or tLZTeamData[M28Map.subrefLZTValue] > iOurCombatThreat * 0.5 or M28Map.iMapSize <= 256 or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefAlliedACU]) == false) then
         return true
     elseif tLZTeamData[M28Map.subrefLZbCoreBase] and iOurCombatThreat > iEnemyCombatThreat * 0.8 then
+        return true
+        --Wnat to be more aggressive if we have friendly buildings in the zone or engineers and we have a chance of beating the enemy
+    elseif iOurCombatThreat >= iEnemyCombatThreat and iFirebaseThreatAdjust == 0 and ((tLZTeamData[M28Map.subrefLZSValue] or 0) > 0 or (iEnemyCombatThreat <= 200 and (tLZTeamData[M28Map.subrefLZTValue] >= iOurCombatThreat or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subrefLZTAlliedUnits])) == false))) then
         return true
     elseif iOurCombatThreat >= 15000 and iOurCombatThreat > (iEnemyCombatThreat + iFirebaseThreatAdjust) * 0.9 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]) == false then
         --Does enemy have gameender or lots of T3 arti? in which case want to lower threshold
@@ -1040,7 +1049,7 @@ function HaveEnoughThreatToAttack(tLZTeamData, iOurCombatThreat, iEnemyCombatThr
             end
         end
     end
-    return false
+        return false
 end
 
 function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)

@@ -198,7 +198,13 @@ function UpdateRecordedOrders(oUnit)
             end
         end
     end
-    --if oUnit.UnitId == 'xel0305' then LOG('Just updated orders for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; reprs of last orders='..reprs(oUnit[reftiLastOrders])..'; Is command queue empty='..tostring(M28Utilities.IsTableEmpty(oUnit:GetCommandQueue()))) end
+    --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uea020415' then
+        LOG('Just updated orders for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; reprs of last orders='..reprs(oUnit[reftiLastOrders])..'; Is command queue empty='..tostring(M28Utilities.IsTableEmpty(oUnit:GetCommandQueue())))
+        local tCommandQueue = oUnit:GetCommandQueue()
+        for iEntry, tCommand in tCommandQueue do --havent actually tested this bit out
+            LOG('reprs of iEntry='..iEntry..'='..reprs(tCommand)) --if this works, then see if https://github.com/FAForever/fa/blob/86d57d438b287d91a7fc6e92e0ab3ce94dc382ce/lua/SimCallbacks.lua#L355 helps make sense of this
+        end
+    end--]]
 end
 
 function IssueTrackedMove(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
@@ -328,6 +334,7 @@ function IssueTrackedAttack(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalO
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueAttack, [subrefoOrderUnitTarget] = oOrderTarget})
         IssueAttack({oUnit}, oOrderTarget)
+        --if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uea020415' then LOG('Just issued attack order on oOrderTarget='..oOrderTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOrderTarget)) end
     end
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 end
