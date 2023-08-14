@@ -794,9 +794,41 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     end
 
     function ConsiderUpgrading()
-        sBPIDToBuild = M28UnitInfo.GetUnitUpgradeBlueprint(oFactory, true)
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        return sBPIDToBuild
+        --If this is a support factory or T1 factory then only consider upgrading if we have spare idle factories in this LZ, subject to how many factories we have
+        local bConsiderUpgrading = true
+        if iFactoryTechLevel == 1 or not(EntityCategoryContains(M28UnitInfo.refCategoryLandHQ, oFactory.UnitId)) then
+
+            local iUpgradingLandFactories = 0
+            local iAvailableLandFactories = 0
+            local tLandFactoriesInLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+            if M28Utilities.IsTableEmpty(tLandFactoriesInLZ) == false then
+                for iFactory, oFactory in tLandFactoriesInLZ do
+                    if oFactory:GetFractionComplete() == 1 then
+                        if oFactory:IsUnitState('Upgrading') then
+                            iUpgradingLandFactories = iUpgradingLandFactories + 1
+                        else
+                            iAvailableLandFactories = iAvailableLandFactories + 1
+                        end
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': iUpgradingLandFactories='..iUpgradingLandFactories..'; iAvailableLandFactories='..iAvailableLandFactories..'; iFactoryTechLevel='..iFactoryTechLevel..'; iOurHighestLandFactoryTech='..aiBrain[M28Economy.refiOurHighestLandFactoryTech]) end
+                if iUpgradingLandFactories > 0 then
+                    if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and iFactoryTechLevel < aiBrain[M28Economy.refiOurHighestLandFactoryTech] then
+                        bConsiderUpgrading = false
+                        if bDebugMessages == true then LOG(sFunctionRef..': Dont want to upgrade as there are nearby enemies') end
+                    elseif iAvailableLandFactories <= 3 and iUpgradingLandFactories + 1 >= iAvailableLandFactories then
+                        bConsiderUpgrading = false
+                        if bDebugMessages == true then LOG(sFunctionRef..': Dont want to upgrade as dont have many available land factories remaining') end
+                    end
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': bConsiderUpgrading='..tostring(bConsiderUpgrading)) end
+        if bConsiderUpgrading then
+            sBPIDToBuild = M28UnitInfo.GetUnitUpgradeBlueprint(oFactory, true)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return sBPIDToBuild
+        end
     end
 
 
