@@ -471,7 +471,7 @@ function RecordTMLAndTMDForEnemyUnitTargetJustDetected(oUnit, iTMLTeam)
         end
         local tTeamNearbyTML = oTMLBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryTML, oUnit:GetPosition(), iTMLMissileRange + 2, 'Ally')
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of TML in missile range of this unit empty='..tostring(M28Utilities.IsTableEmpty(tTeamNearbyTML))..'; iTMLMissileRange='..iTMLMissileRange..'; Unit position='..repru(oUnit:GetPosition())..'; oTMLBrain.Nickname='..oTMLBrain.Nickname) end
-        if M28Utilities.IsTableEmpty(tTeamNearbyTML) == false then
+        if M28Utilities.IsTableEmpty(tTeamNearbyTML) == false then --NOTE: If TML is firing from a cliff (big height dif) then it might not detect a unit that appears within its range, assuming due to targeting of units not being straightline ignoring height, but also factoring in height difs, with getunitsaroundpoint appearing to factor this in as well
             for iTML, oTML in tTeamNearbyTML do
                 if bDebugMessages == true then LOG(sFunctionRef..': Are in range of oTML='..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)..'; will record if is protected by TMD') end
                 RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tNearbyTMD) --This will do a distance check from the unit to the TMD
