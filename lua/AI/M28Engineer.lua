@@ -1239,7 +1239,6 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
                     local tAlliedUnits = tLZOrWZData[M28Map.subrefWZTeamData][aiBrain.M28Team][M28Map.subrefWZTAlliedUnits]
                     if M28Utilities.IsTableEmpty(tAlliedUnits) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tAlliedUnits)) == false then
                         iSize = math.max(iSize, 16) --Czar can be built on cliffs where naval units cant be, hence do size 16 which is tempest
-                        bDebugMessages = true
                         if bDebugMessages == true then LOG(sFunctionRef..': Are trying to build a 2nd or more naval factory so increasing size wanted for the naval factory to '..iSize) end
                     else
                         if bDebugMessages == true then LOG(sFunctionRef..': Dont have any naval fac in this WZ, is tAlliedUnits empty='..tostring(M28Utilities.IsTableEmpty(tAlliedUnits))..'; iSize='..iSize..'; aiBrain='..aiBrain.Nickname..'; Highest naval fac='..(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyNavalFactoryTech] or 'nil')) end
@@ -1316,7 +1315,7 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
     local sFunctionRef = 'GetBestBuildLocationForTarget'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, sBlueprintToBuild) then bDebugMessages = true end
+
 
     local iHighestPriority = -100
     local iCurPriority, iCurDistance
@@ -1454,6 +1453,7 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
                 if bTryAndBuildAtlantis and aiBrain:CanBuildStructureAt('ues0401', tCurLocation) then
                     iCurPriority = iCurPriority + 10
                     if bDebugMessages == true then LOG(sFunctionRef..': Can build atlantis here so increasing prioriyt, will increase more if can build to left and right') end
+
                     if aiBrain:CanBuildStructureAt('ues0401', {tCurLocation[1] - 3, tCurLocation[2], tCurLocation[3]}) then iCurPriority = iCurPriority + 10 end
                     if aiBrain:CanBuildStructureAt('ues0401', {tCurLocation[1] + 3, tCurLocation[2], tCurLocation[3]}) then iCurPriority = iCurPriority + 10 end
                 end

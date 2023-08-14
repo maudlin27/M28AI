@@ -847,7 +847,8 @@ end
 
 function IssueTrackedTMLMissileLaunch(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
     UpdateRecordedOrders(oUnit)
-    --If we are close enough then issue the order again
+    --Always reissue the TML order (in contrast to approach for other orders) unless unit is busy as we arent reissuing this order every second, and in some cases would end up with the TML not firing despite having a target
+
     local tLastOrder
     if oUnit[reftiLastOrders] then
         if bAddToExistingQueue then
@@ -856,14 +857,24 @@ function IssueTrackedTMLMissileLaunch(oUnit, tOrderPosition, iDistanceToReissueO
         end
     end
 
-    if not(tLastOrder[subrefiOrderType] == refiOrderIssueTMLMissile and iDistanceToReissueOrder and M28Utilities.GetDistanceBetweenPositions(tOrderPosition, tLastOrder[subreftOrderPosition]) < iDistanceToReissueOrder) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
+    local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
+
+    if not(oUnit:IsUnitState('Busy')) or (not(tLastOrder[subrefiOrderType] == refiOrderIssueTMLMissile and iDistanceToReissueOrder and M28Utilities.GetDistanceBetweenPositions(tOrderPosition, tLastOrder[subreftOrderPosition]) < iDistanceToReissueOrder) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive]))) then
+        LOG('About to issue TML launch for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; Time='..GetGameTimeSeconds())
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderIssueTMLMissile, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
         IssueTactical({oUnit}, tOrderPosition)
 
-        oUnit[import('/mods/M28AI/lua/AI/M28Building.lua').reftActiveNukeTarget] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}
+        oUnit[M28Building.reftActiveNukeTarget] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}
+    end
+    if oUnit.GetTacticalSiloAmmoCount then
+        local iCurMissiles = oUnit:GetTacticalSiloAmmoCount()
+        if (iCurMissiles or 0) >= 2 then
+            --Reconsider launching a missile in 11s if we have 2+ missiles loaded (partial redundancy since firing a missile only causes the logic to trigger as a 1-off)
+            ForkThread(M28Building.DelayedConsiderLaunchingMissile, oUnit, 11)
+        end
     end
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 end
