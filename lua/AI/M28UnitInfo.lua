@@ -1173,7 +1173,7 @@ function RecordUnitRange(oUnit)
             if not(oCurWeapon.EnabledByEnhancement) or (oCurWeapon.EnabledByEnhancement and oUnit:HasEnhancement(oCurWeapon.EnabledByEnhancement)) then
                 if oCurWeapon.ManualFire then
                     oUnit[refiManualRange] = math.max((oUnit[refiManualRange] or 0), oCurWeapon.MaxRadius)
-                    oUnit[refiIndirectAOE] = math.max((oUnit[refiIndirectAOE] or 0), oCurWeapon.MaxRadius or 0)
+                    oUnit[refiIndirectAOE] = math.max((oUnit[refiIndirectAOE] or 0), oCurWeapon.DamageRadius or 0)
                 elseif oCurWeapon.RangeCategory == 'UWRC_Countermeasure' then
                     oUnit[refiMissileDefenceRange] = math.max((oUnit[refiMissileDefenceRange] or 0), oCurWeapon.MaxRadius)
                 elseif oCurWeapon.RangeCategory == 'UWRC_DirectFire' or (oCurWeapon.RangeCategory == 'UWRC_IndirectFire' and oCurWeapon.WeaponCategory == 'Direct Fire') then --Sera sniper bots have an 'indirectfire' range category that is actually DF
@@ -1206,7 +1206,7 @@ function RecordUnitRange(oUnit)
                     if (oCurWeapon.Damage or 0) > 0.01 or not(oCurWeapon.WeaponCategory == 'Experimental') then
                         oUnit[refiIndirectRange] = math.max((oUnit[refiIndirectRange] or 0), oCurWeapon.MaxRadius)
                         if oCurWeapon.WeaponUnpacks then oUnit[refbWeaponUnpacks] = true end
-                        oUnit[refiIndirectAOE] = math.max((oUnit[refiIndirectAOE] or 0), oCurWeapon.MaxRadius or 0)
+                        oUnit[refiIndirectAOE] = math.max((oUnit[refiIndirectAOE] or 0), (oCurWeapon.DamageRadius or 0))
                         if oCurWeapon.RateOfFire then oUnit[refiTimeBetweenIFShots] = math.max((oUnit[refiTimeBetweenIFShots] or 0), 1 / oCurWeapon.RateOfFire) end
                     end
                 elseif not(oCurWeapon.RangeCategory) or oCurWeapon.RangeCategory == 'UWRC_Undefined' then

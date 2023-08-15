@@ -1175,6 +1175,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                 if iPlateauOrZero > 0 and iLandOrWaterZone > 0 then
                                     local tLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][aiBrain.M28Team]
                                     table.insert(tLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets], oUnit)
+                                    M28Building.RecordTMLAndTMDForEnemyUnitTargetJustDetected(oUnit, aiBrain.M28Team)
                                 end
                             end
 

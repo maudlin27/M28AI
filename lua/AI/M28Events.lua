@@ -609,7 +609,6 @@ function OnWeaponFired(oWeapon)
         local sFunctionRef = 'OnWeaponFired'
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         if bDebugMessages == true then LOG(sFunctionRef..': Start of code; does the weapon have a valid unit='..tostring(M28UnitInfo.IsUnitValid(oWeapon.unit))..'; Weapon unitID='..(oWeapon.unit.UnitId or 'nil')..'; oWeapon[M28UnitInfo.refiLastWeaponEvent]='..(oWeapon[M28UnitInfo.refiLastWeaponEvent] or 'nil')) end
-
         local oUnit = oWeapon.unit
         if oUnit and oUnit.GetUnitId and oUnit.GetAIBrain then
             local oParentBrain = oUnit:GetAIBrain()
@@ -619,7 +618,7 @@ function OnWeaponFired(oWeapon)
                 if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' owned by '..oUnit:GetAIBrain().Nickname..' has just fired a shot, Time='..GetGameTimeSeconds()..'; oWeapon[M28UnitInfo.refiLastWeaponEvent]='..(oWeapon[M28UnitInfo.refiLastWeaponEvent] or 'nil')..'; is salvo data nil='..tostring(oUnit.CurrentSalvoData == nil)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; Is unit state attacking='..tostring(oUnit:IsUnitState('Attacking'))..'; reprs of Weapon salvo data='..reprs(oWeapon.CurrentSalvoData)..'; reprs of weapon='..reprs(oWeapon)..'; Weapon blueprint='..reprs(oWeapon.Blueprint)..'; Is rack size highest value='..tostring((oWeapon.CurrentRackSalvoNumber or 0) >= (oWeapon.Blueprint.RackSalvoSize or 0))..'; Is salvo size highest value='..tostring((oWeapon.CurrentSalvoNumber or 0) >= (oWeapon.Blueprint.MuzzleSalvoSize or 0))..'; oWeapon.CurrentRackSalvoNumber='..(oWeapon.CurrentRackSalvoNumber or 'nil')..'; oWeapon.Blueprint.RackSalvoSize='..oWeapon.Blueprint.RackSalvoSize..';oWeapon.CurrentSalvoNumber='..(oWeapon.CurrentSalvoNumber or 'nil')..'; Muzzle salvo size='..(oWeapon.Blueprint.MuzzleSalvoSize or 0)) end
                 if (oWeapon.CurrentRackSalvoNumber or 0) >= (oWeapon.Blueprint.RackSalvoSize or 0) and (oWeapon.CurrentSalvoNumber or 0) >= (oWeapon.Blueprint.MuzzleSalvoSize or 0) then
 
-                    M28Micro.TurnAirUnitAndMoveToTarget(oParentBrain, oUnit, M28Team.tAirSubteamData[oParentBrain.M28AirSubteam][M28Team.reftAirSubRallyPoint], 25, 1)
+                    ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oParentBrain, oUnit, M28Team.tAirSubteamData[oParentBrain.M28AirSubteam][M28Team.reftAirSubRallyPoint], 25, 1)
                 end
 
 
@@ -1049,6 +1048,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                 --Logic based on the unit that was just built:
 
                 --Check build locations for units not built at a factory
+                local bDontClearEngineer = false
                 if EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId) then
 
                     if not(oJustBuilt[M28UnitInfo.refbConstructionStart]) then
@@ -1106,6 +1106,17 @@ function OnConstructed(oEngineer, oJustBuilt)
                         M28Engineer.tiActionAdjacentCategory[M28Engineer.refActionBuildLandFactory] = nil
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti, oJustBuilt.UnitId) then
                         ForkThread(M28Building.GetT3ArtiTarget, oJustBuilt)
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryPD * categories.TECH1 + M28UnitInfo.refCategoryWall, oJustBuilt.UnitId) then
+                        --Build T1 walls around T1 PD
+                        local sWallBP = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28Engineer.tiActionCategory[M28Engineer.refActionBuildWall], oEngineer)
+                        if sWallBP then
+                            local tWallBuildLocation = M28Engineer.GetLocationToBuildWall(oEngineer, oJustBuilt, sWallBP)
+                            if tWallBuildLocation then
+                                M28Orders.IssueTrackedBuild(oEngineer, tWallBuildLocation, sWallBP, false, 'Wall')
+                                M28Engineer.TrackEngineerAction(oEngineer, M28Engineer.refActionBuildWall, true, 1)
+                                bDontClearEngineer = true
+                            end
+                        end
                     end
                     --Clear engineers that just built this
 
@@ -1154,7 +1165,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                     oEngineer:GetAIBrain()[M28Factory.refiHighestFactoryBuildCount] = math.max((oEngineer:GetAIBrain()[M28Factory.refiHighestFactoryBuildCount] or 0), (oEngineer[M28Factory.refiTotalBuildCount] or 0))
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oEngineer.UnitId) then
                     --Clear any engineers trying to build this unit if we just built a building or experimental
-                    if EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId) then
+                    if not(bDontClearEngineer) and EntityCategoryContains(categories.STRUCTURE + categories.EXPERIMENTAL, oJustBuilt.UnitId) then
                         M28Engineer.ClearEngineersBuildingUnit(oEngineer, oJustBuilt, true)
                     end
                 end
@@ -1304,11 +1315,16 @@ function OnTransportLoad(oUnit, oTransport, bone)
         local aiBrain = oTransport:GetAIBrain()
         if aiBrain.M28AI then
             --Reduce engis wanted (in case of delay between this being updated and engineer logic running)
-            if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryTransport, oTransport.UnitId) then
-                if oTransport[M28Air.refiEngisWanted] then
-                    oTransport[M28Air.refiEngisWanted] = math.max(0, oTransport[M28Air.refiEngisWanted] - 1)
+            if EntityCategoryContains(M28UnitInfo.refCategoryTransport, oTransport.UnitId) then
+                if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
+                    if oTransport[M28Air.refiEngisWanted] then
+                        oTransport[M28Air.refiEngisWanted] = math.max(0, oTransport[M28Air.refiEngisWanted] - 1)
+                    end
                 end
+                --Clear the last assigned unit
+                oTransport[M28Air.refoTransportUnitTryingToLoad] = nil
             end
+
         end
     end
 end

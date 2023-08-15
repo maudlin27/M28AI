@@ -26,9 +26,9 @@ reftEngineerStuckCheckLastPosition = 'M28CEngSP' --Position engineer was at when
 function AreMobileLandUnitsInRect(rRectangleToSearch)
     --returns true if have mobile land units in rRectangleToSearch
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-
     local sFunctionRef = 'AreMobileUnitsInRect'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local tBlockingUnits = GetUnitsInRect(rRectangleToSearch)
     if M28Utilities.IsTableEmpty(tBlockingUnits) then
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -192,10 +192,12 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
             return true
         else
             --If engineer is moving but it doesnt have an assignment, or its assignment isnt to move, then make it available, unless it has special micro active
-            if oEngineer[M28UnitInfo.refbSpecialMicroActive] then return false
+            if oEngineer[M28UnitInfo.refbSpecialMicroActive] then
+                if bDebugMessages == true then LOG(sFunctionRef..': Special micro is active') end
+                return false
             else
                 local iLastOrderType = oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]][M28Orders.subrefiOrderType]
-                if bDebugMessages == true then LOG(sFunctionRef..': Engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' owned by '..oEngineer:GetAIBrain().Nickname..' has a last order type of '..(iLastOrderType or 'nil')..'; and an action assigned of '..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')..'; Order for this action='..(M28Engineer.tiActionOrder[oEngineer[M28Engineer.refiAssignedAction]] or 'nil')) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' owned by '..oEngineer:GetAIBrain().Nickname..' has a last order type of '..(iLastOrderType or 'nil')..'; and an action assigned of '..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')..'; Order for this action='..(M28Engineer.tiActionOrder[oEngineer[M28Engineer.refiAssignedAction]] or 'nil')..'; oEngineer[refiEngineerStuckCheckCount]='..(oEngineer[refiEngineerStuckCheckCount] or 'nil')) end
                 --Rare case where engineer acn be given a move order yet doesn't move - below is to try and mitigate it
                 if oEngineer:IsUnitState('Moving') and oEngineer[M28Orders.reftiLastOrders][1][M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove and not(bDebugOnly) then
                     if (oEngineer[refiEngineerStuckCheckCount] or 0) == 0 then
@@ -207,6 +209,7 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                             oEngineer[refiEngineerStuckCheckCount] = 0
                             if M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(),oEngineer[reftEngineerStuckCheckLastPosition]) <= 0.01 then
                                 --Engineer is stuck, clear its orders and treat as available
+                                if bDebugMessages == true then LOG(sFunctionRef..': Engineer appears stuck, oEngineer[refiEngineerStuckCheckCount]='..oEngineer[refiEngineerStuckCheckCount]) end
                                 M28Orders.IssueTrackedClearCommands(oEngineer)
                                 oEngineer[reftEngineerStuckCheckLastPosition] = nil
                                 return true
@@ -216,7 +219,7 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                 end
 
                 if iLastOrderType == M28Orders.refiOrderIssueMove then
-                    if oEngineer[M28Engineer.refiAssignedAction] and M28Engineer.tiActionOrder[oEngineer[M28Engineer.refiAssignedAction]] == iLastOrderType then
+                    if oEngineer[M28Engineer.refiAssignedAction] and (M28Engineer.tiActionOrder[oEngineer[M28Engineer.refiAssignedAction]] == iLastOrderType or oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionLoadOntoTransport) then
                         --Engineer not available, unless its order was to move to a land or water zone, in which case check if it is now in that land or water zone
                         if oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionMoveToLandZone then
                             local iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
@@ -310,23 +313,28 @@ function IsEngineerAvailable(oEngineer, bDebugOnly)
                                 end
                             end
                         else
+                            if bDebugMessages == true then LOG(sFunctionRef..': Engineer doesnt appear to be available') end
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             return false
                         end
                     else
+                        if bDebugMessages == true then LOG(sFunctionRef..': Engineer either doesnt have an assigned action or its current orders are inconsistent with that action, so returning true') end
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         return true
                     end
                 elseif (iLastOrderType == M28Orders.refiOrderIssueGuard or iLastOrderType == M28Orders.refiOrderIssueCapture) and not(M28UnitInfo.IsUnitValid(oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.subrefoOrderUnitTarget]])) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Guard or capture order where target no longer valid so available') end
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     return true
                 else
+                    if bDebugMessages == true then LOG(sFunctionRef..'; Will return false') end
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     return false
                 end
             end
         end
     else
+        if bDebugMessages == true then LOG(sFunctionRef..': Core unit state or construciton means engineer unavailable') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return false
     end
@@ -1010,11 +1018,19 @@ function WantToEcoDueToEnemyFirebase(iTeam, tLZTeamData, iPlateau)
 end
 
 function HaveEnoughThreatToAttack(tLZTeamData, iOurCombatThreat, iEnemyCombatThreat, iFirebaseThreatAdjust, bHaveSignificantCombatCloserToFirebase, iTeam)
+    local sFunctionRef = 'HaveEnoughThreatToAttack'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Deciding if have enough combat threat to attack, iOurCombatThreat='..iOurCombatThreat..'; iEnemyCombatThreat='..iEnemyCombatThreat..'; iFirebaseThreatAdjust='..iFirebaseThreatAdjust..'; bHaveSignificantCombatCloserToFirebase='..tostring(bHaveSignificantCombatCloserToFirebase)..'; iTeam='..(iTeam or 'nil')..'; LZ value='..tLZTeamData[M28Map.subrefLZTValue]..'; Map size='..M28Map.iMapSize..'; Time='..GetGameTimeSeconds()..'; subrefLZSValue='..tLZTeamData[M28Map.subrefLZSValue]) end
     if iOurCombatThreat > iEnemyCombatThreat * 1.4 then
         return true
     elseif  iOurCombatThreat > iEnemyCombatThreat and ((iFirebaseThreatAdjust > 0 and bHaveSignificantCombatCloserToFirebase) or tLZTeamData[M28Map.subrefLZTValue] > iOurCombatThreat * 0.5 or M28Map.iMapSize <= 256 or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefAlliedACU]) == false) then
         return true
     elseif tLZTeamData[M28Map.subrefLZbCoreBase] and iOurCombatThreat > iEnemyCombatThreat * 0.8 then
+        return true
+        --Wnat to be more aggressive if we have friendly buildings in the zone or engineers and we have a chance of beating the enemy
+    elseif iOurCombatThreat >= iEnemyCombatThreat and iFirebaseThreatAdjust == 0 and ((tLZTeamData[M28Map.subrefLZSValue] or 0) > 0 or (iEnemyCombatThreat <= 200 and (tLZTeamData[M28Map.subrefLZTValue] >= iOurCombatThreat or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subrefLZTAlliedUnits])) == false))) then
         return true
     elseif iOurCombatThreat >= 15000 and iOurCombatThreat > (iEnemyCombatThreat + iFirebaseThreatAdjust) * 0.9 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]) == false then
         --Does enemy have gameender or lots of T3 arti? in which case want to lower threshold
@@ -1032,7 +1048,7 @@ function HaveEnoughThreatToAttack(tLZTeamData, iOurCombatThreat, iEnemyCombatThr
             end
         end
     end
-    return false
+        return false
 end
 
 function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
@@ -1091,7 +1107,9 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
                         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
                             local tLandFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
                             if M28Utilities.IsTableEmpty(tLandFactories) == false then
-                                iLandFactoriesHave = table.getn(tLandFactories)
+                                for iFactory, oFactory in tLandFactories do
+                                    if M28UnitInfo.IsUnitValid(oFactory) and oFactory:GetFractionComplete() == 1 then iLandFactoriesHave = iLandFactoriesHave + 1 end
+                                end
                             end
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': iLandFactoriesHave='..iLandFactoriesHave) end
