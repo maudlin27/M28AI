@@ -339,7 +339,7 @@ function ConsiderDodgingShot(oUnit, oWeapon)
                 --Get all units in area
                 local tWeaponTarget = oWeapon:GetCurrentTargetPos()
                 if M28Utilities.IsTableEmpty(tWeaponTarget) == false then
-                    local iRadiusSize = math.min(3, math.max(oWeapon.Blueprint.DamageRadius, 1))
+                    local iRadiusSize = math.min(3, math.max(oWeapon.Blueprint.DamageRadius + 0.5 + 2 * (oWeapon.Blueprint.FiringRandomness or 0), 1))
                     local tAllUnitsInArea = GetUnitsInRect(Rect(tWeaponTarget[1]-iRadiusSize, tWeaponTarget[3]-iRadiusSize, tWeaponTarget[1]+iRadiusSize, tWeaponTarget[3]+iRadiusSize))
                     if M28Utilities.IsTableEmpty(tAllUnitsInArea) == false then
                         --Do we have shield units in the area with at least 20% shield? Will assume shield covers all the units
@@ -381,6 +381,8 @@ function ConsiderDodgingShot(oUnit, oWeapon)
             local iShotSpeed = oWeapon.Blueprint.MuzzleVelocity
             local iTimeUntilImpact = iDistToTarget / iShotSpeed
             local bCancelDodge = false
+            local iHoverMaxTimeToRun
+            if iMaxTimeToRun < 1.1 then iHoverMaxTimeToRun = 1.1 end
             if bDebugMessages == true then LOG(sFunctionRef..': Dist to target='..iDistToTarget..'; Shot speed='..iShotSpeed..'; iTimeUntilImpact='..iTimeUntilImpact) end
             if iTimeUntilImpact > 0.8 then
                 for iTarget, oTarget in tUnitsToConsiderDodgeFor do
@@ -415,7 +417,11 @@ function ConsiderDodgingShot(oUnit, oWeapon)
 
                                 if not(bCancelDodge) then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Will try to dodge shot. iTimeUntilImpact='..iTimeUntilImpact..'; iMaxTimeToRun='..iMaxTimeToRun) end
-                                    DodgeShot(oTarget, oUnit, oWeapon, math.min(iTimeUntilImpact, iMaxTimeToRun))
+                                    if iHoverMaxTimeToRun and EntityCategoryContains(categories.HOVER, oTarget.UnitId) then
+                                        DodgeShot(oTarget, oUnit, oWeapon, math.min(math.max(0.95, iTimeUntilImpact), iHoverMaxTimeToRun))
+                                    else
+                                        DodgeShot(oTarget, oUnit, oWeapon, math.min(iTimeUntilImpact, iMaxTimeToRun))
+                                    end
                                 end
                             end
                         end

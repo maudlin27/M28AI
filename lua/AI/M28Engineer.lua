@@ -7579,26 +7579,44 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     end
 
     --Do we want emergency PD?
-    if iExistingLandFactory >= 1 and tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and (tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) == 0 then
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering emergency PD, iExistingLandFactory='..iExistingLandFactory..'; Mex count by tech='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; Enemies in this or adj LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; Air to ground threat='..(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)..'; Ally AA threat='..(tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0)) end
+    if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and (iExistingLandFactory >= 1 or (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] * 2 + tLZTeamData[M28Map.subrefMexCountByTech][1] * 0.35) >= 2) and (tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) <= math.min(350, 0.5*(tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] or 0)) then
         --Does enemy have any units that can outrange a PD? If so then dont bother building
         local iHighestNearbyEnemyRange = math.max((tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0), tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] or 0)
-        if iHighestNearbyEnemyRange <= 25 then
+        local bConsiderT2PD = false
+        if iHighestNearbyEnemyRange < 50 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 6 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and tLZTeamData[M28Map.subrefMexCountByTech][3] + tLZTeamData[M28Map.subrefMexCountByTech][2] >= 1 and (tLZData[M28Map.subrefLZMexCount] >= 3 or tLZTeamData[M28Map.subrefMexCountByTech][2] >= 2 or tLZTeamData[M28Map.subrefMexCountByTech][3] >= 1) then bConsiderT2PD = true end
+        if iHighestNearbyEnemyRange <= 25 or bConsiderT2PD then
+            local iEnemyCombatThreat = (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
             if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                 for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                     local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
                     iHighestNearbyEnemyRange = math.max(iHighestNearbyEnemyRange, (tAdjLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0), tAdjLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] or 0)
+                    iEnemyCombatThreat = iEnemyCombatThreat + (tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
                 end
             end
-            if iHighestNearbyEnemyRange <= 25 then
+            if iHighestNearbyEnemyRange >= 50 then bConsiderT2PD = false end
+            if iHighestNearbyEnemyRange <= 25 or bConsiderT2PD then
                 local iExistingStructureThreat = 0
                 if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange]) == false then
                     for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange] do
                         iExistingStructureThreat = iExistingStructureThreat + iThreat
                     end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': iThreat of existing PD='..iThreat..'; will get emergency PD if below threshold') end
-                if iExistingStructureThreat < 400 then
-                    HaveActionToAssign(refActionBuildEmergencyPD, 1, 40, tLZData[M28Map.subrefMidpoint])
+                if bDebugMessages == true then LOG(sFunctionRef..': iExistingStructureThreat of existing PD='..iExistingStructureThreat..'; will get emergency PD if below threshold, iEnemyCombatThreat='..iEnemyCombatThreat) end
+                if iExistingStructureThreat < math.max(400, math.max(iEnemyCombatThreat, math.min(iEnemyCombatThreat * 2, 2880))) or (bConsiderT2PD and iExistingStructureThreat < 800) then
+                    local iMinTechLevelWanted = 1
+                    iBPWanted = 40
+                    if bConsiderT2PD and iExistingStructureThreat >= 400 then
+                        iMinTechLevelWanted = 2
+                        iBPWanted = 60
+                    end
+                    local tPDStartPoint
+                    if iExistingStructureThreat <= 800 then tPDStartPoint = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
+                    else
+                        tPDStartPoint = M28Utilities.MoveInDirection(tLZData[M28Map.subrefMidpoint], M28Utilities.GetAngleFromAToB(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]), 25, true, false, M28Map.bIsCampaignMap)
+                        if not(tPDStartPoint) or not(NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tPDStartPoint) == tLZData[M28Map.subrefLZIslandRef]) then  tPDStartPoint = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]} end
+                    end
+                    HaveActionToAssign(refActionBuildEmergencyPD, iMinTechLevelWanted, 40, tPDStartPoint)
                 end
             end
         end

@@ -356,8 +356,13 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
 
             if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to go second air, map size='..(M28Map.iMapSize or 'nil')..'; iLandTravelDistanceToEnemyBase='..(iLandTravelDistanceToEnemyBase or 'nil')..'; Is table of potential drop zones empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropZonesByPlateau]))..'; Is transport island shortlist empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist]))..'; Travel distance using nearest allied and enemy base='..(M28Utilities.GetTravelDistanceBetweenPositions(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], tLZOrWZTeamData[M28Map.reftClosestEnemyBase], M28Map.refPathingTypeLand) or 'nil')) end
             if M28Map.iMapSize >= 512 and (M28Map.iMapSize > 512 or iLandTravelDistanceToEnemyBase > 280) and iPlateauOrZero > 0 and (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropZonesByPlateau]) == false or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist]) == false) then
-                if bDebugMessages == true then LOG(sFunctionRef..': Going second air due to map size or travel distance') end
-                bGoSecondAir = true end
+                if bDebugMessages == true then LOG(sFunctionRef..': Going second air due to map size or travel distance, unless have lots of mass stored and wnat a land fac quickly to spend the mass') end
+                if aiBrain:GetEconomyStoredRatio('MASS') >= 0.4 and M28Map.iMapSize <= 800 and aiBrain[M28Map.refbCanPathToEnemyBaseWithLand] and iLandTravelDistanceToEnemyBase <= 600 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory) < 2 then
+                    --Dont go second air
+                else
+                    bGoSecondAir = true
+                end
+            end
             if not(bGoSecondAir) and M28Map.iMapSize >= 512 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains]) == false and table.getn(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains]) >= 2 then
                 --Still consider going 2nd air if have teammates between us and enemy (all teammates, not just M28 teammates) and are on a 10km+ map
 
