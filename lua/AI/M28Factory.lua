@@ -496,8 +496,8 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
                 bStillWantMAA = false
             elseif M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoAllEnemyAir]) then
                 local bNoAdjAirThreat = true
-                local iAdjDFAndIFThreat = tTargetLZData[M28Map.subrefLZThreatAllyMobileDFTotal] + tTargetLZData[M28Map.subrefLZThreatAllyMobileIndirectTotal]
-                local iAdjMAAThreat = tTargetLZData[M28Map.subrefLZThreatAllyMAA]
+                local iAdjDFAndIFThreat = (tTargetLZData[M28Map.subrefLZThreatAllyMobileDFTotal] or 0) + (tTargetLZData[M28Map.subrefLZThreatAllyMobileIndirectTotal] or 0)
+                local iAdjMAAThreat = (tTargetLZData[M28Map.subrefLZThreatAllyMAA] or 0)
                 if M28Utilities.IsTableEmpty(tTargetLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                     for _, iAdjLZ in tTargetLZData[M28Map.subrefLZAdjacentLandZones] do
                         local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
@@ -505,8 +505,8 @@ function GetLandZoneSupportCategoryWanted(oFactory, iTeam, iPlateau, iLandZone, 
                             bNoAdjAirThreat = false
                             break
                         else
-                            iAdjDFAndIFThreat = iAdjDFAndIFThreat + tAdjLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] + tAdjLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]
-                            iAdjMAAThreat = iAdjMAAThreat + tAdjLZTeamData[M28Map.subrefLZThreatAllyMAA]
+                            iAdjDFAndIFThreat = iAdjDFAndIFThreat + (tAdjLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 0) + (tAdjLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] or 0)
+                            iAdjMAAThreat = iAdjMAAThreat + (tAdjLZTeamData[M28Map.subrefLZThreatAllyMAA] or 0)
                         end
                     end
                 end

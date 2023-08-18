@@ -486,7 +486,11 @@ function CloakedUnitIdentified(oUnit)
 end
 
 function OnShieldBubbleDamaged(self, instigator)
-    
+    local oShield = self.Owner
+    --LOG('Shield damaged, self='..reprs(self)..'; owner='..reprs(self.Owner))
+    if not(oShield.Dead) and oShield:GetAIBrain().M28AI then
+        oShield[M28UnitInfo.refiTimeLastDamaged] = GetGameTimeSeconds()
+    end
 end
 
 function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble is damaged - see OnShieldBubbleDamaged for this
@@ -1728,6 +1732,7 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                     end
                 end
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': bHaveLowHealthAlly='..tostring(bHaveLowHealthAlly)..'; Is table of units to repair empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToRepair))) end
             if bHaveLowHealthAlly and M28Utilities.IsTableEmpty(tUnitsToRepair) == false then
                 local iPlateauOrZero, iLandOrWaterZone
                 local iTeam
@@ -1797,6 +1802,7 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                     if bDebugMessages == true then LOG(sFunctionRef..': flagged to fortify zone for repair target') end
                 end
             elseif bOnlyHaveAllies then
+                if bDebugMessages == true then LOG(sFunctionRef..': Only have allies so setting priority air defence target') end
                 for iUnit, oUnit in Target.Units do
                     if M28UnitInfo.IsUnitValid(oUnit) then
                         M28Air.AddPriorityAirDefenceTarget(oUnit)

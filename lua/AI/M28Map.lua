@@ -331,6 +331,7 @@ tPondDetails = {}
     subrefBuildLocationByStartPosition = 'PondBuildLocationByStart' --Subtable, key is start position number, which stores the build location for that start position (will only record for M28 brain start positions)
 
     --Water zones (against tPondDetails)
+    subrefPondWZCount = 'PWZCount' --Total number of water zones in a pond (cant use table.getn on below as theyre not ordered from 1-x)
     subrefPondWaterZones = 'PondWZ' --e.g. access the water zone data tables via M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone], where iWaterZone is the NavUtils refPathingTypeNavy pathing result
         subrefWZMexCount = 'MexCount' --(same ref as for land zones; reason for repating is to avoid confusion with the pond variables which track different information)
         subrefWZMexLocations = 'MexLoc' --(same ref as for land zones)
@@ -4363,7 +4364,6 @@ end
 function CreateNewPond(iPond)
     tPondDetails[iPond] = {}
     tPondDetails[iPond][subreftiWaterSegmentXZ] = {}
-    tPondDetails[iPond][subrefiSegmentCount] = 0
 
     tPondDetails[iPond][subrefPondMinX] = 100000
     tPondDetails[iPond][subrefPondMinZ] = 100000
@@ -4373,6 +4373,7 @@ function CreateNewPond(iPond)
     --tPondDetails[iPond][subrefPondNearbyBrains] = {}
     tPondDetails[iPond][subrefPondMidpoint] = {}
     tPondDetails[iPond][subrefPondMexInfo] = {}
+    tPondDetails[iPond][subrefPondWZCount] = 0
 end
 
 function RecordNavalSegment(iPond, iBaseSegmentX, iBaseSegmentZ, tSegmentPosition)
@@ -4447,10 +4448,11 @@ function RecordPondDetails()
             if bDebugMessages == true then
                 LOG(sFunctionRef .. ': Considering pond group ' .. iPond .. '; Pond size=' .. (tPondSubtable[subrefiSegmentCount] or 'nil'))
             end
+
+            tPondSubtable[subrefPondMidpoint] = { (tPondDetails[iPond][subrefPondMinX] + tPondDetails[iPond][subrefPondMaxX]) * 0.5, iMapWaterHeight, (tPondDetails[iPond][subrefPondMinZ] + tPondDetails[iPond][subrefPondMaxZ]) * 0.5 }
             if (tPondSubtable[subrefiSegmentCount] or 0) >= iMinPondSize then
-                --Pond is large enough for us to consider tracking; record information of interest for the pond:
-                iPondMexCount = 0
-                tPondSubtable[subrefPondMidpoint] = { (tPondDetails[iPond][subrefPondMinX] + tPondDetails[iPond][subrefPondMaxX]) * 0.5, iMapWaterHeight, (tPondDetails[iPond][subrefPondMinZ] + tPondDetails[iPond][subrefPondMaxZ]) * 0.5 }
+                    --Pond is large enough for us to consider tracking; record information of interest for the pond:
+                    iPondMexCount = 0
                 if bDebugMessages == true then LOG(sFunctionRef .. ': Recording pond, will check how many mexes are nearby. Pond midpoint=' .. repru(tPondSubtable[subrefPondMidpoint]) .. '; Pond min X-Z=' .. tPondDetails[iPond][subrefPondMinX] .. '-' .. tPondDetails[iPond][subrefPondMinZ] .. '; Max X-Z=' .. tPondDetails[iPond][subrefPondMaxX] .. '-' .. tPondDetails[iPond][subrefPondMaxZ]) end
 
                 --Details of all mexes near enough to the pond to be of interest
@@ -4661,7 +4663,7 @@ function RecordPondToExpandTo(aiBrain)
         for iCurPondRef, tPondSubtable in tPondDetails do
             aiBrain[M28Navy.reftiPondValueToUs][iCurPondRef] = 0
             aiBrain[M28Navy.reftiPondThreatToUs][iCurPondRef] = 0
-            if M28Utilities.IsTableEmpty(tPondSubtable) == false then
+            if M28Utilities.IsTableEmpty(tPondSubtable) == false and (tPondSubtable[subrefiSegmentCount] or 0) >= iMinPondSize then
                 iCurPondValue = 0
                 iCurPondDefensiveValue = 0
                 if bDebugMessages == true then LOG(sFunctionRef..': iCurPondRef='..iCurPondRef..'; MaxX='..tPondSubtable[subrefPondMaxX]..'Z='..tPondSubtable[subrefPondMaxZ]..'; MinX='..tPondSubtable[subrefPondMinX]..'Z='..tPondSubtable[subrefPondMinZ]..'; Mex info='..repru(tPondSubtable[subrefPondMexInfo])..'; Midpoint='..repru(tPondSubtable[subrefPondMidpoint])..'; Segment count='..tPondSubtable[subrefiSegmentCount]) end
@@ -4744,6 +4746,7 @@ function RecordPondToExpandTo(aiBrain)
                             end
                             local tNavalBuildArea = {}
                             if not(bStartLocationIsUnderwater) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Brain='..aiBrain.Nickname..'; Index='..aiBrain:GetArmyIndex()..'; Start point='..repru(PlayerStartPoints[aiBrain:GetArmyIndex()])..'; Midpoint of pond='..repru(tPondSubtable[subrefPondMidpoint])..'; iCurPondRef='..(iCurPondRef or 'nil')) end
                                 local iAngleToCentre = M28Utilities.GetAngleFromAToB(PlayerStartPoints[aiBrain:GetArmyIndex()], tPondSubtable[subrefPondMidpoint])
                                 local iDistInterval = 8
                                 local iBuildingInterval = 4
@@ -4964,6 +4967,7 @@ function RecordWaterZoneAtPosition(tSegmentPosition)
         if not(tPondDetails[iPond][subrefPondWaterZones]) then tPondDetails[iPond][subrefPondWaterZones] = {} end
         tPondDetails[iPond][subrefPondWaterZones][iTotalWaterZoneCount] = {}
         tPondDetails[iPond][subrefPondWaterZones][iTotalWaterZoneCount][subrefWZSegments] = {}
+        tPondDetails[iPond][subrefPondWZCount] = (tPondDetails[iPond][subrefPondWZCount] or 0) + 1
         tiPondByWaterZone[iTotalWaterZoneCount] = iPond
         local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tSegmentPosition)
         AddSegmentToWaterZone(iPond, iTotalWaterZoneCount, iSegmentX, iSegmentZ)
@@ -5785,11 +5789,137 @@ function RecordWaterZonePathingToOtherWaterZones()
     local iNavalTravelDistance
     local iStartWZAdjacencyTablePosition
     local iEndWZAdjacencyTablePosition
+    local bUseAdjacentApproach
+
+    function CalculateWaterZoneTravelDistance(iWaterZone, tWZData, iOtherWaterZone, tOtherWZData, iOptionalNavalTravelDistance)
+        if iWaterZone < iOtherWaterZone then
+            iLowestWZ = iWaterZone
+            iHighestWZ = iOtherWaterZone
+        else
+            iLowestWZ = iOtherWaterZone
+            iHighestWZ = iWaterZone
+        end
+        if not(tiWaterZonePairsConsideredByLowestWZ[iLowestWZ][iHighestWZ]) then
+            if not(tiWaterZonePairsConsideredByLowestWZ[iLowestWZ]) then tiWaterZonePairsConsideredByLowestWZ[iLowestWZ] = {} end
+            iNavalTravelDistance = iOptionalNavalTravelDistance or M28Utilities.GetTravelDistanceBetweenPositions(tWZData[subrefMidpoint], tOtherWZData[subrefMidpoint], refPathingTypeNavy)
+            if iNavalTravelDistance then
+                iStartWZAdjacencyTablePosition = 1
+                if M28Utilities.IsTableEmpty(tWZData[subrefWZOtherWaterZones]) then
+                    tWZData[subrefWZOtherWaterZones] = {}
+                else
+                    for iEntry, tAdjacencySubtable in tWZData[subrefWZOtherWaterZones] do
+                        if tAdjacencySubtable[subrefWZAWZDistance] < iNavalTravelDistance then
+                            iStartWZAdjacencyTablePosition = iEntry + 1
+                        else
+                            --Since table is ordered by distance later entries should be furhter away
+                            break
+                        end
+                    end
+                end
+                table.insert(tWZData[subrefWZOtherWaterZones], iStartWZAdjacencyTablePosition, {[subrefWZAWZRef] = iOtherWaterZone, [subrefWZAWZDistance] = iNavalTravelDistance})
+
+                iEndWZAdjacencyTablePosition = 1
+                if M28Utilities.IsTableEmpty(tOtherWZData[subrefWZOtherWaterZones]) then
+                    tOtherWZData[subrefWZOtherWaterZones] = {}
+                else
+                    for iEntry, tAdjacencySubtable in tOtherWZData[subrefWZOtherWaterZones] do
+                        if tAdjacencySubtable[subrefWZAWZDistance] < iNavalTravelDistance then
+                            iEndWZAdjacencyTablePosition = iEntry + 1
+                        else
+                            --Since table is ordered by distance later entries should be furhter away
+                            break
+                        end
+                    end
+                end
+                table.insert(tOtherWZData[subrefWZOtherWaterZones], iEndWZAdjacencyTablePosition, {[subrefWZAWZRef] = iWaterZone, [subrefWZAWZDistance] = iNavalTravelDistance})
+
+                tiWaterZonePairsConsideredByLowestWZ[iLowestWZ][iHighestWZ] = iNavalTravelDistance
+            end
+        end
+    end
+
     for iPond, tPondSubtable in tPondDetails do
+        M28Profiler.FunctionProfiler(sFunctionRef..': Pond '..iPond, M28Profiler.refProfilerStart)
+
+        if tPondSubtable[subrefPondWZCount] >= 21 then --Would take c.70s on a 56 size water zone pond, which is 3.1k squared, so reducing to 21 which is 441 squraed (i.e. hopefully means if would take >10s for this pond under default approach will use less accurate but faster method)
+            bUseAdjacentApproach = true
+        else bUseAdjacentApproach = false
+        end
+
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering pond '..iPond..', WZ count='..tPondSubtable[subrefPondWZCount]..'; bUseAdjacentApproach='..tostring(bUseAdjacentApproach)) end
+        if bUseAdjacentApproach then
+            --First calculate detailed pathing for each adjacent water zone
+            for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
+                for _, iOtherWaterZone in tWZData[subrefWZAdjacentWaterZones] do
+                    local tOtherWZData = tPondSubtable[subrefPondWaterZones][iOtherWaterZone]
+                    CalculateWaterZoneTravelDistance(iWaterZone, tWZData, iOtherWaterZone, tOtherWZData)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Finished calculating adjacency for iWaterZone='..iWaterZone..'; iOtherWaterZone='..iOtherWaterZone) end
+                end
+            end
+
+            local bKeepSearching
+            local iCurAdjacencyLevel
+            local tAdjacencyEntriesByLevel = {}
+            local iPrevAdjacencyLevel
+            local tiShortestTravelToTargetZone
+            local iCurEntryApproxTravelDist
+            local tbZoneConsideredForThisZone
+            local bNotAlreadyRecordedTravelDistance
+
+            for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
+                bKeepSearching = true
+
+                if bDebugMessages == true then LOG(sFunctionRef..': About to record all travel distances using adjacency method for iWaterZone='..iWaterZone) end
+                iCurAdjacencyLevel = 1
+
+                tAdjacencyEntriesByLevel = {}
+                tAdjacencyEntriesByLevel[1] = {}
+                tbZoneConsideredForThisZone = {}
+                for _, iOtherWaterZone in tWZData[subrefWZAdjacentWaterZones] do
+                    table.insert(tAdjacencyEntriesByLevel[iCurAdjacencyLevel], iOtherWaterZone)
+                end
+                while bKeepSearching do
+                    bKeepSearching = false
+                    iPrevAdjacencyLevel = iCurAdjacencyLevel
+                    iCurAdjacencyLevel = iCurAdjacencyLevel + 1
+                    tAdjacencyEntriesByLevel[iCurAdjacencyLevel] = {}
+                    tiShortestTravelToTargetZone = {}
+
+                    for iEntry, iOtherWaterZone in tAdjacencyEntriesByLevel[iPrevAdjacencyLevel] do
+                        for _, iNextAdjacencyZone in tPondSubtable[subrefPondWaterZones][iOtherWaterZone][subrefWZAdjacentWaterZones] do
+                            --E.g. zone travel from zzone 1 to zone 5 - when we record 1 to 5, that means we also ahve travel from 5 to 1; however since we are using an adjacency search approach, we still want zone 5 to keep searching even if every adjacent zone has been recorded, in case there are further out zone sthat havent been recorded, hence the use of both tbZoneConsideredForThisZone and bNotAlreadyRecordedTravelDistance
+                            bNotAlreadyRecordedTravelDistance = (not(tiWaterZonePairsConsideredByLowestWZ[iWaterZone][iNextAdjacencyZone]) and not(tiWaterZonePairsConsideredByLowestWZ[iNextAdjacencyZone][iWaterZone]))
+                            --if bDebugMessages == true then LOG(sFunctionRef..': iOtherWaterZone='..iOtherWaterZone..'; iNextAdjacencyZone='..iNextAdjacencyZone..'; iPrevAdjacencyLevel='..iPrevAdjacencyLevel..'; iCurAdjacencyLevel='..iCurAdjacencyLevel..'; Is tbZoneConsideredForThisZone[iNextAdjacencyZone] nil='..tostring(tbZoneConsideredForThisZone[iNextAdjacencyZone] == nil)..'; bNotAlreadyRecordedTravelDistance='..tostring(bNotAlreadyRecordedTravelDistance)) end
+                            if not(tbZoneConsideredForThisZone[iNextAdjacencyZone]) or bNotAlreadyRecordedTravelDistance then
+                                bKeepSearching = true
+                                tbZoneConsideredForThisZone[iNextAdjacencyZone] = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': iCurAdjacencyLevel='..iCurAdjacencyLevel..'; iWaterZone='..iWaterZone..'; iOtherWaterZone='..iOtherWaterZone..'; iNextAdjacencyZone='..iNextAdjacencyZone) end
+                                table.insert(tAdjacencyEntriesByLevel[iCurAdjacencyLevel], iNextAdjacencyZone)
+                                if bNotAlreadyRecordedTravelDistance then
+                                    iCurEntryApproxTravelDist = (tiWaterZonePairsConsideredByLowestWZ[iOtherWaterZone][iNextAdjacencyZone] or tiWaterZonePairsConsideredByLowestWZ[iNextAdjacencyZone][iOtherWaterZone]) + (tiWaterZonePairsConsideredByLowestWZ[iWaterZone][iOtherWaterZone] or tiWaterZonePairsConsideredByLowestWZ[iOtherWaterZone][iWaterZone])
+                                    if not(tiShortestTravelToTargetZone[iNextAdjacencyZone]) or iCurEntryApproxTravelDist < tiShortestTravelToTargetZone[iNextAdjacencyZone] then
+                                        tiShortestTravelToTargetZone[iNextAdjacencyZone] = iCurEntryApproxTravelDist
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    --Now record each entry
+                    if M28Utilities.IsTableEmpty(tiShortestTravelToTargetZone) == false then
+                        for iNextAdjacencyZone, iTravelDistance in tiShortestTravelToTargetZone do
+                            CalculateWaterZoneTravelDistance(iWaterZone, tWZData, iNextAdjacencyZone, tPondSubtable[subrefPondWaterZones][iNextAdjacencyZone], iTravelDistance)
+                        end
+                    end
+                end
+            end
+        end
+        --Want to do this even if we have done the adjacency approach, to make sure we have got pathing in place for eveyr zone
         for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
             --Cycle through each other water zone in this pond and determine pathing
+            if bDebugMessages == true then LOG(sFunctionRef..': Detailed pathing appraoch for ponds with fewer water zones - About to calculate pathing to each other water zone for iWaterZone='..iWaterZone..'; in iPond='..iPond..'; subrefWZSegments size='..table.getn(tWZData[subrefWZSegments])) end
             for iOtherWaterZone, tOtherWZData in tPondSubtable[subrefPondWaterZones] do
-                if not(iWaterZone == iOtherWaterZone) then
+                CalculateWaterZoneTravelDistance(iWaterZone, tWZData, iOtherWaterZone, tOtherWZData)
+                --[[if not(iWaterZone == iOtherWaterZone) then
                     if iWaterZone < iOtherWaterZone then
                         iLowestWZ = iWaterZone
                         iHighestWZ = iOtherWaterZone
@@ -5834,10 +5964,12 @@ function RecordWaterZonePathingToOtherWaterZones()
                             tiWaterZonePairsConsideredByLowestWZ[iLowestWZ][iHighestWZ] = true
                         end
                     end
-                end
+                end--]]
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Finished considering all pathing for iWaterZone='..iWaterZone..'; tiWaterZonePairsConsideredByLowestWZ='..repru(tiWaterZonePairsConsideredByLowestWZ)..'; tWZData[subrefWZOtherWaterZones]='..repru(tWZData[subrefWZOtherWaterZones])) end
         end
+
+        M28Profiler.FunctionProfiler(sFunctionRef..': Pond '..iPond, M28Profiler.refProfilerEnd)
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

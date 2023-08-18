@@ -2139,10 +2139,12 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Is table of priority units to shield empty='..tostring(M28Utilities.IsTableEmpty(tPriorityUnitsToShield))) end
         if M28Utilities.IsTableEmpty(tPriorityUnitsToShield) == false then
-            --Get closest of these that has a shield
+            --Get closest of these that has a shield that is damaged
             local iCurDist
             local iClosestDist = 100000
             local iCurShield, iMaxShield
+            local bAssistEvenIfNotDamaged = true
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.4 then bAssistEvenIfNotDamaged = false end
             for iUnit, oUnit in tPriorityUnitsToShield do
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering priority unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fraction compelte='..oUnit:GetFractionComplete()..'; Does it have a shield providing coverage='..tostring(M28UnitInfo.IsUnitValid(oUnit[M28Building.refoPriorityShieldProvidingCoverage]))) end
                 if oUnit:GetFractionComplete() >= 0.35 then
@@ -2153,7 +2155,7 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
                             --Is the shield still active?
                             iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit[M28Building.refoPriorityShieldProvidingCoverage], true)
                             if bDebugMessages == true then LOG(sFunctionRef..': iCurShield='..iCurShield) end
-                            if iCurShield > 0 or (oUnit[M28Building.refoPriorityShieldProvidingCoverage]:GetFractionComplete() < 1 and (not(oUnit[M28Engineer.refbDontIncludeAsPartCompleteBuildingForConstruction]) or oUnit[M28Building.refoPriorityShieldProvidingCoverage]:GetFractionComplete() <= 0.75)) then
+                            if (iCurShield > 0 and (bAssistEvenIfNotDamaged or iCurShield < iMaxShield or GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeLastDamaged] - 100) <= 25)) or (oUnit[M28Building.refoPriorityShieldProvidingCoverage]:GetFractionComplete() < 1 and (not(oUnit[M28Engineer.refbDontIncludeAsPartCompleteBuildingForConstruction]) or oUnit[M28Building.refoPriorityShieldProvidingCoverage]:GetFractionComplete() <= 0.75)) then
                                 iClosestDist = iCurDist
                                 oShieldToAssist = oUnit[M28Building.refoPriorityShieldProvidingCoverage]
                             end
@@ -4237,7 +4239,7 @@ function ManageAllLandZones(aiBrain, iTeam)
                 --First check all units in here are alive
                 if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
                     iCurCycleRefreshCount = iCurCycleRefreshCount + 1
-                    UpdateUnitPositionsAndLandZone(aiBrain, tLZTeamData[M28Map.subrefTEnemyUnits], iTeam, iPlateau, iLandZone, true, false, tLZTeamData)
+                    UpdateUnitPositionsAndLandZone(aiBrain, tLZTeamData[M28Map.subrefTEnemyUnits], iTeam, iPlateau, iLandZone, M28Map.bIsCampaignMap, false, tLZTeamData)
                 end
                 if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) == false then
                     iCurCycleRefreshCount = iCurCycleRefreshCount + 1
@@ -4247,7 +4249,7 @@ function ManageAllLandZones(aiBrain, iTeam)
                         tLZTeamData[M28Map.refiTimeOfLastAirUpdate] = GetGameTimeSeconds()
                         UpdateUnitPositionsAndLandZone(aiBrain, tLZTeamData[M28Map.reftLZEnemyAirUnits], iTeam, iPlateau, iLandZone, false, true, tLZTeamData)
                     else
-                        UpdateUnitPositionsAndLandZone(aiBrain, tLZTeamData[M28Map.reftLZEnemyAirUnits], iTeam, iPlateau, iLandZone, true, true, tLZTeamData)
+                        UpdateUnitPositionsAndLandZone(aiBrain, tLZTeamData[M28Map.reftLZEnemyAirUnits], iTeam, iPlateau, iLandZone, M28Map.bIsCampaignMap, true, tLZTeamData)
                     end
                 end
                 if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
