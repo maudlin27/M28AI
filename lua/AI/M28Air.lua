@@ -3326,7 +3326,7 @@ function ManageGunships(iTeam, iAirSubteam)
 
         local iMaxEnemyAirAA --Amount of enemy airaa threat required to make gunships to target enemies nearby
         if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] then
-            iMaxEnemyAirAA = math.min(2000, iOurGunshipAA * 0.2)
+            iMaxEnemyAirAA = math.min(2000, math.max(iOurGunshipAA * 0.2, iOurGunshipThreat * 0.03))
         else
             --Is the air support location nearby?
             local iDistToSupport = M28Utilities.GetDistanceBetweenPositions(oFrontGunship:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])
@@ -3340,10 +3340,11 @@ function ManageGunships(iTeam, iAirSubteam)
                 if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] then
                     iMaxEnemyAirAA = math.min(8000,  math.max(iOurGunshipThreat * 0.075, iOurGunshipAA * 0.6))
                 else
-                    iMaxEnemyAirAA = math.min(5000,  math.max(iOurGunshipThreat * 0.025, iOurGunshipAA * 0.4))
+                    iMaxEnemyAirAA = math.min(5000,  math.max(iOurGunshipThreat * 0.04, iOurGunshipAA * 0.4))
                 end
             end
         end
+        if M28Map.bIsCampaignMap then iMaxEnemyAirAA = math.max(iMaxEnemyAirAA, M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] * 0.5, iOurGunshipAA * 0.8) end
 
         local bDontLookForMoreTargets = false
         local bDontCheckForPacifism = not(M28Overseer.bPacifistModeActive)
@@ -3377,7 +3378,7 @@ function ManageGunships(iTeam, iAirSubteam)
                         return false
                     end
                 end
-                if bDebugMessages == true then LOG('AddEnemyGroundUnitsToTargetsSubjectToAA: Deciding whether to add units for land zone '..iLandOrWaterZone..' plateau '..iPlateauOrZero..'; bOnlyIncludeIfMexToProtect='..tostring(bOnlyIncludeIfMexToProtect)..'; IsHighValueZoneToProtect='..tostring(IsHighValueZoneToProtect())) end
+                if bDebugMessages == true then LOG('AddEnemyGroundUnitsToTargetsSubjectToAA: Deciding whether to add units for land zone '..iLandOrWaterZone..' plateau '..iPlateauOrZero..'; bOnlyIncludeIfMexToProtect='..tostring(bOnlyIncludeIfMexToProtect)..'; IsHighValueZoneToProtect='..tostring(IsHighValueZoneToProtect())..'; Enemy combat threat in zone if LZ='..(tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)..'; Mobile DF total if LZ='..(tLZOrWZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0)..'; Enemy AA total if LZ='..(tLZOrWZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0)) end
                 if not(bOnlyIncludeIfMexToProtect) or IsHighValueZoneToProtect() then
 
                     if IsHighValueZoneToProtect() then
@@ -3620,6 +3621,7 @@ function ManageGunships(iTeam, iAirSubteam)
                 end
             end
         end
+
 
         if M28Utilities.IsTableEmpty(tEnemyGroundTargets) then
             M28Team.tAirSubteamData[iAirSubteam][M28Team.refbGunshipsHadAttackOrderLastCycle] = false

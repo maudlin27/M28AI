@@ -331,7 +331,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iPlateauOrZero, iLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
-    if iLZOrWZ == 1 then bDebugMessages = true end
+
     local tLZOrWZData
     local tLZOrWZTeamData
     local iTeam = oACU:GetAIBrain().M28Team
@@ -1247,7 +1247,7 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
     local sFunctionRef = 'DoesACUWantToReturnToCoreBase'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iLandOrWaterZone == 1 then bDebugMessages = true end
+
 
     local iTeam = oACU:GetAIBrain().M28Team
 
@@ -1374,7 +1374,7 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
     local sFunctionRef = 'AttackNearestEnemyWithACU'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iLandZone == 1 then bDebugMessages = true end
+
 
     local oEnemyToTarget
     local iCurDist
@@ -2005,7 +2005,7 @@ function GetACUOrder(aiBrain, oACU)
 
 
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
-    if iLandOrWaterZone == 1 then bDebugMessages = true end
+
     local tLZOrWZData
     local tLZOrWZTeamData
     local iTeam = oACU:GetAIBrain().M28Team

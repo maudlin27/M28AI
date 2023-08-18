@@ -1049,7 +1049,7 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
     local sFunctionRef = 'MoveUnassignedLandUnits'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iWaterZone == 96 then bDebugMessages = true end
+
 
     --Decides where to send any units that are part of this water zone (ignores those from an adjacent waterzone that were available)
     --local tAmphibiousLabelUnits = {}
@@ -1276,7 +1276,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
     local sFunctionRef = 'ManageSpecificWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iWaterZone == 96 then bDebugMessages = true end
+
 
     --Record enemy threat
     local tWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone]
@@ -2432,7 +2432,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
     local sFunctionRef = 'ManageCombatUnitsInWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iWaterZone == 96 then bDebugMessages = true end
+
 
     local tUnassignedLandUnits
     if bDebugMessages == true then LOG(sFunctionRef..': start of code for time '..GetGameTimeSeconds()..', iTeam='..iTeam..'; iPond='..iPond..'; iWaterZone='..iWaterZone..'; Is table of available combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))..'; Is table of available subs empty='..tostring(M28Utilities.IsTableEmpty(tAvailableSubmarines))..'; Are there enemy units in this or adjacent WZ='..tostring(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])) end

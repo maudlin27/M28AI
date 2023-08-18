@@ -1336,6 +1336,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
         if bDebugMessages == true then
             LOG(sFunctionRef..': Further logs, ScenarioInfo.M3BaseDamageWarnings='..(ScenarioInfo.M3BaseDamageWarnings or 'nil')..'; ScenarioInfo.MainFrameIsAlive='..tostring(ScenarioInfo.MainFrameIsAlive or false)..'; ScenarioInfo.EMPFired='..tostring(ScenarioInfo.EMPFired or false)..'; ScenarioInfo.M3_Base is empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.M3_Base))..'; bPacifistModeActive='..tostring(bPacifistModeActive)..'; ScenarioInfo.MissionNumber='..(ScenarioInfo.MissionNumber or 'nil')..'; iTeam='..iTeam..'; C M6: ScenarioInfo.ControlCenter is nil='..tostring(ScenarioInfo.ControlCenter == nil)..'; ScenarioInfo.Czar is nil='..tostring(ScenarioInfo.Czar == nil)..'; Is table of czars empty='..tostring(M28Utilities.IsTableEmpty(ScenarioInfo.Czar))..'; Is M3P1 active='..tostring(ScenarioInfo.M3P1.Active)..'; Is M3P2 active='..tostring(ScenarioInfo.M3P2.Active)..'; Is there a valid black sun unit='..tostring(M28UnitInfo.IsUnitValid(ScenarioInfo.BlackSunWeapon)))
             if M28UnitInfo.IsUnitValid(ScenarioInfo.BlackSunWeapon) then LOG(sFunctionRef..': Have a valid black sun unit, Target[1].UnitId='..(Target[1].UnitId or 'nil')..'; Black sun brain owner='..ScenarioInfo.BlackSunWeapon:GetAIBrain().Nickname..'; Faction index='..ScenarioInfo.BlackSunWeapon:GetAIBrain():GetFactionIndex()) end
+            LOG(sFunctionRef..': Sera M3 logs, Is M4P3 active='..tostring(ScenarioInfo.M4P3.Active)..'; Is target category urc1901='..tostring(Target.Requirements[1].Category == categories.urc1901)..'; Target.Area='..(Target.Requirements[1].Area or 'nil')..'; reprs of ScenarioInfo.M2P2='..reprs(ScenarioInfo.M2P2)..'; reprs of Target='..reprs(Target))
         end
         if ScenarioInfo.M4P1 and M28Utilities.IsTableEmpty(Target.Units) and ScenarioInfo.M4P1.Active and M28UnitInfo.IsUnitValid(ScenarioInfo.AeonCDR) then
             if bDebugMessages == true then LOG(sFunctionRef..': Creating manual on death trigger') end
@@ -1635,6 +1636,25 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
 
                 end
             end
+        elseif ScenarioInfo.M4P3.Active and Target.Requirements[1].Category == categories.urc1901 and Target.Requirements[1].Area then --Seraphim M3 - protect QAI mainframe (as objective currently has strange way of doing this where it tracks the area rather htan the unit)
+
+            local ScenarioUtilities = import("/lua/sim/scenarioutilities.lua")
+            local tRect = ScenarioUtilities.AreaToRect(Target.Requirements[1].Area)
+            local tBaseAreaForRect = {tRect['x0'], tRect['y0'], tRect['x1'], tRect['y1']}
+            if bDebugMessages == true then LOG(sFunctionRef..': Will add QAI mainframe as a priority defence target, tRect='..repru(tRect)..';tBaseAreaForRect='..repru(tBaseAreaForRect)..'; Target.Requirements[1].Area='..(Target.Requirements[1].Area or 'nil')) end
+            local tUnitsInRect = GetUnitsInRect(tRect)
+            if bDebugMessages == true then LOG(sFunctionRef..': Is tUnitsInRect empty='..tostring(M28Utilities.IsTableEmpty(tUnitsInRect))) end
+            if M28Utilities.IsTableEmpty(tUnitsInRect) == false then
+                local tQAIMainframes = EntityCategoryFilterDown(Target.Requirements[1].Category, tUnitsInRect)
+                if bDebugMessages == true then LOG(sFunctionRef..': Is tQAIMainframes empty='..tostring(M28Utilities.IsTableEmpty(tQAIMainframes))) end
+                if M28Utilities.IsTableEmpty(tQAIMainframes) == false then
+                    for iUnit, oUnit in tQAIMainframes do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' as a priority air defence target') end
+                        M28Air.AddPriorityAirDefenceTarget(oUnit)
+                    end
+                end
+            end
+
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

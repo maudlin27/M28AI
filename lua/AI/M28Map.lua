@@ -4448,10 +4448,11 @@ function RecordPondDetails()
             if bDebugMessages == true then
                 LOG(sFunctionRef .. ': Considering pond group ' .. iPond .. '; Pond size=' .. (tPondSubtable[subrefiSegmentCount] or 'nil'))
             end
+
+            tPondSubtable[subrefPondMidpoint] = { (tPondDetails[iPond][subrefPondMinX] + tPondDetails[iPond][subrefPondMaxX]) * 0.5, iMapWaterHeight, (tPondDetails[iPond][subrefPondMinZ] + tPondDetails[iPond][subrefPondMaxZ]) * 0.5 }
             if (tPondSubtable[subrefiSegmentCount] or 0) >= iMinPondSize then
-                --Pond is large enough for us to consider tracking; record information of interest for the pond:
-                iPondMexCount = 0
-                tPondSubtable[subrefPondMidpoint] = { (tPondDetails[iPond][subrefPondMinX] + tPondDetails[iPond][subrefPondMaxX]) * 0.5, iMapWaterHeight, (tPondDetails[iPond][subrefPondMinZ] + tPondDetails[iPond][subrefPondMaxZ]) * 0.5 }
+                    --Pond is large enough for us to consider tracking; record information of interest for the pond:
+                    iPondMexCount = 0
                 if bDebugMessages == true then LOG(sFunctionRef .. ': Recording pond, will check how many mexes are nearby. Pond midpoint=' .. repru(tPondSubtable[subrefPondMidpoint]) .. '; Pond min X-Z=' .. tPondDetails[iPond][subrefPondMinX] .. '-' .. tPondDetails[iPond][subrefPondMinZ] .. '; Max X-Z=' .. tPondDetails[iPond][subrefPondMaxX] .. '-' .. tPondDetails[iPond][subrefPondMaxZ]) end
 
                 --Details of all mexes near enough to the pond to be of interest
@@ -4662,7 +4663,7 @@ function RecordPondToExpandTo(aiBrain)
         for iCurPondRef, tPondSubtable in tPondDetails do
             aiBrain[M28Navy.reftiPondValueToUs][iCurPondRef] = 0
             aiBrain[M28Navy.reftiPondThreatToUs][iCurPondRef] = 0
-            if M28Utilities.IsTableEmpty(tPondSubtable) == false then
+            if M28Utilities.IsTableEmpty(tPondSubtable) == false and (tPondSubtable[subrefiSegmentCount] or 0) >= iMinPondSize then
                 iCurPondValue = 0
                 iCurPondDefensiveValue = 0
                 if bDebugMessages == true then LOG(sFunctionRef..': iCurPondRef='..iCurPondRef..'; MaxX='..tPondSubtable[subrefPondMaxX]..'Z='..tPondSubtable[subrefPondMaxZ]..'; MinX='..tPondSubtable[subrefPondMinX]..'Z='..tPondSubtable[subrefPondMinZ]..'; Mex info='..repru(tPondSubtable[subrefPondMexInfo])..'; Midpoint='..repru(tPondSubtable[subrefPondMidpoint])..'; Segment count='..tPondSubtable[subrefiSegmentCount]) end
@@ -4745,6 +4746,7 @@ function RecordPondToExpandTo(aiBrain)
                             end
                             local tNavalBuildArea = {}
                             if not(bStartLocationIsUnderwater) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Brain='..aiBrain.Nickname..'; Index='..aiBrain:GetArmyIndex()..'; Start point='..repru(PlayerStartPoints[aiBrain:GetArmyIndex()])..'; Midpoint of pond='..repru(tPondSubtable[subrefPondMidpoint])..'; iCurPondRef='..(iCurPondRef or 'nil')) end
                                 local iAngleToCentre = M28Utilities.GetAngleFromAToB(PlayerStartPoints[aiBrain:GetArmyIndex()], tPondSubtable[subrefPondMidpoint])
                                 local iDistInterval = 8
                                 local iBuildingInterval = 4
