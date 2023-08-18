@@ -2921,7 +2921,7 @@ function GetCategoryToBuildOrAssistFromAction(iActionToAssign, iMinTechLevel, ai
                 if bDebugMessages == true then LOG(sFunctionRef..': Close to unit cap so will get T2PlusPD') end
                 iCategoryToBuild = M28UnitInfo.refCategoryT2PlusPD
             else
-                if iMinTechLevel > 1 or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 4 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPD * categories.TECH1) > 0 then
+                if iMinTechLevel > 1 or (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 and (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 4 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPD * categories.TECH1) > 0)) then
                     --Want to build either T2 or T2+ PD
                     local iT2PD = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPD * categories.TECH2)
                     if iT2PD <= 5 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPD * categories.TECH3) >= iT2PD then
@@ -7631,7 +7631,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                     iEnemyCombatThreat = iEnemyCombatThreat + (tAdjLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) + (tAdjLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 0)
                 end
             end
-            if iHighestNearbyEnemyRange >= 50 then bConsiderT2PD = false end
+            if iHighestNearbyEnemyRange >= 50 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] < 2 then bConsiderT2PD = false end
             if iHighestNearbyEnemyRange <= 25 or bConsiderT2PD then
                 local iExistingStructureThreat = 0
                 if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange]) == false then
@@ -7653,8 +7653,10 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                         tPDStartPoint = M28Utilities.MoveInDirection(tLZData[M28Map.subrefMidpoint], M28Utilities.GetAngleFromAToB(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]), 25, true, false, M28Map.bIsCampaignMap)
                         if not(tPDStartPoint) or not(NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tPDStartPoint) == tLZData[M28Map.subrefLZIslandRef]) then  tPDStartPoint = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]} end
                     end
+                    bDebugMessages = true
                     if bDebugMessages == true then LOG(sFunctionRef..': Want to build emergency PD, iMinTechLevelWanted='..iMinTechLevelWanted) end
                     HaveActionToAssign(refActionBuildEmergencyPD, iMinTechLevelWanted, 40, tPDStartPoint)
+                    bDebugMessages = false
                 end
             end
         end
