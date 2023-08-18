@@ -464,6 +464,9 @@ end
 
 function TestCustom(aiBrain)
 
+    --New water zone logic testing
+    --local tWZData = M28Map.tPondDetails[51][M28Map.subrefPondWaterZones][269]
+    --LOG('Repru of WZData other pathing='..reprs(tWZData[M28Map.subrefWZOtherWaterZones]))
 
     --Setons hover label testing
     --[[local NavUtils = import("/lua/sim/navutils.lua")
@@ -478,7 +481,7 @@ function TestCustom(aiBrain)
     local tLZData = M28Map.tAllPlateaus[25][M28Map.subrefPlateauLandZones][4]
     local rRect = M28Utilities.GetRectAroundLocation({512,0,512}, 512)--]]
     --ScenarioFramework.SetPlayableArea(rRect)
-    M28Map.DrawSpecificLandZone(2, 1, 4)
+    --M28Map.DrawSpecificLandZone(2, 1, 4)
     --M28Map.DrawWaterZones()
     --[[if GetGameTimeSeconds() <= 20 then M28Map.DrawSpecificWaterZone(5)
     else M28Map.DrawSpecificWaterZone(7)
@@ -965,7 +968,7 @@ function OverseerManager(aiBrain)
         WaitTicks(1)
     end
 
-    --ForkThread(TestCustom, aiBrain)
+
 
     --Initialise main systems
     ForkThread(Initialisation, aiBrain)
@@ -974,6 +977,10 @@ function OverseerManager(aiBrain)
     while (GetGameTimeSeconds() <= 4.5) do
         WaitTicks(1)
     end
+
+    --ForkThread(TestCustom, aiBrain)
+
+
     local bSetHook = false --Used for debugging
     while not(aiBrain:IsDefeated()) and not(aiBrain.M28IsDefeated) do
         local bEnabledProfiling = false

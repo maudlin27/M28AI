@@ -1049,7 +1049,7 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
     local sFunctionRef = 'MoveUnassignedLandUnits'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iWaterZone == 96 then bDebugMessages = true end
 
     --Decides where to send any units that are part of this water zone (ignores those from an adjacent waterzone that were available)
     --local tAmphibiousLabelUnits = {}
@@ -1194,7 +1194,7 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                                 local iAltCombatThreat = M28UnitInfo.GetCombatThreatRating(tNearbyAmphibious)
                                 if bDebugMessages == true then LOG(sFunctionRef..': iOurCombatThreat='..iOurCombatThreat..'; iAltCombatThreat='..iAltCombatThreat) end
                                 if iAltCombatThreat > iOurCombatThreat then
-                                    bAttackWithEverything = M28Conditions.HaveEnoughThreatToAttack(tLZTeamData, iAltCombatThreat, iEnemyCombatThreat, 0, false, iTeam)
+                                    bAttackWithEverything = M28Conditions.HaveEnoughThreatToAttack(tLZTeamData, iAltCombatThreat, iEnemyCombatThreat, 0, false, iTeam, 1.05)
                                 end
                             end
 
@@ -1215,8 +1215,13 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                 end
                 local tHoverRallyPoint
                 local tAmphibiousRallyPoint
-                if iAmphibiousLabel == tWZData[M28Map.refiMidpointAmphibiousLabel] and not(tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] > tWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy]) then tAmphibiousRallyPoint = {tWZData[M28Map.subrefMidpoint][1], tWZData[M28Map.subrefMidpoint][2], tWZData[M28Map.subrefMidpoint][3]}
-                else tAmphibiousRallyPoint = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
+                --Retreat to base instead of water zone midpoint if the WZs in the pond are <=3 and the depth of the WZ midpoint isn't very large (to reduce risk wew e.g. have ythothas standing in water taking damage but not able to attack)
+                if iAmphibiousLabel == tWZData[M28Map.refiMidpointAmphibiousLabel] and not(tWZTeamData[M28Map.subrefWZThreatEnemyAntiNavy] > tWZTeamData[M28Map.subrefWZThreatAlliedAntiNavy]) and (M28Map.tPondDetails[iPond][M28Map.subrefPondWZCount] >= 3 or M28Map.iMapWaterHeight - GetTerrainHeight(tWZData[M28Map.subrefMidpoint][1],tWZData[M28Map.subrefMidpoint][3]) >= 6.25 or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryLandExperimental, tAmphibiousUnits))) then
+                    tAmphibiousRallyPoint = {tWZData[M28Map.subrefMidpoint][1], tWZData[M28Map.subrefMidpoint][2], tWZData[M28Map.subrefMidpoint][3]}
+                    if bDebugMessages == true then LOG(sFunctionRef..': Setting amphibious rally point to be the WZ midpoint') end
+                else
+                    tAmphibiousRallyPoint = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
+                    if bDebugMessages == true then LOG(sFunctionRef..': Setting amphibious rally point to be the closest friendly base') end
                 end
                 if not(bAttackWithEverything) then
                     --Decide if we want to consolidate hover(surface) units at the waterzone midpoint or not
@@ -1252,7 +1257,6 @@ function MoveUnassignedLandUnits(tWZData, tWZTeamData, iPond, iWaterZone, iTeam,
                             M28Orders.IssueTrackedMove(oUnit, tHoverDestination, iOrderReissueDistToUse, false, 'NMHToLZ'..iLZToSupport..'Fr'..iWaterZone)
                         end
                     else
-                        --Move to WZ midpoint
                         if EntityCategoryContains(categories.AMPHIBIOUS, oUnit.UnitId) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Sending amphibious unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to go to amphibious rally point') end
                             M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, iOrderReissueDistToUse, false, 'NACons'..iWaterZone)
@@ -1272,7 +1276,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
     local sFunctionRef = 'ManageSpecificWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iWaterZone == 96 then bDebugMessages = true end
 
     --Record enemy threat
     local tWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone]
@@ -2428,7 +2432,7 @@ function ManageCombatUnitsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWater
     local sFunctionRef = 'ManageCombatUnitsInWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iWaterZone == 96 then bDebugMessages = true end
 
     local tUnassignedLandUnits
     if bDebugMessages == true then LOG(sFunctionRef..': start of code for time '..GetGameTimeSeconds()..', iTeam='..iTeam..'; iPond='..iPond..'; iWaterZone='..iWaterZone..'; Is table of available combat units empty='..tostring(M28Utilities.IsTableEmpty(tAvailableCombatUnits))..'; Is table of available subs empty='..tostring(M28Utilities.IsTableEmpty(tAvailableSubmarines))..'; Are there enemy units in this or adjacent WZ='..tostring(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])) end
