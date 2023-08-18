@@ -5158,7 +5158,43 @@ function GetBPForShieldAssistance(tLZTeamData, iTeam)
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Is the table of enemy arti empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]))..'; iEnemyT3ArtiValue='..iEnemyT3ArtiValue..'; number of priority shields for thie LZ='..table.getn(tLZTeamData[M28Map.reftPriorityShieldsToAssist])) end
-            iBPWanted = table.getn(tLZTeamData[M28Map.reftPriorityShieldsToAssist]) * math.max(120, math.min(780, (360 * iEnemyT3ArtiValue)))
+            local iShieldsWantingAssistance = 0
+            local iShieldsRecentlyDamaged = 0
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.5 then
+                iShieldsWantingAssistance = table.getn(tLZTeamData[M28Map.reftPriorityShieldsToAssist])
+            else
+                local iCurShield, iMaxShield
+                local bHaveRecentlyDamagedShields = false
+
+                for iShield, oShield in tLZTeamData[M28Map.reftPriorityShieldsToAssist] do
+                    if M28UnitInfo.IsUnitValid(oShield) then
+                        iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oShield, true)
+                        if iCurShield > 0 then
+                            if iCurShield < iMaxShield then
+                                iShieldsRecentlyDamaged = iShieldsRecentlyDamaged + 1
+                            else
+                                --How long since shield took damage?
+                                if oShield[M28UnitInfo.refiTimeLastDamaged] and GetGameTimeSeconds() - (oShield[M28UnitInfo.refiTimeLastDamaged] or -100) <= 40 then
+                                    iShieldsRecentlyDamaged = iShieldsRecentlyDamaged + 1
+                                end
+                            end
+                        end
+                    end
+                end
+                if iShieldsRecentlyDamaged > 0 then
+                    local iTotalShields = table.getn(tLZTeamData[M28Map.reftPriorityShieldsToAssist])
+                    if iTotalShields < iShieldsRecentlyDamaged then
+                        iShieldsWantingAssistance = iShieldsRecentlyDamaged + (iTotalShields - iShieldsRecentlyDamaged) * 0.5
+                    else
+                        iShieldsWantingAssistance = iShieldsRecentlyDamaged
+                    end
+                end
+                if tLZTeamData[M28Map.subrefLZbCoreBase] then iShieldsWantingAssistance = math.max(iShieldsWantingAssistance, 0.6) end
+
+            end
+            --Reduce BP for shield assistance if we have lots of mass - i.e. in late game scenario better to spend mass than to assist a full health shield
+            iBPWanted = iShieldsWantingAssistance * math.max(120, math.min(780, (360 * iEnemyT3ArtiValue)))
+
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, iBPWanted='..iBPWanted) end
@@ -7390,6 +7426,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     --if bDebugMessages == true then M28Map.DrawSpecificLandZone(iPlateau, iLandZone, 1) end
     local iBPWanted
     local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
+    local bHaveLowPower = M28Conditions.HaveLowPower(iTeam)
     local bWantMorePower = M28Conditions.WantMorePower(iTeam)
     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
 
@@ -7666,7 +7703,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         if not(bHaveFixedAA) or iNearbyEnemyAirToGroundThreat > tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] then
             iBPWanted = tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]]
             if iNearbyEnemyAirToGroundThreat > 0 then iBPWanted = iBPWanted * 2 end
-            if not(M28Conditions.HaveLowPower(iTeam)) then
+            if not(bHaveLowPower) then
                 if not(bHaveLowMass) then iBPWanted = iBPWanted * 4
                 else iBPWanted = iBPWanted * 2
                 end
@@ -8154,7 +8191,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 if not(bHaveLowMass and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) and tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] >= 6000 and (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][1]) > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] > 15 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
                     iBPWanted = tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]]
                     if iNearbyEnemyAirToGroundThreat > 0 then iBPWanted = iBPWanted * 2 end
-                    if not(M28Conditions.HaveLowPower(iTeam)) then
+                    if not(bHaveLowPower) then
                         if not(bHaveLowMass) then iBPWanted = iBPWanted * 4
                         else iBPWanted = iBPWanted * 2
                         end
@@ -8162,6 +8199,30 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                     HaveActionToAssign(refActionBuildAA, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech], iBPWanted)
                     if bDebugMessages == true then LOG(sFunctionRef..': Wnat more AA for minor zone, iBPWanted='..iBPWanted) end
                 end
+            end
+        end
+    end
+
+    --Higher priority T2 radar creep where we have large mass income or lots of experimentals
+    iCurPriority = iCurPriority + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': T2 radar creep - bHaveLowMass='..tostring(bHaveLowMass)..'; bWantMorePower='..tostring(bWantMorePower)..'; Radar coverage='..tLZTeamData[M28Map.refiRadarCoverage]..'; Map size='..M28Map.iMapSize..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; tLZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZTeamData[M28Map.subrefMexCountByTech])) end
+    if not(bHaveLowPower) and tLZTeamData[M28Map.subrefLZSValue] >= 3000 and tLZTeamData[M28Map.subrefMexCountByTech][3] >= 1 and tLZTeamData[M28Map.refiRadarCoverage] < 250 and tLZTeamData[M28Map.refiRadarCoverage] < 170 and (tLZTeamData[M28Map.refiRadarCoverage] < 130 or not(bHaveLowMass)) and M28Map.iMapSize > 600 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 60 and (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 150) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL) >= 4 then
+        --Check we dont have any radar here already (redundancy for radar coverage)
+        local tExistingRadar = EntityCategoryFilterDown(M28UnitInfo.refCategoryRadar, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+        local bHaveRadar = false
+        if M28Utilities.IsTableEmpty(tExistingRadar) == false then
+            for iUnit, oUnit in tExistingRadar do
+                if oUnit:GetFractionComplete() >= 1 then
+                    bHaveRadar = true
+                    break
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': bHaveRadar='..tostring(bHaveRadar)) end
+        if not(bHaveRadar) then
+            --Are we able to build radar? assume we can if we have access to T3 factories for simplicity
+            if not(M28Map.bIsCampaignMap) or not(M28Overseer.bUnitRestrictionsArePresent) or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 then
+                HaveActionToAssign(refActionBuildT2Radar, 2, 10)
             end
         end
     end
@@ -8417,7 +8478,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
 
     --Low priority air staging builder (max of 1) for expansion bases
     iCurPriority = iCurPriority + 1
-    if tLZTeamData[M28Map.subrefLZCoreExpansion] and not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastAirStagingShortage] or -100) <= 2 and tLZTeamData[M28Map.subrefLZSValue] >= 400 and not(bHaveLowMass) and not(M28Conditions.HaveLowPower(iTeam)) then
+    if tLZTeamData[M28Map.subrefLZCoreExpansion] and not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastAirStagingShortage] or -100) <= 2 and tLZTeamData[M28Map.subrefLZSValue] >= 400 and not(bHaveLowMass) and not(bHaveLowPower) then
         local bHaveAirStaging = false
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
             local tAirStaging = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirStaging, tLZTeamData[M28Map.subrefLZTAlliedUnits])

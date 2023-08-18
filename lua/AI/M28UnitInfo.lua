@@ -50,6 +50,7 @@ refbUnitIsCloaked = 'M28UnitIsCloaked' --true if have triggered the 'cloaked uni
 refiTimeCreated = 'M28UntTimCr' --Gametimeseconds (rounded down) that unit was created
 refbIsCaptureTarget = 'M28UnitIsCapTrg' --true if we want to capture the unit
 refbIsReclaimTarget = 'M28UnitIsReTrg' --true if have an objective to reclaim the unit
+refiTimeLastDamaged = 'M28UnitTLsD' --Currently only used for shields
 
     --Unit micro related
 refiGameTimeMicroStarted = 'M28UnitTimeMicroStarted' --Gametimeseconds that started special micro

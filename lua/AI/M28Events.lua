@@ -486,7 +486,11 @@ function CloakedUnitIdentified(oUnit)
 end
 
 function OnShieldBubbleDamaged(self, instigator)
-    
+    local oShield = self.Owner
+    --LOG('Shield damaged, self='..reprs(self)..'; owner='..reprs(self.Owner))
+    if not(oShield.Dead) and oShield:GetAIBrain().M28AI then
+        oShield[M28UnitInfo.refiTimeLastDamaged] = GetGameTimeSeconds()
+    end
 end
 
 function OnDamaged(self, instigator) --This doesnt trigger when a shield bubble is damaged - see OnShieldBubbleDamaged for this
