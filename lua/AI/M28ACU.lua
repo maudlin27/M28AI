@@ -736,7 +736,62 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
 
             end
         else
-            if bDebugMessages == true then LOG(sFunctionRef..': Are building so wont give any new orders') end
+            if bDebugMessages == true then LOG(sFunctionRef..': Are building so wont give any new orders subject to Pgen execption') end
+            --Rare case where ACU and engieners start building pgen at the same time, leading to them both building separately to each other; solution - if ACU fraction complete is <10%, switch to the engi built one if it is in the build range
+            local oACUFocusUnit = oACU:GetFocusUnit()
+            if EntityCategoryContains(M28UnitInfo.refCategoryPower * categories.TECH1, oACUFocusUnit.UnitId) and aiBrain:GetEconomyStored('ENERGY') < 1500 and oACUFocusUnit:GetFractionComplete() < 0.1 then
+                local tNearbyPower = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryPower * categories.TECH1, oACU:GetPosition(), oACU:GetBlueprint().Economy.MaxBuildDistance + M28UnitInfo.GetBuildingSize(oACUFocusUnit.UnitId), 'Ally')
+                if bDebugMessages == true then LOG(sFunctionRef..': Is table of nearby power empty='..tostring(M28Utilities.IsTableEmpty(tNearbyPower))) end
+                if M28Utilities.IsTableEmpty(tNearbyPower) == false and table.getn(tNearbyPower) >= 2 then
+                    local tEngineers = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits])
+                    local tPowerBuiltByEngineers = {}
+                    local oCurFocusUnit
+                    if M28Utilities.IsTableEmpty(tEngineers) == false then
+                        for iEngineer, oEngineer in tEngineers do
+                            if M28UnitInfo.IsUnitValid(oEngineer) and oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionBuildPower then
+                                oCurFocusUnit = oEngineer:GetFocusUnit()
+                                if EntityCategoryContains(M28UnitInfo.refCategoryPower * categories.TECH1, oCurFocusUnit.UnitId) then
+                                    table.insert(tPowerBuiltByEngineers, oCurFocusUnit)
+                                end
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': is table of power built by engineers empty='..tostring(M28Utilities.IsTableEmpty(tPowerBuiltByEngineers))) end
+                    if M28Utilities.IsTableEmpty(tPowerBuiltByEngineers) == false then
+                        --Do we have any engineers building the ACU focus unit?
+                        local bEngineersBuildingACUPower = false
+                        for iUnit, oUnit in tPowerBuiltByEngineers do
+                            if oUnit == oACUFocusUnit then bEngineersBuildingACUPower = true break end
+                        end
+                        if not(bEngineersBuildingACUPower) then
+                            local bHaveEngineersBuildingThisPower
+                            local iMostCompletePower = 0
+                            local oPowerToSwitchTo
+                            for iUnit, oUnit in tNearbyPower do
+                                if not(oUnit == oACUFocusUnit) then
+                                    --Do we have engineers building this power?
+                                    bHaveEngineersBuildingThisPower = false
+                                    for iPower, oPower in tPowerBuiltByEngineers do
+                                        if oPower == oUnit then
+                                            bHaveEngineersBuildingThisPower = true
+                                            break
+                                        end
+                                    end
+                                    if bHaveEngineersBuildingThisPower then
+                                        if oUnit:GetFractionComplete() > iMostCompletePower then
+                                            iMostCompletePower = oUnit:GetFractionComplete()
+                                            oPowerToSwitchTo = oUnit
+                                        end
+                                    end
+                                end
+                            end
+                            if oPowerToSwitchTo then
+                                M28Orders.IssueTrackedRepair(oACU, oPowerToSwitchTo, false, 'EGPwrR', false)
+                            end
+                        end
+                    end
+                end
+            end
         end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, is ACU table of last orders empty='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))..'; Does ACU have valid order='..tostring(M28Conditions.DoesACUHaveValidOrder(oACU))) end

@@ -272,8 +272,9 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
     if bUpdateTimeOfLastEnemyPositionCheck and not(bUseLastKnownPosition) then tLZTeamData[M28Map.subrefiTimeOfLastEnemyUnitPosUpdate] = GetGameTimeSeconds() end
     if tLZTeamData[M28Map.refiRadarCoverage] >= 70 then bUseActualPositionIfEnemy = true end
 
-    if bDebugMessages == true then LOG('Start of code at time '..GetGameTimeSeconds()..', reprs of tUnits='..reprs(tUnits)..'; bUseLastKnownPosition='..tostring(bUseLastKnownPosition or false)) end
+
     for iOrigIndex=1, iTableSize do
+        if tUnits[iOrigIndex].UnitId == 'xsa0103' and M28UnitInfo.GetUnitLifetimeCount(tUnits[iOrigIndex]) == 17 then bDebugMessages = true else bDebugMessages = false end
         if not(tUnits[iOrigIndex]) or tUnits[iOrigIndex].Dead then
             --Remove the entry
             tUnits[iOrigIndex] = nil
