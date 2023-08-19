@@ -2419,8 +2419,70 @@ function GetACUOrder(aiBrain, oACU)
 
                     else
                         --Part-built or unbuilt mex in build range of ACU when no enemies in the LZ
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will consider building mex if one is almost in build range and no enemy combat threat in this LZ/WZ, threat='..tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]) end
-                        if tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 0 or not(ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, 2)) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will consider building mex if one is almost in build range and no enemy combat threat in this LZ/WZ, or we outrange enemy and enemy isnt in our range; threat='..tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]) end
+                        local bConsiderBuildingNearbyMex = true
+                        --Part-built or unbuilt mex in build range of ACU when no enemies in the LZ
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will consider building mex if one is almost in build range and no enemy combat threat in this LZ/WZ, or we outrange enemy and enemy isnt in our range; threat='..tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]) end
+                        local bConsiderBuildingNearbyMex = true
+                        local iNearbyMexRangeThreshold = 2
+                        if tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] == 0 then
+                            --Do nothing - want to consider building mex
+                        elseif tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 200 then
+                            bConsiderBuildingNearbyMex = false
+                            if bDebugMessages == true then LOG(sFunctionRef..':Too much threat in this zone') end
+                        else
+                            --Enemy has small threat, so might want to build mex rather than attack
+                            if math.max(tLZOrWZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange], tLZOrWZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange], tLZOrWZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange]) >= oACU[M28UnitInfo.refiDFRange] then
+                                bConsiderBuildingNearbyMex = false
+                                if bDebugMessages == true then LOG(sFunctionRef..'; We dont outrange enemy so wont consider building mex') end
+                            else
+                                --We outrange enemy, which is a small threat, so consider building mex instead of pursuing enemy
+                                local tClosestMex
+                                local iClosestMex = 10000
+                                local iCurDist
+                                if (oACU:IsUnitState('Building') or oACU:IsUnitState('Repairing')) and EntityCategoryContains(M28UnitInfo.refCategoryMex, oACU:GetFocusUnit().UnitId) then
+                                    if M28Utilities.IsTableEmpty(aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryLandCombat, oACU:GetPosition(), oACU[M28UnitInfo.refiDFRange], 'Enemy')) == false then
+                                        bConsiderBuildingNearbyMex = false
+                                    end
+                                elseif M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) then
+                                    bConsiderBuildingNearbyMex = false
+                                    if bDebugMessages == true then LOG(sFunctionRef..': No unbuilt locations for this zone') end
+                                else
+
+                                    for iMex, tMex in tLZOrWZData[M28Map.subrefMexUnbuiltLocations] do
+                                        iCurDist = M28Utilities.GetDistanceBetweenPositions(tMex, oACU:GetPosition())
+                                        if iCurDist < iClosestMex then
+                                            iClosestMex = iCurDist
+                                            tClosestMex = {tMex[1], tMex[2], tMex[3]}
+                                        end
+                                    end
+                                    if iClosestMex <= oACU[M28UnitInfo.refiDFRange] + iNearbyMexRangeThreshold then
+                                        --Have an unbuilt mex in or near our build range, so now check if enemy is closer to the mex than we are/is in range of the mex
+                                        local bEnemyAlmostInRangeOfMex = false
+                                        for iUnit, oUnit in tLZOrWZTeamData[M28Map.subrefTEnemyUnits] do
+                                            if M28UnitInfo.IsUnitValid(oUnit) then
+                                                iCurDist = M28Utilities.GetDistanceBetweenPositions(tClosestMex, oUnit:GetPosition())
+                                                if iCurDist - oUnit[M28UnitInfo.refiCombatRange] <= 2 then
+                                                    bEnemyAlmostInRangeOfMex = true
+                                                    break
+                                                end
+                                            end
+                                        end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': bEnemyAlmostInRangeOfMex='..tostring(bEnemyAlmostInRangeOfMex)) end
+                                        if bEnemyAlmostInRangeOfMex then
+                                            bConsiderBuildingNearbyMex = false
+                                        end
+                                    else
+                                        bConsiderBuildingNearbyMex = false
+                                    end
+                                end
+
+
+                            end
+                        end
+                        --Part-built or unbuilt mex in build range of ACU when no enemies in the LZ
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will consider building mex if one is almost in build range and no enemy combat threat in this LZ/WZ, threat='..tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; bConsiderBuildingNearbyMex='..tostring(bConsiderBuildingNearbyMex)) end
+                        if not(bConsiderBuildingNearbyMex) or not(ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, 2)) then
                             --Priority reclaim - if reclaim that is in ACU build radius and have <30% mass stored even if nearby enemies (provided arent in range, unless shot is blocked), if have no upgrade or T2 upgrade
                             if bDebugMessages == true then LOG(sFunctionRef..': About to check for priority reclaim, mass stored%='..aiBrain:GetEconomyStoredRatio('MASS')..'; ACU upgrade count='..oACU[refiUpgradeCount]..'; Does ACU have adanced engineering='..tostring(oACU:HasEnhancement('AdvancedEngineering'))..'; ACU health %='..M28UnitInfo.GetUnitHealthPercent(oACU)) end
                             if aiBrain:GetEconomyStoredRatio('MASS') < 0.3 and (oACU[refiUpgradeCount] == 0 or oACU:HasEnhancement('AdvancedEngineering')) and M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.9 and

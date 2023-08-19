@@ -1022,6 +1022,11 @@ function OnConstructed(oEngineer, oJustBuilt)
 
                 --Experimental air - no longer record in land/water zone
                 if EntityCategoryContains(M28UnitInfo.refCategoryAllAir, oJustBuilt.UnitId) then
+                    --Transport specific - tell the factory that just built the transport to build something else
+                    if EntityCategoryContains(M28UnitInfo.refCategoryTransport, oJustBuilt.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryAirFactory * categories.TECH1, oEngineer.UnitId) then
+                        oEngineer[M28Factory.refbWantNextUnitToBeEngineer] = true
+                    end
+
                     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oJustBuilt:GetPosition())
                     if (iLandOrWaterZone or 0) > 0 then
                         local tLZOrWZData

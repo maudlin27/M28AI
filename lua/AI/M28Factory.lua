@@ -21,6 +21,7 @@ local M28Micro = import('/mods/M28AI/lua/AI/M28Micro.lua')
 local reftBlueprintPriorityOverride = 'M28FactoryPreferredBlueprintByCategory' --[x] is the blueprint ref, if there's a priority override it returns a numerical value (higher number = higher priority)
 local refiTimeSinceLastOrderCheck = 'M28FactoryTimeSinceLastCheck' --against factory, gametime in seconds when the factory was last checked to consider an order
 local refiTimeSinceLastFailedToGetOrder = 'M28FactoryTimeFailedToGetOrder' --Against factory, gametimeseconds that factory failed to find anything to do
+refbWantNextUnitToBeEngineer = 'M28FacNxtUEng' --true if want next unit to be an engineer
 --NOTE: Also have a blueprint blacklist in the landsubteam data - see M28Team
 
 --Factory types (used by subteams)
@@ -2498,6 +2499,12 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
 
 
     --MAIN BUILDER LOGIC:
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    --Special priority flag to build engineer
+    if oFactory[refbWantNextUnitToBeEngineer] then
+        oFactory[refbWantNextUnitToBeEngineer] = false
+        if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+    end
     --Low power - only consider building engineers (if have lots of mass)
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': If low power then will only consider building engineers or emergency AirAA, bHaveLowPower=' .. tostring(bHaveLowPower))
