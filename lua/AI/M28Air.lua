@@ -4137,13 +4137,13 @@ function UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam)
     M28Team.tTeamData[iTeam][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist] = {}
     local tShortlist = M28Team.tTeamData[iTeam][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist]
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropZonesByPlateau]) == false then
-
+        local tiPlateauAndZoneWithAdjacentEngineers = {}
         --Dont drop if we have engineers in this zone or adjacent, or there are dangerous enemy units
         for iPlateau, tLandZones in M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropZonesByPlateau] do
             for iEntry, iLandZone in tLandZones do
                 local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
                 local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering the land zone '..iLandZone..' in iPlateau='..iPlateau..'; tLZTeamData[M28Map.subrefLZSValue]='..tLZTeamData[M28Map.subrefLZSValue]) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering the land zone '..iLandZone..' in iPlateau='..iPlateau..'; tLZTeamData[M28Map.subrefLZSValue]='..tLZTeamData[M28Map.subrefLZSValue]..'; subrefLZMexCount='..(tLZData[M28Map.subrefLZMexCount] or 'nil')) end
                 if tLZTeamData[M28Map.subrefLZSValue] <= 200 then --i.e. dont have a land factory or better in the zone
                     --Check we havent already got mexes on any of the positions
                     if bDebugMessages == true then LOG(sFunctionRef..': tLZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZTeamData[M28Map.subrefMexCountByTech])) end
@@ -4186,9 +4186,8 @@ function UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam)
                                     if M28Utilities.IsTableEmpty(tFactoriesAndEngineers) == false then
                                         --This will include transport if it is about to land
                                         for iUnit, oUnit in tFactoriesAndEngineers do
-                                            if not(oUnit:IsUnitState('Attached')) then
+                                            if not(oUnit:IsUnitState('Attached')) and oUnit:GetFractionComplete() == 1 then
                                                 bHaveUnattachedEngineersOrFactories = true
-                                                break
                                             end
                                         end
                                     end
@@ -4196,37 +4195,56 @@ function UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]))..'; bHaveUnattachedEngineersOrFactories='..tostring(bHaveUnattachedEngineersOrFactories)) end
                                 if not(bHaveUnattachedEngineersOrFactories) then
                                     --Do we have engineers in an adjacent zone?
+                                    local bHaveNearbyFactoriesOrLargeThreat = false
                                     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                                         for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                                             local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
                                             if bDebugMessages == true then LOG(sFunctionRef..': iAdjLZ='..iAdjLZ..'; tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..(tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefLZTAlliedUnits]))) end
                                             if tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 100 then
-                                                bHaveUnattachedEngineersOrFactories = true
+                                                bHaveNearbyFactoriesOrLargeThreat = true
                                                 break
-                                            elseif M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
-                                                local tFactoriesAndEngineers = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryEngineer + categories.COMMAND + categories.SUBCOMMANDER, tAdjLZTeamData[M28Map.subrefLZTAlliedUnits])
-                                                if M28Utilities.IsTableEmpty(tFactoriesAndEngineers) == false then
-                                                    for iUnit, oUnit in tFactoriesAndEngineers do
-                                                        if not(oUnit:IsUnitState('Attached')) then
-                                                            bHaveUnattachedEngineersOrFactories = true
-                                                            break
+                                            else
+                                                if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
+                                                    local tFactoriesAndEngineers = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryEngineer + categories.COMMAND + categories.SUBCOMMANDER, tAdjLZTeamData[M28Map.subrefLZTAlliedUnits])
+                                                    if M28Utilities.IsTableEmpty(tFactoriesAndEngineers) == false then
+                                                        for iUnit, oUnit in tFactoriesAndEngineers do
+                                                            if not(oUnit:IsUnitState('Attached')) and oUnit:GetFractionComplete() == 1 then
+                                                                bHaveUnattachedEngineersOrFactories = true
+
+                                                                if EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUnit.UnitId) then
+                                                                    bHaveNearbyFactoriesOrLargeThreat = true
+                                                                    break
+                                                                end
+                                                            end
                                                         end
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': bHaveUnattachedEngineersOrFactories='..tostring(bHaveUnattachedEngineersOrFactories)..'; Either we have engineers/factory or enemy has combat threat in this adj LZ') end
+                                                        if bHaveNearbyFactoriesOrLargeThreat then break end
                                                     end
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': bHaveUnattachedEngineersOrFactories='..tostring(bHaveUnattachedEngineersOrFactories)..'; Either we have engineers/factory or enemy has combat threat in this adj LZ') end
-                                                    if bHaveUnattachedEngineersOrFactories then break end
                                                 end
                                             end
                                         end
                                     end
-                                    if not(bHaveUnattachedEngineersOrFactories) then
-                                        --Want to add to shortlist to consider dropping
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Adding plateau '..iPlateau..'; land zone '..iLandZone..'; to shortlist of locations to consider dropping') end
-                                        table.insert(tShortlist, {iPlateau, iLandZone})
+                                    if not(bHaveNearbyFactoriesOrLargeThreat) then
+                                        if not(bHaveUnattachedEngineersOrFactories) then
+                                            --Want to add to shortlist to consider dropping
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Adding plateau '..iPlateau..'; land zone '..iLandZone..'; to shortlist of locations to consider dropping') end
+                                            table.insert(tShortlist, {iPlateau, iLandZone})
+                                        else
+                                            --Add to lower priority shortlist
+                                            table.insert(tiPlateauAndZoneWithAdjacentEngineers, {iPlateau, iLandZone})
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Have adjacent zone with engineers but no factory or significant enemy threat so will still consider dropping') end
+                                        end
                                     end
                                 end
                             end
                         end
                     end
+                end
+            end
+            if M28Utilities.IsTableEmpty(tShortlist) and M28Utilities.IsTableEmpty(tiPlateauAndZoneWithAdjacentEngineers) == false then
+                if bDebugMessages == true then LOG(sFunctionRef..': Dont have high priority transport drop location but do have a lower priority one with adjacent engineers') end
+                for iEntry, tSubtable in tiPlateauAndZoneWithAdjacentEngineers do
+                    table.insert(tShortlist, {tSubtable[1], tSubtable[2]})
                 end
             end
         end
@@ -4734,11 +4752,31 @@ function ManageTransports(iTeam, iAirSubteam)
                 end
 
             else
-                if bDebugMessages == true then LOG(sFunctionRef..': We dont have island to travel to so unload') end
+                if bDebugMessages == true then LOG(sFunctionRef..': We dont have island to travel to so unload unless transport already on its way and might be justified') end
                 --Do we have engineers loaded? if so then unload
                 local tCargo = oUnit:GetCargo()
                 if M28Utilities.IsTableEmpty(tCargo) == false then
-                    M28Orders.IssueTrackedTransportUnload(oUnit, tRallyPoint, 10, false, 'TRalUnl', false)
+                    --Consider proceeding
+                    local tLastOrder = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
+                    local bUnloadAtRally = true
+                    if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderUnloadTransport then
+                        local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition])
+                        if iDistToTarget <= 20 then
+                            --Might as well unload - significant risk we just die if we return by this stage anyway
+                            bUnloadAtRally = false
+                        elseif iDistToTarget <= 250 then
+                            local tTargetLZOrWZData, tTargetLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(tLastOrder[M28Orders.subreftOrderPosition], true, iTeam)
+                            local iCargoSize = table.getn(tCargo)
+                            if tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < iCargoSize * 30 then
+                                bUnloadAtRally = false
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': iCargoSize='..iCargoSize..'; Enemy combat threat='..tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; bUnloadAtRally='..tostring(bUnloadAtRally)) end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have a cargo, bUnloadAtRally='..tostring(bUnloadAtRally)) end
+                    if bUnloadAtRally then
+                        M28Orders.IssueTrackedTransportUnload(oUnit, tRallyPoint, 10, false, 'TRalUnl', false)
+                    end
                 else
                     --Go to rally point
                     M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 10, false, 'TIdle', false)

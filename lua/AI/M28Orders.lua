@@ -144,6 +144,7 @@ function IssueTrackedClearCommands(oUnit)
 
     --Clear orders:
     IssueClearCommands({oUnit})
+
     --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uel01013' and oUnit:GetAIBrain():GetArmyIndex() == 6 then
         LOG('Just issuedclearcommands to unit uel01013 at time '..GetGameTimeSeconds())
     end--]]

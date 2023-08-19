@@ -3226,6 +3226,7 @@ function ClearEngineerTracking(oEngineer)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
+
     --Unpause unit if it was paused (redundancy)
     if oEngineer[M28UnitInfo.refbPaused] then M28UnitInfo.PauseOrUnpauseMassUsage(oEngineer, false) end
 
@@ -3427,6 +3428,8 @@ function TrackEngineerAction(oEngineer, iActionToAssign, bIsPrimaryBuilder, iCur
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'TrackEngineerAction'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
 
     --Special logic (done in a genric way in case end up with more scenarios like this) - if action to assign currnetly is special shield logic and we have a different action to assign then clear engineer tracking (as we have an override that prevents it being cleared via orders)
     if oEngineer[refiAssignedAction] and not(oEngineer[refiAssignedAction] == iActionToAssign) then ClearEngineerTracking(oEngineer) end
@@ -10029,7 +10032,7 @@ end
 
 function GetLocationToBuildWall(oEngineer, oJustBuilt, sWallBP)
     --Builds wall around nearby T1 PD (if there is any), subject to blacklist
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetLocationToBuildWall'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -10058,6 +10061,7 @@ function GetLocationToBuildWall(oEngineer, oJustBuilt, sWallBP)
             end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start, oPDToSurround='..(oPDToSurround.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oPDToSurround) or 'nil')..'; Gametime='..GetGameTimeSeconds()..'; oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)) end
     if oPDToSurround then
         local tPDToSurround = oPDToSurround:GetPosition()
         --Get first location around the PD that is available for building, if any
@@ -10067,8 +10071,9 @@ function GetLocationToBuildWall(oEngineer, oJustBuilt, sWallBP)
                 if not(iXAdjust == 0 and iZAdjust == 0) then
                     local tTargetLocation = {tPDToSurround[1] + iXAdjust, tPDToSurround[2], tPDToSurround[3] + iZAdjust}
                     tTargetLocation[2] = GetSurfaceHeight(tTargetLocation[1], tTargetLocation[3])
+                    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
                     if bDebugMessages == true then LOG(sFunctionRef..': Can engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' that has just built unit '..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..' at position '..repru(oJustBuilt:GetPosition())..' build at tTargetLocation '..repru(tTargetLocation)..'='..tostring(CanBuildAtLocation(aiBrain, sWallBP, tTargetLocation, nil, nil, nil, false, true, false, true))..'; Simple can build check='..tostring(aiBrain:CanBuildStructureAt(sWallBP, tTargetLocation))) end
-                    if CanBuildAtLocation(aiBrain, sWallBP, tTargetLocation, nil, nil, nil, false, true, false, true) then
+                    if CanBuildAtLocation(aiBrain, sWallBP, tTargetLocation, iPlateau, iLandZone, nil, false, true, false, true) then
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                         return tTargetLocation
                     end

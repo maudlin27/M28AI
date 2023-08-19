@@ -678,7 +678,7 @@ function RunFromEnemy(oUnitToRun, oEnemy, iTeam, iPlateau, iDistanceToRun)
     local sFunctionRef = 'RunFromEnemy'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oUnitToRun.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToRun) == 'xsl01011' then bDebugMessages = true end
+
 
     local iAngleFromEnemy = M28Utilities.GetAngleFromAToB(oUnitToRun:GetPosition(), oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) - 180
     if iAngleFromEnemy < 0 then iAngleFromEnemy = iAngleFromEnemy + 360 end
@@ -709,7 +709,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
     local sFunctionRef = 'ManageLandZoneScouts'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iLandZone == 7 then bDebugMessages = true end
+
     tLZTeamData[M28Map.refbWantLandScout] = false
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want a land scout for iPlateau '..iPlateau..'; iLandZone='..iLandZone..'; bLandZoneContainsNonScouts='..tostring(bLandZoneContainsNonScouts or false)..'; Enemy combat threat='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Is table of land scouts traveling here empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTScoutsTravelingHere]))..'; Is table of scouts currently in this LZ empty='..tostring(M28Utilities.IsTableEmpty(tScouts))) end
 
