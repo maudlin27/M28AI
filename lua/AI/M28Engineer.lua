@@ -2518,11 +2518,18 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                             iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
                         elseif iCurNovaxCount == 0 then
                             iCategoryWanted = M28UnitInfo.refCategoryNovaxCentre
-                        elseif iCurFatboyCount < math.max(math.min(3, 1 + iSubteamSize, 1 + iEnemyLandExperimentalCount), iCurT3ArtiCount + math.max(0, iCurT3ArtiCount - 3)) then
+                        elseif iCurFatboyCount < math.min(5, math.max(math.min(3, 1 + iSubteamSize, 1 + iEnemyLandExperimentalCount), iCurT3ArtiCount + math.max(0, iCurT3ArtiCount - 3))) then
                             iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
                         else
                             if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 80 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 20000 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 110) then
-                                iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
+                                --Get gameender, unless we already have lots of T3 arti in which case consider getting more novaxes (since might be on a more spread out map)
+                                if iCurT3ArtiCount < 3 then
+                                    iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
+                                elseif iCurNovaxCount < iCurT3ArtiCount then
+                                    iCategoryWanted = M28UnitInfo.refCategoryNovaxCentre
+                                else
+                                    iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
+                                end
                             else
                                 --Novax or T3 arti
                                 if iCurNovaxCount < 3 + iCurT3ArtiCount then
@@ -2542,7 +2549,14 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                             iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
                         else
                             if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 90 then
-                                iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
+                                --Get gameender, unless we already have lots of T3 arti in which case consider getting more novaxes (since might be on a more spread out map)
+                                if iCurT3ArtiCount < 3 then
+                                    iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
+                                elseif iCurNovaxCount < iCurT3ArtiCount then
+                                    iCategoryWanted = M28UnitInfo.refCategoryNovaxCentre
+                                else
+                                    iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
+                                end
                             else
                                 --Novax or T3 arti
                                 if iCurNovaxCount < 3 + iCurT3ArtiCount then
@@ -2618,7 +2632,20 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                             iCategoryWanted = M28UnitInfo.refCategoryExperimentalStructure --this includes scathis
                         end
                     else
-                        if not(bCanPathByLand) then
+                        --Consider air experimental in some rarer cases late game
+                        local bGetAirExperimentalInstead = false
+                        if iTeamLandExperimentals >= 4 and (iTeamLandExperimentals >= 7 or M28Conditions.TeamHasAirControl(iTeam) or M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] >= 10000) then
+                            local iCurAirExperimentals = 0
+                            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                                iCurAirExperimentals = iCurAirExperimentals + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryGunship * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar)
+                            end
+                            if iCurAirExperimentals == 0 or (iCurAirExperimentals * 4 < iTeamLandExperimentals and (iCurAirExperimentals + 1) * 10000 < M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat]) then
+                                bGetAirExperimentalInstead = true
+                            end
+                        end
+                        if bGetAirExperimentalInstead then
+                            iCategoryWanted = M28UnitInfo.refCategoryGunship * categories.EXPERIMENTAL + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL
+                        elseif not(bCanPathByLand) then
                             iCategoryWanted = M28UnitInfo.refCategoryMegalith --megalith has better torps
                         else
                             if iTeamLandExperimentals == 0 then
@@ -2642,9 +2669,24 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                             iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
                         end
                     else
-                        --Build GC
-                        iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
-                        --Dont reset faction requirement as GC is better than most other factions
+                        --Consider air experimental in some rarer cases late game
+                        local bGetAirExperimentalInstead = false
+                        if iTeamLandExperimentals >= 4 and (iTeamLandExperimentals >= 7 or M28Conditions.TeamHasAirControl(iTeam) or M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] >= 10000) then
+                            local iCurAirExperimentals = 0
+                            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                                iCurAirExperimentals = iCurAirExperimentals + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryGunship * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar)
+                            end
+                            if iCurAirExperimentals == 0 or (iCurAirExperimentals * 4 < iTeamLandExperimentals and (iCurAirExperimentals + 1) * 10000 < M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat]) then
+                                bGetAirExperimentalInstead = true
+                            end
+                        end
+                        if bGetAirExperimentalInstead then
+                            iCategoryWanted = M28UnitInfo.refCategoryGunship * categories.EXPERIMENTAL + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar
+                        else
+                            --Build GC
+                            iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
+                            --Dont reset faction requirement as GC is better than most other factions
+                        end
                     end
                 else
                     --Not dealing with standard faction - basic choice between land and T3 arti/experimental structure, since unlikely to have hte logic in place for other units

@@ -731,6 +731,11 @@ function CheckUnitCap(aiBrain)
             end
         end
 
+        --Restrict T3 land combat units being built if we have experimental level units and are at the lowest level of unit cap
+        if M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] <= 0 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryExperimentalLevel) > 0 and aiBrain:GetCurrentUnits(tiCategoryToDestroy[0]) <= 10 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat * categories.TECH3 - categories.SUBCOMMANDER) >= 20 then
+            tiCategoryToDestroy[0] = tiCategoryToDestroy[0] + M28UnitInfo.refCategoryLandCombat * categories.TECH3 - categories.SUBCOMMANDER
+        end
+
 
 
         if bDebugMessages == true then LOG(sFunctionRef..': We are over the threshold for ctrlking units') end
