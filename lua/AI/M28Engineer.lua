@@ -2840,9 +2840,9 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                 end
                                 --end
                             end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Checking for nearby enemies for engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; iNearestReclaimableEnemy='..iNearestReclaimableEnemy..'; iClosestDistUntilInRangeOfStaticEnemy='..iClosestDistUntilInRangeOfStaticEnemy) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Checking for nearby enemies for engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; iNearestReclaimableEnemy='..iNearestReclaimableEnemy..'; iClosestDistUntilInRangeOfStaticEnemy='..iClosestDistUntilInRangeOfStaticEnemy..'; Core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase] or false)..'; Core expansion='..tostring(tLZTeamData[M28Map.subrefLZCoreExpansion] or false)) end
                             local iEngiBuildDistance = oEngineer:GetBlueprint().Economy.MaxBuildDistance
-                            if iNearestReclaimableEnemy < 20 and ((iClosestDistUntilInRangeOfStaticEnemy >= 10 and iNearestReclaimableEnemy <= iEngiBuildDistance) or iNearestReclaimableEnemy <= (iEngiBuildDistance + 7)) then
+                            if iNearestReclaimableEnemy < 20 and ((iClosestDistUntilInRangeOfStaticEnemy >= 10 and iNearestReclaimableEnemy <= iEngiBuildDistance) or iNearestReclaimableEnemy <= (iEngiBuildDistance + 7) or (iNearestReclaimableEnemy <= iEngiBuildDistance + 14 and (tLZTeamData[M28Map.subrefLZbCoreBase] or tLZTeamData[M28Map.subrefLZCoreExpansion]))) then
                                 --Reclaim enemy
                                 --Switch the target to the nearest dangerous enemy if it is in our build range
                                 if iNearestReclaimableDangerousEnemy < iEngiBuildDistance and oNearestReclaimableDangerousEnemy then
@@ -10032,7 +10032,7 @@ end
 
 function GetLocationToBuildWall(oEngineer, oJustBuilt, sWallBP)
     --Builds wall around nearby T1 PD (if there is any), subject to blacklist
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetLocationToBuildWall'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

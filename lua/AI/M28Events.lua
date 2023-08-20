@@ -139,6 +139,35 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                         if oKillerBrain.M28AI then
                             if EntityCategoryContains(M28UnitInfo.refCategorySatellite, instigator.UnitId) and M28UnitInfo.IsUnitValid(oKillerUnit) then
                                 ForkThread(M28Air.NovaxCoreTargetLoop, oKillerBrain, instigator, true)
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oKillerUnit.UnitId) and not(type) and not(overkillRatio) and not(oKillerBrain.M28Team == oUnitKilled:GetAIBrain().M28Team) then
+                                --We have reclaimed an enemy - if there arent many enemies in this zone then update the zone; also check for enemy targets within build range to reclaim
+                                local tNearbyReclaimableEnemies = oKillerBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryReclaimable, oKillerUnit:GetPosition(), oKillerUnit:GetBlueprint().Economy.MaxBuildDistance, 'Enemy')
+                                bDebugMessages = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': Is table of nearby reclaimable enemies empty='..tostring( M28Utilities.IsTableEmpty(tNearbyReclaimableEnemies))) end
+                                local bNotGivenReclaimOrder = true
+                                if M28Utilities.IsTableEmpty(tNearbyReclaimableEnemies) == false then
+                                    for iPotentialEnemy, oPotentialEnemy in tNearbyReclaimableEnemies do
+                                        if not(oPotentialEnemy == oUnitKilled) and M28UnitInfo.IsUnitValid(oPotentialEnemy) and oPotentialEnemy:GetHealth() > 0 then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Will issue new reclaim order for oKillerUnit='..(oKillerUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oKillerUnit) or 'nil')..' owend by brain'..oKillerUnit:GetAIBrain().Nickname..' to target enemy unit '..(oPotentialEnemy.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oPotentialEnemy) or 'nil')..'; Time='..GetGameTimeSeconds()..'; Enemy unit health='..oPotentialEnemy:GetHealth()..'; Enemy unit brain owner='..oPotentialEnemy:GetAIBrain().Nickname) end
+
+                                            ForkThread(M28Orders.IssueTrackedReclaim, oKillerUnit, oPotentialEnemy, false, 'FollowRec', false) --WHen tried doing but not via forked thread ended up with game crashing
+                                            bNotGivenReclaimOrder = false
+                                            break
+                                        end
+                                    end
+                                end
+                                if bNotGivenReclaimOrder then
+                                    local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnitKilled:GetPosition())
+                                    if (iPlateauOrZero or 0) > 0 and (iLandOrWaterZone or 0) > 0 then
+                                        local tLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][oKillerBrain.M28Team]
+                                        --if we reclaimed an enemy unit, then update units in that zone if arent many units left
+                                        if not(tLZTeamData[M28Map.subrefTEnemyUnits][2]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': have just killed a unit so will update the position of all enemy units in the zone, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; Time='..GetGameTimeSeconds()) end
+                                            M28Land.UpdateUnitPositionsAndLandZone(oKillerBrain, tLZTeamData[M28Map.subrefTEnemyUnits], oKillerBrain.M28Team, iPlateauOrZero, iLandOrWaterZone, true, false, tLZTeamData, false)
+                                        end
+                                    end
+
+                                end
                             end
                         end
                     end
@@ -195,7 +224,6 @@ function OnYthothaDeath(oUnit)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
 end
-
 
 function OnUnitDeath(oUnit)
     --NOTE: This is called by the death of any unit of any player, so careful with what commands are given
@@ -299,9 +327,6 @@ function OnUnitDeath(oUnit)
                         end
                         M28Engineer.SearchForBuildableLocationsNearDestroyedBuilding(oUnit)
                     end
-
-
-
 
                     -------M28 specific logic---------
                     --Is the unit owned by M28AI?
@@ -1315,34 +1340,37 @@ function OnReclaimFinished(oEngineer, oReclaim)
             ForkThread(M28Map.RecordThatWeWantToUpdateReclaimAtLocation, oEngineer:GetPosition(), 1)
         end
 
-        --Was the engineer reclaiming an area? if so check if still nearby reclaim
-        if oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionReclaimArea then
-            --Only keep reclaiming if we dont have lots of mass
-            if M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subrefiTeamLowestMassPercentStored] <= 0.7 then
+        --M28 specific
+        if oEngineer:GetAIBrain().M28AI then
+            --Was the engineer reclaiming an area? if so check if still nearby reclaim
+            if oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionReclaimArea then
+                --Only keep reclaiming if we dont have lots of mass
+                if M28Team.tTeamData[oEngineer:GetAIBrain().M28Team][M28Team.subrefiTeamLowestMassPercentStored] <= 0.7 then
+                    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
+                    if (iLandZone or 0) > 0 then
+                        local iTeam =  oEngineer:GetAIBrain().M28Team
+                        local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
+                        M28Engineer.GetEngineerToReclaimNearbyArea(oEngineer, nil, tLZTeamData, iPlateau, iLandZone, M28Conditions.WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone), false)
+                    end
+                end
+            elseif EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
                 local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
                 if (iLandZone or 0) > 0 then
                     local iTeam =  oEngineer:GetAIBrain().M28Team
-                    local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
-                    M28Engineer.GetEngineerToReclaimNearbyArea(oEngineer, nil, tLZTeamData, iPlateau, iLandZone, M28Conditions.WantToReclaimEnergyNotMass(iTeam, iPlateau, iLandZone), false)
+                    local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+                    local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+                    M28ACU.ConsiderNearbyReclaim(iPlateau, iLandZone, tLZData, tLZTeamData, oEngineer, true)
                 end
-            end
-        elseif EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
-            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oEngineer:GetPosition(), true, oEngineer)
-            if (iLandZone or 0) > 0 then
-                local iTeam =  oEngineer:GetAIBrain().M28Team
-                local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
-                local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
-                M28ACU.ConsiderNearbyReclaim(iPlateau, iLandZone, tLZData, tLZTeamData, oEngineer, true)
-            end
-        elseif M28Utilities.IsTableEmpty(oReclaim[M28Engineer.reftUnitsReclaimingUs]) == false then
-            local tEngineersToClear = {}
-            for iEngineer, oEngineer in oReclaim[M28Engineer.reftUnitsReclaimingUs] do
-                if M28UnitInfo.IsUnitValid(oEngineer) then
-                    table.insert(tEngineersToClear, oEngineer)
+            elseif M28Utilities.IsTableEmpty(oReclaim[M28Engineer.reftUnitsReclaimingUs]) == false then
+                local tEngineersToClear = {}
+                for iEngineer, oEngineer in oReclaim[M28Engineer.reftUnitsReclaimingUs] do
+                    if M28UnitInfo.IsUnitValid(oEngineer) then
+                        table.insert(tEngineersToClear, oEngineer)
+                    end
                 end
-            end
-            for iEngineer, oEngineer in tEngineersToClear do
-                M28Orders.IssueTrackedClearCommands(oEngineer)
+                for iEngineer, oEngineer in tEngineersToClear do
+                    M28Orders.IssueTrackedClearCommands(oEngineer)
+                end
             end
         end
 
@@ -1515,6 +1543,8 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                         M28Land.UpdateZoneIntelForRadar(oUnit)
                     elseif EntityCategoryContains(M28UnitInfo.refCategorySonar, oUnit.UnitId) then
                         M28Navy.UpdateZoneIntelForSonar(oUnit)
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUnit.UnitId) then
+                        oUnit[M28Factory.refiTotalBuildCount] = 0
                     end
                 end
             end

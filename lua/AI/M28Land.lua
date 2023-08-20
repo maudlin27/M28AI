@@ -780,42 +780,44 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                     else
                         for iUnitTable, tUnitTable in tEnemyUnitTablesToConsider do
                             for iUnit, oUnit in tUnitTable do
-                                bStandAlmostStill = false
-                                if bDebugMessages == true then LOG(sFunctionRef..': Looking for enemy to run from for scout '..oScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout)..', considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; Unit position='..repru(oUnit:GetPosition())..'; Unit last known position='..repru(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; Dist between last known position and scout='..M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oScout:GetPosition())..'; Unit range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; iRunThreshold='..iRunThreshold..'; Is distance within run threshold='..tostring(M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oScout:GetPosition()) - (oUnit[M28UnitInfo.refiDFRange] or 0) <= iRunThreshold)..'; bConsiderAttacking='..tostring(bConsiderAttacking)..'; Unit df range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; Unit build range='..(oUnit:GetBlueprint().Economy.MaxBuildDistance or 'nil')) end
-                                if bConsiderAttacking or (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and not(oUnit == oPrevEnemyToRunFrom) then
-                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oScout:GetPosition()) - (oUnit[M28UnitInfo.refiDFRange] or 0)
+                                if M28UnitInfo.IsUnitValid(oUnit) then
+                                    bStandAlmostStill = false
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Looking for enemy to run from for scout '..oScout.UnitId..M28UnitInfo.GetUnitLifetimeCount(oScout)..', considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; Unit position='..repru(oUnit:GetPosition())..'; Unit last known position='..repru(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; Dist between last known position and scout='..M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oScout:GetPosition())..'; Unit range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; iRunThreshold='..iRunThreshold..'; Is distance within run threshold='..tostring(M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oScout:GetPosition()) - (oUnit[M28UnitInfo.refiDFRange] or 0) <= iRunThreshold)..'; bConsiderAttacking='..tostring(bConsiderAttacking)..'; Unit df range='..(oUnit[M28UnitInfo.refiDFRange] or 0)..'; Unit build range='..(oUnit:GetBlueprint().Economy.MaxBuildDistance or 'nil')) end
+                                    if bConsiderAttacking or (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and not(oUnit == oPrevEnemyToRunFrom) then
+                                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oScout:GetPosition()) - (oUnit[M28UnitInfo.refiDFRange] or 0)
 
-                                    if iCurDist <= iRunThreshold then
-                                        oEnemyToRunFrom = oUnit
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Want to run from unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' so will stop searching') end
-                                        break
-                                    else
-                                        --Adjust run threshold if enemy unit is moving, and facing towards us
-                                        if iCurDist - 2 <= iRunThreshold and oUnit:IsUnitState('Moving') and M28Utilities.GetAngleDifference(M28UnitInfo.GetUnitFacingAngle(oUnit), M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oScout:GetPosition())) <= 15 then
+                                        if iCurDist <= iRunThreshold then
                                             oEnemyToRunFrom = oUnit
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Want to run as unit is facing us and still relatively close, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' so will stop searching') end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Want to run from unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' so will stop searching') end
                                             break
-                                        elseif bConsiderAttacking and (oUnit[M28UnitInfo.refiDFRange] or 0) == 0 and iCurDist < math.max(iAttackThreshold, iEnemyToConsiderAttackingDist) then
-                                            oEnemyToConsiderAttacking = oUnit
-                                            iEnemyToConsiderAttackingDist = iCurDist
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Want to consider attacking the unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' but will first check no units to run from') end
                                         else
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is too far away for us to run from it, will keep looking') end
-                                            if not(oEnemyToRunFrom) then
-                                                --Try to approximate case where enemy has a unit that is approaching our scout, and we are moving away, only to move back again - a human player would know to only move the scout a small bit to allow intel to catchup on the enemy unit; so will approximate that by having hte scout 'retreat' but not by much, if the enemy near
-                                                iActualCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oScout:GetPosition()) - (oUnit[M28UnitInfo.refiDFRange] or 0)
-                                                if iActualCurDist + 4 <= iRunThreshold then
-                                                    oEnemyToRunFrom = oUnit
-                                                    bStandAlmostStill = true
+                                            --Adjust run threshold if enemy unit is moving, and facing towards us
+                                            if iCurDist - 2 <= iRunThreshold and oUnit:IsUnitState('Moving') and M28Utilities.GetAngleDifference(M28UnitInfo.GetUnitFacingAngle(oUnit), M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oScout:GetPosition())) <= 15 then
+                                                oEnemyToRunFrom = oUnit
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Want to run as unit is facing us and still relatively close, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' so will stop searching') end
+                                                break
+                                            elseif bConsiderAttacking and (oUnit[M28UnitInfo.refiDFRange] or 0) == 0 and iCurDist < math.max(iAttackThreshold, iEnemyToConsiderAttackingDist) then
+                                                oEnemyToConsiderAttacking = oUnit
+                                                iEnemyToConsiderAttackingDist = iCurDist
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Want to consider attacking the unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' but will first check no units to run from') end
+                                            else
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is too far away for us to run from it, will keep looking') end
+                                                if not(oEnemyToRunFrom) then
+                                                    --Try to approximate case where enemy has a unit that is approaching our scout, and we are moving away, only to move back again - a human player would know to only move the scout a small bit to allow intel to catchup on the enemy unit; so will approximate that by having hte scout 'retreat' but not by much, if the enemy near
+                                                    iActualCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oScout:GetPosition()) - (oUnit[M28UnitInfo.refiDFRange] or 0)
+                                                    if iActualCurDist + 4 <= iRunThreshold then
+                                                        oEnemyToRunFrom = oUnit
+                                                        bStandAlmostStill = true
+                                                    end
                                                 end
                                             end
                                         end
-                                    end
 
-                                    --Check if about to get in range of engineer that can reclaim us - have done +8 as lower values resulted in some cases in the engineer being able to reclaim the scout
-                                elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) and M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oScout:GetPosition()) <= 8 + (oUnit:GetBlueprint().Economy.MaxBuildDistance or 3) then
-                                    oEnemyToRunFrom = oUnit
-                                    break
+                                        --Check if about to get in range of engineer that can reclaim us - have done +8 as lower values resulted in some cases in the engineer being able to reclaim the scout
+                                    elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) and M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oScout:GetPosition()) <= 8 + (oUnit:GetBlueprint().Economy.MaxBuildDistance or 3) then
+                                        oEnemyToRunFrom = oUnit
+                                        break
+                                    end
                                 end
                             end
                         end

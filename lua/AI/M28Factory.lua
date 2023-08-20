@@ -2597,6 +2597,13 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             end
         end
 
+        --Spy plane/air scout if not power stalling and havent built any, and are at T2+, and dont have omni
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if bDebugMessages == true then LOG(sFunctionRef..': Low power air scout builder, stored energy ratio='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; Cur air scouts='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirScout)..'; this factory lifetime count='..M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryAirScout)..'; Radar coverage='..(tLZTeamData[M28Map.refiRadarCoverage] or 'nil')..'; factory total build count='..(oFactory[refiTotalBuildCount] or 0)) end
+        if iFactoryTechLevel >= 2 and (tLZTeamData[M28Map.refiRadarCoverage] or 0) <= 300 and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.99 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirScout) == 0 and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryAirScout) <= math.floor((oFactory[refiTotalBuildCount] or 0) * 0.1) then
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirScout) then return sBPIDToBuild end
+        end
+
         --Overflowing mass (and dont have low power since are here)
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if not (bHaveLowMass) and tLZTeamData[M28Map.subrefTbWantBP] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.7 then
@@ -2801,19 +2808,17 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                     end
                 end
 
-                --Air scout if dont have any and havent built any at this factory
+                --Air scout if dont have any and havent built many at this factory
                 iCurrentConditionToTry = iCurrentConditionToTry + 1
-                if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirScout) == 0 and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryAirScout) == 0 then
-                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirScout) then
-                        return sBPIDToBuild
-                    end
+                local iCurAirScouts = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirScout)
+                if bDebugMessages == true then LOG(sFunctionRef..': Air scout checker, cur air scouts='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirScout)..'; Lifetime air scout count for htis factory='..M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryAirScout)..'; Total factory count of all units='..oFactory[refiTotalBuildCount]) end
+                if iCurAirScouts == 0 and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryAirScout) <= math.floor(oFactory[refiTotalBuildCount] * 0.1) then
+                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirScout) then return sBPIDToBuild end
                 end
 
                 --AirAA until have a minimum level
                 iCurrentConditionToTry = iCurrentConditionToTry + 1
-                if bDebugMessages == true then
-                    LOG(sFunctionRef .. ': Minimum level of AirAA wanted: Number we have currently=' .. aiBrain:GetCurrentUnits(iAirAASearchCategory))
-                end
+                if bDebugMessages == true then LOG(sFunctionRef .. ': Minimum level of AirAA wanted: Number we have currently=' .. aiBrain:GetCurrentUnits(iAirAASearchCategory)) end
                 if iAirAACountOfSearchCategory < 3 then
                     if bDebugMessages == true then LOG(sFunctionRef..': We have fewer than 3 of AirAA search category, iFactoryTechLevel='..iFactoryTechLevel) end
                     if ConsiderBuildingCategory(iAirAASearchCategory) then
@@ -2823,9 +2828,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
 
                 --Torpedo bombers if nearby navy
                 iCurrentConditionToTry = iCurrentConditionToTry + 1
-                if bDebugMessages == true then
-                    LOG(sFunctionRef .. ': Torp bomber for nearby enemy navy: iFactoryTechLevel=' .. iFactoryTechLevel .. '; Is table of adjacent WZ empty=' .. tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones])))
-                end
+                if bDebugMessages == true then LOG(sFunctionRef .. ': Torp bomber for nearby enemy navy: iFactoryTechLevel=' .. iFactoryTechLevel .. '; Is table of adjacent WZ empty=' .. tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]))) end
                 if iFactoryTechLevel >= 2 and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false then
                     local iNearbyEnemyNavalThreat = 0
                     local iAdjWZ
@@ -2862,7 +2865,8 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
 
                 --Air scout if dont have any
                 iCurrentConditionToTry = iCurrentConditionToTry + 1
-                if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirScout) == 0 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will get air scouts if dont have any; iCurrentConditionToTry='..iCurrentConditionToTry) end
+                if iCurAirScouts == 0 then
                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirScout) then return sBPIDToBuild end
                 end
 

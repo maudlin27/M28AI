@@ -779,10 +779,12 @@ function IssueTrackedTransportLoad(oUnit, oOrderTarget, bAddToExistingQueue, sOp
     --If the transport already has a unit told to load onto it, then this sends the assigned unit to move to that unit's position, and then to queue up the transport load order
     local bMoveIntoPositionInstead = false
     --local bDontUpdateUnitBeingLoaded = false
+    if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oOrderTarget='..oOrderTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOrderTarget)..'; Dist to target='..M28Utilities.GetDistanceBetweenPositions(oOrderTarget:GetPosition(), oUnit:GetPosition())..'; oOrderTarget[M28Air.refoTransportUnitTryingToLoad]='..(oOrderTarget[M28Air.refoTransportUnitTryingToLoad].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oOrderTarget[M28Air.refoTransportUnitTryingToLoad]) or 'nil')) end
     if not(oOrderTarget[M28Air.refoTransportUnitTryingToLoad] == oUnit) and M28UnitInfo.IsUnitValid(oOrderTarget[M28Air.refoTransportUnitTryingToLoad]) and not(oOrderTarget[M28Air.refoTransportUnitTryingToLoad]:IsUnitState('Attached')) then
         --If already have an engineer/other unit trying to move here that is valid, then want to move to this engineer then queue up a transport order
-        --LOG('Already have an engineer as the first transport load target='..oOrderTarget[M28Air.refoTransportUnitTryingToLoad].UnitId..M28UnitInfo.GetUnitLifetimeCount(oOrderTarget[M28Air.refoTransportUnitTryingToLoad])..'; Unit state='..M28UnitInfo.GetUnitState(oOrderTarget[M28Air.refoTransportUnitTryingToLoad]))
+        if bDebugMessages == true then LOG('Already have an engineer as the first transport load target='..oOrderTarget[M28Air.refoTransportUnitTryingToLoad].UnitId..M28UnitInfo.GetUnitLifetimeCount(oOrderTarget[M28Air.refoTransportUnitTryingToLoad])..'; Unit state='..M28UnitInfo.GetUnitState(oOrderTarget[M28Air.refoTransportUnitTryingToLoad])) end
         if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oOrderTarget:GetPosition()) >= 5 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Are fairly close to transport, will move engineer towards transport so it is ready to be loaded') end
             IssueTrackedMove(oUnit, oOrderTarget[M28Air.refoTransportUnitTryingToLoad]:GetPosition(), 3, bAddToExistingQueue, sOptionalOrderDesc..'Mov', bOverrideMicroOrder)
             bMoveIntoPositionInstead = true
             --else
@@ -794,6 +796,7 @@ function IssueTrackedTransportLoad(oUnit, oOrderTarget, bAddToExistingQueue, sOp
     elseif not(oOrderTarget[M28Air.refoTransportUnitTryingToLoad]) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oOrderTarget:GetPosition()) > 12 then
         local NavUtils = import("/lua/sim/navutils.lua")
         local iHoverLabelWanted = NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition())
+        if bDebugMessages == true then LOG(sFunctionRef..': iHoverLabelWanted='..(iHoverLabelWanted or 'nil')) end
         if iHoverLabelWanted then
             local tMoveTowardsTransportPosition
             local iAngleToTransport = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oOrderTarget:GetPosition())
@@ -809,6 +812,7 @@ function IssueTrackedTransportLoad(oUnit, oOrderTarget, bAddToExistingQueue, sOp
             end
             IssueTrackedMove(oUnit, tMoveTowardsTransportPosition, 3, bAddToExistingQueue, sOptionalOrderDesc..'TMv', bOverrideMicroOrder)
             bMoveIntoPositionInstead = true
+            if bDebugMessages == true then LOG(sFunctionRef..': Are far away from transport so will move towards transport') end
 
         else
             UpdateRecordedOrders(oUnit)
@@ -829,10 +833,14 @@ function IssueTrackedTransportLoad(oUnit, oOrderTarget, bAddToExistingQueue, sOp
             end
         end
 
+        if bDebugMessages == true then LOG(sFunctionRef..': Unit last order='..reprs(tLastOrder)..'; Special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; bOverrideMicroOrder='..tostring(bOverrideMicroOrder or false)) end
+
         if not(tLastOrder[subrefiOrderType] == refiOrderLoadOntoTransport and oOrderTarget == tLastOrder[subrefoOrderUnitTarget]) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
             if not(bAddToExistingQueue) or M28Utilities.IsTableEmpty(   tLastOrder) then
                 --if not(bDontUpdateUnitBeingLoaded) then
+                IssueTrackedClearCommands(oOrderTarget) --Jip mentioned you can need to clear a transport's existing queue for a new load order to work
                 oOrderTarget[M28Air.refoTransportUnitTryingToLoad] = oUnit
+                if bDebugMessages == true then LOG(sFunctionRef..': Recording that transport is trying to load this unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                 --end
             end
             if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
@@ -841,6 +849,7 @@ function IssueTrackedTransportLoad(oUnit, oOrderTarget, bAddToExistingQueue, sOp
             table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderLoadOntoTransport, [subrefoOrderUnitTarget] = oOrderTarget})
             IssueTransportLoad({oUnit}, oOrderTarget)
             oOrderTarget[M28Air.refiTransportTimeSpentWaiting] = math.max(0, (oOrderTarget[M28Air.refiTransportTimeSpentWaiting] or 0) - 15)
+            if bDebugMessages == true then LOG(sFunctionRef..': Just sent transport load order') end
         end
         if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
     end

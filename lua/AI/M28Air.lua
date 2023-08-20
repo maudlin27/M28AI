@@ -3450,7 +3450,7 @@ function ManageGunships(iTeam, iAirSubteam)
         local bDontCheckForPacifism = not(M28Overseer.bPacifistModeActive)
 
         if bDebugMessages == true then LOG(sFunctionRef..': About to look for targets for g unships, iMaxEnemyAirAA='..iMaxEnemyAirAA..'; iDistToSupport='..M28Utilities.GetDistanceBetweenPositions(oFrontGunship:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])..'; iOurGunshipThreat='..iOurGunshipThreat..'; HaveAirControl='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])..'; Far behind on air='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir])) end
-        function AddEnemyGroundUnitsToTargetsSubjectToAA(iPlateauOrZero, iLandOrWaterZone, iGunshipThreatFactorWanted, bCheckForAirAA, bOnlyIncludeIfMexToProtect)
+        function AddEnemyGroundUnitsToTargetsSubjectToAA(iPlateauOrZero, iLandOrWaterZone, iGunshipThreatFactorWanted, bCheckForAirAA, bOnlyIncludeIfMexToProtect, iGroundAAThresholdAdjust)
             --Campaign specific-  check this is within the playable area first
             local iSpecificAirAAThreatLimit
             if not(bCheckForAirAA) then iSpecificAirAAThreatLimit = -1
@@ -3498,6 +3498,7 @@ function ManageGunships(iTeam, iAirSubteam)
                         iMaxEnemyGroundAA = math.max(iMaxEnemyGroundAA, math.min(iMaxEnemyGroundAA * 1.5, iOurGunshipThreat / 2.5), iOurGunshipThreat / 4.5)
 
                     end
+                    if iGroundAAThresholdAdjust and iMaxEnemyGroundAA >= 0 then iMaxEnemyGroundAA = math.max(0, iMaxEnemyGroundAA + iGroundAAThresholdAdjust) end
 
                     --Check if enemy has enough AA nearby
                     local bTooMuchAA
@@ -3595,14 +3596,20 @@ function ManageGunships(iTeam, iAirSubteam)
                 end
                 if iClosestDist <= 190 then
                     local bCheckForAirAA = true
-                    local iThreatFactor = 5
+                    local iThreatFactor = 3.5
                     if iClosestDist <= 130 then
                         bCheckForAirAA = false
-                        iThreatFactor = 3.5
+                        iThreatFactor = 2
                     end
                     local iTargetPlateau, iTargetZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oNearestExperimental:GetPosition())
                     if (iTargetZone or 0) > 0 then
-                        AddEnemyGroundUnitsToTargetsSubjectToAA(iTargetPlateau, iTargetZone, iThreatFactor, bCheckForAirAA)
+                        local iGroundAAThreatAdjust = 0
+                        if iOurGunshipThreat >= 600 then
+                            --Reduce by AA of experimental, i.e. dont want to avoid engaging a ythotha just because of the ythotha AA
+                            iGroundAAThreatAdjust = M28UnitInfo.GetAirThreatLevel({ oNearestExperimental }, true, false, true, false, false, false, false) * 0.75
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iGroundAAThreatAdjust='..iGroundAAThreatAdjust) end
+                        AddEnemyGroundUnitsToTargetsSubjectToAA(iTargetPlateau, iTargetZone, iThreatFactor, bCheckForAirAA, nil, iGroundAAThreatAdjust)
                     end
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Finished considering if have appraoching land experimental, oNearestExperimental='..(oNearestExperimental.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestExperimental) or 'nil')..'; iClosestDist='..iClosestDist..'; Is table of enemy targets empty='..tostring(M28Utilities.IsTableEmpty(tEnemyGroundTargets))) end
@@ -4759,15 +4766,17 @@ function ManageTransports(iTeam, iAirSubteam)
                     --Consider proceeding
                     local tLastOrder = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
                     local bUnloadAtRally = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Last order='..reprs(tLastOrder)..'; Is last order tyep unoad transport='..tostring(tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderUnloadTransport)) end
                     if tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderUnloadTransport then
                         local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLastOrder[M28Orders.subreftOrderPosition])
+                        if bDebugMessages == true then LOG(sFunctionRef..': iDistToTarget='..iDistToTarget) end
                         if iDistToTarget <= 20 then
                             --Might as well unload - significant risk we just die if we return by this stage anyway
                             bUnloadAtRally = false
                         elseif iDistToTarget <= 250 then
                             local tTargetLZOrWZData, tTargetLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(tLastOrder[M28Orders.subreftOrderPosition], true, iTeam)
                             local iCargoSize = table.getn(tCargo)
-                            if tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < iCargoSize * 30 then
+                            if tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > iCargoSize * 30 then
                                 bUnloadAtRally = false
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': iCargoSize='..iCargoSize..'; Enemy combat threat='..tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; bUnloadAtRally='..tostring(bUnloadAtRally)) end
