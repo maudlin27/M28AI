@@ -8,25 +8,37 @@ local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 --Note - looks like this logic may be moved to lua\aibrains\base-ai.lua at some point based on FAF develop (as at May 2023)
 --In theory the below shouldt be needed once the FAF-Develop changes are integrated into FAF (expected June 2023), although probably no harm leaving for backwards compatibility
 --Superceded from the June 2023 changes by M28Brain.lua and index.lua
-M28AIBrainClass = AIBrain
+    --V24 - removed the below as couldn't get the new appraoch (which requires map to be generated later than OnCreateAI triggers) to work with this code still here
+
+--[[M28AIBrainClass = AIBrain
 AIBrain = Class(M28AIBrainClass) {
 
     OnDefeat = function(self)
-        ForkThread(M28Events.OnPlayerDefeated, self)
         M28AIBrainClass.OnDefeat(self)
+        ForkThread(M28Events.OnPlayerDefeated, self)
     end,
 
     OnCreateAI = function(self, planName)
-        M28Events.OnCreateBrain(self, planName, false) --dont do via forkthread or else self.m28ai wont work
+        if (ScenarioInfo.ArmySetup[self.Name].AIPersonality == 'm28ai' or ScenarioInfo.ArmySetup[self.Name].AIPersonality == 'm28aicheat') then
+            self.M28AI = true
+            M28Utilities.bM28AIInGame = true
+        end
         if not(self.M28AI) then
             LOG('Running normal aiBrain creation code for brain '..(self.Nickname or 'nil'))
             M28AIBrainClass.OnCreateAI(self, planName)
         end
+        ForkThread(M28Events.OnCreateBrain, self, planName, false)
+    end,
+
+    OnBeginSession = function(self)
+        M28AIBrainClass.OnBeginSession(self)
+        M28Overseer.bBeginSessionTriggered = true
+        import("/lua/sim/NavUtils.lua").Generate()
     end,
 
     OnCreateHuman = function(self, planName)
         M28AIBrainClass.OnCreateHuman(self, planName)
-        M28Events.OnCreateBrain(self, planName, true)
+        ForkThread(M28Events.OnCreateBrain, self, planName, true)
     end,
 
     --Redundancy - make sure base AI doesnt run for M28AI
@@ -77,3 +89,4 @@ AIBrain = Class(M28AIBrainClass) {
     end,
 }
 
+--]]

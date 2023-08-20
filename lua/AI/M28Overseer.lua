@@ -40,6 +40,7 @@ bActiveMissionChecker = false --true if are actively checking for mission object
 bPacifistModeActive = false --true if we have set certain zones to never be attacked (e.g. Cybran mission 4)
 bHaveDisabledGunshipWeaponsForPacifism = false --true if we have disabled gunship weapons due to pacifism
 tiPacifistZonesByPlateau = {} --[iPlateau], returns iLandOrWaterZone, for any zone flagged as pacificst
+bBeginSessionTriggered = false
 
 --aiBrain variables
 refiDistanceToNearestEnemyBase = 'M28OverseerDistToNearestEnemyBase'
@@ -53,7 +54,7 @@ refiTemporarilySetAsAllyForTeam = 'M28TempSetAsAlly' --against brain, e.g. a civ
 refiRoughTotalUnitsInGame = 0 --Very rough count of units in game, so can use more optimised code if this gets high
 
 function GetNearestEnemyBrain(aiBrain)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetNearestEnemyBrain'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -639,6 +640,12 @@ end
 
 function Initialisation(aiBrain)
     --Called after 1 tick has passed so all aibrains should hopefully exist now
+    --v24 - delay as want to wait until onbeginsession has started for navmesh to generate properly
+    while not(bBeginSessionTriggered) and GetGameTimeSeconds() <= 4 do
+        WaitTicks(1)
+    end
+    WaitTicks(1) --make sure brain setup will have run
+    LOG('About to proceed with initialisation, aiBrain='..aiBrain.Nickname..'; bBeginSessionTriggered='..tostring(bBeginSessionTriggered or false)..'; Navmesh generated='..tostring(import("/lua/sim/navgenerator.lua").IsGenerated()))
     ForkThread(SetupNoRushDetails, aiBrain)
     ForkThread(M28UnitInfo.CalculateBlueprintThreatsByType) --Records air and ground threat values for every blueprint
     ForkThread(M28Team.RecordAllPlayers, aiBrain)
