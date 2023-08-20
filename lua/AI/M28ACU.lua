@@ -415,7 +415,8 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
 
                 end
                 if bGoSecondAir then
-                    if aiBrain[M28Economy.refiNetEnergyBaseIncome] >= 8 and aiBrain:GetEconomyStored('ENERGY') >= 2000 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Going second air, net energy base income='..aiBrain[M28Economy.refiNetEnergyBaseIncome]..'; Energy stored='..aiBrain:GetEconomyStored('ENERGY')) end
+                    if aiBrain[M28Economy.refiNetEnergyBaseIncome] >= 4.5 and aiBrain:GetEconomyStored('ENERGY') >= 1800 then
                         iMinEnergyPerTickWanted = 20 * math.min(iResourceMod, aiBrain[M28Economy.refiBrainBuildRateMultiplier]) --Can get away with 4 pgens in some casese, even if engineers have managed to get some tree reclaim
                     else
                         iMinEnergyPerTickWanted = 22 * math.min(iResourceMod, aiBrain[M28Economy.refiBrainBuildRateMultiplier]) --ACU gives 2E, want equiv of 10 PGens, assuming build rate is same as resource rate
