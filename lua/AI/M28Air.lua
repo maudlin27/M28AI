@@ -4776,7 +4776,7 @@ function ManageTransports(iTeam, iAirSubteam)
                         elseif iDistToTarget <= 250 then
                             local tTargetLZOrWZData, tTargetLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(tLastOrder[M28Orders.subreftOrderPosition], true, iTeam)
                             local iCargoSize = table.getn(tCargo)
-                            if tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > iCargoSize * 30 then
+                            if tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] - tTargetLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] < iCargoSize * 30 then
                                 bUnloadAtRally = false
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': iCargoSize='..iCargoSize..'; Enemy combat threat='..tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; bUnloadAtRally='..tostring(bUnloadAtRally)) end

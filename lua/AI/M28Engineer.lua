@@ -2719,6 +2719,47 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
     return iCategoryWanted, iFactionRequired
 end
 
+function MonitorToReissueReclaimOrder(oEngineer, oNearestReclaimableEnemy, iDistanceToReissue, iTicksToCheck)
+    --Call vai fork thread, intended so e.g. when engineer is approaching an enemy to reclaim, it will start reclaiming hte moment the enemy gets within reclaim range
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'MonitorToReissueReclaimOrder'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iRemainingTicksToWait = iTicksToCheck
+    local iCurDist
+    local iEngineerActionRequired = oEngineer[refiAssignedAction]
+    local iEngineerPriorityRequired = oEngineer[refiAssignedActionPriority]
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to reclaim enemy '..oNearestReclaimableEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestReclaimableEnemy)..'; iDistanceToReissue='..iDistanceToReissue..'; iTicksToCheck='..iTicksToCheck..'; Time='..GetGameTimeSeconds()) end
+    while iRemainingTicksToWait > 0 do
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitTicks(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+        iRemainingTicksToWait = iRemainingTicksToWait - 1
+        --Abort if either unit is invalid, engineer is already reclaiming, or engineer appears to have orders changed (vai cahnge in priority or action)
+        if bDebugMessages == true then
+            LOG(sFunctionRef..': iRemainingTicksToWait='..iRemainingTicksToWait..'; TIme='..GetGameTimeSeconds()..'; Is engi valid='..tostring(M28UnitInfo.IsUnitValid(oEngineer))..'; Is nearest reclaimable enemy valid='..tostring(M28UnitInfo.IsUnitValid(oNearestReclaimableEnemy))..'; Engi action='..(oEngineer[refiAssignedAction] or 'nil')..'; Engi priority='..(oEngineer[refiAssignedActionPriority] or 'nil'))
+            if M28UnitInfo.IsUnitValid(oEngineer) and M28UnitInfo.IsUnitValid(oNearestReclaimableEnemy) then
+                LOG(sFunctionRef..': Dist from engi to nearest enemy='..M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), oNearestReclaimableEnemy:GetPosition())..'; Engi state='..M28UnitInfo.GetUnitState(oEngineer))
+            end
+        end
+        if M28UnitInfo.IsUnitValid(oEngineer) and M28UnitInfo.IsUnitValid(oNearestReclaimableEnemy) and not(oEngineer:IsUnitState('Reclaiming')) and oEngineer[refiAssignedAction] == iEngineerActionRequired and oEngineer[refiAssignedActionPriority] == iEngineerPriorityRequired then
+            iCurDist = M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), oNearestReclaimableEnemy:GetPosition())
+            if iCurDist <= iDistanceToReissue then
+                if bDebugMessages == true then LOG(sFunctionRef..': Engineer is close to target so will issue a reclaim order') end
+                M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaimableEnemy, false, 'ReclByT', false)
+                break --Dont want to risk clearing engineer every tick and never reclaiming
+            end
+        else
+            break
+        end
+
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+
+end
+
 function CheckForNearbyEnemies()  end --This is incorporated into available engineers by tech - added to make it easier to locate logic
 function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZTeamData, iTeam, iPlateauOrPond, iLandZone, bIsWaterZone)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -2861,6 +2902,13 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                     TrackEngineerAction(oEngineer, refActionReclaimEnemyUnit, false, 1)
                                     M28Orders.IssueTrackedReclaim(oEngineer, oNearestReclaimableEnemy, false, 'RecE')
                                     if bDebugMessages == true then LOG(sFunctionRef..': Told engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' to reclaim enemy unit '..oNearestReclaimableEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestReclaimableEnemy)..'; Is getguards empty='..tostring(M28Utilities.IsTableEmpty(oNearestReclaimableEnemy:GetGuards()))..'; Unit:IsBeingBuilt()='..tostring(oNearestReclaimableEnemy:IsBeingBuilt())) end
+                                    --Monitor every tick for the next 9 ticks to see if enemy gets in-range
+                                    local oEnemyBP = oNearestReclaimableEnemy:GetBlueprint()
+                                    local iDistanceUntilInRange = iEngiBuildDistance + math.min(oEnemyBP.Physics.SkirtSizeX, oEnemyBP.Physics.SkirtSizeZ) * 0.5
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if we want to monitor reclaim distance, iDistanceUntilInRange='..iDistanceUntilInRange..'; iNearestReclaimableEnemy='..iNearestReclaimableEnemy..'; Speed of us and them='..(oEnemyBP.Physics.MaxSpeed or 0) + oEngineer:GetBlueprint().Physics.MaxSpeed) end
+                                    if iNearestReclaimableEnemy > iDistanceUntilInRange and iNearestReclaimableEnemy - iDistanceUntilInRange <= (oEnemyBP.Physics.MaxSpeed or 0) + oEngineer:GetBlueprint().Physics.MaxSpeed + 0.2 then
+                                        ForkThread(MonitorToReissueReclaimOrder, oEngineer, oNearestReclaimableEnemy, iDistanceUntilInRange, 9)
+                                    end
                                 end
                             else
                                 --Enemy not close enough to reclaim, do we want to run?

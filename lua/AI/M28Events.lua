@@ -142,7 +142,6 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                             elseif EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oKillerUnit.UnitId) and not(type) and not(overkillRatio) and not(oKillerBrain.M28Team == oUnitKilled:GetAIBrain().M28Team) then
                                 --We have reclaimed an enemy - if there arent many enemies in this zone then update the zone; also check for enemy targets within build range to reclaim
                                 local tNearbyReclaimableEnemies = oKillerBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryReclaimable, oKillerUnit:GetPosition(), oKillerUnit:GetBlueprint().Economy.MaxBuildDistance, 'Enemy')
-                                bDebugMessages = true
                                 if bDebugMessages == true then LOG(sFunctionRef..': Is table of nearby reclaimable enemies empty='..tostring( M28Utilities.IsTableEmpty(tNearbyReclaimableEnemies))) end
                                 local bNotGivenReclaimOrder = true
                                 if M28Utilities.IsTableEmpty(tNearbyReclaimableEnemies) == false then
@@ -1341,7 +1340,7 @@ function OnReclaimFinished(oEngineer, oReclaim)
         end
 
         --M28 specific
-        if oEngineer:GetAIBrain().M28AI then
+        if M28UnitInfo.IsUnitValid(oEngineer) and oEngineer:GetAIBrain().M28AI then
             --Was the engineer reclaiming an area? if so check if still nearby reclaim
             if oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionReclaimArea then
                 --Only keep reclaiming if we dont have lots of mass
@@ -1536,15 +1535,13 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                     M28Building.RecordTMLAndTMDForUnitJustBuilt(oUnit)
                 end
 
-                --M28 team specific - e.g. radar and sonar that are constructed
+                --M28 team specific for constructed units - e.g. radar and sonar that are constructed
                 if (M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.subrefiActiveM28BrainCount] or 0) > 0 and oUnit:GetFractionComplete() == 1 then
                     local iTeam = oUnit:GetAIBrain().M28Team
                     if EntityCategoryContains(M28UnitInfo.refCategoryRadar, oUnit.UnitId) then
                         M28Land.UpdateZoneIntelForRadar(oUnit)
                     elseif EntityCategoryContains(M28UnitInfo.refCategorySonar, oUnit.UnitId) then
                         M28Navy.UpdateZoneIntelForSonar(oUnit)
-                    elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUnit.UnitId) then
-                        oUnit[M28Factory.refiTotalBuildCount] = 0
                     end
                 end
             end
@@ -1581,6 +1578,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                     M28UnitInfo.SetUnitTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityBattleShip, true)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway, oUnit.UnitId) then
                     --If have been gifted factory or created via cheat then want to start building something
+                    oUnit[M28Factory.refiTotalBuildCount] = 0
                     if oUnit:GetFractionComplete() >= 1 then
                         ForkThread(M28Factory.DecideAndBuildUnitForFactory, oUnit:GetAIBrain(), oUnit)
                     end
