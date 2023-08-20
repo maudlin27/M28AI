@@ -1594,25 +1594,24 @@ function ShieldUnitsInLandZone(tTeamTargetLZData, tShieldsToAssign, bAssignAllSh
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function MoveToShieldTarget(oShield, tEnemyBase, tOptionalShieldLZTeamData)
+function MoveToShieldTarget(oShield, tEnemyBase, tOptionalShieldLZTeamData, tOptionalEnemyDFUnits, tOptionalRallyPoint)
     --If tOptionalShieldLZTeamData is specified, then will check if safe to try and shield the unit
 
     local bMoveToUnit = true
-    if tOptionalShieldLZTeamData and (tOptionalShieldLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) >= 400 then
+    if tOptionalShieldLZTeamData and tOptionalEnemyDFUnits and tOptionalRallyPoint and (tOptionalShieldLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) >= 180 then
         local iDistToShieldTarget = M28Utilities.GetDistanceBetweenPositions(oShield[refoMobileShieldTarget]:GetPosition(), oShield:GetPosition())
         if iDistToShieldTarget >= 50 then
             local tShieldTargetLZData, tShieldTargetLZTeamData = M28Map.GetLandOrWaterZoneData(oShield[refoMobileShieldTarget]:GetPosition(), true, oShield:GetAIBrain().M28Team)
             if not(tShieldTargetLZTeamData ==  tOptionalShieldLZTeamData) then
-                if M28Utilities.GetDistanceBetweenPositions(oShield[refoMobileShieldTarget]:GetPosition(), tOptionalShieldLZTeamData[M28Map.reftClosestFriendlyBase]) >= M28Utilities.GetDistanceBetweenPositions(oShield:GetPosition(), tOptionalShieldLZTeamData[M28Map.reftClosestFriendlyBase]) then
+                if M28Utilities.GetDistanceBetweenPositions(oShield[refoMobileShieldTarget]:GetPosition(), tOptionalRallyPoint) >= M28Utilities.GetDistanceBetweenPositions(oShield:GetPosition(), tOptionalRallyPoint) then
                     --Are we almost in range of an enemy unit in this zone?
-                    local tEnemyDFUnits = EntityCategoryFilterDown(categories.DIRECTFIRE, tOptionalShieldLZTeamData[M28Map.subrefTEnemyUnits])
-                    if M28Utilities.IsTableEmpty(tEnemyDFUnits) == false then
-                        if M28Conditions.CloseToEnemyUnit(oShield:GetPosition(), tEnemyDFUnits, 5, oShield:GetAIBrain().M28Team, true) then
+                    if M28Utilities.IsTableEmpty(tOptionalEnemyDFUnits) == false then
+                        if M28Conditions.CloseToEnemyUnit(oShield:GetPosition(), tOptionalEnemyDFUnits, 5, oShield:GetAIBrain().M28Team, true) then
                             --LOG('MoveToShieldTarget: Shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..' is in a dangerous zone and target '..oShield[refoMobileShieldTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield[refoMobileShieldTarget])..' is far away so will retreat; Does shield have active micro='..tostring(oShield[M28UnitInfo.refbSpecialMicroActive] or false)..'; Closest friendly base='..repru(tOptionalShieldLZTeamData[M28Map.reftClosestFriendlyBase]))
                             --M28Utilities.DrawLocation(oShield:GetPosition())
                             bMoveToUnit = false
                             --IssueTrackedMove(oUnit, tOrderPosition,                       iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc,                                                                                       bOverrideMicroOrder)
-                            M28Orders.IssueTrackedMove(oShield, tOptionalShieldLZTeamData[M28Map.reftClosestFriendlyBase], 5, false,                'ShBl'..oShield[refoMobileShieldTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield[refoMobileShieldTarget]), false)
+                            M28Orders.IssueTrackedMove(oShield, tOptionalRallyPoint, 5, false,                'ShBl'..oShield[refoMobileShieldTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield[refoMobileShieldTarget]), false)
                         end
                     end
 
@@ -1685,6 +1684,12 @@ function ManageMobileShieldsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         end
         tEnemyBase = M28Map.PlayerStartPoints[oClosestBrain:GetArmyIndex()]
     end
+    local tEnemyDFUnits
+    local tRallyPoint
+    if (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) >= 200 then
+        tEnemyDFUnits = EntityCategoryFilterDown(categories.DIRECTFIRE, tLZTeamData[M28Map.subrefTEnemyUnits])
+        tRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 1, false)
+    end
 
     for iUnit, oUnit in tMobileShields do
         iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, false)
@@ -1695,7 +1700,7 @@ function ManageMobileShieldsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         elseif oUnit[refoMobileShieldTarget] and M28UnitInfo.IsUnitValid(oUnit[refoMobileShieldTarget]) then
             --make sure we are behind the target
             if bDebugMessages == true then LOG(sFunctionRef..': Will try and get shield '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to move behind the shield target '..oUnit[refoMobileShieldTarget].UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit[refoMobileShieldTarget])..'; Unit position='..repru(oUnit:GetPosition())..'; Target last order position='..repru(oUnit[refoMobileShieldTarget][M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition])) end
-            MoveToShieldTarget(oUnit, tEnemyBase, tLZTeamData)
+            MoveToShieldTarget(oUnit, tEnemyBase, tLZTeamData, tEnemyDFUnits, tRallyPoint)
         else
             table.insert(tShieldsToAssign, oUnit)
         end
@@ -3161,9 +3166,15 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 if bDebugMessages == true then LOG(sFunctionRef..': Dont outrange enemy, bAttackWithEverything='..tostring(bAttackWithEverything)..'; Is table of ACUs in the LZ empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefAlliedACU]))) end
                 local bUpdateNearestUnit = false
                 local bCheckIfNearestUnitVisible = false
-                if M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToMidpoint:GetPosition(), oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) >= 10 then bCheckIfNearestUnitVisible = true end
+                if M28Utilities.GetDistanceBetweenPositions(oNearestEnemyToMidpoint:GetPosition(), oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) >= 10 then
+                    bCheckIfNearestUnitVisible = true
+                    --If we have a large threat in this zone then assume we will have an idea where the unit moved to
+                    if tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] >= 5000 then oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam] = {oNearestEnemyToMidpoint:GetPosition()[1], oNearestEnemyToMidpoint:GetPosition()[2], oNearestEnemyToMidpoint:GetPosition()[3]} end
+                end
 
                 if bAttackWithEverything then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will attack with everything, oNearestEnemyToMidpoint='..oNearestEnemyToMidpoint.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyToMidpoint)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oNearestEnemyToMidpoint)..'; oNearestEnemyToMidpoint position='..repru(oNearestEnemyToMidpoint:GetPosition())..'; Last known position='..repru(oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]))) end
+
                     for iUnit, oUnit in tAvailableCombatUnits do
                         if bDebugMessages == true then LOG(sFunctionRef..': Attacking with everything, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                         if oUnit[M28UnitInfo.refiIndirectRange] > 0 then

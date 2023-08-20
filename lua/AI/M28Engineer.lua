@@ -4512,6 +4512,10 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
         local tEngineersOfTechWanted
         if toAvailableEngineersByTech and iTotalBuildPowerWanted > 0 then tEngineersOfTechWanted = GetEngineersOfTechWanted(iMinTechWanted, toAvailableEngineersByTech) end
         if M28Utilities.IsTableEmpty(toAvailableEngineersByTech) and iTotalBuildPowerWanted > 0 and M28Utilities.IsTableEmpty(toAssignedEngineers) == false then
+            local bConsiderRetreatingEngineers = false
+            if iActionToAssign == refActionBuildEmergencyPD and (tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or (tLZOrWZTeamData[M28Map.subrefLZCoreExpansion] and (tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) < (tLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0))) then
+                bConsiderRetreatingEngineers = true
+            end
             --Do we have already assigned engineers with a lower priority that we could use?
             local iEngiCategoryWanted
             if iMinTechWanted <= 1 then iEngiCategoryWanted = M28UnitInfo.refCategoryEngineer
@@ -4530,6 +4534,9 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                             iHighestPriorityEngi = oEngi[refiAssignedActionPriority]
                             oHighestPriorityEngi = oEngi
                         end
+                    elseif bConsiderRetreatingEngineers and not(oHighestPriorityEngi) and oEngi[refiAssignedActionPriority] < iHighestPriorityEngi and oEngi[refiAssignedAction] == refActionRunToLandZone and not(oEngi:IsUnitState('Reclaiming')) and not(oEngi:IsUnitState('Attached')) and not(oEngi:IsUnitState('Capturing')) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will make use of engi running away to build emergency PD') end
+                        oHighestPriorityEngi = oEngi
                     end
                 end
                 if oHighestPriorityEngi then
@@ -7776,7 +7783,8 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         --Does enemy have any units that can outrange a PD? If so then dont bother building
         local iHighestNearbyEnemyRange = math.max((tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0), tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] or 0)
         local bConsiderT2PD = false
-        if iHighestNearbyEnemyRange < 50 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 6 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and tLZTeamData[M28Map.subrefMexCountByTech][3] + tLZTeamData[M28Map.subrefMexCountByTech][2] >= 1 and (tLZData[M28Map.subrefLZMexCount] >= 3 or tLZTeamData[M28Map.subrefMexCountByTech][2] >= 2 or tLZTeamData[M28Map.subrefMexCountByTech][3] >= 1) then bConsiderT2PD = true end
+        if bDebugMessages == true then LOG(sFunctionRef..': iHighestNearbyEnemyRange='..iHighestNearbyEnemyRange..'; Highest friendly land fac tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Active brain count='..M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]..'; Mex count by tehc='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; LZ s value='..tLZTeamData[M28Map.subrefLZSValue]..'; Mex count='..tLZData[M28Map.subrefLZMexCount]) end
+        if iHighestNearbyEnemyRange < 50 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 6 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (tLZTeamData[M28Map.subrefMexCountByTech][3] + tLZTeamData[M28Map.subrefMexCountByTech][2] >= 1 or (tLZData[M28Map.subrefLZMexCount] >= 4 and tLZTeamData[M28Map.subrefLZSValue] >= 500)) and (tLZData[M28Map.subrefLZMexCount] >= 3 or tLZTeamData[M28Map.subrefMexCountByTech][2] >= 2 or tLZTeamData[M28Map.subrefMexCountByTech][3] >= 1) then bConsiderT2PD = true end
         if iHighestNearbyEnemyRange <= 25 or bConsiderT2PD then
             local iEnemyCombatThreat = (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
             if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
@@ -7814,6 +7822,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             end
         end
     end
+    bDebugMessages = false
 
     iCurPriority = iCurPriority + 1
     if iExistingLandFactory < iFactoriesWanted then
@@ -8154,7 +8163,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
 
     iCurPriority = iCurPriority + 1
     --(ANY CHANGES TO BELOW - CONSIDER REPLICATING FOR BOTH CORE AND NONCORE BUILDERS) Adjacent LZ that wants engineers and has unbuilt mexes (only chekc if we have available engineers)
-        --(as of v24 decided to go with differences for the minior LZ (which uses a simplified appraoch) vs core base highest priority for adj LZs
+    --(as of v24 decided to go with differences for the minior LZ (which uses a simplified appraoch) vs core base highest priority for adj LZs
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we have available engineers to send to another LZ. GetHighestTechEngiAvailable='..GetHighestTechEngiAvailable(toAvailableEngineersByTech)) end
     iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
     if iHighestTechEngiAvailable > 0 then

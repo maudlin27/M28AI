@@ -6687,7 +6687,6 @@ function RecordBrainStartPoint(oBrain)
     if bDebugMessages == true then LOG(sFunctionRef..': Considering start position recorded for brain '..(oBrain.Nickname or 'nil')..' at time='..GetGameTimeSeconds()) end
     --Adjust start point if it isn't on a valid plateau (e.g. means we should work on some coop maps)
     if not(NavUtils.IsGenerated()) then
-        bDebugMessages = true
         if bDebugMessages == true then LOG('Considering whether to generate map markers for oBrain='..oBrain.Nickname..'; GameTime='..GetGameTimeSeconds()) end
         while (not(M28Overseer.bBeginSessionTriggered) and GetGameTimeSeconds() < 4) do
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

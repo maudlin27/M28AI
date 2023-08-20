@@ -1437,7 +1437,7 @@ function GiveOverchargeOrderIfRelevant(tLZData, tLZTeamData, oACU, iPlateauOrZer
 
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; DO we have enemies in this or adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ])..'; Can we use overcharge='..tostring(M28Conditions.CanUnitUseOvercharge(oACU:GetAIBrain(), oACU))..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')) end
 
-    if iPlateauOrZero > 0 and ((tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) and M28Conditions.CanUnitUseOvercharge(oACU:GetAIBrain(), oACU)) then
+    if iPlateauOrZero > 0 and ((tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) and M28Conditions.CanUnitUseOvercharge(oACU:GetAIBrain(), oACU, tLZTeamData)) then
         local bDoesACUWantToRun = DoesACUWantToRun(iPlateauOrZero, iLandOrWaterZone, tLZData, tLZTeamData, oACU)
         local oUnitToOvercharge = M28Micro.GetOverchargeTarget(tLZData, oACU:GetAIBrain(), oACU, bDoesACUWantToRun)
         if bDebugMessages == true then LOG(sFunctionRef..': Do we have a valid OC target='..tostring(M28UnitInfo.IsUnitValid(oUnitToOvercharge))) end
@@ -2215,6 +2215,7 @@ function GetACUOrder(aiBrain, oACU)
     end
 
 
+
     --local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oACU:GetPosition(), true, oACU)
     --local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
     --local tLZTeamData = tLZData[M28Map.subrefLZTeamData][aiBrain.M28Team]
@@ -2224,7 +2225,7 @@ function GetACUOrder(aiBrain, oACU)
     M28Orders.UpdateRecordedOrders(oACU)
 
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code for brain '..oACU:GetAIBrain().Nickname..', time='..GetGameTimeSeconds()..'; oACU[refbDoingInitialBuildOrder]='..tostring(oACU[refbDoingInitialBuildOrder])..'; ACU unit state='..M28UnitInfo.GetUnitState(oACU)..'; iPlateau='..(iPlateauOrZero or 'nil')..'; iLandZone='..(iLandOrWaterZone or 'nil')..'; Can ACU use overcharge='..tostring(M28Conditions.CanUnitUseOvercharge(oACU:GetAIBrain(), oACU))..'; ACU position='..repru(oACU:GetPosition())..'; ACU Orders (before updates)='..reprs(oACU[M28Orders.reftiLastOrders])..'; Is special micro active='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive] or false)..'; Time to stop micro='..(oACU[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')..'; Brian nickname='..aiBrain.Nickname..'; reftSpecialObjectiveMoveLocation='..repru(oACU[reftSpecialObjectiveMoveLocation])) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code for brain '..oACU:GetAIBrain().Nickname..', time='..GetGameTimeSeconds()..'; oACU[refbDoingInitialBuildOrder]='..tostring(oACU[refbDoingInitialBuildOrder])..'; ACU unit state='..M28UnitInfo.GetUnitState(oACU)..'; iPlateau='..(iPlateauOrZero or 'nil')..'; iLandZone='..(iLandOrWaterZone or 'nil')..'; Can ACU use overcharge='..tostring(M28Conditions.CanUnitUseOvercharge(oACU:GetAIBrain(), oACU))..'; ACU position='..repru(oACU:GetPosition())..'; ACU Orders (before updates)='..reprs(oACU[M28Orders.reftiLastOrders])..'; Is special micro active='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive] or false)..'; Time to stop micro='..(oACU[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')..'; Brian nickname='..aiBrain.Nickname..'; reftSpecialObjectiveMoveLocation='..repru(oACU[reftSpecialObjectiveMoveLocation])..'; Enemy combat threat='..(tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; Is table of unbuilt mexes empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefMexUnbuiltLocations]))) end
 
     --Is the ACU busy with something?
     if oACU:IsUnitState('Upgrading') then
@@ -2410,6 +2411,7 @@ function GetACUOrder(aiBrain, oACU)
                 elseif DoesACUWantToRun(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) and not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint]) <= 10) then
                     oACU[refiTimeLastWantedToRun] = GetGameTimeSeconds()
                     --Retreat to nearest rally (unless we arent in a land zone in which case head towards core base)
+                    local bConsiderMexesAndReclaim = false
 
                     local tRallyPoint
                     if iLandOrWaterZone > 0 and iPlateauOrZero > 0 then
@@ -2427,11 +2429,21 @@ function GetACUOrder(aiBrain, oACU)
                                 if iRallyThreat <= 500 and (not(tRallyLZTeamData[M28Map.subrefLZCoreExpansion]) or tRallyLZTeamData[M28Map.subrefLZSValue] < 220) then --Only consider core expansion if it has significant structure value, e.g. similar to having 1 land factory
                                     if bDebugMessages == true then LOG(sFunctionRef..': Dist from rally to closest base='..M28Utilities.GetDistanceBetweenPositions(tRallyLZTeamData[M28Map.reftClosestFriendlyBase], tRallyLZData[M28Map.subrefMidpoint])..'; Dist from ACU to closest base='..M28Utilities.GetDistanceBetweenPositions(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], oACU:GetPosition())) end
                                     if M28Utilities.GetDistanceBetweenPositions(tRallyLZTeamData[M28Map.reftClosestFriendlyBase], tRallyLZData[M28Map.subrefMidpoint]) > M28Utilities.GetDistanceBetweenPositions(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], oACU:GetPosition()) then
+                                        bConsiderMexesAndReclaim = false
                                         --Is our closest friendly base in the same plateau?
                                         local iClosestBasePlateauOrZero, iClosestBaseLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tLZOrWZTeamData[M28Map.reftClosestFriendlyBase])
                                         if iClosestBasePlateauOrZero == iPlateauOrZero then
                                             tRallyPoint = {tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][1], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][2], tLZOrWZTeamData[M28Map.reftClosestFriendlyBase][3]}
                                             if bDebugMessages == true then LOG(sFunctionRef..': Changed rally point to be the closest friendly base') end
+                                        end
+                                    end
+                                else
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if rally LZ is same as ACU LZ, are they equal='..tostring(tRallyLZData == tLZOrWZData)) end
+                                    if tRallyLZData == tLZOrWZData then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': ACU health%='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; iRallyThreat='..iRallyThreat) end
+                                        if M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.5 and iRallyThreat < 100 then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Want to consider mexes and reclaim') end
+                                            bConsiderMexesAndReclaim= true
                                         end
                                     end
                                 end
@@ -2445,8 +2457,12 @@ function GetACUOrder(aiBrain, oACU)
 
                     else tRallyPoint = M28Map.PlayerStartPoints[oACU:GetAIBrain():GetArmyIndex()]
                     end
-                    M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'Run')
-                    if bDebugMessages == true then LOG(sFunctionRef..': Telling ACU to run; ACU orders after this='..reprs(oACU[M28Orders.reftiLastOrders])..'; Is micro active='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive])..'; Nearest land rally point='..repru(M28Land.GetNearestLandRallyPoint(tLZOrWZData, iTeam, iPlateauOrZero, iLandOrWaterZone, 2, true))..'; Rally point='..repru(tRallyPoint)..'; Nearest friendly base='..repru(M28Map.PlayerStartPoints[oACU:GetAIBrain():GetArmyIndex()])..'; Dist from rally point to friendly base='..M28Utilities.GetDistanceBetweenPositions(tRallyPoint, M28Map.PlayerStartPoints[oACU:GetAIBrain():GetArmyIndex()])) end
+                    --If we are already in the zone for the rally point and it has unbuilt mexes or significant reclaim then want to consider getting them
+                    if not(bConsiderMexesAndReclaim) or (not(ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, 15)) and not(ConsiderNearbyReclaim(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU, M28UnitInfo.GetUnitHealthPercent(oACU) < 0.75, 20))) then
+                        M28Orders.IssueTrackedMove(oACU, tRallyPoint, 5, false, 'Run')
+                        if bDebugMessages == true then LOG(sFunctionRef..': Telling ACU to run; ACU orders after this='..reprs(oACU[M28Orders.reftiLastOrders])..'; Is micro active='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive])..'; Nearest land rally point='..repru(M28Land.GetNearestLandRallyPoint(tLZOrWZData, iTeam, iPlateauOrZero, iLandOrWaterZone, 2, true))..'; Rally point='..repru(tRallyPoint)..'; Nearest friendly base='..repru(M28Map.PlayerStartPoints[oACU:GetAIBrain():GetArmyIndex()])..'; Dist from rally point to friendly base='..M28Utilities.GetDistanceBetweenPositions(tRallyPoint, M28Map.PlayerStartPoints[oACU:GetAIBrain():GetArmyIndex()])) end
+                    elseif bDebugMessages == true then LOG(sFunctionRef..': Are either building mex or getting reclaim in this zone')
+                    end
                 else
                     --Nearby enemy naval units
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering if nearby naval units that should send ACU to try and fight; M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbNoAvailableTorpsForEnemies] ='..tostring(M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refbNoAvailableTorpsForEnemies])..'; ACU health='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; Is table of adjacent WZs empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefAdjacentWaterZones]))) end

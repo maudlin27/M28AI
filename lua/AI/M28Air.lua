@@ -3615,6 +3615,32 @@ function ManageGunships(iTeam, iAirSubteam)
                 if bDebugMessages == true then LOG(sFunctionRef..': Finished considering if have appraoching land experimental, oNearestExperimental='..(oNearestExperimental.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestExperimental) or 'nil')..'; iClosestDist='..iClosestDist..'; Is table of enemy targets empty='..tostring(M28Utilities.IsTableEmpty(tEnemyGroundTargets))) end
             end
             if M28Utilities.IsTableEmpty(tEnemyGroundTargets) then
+                --Protect ACU if down to last ACU on the team and ACU may be in trouble
+                if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1 then
+                    local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
+                    local tACUs = aiBrain:GetListOfUnits(categories.COMMAND, false, true)
+                    if M28Utilities.IsTableEmpty(tACUs) == false then
+                        for iACU, oACU in tACUs do
+                            local iCurACUHealthPercent = M28UnitInfo.GetUnitHealthPercent(oACU)
+                            if iCurACUHealthPercent < 0.95 then
+                                local iCurACUPlateauOrZero, iCurACUZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
+                                if (iCurACUPlateauOrZero or 0) > 0 then
+                                    local tACULZData = M28Map.tAllPlateaus[iCurACUPlateauOrZero][M28Map.subrefPlateauLandZones][iCurACUZone]
+                                    local tACULZTeamData = tACULZData[M28Map.subrefLZTeamData][iTeam]
+                                    if not(tACULZTeamData[M28Map.subrefLZbCoreBase]) and tACULZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 300 then
+                                        if (iCurACUHealthPercent <= 0.7 or tACULZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 1000) and (iCurACUHealthPercent <= 0.5 or tACULZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] < tACULZTeamData[M28Map.subrefTThreatEnemyCombatTotal]) then
+                                            --Wnat to defend ACU
+                                            AddEnemyGroundUnitsToTargetsSubjectToAA(iCurACUPlateauOrZero, iCurACUZone, 0.5 + iCurACUHealthPercent, false, false)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Want to defend ACU from enemy units') end
+
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+
                 --Check if want gunships to run to rally point if nearby enemy airAA (if give no targets for gunships then they will go to rally point or air staging), or if we have very weak AirAA
                 if bDebugMessages == true then LOG(sFunctionRef..': About to check if shoudl run due to high AA near where gunships are, Is there AA near gunship P'..iGunshipPlateauOrZero..'; Z'..iGunshipLandOrWaterZone..'; iMaxEnemyAirAA='..iMaxEnemyAirAA..'; iOurGunshipThreat='..iOurGunshipThreat..'; Is there too much AA='..tostring(IsThereAANearLandOrWaterZone(iTeam, iGunshipPlateauOrZero, iGunshipLandOrWaterZone, (iGunshipPlateauOrZero == 0), iOurGunshipThreat / 3, iMaxEnemyAirAA))) end
                 --IsThereAANearLandOrWaterZone(iTeam, iPlateau,             iLandOrWaterZone,       bIsWaterZone,                               iOptionalGroundThreatThreshold, iOptionalAirAAThreatThreshold, iOptionalMaxDistToEdgeOfAdjacentZone, tOptionalStartPointForEdgeOfAdacentZone)
