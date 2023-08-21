@@ -409,11 +409,17 @@ function CanSeeUnit(aiBrain, oUnit, bReturnFalseIfOnlySeeBlip)
 end
 
 function SafeToUpgradeUnit(oUnit)
-    --Returns true if safe to upgrade oUnit:
+    --Returns true if safe to upgrade oUnit
+
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'SafeToUpgradeUnit'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
     local bSafeZone = false
     if (iLandZone or 'nil') > 0 then
-        local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team]
+        local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+        local tLZTeamData = tLZData[M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team]
         if not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) then
             bSafeZone = true
         elseif tLZTeamData[M28Map.subrefLZbCoreBase] and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < 150 then
@@ -421,13 +427,70 @@ function SafeToUpgradeUnit(oUnit)
         end
         --ACU specific:
         if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and tLZTeamData[M28Map.reftClosestFriendlyBase] then
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering upgrading ACU, iLandZone='..iLandZone..'; bSafeZone before extra checks='..tostring(bSafeZone or false)..'; tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or false)..'; ACU health='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; Is table of nearby friendly T2 PD empty='..tostring(M28Utilities.IsTableEmpty(oUnit:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryT2PlusPD, oUnit:GetPosition(), 15, 'Ally')))) end
             -- dont treat as safe if low health unless close to a base
-            if bSafeZone and M28UnitInfo.GetUnitHealthPercent(oUnit) < 0.5 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]) > 10 then
-                bSafeZone = false
+            local iDistToClosestFriendlyBase = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase])
+            if bSafeZone and iDistToClosestFriendlyBase > 10 then
+                if M28UnitInfo.GetUnitHealthPercent(oUnit) < 0.5 then
+                    bSafeZone = false
+                elseif iDistToClosestFriendlyBase >= 50 then
+                    --ACU out of base, check slightly further afield than just adjacent zone for indirect fire enemies that coudl cause us problems
+                    local iMaxSearchRange = math.min(iDistToClosestFriendlyBase*1.5, 150)
+                    local iOtherPlateauOrZero
+                    local iTeam = oUnit:GetAIBrain().M28Team
+                    local iEnemyRangeThreshold = oUnit[M28UnitInfo.refiDFRange]
+                    local bEnemyHasLongerRangedUnits = false
+                    for iEntry, tSubtable in tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+                        if tSubtable[M28Map.subrefiDistance] > iMaxSearchRange then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Are outside the max range so wil stop searching') end
+                            break
+                        end
+                        --Add to potential zone table
+                        local tAltLZOrWZData
+                        local tAltLZOrWZTeamData
+                        if tSubtable[M28Map.subrefbIsWaterZone] then
+                            iOtherPlateauOrZero = 0
+
+                            tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[tSubtable[M28Map.subrefiLandOrWaterZoneRef]]][M28Map.subrefPondWaterZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
+                            tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                            if (tAltLZOrWZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0) > iEnemyRangeThreshold then bEnemyHasLongerRangedUnits = true break end
+                        else
+                            iOtherPlateauOrZero = tSubtable[M28Map.subrefiPlateauOrPond]
+                            tAltLZOrWZData = M28Map.tAllPlateaus[iOtherPlateauOrZero][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
+                            tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering other land zone '..tSubtable[M28Map.subrefiLandOrWaterZoneRef]..'; Enemy best mobile DF range='..tAltLZOrWZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange]..'; Enemy best mobile indirect range='..tAltLZOrWZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange]..'; Enemy combat='..tAltLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Ally mobile DF='..tAltLZOrWZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]) end
+                            if tAltLZOrWZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] > iEnemyRangeThreshold or tAltLZOrWZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] > iEnemyRangeThreshold then
+                                if tAltLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > tAltLZOrWZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] * 0.5 then
+                                    bEnemyHasLongerRangedUnits = true break
+                                end
+                            end
+                        end
+                    end
+                    if bEnemyHasLongerRangedUnits then bSafeZone = false end
+                end
             end
             --Treat as safe if are near T2 PD and have at least 40% health
-            if not(bSafeZone) and M28UnitInfo.GetUnitHealthPercent(oUnit) >= 0.4 and M28Utilities.IsTableEmpty(oUnit:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryT2PlusPD, oUnit:GetPosition(), 15, 'Ally')) == false then
-                bSafeZone = true
+            if not(bSafeZone) and M28UnitInfo.GetUnitHealthPercent(oUnit) >= 0.4 then
+                if M28Utilities.IsTableEmpty(oUnit:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryT2PlusPD, oUnit:GetPosition(), 15, 'Ally')) == false then
+                    bSafeZone = true
+                elseif M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange]) == false then
+                    local iTotalLongRangePDThreat = 0
+                    for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyStructureDFByRange] do
+                        if iRange >= 50 then
+                            iTotalLongRangePDThreat = iTotalLongRangePDThreat + iThreat
+                        end
+                    end
+                    --If have decent amount of T2 PD in this zone then even if we arent close to the PD still  consider this safe if we are close to the midpoint which ought to be covered by said PD
+                    if bDebugMessages == true then LOG(sFunctionRef..': iTotalLongRangePDThreat='..iTotalLongRangePDThreat..'; Distance to midpoint='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])) end
+                    if iTotalLongRangePDThreat >= 1500 then
+                        if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= 10 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is table of T2+ PD in longer range empty='..tostring(M28Utilities.IsTableEmpty(oUnit:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryT2PlusPD, oUnit:GetPosition(), 40, 'Ally')))) end
+                            if M28Utilities.IsTableEmpty(oUnit:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryT2PlusPD, oUnit:GetPosition(), 40, 'Ally')) == false then
+                                bSafeZone = true
+                            end
+                        end
+                    end
+                end
             end
         end
 
@@ -488,9 +551,11 @@ function SafeToUpgradeUnit(oUnit)
             end
         end
         if not(bDangerousTML) then
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return true
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return false
 
 end
@@ -959,7 +1024,7 @@ function GetActiveMexUpgrades(tLZTeamData)
     return iActiveMexUpgrades
 end
 
-function CanUnitUseOvercharge(aiBrain, oUnit)
+function CanUnitUseOvercharge(aiBrain, oUnit, tLZTeamDataIfACU)
     --For now checks if enough energy and not underwater and not fired in last 5s; separate function used as may want to expand this with rate of fire check in future
     local sFunctionRef = 'CanUnitUseOvercharge'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -977,7 +1042,7 @@ function CanUnitUseOvercharge(aiBrain, oUnit)
             end
         end
 
-        if aiBrain:GetEconomyStored('ENERGY') >= (iEnergyNeeded or 5000) then bCanUseOC = true end
+        if aiBrain:GetEconomyStored('ENERGY') >= (iEnergyNeeded or 7500) then bCanUseOC = true end
         if bDebugMessages == true then LOG(sFunctionRef..': iEnergyNeeded='..iEnergyNeeded..'; aiBrain:GetEconomyStored='..aiBrain:GetEconomyStored('ENERGY')..'; bCanUseOC='..tostring(bCanUseOC)) end
         if bCanUseOC == true then
             --Check if underwater
@@ -989,6 +1054,22 @@ function CanUnitUseOvercharge(aiBrain, oUnit)
                 if iFiringHeight <= iHeightAtWhichConsideredUnderwater then
                     if bDebugMessages == true then LOG(sFunctionRef..': ACU is underwater; iFiringHeight='..iFiringHeight..'; iHeightAtWhichConsideredUnderwater='..iHeightAtWhichConsideredUnderwater) end
                     bCanUseOC = false
+                end
+            end
+        else
+            --Cant use overcharge due to lack of energy - do we want to flag as such for power stall purposes?
+            local iTeam = aiBrain.M28Team
+            if bDebugMessages == true then LOG(sFunctionRef..': Team gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Active M28 brain count='..M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]..'; Economy stored ratio='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; Mex E storage='..aiBrain[M28Economy.refiMaxEnergyStorage]..'; iEnergyNeeded='..(iEnergyNeeded or 'nil')..'; Is tLZTeamDataIfACU nil='..tostring(tLZTeamDataIfACU == nil)) end
+            if tLZTeamDataIfACU and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 50 + 20 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and aiBrain:GetEconomyStoredRatio('ENERGY') <= 0.9 and aiBrain[M28Economy.refiMaxEnergyStorage] >= (iEnergyNeeded or 7500) and EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
+                --Is ACU in dangerous zone?
+                if tLZTeamDataIfACU[M28Map.subrefLZThreatEnemyMobileDFTotal] >= 400 and (tLZTeamDataIfACU[M28Map.subrefLZThreatEnemyMobileDFTotal] >= 1000 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.75) then
+                    --Do we have dangerous enemies within our combat range that we could be overcharging?
+                    local tNearbyEnemies = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryLandCombat * categories.RECLAIMABLE, oUnit:GetPosition(), oUnit[M28UnitInfo.refiDFRange], 'Enemy')
+                    if M28Utilities.IsTableEmpty(tNearbyEnemies) == false then
+                        --Need to get power asap
+                        M28Team.tTeamData[iTeam][M28Team.refiTimeLastNeededEnergyForOvercharge] = GetGameTimeSeconds()
+                        if bDebugMessages == true then LOG(sFunctionRef..': Flagging we need power asap for overcharge') end
+                    end
                 end
             end
         end

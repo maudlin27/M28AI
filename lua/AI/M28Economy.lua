@@ -1438,6 +1438,14 @@ function ManageEnergyStalls(iTeam)
                 iPercentMod = iPercentMod -0.3
             end
 
+            --Overcharge - pause even if we dont have terrible E income
+            if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastNeededEnergyForOvercharge] or -10) <= 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] < 0.9 then
+                bPauseNotUnpause = true
+                iPercentMod = math.max(0.5, iPercentMod)
+                if bDebugMessages == true then LOG(sFunctionRef..': ACU needs energy so will set percentmod to 50% at time '..GetGameTimeSeconds()) end
+            end
+
+
             if (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 100000 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] > math.min(0.95, (0.8 + iPercentMod)) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] > (0.7 + iPercentMod) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > (1 + iNetMod)) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] > (0.5 + iPercentMod) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > (4 + iNetMod)) or (GetGameTimeSeconds() <= 180 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] >= 0.3 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] > M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] * 1.2)))) then
                 --M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] = false
                 if bDebugMessages == true then

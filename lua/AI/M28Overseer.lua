@@ -40,6 +40,7 @@ bActiveMissionChecker = false --true if are actively checking for mission object
 bPacifistModeActive = false --true if we have set certain zones to never be attacked (e.g. Cybran mission 4)
 bHaveDisabledGunshipWeaponsForPacifism = false --true if we have disabled gunship weapons due to pacifism
 tiPacifistZonesByPlateau = {} --[iPlateau], returns iLandOrWaterZone, for any zone flagged as pacificst
+bBeginSessionTriggered = false
 
 --aiBrain variables
 refiDistanceToNearestEnemyBase = 'M28OverseerDistToNearestEnemyBase'
@@ -639,6 +640,12 @@ end
 
 function Initialisation(aiBrain)
     --Called after 1 tick has passed so all aibrains should hopefully exist now
+    --v24 - delay as want to wait until onbeginsession has started for navmesh to generate properly
+    while not(bBeginSessionTriggered) and GetGameTimeSeconds() <= 4 do
+        WaitTicks(1)
+    end
+    WaitTicks(1) --make sure brain setup will have run
+    LOG('About to proceed with initialisation, aiBrain='..aiBrain.Nickname..'; bBeginSessionTriggered='..tostring(bBeginSessionTriggered or false)..'; Navmesh generated='..tostring(import("/lua/sim/navgenerator.lua").IsGenerated()))
     ForkThread(SetupNoRushDetails, aiBrain)
     ForkThread(M28UnitInfo.CalculateBlueprintThreatsByType) --Records air and ground threat values for every blueprint
     ForkThread(M28Team.RecordAllPlayers, aiBrain)
@@ -729,6 +736,11 @@ function CheckUnitCap(aiBrain)
                     tiCategoryToDestroy[2] = M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND + M28UnitInfo.refCategoryBomber * categories.TECH1
                 end
             end
+        end
+
+        --Restrict T3 land combat units being built if we have experimental level units and are at the lowest level of unit cap
+        if M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] <= 0 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryExperimentalLevel) > 0 and aiBrain:GetCurrentUnits(tiCategoryToDestroy[0]) <= 10 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandCombat * categories.TECH3 - categories.SUBCOMMANDER) >= 20 then
+            tiCategoryToDestroy[0] = tiCategoryToDestroy[0] + M28UnitInfo.refCategoryLandCombat * categories.TECH3 - categories.SUBCOMMANDER
         end
 
 

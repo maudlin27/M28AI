@@ -5999,6 +5999,12 @@ function SetupMap()
     if not(NavUtils.IsGenerated()) then
         --local NavGen = import("/lua/sim/navgenerator.lua")
         --NavGen.Generate()
+        if bDebugMessages == true then LOG('Considering whether to generate map markers for map generation, GameTime='..GetGameTimeSeconds()..'; M28Overseer.bBeginSessionTriggered='..tostring(M28Overseer.bBeginSessionTriggered)) end
+        while (not(M28Overseer.bBeginSessionTriggered) and GetGameTimeSeconds() < 4) do
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitTicks(1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        end
         NavUtils.Generate()
     end
 
@@ -6681,6 +6687,12 @@ function RecordBrainStartPoint(oBrain)
     if bDebugMessages == true then LOG(sFunctionRef..': Considering start position recorded for brain '..(oBrain.Nickname or 'nil')..' at time='..GetGameTimeSeconds()) end
     --Adjust start point if it isn't on a valid plateau (e.g. means we should work on some coop maps)
     if not(NavUtils.IsGenerated()) then
+        if bDebugMessages == true then LOG('Considering whether to generate map markers for oBrain='..oBrain.Nickname..'; GameTime='..GetGameTimeSeconds()) end
+        while (not(M28Overseer.bBeginSessionTriggered) and GetGameTimeSeconds() < 4) do
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitTicks(1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        end
         NavUtils.Generate()
         SetupPlayableAreaAndSegmentSizes()
     end

@@ -11,6 +11,10 @@ local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 
 NewAIBrain = Class(StandardBrain) {
 
+    OnBeginSession = function(self)
+        StandardBrain.OnBeginSession(self)
+        import('/mods/M28AI/lua/AI/M28Overseer.lua').bBeginSessionTriggered = true
+    end,
 
     OnDefeat = function(self)
         StandardBrain.OnDefeat(self)
@@ -19,14 +23,14 @@ NewAIBrain = Class(StandardBrain) {
     end,
 
     OnCreateAI = function(self, planName)
-        LOG('M28AI brain class OnCreateAI triggered, brain nickname='..self.Nickname)
-
         StandardBrain.OnCreateAI(self)
-        M28Events.OnCreateBrain(self, planName, false) -- dont do via forkthread or else self.m28ai wont work
+        LOG('M28AI brain class OnCreateAI triggered, brain nickname='..self.Nickname)
+        self.M28AI = true
+        ForkThread(M28Events.OnCreateBrain, self, planName, false)
     end,
 
     OnCreateHuman = function(self, planName)
         StandardBrain.OnCreateHuman(self, planName)
-        M28Events.OnCreateBrain(self, planName, true)
+        ForkThread(M28Events.OnCreateBrain, self, planName, true)
     end,
 }
