@@ -2203,6 +2203,8 @@ function GetACUOrder(aiBrain, oACU)
 
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
 
+
+
     local tLZOrWZData
     local tLZOrWZTeamData
     local iTeam = oACU:GetAIBrain().M28Team
@@ -2238,9 +2240,13 @@ function GetACUOrder(aiBrain, oACU)
                 if not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and not(tLZOrWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) then
                     local iACUHealthPercent = M28UnitInfo.GetUnitHealthPercent(oACU)
                     if iACUHealthPercent < 0.6 and (1 - iACUHealthPercent) + 0.1 > oACU:GetWorkProgress() then
-                        --Cancel upgrade
-                        if bDebugMessages == true then LOG(sFunctionRef..': Want to cancel ACU upgrade') end
-                        M28Orders.IssueTrackedMove(oACU, M28Map.PlayerStartPoints[oACU:GetAIBrain():GetArmyIndex()], 5, false, 'CURun')
+                        --Do we no longer consider this location safe?
+                        if bDebugMessages == true then LOG(sFunctionRef..': ACU health relatively low, iACUHealthPercent='..iACUHealthPercent..'; Work progress='..oACU:GetWorkProgress()..'; woudl it be safe to start an ugprade here='..tostring(M28Conditions.SafeToUpgradeUnit(oACU))) end
+                        if not(M28Conditions.SafeToUpgradeUnit(oACU)) then
+                            --Cancel upgrade
+                            if bDebugMessages == true then LOG(sFunctionRef..': Want to cancel ACU upgrade') end
+                            M28Orders.IssueTrackedMove(oACU, M28Map.PlayerStartPoints[oACU:GetAIBrain():GetArmyIndex()], 5, false, 'CURun')
+                        end
                     end
                 end
 

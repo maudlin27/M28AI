@@ -1465,7 +1465,6 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
         --Other actions - dont do unless we have lots of mass if this is lower than our highest tech level
         if bHaveHighestLZTech and (iFactoryTechLevel >= aiBrain[M28Economy.refiOurHighestLandFactoryTech] or not (bHaveLowMass)) then
-
             --Combat or MAA if this LZ needs more units
             iCurrentConditionToTry = iCurrentConditionToTry + 1
             --if tLZTeamData[M28Map.subrefbLZWantsSupport] then
@@ -1637,6 +1636,14 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                     --enemy base is a dif island to ours or for some reason doesnt have a land zone, so want to control all of our island (within reason)
                     iDistToEnemyBaseToConsider = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], M28Map.GetPrimaryEnemyBaseLocation(aiBrain))
                 end
+
+                --Reduce distance to consider if we are building an experimental
+                if iDistToEnemyBaseToConsider >= 200 then
+                    if iFactoryTechLevel == 3 and bHaveLowMass and oFactory[refiTotalBuildCount] >= 5 and aiBrain:GetEconomyStored('MASS') < 600 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals]) == false and not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) then
+                        iDistToEnemyBaseToConsider = math.max(200,     M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iEnemyLandZone) * 0.3)
+                    end
+                end
+
                 if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
                     local bDontConsiderPlayableArea = not(M28Map.bIsCampaignMap)
                     for iEntry, tLZPathing in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
@@ -2159,7 +2166,7 @@ function MovePotentialBlockingUnitsFromFactory(oFactory)
         local tMobileLandInRect = EntityCategoryFilterDown(M28UnitInfo.refCategoryMobileLand, tUnitsInRect)
         if M28Utilities.IsTableEmpty(tMobileLandInRect) == false then
             for iUnit, oUnit in tMobileLandInRect do
-                if oUnit:GetFractionComplete() == 1 and oUnit:GetAIBrain().M28AI and oUnit:GetAIBrain().M28Team == aiBrain.M28Team then
+                if oUnit:GetFractionComplete() == 1 and oUnit:GetAIBrain().M28AI and oUnit:GetAIBrain().M28Team == aiBrain.M28Team and not(oUnit:IsUnitState('Upgrading')) then
                     --Move the unit
                     if bDebugMessages == true then LOG(sFunctionRef..': Will try and move potential blocking unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                     M28Orders.IssueTrackedMove(oUnit, oFactory[reftFactoryRallyPoint], 0, false, 'FacBlock', true)
