@@ -2075,7 +2075,7 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
                 --Start zone midpoint
                 local tMidpoint
                 if iStartPlateauOrZero == 0 then
-                    tMidpoint = M28Map.tPondDetails[tiPondByWaterZone[iStartLandOrWaterZone]][M28Map.subrefPondWaterZones][iStartLandOrWaterZone][M28Map.subrefMidpoint]
+                    tMidpoint = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iStartLandOrWaterZone]][M28Map.subrefPondWaterZones][iStartLandOrWaterZone][M28Map.subrefMidpoint]
                 else
                     tMidpoint = M28Map.tAllPlateaus[iStartPlateauOrZero][M28Map.subrefPlateauLandZones][iStartLandOrWaterZone][M28Map.subrefMidpoint]
                 end
@@ -2084,7 +2084,7 @@ function DoesEnemyHaveAAThreatAlongPath(iTeam, iStartPlateauOrZero, iStartLandOr
                 --Destination zone midpoint
                 local tMidpoint
                 if iEndPlateauOrZero == 0 then
-                    tMidpoint = M28Map.tPondDetails[tiPondByWaterZone[iEndLandOrWaterZone]][M28Map.subrefPondWaterZones][iEndLandOrWaterZone][M28Map.subrefMidpoint]
+                    tMidpoint = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iEndLandOrWaterZone]][M28Map.subrefPondWaterZones][iEndLandOrWaterZone][M28Map.subrefMidpoint]
                 else
                     tMidpoint = M28Map.tAllPlateaus[iEndPlateauOrZero][M28Map.subrefPlateauLandZones][iEndLandOrWaterZone][M28Map.subrefMidpoint]
                 end
@@ -3099,7 +3099,16 @@ function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam
         end
 
         local aiBrain
-        if tAvailableBombers[1] then aiBrain = tAvailableBombers[1]:GetAIBrain()
+        local bTorpBombers = false
+        local bEnemyHasTorpDefence = false
+        if tAvailableBombers[1] then
+            aiBrain = tAvailableBombers[1]:GetAIBrain()
+            if EntityCategoryContains(M28UnitInfo.refCategoryTorpBomber, tAvailableBombers[1].UnitId) then
+                bTorpBombers = true
+                for iUnit, oUnit in toEnemyUnitsByDistance do
+                    if oUnit[M28UnitInfo.refbHasTorpedoDefence] then bEnemyHasTorpDefence = true break end
+                end
+            end
         else
             for iUnit, oUnit in tAvailableBombers do
                 aiBrain = oUnit:GetAIBrain()
@@ -3116,6 +3125,7 @@ function AssignTorpOrBomberTargets(tAvailableBombers, tEnemyTargets, iAirSubteam
             if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(oEnemyUnit:GetPosition()) then
                 iTotalStrikeDamageWanted = oEnemyUnit:GetMaxHealth()
                 if oEnemyUnit.MyShield.GetMaxHealth then iTotalStrikeDamageWanted = iTotalStrikeDamageWanted + oEnemyUnit.MyShield:GetMaxHealth() end
+                if bEnemyHasTorpDefence and bTorpBombers then iTotalStrikeDamageWanted = iTotalStrikeDamageWanted * 1.5 end
                 local tBasePosition = oEnemyUnit:GetPosition()
                 iCurLoopCount = 0
                 --If dealing with an anti-air unit then increase strike damage wanted by 50% to allow for some of the torps dying
@@ -4802,7 +4812,7 @@ function ManageTransports(iTeam, iAirSubteam)
                         elseif iDistToTarget <= 250 then
                             local tTargetLZOrWZData, tTargetLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(tLastOrder[M28Orders.subreftOrderPosition], true, iTeam)
                             local iCargoSize = table.getn(tCargo)
-                            if tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] - tTargetLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] < iCargoSize * 30 then
+                            if (tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) - (tTargetLZOrWZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] or 0) < iCargoSize * 30 then
                                 bUnloadAtRally = false
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': iCargoSize='..iCargoSize..'; Enemy combat threat='..tTargetLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; bUnloadAtRally='..tostring(bUnloadAtRally)) end

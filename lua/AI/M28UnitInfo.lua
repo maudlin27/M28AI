@@ -71,6 +71,7 @@ refiMissileDefenceRange = 'M28UMDefR' --For SMD and TMD
 refiAARange = 'M28UAAR'
 refiBomberRange = 'M28UBR'
 refbWeaponUnpacks = 'M28WUP'
+refbHasTorpedoDefence = 'M28TDef' --true if unit has torpedo defence
 refiStrikeDamage = 'M28USD'
 refbCanKite = 'M28CanKite' --true unless weapon unpacks or experimental with a weapon fixed to body (GC and megalith)
 refiTimeBetweenDFShots = 'M28DFTime'
@@ -1176,7 +1177,12 @@ function RecordUnitRange(oUnit)
                     oUnit[refiManualRange] = math.max((oUnit[refiManualRange] or 0), oCurWeapon.MaxRadius)
                     oUnit[refiIndirectAOE] = math.max((oUnit[refiIndirectAOE] or 0), oCurWeapon.DamageRadius or 0)
                 elseif oCurWeapon.RangeCategory == 'UWRC_Countermeasure' then
-                    oUnit[refiMissileDefenceRange] = math.max((oUnit[refiMissileDefenceRange] or 0), oCurWeapon.MaxRadius)
+                    --Target restriction should catch all cases, have but the most common labels as redundancy as well (doesnt cover mega? and fatboy? torpedo defence which have antitorpedoleft, left1, left2, right, etc. labels)
+                    if oCurWeapon.TargetRestrictOnlyAllow == "TORPEDO" or oCurWeapon.Label == 'AntiTorpedo' or oCurWeapon.Label == 'AntiTorpedo01' or oCurWeapon.Label == 'AntiTorpedoF' then
+                        oUnit[refbHasTorpedoDefence] = true
+                    else
+                        oUnit[refiMissileDefenceRange] = math.max((oUnit[refiMissileDefenceRange] or 0), oCurWeapon.MaxRadius)
+                    end
                 elseif oCurWeapon.RangeCategory == 'UWRC_DirectFire' or (oCurWeapon.RangeCategory == 'UWRC_IndirectFire' and oCurWeapon.WeaponCategory == 'Direct Fire') then --Sera sniper bots have an 'indirectfire' range category that is actually DF
                     bReplaceValues = false
                     bIgnoreValues = false

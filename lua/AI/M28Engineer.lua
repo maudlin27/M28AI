@@ -32,7 +32,7 @@ iMaxBuildingSize = 24
 tsExtraBlueprintsToCheck = {['ueb0103'] = {'urb0103', 'xsb0103'},
 }
 tAllScathis = {} --If a scathis is constructed it gets recorded here (and we then check this for build locations to avoid trying to build on a scathis); for performance reasons will just use a single global table
-tiBPByTech = {5,12.5,30, 30}
+tiBPByTech = {[0]=5,[1]=5,[2]=12.5,[3]=30, [4]=30}
 iCurQueueRefNumber = 0
 
 bActiveDestroyedBuildingLoop = false
@@ -6032,7 +6032,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --Need SMD as enemy has nuke launcher
     iCurPriority = iCurPriority + 1
-
     if bDebugMessages == true then LOG(sFunctionRef..': iCurPriority='..iCurPriority..'; About to consider if want SMD, is table of enemy nukes empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]))) end
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false then
         local bAssistSMD = false
@@ -6070,6 +6069,29 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         local iZoneWantingEngineersOfFaction, iFactionWanted = GetZoneAndFactionForPriorityEngineerTravel(tLZTeamData, iTeam, iLandZone, iPlateau)
         if iZoneWantingEngineersOfFaction and iFactionWanted then
             HaveActionToAssign(refActionMoveToLandZone, 3, 90, iZoneWantingEngineersOfFaction, true, false, iFactionWanted)
+        end
+    end
+
+    --Energy storage if we have none and at least 1 T2+ mex
+    iCurPriority = iCurPriority + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': iCurPriority='..iCurPriority..'; Considering building energy storage, Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Have low power='..tostring(bHaveLowPower)..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount]='..M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount]..'; Enemy unit with highest health='..M28Team.tTeamData[iTeam][M28Team.refiEnemyHighestMobileLandHealth]) end
+    if M28Team.tTeamData[iTeam][M28Team.subrefiLowestEnergyStorageCount] <= 0 and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 1 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 75) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 35 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 2.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+        --Is the number of storage in this LZ <= lowest storage count?
+        local toStorageInThisLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryEnergyStorage, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+        local iStorageInThisLZ = 0
+        if M28Utilities.IsTableEmpty(toStorageInThisLZ) == false then
+            for iUnit, oUnit in toStorageInThisLZ do
+                if oUnit:GetFractionComplete() == 1 then iStorageInThisLZ = iStorageInThisLZ + 1 end
+            end
+        else
+            iStorageInThisLZ = 0
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': iStorageInThisLZ='..iStorageInThisLZ) end
+        if iStorageInThisLZ <= M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then --are ok with gifting storage to a teammate
+            if bDebugMessages == true then LOG(sFunctionRef..': Want to get storage, Is tEngineers[1] valid='..tostring(M28UnitInfo.IsUnitValid(tEngineers[1]))) end
+            iBPWanted = 5
+            if not(bHaveLowMass) and not(bHaveLowPower) then iBPWanted = 20 end
+            HaveActionToAssign(refActionBuildEnergyStorage, 1, iBPWanted)
         end
     end
 

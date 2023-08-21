@@ -1640,7 +1640,11 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 --Reduce distance to consider if we are building an experimental
                 if iDistToEnemyBaseToConsider >= 200 then
                     if iFactoryTechLevel == 3 and bHaveLowMass and oFactory[refiTotalBuildCount] >= 5 and aiBrain:GetEconomyStored('MASS') < 600 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals]) == false and not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) then
-                        iDistToEnemyBaseToConsider = math.max(200,     M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iEnemyLandZone) * 0.3)
+                        if (iEnemyLandZone or 0) > 0 then
+                            iDistToEnemyBaseToConsider = math.max(200,     M28Map.GetTravelDistanceBetweenLandZones(iPlateau, iLandZone, iEnemyLandZone) * 0.3)
+                        else
+                            iDistToEnemyBaseToConsider = 200
+                        end
                     end
                 end
 

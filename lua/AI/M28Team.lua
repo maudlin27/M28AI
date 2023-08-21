@@ -831,7 +831,7 @@ end
 
 function ConsiderAssigningUnitToZoneForBrain(aiBrain, oUnit)
     --Assumes called from an event that means we will have visibility of the unit (e.g. directly via intel, or indirectly via weapon firing)
-    if aiBrain.M28AI and aiBrain.M28Team then
+    if aiBrain.M28AI and aiBrain.M28Team and not(aiBrain.M28IsDefeated) then
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         local sFunctionRef = 'ConsiderAssigningUnitToZoneForBrain'
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
