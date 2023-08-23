@@ -13,6 +13,7 @@ local M28Logic = import('/mods/M28AI/lua/AI/M28Logic.lua')
 local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
 local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
 local XZDist = import('/lua/utilities.lua').XZDistanceTwoVectors
+local M28Team = import('/mods/M28AI/lua/AI/M28Team.lua')
 
 refbMicroResetChecker = 'M28MicChk' --True if we have an active thread checking if micro time has expired
 
@@ -166,6 +167,59 @@ function GetBombTarget(weapon, projectile)
         if weapon:GetCurrentTarget().GetPosition then return weapon:GetCurrentTarget():GetPosition() end
     end
     return nil
+end
+
+function FriendlyGunshipsAvoidBomb(oBomber, oWeapon, projectile)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'FriendlyGunshipsAvoidBomb'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    local tBombTarget = GetBombTarget(oWeapon, projectile)
+    if tBombTarget then
+        local iBombSize = oWeapon:GetBlueprint().DamageRadius
+        if bDebugMessages == true then LOG(sFunctionRef..': Near start, oBomber='..oBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBomber)..'; tBombTarget='..repru(tBombTarget)..'; iBombSize='..iBombSize) end
+        if iBombSize then
+            local iCategoriesToRun = M28UnitInfo.refCategoryGunship
+            local iRadiusSize = iBombSize + 10
+            local aiBrain = oBomber:GetAIBrain()
+            local tUnitsToRun = aiBrain:GetUnitsAroundPoint(iCategoriesToRun, tBombTarget, iRadiusSize, 'Ally')
+            if M28Utilities.IsTableEmpty(tUnitsToRun) == false then
+                local tTemporaryDestination = M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.reftAirSubRallyPoint]
+                local tAltTempDestination
+                local oCurUnitBrain
+                local iTeam = aiBrain.M28Team
+                local iCurDistToBomb, iCurAngleFromBomb, bMoveToAltDestination
+                local iAngleFromBombToBase = M28Utilities.GetAngleFromAToB(tBombTarget, tTemporaryDestination)
+                local bCampaignMap = M28Map.bIsCampaignMap
+                for iUnit, oUnit in tUnitsToRun do
+                    oCurUnitBrain = oUnit:GetAIBrain()
+                    if oCurUnitBrain.M28AI and oCurUnitBrain.M28Team == iTeam then
+                        --If gunship runs to temp destination is it likely to be going the wrong way to avoid the bomb? if so then have it run in a different direction
+                        iCurDistToBomb = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBombTarget)
+                        bMoveToAltDestination = false
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurDistToBomb='..iCurDistToBomb..'; ANgle from bomb='..M28Utilities.GetAngleFromAToB(tBombTarget, oUnit:GetPosition())..'; iAngleFromBombToBase='..iAngleFromBombToBase) end
+                        if iCurDistToBomb >= 4 then
+                            iCurAngleFromBomb = M28Utilities.GetAngleFromAToB(tBombTarget, oUnit:GetPosition())
+                            if M28Utilities.GetAngleDifference(iCurAngleFromBomb, iAngleFromBombToBase) > 50 then
+                                bMoveToAltDestination = true
+                                tAltTempDestination = M28Utilities.MoveInDirection(oUnit:GetPosition(), iCurAngleFromBomb, iRadiusSize, true, false, bCampaignMap)
+                            end
+                        end
+                        M28Orders.IssueTrackedClearCommands(oUnit)
+                        if bMoveToAltDestination then
+                            M28Orders.IssueTrackedMove(oUnit, tAltTempDestination, 3, false, 'AhwRunH', true)
+                        else
+                            M28Orders.IssueTrackedMove(oUnit, tTemporaryDestination, 3, false, 'AhwRunT', true)
+                        end
+                        TrackTemporaryUnitMicro(oUnit, 4) --takes roughly 4s for bomb to land
+                    end
+                end
+            end
+        end
+    else
+        if bDebugMessages == true then LOG(sFunctionRef..': tBombTarget is nil') end
+    end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function DodgeBomb(oBomber, oWeapon, projectile)

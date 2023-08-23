@@ -621,6 +621,9 @@ function OnBombFired(oWeapon, projectile)
                     --Experimental bomber - micro to turn around and go to rally point
                     if oUnit:GetAIBrain().M28AI then
                         ForkThread(M28Micro.TurnAirUnitAndMoveToTarget, oUnit:GetAIBrain(), oUnit, M28Team.tAirSubteamData[oUnit:GetAIBrain().M28AirSubteam][M28Team.reftAirSubRallyPoint], 15, 3)
+
+                        --Have friendly gunships dodge
+                        M28Micro.FriendlyGunshipsAvoidBomb(oUnit, oWeapon, projectile)
                     end
                 end
             end

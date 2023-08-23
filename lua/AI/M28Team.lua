@@ -1533,8 +1533,8 @@ function CheckForSubteamFactoryChange(oUnit, bJustBuiltNotDied)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'CheckForSubteamFactoryChange'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-    if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnit.UnitId) then
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; bJustBuiltNotDied='..tostring(bJustBuiltNotDied or false)..'; Time='..GetGameTimeSeconds()) end
+    if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories + M28UnitInfo.refCategoryQuantumGateway, oUnit.UnitId) then
         local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
         local iSubteam = oUnit:GetAIBrain().M28LandSubteam
         if iPlateau == tLandSubteamData[iSubteam][subrefiLandCorePlateau] and NavUtils.GetLabel(M28Map.refPathingTypeLand, oUnit:GetPosition()) == tLandSubteamData[iSubteam][subrefiLandCoreIsland] then

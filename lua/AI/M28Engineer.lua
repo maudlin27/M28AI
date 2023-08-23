@@ -5084,15 +5084,20 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
         local tSMD = EntityCategoryFilterDown(M28UnitInfo.refCategorySMD, tLZTeamData[M28Map.subrefLZTAlliedUnits])
         local iSMDsWeHave = 0
         local iSMDsWithNoMissiles = 0
+        local iUnderConstructionSMD = 0
         if M28Utilities.IsTableEmpty(tSMD) == false then
             for iSMDNumber, oSMD in tSMD do
                 --Check we've completed construction
                 if bDebugMessages == true then LOG(sFunctionRef .. ': Have an SMD '..oSMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSMD)..', will check if its completed construction; fraction complete='..oSMD:GetFractionComplete()..'; Ammo count='..oSMD:GetTacticalSiloAmmoCount()..'; oSMD[M28Building.refbMissileRecentlyBuilt]='..tostring(oSMD[M28Building.refbMissileRecentlyBuilt] or false)) end
-                if M28UnitInfo.IsUnitValid(oSMD) and oSMD:GetFractionComplete() == 1 then
-                    iSMDsWeHave = iSMDsWeHave + 1
-                    if oSMD.GetTacticalSiloAmmoCount and oSMD:GetTacticalSiloAmmoCount() < 1 and not (oSMD[M28Building.refbMissileRecentlyBuilt]) then
-                        iSMDsWithNoMissiles = iSMDsWithNoMissiles + 1
-                        if bDebugMessages == true then LOG(sFunctionRef..': SMD has no missile, iSMDsWithNoMissiles='..iSMDsWithNoMissiles) end
+                if M28UnitInfo.IsUnitValid(oSMD) then
+                    if oSMD:GetFractionComplete() == 1 then
+                        iSMDsWeHave = iSMDsWeHave + 1
+                        if oSMD.GetTacticalSiloAmmoCount and oSMD:GetTacticalSiloAmmoCount() < 1 and not (oSMD[M28Building.refbMissileRecentlyBuilt]) then
+                            iSMDsWithNoMissiles = iSMDsWithNoMissiles + 1
+                            if bDebugMessages == true then LOG(sFunctionRef..': SMD has no missile, iSMDsWithNoMissiles='..iSMDsWithNoMissiles) end
+                        end
+                    else
+                        iUnderConstructionSMD = iUnderConstructionSMD + 1
                     end
                 end
             end
@@ -5105,6 +5110,8 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
             for iNuke, oNuke in M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers] do
                 if EntityCategoryContains(categories.BATTLESHIP, oNuke.UnitId) then
                     iEnemyBattleshipNukes = iEnemyBattleshipNukes + 1
+                elseif EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then
+                    iEnemyNormalNukes = iEnemyNormalNukes + 8
                 else
                     iEnemyNormalNukes = iEnemyNormalNukes + 1
                 end
@@ -5125,10 +5132,16 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
                 end
             end
         end
-        local iSMDWanted = math.min(4, iEnemyNukes, math.max(1, math.floor((M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) / 5)))
+        local iSMDWanted = math.min(iEnemyNukes, math.max(1, math.floor((M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) / 5)))
         if bHaveLowMass then
-            iSMDWanted = math.min(3, iEnemyNukes * 2 / 3, iSMDWanted)
+            iSMDWanted = math.min( iEnemyNukes * 2 / 3, iSMDWanted)
+            if iEnemyNukes <= 5 then iSMDWanted = math.min(iSMDWanted, 3) end
         end
+        --Cap amount of SMD, in turn depending on enemy nuke size
+        if iEnemyNukes >= 5 and tLZTeamData[M28Map.subrefLZSValue] >= 12000 * iEnemyNukes then iSMDWanted = math.min(8, iSMDWanted)
+        else iSMDWanted = math.min(4, iSMDWanted)
+        end
+
         if iSMDWanted <= 0 and tLZTeamData[M28Map.M28Map.reftObjectiveSMDLocation] then iSMDWanted = 1 end
         if bDebugMessages == true then LOG(sFunctionRef..': iSMDsWeHave='..iSMDsWeHave..'; iSMDWanted='..iSMDWanted..'; iSMDsWithNoMissiles='..iSMDsWithNoMissiles) end
         if iSMDsWeHave < iSMDWanted or iSMDsWithNoMissiles > 0 then
@@ -5137,7 +5150,8 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
             else iBPWanted = 300 end
             if not(bCoreZone) then iBPWanted = iBPWanted * 0.5 end
         end
-        if iSMDsWithNoMissiles > 0 then
+        if iSMDsWithNoMissiles > 0 and (iSMDsWeHave >= iSMDWanted or iSMDsWeHave == iSMDsWithNoMissiles) and iUnderConstructionSMD ==0 then
+            --If have under construction SMD then finish it off
             bAssistSMD = true
             iBPWanted = math.max(150, iBPWanted * 3)
         end

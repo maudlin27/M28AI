@@ -19,6 +19,7 @@ local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
 local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
 local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
+local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
 
 --Global
 tLZRefreshCountByTeam = {}
@@ -2244,17 +2245,53 @@ function ManageRASSACUsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZo
         local tQuantumGateways = EntityCategoryFilterDown(M28UnitInfo.refCategoryQuantumGateway, tLZTeamData[M28Map.subrefLZTAlliedUnits])
         local oGateway
         local bNotAssistingGateway = true
+        local bHaveRASGateway = false
 
         if M28Utilities.IsTableEmpty( tQuantumGateways) == false then
             for iUnit, oUnit in tQuantumGateways do
                 oGateway = oUnit
-                break
+                if not(EntityCategoryContains(categories.SERAPHIM, oUnit.UnitId)) then
+                    bHaveRASGateway = true
+                    break
+                end
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': oGateway='..(oGateway.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oGateway))..'; bHaveRASGateway='..tostring(bHaveRASGateway)) end
         if oGateway then
+            if not(bHaveRASGateway) then
+                --Do we have a T3+ 'other' factory type on the team, for a non-sera faction?
+                local iLandSubteam = oGateway:GetAIBrain().M28LandSubteam
+                if bDebugMessages == true then LOG(sFunctionRef..': Is table of other faction types empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeOther]))..'; Reprs of this='..reprs(M28Team.tTeamData[iTeam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeOther])) end
+                if M28Utilities.IsTableEmpty(M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeOther]) == false then
+                    local bHaveNonSeraFactory = false
+                    for iFaction, tSubtable in M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeOther] do
+                        if not(iFaction == M28UnitInfo.refFactionSeraphim) and (tSubtable[3] or 0) > 0 then
+                            bHaveNonSeraFactory = true
+                            break
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Finished searching other factory types, bHaveNonSeraFactory='..tostring(bHaveNonSeraFactory or false)) end
+                    if bHaveNonSeraFactory then
+                        local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
+                        local tNearbyFriendlyGateway = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryQuantumGateway - categories.SERAPHIM, tLZData[M28Map.subrefMidpoint], 250, 'Ally')
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of nearby non sera quantum gateways empty='..tostring(M28Utilities.IsTableEmpty(tNearbyFriendlyGateway))) end
+                        if M28Utilities.IsTableEmpty(tNearbyFriendlyGateway) == false then
+                            for iUnit, oUnit in tNearbyFriendlyGateway do
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering quantum gateway oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Terrain label='..(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) or 'nil')..'; iPlateau='..(iPlateau or 'nil')) end
+                                if oUnit:GetAIBrain().M28AI and NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oUnit:GetPosition()) == iPlateau then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Have a non sera gateway to assist instead, oGateway='..oGateway.UnitId..M28UnitInfo.GetUnitLifetimeCount(oGateway)) end
+                                    oGateway = oUnit
+                                    break
+                                end
+                            end
+                        end
+                    end
+                end
+            end
             if (M28Map.bIsCampaignMap or M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.05) and not(M28Conditions.HaveLowPower(iTeam)) and ((M28Map.bIsCampaignMap and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 80 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) or (not(M28Map.bIsCampaignMap) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < math.min(100, 40 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]))) then
                 if (M28Map.bIsCampaignMap or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 100) and oGateway:GetAIBrain():GetCurrentUnits(M28UnitInfo.refCategoryRASSACU) < 50 then
                     bNotAssistingGateway = false
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will get every SACU to assist the gateway') end
                     for iUnit, oUnit in tRASSACU do
                         M28Orders.IssueTrackedGuard(oUnit, oGateway, false, 'RASQG', false)
                     end

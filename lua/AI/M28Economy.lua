@@ -324,8 +324,9 @@ function UpdateHighestFactoryTechLevelForBuiltUnit(oUnitJustBuilt)
     --Update total factory count
 
 
-    if oUnitJustBuilt:GetFractionComplete() == 1 and EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUnitJustBuilt.UnitId) then
+    if oUnitJustBuilt:GetFractionComplete() == 1 and EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway, oUnitJustBuilt.UnitId) then
         --Update factory count
+        if bDebugMessages == true then LOG(sFunctionRef..': Just built factory or gateway') end
         UpdateFactoryCountForFactoryKilledOrBuilt(oUnitJustBuilt, false)
         if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnitJustBuilt.UnitId) then
             local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnitJustBuilt)
@@ -344,6 +345,9 @@ function UpdateHighestFactoryTechLevelForBuiltUnit(oUnitJustBuilt)
                 M28Team.UpdateTeamHighestAndLowestFactories(aiBrain.M28Team)
                 M28Team.CheckForSubteamFactoryChange(oUnitJustBuilt, true)
             end
+        elseif EntityCategoryContains(M28UnitInfo.refCategoryQuantumGateway, oUnitJustBuilt.UnitId) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Have built a gateway, will update subteam factory change') end
+            M28Team.CheckForSubteamFactoryChange(oUnitJustBuilt, true)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -418,6 +422,8 @@ function UpdateHighestFactoryTechLevelForDestroyedUnit(oUnitJustDestroyed)
 
             --Update team details
             M28Team.UpdateTeamHighestAndLowestFactories(aiBrain.M28Team)
+            M28Team.CheckForSubteamFactoryChange(oUnitJustDestroyed, false)
+        elseif EntityCategoryContains(M28UnitInfo.refCategoryQuantumGateway, oUnitJustDestroyed.UnitId) then
             M28Team.CheckForSubteamFactoryChange(oUnitJustDestroyed, false)
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Near end of code, aiBrain[refiOurHighestAirFactoryTech]='..oUnitJustDestroyed:GetAIBrain()[refiOurHighestAirFactoryTech]..'; aiBrain[refiOurHighestLandFactoryTech]='..oUnitJustDestroyed:GetAIBrain()[refiOurHighestLandFactoryTech]..'; aiBrain[refiOurHighestNavalFactoryTech]='..oUnitJustDestroyed:GetAIBrain()[refiOurHighestNavalFactoryTech]..'; aiBrain[refiOurHighestFactoryTechLevel]='..oUnitJustDestroyed:GetAIBrain()[refiOurHighestFactoryTechLevel]) end
