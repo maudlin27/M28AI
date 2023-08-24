@@ -2631,6 +2631,7 @@ function GetACUOrder(aiBrain, oACU)
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Do we have an upgrade we want to get? sUpgradeToGet='..(sUpgradeToGet or 'nil')) end
                                                     if sUpgradeToGet then
                                                         --Are we safe to get the upgrade here? if not then retreat
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Will check if safe to get upgrade for oACU, oACU='..(oACU.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oACU) or 'nil')..'; Brain='..oACU:GetAIBrain().Nickname) end
                                                         if M28Conditions.SafeToUpgradeUnit(oACU) then
                                                             if bDebugMessages == true then LOG(sFunctionRef..': Safe to get upgrade here so will proceed with upgrading ACU, sUpgradeToGet='..(sUpgradeToGet or 'nil')..' brain='..oACU:GetAIBrain().Nickname..'; Has enhancement='..tostring(oACU:HasEnhancement(sUpgradeToGet))) end
                                                             M28Orders.IssueTrackedEnhancement(oACU, sUpgradeToGet, false, 'ACUUp')
