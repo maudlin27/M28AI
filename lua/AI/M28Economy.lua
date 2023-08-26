@@ -1402,7 +1402,6 @@ function ManageEnergyStalls(iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
-
         local bPauseNotUnpause = true
         local bChangeRequired = false
         local iUnitsAdjusted = 0
@@ -1524,8 +1523,9 @@ function ManageEnergyStalls(iTeam)
                     end
                 else
                     iEnergyPerTickSavingNeeded = math.min(-1, -M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy], -M28Team.tTeamData[iTeam][M28Team.subrefiTeamEnergyStored] / 30)
-                    iEnergyPerTickSavingNeeded = math.max(iEnergyPerTickSavingNeeded, -300)
+                    iEnergyPerTickSavingNeeded = math.max(iEnergyPerTickSavingNeeded, math.min(-300, -M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] * 0.5), math.min(-600, -M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] * 0.25))
                     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] <= 0.75 then iEnergyPerTickSavingNeeded = iEnergyPerTickSavingNeeded * 0.75 end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Want to start unpausing things, M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored]..'; iEnergyPerTickSavingNeeded='..iEnergyPerTickSavingNeeded) end
                 end
 
                 local iEnergySavingManaged = 0
@@ -1552,7 +1552,7 @@ function ManageEnergyStalls(iTeam)
                 local bConsideringTeamWideUnits = false
                 local bNoRelevantUnits = true
 
-                if bDebugMessages == true then LOG(sFunctionRef .. ': About to cycle through every category, bPauseNotUnpause=' .. tostring(bPauseNotUnpause) .. '; iCategoryStartPoint=' .. iCategoryStartPoint .. '; iCategoryEndPoint=' .. iCategoryEndPoint) end
+                if bDebugMessages == true then LOG(sFunctionRef .. ': About to cycle through every category, bPauseNotUnpause=' .. tostring(bPauseNotUnpause) .. '; iCategoryStartPoint=' .. iCategoryStartPoint .. '; iCategoryEndPoint=' .. iCategoryEndPoint..'; iEnergyPerTickSavingNeeded='..iEnergyPerTickSavingNeeded) end
 
                 local bPausedUnitsTableIsEmptyForAllBrains = true
                 for iCategoryCount = iCategoryStartPoint, iCategoryEndPoint, iIntervalChange do
@@ -1577,6 +1577,8 @@ function ManageEnergyStalls(iTeam)
                     local oBP
                     local oFocusUnitBP
                     local bFirstEngiCategoryRefBrain = true
+
+
 
                     for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
                         if oBrain.CheatEnabled then iBuildRateMod = M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier]
