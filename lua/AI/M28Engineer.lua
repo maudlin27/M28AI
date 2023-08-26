@@ -4001,12 +4001,12 @@ function ActiveShieldMonitor(oUnitToProtect, tLZTeamData, iTeam)
                     --If go for T2 shielding then will be quicker to build and cheaper, and still cover the unit provided the shield can absorb a single shot
                     iShieldCategoryToBuild = M28UnitInfo.refCategoryFixedShield * categories.TECH2 * categories.SERAPHIM
                 end
-                iEngineerFactionRequired = iEngineerFactionRequired * categories.SERAPHIM
+                iEngineerFactionRequired = iEngineerFactionRequired * categories.SERAPHIM  - categories.EXPERIMENTAL
             elseif iOptionalFactionRequired == M28UnitInfo.refFactionAeon then
-                iShieldCategoryToBuild = M28UnitInfo.refCategoryFixedShield * categories.AEON
+                iShieldCategoryToBuild = M28UnitInfo.refCategoryFixedShield * categories.AEON - categories.EXPERIMENTAL
                 iEngineerFactionRequired = iEngineerFactionRequired * categories.AEON
             elseif iOptionalFactionRequired == M28UnitInfo.refFactionUEF then
-                iShieldCategoryToBuild = M28UnitInfo.refCategoryFixedShield * categories.UEF
+                iShieldCategoryToBuild = M28UnitInfo.refCategoryFixedShield * categories.UEF  - categories.EXPERIMENTAL
                 iEngineerFactionRequired = iEngineerFactionRequired * categories.UEF
             else
                 iShieldCategoryToBuild = M28UnitInfo.refCategoryFixedShield
@@ -5110,7 +5110,7 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
             for iNuke, oNuke in M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers] do
                 if EntityCategoryContains(categories.BATTLESHIP, oNuke.UnitId) then
                     iEnemyBattleshipNukes = iEnemyBattleshipNukes + 1
-                elseif EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then
+                elseif EntityCategoryContains(categories.EXPERIMENTAL, oNuke.UnitId) then
                     iEnemyNormalNukes = iEnemyNormalNukes + 8
                 else
                     iEnemyNormalNukes = iEnemyNormalNukes + 1
