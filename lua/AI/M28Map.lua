@@ -6040,7 +6040,7 @@ function RecordLandZonePathingToOtherLandZonesInSamePlateau()
                     CalculateLandZoneTravelDistance(iPlateau, iStartLandZone, tLZData, iTargetLandZone, tOtherLZData)
                 end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Finished considering all pathing for iStartLandZone='..iStartLandZone..'; tiTempLandPathingDistanceForLZ[iPlateau]='..repru(tiTempLandPathingDistanceForLZ[iPlateau])..'; tLZData[subrefLZOtherLandZones]='..repru(tLZData[subrefLZOtherLandZones])) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished considering all pathing for iStartLandZone='..iStartLandZone..'; tiTempLandPathingDistanceForLZ[iPlateau]='..repru(tiTempLandPathingDistanceForLZ[iPlateau])) end
         end
 
         M28Profiler.FunctionProfiler(sFunctionRef..': Plateau '..iPlateau, M28Profiler.refProfilerEnd)
