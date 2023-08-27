@@ -2569,6 +2569,7 @@ function RecordMidpointAndOtherDataForZone(iPlateau, iZone, tLZData)
 
 
     --Move the midpoint if nav utils doesnt work for this position (to reduce the amount of grief we might have later)
+    if bDebugMessages == true then LOG(sFunctionRef..': iAveragePlateau='..(iAveragePlateau or 'nil')..'; iPlateau='..iPlateau..'; iAverageIsland='..(iAverageIsland or 'nil')..'; iBaseIslandWanted='..(iBaseIslandWanted or 'nil')) end
     if not(iAveragePlateau == iPlateau) or not(iAverageIsland == iBaseIslandWanted) then
         local iStartSegmentX, iStartSegmentZ = GetPathingSegmentFromPosition(tAverage)
         local tAltMidpoint
@@ -2589,7 +2590,7 @@ function RecordMidpointAndOtherDataForZone(iPlateau, iZone, tLZData)
                                 iAveragePlateau = NavUtils.GetTerrainLabel(refPathingTypeHover, tAltMidpoint)
                                 iAverageIsland = NavUtils.GetTerrainLabel(refPathingTypeLand, tAltMidpoint)
                                 tAverage = {tAltMidpoint[1], GetSurfaceHeight(tAltMidpoint[1], tAltMidpoint[3]), tAltMidpoint[3]}
-                                if bDebugMessages == true then LOG(sFunctionRef..': Have valid alternative midpoint which will now record and use, tAverage after update='..repru(tAverage)) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have valid alternative midpoint which will now record and use, tAverage after update='..repru(tAverage)..'; iAverageIsland='..(iAverageIsland or 'nil')) end
                                 break
                             end
                         elseif bDebugMessages == true then
@@ -2607,6 +2608,7 @@ function RecordMidpointAndOtherDataForZone(iPlateau, iZone, tLZData)
         end
 
         --If still dont have a valid location, then just try any segment recorded in the land zone (this wont be in the middle of the land zone, but is better than having an unpathable midpoint)
+        if bDebugMessages == true then LOG(sFunctionRef..': bHaveValidAltMidpoint='..tostring(bHaveValidAltMidpoint)) end
         if not(bHaveValidAltMidpoint) then
             for iSegment, tSegmentXZ in tLZData[subrefLZSegments] do
                 if tLandZoneBySegment[tSegmentXZ[1]][tSegmentXZ[2]] == iZone then
@@ -2695,7 +2697,7 @@ function RecordMidpointAndOtherDataForZone(iPlateau, iZone, tLZData)
         M28Utilities.DrawRectangle(Rect(iMinX, iMinZ, iMaxX, iMaxZ), iColour, 1000, 10)
         if iColour <= 1 then iColour = 8 end
         M28Utilities.DrawLocation(tLZData[subrefMidpoint], iColour, 1000)
-        if bDebugMessages == true then LOG(sFunctionRef..': Midpoint after adjustment for iPlateau='..iPlateau..' and zone='..iZone..' = '..repru(tLZData[subrefMidpoint])..'; iBaseIslandWanted='..(iBaseIslandWanted or 'nil')..'; NavUtils result for label='..(NavUtils.GetLabel(refPathingTypeAmphibious, tLZData[subrefMidpoint]) or 'nil')) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Midpoint after adjustment for iPlateau='..iPlateau..' and zone='..iZone..' = '..repru(tLZData[subrefMidpoint])..'; iBaseIslandWanted='..(iBaseIslandWanted or 'nil')..'; NavUtils result for label='..(NavUtils.GetLabel(refPathingTypeAmphibious, tLZData[subrefMidpoint]) or 'nil')..'; Land terrain label for midpoint='..(NavUtils.GetLabel(refPathingTypeLand, tLZData[subrefMidpoint]) or 'nil')) end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -2811,11 +2813,14 @@ function RecordAdjacentLandZones()
     local iAltLandZone
     local iAltSegX, iAltSegZ
     local tRecordedAdjacentZones
+    local iIslandRefWanted
+
     for iPlateau, tPlateauSubtable in tAllPlateaus do
         for iLandZone, tLandZoneInfo in tPlateauSubtable[subrefPlateauLandZones] do
             tLandZoneInfo[subrefLZAdjacentLandZones] = {}
             tRecordedAdjacentZones = {}
-            if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through every segment in land zone '..iLandZone..' to look for adjacent land zones, segment count='..( tLandZoneInfo[subrefLZTotalSegmentCount] or 'nil')) end
+            iIslandRefWanted = NavUtils.GetLabel(refPathingTypeLand, tLandZoneInfo[subrefMidpoint])
+            if bDebugMessages == true then LOG(sFunctionRef..': About to cycle through every segment in land zone '..iLandZone..' to look for adjacent land zones, segment count='..( tLandZoneInfo[subrefLZTotalSegmentCount] or 'nil')..'; iIslandRefWanted='..iIslandRefWanted) end
             for iSegmentRef, tSegmentXZ in tLandZoneInfo[subrefLZSegments] do
                 for iSegAdjust, tSegAdjXZ in tiSegmentAdjust do
                     iAltSegX = tSegmentXZ[1] + tSegAdjXZ[1]
@@ -2828,9 +2833,14 @@ function RecordAdjacentLandZones()
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering iAltLandZone='..iAltLandZone..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Is alt land zone for this plateau nil='..tostring(tAllPlateaus[iPlateau][subrefPlateauLandZones][iAltLandZone] == nil)) end
                             if tAllPlateaus[iPlateau][subrefPlateauLandZones][iAltLandZone] then
                                 tRecordedAdjacentZones[iAltLandZone] = true
-                                table.insert(tLandZoneInfo[subrefLZAdjacentLandZones], iAltLandZone)
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering base segment '..tSegmentXZ[1]..'-'..tSegmentXZ[2]..' at position '..repru(GetPositionFromPathingSegments(tSegmentXZ[1], tSegmentXZ[2]))..'; the adjacent segment to this, X'..iAltSegX..'Z'..iAltSegZ..' is in another land zone '..iAltLandZone..'; will record as being adjacent and draw the adjcent segment in blue')
-                                    M28Utilities.DrawLocation(GetPositionFromPathingSegments(iAltSegX, iAltSegZ))
+                                --Only actually record this as an adjacent land zone if the land pathing label is the same
+                                if NavUtils.GetLabel(refPathingTypeLand, tAllPlateaus[iPlateau][subrefPlateauLandZones][iAltLandZone][subrefMidpoint]) == iIslandRefWanted then
+                                    table.insert(tLandZoneInfo[subrefLZAdjacentLandZones], iAltLandZone)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering base segment '..tSegmentXZ[1]..'-'..tSegmentXZ[2]..' at position '..repru(GetPositionFromPathingSegments(tSegmentXZ[1], tSegmentXZ[2]))..'; the adjacent segment to this, X'..iAltSegX..'Z'..iAltSegZ..' is in another land zone '..iAltLandZone..'; will record as being adjacent and draw the adjcent segment in blue')
+                                        M28Utilities.DrawLocation(GetPositionFromPathingSegments(iAltSegX, iAltSegZ))
+                                    end
+                                else
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Different island refs for iLandZone='..iLandZone..' and iAltLandZone='..iAltLandZone..' so wont record as being adjacent') end
                                 end
                             end
                         end
@@ -2861,7 +2871,7 @@ end
 function RecordAdjacentWaterZones()
     --Cycles through each water zone and identifies adjacent water zones
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'RecordAdjacentLandZones'
+    local sFunctionRef = 'RecordAdjacentWaterZones'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local tiSegmentAdjust = {{-1,0}, {-1, -1}, {-1, 1}, {0, -1}, {0, 1}, {1, -1}, {1, 0}, {1,1}}
@@ -5810,6 +5820,9 @@ function RecordLandZonePathingToOtherLandZonesInSamePlateau()
             iLowestLZ = iTargetLandZone
             iHighestLZ = iStartLandZone
         end
+        if bDebugMessages == true then
+            LOG(sFunctionRef..': Checking if already recorded for iPlateau '..iPlateau..'; iLowestLZ='..iLowestLZ..'; iHighestLZ='..iHighestLZ..'; tiTempLandPathingDistanceForLZ[iPlateau][iLowestLZ][iHighestLZ]='..(tiTempLandPathingDistanceForLZ[iPlateau][iLowestLZ][iHighestLZ] or 'nil'))
+        end
         if not(tiTempLandPathingDistanceForLZ[iPlateau][iLowestLZ][iHighestLZ]) then
             if tOptionalLandZoneTravelPath then
                 M28Profiler.FunctionProfiler(sFunctionRef..': Adj Method', M28Profiler.refProfilerStart)
@@ -5845,6 +5858,7 @@ function RecordLandZonePathingToOtherLandZonesInSamePlateau()
                         end
                     end
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': Is full path empty='..tostring(M28Utilities.IsTableEmpty(tFullPath))..'; iLandTravelDistance='..(iLandTravelDistance or 'nil')) end
             end
             if iLandTravelDistance then
                 tiTempLandPathingDistanceForLZ[iPlateau][iLowestLZ][iHighestLZ] = iLandTravelDistance
@@ -6011,7 +6025,9 @@ function RecordLandZonePathingToOtherLandZonesInSamePlateau()
                                     if iCurAdjacencyLevel <= iDetailedAdjacencyLevel then
                                         --Do detailed calculation instead (this has a check to make sure we dont do more than once)
                                         CalculateLandZoneTravelDistance(iPlateau, iStartLandZone, tLZData, iNextAdjacencyZone, tPlateauSubtable[subrefPlateauLandZones][iNextAdjacencyZone])
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Doing detailed calculation for iNextAdjacencyZone, tiTempLandPathingDistanceForLZ[iPlateau][iStartLandZone][iAdjacentLandZone] after this='..(tiTempLandPathingDistanceForLZ[iPlateau][iStartLandZone][iAdjacentLandZone] or 'nil')) end
                                     else
+                                        if bDebugMessages == true then LOG(sFunctionRef..': iStartLandZone='..iStartLandZone..'; iAdjacentLandZone='..iAdjacentLandZone..'; iNextAdjacencyZone='..iNextAdjacencyZone..'; tiTempLandPathingDistanceForLZ from adj LZ to next adj='..(tiTempLandPathingDistanceForLZ[iPlateau][iAdjacentLandZone][iNextAdjacencyZone] or 'nil')..'; Next adjacency to adjacent='..(tiTempLandPathingDistanceForLZ[iPlateau][iNextAdjacencyZone][iAdjacentLandZone] or 'nil')..'; tiTempLandPathingDistanceForLZ start to adj='..(tiTempLandPathingDistanceForLZ[iPlateau][iStartLandZone][iAdjacentLandZone] or 'nil')..'; Adj to start='..(tiTempLandPathingDistanceForLZ[iPlateau][iAdjacentLandZone][iStartLandZone] or 'nil')) end
                                         iCurEntryApproxTravelDist = (tiTempLandPathingDistanceForLZ[iPlateau][iAdjacentLandZone][iNextAdjacencyZone] or tiTempLandPathingDistanceForLZ[iPlateau][iNextAdjacencyZone][iAdjacentLandZone]) + (tiTempLandPathingDistanceForLZ[iPlateau][iStartLandZone][iAdjacentLandZone] or tiTempLandPathingDistanceForLZ[iPlateau][iAdjacentLandZone][iStartLandZone])
                                         if not(tiShortestTravelToTargetZone[iNextAdjacencyZone]) or iCurEntryApproxTravelDist < tiShortestTravelToTargetZone[iNextAdjacencyZone] then
                                             tiShortestTravelToTargetZone[iNextAdjacencyZone] = iCurEntryApproxTravelDist
@@ -6022,6 +6038,7 @@ function RecordLandZonePathingToOtherLandZonesInSamePlateau()
                                 end
                             end
                         end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Finished either running detailed check or working out the closest adjacency zone to do adjacency calculation for iStartLandZone='..iStartLandZone..'; iAdjacentLandZone='..iAdjacentLandZone..', iClosestNextAdjacencyZone='..(iClosestNextAdjacencyZone or 'nil')) end
                         if iClosestNextAdjacencyZone then
                             --Start iwth path to adj zone then add in tPathFromAdjZoneToNextAdjZone
                             if bDebugMessages == true then LOG(sFunctionRef..': iStartLandZone='..iStartLandZone..'; iAdjacentLandZone='..iAdjacentLandZone..'; iClosestNextAdjacencyZone='..iClosestNextAdjacencyZone..'; Refs for start LZ to other LZs='..repru(tLZData[subrefLZPathingToOtherLZEntryRef])..'; iCurAdjacencyLevel='..iCurAdjacencyLevel) end
@@ -6035,7 +6052,7 @@ function RecordLandZonePathingToOtherLandZonesInSamePlateau()
                         end
                     end
                     --Now record each entry
-                    if bDebugMessages == true then LOG(sFunctionRef..': Is tiShortestTravelToTargetZone empty='..tostring(tiShortestTravelToTargetZone)..'; repru='..repru(tiShortestTravelToTargetZone)..'; iClosestNextAdjacencyZone='..iClosestNextAdjacencyZone..'; Is tiPathFromStartToNextAdjZone empty='..tostring(M28Utilities.IsTableEmpty(tiPathFromStartToNextAdjZone))) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is tiShortestTravelToTargetZone empty='..tostring(tiShortestTravelToTargetZone)..'; repru='..repru(tiShortestTravelToTargetZone)..'; iClosestNextAdjacencyZone='..(iClosestNextAdjacencyZone or 'nil')..'; Is tiPathFromStartToNextAdjZone empty='..tostring(M28Utilities.IsTableEmpty(tiPathFromStartToNextAdjZone))) end
                     if M28Utilities.IsTableEmpty(tiShortestTravelToTargetZone) == false then
                         for iNextAdjacencyZone, iTravelDistance in tiShortestTravelToTargetZone do
                             CalculateLandZoneTravelDistance(iPlateau, iStartLandZone, tLZData, iNextAdjacencyZone, tPlateauSubtable[subrefPlateauLandZones][iNextAdjacencyZone], iTravelDistance, tiPathFromStartToNextAdjZone[iNextAdjacencyZone])
