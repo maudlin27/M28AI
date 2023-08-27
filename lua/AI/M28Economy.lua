@@ -324,8 +324,9 @@ function UpdateHighestFactoryTechLevelForBuiltUnit(oUnitJustBuilt)
     --Update total factory count
 
 
-    if oUnitJustBuilt:GetFractionComplete() == 1 and EntityCategoryContains(M28UnitInfo.refCategoryFactory, oUnitJustBuilt.UnitId) then
+    if oUnitJustBuilt:GetFractionComplete() == 1 and EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway, oUnitJustBuilt.UnitId) then
         --Update factory count
+        if bDebugMessages == true then LOG(sFunctionRef..': Just built factory or gateway') end
         UpdateFactoryCountForFactoryKilledOrBuilt(oUnitJustBuilt, false)
         if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oUnitJustBuilt.UnitId) then
             local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnitJustBuilt)
@@ -344,6 +345,9 @@ function UpdateHighestFactoryTechLevelForBuiltUnit(oUnitJustBuilt)
                 M28Team.UpdateTeamHighestAndLowestFactories(aiBrain.M28Team)
                 M28Team.CheckForSubteamFactoryChange(oUnitJustBuilt, true)
             end
+        elseif EntityCategoryContains(M28UnitInfo.refCategoryQuantumGateway, oUnitJustBuilt.UnitId) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Have built a gateway, will update subteam factory change') end
+            M28Team.CheckForSubteamFactoryChange(oUnitJustBuilt, true)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -418,6 +422,8 @@ function UpdateHighestFactoryTechLevelForDestroyedUnit(oUnitJustDestroyed)
 
             --Update team details
             M28Team.UpdateTeamHighestAndLowestFactories(aiBrain.M28Team)
+            M28Team.CheckForSubteamFactoryChange(oUnitJustDestroyed, false)
+        elseif EntityCategoryContains(M28UnitInfo.refCategoryQuantumGateway, oUnitJustDestroyed.UnitId) then
             M28Team.CheckForSubteamFactoryChange(oUnitJustDestroyed, false)
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Near end of code, aiBrain[refiOurHighestAirFactoryTech]='..oUnitJustDestroyed:GetAIBrain()[refiOurHighestAirFactoryTech]..'; aiBrain[refiOurHighestLandFactoryTech]='..oUnitJustDestroyed:GetAIBrain()[refiOurHighestLandFactoryTech]..'; aiBrain[refiOurHighestNavalFactoryTech]='..oUnitJustDestroyed:GetAIBrain()[refiOurHighestNavalFactoryTech]..'; aiBrain[refiOurHighestFactoryTechLevel]='..oUnitJustDestroyed:GetAIBrain()[refiOurHighestFactoryTechLevel]) end
@@ -1402,7 +1408,6 @@ function ManageEnergyStalls(iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
-
         local bPauseNotUnpause = true
         local bChangeRequired = false
         local iUnitsAdjusted = 0
@@ -1524,8 +1529,9 @@ function ManageEnergyStalls(iTeam)
                     end
                 else
                     iEnergyPerTickSavingNeeded = math.min(-1, -M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy], -M28Team.tTeamData[iTeam][M28Team.subrefiTeamEnergyStored] / 30)
-                    iEnergyPerTickSavingNeeded = math.max(iEnergyPerTickSavingNeeded, -300)
+                    iEnergyPerTickSavingNeeded = math.max(iEnergyPerTickSavingNeeded, math.min(-300, -M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] * 0.5), math.min(-600, -M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] * 0.25))
                     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] <= 0.75 then iEnergyPerTickSavingNeeded = iEnergyPerTickSavingNeeded * 0.75 end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Want to start unpausing things, M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored]..'; iEnergyPerTickSavingNeeded='..iEnergyPerTickSavingNeeded) end
                 end
 
                 local iEnergySavingManaged = 0
@@ -1552,7 +1558,7 @@ function ManageEnergyStalls(iTeam)
                 local bConsideringTeamWideUnits = false
                 local bNoRelevantUnits = true
 
-                if bDebugMessages == true then LOG(sFunctionRef .. ': About to cycle through every category, bPauseNotUnpause=' .. tostring(bPauseNotUnpause) .. '; iCategoryStartPoint=' .. iCategoryStartPoint .. '; iCategoryEndPoint=' .. iCategoryEndPoint) end
+                if bDebugMessages == true then LOG(sFunctionRef .. ': About to cycle through every category, bPauseNotUnpause=' .. tostring(bPauseNotUnpause) .. '; iCategoryStartPoint=' .. iCategoryStartPoint .. '; iCategoryEndPoint=' .. iCategoryEndPoint..'; iEnergyPerTickSavingNeeded='..iEnergyPerTickSavingNeeded) end
 
                 local bPausedUnitsTableIsEmptyForAllBrains = true
                 for iCategoryCount = iCategoryStartPoint, iCategoryEndPoint, iIntervalChange do
@@ -1577,6 +1583,8 @@ function ManageEnergyStalls(iTeam)
                     local oBP
                     local oFocusUnitBP
                     local bFirstEngiCategoryRefBrain = true
+
+
 
                     for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
                         if oBrain.CheatEnabled then iBuildRateMod = M28Team.tTeamData[iTeam][M28Team.refiHighestBrainBuildMultiplier]

@@ -330,6 +330,8 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     local iPlateauOrZero, iLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
 
     local tLZOrWZData
@@ -1462,16 +1464,24 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
 
     local oEnemyToTarget
     local iCurDist
-    local iClosestDist = 100000
+
     local tUnitsToTarget
     local aiBrain = oACU:GetAIBrain()
     local iTeam = aiBrain.M28Team
-    local iDistThreshold = iOptionalDistThresholdOverride or 60
+    local iDistThreshold
+    if iOptionalDistThresholdOverride then iDistThreshold = iOptionalDistThresholdOverride
+    else
+        if oACU[refiUpgradeCount] > 0 then iDistThreshold = 70
+        else iDistThreshold = 60
+        end
+    end
 
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]) == false then
         tUnitsToTarget = tLZTeamData[M28Map.reftoNearestDFEnemies]
+        iDistThreshold = iDistThreshold + 10
     elseif M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
         tUnitsToTarget = tLZTeamData[M28Map.subrefTEnemyUnits]
+        iDistThreshold = iDistThreshold + 10
     else
         --Search adjacent land zones for enemy units if none in this zone, and consider if they are within 60 of ACU position
         tUnitsToTarget = {}
@@ -1491,7 +1501,9 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
             tUnitsToTarget = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryStructure, oACU:GetPosition(), iDistThreshold, 'Enemy')
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Is table of units to target empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToTarget))..'; Is tLZTeamData[M28Map.reftoNearestDFEnemies] empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]))) end
+
+    local iClosestDist = iDistThreshold + 1
+    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Is table of units to target empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToTarget))..'; Is tLZTeamData[M28Map.reftoNearestDFEnemies] empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoNearestDFEnemies]))..'; iClosestDist='..iClosestDist) end
     if M28Utilities.IsTableEmpty(tUnitsToTarget) == false then
         local sPathing = M28Map.refPathingTypeAmphibious
         local iUnitPlateau, iUnitZone
@@ -2631,6 +2643,7 @@ function GetACUOrder(aiBrain, oACU)
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Do we have an upgrade we want to get? sUpgradeToGet='..(sUpgradeToGet or 'nil')) end
                                                     if sUpgradeToGet then
                                                         --Are we safe to get the upgrade here? if not then retreat
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Will check if safe to get upgrade for oACU, oACU='..(oACU.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oACU) or 'nil')..'; Brain='..oACU:GetAIBrain().Nickname) end
                                                         if M28Conditions.SafeToUpgradeUnit(oACU) then
                                                             if bDebugMessages == true then LOG(sFunctionRef..': Safe to get upgrade here so will proceed with upgrading ACU, sUpgradeToGet='..(sUpgradeToGet or 'nil')..' brain='..oACU:GetAIBrain().Nickname..'; Has enhancement='..tostring(oACU:HasEnhancement(sUpgradeToGet))) end
                                                             M28Orders.IssueTrackedEnhancement(oACU, sUpgradeToGet, false, 'ACUUp')
