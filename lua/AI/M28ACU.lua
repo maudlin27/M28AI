@@ -386,33 +386,11 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                 end
                 if not(bGoSecondAir) and M28Map.iMapSize >= 512 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains]) == false and table.getn(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains]) >= 2 then
                     --Still consider going 2nd air if have teammates between us and enemy (all teammates, not just M28 teammates) and are on a 10km+ map
-
-                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains]) == false then
-                        local iMaxDistToBaseWanted
-                        local iCurFriendlyDistToBase
-                        local bHaveCloserTeammate = false
-
-                        for iEnemyBrain, oEnemyBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
-                            bHaveCloserTeammate = false
-                            local tEnemyBase = M28Map.PlayerStartPoints[oEnemyBrain:GetArmyIndex()]
-                            iMaxDistToBaseWanted = M28Utilities.GetDistanceBetweenPositions(tEnemyBase, tLZOrWZData[M28Map.subrefMidpoint]) - 10
-                            for iFriendlyBrain, oFriendlyBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveBrains] do
-                                if not(oFriendlyBrain == aiBrain) then
-                                    iCurFriendlyDistToBase = M28Utilities.GetDistanceBetweenPositions(tEnemyBase,  M28Map.PlayerStartPoints[oFriendlyBrain:GetArmyIndex()])
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have a friendly brain closer to enemy than us, considering oEnemyBrain '..oEnemyBrain.Nickname..'; oFriendlyBrain '..oFriendlyBrain.Nickname..'; iMaxDistToBaseWanted='..iMaxDistToBaseWanted..'; iCurFriendlyDistToBase='..iCurFriendlyDistToBase) end
-                                    if iCurFriendlyDistToBase <= iMaxDistToBaseWanted then
-                                        bHaveCloserTeammate = true
-                                        break
-                                    end
-                                end
-                            end
-                            if not(bHaveCloserTeammate) then break end
-                        end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Finished cehcking if have closer teammate than us to each enemy base, bHaveCloserTeammate='..tostring(bHaveCloserTeammate)) end
-                        if bHaveCloserTeammate then
-                            bGoSecondAir = true
-                            if bDebugMessages == true then LOG(sFunctionRef..': Will go second air') end
-                        end
+                    if tLZOrWZTeamData[M28Map.refbBaseInSafePosition] then
+                        bGoSecondAir = true
+                        bDebugMessages = true
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will go second air for brain '..aiBrain.Nickname) end
+                        bDebugMessages = false
                     end
 
                 end
