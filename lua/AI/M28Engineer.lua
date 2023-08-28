@@ -5198,32 +5198,35 @@ function GetBPToAssignToMassStorage(iPlateau, iLandZone, iTeam, tLZTeamData, bCo
     return iBPWanted
 end
 
-function GetBPToAssignToAssistUpgrade(tLZTeamData, iTeam, bCoreZone, bHaveLowMass, bWantMorePower)
+function GetBPToAssignToAssistUpgrade(tLZTeamData, iTeam, bCoreZone, bHaveLowMass, bHaveLowPower, bWantMorePower)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetBPToAssignToAssistUpgrade'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     local iBPWanted = 0
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Considering if any active upgrades we want to assist; Is table of upgrades empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]))) end
-    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]) == false then
-        if not(bWantMorePower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] < 0.8 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 7) then
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering if any active upgrades we want to assist; Is table of upgrades empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]))..'; ='..tostring(bWantMorePower)..'; Have low power='..tostring(M28Conditions.HaveLowPower(iTeam))..'; bHaveLowMass='..tostring(bHaveLowMass)..'; bHaveLowPower='..tostring(bHaveLowPower)) end
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]) == false and (not(bHaveLowPower) or (not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] >= 0.9 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 7))) then
+        if not(bWantMorePower) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] > 0.8 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] > 2) then
             if bCoreZone then iBPWanted = 5 end
-
-            if not (bHaveLowMass) then
-                iBPWanted = iBPWanted + tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 2
-                if not (bWantMorePower) then
+            if not(bHaveLowPower) then
+                if not (bHaveLowMass) then
                     iBPWanted = iBPWanted + tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 2
-                end
-            else
-                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 50 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0 then
-                    iBPWanted = iBPWanted + tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]]
+                    if not (bWantMorePower) then
+                        iBPWanted = iBPWanted + tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 2
+                    end
+                else
+                    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 50 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0 then
+                        iBPWanted = iBPWanted + tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]]
+                    end
                 end
             end
             if not(bCoreZone) and iBPWanted > 5 then iBPWanted = math.min(25, iBPWanted * 0.5) end
         end
         --Increase assistance if we have lots of upgrades
-        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] >= 0.95 then
+        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] >= 0.95 and not(bHaveLowPower) then
             if table.getn(tLZTeamData[M28Map.subrefActiveUpgrades]) >= 3 then iBPWanted = iBPWanted * 2
             elseif table.getn(tLZTeamData[M28Map.subrefActiveUpgrades]) == 2 then iBPWanted = iBPWanted * 1.25
             end
@@ -7079,7 +7082,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --Assist upgrades:
     iCurPriority = iCurPriority + 1
-    iBPWanted = GetBPToAssignToAssistUpgrade(tLZTeamData, iTeam, true, bHaveLowMass, bWantMorePower)
+    iBPWanted = GetBPToAssignToAssistUpgrade(tLZTeamData, iTeam, true, bHaveLowMass, bHaveLowPower, bWantMorePower)
     if iBPWanted > 0 then
         HaveActionToAssign(refActionAssistUpgrade, 1, iBPWanted)
     end
@@ -8372,7 +8375,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
 
 
     iCurPriority = iCurPriority + 1
-    iBPWanted = GetBPToAssignToAssistUpgrade(tLZTeamData, iTeam, false, bHaveLowMass, bWantMorePower)
+    iBPWanted = GetBPToAssignToAssistUpgrade(tLZTeamData, iTeam, false, bHaveLowMass, bHaveLowPower, bWantMorePower)
     if iBPWanted > 0 then
         HaveActionToAssign(refActionAssistUpgrade, 1, iBPWanted)
     end
@@ -8755,7 +8758,8 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     --Spare engi - assist any upgrading unit
     iCurPriority = iCurPriority + 1
     iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
-    if iHighestTechEngiAvailable > 0 then
+    if iHighestTechEngiAvailable > 0 and not(bHaveLowPower) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Is table of active upgrades empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]))..'; have spare engis so will send any spare to assist any active upgrades') end
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefActiveUpgrades]) == false then
             HaveActionToAssign(refActionAssistUpgrade, 1, 1000, false, true)
         end

@@ -388,9 +388,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                     --Still consider going 2nd air if have teammates between us and enemy (all teammates, not just M28 teammates) and are on a 10km+ map
                     if tLZOrWZTeamData[M28Map.refbBaseInSafePosition] then
                         bGoSecondAir = true
-                        bDebugMessages = true
                         if bDebugMessages == true then LOG(sFunctionRef..': Will go second air for brain '..aiBrain.Nickname) end
-                        bDebugMessages = false
                     end
 
                 end
