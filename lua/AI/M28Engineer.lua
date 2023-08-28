@@ -4700,45 +4700,48 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                         if tiActionOrder[iActionToAssign] == M28Orders.refiOrderIssueGuard then
                             --Want to assist something, and are just looking for a single predefined category (so dont need the  later on custom logic)
                             local oUnitToAssist
-                            local oBackupUnit
-                            local sAlliedUnitRef
-                            if bIsWaterZone then sAlliedUnitRef = M28Map.subrefWZTAlliedUnits
-                            else sAlliedUnitRef = M28Map.subrefLZTAlliedUnits
-                            end
-                            local tUnitsOfCategoryInLZ = EntityCategoryFilterDown(tiActionCategory[iActionToAssign], tLZOrWZTeamData[sAlliedUnitRef])
-                            if M28Utilities.IsTableEmpty(tUnitsOfCategoryInLZ) == false then
-                                --Shield assistance - special logic
-                                if iActionToAssign == refActionAssistShield then
-                                    if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftPriorityShieldsToAssist]) then --redundancy
-                                        M28Utilities.ErrorHandler('Dont have a priority shield to assist somehow')
-                                    else
-                                        --Get the shield with the least assistance
-                                        local iLowestBPAssisting = 100000
-                                        local iCurBPAssisting
-                                        for iShield, oShield in tLZOrWZTeamData[M28Map.reftPriorityShieldsToAssist] do
-                                            iCurBPAssisting = 0
-                                            if M28Utilities.IsTableEmpty(oShield[M28UnitInfo.reftoUnitsAssistingThis]) == false then
-                                                for iAssisting, oAssisting in oShield[M28UnitInfo.reftoUnitsAssistingThis] do
-                                                    iCurBPAssisting = iCurBPAssisting + (oAssisting:GetBlueprint().Economy.BuildRate or 0)
+                            if vOptionalVariable and M28UnitInfo.IsUnitValid(vOptionalVariable) then oUnitToAssist = vOptionalVariable
+                            else
+                                local oBackupUnit
+                                local sAlliedUnitRef
+                                if bIsWaterZone then sAlliedUnitRef = M28Map.subrefWZTAlliedUnits
+                                else sAlliedUnitRef = M28Map.subrefLZTAlliedUnits
+                                end
+                                local tUnitsOfCategoryInLZ = EntityCategoryFilterDown(tiActionCategory[iActionToAssign], tLZOrWZTeamData[sAlliedUnitRef])
+                                if M28Utilities.IsTableEmpty(tUnitsOfCategoryInLZ) == false then
+                                    --Shield assistance - special logic
+                                    if iActionToAssign == refActionAssistShield then
+                                        if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.reftPriorityShieldsToAssist]) then --redundancy
+                                            M28Utilities.ErrorHandler('Dont have a priority shield to assist somehow')
+                                        else
+                                            --Get the shield with the least assistance
+                                            local iLowestBPAssisting = 100000
+                                            local iCurBPAssisting
+                                            for iShield, oShield in tLZOrWZTeamData[M28Map.reftPriorityShieldsToAssist] do
+                                                iCurBPAssisting = 0
+                                                if M28Utilities.IsTableEmpty(oShield[M28UnitInfo.reftoUnitsAssistingThis]) == false then
+                                                    for iAssisting, oAssisting in oShield[M28UnitInfo.reftoUnitsAssistingThis] do
+                                                        iCurBPAssisting = iCurBPAssisting + (oAssisting:GetBlueprint().Economy.BuildRate or 0)
+                                                    end
+                                                end
+                                                if iCurBPAssisting < iLowestBPAssisting then
+                                                    iLowestBPAssisting = iCurBPAssisting
+                                                    oUnitToAssist = oShield
+                                                    if iLowestBPAssisting == 0 then break end
                                                 end
                                             end
-                                            if iCurBPAssisting < iLowestBPAssisting then
-                                                iLowestBPAssisting = iCurBPAssisting
-                                                oUnitToAssist = oShield
-                                                if iLowestBPAssisting == 0 then break end
+                                        end
+                                    else
+                                        for iUnit, oUnit in tUnitsOfCategoryInLZ do
+                                            if oUnit:GetWorkProgress() > 0 then
+                                                oUnitToAssist = oUnit
+                                            else
+                                                oBackupUnit = oUnitToAssist
                                             end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to assist unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with work progress '..oUnit:GetWorkProgress()) end
                                         end
+                                        if not(oUnitToAssist) then oUnitToAssist = oBackupUnit end
                                     end
-                                else
-                                    for iUnit, oUnit in tUnitsOfCategoryInLZ do
-                                        if oUnit:GetWorkProgress() > 0 then
-                                            oUnitToAssist = oUnit
-                                        else
-                                            oBackupUnit = oUnitToAssist
-                                        end
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to assist unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with work progress '..oUnit:GetWorkProgress()) end
-                                    end
-                                    if not(oUnitToAssist) then oUnitToAssist = oBackupUnit end
                                 end
                             end
                             if M28UnitInfo.IsUnitValid(oUnitToAssist) then
@@ -6644,21 +6647,33 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         if bDebugMessages == true then LOG(sFunctionRef..': Want to build second power due to lots of mass and having recently needed more energy for air production') end
     end
 
-    --Assist air fac if at T2
+    --Assist air fac if at T2+ and want more factories
     iCurPriority = iCurPriority + 1
     if not(bWantMorePower) and (not(bHaveLowMass) or bWantMoreFactories) then
-        if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 2 then
+        if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 2 and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 or M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryAllAir - categories.TECH1) <= 5) then
             --Check we have more power than when we last were unable to build air units
             if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] > (M28Team.tTeamData[iTeam][M28Team.refiEnergyWhenAirFactoryLastUnableToBuildAir] or 0) * 1.25 then
                 if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
                     local tT2PlusAirFacsInLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory * M28UnitInfo.ConvertTechLevelToCategory(M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]), tLZTeamData[M28Map.subrefLZTAlliedUnits])
-                    if M28Utilities.IsTableEmpty(   tT2PlusAirFacsInLZ) == false then
-                        if bHaveLowMass then iBPWanted = tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 2
+                    if M28Utilities.IsTableEmpty(   tT2PlusAirFacsInLZ) == false and (not(bHaveLowMass) or tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) then
+                        if bHaveLowMass then iBPWanted = tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 1.5
                         else
                             iBPWanted = tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 4
                             if not(bWantMorePower) then iBPWanted = iBPWanted * 2 end
                         end
-                        HaveActionToAssign(refActionAssistAirFactory, 1, iBPWanted)
+                        local oAirFactoryToAssist
+                        local iHighestAirFac = 0
+                        local iCurTechLevel
+                        for iFactory, oFactory in tT2PlusAirFacsInLZ do
+                            iCurTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)
+                            if iCurTechLevel > iHighestAirFac then
+                                iHighestAirFac = iCurTechLevel
+                                oAirFactoryToAssist = oFactory
+                            end
+                        end
+                        if oAirFactoryToAssist then
+                            HaveActionToAssign(refActionAssistAirFactory, 1, iBPWanted, oAirFactoryToAssist)
+                        end
                     end
                 end
             end
