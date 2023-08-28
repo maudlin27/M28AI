@@ -1021,7 +1021,10 @@ function GetACUUpgradeWanted(oACU)
                         --Do we have enoguh net mass?
                         if bDebugMessages == true then LOG(sFunctionRef..': Have enough net energy, do we have enough net mass or so much gross mass that we can still proceed?') end
                         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= (iActiveACUUpgrades * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] + 3.5 * iMassCostPerTick * 3) * iResourceFactor or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= iMassCostPerTick * math.min(2.5, iResourceFactor * 0.4) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= math.min(3, iResourceFactor) * tEnhancement.BuildCostMass * 0.5 or (M28Map.bIsCampaignMap and aiBrain[M28Factory.refiHighestFactoryBuildCount] >= 30) then
-                            sUpgradeWanted = sPotentialUpgrade
+                            --Require T3 mex if 3rd+ upgrade and the upgrade has a significant cost
+                            if oACU[refiUpgradeCount] < 2 or tEnhancement.BuildCostMass <= 800 or aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT3Mex) > 1 then
+                                sUpgradeWanted = sPotentialUpgrade
+                            end
                         end
                     end
                 end
