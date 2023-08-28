@@ -1200,6 +1200,64 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                             --Allied unit - dont record if it isnt owned by M28AI brain (so we dont control allied non-M28 units)
                             if not(oUnit:GetAIBrain().M28AI) then
                                 bIgnore = true
+                            else
+                                --M28 ally specific
+
+                                --Air staging - clear any engineers in other zones constructing them if we dont ahve T3 air
+                                if EntityCategoryContains(M28UnitInfo.refCategoryAirStaging, oUnit.UnitId) and tTeamData[oUnit:GetAIBrain().M28Team][subrefiHighestFriendlyAirFactoryTech] < 3 then
+                                    local iTeam = oUnit:GetAIBrain().M28Team
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Building air staging, and dont ahve T3 air, brain count='..tTeamData[iTeam][subrefiActiveM28BrainCount]..'; iTeam='..iTeam) end
+                                    if tTeamData[iTeam][subrefiActiveM28BrainCount] > 1 then
+                                        local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+                                        for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
+                                            local tStartLZData, tStartLZTeamData = M28Map.GetLandOrWaterZoneData(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()], true, iTeam)
+                                            if not(tStartLZTeamData == tLZTeamData) then
+                                                if M28Utilities.IsTableEmpty(tStartLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
+                                                    local bHaveAirStagingUnderConstruction = false
+                                                    local tAirStaging = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirStaging, tStartLZTeamData[M28Map.subrefLZTAlliedUnits])
+                                                    if M28Utilities.IsTableEmpty(tAirStaging) == false then
+                                                        for iAirStaging, oAirStaging in tAirStaging do
+                                                            if M28UnitInfo.IsUnitValid(oAirStaging) and oAirStaging:GetFractionComplete() < 1 then
+                                                                bHaveAirStagingUnderConstruction = true
+                                                                break
+                                                            end
+                                                        end
+                                                    end
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': oBrain='..oBrain.Nickname..'; bHaveAirStagingUnderConstruction='..tostring(bHaveAirStagingUnderConstruction)) end
+                                                    if not(bHaveAirStagingUnderConstruction) then
+                                                        local tEngineers = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tStartLZTeamData[M28Map.subrefLZTAlliedUnits])
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of units of cateogyr empty for brain '..oBrain.Nickname..'='..tostring(M28Utilities.IsTableEmpty(tEngineers))..'; oUnit fraction complete='..oUnit:GetFractionComplete()) end
+                                                        if M28Utilities.IsTableEmpty(tEngineers) == false then
+                                                            local toEngineersToClear = {}
+                                                            for iEngineer, oEngineer in tEngineers do
+                                                                if bDebugMessages == true then LOG(sFunctionRef..': Considering engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; Engineer action='..(oEngineer[M28Engineer.refiAssignedAction] or 'nil')..'; Engineer state='..M28UnitInfo.GetUnitState(oEngineer)) end
+                                                                if M28UnitInfo.IsUnitValid(oEngineer) and oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionBuildAirStaging then
+                                                                    if not(oEngineer:IsUnitState('Building')) and not(oEngineer:IsUnitState('Repairing')) then
+                                                                        table.insert(toEngineersToClear, oEngineer)
+                                                                    else
+                                                                        local oFocus = oEngineer:GetFocusUnit()
+                                                                        LOG(sFunctionRef..': Focus unit is '..(oFocus.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFocus) or 'nil'))
+                                                                        if oFocus then LOG(sFunctionRef..': oFocus fraction complete='..oFocus:GetFractionComplete()) end
+                                                                        if not(M28UnitInfo.IsUnitValid(oFocus)) or oFocus:GetFractionComplete() == 0 then
+                                                                            table.insert(toEngineersToClear, oEngineer)
+                                                                        end
+
+                                                                    end
+                                                                end
+                                                            end
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': Is table of engineers to clear empty='..tostring(M28Utilities.IsTableEmpty(toEngineersToClear))) end
+                                                            if M28Utilities.IsTableEmpty(toEngineersToClear) == false then
+                                                                for iEngineer, oEngineer in toEngineersToClear do
+                                                                    M28Orders.IssueTrackedClearCommands(oEngineer)
+                                                                end
+                                                            end
+                                                        end
+                                                    end
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
                             end
                             --Update intel coverage for units being constructed and/or allied units (in addition when a radar/sonar is constructed it will also trigger the below if it hasnt already run as a redundancy)
                             if EntityCategoryContains(M28UnitInfo.refCategoryRadar, oUnit.UnitId) then M28Land.UpdateZoneIntelForRadar(oUnit)

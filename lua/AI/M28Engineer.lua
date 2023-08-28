@@ -6120,16 +6120,28 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         local tExistingAirStaging = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirStaging, tLZTeamData[M28Map.subrefLZTAlliedUnits])
         local iExistingAirStaging = 0
         local oExistingM28Brain
+        local iAirStagingInThisZoneUnderConstruction = 0
         if M28Utilities.IsTableEmpty(tExistingAirStaging) == false then
             for iStaging, oStaging in tExistingAirStaging do
-                if oStaging:GetFractionComplete() == 1 and oStaging:GetAIBrain().M28AI then
-                    oExistingM28Brain = oStaging:GetAIBrain()
-                    iExistingAirStaging = iExistingAirStaging + 1
+                if oStaging:GetAIBrain().M28AI then
+                    if oStaging:GetFractionComplete() == 1 then
+                        oExistingM28Brain = oStaging:GetAIBrain()
+                        iExistingAirStaging = iExistingAirStaging + 1
+                    else
+                        iAirStagingInThisZoneUnderConstruction = iAirStagingInThisZoneUnderConstruction + 1
+                    end
                 end
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': iExistingAirStaging='..iExistingAirStaging..'; bHaveLowMass='..tostring(bHaveLowMass)) end
-        if iExistingAirStaging <= 1 or (iExistingAirStaging < 3 and not(bHaveLowMass)) or (iExistingAirStaging < 8 and oExistingM28Brain and oExistingM28Brain:GetCurrentUnits(M28UnitInfo.refCategoryAllNonExpAir) >= 50 * iExistingAirStaging) then
+        local iUnderConstructionInOtherZonesWithLowResources = 0
+        if bDebugMessages == true then LOG(sFunctionRef..': iAirStagingInThisZoneUnderConstruction='..iAirStagingInThisZoneUnderConstruction..'; Active brain count='.. M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]..'; bHaveLowMass='..tostring(bHaveLowMass)..'; bHaveLowPower='..tostring(bHaveLowPower)..'; Highest air fac tech='.. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]) end
+        if iAirStagingInThisZoneUnderConstruction == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 and (bHaveLowMass or bHaveLowPower or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3) then
+            --How many under construction air staging do we have
+            iUnderConstructionInOtherZonesWithLowResources = M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZTeamData, iTeam, M28UnitInfo.refCategoryAirStaging)
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': iExistingAirStaging='..iExistingAirStaging..'; bHaveLowMass='..tostring(bHaveLowMass)..'; iAirStagingInThisZoneUnderConstruction='..iAirStagingInThisZoneUnderConstruction..'; iUnderConstructionInOtherZonesWithLowResources='..iUnderConstructionInOtherZonesWithLowResources) end
+        if iUnderConstructionInOtherZonesWithLowResources == 0 and (iExistingAirStaging <= 1 or (iExistingAirStaging < 3 and not(bHaveLowMass)) or (iExistingAirStaging < 8 and oExistingM28Brain and oExistingM28Brain:GetCurrentUnits(M28UnitInfo.refCategoryAllNonExpAir) >= 50 * iExistingAirStaging)) then
+
             iBPWanted = tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]]
             if not(bHaveLowMass) then iBPWanted = iBPWanted * 2 end
             HaveActionToAssign(refActionBuildAirStaging, 1, iBPWanted, nil, false)
@@ -8723,6 +8735,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         end
         if not(bHaveAirStaging) then
             HaveActionToAssign(refActionBuildAirStaging, 1, 10)
+            if bDebugMessages == true then LOG(sFunctionRef..': Low priority air staging builder') end
         end
     end
 

@@ -1724,3 +1724,30 @@ function IsNearbyStructureThatWeCanReachWithIndirect(tLZData, tLZTeamData, iTeam
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return bWantIndirectReinforcements
 end
+
+function GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZTeamData, iTeam, iCategory)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iUnderConstructionInOtherZones = 0
+    local tUnitsOfCategory
+    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+        local tStartLZData, tStartLZTeamData = M28Map.GetLandOrWaterZoneData(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()], true, iTeam)
+        if not(tStartLZTeamData == tLZTeamData) then
+            if M28Utilities.IsTableEmpty(tStartLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
+                tUnitsOfCategory = EntityCategoryFilterDown(iCategory, tStartLZTeamData[M28Map.subrefLZTAlliedUnits])
+                if bDebugMessages == true then LOG(sFunctionRef..': Is table of units of cateogyr empty for brain '..oBrain.Nickname..'='..tostring(M28Utilities.IsTableEmpty(tUnitsOfCategory))) end
+                if M28Utilities.IsTableEmpty(tUnitsOfCategory) == false then
+                    for iUnit, oUnit in tUnitsOfCategory do
+                        if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetAIBrain().M28AI and oUnit:GetFractionComplete() < 1 then
+                            iUnderConstructionInOtherZones = iUnderConstructionInOtherZones + 1
+                        end
+                    end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return iUnderConstructionInOtherZones
+end
