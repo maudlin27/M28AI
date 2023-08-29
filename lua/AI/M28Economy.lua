@@ -1047,8 +1047,15 @@ function ManageMassStalls(iTeam)
                         if iCategoryRef == iSpecialSurplusUpgradeCategory then
                             --Pause all but 1 upgrade per brain, pausing the lowest progress first, if we have multiple upgrades.  Dont pause the last mex upgrade
                             tRelevantUnits = {}
-                            if M28Utilities.IsTableEmpty(M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingMexes]) == false then
+                            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) == false then
                                 local iMexesToPause = math.max(0, table.getn(M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingMexes]) - (0.5 + 0.5 * M28Team.tTeamData[oBrain.M28Team][M28Team.subrefiActiveM28BrainCount]))
+                                --Want to allow multiple upgrading mexes for a brain if we have lots of mexes
+                                if iMexesToPause > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 14 then
+                                    if oBrain[refiGrossMassBaseIncome] >= 7 then
+                                        local iMexPerPlayer = 0.5 + (oBrain[refiGrossMassBaseIncome] / 7)*0.25
+                                        iMexesToPause = math.min(iMexesToPause, table.getn(M28Team.tTeamData[oBrain.M28Team][M28Team.subreftTeamUpgradingMexes]) - (0.5 + iMexPerPlayer * M28Team.tTeamData[oBrain.M28Team][M28Team.subrefiActiveM28BrainCount]))
+                                    end
+                                end
 
                                 while iMexesToPause > 0 do
                                     local iLowestProgress = 1
