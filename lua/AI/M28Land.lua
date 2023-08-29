@@ -512,12 +512,11 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         if tLZTeamData[M28Map.subrefLZThreatEnemyShield] >= 50 then
             local iMaxShieldRating
             if tLZTeamData[M28Map.subrefLZThreatEnemyShield] >= 4000 then
-                iMaxShieldRating = math.min(3200 + (tLZTeamData[M28Map.subrefLZThreatEnemyShield] - 4000) * 0.4, 7000)
+                iMaxShieldRating = math.min(3200 + (tLZTeamData[M28Map.subrefLZThreatEnemyShield] - 4000) * 0.4, 7000) --shields wont be able to cover everywhere, and more than one shield has lower value due to FAF anti-shield stacking
             else
                 iMaxShieldRating = tLZTeamData[M28Map.subrefLZThreatEnemyShield] * 0.8
             end
 
-            -- = math.min(tLZTeamData[M28Map.subrefLZThreatEnemyShield] * 0.8, 6500) --shields wont be able to cover everywhere
             tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] = tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] + math.min(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal], iMaxShieldRating)
             tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] = tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] + math.min(tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect], iMaxShieldRating)
             tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] = tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] + math.min(tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA], iMaxShieldRating)
