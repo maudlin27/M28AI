@@ -2520,6 +2520,9 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                     if bCanPathByLand then
                         if iCurFatboyCount == 0 then
                             iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
+                            --Game-ender for late game scenarios where enemy has their own arti and as a team we have already tried building a number of experimentals
+                        elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 170 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 200 and iCurT3ArtiCount == 0  and iTeamLandExperimentals >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] >= 12000 and M28Map.iMapSize >= 512 and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryGameEnder) == 0 and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryExperimentalLevel) >= 2 * (1.5 + M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
+                            iCategoryWanted =  M28UnitInfo.refCategoryExperimentalArti
                         elseif iCurNovaxCount == 0 then
                             iCategoryWanted = M28UnitInfo.refCategoryNovaxCentre
                         elseif iCurFatboyCount < math.min(5, math.max(math.min(3, 1 + iSubteamSize, 1 + iEnemyLandExperimentalCount), iCurT3ArtiCount + math.max(0, iCurT3ArtiCount - 3))) then
