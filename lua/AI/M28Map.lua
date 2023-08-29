@@ -3261,7 +3261,6 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
             local iCurFriendlyDistToBase
             local bHaveCloserTeammate = false
             for iBaseFriendlyBase, tBaseFriendlyBase in tAllyBases do
-                bDebugMessages = true
                 if bDebugMessages == true then LOG(sFunctionRef..': About to check if we have any friendl ybases that are closer to every enemy base than this, iBaseFriendlyBase='..iBaseFriendlyBase..'; tBaseFriendlyBase='..repru(tBaseFriendlyBase)) end
                 for iEntry, tEnemyBase in tEnemyBases do
                     bHaveCloserTeammate = false
