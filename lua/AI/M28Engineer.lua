@@ -7057,15 +7057,22 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         --Only build SMD if we have built a lot of T3 units or have built experimentals or have very high eco
         if tLZTeamData[M28Map.subrefLZSValue] >= 45000 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 30 or M28Conditions.GetTeamLifetimeBuildCount(iTeam, categories.TECH3 - categories.STRUCTURE) >= 20 then
             --Also require several T3 mexes unless we have very high mass
-            if (tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= math.min(60, 26 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])) or (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 and tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 and (tLZTeamData[M28Map.subrefMexCountByTech][2] == 0 or tLZTeamData[M28Map.subrefMexCountByTech][3] >= 5)) or (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 1 and tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 24) then
+            if (tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 and (not(bHaveLowMass) or tLZTeamData[M28Map.subrefMexCountByTech][3] > 0) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 26 + 18 * (1-M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])) or (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 2 and tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 and (tLZTeamData[M28Map.subrefMexCountByTech][2] == 0 or tLZTeamData[M28Map.subrefMexCountByTech][3] >= 5)) or (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 1 and tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] / M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] >= 24) then
                 local iExperimentalLifetimeCount = M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryExperimentalLevel)
                 if iExperimentalLifetimeCount > 1 + math.min(3, M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 30 or (not(bHaveLowMass) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 30)) or M28Map.bIsCampaignMap then
-
-                    local bAssistSMD = false
-                    iBPWanted, bAssistSMD = GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, false, bHaveLowMass, bWantMorePower)
-                    if iBPWanted > 0 and not(bAssistSMD) then --Since htis is precautionary not worried about rushing the SMD
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will assign BP to build an SMD preemptively, iBPWanted='..iBPWanted) end
-                        HaveActionToAssign(refActionBuildSMD, 3, iBPWanted)
+                    local iSMDUnderConstructionInThisZone = M28Conditions.GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, M28UnitInfo.refCategorySMD, true)
+                    local bStillGetSMD = true
+                    if iSMDUnderConstructionInThisZone == 0 then
+                        local iSMDUnderConstructionInOtherZones = M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZTeamData, iTeam, M28UnitInfo.refCategorySMD)
+                        if iSMDUnderConstructionInOtherZones > 0 then bStillGetSMD = false end
+                    end
+                    if bStillGetSMD then
+                        local bAssistSMD = false
+                        iBPWanted, bAssistSMD = GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, false, bHaveLowMass, bWantMorePower)
+                        if iBPWanted > 0 and not(bAssistSMD) then --Since htis is precautionary not worried about rushing the SMD
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will assign BP to build an SMD preemptively, iBPWanted='..iBPWanted) end
+                            HaveActionToAssign(refActionBuildSMD, 3, iBPWanted)
+                        end
                     end
                 end
             end

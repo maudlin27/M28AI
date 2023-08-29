@@ -665,17 +665,30 @@ function HaveLowPower(iTeam)
     return bHaveLowPower
 end
 
-function GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, iCategoryWanted)
+function GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, iCategoryWanted, bAllConstructionNotFactory)
     --Returns the number of factories that are building a unit meeting iCategoryWanted
+        --if bAllConstructionNotFactory then instead returns number of part-complete units of iCategoryWanted
     local iAlreadyBuilding = 0
-    local tLZFactories = EntityCategoryFilterDown(categories.FACTORY, tLZTeamData[M28Map.subrefLZTAlliedUnits])
-    if M28Utilities.IsTableEmpty(tLZFactories) == false then
-        local oCurUnitBuilding
-        for iFactory, oFactory in tLZFactories do
-            oCurUnitBuilding = oFactory:GetFocusUnit()
-            if oCurUnitBuilding and EntityCategoryContains(iCategoryWanted, oCurUnitBuilding) then
-                --LOG('Temp to check we have a factory building the category wanted - we do, oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Unit building='..oCurUnitBuilding.UnitId)
-                iAlreadyBuilding = iAlreadyBuilding + 1
+
+    if bAllConstructionNotFactory then
+        local tUnitsOfCategory = EntityCategoryFilterDown(iCategoryWanted, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+        if M28Utilities.IsTableEmpty(tUnitsOfCategory) == false then
+            for iUnit, oUnit in tUnitsOfCategory do
+                if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() < 1 then
+                    iAlreadyBuilding = iAlreadyBuilding + 1
+                end
+            end
+        end
+    else
+        local tLZFactories = EntityCategoryFilterDown(categories.FACTORY, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+        if M28Utilities.IsTableEmpty(tLZFactories) == false then
+            local oCurUnitBuilding
+            for iFactory, oFactory in tLZFactories do
+                oCurUnitBuilding = oFactory:GetFocusUnit()
+                if oCurUnitBuilding and EntityCategoryContains(iCategoryWanted, oCurUnitBuilding) then
+                    --LOG('Temp to check we have a factory building the category wanted - we do, oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Unit building='..oCurUnitBuilding.UnitId)
+                    iAlreadyBuilding = iAlreadyBuilding + 1
+                end
             end
         end
     end
