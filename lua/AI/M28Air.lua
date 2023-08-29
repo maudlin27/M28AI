@@ -3399,18 +3399,6 @@ function ManageGunships(iTeam, iAirSubteam)
     local oFrontGunship
     local bGunshipWantsAirScout = false
     if M28Utilities.IsTableEmpty(tAvailableGunships) == false then
-        local iOurGunshipThreat = M28UnitInfo.GetAirThreatLevel(tAvailableGunships, false, false, false, true, false, false)
-
-        --GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo, bBlueprintThreat)
-        local iOurGunshipAA = M28UnitInfo.GetAirThreatLevel(tAvailableGunships, false,  true,               false,              false, false, false)
-        local bHaveT3Gunships = false
-        if iOurGunshipThreat >= 2000 then
-            if EntityCategoryContains(categories.TECH3 + categories.EXPERIMENTAL, tAvailableGunships[1].UnitId) then bHaveT3Gunships = true
-            elseif M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.TECH3 + categories.EXPERIMENTAL, tAvailableGunships)) == false then
-                bHaveT3Gunships = true
-            end
-        end
-
 
         --Prioroity targets to attack - search for enemies around start positions (ignore AA):
         local tEnemyGroundTargets = {}
@@ -3430,6 +3418,25 @@ function ManageGunships(iTeam, iAirSubteam)
                         bGunshipWantsAirScout = true
                     end
                 end
+            end
+        end
+
+
+        local tGunshipsNearFront = {}
+        for iUnit, oUnit in tAvailableGunships do
+            if M28Utilities.GetDistanceBetweenPositions(oFrontGunship:GetPosition(), oUnit:GetPosition()) <= 50 then
+                table.insert(tGunshipsNearFront, oUnit)
+            end
+        end
+        local iOurGunshipThreat = M28UnitInfo.GetAirThreatLevel(tGunshipsNearFront, false, false, false, true, false, false)
+
+        --GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo, bBlueprintThreat)
+        local iOurGunshipAA = M28UnitInfo.GetAirThreatLevel(tAvailableGunships, false,  true,               false,              false, false, false)
+        local bHaveT3Gunships = false
+        if iOurGunshipThreat >= 2000 then
+            if EntityCategoryContains(categories.TECH3 + categories.EXPERIMENTAL, tAvailableGunships[1].UnitId) then bHaveT3Gunships = true
+            elseif M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.TECH3 + categories.EXPERIMENTAL, tAvailableGunships)) == false then
+                bHaveT3Gunships = true
             end
         end
 
@@ -3456,6 +3463,9 @@ function ManageGunships(iTeam, iAirSubteam)
 
                 end
             end
+            local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
+            local tGunshipsNearFront = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryGunship, oFrontGunship:GetPosition(), 50, 'Ally')
+            LOG(sFunctionRef..': Threat of gunships within 50 of front gunship='..M28UnitInfo.GetAirThreatLevel(tGunshipsNearFront, false, false, false, true, false, false)..'; iOurGunshipThreat='..iOurGunshipThreat)
         end
 
         local iMaxEnemyAirAA --Amount of enemy airaa threat required to make gunships to target enemies nearby
