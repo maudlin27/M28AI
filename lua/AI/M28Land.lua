@@ -5053,6 +5053,8 @@ function ConsiderIfAnyEnemyTeamsStillHaveFirebaseOnT2ArtiDeath(oT2Arti)
     for iTeam = 1, M28Team.iTotalTeamCount do
         if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 0 and not(iTeam == iBaseTeam) then
             ConsiderIfHaveEnemyFirebase(iTeam, oT2Arti)
+            --update tracking of t2 arti to reflect it is dead
+            M28Team.RecordEnemyT2ArtiAgainstNearbyZones(iTeam, oT2Arti, true)
         end
     end
 end

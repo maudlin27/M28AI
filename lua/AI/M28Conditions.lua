@@ -415,6 +415,8 @@ function SafeToUpgradeUnit(oUnit)
     local sFunctionRef = 'SafeToUpgradeUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
     local bSafeZone = false
     if (iLandZone or 'nil') > 0 and not(iPlateau == 0) then
@@ -501,6 +503,30 @@ function SafeToUpgradeUnit(oUnit)
             if not(bSafeZone) and EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeCreated] or 0) >= 300 then
                 bSafeZone = true
             end
+
+            --If are within range of enemy t2 arti and not a core base then dont trear as safe unless both mex and arti alive for at least 8m
+            if bDebugMessages == true then LOG(sFunctionRef..': Checking if enemy T2 arti in range if we think this is safe, bSafeZone='..tostring(bSafeZone)..'; iPlateau='..iPlateau..'; Is core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])..'; Zone='..(iLandZone or 'nil')..'; Is table of enemy t2 arti empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]))) end
+            if bSafeZone and iPlateau > 0 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
+                local bBothAliveForAWhile = true
+                if GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeCreated] or 0) <= 480 then bBothAliveForAWhile = false
+                else
+                    for iArti, oArti in tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits] do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Time since Arti created='..GetGameTimeSeconds() - (oArti[M28UnitInfo.refiTimeCreated] or 0)) end
+                        if GetGameTimeSeconds() - (oArti[M28UnitInfo.refiTimeCreated] or 0) <= 480 then bBothAliveForAWhile = false break end
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': bBothAliveForAWhile='..tostring(bBothAliveForAWhile)) end
+                if not(bBothAliveForAWhile) then
+                    local bEnemyArtiInRange = false
+                    for iArti, oArti in tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits] do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Dist of enemy Arti to unit position='..M28Utilities.GetDistanceBetweenPositions(oArti:GetPosition(), oUnit:GetPosition())..'; Arti combat range='..oArti[M28UnitInfo.refiCombatRange]) end
+                        if M28Utilities.GetDistanceBetweenPositions(oArti:GetPosition(), oUnit:GetPosition()) <= oArti[M28UnitInfo.refiCombatRange] then
+                            bSafeZone = false
+                            break
+                        end
+                    end
+                end
+            end
         else
             M28Utilities.ErrorHandler('Dont have a valid LZData table for iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; will treat as safe for non-mobilre units only')
             if not(EntityCategoryContains(categories.MOBILE, oUnit.UnitId)) then
@@ -521,6 +547,7 @@ function SafeToUpgradeUnit(oUnit)
             bSafeZone = true
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': Nearing end of code, before TML check, bSafeZone='..tostring(bSafeZone)) end
     if bSafeZone then
         local bDangerousTML = false
         --TML adjust
