@@ -418,6 +418,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] = 0
         tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] = false
         tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] = 0
+        tLZTeamData[M28Map.subrefLZThreatEnemyShield] = 0
     else
         local tMobileUnits = EntityCategoryFilterDown(categories.MOBILE - M28UnitInfo.refCategoryScathis, tLZTeamData[M28Map.subrefTEnemyUnits])
         local tStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryScathis, tLZTeamData[M28Map.subrefTEnemyUnits])
@@ -432,6 +433,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
                 end
             end
         end
+
         tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] = M28UnitInfo.GetCombatThreatRating(tStructures, true, false, true)
         tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] = M28UnitInfo.GetAirThreatLevel(tLZTeamData[M28Map.subrefTEnemyUnits], true, false, true, false, false, false)
         tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange] = nil
@@ -440,6 +442,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange] = nil
         tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] = 0
         tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] = M28UnitInfo.GetCombatThreatRating(tStructures, true, true)
+
         --Increase structure value for under construction experimentals
         local tExperimentals = EntityCategoryFilterDown(categories.EXPERIMENTAL * categories.MOBILE, tLZTeamData[M28Map.subrefTEnemyUnits])
         if M28Utilities.IsTableEmpty(tExperimentals) == false then
@@ -491,6 +494,37 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
             if bDebugMessages == true then LOG(sFunctionRef..': LZ threats by range after updating for all structures='..repru(tLZTeamData[M28Map.subrefLZThreatEnemyStructureDFByRange])) end
         end
         tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] = bHaveDangerousEnemies
+
+        --Increase enemy threats for shield values
+        local tShields = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryMobileLandShield, tLZTeamData[M28Map.subrefTEnemyUnits])
+        tLZTeamData[M28Map.subrefLZThreatEnemyShield] = 0
+        if M28Utilities.IsTableEmpty(tShields) == false then
+            local iCurShield, iMaxShield
+            local iThreatFactor
+            for iUnit, oUnit in tShields do
+                if oUnit:GetFractionComplete() >= 0.9 then
+                    iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, true)
+                    iThreatFactor = math.max(0.1, iCurShield /  iMaxShield)
+                    tLZTeamData[M28Map.subrefLZThreatEnemyShield] = tLZTeamData[M28Map.subrefLZThreatEnemyShield] + iThreatFactor * oUnit:GetBlueprint().Economy.BuildCostMass
+                end
+            end
+        end
+        if tLZTeamData[M28Map.subrefLZThreatEnemyShield] >= 50 then
+            local iMaxShieldRating
+            if tLZTeamData[M28Map.subrefLZThreatEnemyShield] >= 4000 then
+                iMaxShieldRating = math.min(3200 + (tLZTeamData[M28Map.subrefLZThreatEnemyShield] - 4000) * 0.4, 7000)
+            else
+                iMaxShieldRating = tLZTeamData[M28Map.subrefLZThreatEnemyShield] * 0.8
+            end
+
+            -- = math.min(tLZTeamData[M28Map.subrefLZThreatEnemyShield] * 0.8, 6500) --shields wont be able to cover everywhere
+            tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] = tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] + math.min(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal], iMaxShieldRating)
+            tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] = tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] + math.min(tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect], iMaxShieldRating)
+            tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] = tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] + math.min(tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA], iMaxShieldRating)
+            tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] = tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] + math.min(tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal], iMaxShieldRating * 0.6)
+            tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] = tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] + math.min(tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal], iMaxShieldRating * 0.6)
+        end
+
     end
 
     --Include long range threats

@@ -225,6 +225,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZThreatAllyStructureDFByRange = 'ASDFByRange'
             subrefLZThreatEnemyStructureIndirect = 'ESITotal'
             subrefLZThreatAllyStructureIndirect = 'ASITotal'
+            subrefLZThreatEnemyShield = 'EShTot' --Fixed and mobile shields
             subrefLZThreatEnemyGroundAA = 'EAATotal'
             subrefLZThreatAllyGroundAA = 'AAATotal'
             subrefLZThreatAllyMAA = 'MAATotal' --only MAA, excludes structure
