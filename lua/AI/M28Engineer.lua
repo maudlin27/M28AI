@@ -129,7 +129,7 @@ refActionBuildWall = 52 --E.g. for building walls around T1 PD
 refActionBuildT3MexOnly = 53
 refActionAssistMexUpgrade = 54
 refActionSAMCreep = 55 --Intended to gradually expand SAM coverage for mexes
-refActionBuildMassFab = 56
+refActionBuildMassFab = 56 --For T2 mass fabs to be built by mass storage
 refActionMoveToLandZone = 57
 refActionRunToLandZone = 58
 refActionMoveToWaterZone = 59
@@ -144,6 +144,7 @@ refActionBuildLandExperimental = 67 --e.g. for when building in water
 refActionCaptureUnit = 68
 refActionRepairUnit = 69 --e.g. can use to repair an underconstruction building
 refActionSpecialShieldDefence = 70 --Covers the building of shields, but uses different approach to normal, intended for protecting a game ender from sustained T3 arti fire
+refActionBuildT3MassFab = 71 --Just for building t3 mass fab
 
 --tiEngiActionsThatDontBuild = {refActionReclaimArea, refActionSpare, refActionNavalSpareAction, refActionHasNearbyEnemies, refActionReclaimFriendlyUnit, refActionReclaimTrees, refActionUpgradeBuilding, refActionAssistSMD, refActionAssistTML, refActionAssistMexUpgrade, refActionAssistAirFactory, refActionAssistNavalFactory, refActionUpgradeHQ, refActionAssistNuke, refActionLoadOntoTransport, refActionAssistShield}
 
@@ -187,7 +188,8 @@ tiActionCategory = {
     [refActionBuildExperimentalNavy] = categories.NAVAL * categories.EXPERIMENTAL - categories.UNSELECTABLE - categories.UNTARGETABLE,
     [refActionBuildGameEnder] = M28UnitInfo.refCategoryGameEnder,
     [refActionBuildLandExperimental] = M28UnitInfo.refCategoryLandExperimental,
-    [refActionBuildWall] = M28UnitInfo.refCategoryWall
+    [refActionBuildWall] = M28UnitInfo.refCategoryWall,
+    [refActionBuildT3MassFab] = M28UnitInfo.refCategoryMassFab * categories.TECH3,
 }
 
 tiActionOrder = {
@@ -242,6 +244,7 @@ tiActionOrder = {
     [refActionRepairUnit] = M28Orders.refiOrderIssueRepair,
     [refActionSpecialShieldDefence] = M28Orders.refiOrderIssueBuild, --Sometimes will want to be idle
     [refActionBuildWall] = M28Orders.refiOrderIssueBuild,
+    [refActionBuildT3MassFab] = M28Orders.refiOrderIssueBuild,
 }
 
 --Adjacent categories to search for for a particular action
@@ -256,6 +259,7 @@ tiActionAdjacentCategory = {
     [refActionBuildT1Radar] = M28UnitInfo.refCategoryT1Power,
     [refActionBuildT2Radar] = M28UnitInfo.refCategoryT2Power,
     [refActionBuildT3Radar] = M28UnitInfo.refCategoryT3Power,
+    [refActionBuildT3MassFab] = M28UnitInfo.refCategoryT3Power,
 }
 
 --Include any actions where we wont be building a category or searching for a category to assist
@@ -6170,7 +6174,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     --Adjacent zones wanting mexes that dont already have 1 engineer traveling for every 2 unbuilt mexes
     iCurPriority = iCurPriority + 1
     --(ANY CHANGES TO BELOW - CONSIDER REPLICATING FOR BOTH CORE AND NONCORE BUILDERS) Adjacent LZ that wants engineers (only chekc if we have available engineers)
-        --(as of v24 decided to go with differences for the minior LZ (which uses a simplified appraoch) vs core base highest priority for adj LZs
+    --(as of v24 decided to go with differences for the minior LZ (which uses a simplified appraoch) vs core base highest priority for adj LZs
     local tiAdjacentLandZonesWantingEngineersThatAlreadyHaveSome = {}
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we have available engineers to send to another LZ. GetHighestTechEngiAvailable='..GetHighestTechEngiAvailable(toAvailableEngineersByTech)) end
     iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
@@ -6807,6 +6811,26 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 if not(bHaveLowMass) then iBPWanted = 20 end
                 HaveActionToAssign(refActionBuildEnergyStorage, 1, iBPWanted)
             end
+        end
+    end
+
+    --1 T3 mass fab if not defending against T3 arti and have lots of t3 mexes
+    iCurPriority = iCurPriority + 1
+    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 and tLZTeamData[M28Map.subrefMexCountByTech][3] >= tLZData[M28Map.subrefLZMexCount] and not(bHaveLowPower) and not(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250 + 500 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and not(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) then
+        local iExistingT3MassFabs = 0
+        local iUnderConstructionT3MassFabs = 0
+        local tExistingMassFabs = EntityCategoryFilterDown(M28UnitInfo.refCategoryMassFab * categories.TECH3, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+        if M28Utilities.IsTableEmpty( tExistingMassFabs) == false then
+            for iUnit, oUnit in tExistingMassFabs do
+                if oUnit:GetFractionComplete() < 1 then iUnderConstructionT3MassFabs = iUnderConstructionT3MassFabs + 1
+                else iExistingT3MassFabs = iExistingT3MassFabs + 1
+                end
+            end
+        end
+        if iExistingT3MassFabs == 0 or iUnderConstructionT3MassFabs > 0 then
+            iBPWanted = 90
+            if bWantMorePower then iBPWanted = 45 end
+            HaveActionToAssign(refActionBuildT3MassFab, 3, iBPWanted)
         end
     end
 

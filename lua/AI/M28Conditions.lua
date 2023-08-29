@@ -1715,7 +1715,9 @@ function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iAdjac
 end
 
 
+--NOTE: REFER TO GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, iCategoryWanted, bAllConstructionNotFactory) WHICH IS MORE VERSATILE
 function GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, iCategory)
+
     local iCount = 0
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
         local tFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory,tLZTeamData[M28Map.subrefLZTAlliedUnits])
