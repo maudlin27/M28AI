@@ -772,7 +772,8 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
         end
 
 
-
+        local bAdjustExperimentalAirToGroundThreat = false
+        if not(bEnemyUnits) and bIncludeAirToGround and not(bIncludeAirToAir) then bAdjustExperimentalAirToGroundThreat = true end
 
         for iUnit, oUnit in tUnits do
             iCurThreat = 0
@@ -807,8 +808,22 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                     if iHealthFactor > 0 then
                         iHealthPercentage = GetUnitHealthPercent(oUnit)
                         --Assume low health experimental is has more health than it does - e.g. might heal, or might be under construction
-                        if iHealthPercentage < 1 and EntityCategoryContains(categories.EXPERIMENTAL, oUnit) and oUnit:GetFractionComplete() >= 0.2 then iHealthPercentage = math.min(1, math.max(0.4, iHealthPercentage * 1.5)) end
+                        if iHealthPercentage < 1 and EntityCategoryContains(categories.EXPERIMENTAL, oUnit) and oUnit:GetFractionComplete() >= 0.2 then
+                            if bEnemyUnits then iHealthPercentage = math.min(1, math.max(0.4, iHealthPercentage * 1.5))
+                            else
+                                iHealthPercentage = math.min(1, math.max(0.3, iHealthPercentage * 1.4))
+                            end
+                        end
                         iHealthThreatFactor = (1 - (1-iHealthPercentage) * iHealthFactor) * iHealthThreatFactor
+                    end
+                    if bAdjustExperimentalAirToGroundThreat and EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then
+                        if EntityCategoryContains(refCategoryCzar, oUnit.UnitId) then
+                            --Friendly czar
+                            iBaseThreat = iBaseThreat * 0.5
+                        else
+                            --e.g. friendly soulripper
+                            iBaseThreat = iBaseThreat * 0.75
+                        end
                     end
                     iCurThreat = iBaseThreat * iHealthThreatFactor + iGhettoGunshipAdjust
                     if bDebugMessages == true then LOG(sFunctionRef..': UnitBP='..(oUnit.UnitId or 'nil')..'; iBaseThreat='..(iBaseThreat or 'nil')..'; iHealthThreatFactor='..(iHealthThreatFactor or 'nil')..'iGhettoGunshipAdjust='..(iGhettoGunshipAdjust or 'nil')..'; iCurThreat='..(iCurThreat or 'nil')) end

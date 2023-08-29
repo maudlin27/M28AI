@@ -874,7 +874,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
     local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
 
-    if GetGameTimeSeconds() >= 280 and tLZTeamData[M28Map.refbBaseInSafePosition] then bDebugMessages = true end
+
 
     local iCurIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])
     local iEnemyIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase])

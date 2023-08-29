@@ -3974,6 +3974,8 @@ function ActiveShieldMonitor(oUnitToProtect, tLZTeamData, iTeam)
     local sFunctionRef = 'ActiveShieldMonitor'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     if not(oUnitToProtect[refbActiveUnitShieldingThread]) then
         oUnitToProtect[refbActiveUnitShieldingThread] = true
         local iShieldCategoryToBuild
@@ -4044,7 +4046,9 @@ function ActiveShieldMonitor(oUnitToProtect, tLZTeamData, iTeam)
                 local oLastCompletedShield
                 local iCurShield, iMaxShield
                 local oLowestConstructedShieldHealth
+                local oHighestConstructedShieldHealth
                 local iLowestConstructedShieldHealth = 100000
+                local iHighestConstructedShieldHealthPercent = 0
                 if bDebugMessages == true then LOG(sFunctionRef..': oUnitToProtect='..oUnitToProtect.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToProtect)..'; Is table of special assigned shields empty='..tostring(M28Utilities.IsTableEmpty(oUnitToProtect[M28Building.reftoSpecialAssignedShields]))) end
                 if M28Utilities.IsTableEmpty(oUnitToProtect[M28Building.reftoSpecialAssignedShields]) == false then
                     local tiEntriesToRemove = {}
@@ -4098,6 +4102,10 @@ function ActiveShieldMonitor(oUnitToProtect, tLZTeamData, iTeam)
                                     oLowestConstructedShieldHealth = oShield
                                     iLowestConstructedShieldHealth = iCurShield
                                 end
+                                if (iCurShield / iMaxShield) > iHighestConstructedShieldHealthPercent then
+                                    iHighestConstructedShieldHealthPercent = (iCurShield / iMaxShield)
+                                    oHighestConstructedShieldHealth = oShield
+                                end
                             else
                                 iPartConstructedShields = iPartConstructedShields + 1
                                 if oShield:GetFractionComplete() > iHighestPartCompleteShield then
@@ -4122,6 +4130,7 @@ function ActiveShieldMonitor(oUnitToProtect, tLZTeamData, iTeam)
                 end
 
                 function ConstructNewShield()
+                    local bProceededWithConstruction = false
                     --Need to construct a new shield (need to be wanting to do this for at least a tick due to delay in constructionstarting triggering due to forked thread)
                     local tPositionToBuild
                     local tAltPositionToBuild
@@ -4164,6 +4173,7 @@ function ActiveShieldMonitor(oUnitToProtect, tLZTeamData, iTeam)
                                     else
                                         M28Orders.IssueTrackedBuild(oEngineer, tPositionToBuild, sBlueprintToBuild, false, 'SpEBS')
                                     end
+                                    bProceededWithConstruction = true
 
                                     if not(oFirstEngineerOfRightFaction) then oFirstEngineerOfRightFaction = oEngineer end
                                 else
@@ -4173,14 +4183,24 @@ function ActiveShieldMonitor(oUnitToProtect, tLZTeamData, iTeam)
                             if bDebugMessages == true then LOG(sFunctionRef..': Finished telling engineers of right faction to build, Is table of engineers of wrong faction empty='..tostring(M28Utilities.IsTableEmpty(toEngineersOfWrongFaction))) end
                             if M28Utilities.IsTableEmpty(toEngineersOfWrongFaction) == false then
                                 if not(oFirstEngineerOfRightFaction) then
-                                    if (table.getn(toEngineersOfWrongFaction) >= 5 or (iActiveShields == 0 and oUnitToProtect:GetFractionComplete() >= 0.2))and iConstructedShields + iPartConstructedShields < 2 then
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Have so many engineers of the wrong faction that will just try and get them to build a shield') end
-                                        for iEngineer, oEngineer in toEngineersOfWrongFaction do
-                                            local sBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryFixedShield * categories.TECH3, oEngineer, false, false, false, nil, false)
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Checking what shields engineer '..(oEngineer.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineer) or 'nil')..' can build as backup as dont have right faction; iOptionalFactionRequired='..(iOptionalFactionRequired or 'nil')..'; Will try and build unit '..(sBlueprintToBuild or 'nil')..' at position '..repru(tPositionToBuild)) end
-                                            if sBlueprintToBuild then
-                                                M28Orders.IssueTrackedBuild(oEngineer, tPositionToBuild, sBlueprintToBuild, false, 'SBkEBS')
+                                    local bBuildAnyShield = false
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Do we want to build a shield with wrong faction? Engineers of wrong faction='..table.getn(toEngineersOfWrongFaction)..'; iActiveShields='..iActiveShields..'; oUnitToProtect:GetFractionComplete()='..oUnitToProtect:GetFractionComplete()..'; iHighestConstructedShieldHealthPercent='..iHighestConstructedShieldHealthPercent..'; iConstructedShields='..iConstructedShields) end
+                                    if (table.getn(toEngineersOfWrongFaction) >= 5 or (iActiveShields == 0 and oUnitToProtect:GetFractionComplete() >= 0.2) or (iHighestConstructedShieldHealthPercent <= 0.5 and iConstructedShields >= 2)) then
+                                        if iConstructedShields + iPartConstructedShields <= 1 then bBuildAnyShield = true
+                                        elseif iConstructedShields >= 2 and iHighestConstructedShieldHealthPercent <= 0.8 then
+                                            bBuildAnyShield = true
+                                        end
+                                        if bDebugMessages == true then LOG(sFunctionRef..': bBuildAnyShield='..tostring(bBuildAnyShield)) end
+                                        if bBuildAnyShield then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Have so many engineers of the wrong faction that will just try and get them to build a shield') end
+                                            for iEngineer, oEngineer in toEngineersOfWrongFaction do
+                                                local sBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryFixedShield * categories.TECH3, oEngineer, false, false, false, nil, false)
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Checking what shields engineer '..(oEngineer.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineer) or 'nil')..' can build as backup as dont have right faction; iOptionalFactionRequired='..(iOptionalFactionRequired or 'nil')..'; Will try and build unit '..(sBlueprintToBuild or 'nil')..' at position '..repru(tPositionToBuild)) end
+                                                if sBlueprintToBuild then
+                                                    M28Orders.IssueTrackedBuild(oEngineer, tPositionToBuild, sBlueprintToBuild, false, 'SBkEBS')
+                                                end
                                             end
+                                            bProceededWithConstruction = true
                                         end
                                     end
                                 else
@@ -4250,6 +4270,7 @@ function ActiveShieldMonitor(oUnitToProtect, tLZTeamData, iTeam)
                         end
                     end
                     iPreviousAction =  refiShieldActionConstruct
+                    return bProceededWithConstruction
                 end
 
                 function AssistShield(oShield)
@@ -4311,18 +4332,30 @@ function ActiveShieldMonitor(oUnitToProtect, tLZTeamData, iTeam)
                         AssistShield(oNearestCompletionShield)
                     else
                         --We have at least 1 constructed shield, and at least 1 shield whose % complete is at the level wanted; Therefore we want a 3rd shield that is near-complete constructed
-                        if iPartConstructedShields + iConstructedShields < iTotalAvailableLocations then
+                        if iPartConstructedShields + iConstructedShields < iTotalAvailableLocations and ConstructNewShield() then
                             if bDebugMessages == true then LOG(sFunctionRef..': Want to build a new shiled as we have more available locations than we have shields built or started building') end
-                            ConstructNewShield()
                         else
                             --Get the lowest complete shield to assist if it needs it
                             if iPartConstructedShields > 0 and (iLowestPartCompleteShield < iPercentCompleteWanted or iActiveShields == 0) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Want to assist the lowest complete shield as it isnt nearly done, oLowestCompletionShield='..oLowestCompletionShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLowestCompletionShield)..'; Fraction complete='..oLowestCompletionShield:GetFractionComplete()) end
                                 AssistShield(oLowestCompletionShield)
                             else
-                                --We have 1 complete shield, and all other shield locations have near-complete shields, so dont want to do anything else - have the engineers assist the completed shield
-                                if bDebugMessages == true then LOG(sFunctionRef..': Nothing to do so will assist a complete shield, oLastCompletedShield='..oLastCompletedShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLastCompletedShield)) end
-                                AssistShield(oLastCompletedShield)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Checking if weant to ctrlK a shield, iPartConstructedShields='..iPartConstructedShields..'; iConstructedShields='..iConstructedShields) end
+                                if iPartConstructedShields == 0 and iConstructedShields >= 2 then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Want to ctrlK a shield so can rebuild') end
+                                    if oLowestConstructedShieldHealth then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Will ctrlK shield '..oLowestConstructedShieldHealth.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLowestConstructedShieldHealth)) end
+                                        M28Orders.IssueTrackedKillUnit(oLowestConstructedShieldHealth)
+
+                                    else
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Unable to find shield to kill so will default to assisting last compelted shield') end
+                                        AssistShield(oLastCompletedShield)
+                                    end
+                                else
+                                    --We have 1 complete shield, and all other shield locations have near-complete shields, so dont want to do anything else - have the engineers assist the completed shield
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Nothing to do so will assist a complete shield, oLastCompletedShield='..oLastCompletedShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLastCompletedShield)) end
+                                    AssistShield(oLastCompletedShield)
+                                end
                             end
                         end
                     end
