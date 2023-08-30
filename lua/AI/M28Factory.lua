@@ -953,22 +953,48 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         if bDebugMessages == true then
             LOG(sFunctionRef .. ': Emergency indirect builder: iApproachingACU threat=' .. iApproachingACU .. '; Dist to it=' .. M28Utilities.GetDistanceBetweenPositions((tNearestACU or oFactory:GetPosition()), oFactory:GetPosition()) .. '; Cur indirect=' .. aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryIndirect) .. '; Lifetime indirect=' .. M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryIndirect) .. '; Is table of nearby enemy dangerous buildings empty=' .. tostring(M28Utilities.IsTableEmpty(aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryT2PlusPD + M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryTMD, oFactory:GetPosition(), 175, 'Enemy'))))
         end
+        local bWantIndirectSubjectToNumbers = false
         if iApproachingACU <= 400 and tNearestACU and M28Utilities.GetDistanceBetweenPositions(tNearestACU, oFactory:GetPosition()) <= 175 then
             --Does enemy have any T2+ buildings?
             local tNearbyEnemyT2Plus = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryT2PlusPD + M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryTMD, oFactory:GetPosition(), 175, 'Enemy')
+            if bDebugMessages == true then LOG(sFunctionRef..': Is table of nearby enemy T2Plus units empty='..tostring(M28Utilities.IsTableEmpty(tNearbyEnemyT2Plus))) end
             if M28Utilities.IsTableEmpty(tNearbyEnemyT2Plus) == false then
-                local iTechCategory = M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)
-                local iCurIndirectFire = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryIndirect * iTechCategory)
-                if iCurIndirectFire <= 10 and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryIndirect * iTechCategory) <= 20 then
-                    if bDebugMessages == true then
-                        LOG(sFunctionRef .. ': WIll try and get MML or mobile arti')
-                    end
-                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect) then
-                        return sBPIDToBuild
-                    end
+                bWantIndirectSubjectToNumbers = true
+
+            end
+        end
+
+
+
+        --search adjacent zones to see if they need more mml
+        if bDebugMessages == true then LOG(sFunctionRef..': Time since MML fired near TMD in this zone='..GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMD] or -100)..'; Factory total build count='..oFactory[refiTotalBuildCount]) end
+        if GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMD] or -100) <= 20 then bWantIndirectSubjectToNumbers = true
+        elseif oFactory[refiTotalBuildCount] < 30 then --at higher build count numbers greater risk we are just sending mml to die and will never win
+            for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                local tAdjLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
+                local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
+                if bDebugMessages == true then LOG(sFunctionRef..': Time since MML fired near TMD in adj zone '..iAdjLZ..'='..GetGameTimeSeconds() - (tAdjLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMD] or -100)) end
+                if GetGameTimeSeconds() - (tAdjLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMD] or -100) <= 10 then
+                    bWantIndirectSubjectToNumbers = true
+                    break
                 end
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': bWantIndirectSubjectToNumbers='..tostring(bWantIndirectSubjectToNumbers)) end
+        if bWantIndirectSubjectToNumbers then
+            local iTechCategory = M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)
+            local iCurIndirectFire = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryIndirect * iTechCategory)
+            if bDebugMessages == true then LOG(sFunctionRef..': iCurIndirectFire='..iCurIndirectFire..'; Lifetime factory indirect fire count='..M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryIndirect * iTechCategory)) end
+            if iCurIndirectFire <= 9 + 1.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryIndirect * iTechCategory) <= 18 + 2 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+                if bDebugMessages == true then
+                    LOG(sFunctionRef .. ': WIll try and get MML or mobile arti')
+                end
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect) then
+                    return sBPIDToBuild
+                end
+            end
+        end
+
     end
 
     --High priority engineer where they are needed for special shielding (e.g. of gameenders)
