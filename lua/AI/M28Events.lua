@@ -459,6 +459,7 @@ function OnEnhancementComplete(oUnit, sEnhancement)
             --Update ACU upgrade count
             if EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then
                 oUnit[M28ACU.refiUpgradeCount] = (oUnit[M28ACU.refiUpgradeCount] or 0) + 1
+                if sEnhancement == 'Teleporter' then oUnit[M28ACU.refbACUHasTeleport] = true end
             end
             --Fix AiX modifier
             if oUnit:GetAIBrain().CheatEnabled then

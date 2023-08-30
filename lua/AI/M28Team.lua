@@ -185,6 +185,8 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiPriorityPondValues = 'M28PriorityPonds' --Table of ponds that are considered sufficiently high value for our team, [x] is the pond, returns the value of hte pond
     refbAlreadyCheckedForUnitsToShare = 'M28CheckedUnitsShare' --true if already run logic for campaign to share units at start of game
     refiConstructedExperimentalCount = 'M28ConstructedExpCount' --Total number of experimentals constructed
+    reftoPotentialTeleSnipeTargets = 'M28TeamTeleSnipe' --Table of locations we think woudl be good to teleport to
+    refiTimeOfLastTeleSnipeRefresh = 'M28TeamTeleTime' --Gametimeseconds that we last updated potential telesnipe locations
     --reftoSpecialUnitsToProtect = 'M28SpecialUnitsToProtect' --table of units to protect e.g. for air units - e.g. repair targets for a campaign
 
 
@@ -3140,4 +3142,76 @@ function MonitorEnemyMobileTMLThreats(iTeam)
         tTeamData[iTeam][refbActiveMobileTMLMonitor] = false
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function RefreshPotentialTeleSnipeTargets(iTeam, iOptionalMaxTimeDelayInSeconds)
+    --Refresh every 5s (or iOptionalMaxTimeDelayInSeconds if specified)
+    if GetGameTimeSeconds() - (tTeamData[iTeam][refiTimeOfLastTeleSnipeRefresh] or -100) >= (iOptionalMaxTimeDelayInSeconds or 5) then
+        tTeamData[iTeam][refiTimeOfLastTeleSnipeRefresh] = GetGameTimeSeconds()
+        tTeamData[iTeam][reftoPotentialTeleSnipeTargets] = {}
+        --Target enemy gameenders, T3 arti, and ACUs (in assassination)
+        local tEnemyUnitsToConsider = {}
+        local aiBrain = GetFirstActiveM28Brain(iTeam)
+        function AddTableOfUnits(sRef, bMobileUnitChecks)
+            if M28Utilities.IsTableEmpty(tTeamData[iTeam][sRef]) == false then
+                for iUnit, oUnit in tTeamData[iTeam][sRef] do
+                    --require unit to be visible so we are more likely to have determined what PD is around it
+                    if M28UnitInfo.IsUnitValid(oUnit) and M28UnitInfo.CanSeeUnit(aiBrain, oUnit, true) and oUnit:GetFractionComplete() >= 0.5 then
+                        if not(bMobileUnitChecks) or (not(M28UnitInfo.IsUnitUnderwater(oUnit)) and not(oUnit:IsUnitState('Moving')) and not(oUnit:IsUnitState('Attached')) and not(oUnit:IsUnitState('Attacking'))) then
+                            table.insert(tEnemyUnitsToConsider, oUnit)
+                        end
+                    end
+                end
+            end
+        end
+        AddTableOfUnits(reftEnemyArtiAndExpStructure)
+        if ScenarioInfo.Options.Victory == "demoralization" then AddTableOfUnits(reftEnemyACUs, true) end
+        if M28Utilities.IsTableEmpty(tEnemyUnitsToConsider) == false then
+            local iCurPlateauOrZero, iCurLandOrWaterZone
+            for iUnit, oUnit in tEnemyUnitsToConsider do
+                --Consider the nearby threat at the location
+                iCurPlateauOrZero, iCurLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                if iCurPlateauOrZero > 0 and (iCurLandOrWaterZone or 0) > 0 then
+                    local tLZData = M28Map.tAllPlateaus[iCurPlateauOrZero][M28Map.subrefPlateauLandZones][iCurLandOrWaterZone]
+                    local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+                    --Ignore zones with large threat just in the zone itself
+                    if tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] < 10000 and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] <= 30000 and tLZTeamData[M28Map.refiEnemyAirToGroundThreat] <= 2500 then
+                        local tPDInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryPD, tLZTeamData[M28Map.subrefTEnemyUnits])
+                        if not(tPDInZone) then tPDInZone = {} end
+                        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                            for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                                local tAdjLZData = M28Map.tAllPlateaus[iCurPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ]
+                                local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
+                                if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                                    local tAdjPD = EntityCategoryFilterDown(M28UnitInfo.refCategoryPD, tAdjLZTeamData[M28Map.subrefTEnemyUnits])
+                                    if M28Utilities.IsTableEmpty(tAdjPD) == false then
+                                        for iPD, oPD in tAdjPD do
+                                            table.insert(tPDInZone, tAdjPD)
+                                        end
+                                    end
+                                end
+                            end
+                            local iNearbyPDThreat = 0
+                            if M28Utilities.IsTableEmpty(tPDInZone) == false then
+                                local tPDInRange = {}
+                                for iPD, oPD in tPDInZone do
+                                    if M28UnitInfo.IsUnitValid(oPD) then
+                                        if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oPD:GetPosition()) <= 5 + oPD[M28UnitInfo.refiDFRange] then
+                                            table.insert(tPDInRange, oPD)
+                                        end
+                                    end
+                                end
+                                if M28Utilities.IsTableEmpty(tPDInRange) == false then
+                                    iNearbyPDThreat = M28UnitInfo.GetCombatThreatRating(tPDInRange, true, true)
+                                end
+                            end
+                            if iNearbyPDThreat <= 2000 then
+                                table.insert(tTeamData[iTeam][reftoPotentialTeleSnipeTargets], oUnit)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
 end
