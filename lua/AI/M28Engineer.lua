@@ -5119,6 +5119,9 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetBPToAssignToSMD'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+
     local iBPWanted = 0
     local bAssistSMD = false
     --Does this LZ have enough value?
@@ -5131,8 +5134,8 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
         if M28Utilities.IsTableEmpty(tSMD) == false then
             for iSMDNumber, oSMD in tSMD do
                 --Check we've completed construction
-                if bDebugMessages == true then LOG(sFunctionRef .. ': Have an SMD '..oSMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSMD)..', will check if its completed construction; fraction complete='..oSMD:GetFractionComplete()..'; Ammo count='..oSMD:GetTacticalSiloAmmoCount()..'; oSMD[M28Building.refbMissileRecentlyBuilt]='..tostring(oSMD[M28Building.refbMissileRecentlyBuilt] or false)) end
                 if M28UnitInfo.IsUnitValid(oSMD) then
+                    if bDebugMessages == true then LOG(sFunctionRef .. ': Have an SMD '..oSMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSMD)..', will check if its completed construction; fraction complete='..oSMD:GetFractionComplete()..'; Ammo count='..oSMD:GetTacticalSiloAmmoCount()..'; oSMD[M28Building.refbMissileRecentlyBuilt]='..tostring(oSMD[M28Building.refbMissileRecentlyBuilt] or false)) end
                     if oSMD:GetFractionComplete() == 1 then
                         iSMDsWeHave = iSMDsWeHave + 1
                         if oSMD.GetTacticalSiloAmmoCount and oSMD:GetTacticalSiloAmmoCount() < 1 and not (oSMD[M28Building.refbMissileRecentlyBuilt]) then
@@ -5167,7 +5170,7 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
         end
         iEnemyNukes = math.max(iEnemyNormalNukes, iEnemyBattleshipNukes, 1) --Redundancy - if table isnt empty enemy must have at least one, and will assume they have 1 if we are building as a precaution
         if bDebugMessages == true then
-            LOG(sFunctionRef .. ': iSMDsWeHave=' .. iSMDsWeHave .. '; iEnemyNukes=' .. iEnemyNukes )
+            LOG(sFunctionRef .. ': iSMDsWeHave=' .. iSMDsWeHave .. '; iEnemyNukes=' .. iEnemyNukes..'; iEnemyNormalNukes='..iEnemyNormalNukes..'; iEnemyBattleshipNukes='..iEnemyBattleshipNukes..'; bEnemyNukeNotConstructed='..tostring(bEnemyNukeNotConstructed))
             if iEnemyNukes > 1 then
                 LOG(sFunctionRef .. ': Will now list out each nuke unit ID')
                 for iNuke, oNuke in M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers] do
@@ -5199,7 +5202,7 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
             iBPWanted = math.max(150, iBPWanted * 3)
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': End of code, iBPWanted='..(iBPWanted or 'nil')) end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code, iBPWanted='..(iBPWanted or 'nil')..'; bAssistSMD='..tostring(bAssistSMD)) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return iBPWanted, bAssistSMD
 end
