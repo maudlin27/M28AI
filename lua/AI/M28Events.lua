@@ -2084,11 +2084,12 @@ function OnTeleportComplete(self, teleporter, location, orientation)
     local sFunctionRef = 'OnTeleportComplete'
     local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if bDebugMessages == true then LOG('OnTeleportComplete - self='..reprs(self)..'; teleporter='..reprs(teleporter)..'; location='..reprs(location)) end
+    --if bDebugMessages == true then LOG('OnTeleportComplete - self='..reprs(self)..'; teleporter='..reprs(teleporter)..'; location='..reprs(location)) end
     if self:GetAIBrain().M28AI and self[M28ACU.refbACUHasTeleport] then
         --If we arent in a core base then teleport back
         local iTeam = self:GetAIBrain().M28Team
         local tCurLZData, tCurLZTeamData = M28Map.GetLandOrWaterZoneData(self:GetPosition(), true, iTeam)
+        if bDebugMessages == true then LOG(sFunctionRef..': tCurLZTeamData[M28Map.subrefLZbCoreBase]='..tostring(tCurLZTeamData[M28Map.subrefLZbCoreBase] or false)) end
         if not(tCurLZTeamData[M28Map.subrefLZbCoreBase]) then
             local tLocationToTeleportTo
             if M28Utilities.IsTableEmpty(self[M28UnitInfo.reftLastLocationWhenGaveTeleportOrder]) == false then

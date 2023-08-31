@@ -233,6 +233,7 @@ tLandSubteamData = {} --tLandSubteamData[oBrain.M28LandSubteam] results in the b
 tEnemyBigThreatCategories = { [reftEnemyLandExperimentals] = M28UnitInfo.refCategoryLandExperimental, [reftEnemyArtiAndExpStructure] = M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalStructure, [reftEnemyNukeLaunchers] = M28UnitInfo.refCategorySML, [reftEnemySMD] = M28UnitInfo.refCategorySMD, [reftEnemyBattleships] = M28UnitInfo.refCategoryNavalSurface * categories.BATTLESHIP }
 
 
+
 function CreateNewLandSubteam(iPlateau, iIsland, tM28BrainsInSubteam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'CreateNewLandSubteam'
@@ -3218,6 +3219,17 @@ function RefreshPotentialTeleSnipeTargets(iTeam, iOptionalMaxTimeDelayInSeconds)
                             if iNearbyPDThreat <= 2000 then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to table of potential tele snipe targets') end
                                 table.insert(tTeamData[iTeam][reftoPotentialTeleSnipeTargets], oUnit)
+                            else
+                                --Still add if there is al ocation with low PD threat
+                                if not(oUnit[M28UnitInfo.refbTooMuchPDForSnipe]) then
+                                    if M28ACU.GetBestLocationForTeleSnipeTarget(nil, oUnit, iTeam, true) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': We shoudl be able to teleport out of range of most of the PD so will still add as a telesnipe target') end
+                                        table.insert(tTeamData[iTeam][reftoPotentialTeleSnipeTargets], oUnit)
+                                    else
+                                        oUnit[M28UnitInfo.refbTooMuchPDForSnipe] = true
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Unable to find al ocation that puts us out of range of the PD') end
+                                    end
+                                end
                             end
                         end
                     end

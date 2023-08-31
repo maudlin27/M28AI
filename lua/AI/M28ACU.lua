@@ -791,7 +791,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; oACU='..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' owned by brain '..oACU:GetAIBrain().Nickname..'; oACU[refbStartedUnderwater]='..tostring(oACU[refbStartedUnderwater] or false)) end
     local oBP = oACU:GetBlueprint()
 
-    if bWantToDoTeleSnipe and oBP.Enhancements['Teleporter'] then
+    if (bWantToDoTeleSnipe or (oACU[refbPlanningToGetTeleport] and (oACU:HasEnhancement('MicrowaveLaserGenerator') or oACU:HasEnhancement('Teleporter') or oACU:HasEnhancement('BlastAttack')))) and oBP.Enhancements['Teleporter'] then
         if EntityCategoryContains(categories.CYBRAN, oACU.UnitId) then
             oACU[reftPreferredUpgrades] = {'CoolingUpgrade', 'MicrowaveLaserGenerator', 'Teleporter'}
         elseif EntityCategoryContains(categories.SERAPHIM, oACU.UnitId) then
@@ -952,6 +952,7 @@ function GetUpgradePathForACU(oACU, bWantToDoTeleSnipe)
                 end
             end
         end
+
     end
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': End of code, oACU[reftPreferredUpgrades]=' .. repru(oACU[reftPreferredUpgrades]))
@@ -2280,6 +2281,252 @@ function GetBestTeleSnipeUnitTarget(oACU, iTeam)
     return oTargetWanted
 end
 
+function GetBestLocationForTeleSnipeTarget(oACU, oSnipeTarget, iTeam, bJustCheckIfLocationWithLowPDThreat)
+    --oACU - if nil then will assume has a range of 30
+    --bJustCheckIfLocationWithLowPDThreat - if true, then returns true if think there is a low PD threat location to teleport to
+
+
+    local sFunctionRef = 'GetBestLocationForTeleSnipeTarget'
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    --We ahve a valid oSnipeTarget for oACU to teleport to and try and kill, now we want to refine the teleport destination, e.g. to avoid volatile units and PD
+    local tBestTarget
+    local bConsiderAvoidingVolatileUnits = true
+    local iMinDistanceAway = 0
+    local iDistFromAOEWanted = 2
+    local iMaxDistFromTarget = (oACU[M28UnitInfo.refiDFRange] or 30) - 2
+
+    local iTargetPlateau, iTargetLandZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oSnipeTarget:GetPosition())
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, oSnipeTarget='..oSnipeTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSnipeTarget)..'; Position='..repru(oSnipeTarget:GetPosition())..'; iTargetPlateau='..(iTargetPlateau or 'nil')..'; iTargetLandZone='..(iTargetLandZone or 'nil')) end
+    if iTargetPlateau > 0 and (iTargetLandZone or 0) > 0 then
+        local tTargetLZData = M28Map.tAllPlateaus[iTargetPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone]
+        local tTargetLZTeamData = tTargetLZData[M28Map.subrefLZTeamData][iTeam]
+
+        local tNearbyPD = {}
+        local tCurZonePD = EntityCategoryFilterDown(M28UnitInfo.refCategoryPD, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
+        if M28Utilities.IsTableEmpty(tCurZonePD) == false then
+            for iUnit, oUnit in tCurZonePD do
+                if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() == 1 then
+                    table.insert(tNearbyPD, oUnit)
+                end
+            end
+        end
+        if M28Utilities.IsTableEmpty(tTargetLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+            for _, iAdjLZ in tTargetLZData[M28Map.subrefLZAdjacentLandZones] do
+                local tAdjLZData = M28Map.tAllPlateaus[iTargetPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone]
+                local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
+                if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                    local tAdjPD = EntityCategoryFilterDown(M28UnitInfo.refCategoryPD, tAdjLZTeamData[M28Map.subrefTEnemyUnits])
+                    if M28Utilities.IsTableEmpty(tAdjPD) == false then
+                        for iPD, oPD in tAdjPD do
+                            if M28UnitInfo.IsUnitValid(oPD) then
+                                table.insert(tNearbyPD, oPD)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+
+
+        local tiApproxPDDPSByTech = {[1]=167,[2]=132,[3]=273, [4]=1000}
+        local iCurDistToTarget
+        function EstimatePDDPSNearLocation(tLocation, iDistanceThreshold)
+            local iPDApproxDPS = 0
+            if M28Utilities.IsTableEmpty(tNearbyPD) == false then
+                for iUnit, oUnit in tNearbyPD do
+                    iCurDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLocation)
+                    if iCurDistToTarget - oUnit[M28UnitInfo.refiDFRange] <= (iDistanceThreshold or 2) then
+                        iPDApproxDPS = iPDApproxDPS + tiApproxPDDPSByTech[M28UnitInfo.GetUnitTechLevel(oUnit)]
+                    end
+                end
+            end
+            return iPDApproxDPS
+        end
+
+        --Get volatile units and PD in this and adjacent land zones so can factor in if alternative locations are more dangerous
+        local tVolatileUnits = {}
+        if not(bJustCheckIfLocationWithLowPDThreat) then
+            local tPotentialVolatileUnits = EntityCategoryFilterDown(categories.VOLATILE * categories.STRUCTURE, tTargetLZTeamData[M28Map.subrefTEnemyUnits])
+            if M28Utilities.IsTableEmpty(tPotentialVolatileUnits) == false then
+                for iUnit, oUnit in tPotentialVolatileUnits do
+                    if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() == 1 then
+                        local iDeathDamage, iDeathAOE, tDeathWeapon = M28UnitInfo.GetDeathWeaponDamageAOEAndTable(oUnit)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering volatile units in zone, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iDeathDamage='..iDeathDamage) end
+                        if iDeathDamage >= 1250 then
+                            table.insert(tVolatileUnits, oUnit)
+                        end
+                    end
+                end
+            end
+        end
+
+        function EstimateVolatileDamageNearLocation(tPotentialLocation, iOptionalAOEAdjust)
+            local iVolatileDamage = 0
+            if M28Utilities.IsTableEmpty(tVolatileUnits) == false then
+                for iUnit, oUnit in tVolatileUnits do
+                    iCurDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tPotentialLocation)
+                    local iDeathDamage, iDeathAOE, tDeathWeapon = M28UnitInfo.GetDeathWeaponDamageAOEAndTable(oUnit)
+                    if bDebugMessages == true then LOG(sFunctionRef..': iCurDistToTarget='..iCurDistToTarget..'; iDeathDamage='..(iDeathDamage or 'nil')..'; iDeathAOE='..(iDeathAOE or 'nil')..'; iOptionalAOEAdjust='..(iOptionalAOEAdjust or 'nil')) end
+                    if iCurDistToTarget <= 1 + iDeathAOE + (iOptionalAOEAdjust or 0) then
+                        iVolatileDamage = iVolatileDamage + iDeathDamage
+                    end
+                end
+            end
+            return iVolatileDamage
+        end
+        local iBaseTargetPDDPS = EstimatePDDPSNearLocation(oSnipeTarget:GetPosition(), 6)
+        local iBaseTargetVolatileDamage = 0
+
+        local bKeepToCampaignPlayableArea = M28Map.bIsCampaignMap
+
+        function IsPotentialAlternativeLocationTooDangerous(tPotentialLocation, iDistThreshold, iPDDPSThreshold, iOptionalVolatileTarget)
+            --factors in tVolatileUnits, tPD, and general zone stats re dangerous units if the zone is different to the target unit (air to ground and mobile DF) to decide whether it is safe to teleport to a location
+            local bDangerous = true
+            local iPDDPS = EstimatePDDPSNearLocation(tPotentialLocation, iDistThreshold)
+            if iPDDPS <= iPDDPSThreshold then
+                if not(iOptionalVolatileTarget) then
+                    bDangerous = false
+                else
+                    if EstimateVolatileDamageNearLocation(tPotentialLocation, iDistThreshold) <= iOptionalVolatileTarget then
+                        bDangerous = false
+                    end
+                end
+            end
+            return bDangerous, iPDDPS
+        end
+
+        function UpdateBestTargetIfSafeLocationNearTargetUnit(oTargetUnit, iDistanceAwayMin, iDistanceAwayMax, iMaxPDDPS, iOptionalMaxVolatileDamage)
+            --Try 8 different points around target to see if any of them are safer
+            local iAngleInterval = 360 / 8
+            local iDistFromSnipeTarget
+            local bTargetWithinRange
+            local iLeewayUntilOutOfRange
+            local iPDDistThreshold
+            local iDistanceInterval = iDistanceAwayMax - iDistanceAwayMin
+            local iPDDPSThreshold = iMaxPDDPS
+            if iDistanceInterval >= 4 then iDistanceInterval = 4 end
+            if bDebugMessages == true then LOG(sFunctionRef..': Searching for safer locations to target oTargetUnit '..oTargetUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTargetUnit)..'; iDistanceAwayMin='..iDistanceAwayMin..'; iDistanceAwayMax='..iDistanceAwayMax..'; iOptionalMaxVolatileDamage='..(iOptionalMaxVolatileDamage or 'nil')) end
+            for iDistanceAway = iDistanceAwayMin, iDistanceAwayMax, iDistanceInterval do
+                for iCurAngle = iAngleInterval, 360, iAngleInterval do
+                    local tPotentialTarget = M28Utilities.MoveInDirection(oTargetUnit:GetPosition(), iAngleInterval, iDistanceAway, true, false, bKeepToCampaignPlayableArea)
+                    --Is this location actually within range of the snipe target?
+                    iDistFromSnipeTarget = M28Utilities.GetDistanceBetweenPositions(tPotentialTarget, oSnipeTarget:GetPosition())
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering tPotentialTarget='..repru(tPotentialTarget)..'; iDistanceAway='..iDistanceAway..'; iCurAngle='..iCurAngle..'; iDistFromSnipeTarget='..iDistFromSnipeTarget..'; iMaxDistFromTarget='..iMaxDistFromTarget) end
+                    if iDistFromSnipeTarget < iMaxDistFromTarget then
+                        bTargetWithinRange = false
+                        iLeewayUntilOutOfRange = (oACU[M28UnitInfo.refiDFRange] or 30) - iDistFromSnipeTarget
+                        iPDDistThreshold = 2
+                        local tNearbyUnits = GetUnitsInRect(tPotentialTarget[1] - 1, tPotentialTarget[3] - 1, tPotentialTarget[1] + 1, tPotentialTarget[3] + 1)
+                        if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
+                            local tNearbyStructures = EntityCategoryFilterDown(categories.STRUCTURE, tNearbyUnits)
+                            if M28Utilities.IsTableEmpty(tNearbyStructures) == false then
+                                for iUnit, oUnit in tNearbyStructures do
+                                    iPDDistThreshold = math.max(iPDDistThreshold, M28UnitInfo.GetBuildingSize(oUnit.UnitId))
+                                end
+                            end
+                        end
+
+                        if iPDDistThreshold < iLeewayUntilOutOfRange then
+                            bTargetWithinRange = true
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iPDDistThreshold='..iPDDistThreshold..'; iLeewayUntilOutOfRange='..iLeewayUntilOutOfRange..'; bTargetWithinRange='..tostring(bTargetWithinRange)) end
+                        if bTargetWithinRange then
+                            --Is PD threat from this location less than before?
+                            local bAlternativeLocationDangerous, iPotentialPDDPS = IsPotentialAlternativeLocationTooDangerous(tPotentialTarget, iPDDistThreshold, iPDDPSThreshold, iOptionalMaxVolatileDamage)
+                            if not(bAlternativeLocationDangerous) then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have a new best target') end
+                                tBestTarget = {tPotentialTarget[1], tPotentialTarget[2], tPotentialTarget[3]}
+                                if iPotentialPDDPS <= 400 then
+                                    break
+                                else
+                                    --Keep looking in case are locations with even less PD threat
+                                    iPDDPSThreshold = math.min(iPotentialPDDPS, iPDDPSThreshold * 0.8)
+                                end
+                            else
+                                if bDebugMessages == true then LOG(sFunctionRef..': Target not safe enough') end
+                            end
+                        end
+                    end
+                end
+                if iDistanceInterval == 0 or (tBestTarget and iPDDPSThreshold <= 400) then break end
+            end
+        end
+
+
+        if bDebugMessages == true then LOG(sFunctionRef..': iBaseTargetPDDPS='..iBaseTargetPDDPS) end
+        if iBaseTargetPDDPS >= 700 then
+            --Want to search for locations with lower PD threat, if there are any
+            local iTargetBuildingSize = M28UnitInfo.GetBuildingSize(oSnipeTarget.UnitId)
+            if bDebugMessages == true then LOG(sFunctionRef..': Will look for targets that avoid PD, tBestTarget before change='..repru(tBestTarget)..'; iTargetBuildingSize='..iTargetBuildingSize..'; ACU DF range='..(oACU[M28UnitInfo.refiDFRange] or 30)) end
+            local iMaxDPSWanted
+            if bJustCheckIfLocationWithLowPDThreat then iMaxDPSWanted = 690 --Roughly 4 T1 pd
+            else
+                iMaxDPSWanted = iBaseTargetPDDPS * 0.8
+            end
+            UpdateBestTargetIfSafeLocationNearTargetUnit(oSnipeTarget, iTargetBuildingSize, math.min(iTargetBuildingSize + 4 * 4, (oACU[M28UnitInfo.refiDFRange] or 30) - 6), iMaxDPSWanted)
+            if bDebugMessages == true then LOG(sFunctionRef..': Attempted to change target to avoid PD, tBestTarget after change='..repru(tBestTarget)) end
+            if bJustCheckIfLocationWithLowPDThreat and tBestTarget then
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return true
+            end
+        else
+            if bJustCheckIfLocationWithLowPDThreat then
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return true
+            else
+                --avoid aoe on the target itself unless iti s a game ender with heavy shielding
+                if not(EntityCategoryContains(categories.MOBILE - M28UnitInfo.refCategoryScathis, oSnipeTarget.UnitId)) then --(dont want to mvoe away from mobile units such as ACUs in case they then move out of our range; exceptino for scathis due to how slow it is and itneeding to pack up)
+                    if not(EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, oSnipeTarget.UnitId)) or (tTargetLZTeamData[M28Map.subrefLZThreatEnemyShield] or 0) <= 5000 or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1 then
+                        --First move away if targeting a highly volatile unit that could kill us, and we outrange the volatile radius (e.g. paragon and yolona)
+                        local iBaseTargetVolatileDamage, iDeathAOE, tDeathWeapon = M28UnitInfo.GetDeathWeaponDamageAOEAndTable(oSnipeTarget)
+                        if tDeathWeapon and iBaseTargetVolatileDamage >= 1250 then
+                            if iDeathAOE + iDistFromAOEWanted < (oACU[M28UnitInfo.refiDFRange] or 30) then --Energy storage is 1k damage; also no point avoiding if outside our range
+
+                                iMinDistanceAway = iDeathAOE + iDistFromAOEWanted
+                                if bDebugMessages == true then LOG(sFunctionRef..': Snipe target has death aoe we want to avoid, iMinDistanceAway='..iMinDistanceAway..'; iDeathAOE='..iDeathAOE..'; iBaseTargetVolatileDamage='..iBaseTargetVolatileDamage) end
+                            else
+                                bConsiderAvoidingVolatileUnits = false --No point avoiding things like t3 pgens if the target itself will kill us when it dies
+                                if bDebugMessages == true then LOG(sFunctionRef..': We cant dodge target volatile explosion so will not bother trying to dodge other volatile units') end
+                            end
+                        end
+                    end
+                end
+
+
+                if bConsiderAvoidingVolatileUnits then
+                    if iMinDistanceAway > 0 then
+                        --Snipe target is volatile, so try and avoid
+                        if bDebugMessages == true then LOG(sFunctionRef..': Snipe target is volatile so will try and avoid') end
+                        UpdateBestTargetIfSafeLocationNearTargetUnit(oSnipeTarget, iMinDistanceAway, iMinDistanceAway + 4, iBaseTargetPDDPS * 0.25, iBaseTargetVolatileDamage * 0.5)
+
+                    else
+                        --We arent trying to avoid explosion from the target itself so consider avoiding explosion from nearby T3 pgens
+                        local iTargetBuildingSize = M28UnitInfo.GetBuildingSize(oSnipeTarget.UnitId)
+                        iBaseTargetVolatileDamage = EstimateVolatileDamageNearLocation(oSnipeTarget:GetPosition(), iTargetBuildingSize)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to try and avoid nearby volatile units, iBaseTargetVolatileDamage='..iBaseTargetVolatileDamage..'; iTargetBuildingSize='..iTargetBuildingSize) end
+                        if iBaseTargetVolatileDamage > 0 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will try searching for safer locations') end
+                            UpdateBestTargetIfSafeLocationNearTargetUnit(oSnipeTarget, iTargetBuildingSize, math.min(iTargetBuildingSize + 4 * 2, (oACU[M28UnitInfo.refiDFRange] or 30) - 6), iBaseTargetPDDPS * 0.25, 2000)
+                        end
+                    end
+                end
+            end
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Near end of code, tBestTarget before applying default if it is nil='..repru(tBestTarget)) end
+    if not(tBestTarget) then tBestTarget = oSnipeTarget:GetPosition() end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    if bJustCheckIfLocationWithLowPDThreat then return false
+    else return tBestTarget
+    end
+
+
+end
+
 function HaveTelesnipeAction(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam, iPlateauOrZero, iLandOrWaterZone)
     local sFunctionRef = 'HaveTelesnipeAction'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -2350,7 +2597,7 @@ function HaveTelesnipeAction(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
         else
             if bDebugMessages == true then LOG(sFunctionRef..': Dont want to get upgrade, does ACU already have teleport='..tostring(oACU[refbACUHasTeleport] or false)) end
             if oACU[refbACUHasTeleport] then
-
+                bDebugMessages = true
                 --Are we not in core base? Teleport to core base
                 if bDebugMessages == true then LOG(sFunctionRef..': Are we in a core base='..tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase])) end
                 if not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) then
@@ -2371,7 +2618,8 @@ function HaveTelesnipeAction(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
                             if not(M28UnitInfo.IsUnitValid(oSnipeTarget)) then
                                 bGivenACUOrder = false --redundancy
                             else
-                                M28Orders.IssueTrackedTeleport(oACU, oSnipeTarget:GetPosition(), 5, true, 'ACUTelA')
+                                local tTeleportTarget = GetBestLocationForTeleSnipeTarget(oACU, oSnipeTarget, iTeam)
+                                M28Orders.IssueTrackedTeleport(oACU, tTeleportTarget, 5, true, 'ACUTelA')
                                 if bDebugMessages == true then LOG(sFunctionRef..': Just tried to give ACU a teleport order') end
                                 bGivenACUOrder = true
                             end

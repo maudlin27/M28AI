@@ -52,6 +52,7 @@ refbIsCaptureTarget = 'M28UnitIsCapTrg' --true if we want to capture the unit
 refbIsReclaimTarget = 'M28UnitIsReTrg' --true if have an objective to reclaim the unit
 refiTimeLastDamaged = 'M28UnitTLsD' --Currently only used for shields
 reftLastLocationWhenGaveTeleportOrder = 'M28UnitTLoc' --lcoation when gave a teleport order, for if want to return here
+refbTooMuchPDForSnipe = 'M28UnitTooMuchPD' --true if too much PD for a telesnipe attempt
 
     --Unit micro related
 refiGameTimeMicroStarted = 'M28UnitTimeMicroStarted' --Gametimeseconds that started special micro
@@ -2051,5 +2052,20 @@ function EnableUnitWeapon(oUnit)
                 end
             end
         end
+    end
+end
+
+function GetDeathWeaponDamageAOEAndTable(oUnit)
+    --Returns nothing (i.e. nil) if unit doesnt have a death weapon
+    local oBP = oUnit:GetBlueprint()
+    if M28Utilities.IsTableEmpty(oBP.Weapon) == false then
+        for iWeapon, tWeapon in oBP.Weapon do
+            if tWeapon.FireOnDeath or tWeapon.WeaponCategory == 'Death' then --e.g. some will 'fire' a nuke (paragon, yolona), others will just do damage
+                local iWeaponDamage = math.max((tWeapon.Damage or 0), (tWeapon.NukeInnerRingDamage or 0))
+                local iAOE = math.max((tWeapon.NukeInnerRingRadius or 0), (tWeapon.DamageRadius or 0))
+                return iWeaponDamage, iAOE, tWeapon
+            end
+        end
+
     end
 end

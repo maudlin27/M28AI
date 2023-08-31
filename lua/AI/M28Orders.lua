@@ -604,6 +604,13 @@ function IssueTrackedEnhancement(oUnit, sUpgradeRef, bAddToExistingQueue, sOptio
         end
     end
     if not(tLastOrder[subrefiOrderType] == refiOrderEnhancement and sUpgradeRef == tLastOrder[subrefsOrderBlueprint]) and not(oUnit:IsUnitState('Upgrading')) then
+        --Do we have an existing enhancement that needs removing before we can get teh upgrade?
+        local sEnhancementOverride
+        local tEnhancements = oUnit:GetBlueprint().Enhancements
+        if M28Utilities.IsTableEmpty(tEnhancements) == false then
+
+        end
+
         if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
         if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
