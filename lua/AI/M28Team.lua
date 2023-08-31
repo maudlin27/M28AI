@@ -1939,7 +1939,7 @@ function ConsiderPriorityNavalFactoryUpgrades(iM28Team)
 end
 
 function ConsiderPriorityMexUpgrades(iM28Team)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderPriorityMexUpgrades'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; Is table of upgrading mexes empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftTeamUpgradingMexes]))..'; tTeamData[iM28Team][subrefiTeamMassStored]='..tTeamData[iM28Team][subrefiTeamMassStored]..'; tTeamData[iM28Team][subrefiTeamNetMass]='..tTeamData[iM28Team][subrefiTeamNetMass]..'; tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]='..tTeamData[iM28Team][subrefiMassUpgradesStartedThisCycle]..'; or M28Overseer.bNoRushActive='..tostring(M28Overseer.bNoRushActive or false)) end
@@ -3146,6 +3146,11 @@ end
 
 function RefreshPotentialTeleSnipeTargets(iTeam, iOptionalMaxTimeDelayInSeconds)
     --Refresh every 5s (or iOptionalMaxTimeDelayInSeconds if specified)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RefreshPotentialTeleSnipeTargets'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for iTeam '..iTeam..'; iOptionalMaxTimeDelayInSeconds='..(iOptionalMaxTimeDelayInSeconds or 'nil')..'; Time since last snipe refresh='..GetGameTimeSeconds() - (tTeamData[iTeam][refiTimeOfLastTeleSnipeRefresh] or -100)) end
     if GetGameTimeSeconds() - (tTeamData[iTeam][refiTimeOfLastTeleSnipeRefresh] or -100) >= (iOptionalMaxTimeDelayInSeconds or 5) then
         tTeamData[iTeam][refiTimeOfLastTeleSnipeRefresh] = GetGameTimeSeconds()
         tTeamData[iTeam][reftoPotentialTeleSnipeTargets] = {}
@@ -3156,6 +3161,7 @@ function RefreshPotentialTeleSnipeTargets(iTeam, iOptionalMaxTimeDelayInSeconds)
             if M28Utilities.IsTableEmpty(tTeamData[iTeam][sRef]) == false then
                 for iUnit, oUnit in tTeamData[iTeam][sRef] do
                     --require unit to be visible so we are more likely to have determined what PD is around it
+                    if bDebugMessages == true and M28UnitInfo.IsUnitValid(oUnit) then LOG(sFunctionRef..': Considering whether to add to table of units to consider, sRef='..sRef..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Can see unit='..tostring(M28UnitInfo.CanSeeUnit(aiBrain, oUnit, true))..'; Fraction complete='..oUnit:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)) end
                     if M28UnitInfo.IsUnitValid(oUnit) and M28UnitInfo.CanSeeUnit(aiBrain, oUnit, true) and oUnit:GetFractionComplete() >= 0.5 then
                         if not(bMobileUnitChecks) or (not(M28UnitInfo.IsUnitUnderwater(oUnit)) and not(oUnit:IsUnitState('Moving')) and not(oUnit:IsUnitState('Attached')) and not(oUnit:IsUnitState('Attacking'))) then
                             table.insert(tEnemyUnitsToConsider, oUnit)
@@ -3166,15 +3172,18 @@ function RefreshPotentialTeleSnipeTargets(iTeam, iOptionalMaxTimeDelayInSeconds)
         end
         AddTableOfUnits(reftEnemyArtiAndExpStructure)
         if ScenarioInfo.Options.Victory == "demoralization" then AddTableOfUnits(reftEnemyACUs, true) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tEnemyUnitsToConsider))) end
         if M28Utilities.IsTableEmpty(tEnemyUnitsToConsider) == false then
             local iCurPlateauOrZero, iCurLandOrWaterZone
             for iUnit, oUnit in tEnemyUnitsToConsider do
                 --Consider the nearby threat at the location
                 iCurPlateauOrZero, iCurLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering ifu nit is a viable target, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurLandOrWaterZone='..(iCurLandOrWaterZone or 'nil')) end
                 if iCurPlateauOrZero > 0 and (iCurLandOrWaterZone or 0) > 0 then
                     local tLZData = M28Map.tAllPlateaus[iCurPlateauOrZero][M28Map.subrefPlateauLandZones][iCurLandOrWaterZone]
                     local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
                     --Ignore zones with large threat just in the zone itself
+                    if bDebugMessages == true then LOG(sFunctionRef..': tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]='..tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]..'; tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; tLZTeamData[M28Map.refiEnemyAirToGroundThreat]='..tLZTeamData[M28Map.refiEnemyAirToGroundThreat]) end
                     if tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] < 10000 and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] <= 30000 and tLZTeamData[M28Map.refiEnemyAirToGroundThreat] <= 2500 then
                         local tPDInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryPD, tLZTeamData[M28Map.subrefTEnemyUnits])
                         if not(tPDInZone) then tPDInZone = {} end
@@ -3205,7 +3214,9 @@ function RefreshPotentialTeleSnipeTargets(iTeam, iOptionalMaxTimeDelayInSeconds)
                                     iNearbyPDThreat = M28UnitInfo.GetCombatThreatRating(tPDInRange, true, true)
                                 end
                             end
+                            if bDebugMessages == true then LOG(sFunctionRef..': iNearbyPDThreat='..iNearbyPDThreat) end
                             if iNearbyPDThreat <= 2000 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to table of potential tele snipe targets') end
                                 table.insert(tTeamData[iTeam][reftoPotentialTeleSnipeTargets], oUnit)
                             end
                         end
@@ -3214,4 +3225,10 @@ function RefreshPotentialTeleSnipeTargets(iTeam, iOptionalMaxTimeDelayInSeconds)
             end
         end
     end
+    if bDebugMessages == true then
+        if M28Utilities.IsTableEmpty(tTeamData[iTeam][reftoPotentialTeleSnipeTargets]) then LOG(sFunctionRef..': End of code, no telesnipe targets')
+        else LOG(sFunctionRef..': End of code, size of telesnipe targets table='..table.getn(tTeamData[iTeam][reftoPotentialTeleSnipeTargets]))
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

@@ -459,7 +459,16 @@ function OnEnhancementComplete(oUnit, sEnhancement)
             --Update ACU upgrade count
             if EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then
                 oUnit[M28ACU.refiUpgradeCount] = (oUnit[M28ACU.refiUpgradeCount] or 0) + 1
-                if sEnhancement == 'Teleporter' then oUnit[M28ACU.refbACUHasTeleport] = true end
+                if sEnhancement == 'Teleporter' then
+                    bDebugMessages = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Flagging that unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has got teleporter upgrade and setting weapon prioritisation accordingly') end
+                    oUnit[M28ACU.refbACUHasTeleport] = true
+                    if ScenarioInfo.Options.Victory == "demoralization" then
+                        M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityTeleSnipeInclACU, false)
+                    else
+                        M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityTeleSnipeExclACU, false)
+                    end
+                end
             end
             --Fix AiX modifier
             if oUnit:GetAIBrain().CheatEnabled then
@@ -1583,13 +1592,13 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                     M28Air.AddPriorityAirDefenceTarget(oUnit)
                     --WEAPON PRIORITIES
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) then
-                    M28UnitInfo.SetUnitTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityGunship, true)
+                    M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityGunship, true)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryDestroyer, oUnit.UnitId) then
-                    M28UnitInfo.SetUnitTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityDestroyer, true)
+                    M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityDestroyer, true)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryMissileShip + M28UnitInfo.refCategoryCruiser, oUnit.UnitId) then
-                    M28UnitInfo.SetUnitTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityMissileShip, true)
+                    M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityMissileShip, true)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryBattleship, oUnit.UnitId) then
-                    M28UnitInfo.SetUnitTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityBattleShip, true)
+                    M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityBattleShip, true)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway, oUnit.UnitId) then
                     --If have been gifted factory or created via cheat then want to start building something
                     oUnit[M28Factory.refiTotalBuildCount] = 0
@@ -2068,5 +2077,33 @@ function ScenarioPlatoonCreated(oPlatoon, strArmy, strGroup, formation, tblNode,
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function OnTeleportComplete(self, teleporter, location, orientation)
+    local sFunctionRef = 'OnTeleportComplete'
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG('OnTeleportComplete - self='..reprs(self)..'; teleporter='..reprs(teleporter)..'; location='..reprs(location)) end
+    if self:GetAIBrain().M28AI and self[M28ACU.refbACUHasTeleport] then
+        --If we arent in a core base then teleport back
+        local iTeam = self:GetAIBrain().M28Team
+        local tCurLZData, tCurLZTeamData = M28Map.GetLandOrWaterZoneData(self:GetPosition(), true, iTeam)
+        if not(tCurLZTeamData[M28Map.subrefLZbCoreBase]) then
+            local tLocationToTeleportTo
+            if M28Utilities.IsTableEmpty(self[M28UnitInfo.reftLastLocationWhenGaveTeleportOrder]) == false then
+                local tPrevLZData, tPrevLZTeamData = M28Map.GetLandOrWaterZoneData(self[M28UnitInfo.reftLastLocationWhenGaveTeleportOrder], true, iTeam)
+                if tPrevLZTeamData[M28Map.subrefLZbCoreBase] then
+                    tLocationToTeleportTo = {self[M28UnitInfo.reftLastLocationWhenGaveTeleportOrder][1], self[M28UnitInfo.reftLastLocationWhenGaveTeleportOrder][2], self[M28UnitInfo.reftLastLocationWhenGaveTeleportOrder][3]}
+                end
+            end
+            if not(tLocationToTeleportTo) then
+                tLocationToTeleportTo = {tCurLZTeamData[M28Map.reftClosestFriendlyBase][1], tCurLZTeamData[M28Map.reftClosestFriendlyBase][2], tCurLZTeamData[M28Map.reftClosestFriendlyBase][3]}
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Will teleport back to '..repru(tLocationToTeleportTo)) end
+            M28Orders.IssueTrackedTeleport(self, tLocationToTeleportTo, 5, false, 'TelRet', true)
+        end
+    end
+
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

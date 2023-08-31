@@ -1451,14 +1451,17 @@ function GiveOverchargeOrderIfRelevant(tLZData, tLZTeamData, oACU, iPlateauOrZer
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; DO we have enemies in this or adjacent LZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ])..'; Can we use overcharge='..tostring(M28Conditions.CanUnitUseOvercharge(oACU:GetAIBrain(), oACU))..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')) end
 
     if iPlateauOrZero > 0 and ((tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) and M28Conditions.CanUnitUseOvercharge(oACU:GetAIBrain(), oACU, tLZTeamData)) then
-        local bDoesACUWantToRun = DoesACUWantToRun(iPlateauOrZero, iLandOrWaterZone, tLZData, tLZTeamData, oACU)
-        local oUnitToOvercharge = M28Micro.GetOverchargeTarget(tLZData, oACU:GetAIBrain(), oACU, bDoesACUWantToRun)
-        if bDebugMessages == true then LOG(sFunctionRef..': Do we have a valid OC target='..tostring(M28UnitInfo.IsUnitValid(oUnitToOvercharge))) end
-        if oUnitToOvercharge then
-            M28Orders.IssueTrackedOvercharge(oACU, oUnitToOvercharge, false, 'OC', true)
-            if bDebugMessages == true then LOG(sFunctionRef..': Have just told ACU '..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' owned by '..oACU:GetAIBrain().Nickname..' to overcharge '..oUnitToOvercharge.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToOvercharge)) end
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-            return true
+        --Dont overcharge if have teleport as can affect targeting and delay the return jump
+        if not(oACU[refbACUHasTeleport]) then
+            local bDoesACUWantToRun = DoesACUWantToRun(iPlateauOrZero, iLandOrWaterZone, tLZData, tLZTeamData, oACU)
+            local oUnitToOvercharge = M28Micro.GetOverchargeTarget(tLZData, oACU:GetAIBrain(), oACU, bDoesACUWantToRun)
+            if bDebugMessages == true then LOG(sFunctionRef..': Do we have a valid OC target='..tostring(M28UnitInfo.IsUnitValid(oUnitToOvercharge))) end
+            if oUnitToOvercharge then
+                M28Orders.IssueTrackedOvercharge(oACU, oUnitToOvercharge, false, 'OC', true)
+                if bDebugMessages == true then LOG(sFunctionRef..': Have just told ACU '..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' owned by '..oACU:GetAIBrain().Nickname..' to overcharge '..oUnitToOvercharge.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToOvercharge)) end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return true
+            end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -2236,8 +2239,13 @@ end
 
 function GetBestTeleSnipeUnitTarget(oACU, iTeam)
     --Make sure we have a relatively recent target list since we are proceeding to teleport
+    local sFunctionRef = 'GetBestTeleSnipeUnitTarget'
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     M28Team.RefreshPotentialTeleSnipeTargets(iTeam, 1)
     local oTargetWanted
+    if bDebugMessages == true then LOG(sFunctionRef..': Is table of targets empty after forced refresh every 1s='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoPotentialTeleSnipeTargets]))) end
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoPotentialTeleSnipeTargets]) == false then
         local iHighestValueTarget = 0
         local iCurTargetValue
@@ -2254,7 +2262,7 @@ function GetBestTeleSnipeUnitTarget(oACU, iTeam)
                 else
                     iCurTargetValue = oUnit:GetBlueprint().Economy.BuildCostMass * oUnit:GetFractionComplete()
                 end
-
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurTargetValue before shield adjust='..iCurTargetValue) end
                 if iCurTargetValue > iHighestValueTarget then
                     --Reduce value by shields in the zone
                     local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
@@ -2262,11 +2270,14 @@ function GetBestTeleSnipeUnitTarget(oACU, iTeam)
                     if iCurTargetValue > iHighestValueTarget then
                         iHighestValueTarget = iCurTargetValue
                         oTargetWanted = oUnit
+                        if bDebugMessages == true then LOG(sFunctionRef..': Recording unit as oTargetWanted subject to any better ones, iHighestValueTarget='..iHighestValueTarget) end
                     end
                 end
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return oTargetWanted
 end
 
 function HaveTelesnipeAction(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam, iPlateauOrZero, iLandOrWaterZone)
@@ -2275,7 +2286,9 @@ function HaveTelesnipeAction(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local bGivenACUOrder = false
+    if oACU[refbACUHasTeleport] then bDebugMessages = true end
 
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for brain '..aiBrain.Nickname..'; Does ACU have special micro active='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive] or false)) end
     if not(oACU[M28UnitInfo.refbSpecialMicroActive]) then
 
         --First check if we want to get upgrades to enable a tele-snipe
@@ -2283,7 +2296,9 @@ function HaveTelesnipeAction(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
         if not(oACU[refbACUHasTeleport]) and EntityCategoryContains(categories.CYBRAN + categories.SERAPHIM, oACU.UnitId) then
             if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 750 + 300 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
                 local bConsiderSniping = false
-                if not(ScenarioInfo.Options.Victory == "demoralization") then bConsiderSniping = true
+                if not(ScenarioInfo.Options.Victory == "demoralization") then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Arent in assassination mode so will consider sniping') end
+                    bConsiderSniping = true
                 else
                     if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
                         bConsiderSniping = true
@@ -2293,6 +2308,7 @@ function HaveTelesnipeAction(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
                             if M28Utilities.IsTableEmpty(tFriendlyACUs) == false then
                                 for iFriendlyACU, oFriendlyACU in tFriendlyACUs do
                                     if not(oFriendlyACU == oACU) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Checking if other ACUs are planning on getting teleport, ACU owned by brain '..oBrain.Nickname..': oFriendlyACU[refbPlanningToGetTeleport]='..tostring(oFriendlyACU[refbPlanningToGetTeleport] or false)..'; oFriendlyACU[refbACUHasTeleport]='..tostring(oFriendlyACU[refbACUHasTeleport])) end
                                         if oFriendlyACU[refbPlanningToGetTeleport] or oFriendlyACU[refbACUHasTeleport] then
                                             bConsiderSniping = false
                                             break
@@ -2307,38 +2323,58 @@ function HaveTelesnipeAction(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
                         end
                     end
                 end
+                if bDebugMessages == true then LOG(sFunctionRef..': bConsiderSniping='..tostring(bConsiderSniping)) end
                 if bConsiderSniping then
                     --Do we have any viable targets?
                     M28Team.RefreshPotentialTeleSnipeTargets(iTeam)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Deciding whether to get teleport upgrade, Is table of potentail snipe targets empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoPotentialTeleSnipeTargets]))) end
                     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoPotentialTeleSnipeTargets]) == false then
                         sUpgradeWanted = GetACUUpgradeWanted(oACU, true)
                     end
                 end
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': sUpgradeWanted='..(sUpgradeWanted or 'nil')) end
         if sUpgradeWanted then
+            --oACU[refbPlanningToGetTeleport] = true
             bGivenACUOrder = true
             --Are we in core base? if not then move to core base
             if not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) then
+                if bDebugMessages == true then LGO(sFunctionRef..': Will return ACU to core base') end
                 ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam, iPlateauOrZero, iLandOrWaterZone)
             else
                 --Upgrade to telesnipe
+                if bDebugMessages == true then LOG(sFunctionRef..': Will get telesnipe upgrade') end
                 M28Orders.IssueTrackedEnhancement(oACU, sUpgradeWanted, false, 'ACUTeleU')
             end
         else
+            if bDebugMessages == true then LOG(sFunctionRef..': Dont want to get upgrade, does ACU already have teleport='..tostring(oACU[refbACUHasTeleport] or false)) end
             if oACU[refbACUHasTeleport] then
 
                 --Are we not in core base? Teleport to core base
+                if bDebugMessages == true then LOG(sFunctionRef..': Are we in a core base='..tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase])) end
                 if not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will teleport back to base') end
+                    bGivenACUOrder = true
                     M28Orders.IssueTrackedTeleport(oACU, tLZOrWZTeamData[M28Map.reftClosestFriendlyBase], 5, true, 'ACUTelB')
                 else
-                    M28Team.RefreshPotentialTeleSnipeTargets(iTeam)
-                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoPotentialTeleSnipeTargets]) == false then
-                        local oSnipeTarget = GetBestTeleSnipeUnitTarget(oACU, iTeam)
-                        if not(M28UnitInfo.IsUnitValid(oSnipeTarget)) then
-                            bGivenACUOrder = false
-                        else
-                            M28Orders.IssueTrackedTeleport(oACU, oSnipeTarget:GetPosition(), 5, true, 'ACUTelA')
+                    --Do we have enough health to target
+                    if M28UnitInfo.GetUnitHealthPercent(oACU) < 0.95 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want to heal up first, health percent='..M28UnitInfo.GetUnitHealthPercent(oACU)) end
+                        bGivenACUOrder = false --redundancy
+                    else
+                        M28Team.RefreshPotentialTeleSnipeTargets(iTeam)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of telesnipe targets empty after refresh='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoPotentialTeleSnipeTargets]))) end
+                        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoPotentialTeleSnipeTargets]) == false then
+                            local oSnipeTarget = GetBestTeleSnipeUnitTarget(oACU, iTeam)
+                            if bDebugMessages == true then LOG(sFunctionRef..': oSnipeTarget='..(oSnipeTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oSnipeTarget) or 'nil')..'; Is target valid='..tostring(M28UnitInfo.IsUnitValid(oSnipeTarget))) end
+                            if not(M28UnitInfo.IsUnitValid(oSnipeTarget)) then
+                                bGivenACUOrder = false --redundancy
+                            else
+                                M28Orders.IssueTrackedTeleport(oACU, oSnipeTarget:GetPosition(), 5, true, 'ACUTelA')
+                                if bDebugMessages == true then LOG(sFunctionRef..': Just tried to give ACU a teleport order') end
+                                bGivenACUOrder = true
+                            end
                         end
                     end
                 end
