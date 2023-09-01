@@ -55,7 +55,7 @@ function ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearchForAdjace
         local iClosestUnit = 10000
         local iCurDist
         for _, oUnit in tNearbyUnitsOfCategoryToBuild do
-            if oUnit:GetFractionComplete() < 1 then
+            if oUnit:GetFractionComplete() < 1 and not(oUnit[M28Engineer.refbDontIncludeAsPartCompleteBuildingForConstruction]) then --Dont want to assist shields for shield defence
                 iCurDist = M28Utilities.GetTravelDistanceBetweenPositions(oUnit:GetPosition(), oACU:GetPosition(), M28Map.refPathingTypeAmphibious)
                 if iCurDist < iClosestUnit then
                     oNearestPartComplete = oUnit
@@ -2207,7 +2207,7 @@ function ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
                                         local tStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryExperimentalLevel, tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits])
                                         if M28Utilities.IsTableEmpty(tStructures) == false then
                                             for iUnit, oUnit in tStructures do
-                                                if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() < 1 and oUnit:GetFractionComplete() > iHighestFractionComplete then
+                                                if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() < 1 and oUnit:GetFractionComplete() > iHighestFractionComplete and not(oUnit[M28Engineer.refbDontIncludeAsPartCompleteBuildingForConstruction]) then
                                                     iHighestFractionComplete = oUnit:GetFractionComplete()
                                                     oUnitToAssist = oUnit
                                                 end
