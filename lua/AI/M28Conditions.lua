@@ -415,6 +415,8 @@ function SafeToUpgradeUnit(oUnit)
     local sFunctionRef = 'SafeToUpgradeUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
     local bSafeZone = false
     if (iLandZone or 'nil') > 0 and not(iPlateau == 0) then
@@ -501,6 +503,30 @@ function SafeToUpgradeUnit(oUnit)
             if not(bSafeZone) and EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeCreated] or 0) >= 300 then
                 bSafeZone = true
             end
+
+            --If are within range of enemy t2 arti and not a core base then dont trear as safe unless both mex and arti alive for at least 8m
+            if bDebugMessages == true then LOG(sFunctionRef..': Checking if enemy T2 arti in range if we think this is safe, bSafeZone='..tostring(bSafeZone)..'; iPlateau='..iPlateau..'; Is core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])..'; Zone='..(iLandZone or 'nil')..'; Is table of enemy t2 arti empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]))) end
+            if bSafeZone and iPlateau > 0 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
+                local bBothAliveForAWhile = true
+                if GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeCreated] or 0) <= 480 then bBothAliveForAWhile = false
+                else
+                    for iArti, oArti in tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits] do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Time since Arti created='..GetGameTimeSeconds() - (oArti[M28UnitInfo.refiTimeCreated] or 0)) end
+                        if GetGameTimeSeconds() - (oArti[M28UnitInfo.refiTimeCreated] or 0) <= 480 then bBothAliveForAWhile = false break end
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': bBothAliveForAWhile='..tostring(bBothAliveForAWhile)) end
+                if not(bBothAliveForAWhile) then
+                    local bEnemyArtiInRange = false
+                    for iArti, oArti in tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits] do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Dist of enemy Arti to unit position='..M28Utilities.GetDistanceBetweenPositions(oArti:GetPosition(), oUnit:GetPosition())..'; Arti combat range='..oArti[M28UnitInfo.refiCombatRange]) end
+                        if M28Utilities.GetDistanceBetweenPositions(oArti:GetPosition(), oUnit:GetPosition()) <= oArti[M28UnitInfo.refiCombatRange] then
+                            bSafeZone = false
+                            break
+                        end
+                    end
+                end
+            end
         else
             M28Utilities.ErrorHandler('Dont have a valid LZData table for iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; will treat as safe for non-mobilre units only')
             if not(EntityCategoryContains(categories.MOBILE, oUnit.UnitId)) then
@@ -521,6 +547,7 @@ function SafeToUpgradeUnit(oUnit)
             bSafeZone = true
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': Nearing end of code, before TML check, bSafeZone='..tostring(bSafeZone)) end
     if bSafeZone then
         local bDangerousTML = false
         --TML adjust
@@ -638,17 +665,30 @@ function HaveLowPower(iTeam)
     return bHaveLowPower
 end
 
-function GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, iCategoryWanted)
+function GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, iCategoryWanted, bAllConstructionNotFactory)
     --Returns the number of factories that are building a unit meeting iCategoryWanted
+        --if bAllConstructionNotFactory then instead returns number of part-complete units of iCategoryWanted
     local iAlreadyBuilding = 0
-    local tLZFactories = EntityCategoryFilterDown(categories.FACTORY, tLZTeamData[M28Map.subrefLZTAlliedUnits])
-    if M28Utilities.IsTableEmpty(tLZFactories) == false then
-        local oCurUnitBuilding
-        for iFactory, oFactory in tLZFactories do
-            oCurUnitBuilding = oFactory:GetFocusUnit()
-            if oCurUnitBuilding and EntityCategoryContains(iCategoryWanted, oCurUnitBuilding) then
-                --LOG('Temp to check we have a factory building the category wanted - we do, oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Unit building='..oCurUnitBuilding.UnitId)
-                iAlreadyBuilding = iAlreadyBuilding + 1
+
+    if bAllConstructionNotFactory then
+        local tUnitsOfCategory = EntityCategoryFilterDown(iCategoryWanted, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+        if M28Utilities.IsTableEmpty(tUnitsOfCategory) == false then
+            for iUnit, oUnit in tUnitsOfCategory do
+                if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() < 1 then
+                    iAlreadyBuilding = iAlreadyBuilding + 1
+                end
+            end
+        end
+    else
+        local tLZFactories = EntityCategoryFilterDown(categories.FACTORY, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+        if M28Utilities.IsTableEmpty(tLZFactories) == false then
+            local oCurUnitBuilding
+            for iFactory, oFactory in tLZFactories do
+                oCurUnitBuilding = oFactory:GetFocusUnit()
+                if oCurUnitBuilding and EntityCategoryContains(iCategoryWanted, oCurUnitBuilding) then
+                    --LOG('Temp to check we have a factory building the category wanted - we do, oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Unit building='..oCurUnitBuilding.UnitId)
+                    iAlreadyBuilding = iAlreadyBuilding + 1
+                end
             end
         end
     end
@@ -828,13 +868,14 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
-
     --e.g. 1 t1 land factory building tank uses 0.4 mass per tick, so would want 1 factory for every 0.8 mass as a rough baseline; T2 is 0.9 mass per tick, T3 is 1.6; probably want ratio to be 50%-50%-33%
-
     local tiFactoryToMassByTechRatioWanted = {[1] = 1.2, [2] = 2.2, [3] = 5.5} --i.e. how much mass we want per tick for each factory of the tech level
     --Adjust factory T1 ratios if we cant path to enemy by land
     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
     local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+
+
+
     local iCurIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])
     local iEnemyIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase])
     if iCurIsland ~= iEnemyIsland and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.35 then
@@ -875,8 +916,8 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
         end
     end
 
-    --Norush
-    if M28Overseer.bNoRushActive and M28Overseer.iNoRushTimer - GetGameTimeSeconds() >= 30 then
+    --Norush or eco slot at T2 and lower when arent overflowing mass
+    if (M28Overseer.bNoRushActive and M28Overseer.iNoRushTimer - GetGameTimeSeconds() >= 30) or (tLZTeamData[M28Map.refbBaseInSafePosition] and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.7) then
         --Only want more factories if we dont have 1 land and 1 air in this LZ
         local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) then return true
@@ -945,7 +986,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
                         elseif iAverageCurAirAndLandFactories >= 4 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] > 0 and M28Map.iMapSize > 256 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] < 8000 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.75 then
                             --Dont want more factories
                             if bDebugMessages == true then LOG(sFunctionRef..': Cap on number of factories for larger maps') end
-                        elseif iAverageCurAirAndLandFactories < 2 and iAverageCurAirAndLandFactories * 0.8 < M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 200 then
+                        elseif iAverageCurAirAndLandFactories < 2 and (iAverageCurAirAndLandFactories * 0.8 < M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 200) then
                             if bDebugMessages == true then LOG(sFunctionRef..': We have equiv of 3 mexes per player or 200 mass stored so want at least 2 factories') end
                             bWantMoreFactories = true
                             --If we dont have at least 25% mass stored, do we have an enemy in the same plateau as us who is within 300 land travel distance?
@@ -1150,7 +1191,7 @@ function DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    
 
     --First check in case of unit restrictions
     if M28Overseer.bAirFactoriesCantBeBuilt then
@@ -1674,7 +1715,9 @@ function WantToAttackWithNavyEvenIfOutranged(tWZData, tWZTeamData, iTeam, iAdjac
 end
 
 
+--NOTE: REFER TO GetNumberOfUnitsMeetingCategoryUnderConstructionInLandZone(tLZTeamData, iCategoryWanted, bAllConstructionNotFactory) WHICH IS MORE VERSATILE
 function GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, iCategory)
+
     local iCount = 0
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
         local tFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory,tLZTeamData[M28Map.subrefLZTAlliedUnits])
@@ -1723,4 +1766,31 @@ function IsNearbyStructureThatWeCanReachWithIndirect(tLZData, tLZTeamData, iTeam
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return bWantIndirectReinforcements
+end
+
+function GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZTeamData, iTeam, iCategory)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iUnderConstructionInOtherZones = 0
+    local tUnitsOfCategory
+    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+        local tStartLZData, tStartLZTeamData = M28Map.GetLandOrWaterZoneData(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()], true, iTeam)
+        if not(tStartLZTeamData == tLZTeamData) then
+            if M28Utilities.IsTableEmpty(tStartLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
+                tUnitsOfCategory = EntityCategoryFilterDown(iCategory, tStartLZTeamData[M28Map.subrefLZTAlliedUnits])
+                if bDebugMessages == true then LOG(sFunctionRef..': Is table of units of cateogyr empty for brain '..oBrain.Nickname..'='..tostring(M28Utilities.IsTableEmpty(tUnitsOfCategory))) end
+                if M28Utilities.IsTableEmpty(tUnitsOfCategory) == false then
+                    for iUnit, oUnit in tUnitsOfCategory do
+                        if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetAIBrain().M28AI and oUnit:GetFractionComplete() < 1 then
+                            iUnderConstructionInOtherZones = iUnderConstructionInOtherZones + 1
+                        end
+                    end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return iUnderConstructionInOtherZones
 end

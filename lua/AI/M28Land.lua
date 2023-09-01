@@ -418,11 +418,13 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] = 0
         tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] = false
         tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] = 0
+        tLZTeamData[M28Map.subrefLZThreatEnemyShield] = 0
     else
         local tMobileUnits = EntityCategoryFilterDown(categories.MOBILE - M28UnitInfo.refCategoryScathis, tLZTeamData[M28Map.subrefTEnemyUnits])
         local tStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryScathis, tLZTeamData[M28Map.subrefTEnemyUnits])
+        local tEnemiesExclShieldsAndFixedArti = EntityCategoryFilterDown(categories.MOBILE - M28UnitInfo.refCategoryMobileLandShield + categories.DIRECTFIRE, tLZTeamData[M28Map.subrefTEnemyUnits]) --(shield value gets added later based on the threat excl shields)
         local bHaveDangerousEnemies = false
-        tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] = M28UnitInfo.GetCombatThreatRating(tLZTeamData[M28Map.subrefTEnemyUnits], true)
+        tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] = M28UnitInfo.GetCombatThreatRating(tEnemiesExclShieldsAndFixedArti, true)
         if bDebugMessages == true then
             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
                 LOG(sFunctionRef..': Will list out every enemy unit in the zone and its threat, position, and the plateau and land zone of that position')
@@ -432,6 +434,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
                 end
             end
         end
+
         tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] = M28UnitInfo.GetCombatThreatRating(tStructures, true, false, true)
         tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] = M28UnitInfo.GetAirThreatLevel(tLZTeamData[M28Map.subrefTEnemyUnits], true, false, true, false, false, false)
         tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange] = nil
@@ -440,6 +443,7 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectByRange] = nil
         tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] = 0
         tLZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] = M28UnitInfo.GetCombatThreatRating(tStructures, true, true)
+
         --Increase structure value for under construction experimentals
         local tExperimentals = EntityCategoryFilterDown(categories.EXPERIMENTAL * categories.MOBILE, tLZTeamData[M28Map.subrefTEnemyUnits])
         if M28Utilities.IsTableEmpty(tExperimentals) == false then
@@ -491,6 +495,36 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
             if bDebugMessages == true then LOG(sFunctionRef..': LZ threats by range after updating for all structures='..repru(tLZTeamData[M28Map.subrefLZThreatEnemyStructureDFByRange])) end
         end
         tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] = bHaveDangerousEnemies
+
+        --Increase enemy threats for shield values
+        local tShields = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield + M28UnitInfo.refCategoryMobileLandShield, tLZTeamData[M28Map.subrefTEnemyUnits])
+        tLZTeamData[M28Map.subrefLZThreatEnemyShield] = 0
+        if M28Utilities.IsTableEmpty(tShields) == false then
+            local iCurShield, iMaxShield
+            local iThreatFactor
+            for iUnit, oUnit in tShields do
+                if oUnit:GetFractionComplete() >= 0.9 then
+                    iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, true)
+                    iThreatFactor = math.max(0.1, iCurShield /  iMaxShield)
+                    tLZTeamData[M28Map.subrefLZThreatEnemyShield] = tLZTeamData[M28Map.subrefLZThreatEnemyShield] + iThreatFactor * oUnit:GetBlueprint().Economy.BuildCostMass
+                end
+            end
+        end
+        if tLZTeamData[M28Map.subrefLZThreatEnemyShield] >= 50 then
+            local iMaxShieldRating
+            if tLZTeamData[M28Map.subrefLZThreatEnemyShield] >= 4000 then
+                iMaxShieldRating = math.min(3200 + (tLZTeamData[M28Map.subrefLZThreatEnemyShield] - 4000) * 0.4, 7000) --shields wont be able to cover everywhere, and more than one shield has lower value due to FAF anti-shield stacking
+            else
+                iMaxShieldRating = tLZTeamData[M28Map.subrefLZThreatEnemyShield] * 0.8
+            end
+
+            tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] = tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] + math.max(iMaxShieldRating * 0.1, math.min(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal], iMaxShieldRating))
+            tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] = tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect] + math.min(tLZTeamData[M28Map.subrefLZThreatEnemyStructureIndirect], iMaxShieldRating)
+            tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] = tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] + math.min(tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA], iMaxShieldRating)
+            tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] = tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] + math.min(tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal], iMaxShieldRating * 0.6)
+            tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] = tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] + math.min(tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal], iMaxShieldRating * 0.6)
+        end
+
     end
 
     --Include long range threats
@@ -2694,6 +2728,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     bAttackWithOutrangedDFUnits = true
                 elseif tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] > 1.3 * math.max(20, tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]) then
                     bAttackWithOutrangedDFUnits = true
+                    local iBestEnemyStructureRange = tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange]
                     --Change to false if we are likeyl to have outranged DF units and enemy has significant nearby threat
                     local bExpectToHaveOutrangedDF = false
                     for iRange, iThreat in tLZTeamData[M28Map.subrefLZThreatAllyMobileDFByRange] do
@@ -2717,6 +2752,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 iAdjacentDistThreshold = iAdjacentDistThreshold + 10
                                 --Only include units in the threat calculation if they are close enough to this LZ, or we have a firebase threat adjust
                                 if M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTThreatEnemyCombatTotal] > 10 then
+                                    iBestEnemyStructureRange = math.max(iBestEnemyStructureRange, (M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0))
                                     local tPotentialEnemyUnits = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryPD, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefTEnemyUnits])
                                     if M28Utilities.IsTableEmpty(tPotentialEnemyUnits) == false then
                                         for iUnit, oUnit in tPotentialEnemyUnits do
@@ -2748,8 +2784,12 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
                         if iEnemyCombatThreat * 1.25 > tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] then
                             bAttackWithOutrangedDFUnits = false
+                        --Dont charge into PD unless have overwhelming force
+                        elseif iBestEnemyStructureRange > 0 and tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] < 8000 and tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal] > iEnemyCombatThreat * 0.15 and iEnemyCombatThreat * 3 > tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] then
+                            bAttackWithOutrangedDFUnits = false
+                            if bDebugMessages == true then LOG(sFunctionRef..': Dont ahve overwhelming mobile DF threat and have some indirect fire forces so wont launch all out attack just yet') end
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': iEnemyCombatThreat after factoring in nearby zones='..iEnemyCombatThreat..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]='..tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]..'; bAttackWithOutrangedDFUnits='..tostring(bAttackWithOutrangedDFUnits)) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iEnemyCombatThreat after factoring in nearby zones='..iEnemyCombatThreat..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]='..tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]..'; bAttackWithOutrangedDFUnits='..tostring(bAttackWithOutrangedDFUnits)..'; tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]='..tLZTeamData[M28Map.subrefLZThreatAllyMobileIndirectTotal]..'; iBestEnemyStructureRange='..iBestEnemyStructureRange) end
                     end
                 end
 
@@ -5047,6 +5087,8 @@ function ConsiderIfAnyEnemyTeamsStillHaveFirebaseOnT2ArtiDeath(oT2Arti)
     for iTeam = 1, M28Team.iTotalTeamCount do
         if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 0 and not(iTeam == iBaseTeam) then
             ConsiderIfHaveEnemyFirebase(iTeam, oT2Arti)
+            --update tracking of t2 arti to reflect it is dead
+            M28Team.RecordEnemyT2ArtiAgainstNearbyZones(iTeam, oT2Arti, true)
         end
     end
 end

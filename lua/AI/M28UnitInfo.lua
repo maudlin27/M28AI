@@ -51,6 +51,8 @@ refiTimeCreated = 'M28UntTimCr' --Gametimeseconds (rounded down) that unit was c
 refbIsCaptureTarget = 'M28UnitIsCapTrg' --true if we want to capture the unit
 refbIsReclaimTarget = 'M28UnitIsReTrg' --true if have an objective to reclaim the unit
 refiTimeLastDamaged = 'M28UnitTLsD' --Currently only used for shields
+reftLastLocationWhenGaveTeleportOrder = 'M28UnitTLoc' --lcoation when gave a teleport order, for if want to return here
+refbTooMuchPDForSnipe = 'M28UnitTooMuchPD' --true if too much PD for a telesnipe attempt
 
     --Unit micro related
 refiGameTimeMicroStarted = 'M28UnitTimeMicroStarted' --Gametimeseconds that started special micro
@@ -84,6 +86,8 @@ refWeaponPriorityGunship = {'MOBILE SHIELD', 'MOBILE ANTIAIR CRUISER', 'MOBILE A
 refWeaponPriorityDestroyer = {'SHIELD NAVAL', 'SUBMERSIBLE', 'EXPERIMENTAL NAVAL, TECH3 NAVAL MOBILE', 'TECH2 NAVAL MOBILE', 'STRUCTURE SHIELD', 'STRUCTURE DEFENSE DIRECTFIRE TECH2, STRUCTURE DEFENSE DIRECTFIRE TECH3, STRUCTURE INDIRECTFIRE ARTILLERY', 'EXPERIMENTAL STRUCTURE, STRUCTURE TECH3 SILO, STRUCTURE TECH3 VOLATILE', 'MOBILE LAND EXPERIMENTAL, MOBILE LAND HOVER DIRECTFIRE', 'MASSPRODUCTION TECH2, MASSPRODUCTION TECH3', 'MOBILE LAND TECH3 DIRECTFIRE, MOBILE LAND TECH3 INDIRECTFIRE', 'EXPERIMENTAL', 'NAVAL', 'STRUCTURE', 'ALLUNITS'}
 refWeaponPriorityBattleShip = {'EXPERIMENTAL NAVAL, TECH3 NAVAL', 'TECH2 NAVAL', 'STRUCTURE SHIELD', 'STRUCTURE INDIRECTFIRE ARTILLERY', 'EXPERIMENTAL STRUCTURE, STRUCTURE TECH3 SILO, STRUCTURE TECH3 VOLATILE', 'MOBILE LAND EXPERIMENTAL, MOBILE LAND TECH3 DIRECTFIRE, MOBILE LAND TECH3 INDIRECTFIRE', 'EXPERIMENTAL', 'NAVAL', 'STRUCTURE', 'ALLUNITS'}
 refWeaponPriorityMissileShip = {'SHIELD STRUCTURE, ANTIMISSILE STRUCTURE', 'STRUCTURE INDIRECTFIRE ARTILLERY TECH2', 'EXPERIMENTAL STRUCTURE, STRUCTURE ARTILLERY TECH3, STRUCTURE TECH3 SILO', 'STRUCTURE TECH3 VOLATILE', 'STRUCTURE TECH3 ECONOMIC', 'STRUCTURE NAVAL TECH3, STRUCTURE NAVAL TECH2', 'STRUCTURE TECH3', 'STRUCTURE TECH2 ECONOMIC', 'STRUCTURE TECH2', 'STRUCTURE VOLATILE, STRUCTURE DEFENSE, STRUCTURE FACTORY, STRUCTURE INTELLIGENCE', 'STRUCTURE', 'NAVAL SHIELD', 'SHIELD', 'EXPERIMENTAL NAVAL', 'EXPERIMENTAL', 'TECH3 NAVAL', 'TECH2 NAVAL', 'INDIRECTFIRE NAVAL', 'TECH3', 'TECH2', 'ALLUNITS'}
+refWeaponPriorityTeleSnipeInclACU = {'COMMAND', 'STRUCTURE EXPERIMENTAL, STRUCTURE ARTILLERY TECH3, ARTILLERY EXPERIMENTAL', 'STRUCTURE DEFENSE DIRECTFIRE TECH1', 'STRUCTURE DEFENSE DIRECTFIRE', 'STRUCTURE TECH3 ENERGYPRODUCTION, STRUCTURE TECH3 MASSFABRICATION', 'STRUCTURE TECH3 MASSEXTRACTION', 'ALLUNITS'}
+refWeaponPriorityTeleSnipeExclACU = {'STRUCTURE EXPERIMENTAL, STRUCTURE ARTILLERY TECH3, ARTILLERY EXPERIMENTAL', 'COMMAND', 'STRUCTURE DEFENSE DIRECTFIRE TECH1', 'STRUCTURE DEFENSE DIRECTFIRE', 'STRUCTURE TECH3 ENERGYPRODUCTION, STRUCTURE TECH3 MASSFABRICATION', 'STRUCTURE TECH3 MASSEXTRACTION', 'ALLUNITS'}
 
 
 refbPaused = 'M28UnitPaused' --true if unit is paused
@@ -772,7 +776,8 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
         end
 
 
-
+        local bAdjustExperimentalAirToGroundThreat = false
+        if not(bEnemyUnits) and bIncludeAirToGround and not(bIncludeAirToAir) then bAdjustExperimentalAirToGroundThreat = true end
 
         for iUnit, oUnit in tUnits do
             iCurThreat = 0
@@ -807,8 +812,22 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                     if iHealthFactor > 0 then
                         iHealthPercentage = GetUnitHealthPercent(oUnit)
                         --Assume low health experimental is has more health than it does - e.g. might heal, or might be under construction
-                        if iHealthPercentage < 1 and EntityCategoryContains(categories.EXPERIMENTAL, oUnit) and oUnit:GetFractionComplete() >= 0.2 then iHealthPercentage = math.min(1, math.max(0.4, iHealthPercentage * 1.5)) end
+                        if iHealthPercentage < 1 and EntityCategoryContains(categories.EXPERIMENTAL, oUnit) and oUnit:GetFractionComplete() >= 0.2 then
+                            if bEnemyUnits then iHealthPercentage = math.min(1, math.max(0.4, iHealthPercentage * 1.5))
+                            else
+                                iHealthPercentage = math.min(1, math.max(0.3, iHealthPercentage * 1.4))
+                            end
+                        end
                         iHealthThreatFactor = (1 - (1-iHealthPercentage) * iHealthFactor) * iHealthThreatFactor
+                    end
+                    if bAdjustExperimentalAirToGroundThreat and EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then
+                        if EntityCategoryContains(refCategoryCzar, oUnit.UnitId) then
+                            --Friendly czar
+                            iBaseThreat = iBaseThreat * 0.5
+                        else
+                            --e.g. friendly soulripper
+                            iBaseThreat = iBaseThreat * 0.75
+                        end
                     end
                     iCurThreat = iBaseThreat * iHealthThreatFactor + iGhettoGunshipAdjust
                     if bDebugMessages == true then LOG(sFunctionRef..': UnitBP='..(oUnit.UnitId or 'nil')..'; iBaseThreat='..(iBaseThreat or 'nil')..'; iHealthThreatFactor='..(iHealthThreatFactor or 'nil')..'iGhettoGunshipAdjust='..(iGhettoGunshipAdjust or 'nil')..'; iCurThreat='..(iCurThreat or 'nil')) end
@@ -1772,7 +1791,7 @@ function GetACUHealthRegenRate(oUnit)
 
 end
 
-function SetUnitTargetPriorities(oUnit, tPriorityTable, bCheckIfCanAttackGround)
+function SetUnitWeaponTargetPriorities(oUnit, tPriorityTable, bCheckIfCanAttackGround)
     if IsUnitValid(oUnit) then
         if EntityCategoryContains(refCategoryMAA, oUnit) then M28Utilities.ErrorHandler('Changing weapon priority for MAA') end
         for i =1, oUnit:GetWeaponCount() do
@@ -2033,5 +2052,20 @@ function EnableUnitWeapon(oUnit)
                 end
             end
         end
+    end
+end
+
+function GetDeathWeaponDamageAOEAndTable(oUnit)
+    --Returns nothing (i.e. nil) if unit doesnt have a death weapon
+    local oBP = oUnit:GetBlueprint()
+    if M28Utilities.IsTableEmpty(oBP.Weapon) == false then
+        for iWeapon, tWeapon in oBP.Weapon do
+            if tWeapon.FireOnDeath or tWeapon.WeaponCategory == 'Death' then --e.g. some will 'fire' a nuke (paragon, yolona), others will just do damage
+                local iWeaponDamage = math.max((tWeapon.Damage or 0), (tWeapon.NukeInnerRingDamage or 0))
+                local iAOE = math.max((tWeapon.NukeInnerRingRadius or 0), (tWeapon.DamageRadius or 0))
+                return iWeaponDamage, iAOE, tWeapon
+            end
+        end
+
     end
 end

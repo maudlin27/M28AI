@@ -184,6 +184,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZTValue = 'ZVal' --Value of the zone factoring in mass, reclaim, and allied units
             subrefLZSValue = 'ZBVal' --Value of friendly buildings in the land zone
             subrefLZbCoreBase = 'ZCore' --true if this is considered a 'core base' land zone
+            refbBaseInSafePosition = 'ZSafCr' --true if friendly bases are closer to every enemy than this location (i.e. rear slot on maps like setons)
             subrefLZCoreExpansion = 'ZExp' --true if considered the main land zone for an expansion (e.g. on an island); nil if we havent considered yet if it is a core expansion, and false if we have considered and it isnt
             subrefbCoreBaseOverride = 'ZCreO' --true if we want to make this locatio na core zone even if it doesnt meet the normal criteria (e.g. to be used when we run out of places to build in our actual core LZ)
             subrefLZExpansionOverride = 'ZExpO' --true if want to make this location a core expansion even if doesnt meet normal criteria (e.g. if we use transport to drop somewhere on same island but far away, then building land facs there may be of use)
@@ -202,7 +203,8 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZDFThreatWanted = 'DFWanted'
             subrefLZMAAThreatWanted = 'MAAThreatWanted'
             subrefiNearbyEnemyLongRangeThreat = 'NrEnLRT' --Number equalling the threat value; intended for fatboys who can outrange adjacent land zones - for enemies that arent in this zone but have a long range and are close to being in range of this zone; units are added to here as a result of AddUnitToLongRangeThreatTable (which adds to the team baesd table, which is then checked to add to subrefoNearbyEnemyLongRangeThreats, which then determines subrefiNearbyEnemyLongRangeThreat
-            subrefoNearbyEnemyLongRangeThreats = 'NrEnLRU' --As above, but a table of the units (likely a table of fatboys)
+            subrefoNearbyEnemyLongRangeThreats = 'NrEnLRU' --As above, but a table of the units (likely a table of fatboys; t2 arti are kept in a separate table)
+            subreftoAllNearbyEnemyT2ArtiUnits = 'NrEnT2A' --Table of t2 arti near this zone
             subrefLZThreatEnemyMobileDFByRange = 'EMDFByRange'
             subrefLZThreatEnemyMobileDFTotal = 'EMDFTo'
             subrefLZThreatAllyMobileDFByRange = 'AMDFByRange'
@@ -223,6 +225,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZThreatAllyStructureDFByRange = 'ASDFByRange'
             subrefLZThreatEnemyStructureIndirect = 'ESITotal'
             subrefLZThreatAllyStructureIndirect = 'ASITotal'
+            subrefLZThreatEnemyShield = 'EShTot' --Fixed and mobile shields
             subrefLZThreatEnemyGroundAA = 'EAATotal'
             subrefLZThreatAllyGroundAA = 'AAATotal'
             subrefLZThreatAllyMAA = 'MAATotal' --only MAA, excludes structure
@@ -3234,6 +3237,7 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
     local iCurBrainDist
     local iClosestBrainDist
     local iClosestBrainRef
+
     for iPlateau, tPlateauSubtable in tAllPlateaus do
         for iLandZone, tLZData in tPlateauSubtable[subrefPlateauLandZones] do
             iClosestBrainDist = 100000
@@ -3249,6 +3253,38 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
             tLZTeamData[reftClosestEnemyBase] = GetPrimaryEnemyBaseLocation(tBrainsByIndex[iClosestBrainRef])
             tLZTeamData[refiModDistancePercent] = GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tLZData[subrefMidpoint], false) /  math.max(1, GetModDistanceFromStart(tBrainsByIndex[iClosestBrainRef], tLZTeamData[reftClosestEnemyBase]))
             if bDebugMessages == true then LOG(sFunctionRef..': Have recorded closest enemy base for iPlateau '..iPlateau..'; iLandZone='..iLandZone..'; iTeam='..iTeam..'; tLZTeamData[reftClosestFriendlyBase]='..repru(tLZTeamData[reftClosestFriendlyBase])..'; repru(tLZTeamData[reftClosestEnemyBase])='..repru(tLZTeamData[reftClosestEnemyBase])..'; iClosestBrainRef='..iClosestBrainRef..'; tBrainsByIndex[iClosestBrainRef].Nickname='..tBrainsByIndex[iClosestBrainRef].Nickname..'; aiBrain[reftPrimaryEnemyBaseLocation] for this brain='..repru(tBrainsByIndex[iClosestBrainRef][reftPrimaryEnemyBaseLocation])) end
+        end
+    end
+
+    --Record any ally bases which are in 'eco/air' slots (no enemy that is closer to them than another ally)
+    if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
+        if M28Utilities.IsTableEmpty(tEnemyBases) == false then
+            local iMaxDistToBaseWanted
+            local iCurFriendlyDistToBase
+            local bHaveCloserTeammate = false
+            for iBaseFriendlyBase, tBaseFriendlyBase in tAllyBases do
+                if bDebugMessages == true then LOG(sFunctionRef..': About to check if we have any friendl ybases that are closer to every enemy base than this, iBaseFriendlyBase='..iBaseFriendlyBase..'; tBaseFriendlyBase='..repru(tBaseFriendlyBase)) end
+                for iEntry, tEnemyBase in tEnemyBases do
+                    bHaveCloserTeammate = false
+                    iMaxDistToBaseWanted = M28Utilities.GetDistanceBetweenPositions(tEnemyBase, tBaseFriendlyBase) - 10
+                    for iFriendlyBase, tCurFriendlyBase in tAllyBases do
+                        if not(iBaseFriendlyBase == iFriendlyBase) then
+                            iCurFriendlyDistToBase = M28Utilities.GetDistanceBetweenPositions(tEnemyBase,  tCurFriendlyBase)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have a friendly brain closer to enemy than us, considering iFriendlyBase='..iFriendlyBase..'; iMaxDistToBaseWanted='..iMaxDistToBaseWanted..'; iCurFriendlyDistToBase='..iCurFriendlyDistToBase) end
+                            if iCurFriendlyDistToBase <= iMaxDistToBaseWanted then
+                                bHaveCloserTeammate = true
+                                break
+                            end
+                        end
+                    end
+                    if not(bHaveCloserTeammate) then break end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished cehcking if have closer teammate than us to each enemy base, bHaveCloserTeammate='..tostring(bHaveCloserTeammate)) end
+                if bHaveCloserTeammate then
+                    local tBaseLZOrWZData, tBaseLZOrWZTeamData = GetLandOrWaterZoneData(tBaseFriendlyBase, true, iTeam)
+                    tBaseLZOrWZTeamData[refbBaseInSafePosition] = true
+                end
+            end
         end
     end
 

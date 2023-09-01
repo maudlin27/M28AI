@@ -97,6 +97,11 @@ do --Per Balthazaar - encasing the code in do .... end means that you dont have 
         end,
         OnMissileIntercepted = function(self, target, defense, position)
             ForkThread(M28Events.OnMissileIntercepted, self, target, defense, position)
+            return M28OldUnit.OnMissileIntercepted(self, target, defense, position)
+        end,
+        OnTeleportUnit = function(self, teleporter, location, orientation)
+            ForkThread(M28Events.OnTeleportComplete, self, teleporter, location, orientation)
+            return M28OldUnit.OnTeleportUnit(self, teleporter, location, orientation)
         end,
     }
 end

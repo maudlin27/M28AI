@@ -2617,13 +2617,37 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                 end
 
 
-                --If still have available air send them to the support location (unless they could do with a fuel or health top-up)
+                --If still have available air send them to the support location (unless they could do with a fuel or health top-up); if theyre already there and have low mass consider ctrl-king inties
                 if bDebugMessages == true then LOG(sFunctionRef..': Finished considering AirAA targets for all land and water zones, is tAvailableAirAA empty='..tostring(M28Utilities.IsTableEmpty(tAvailableAirAA))) end
                 if M28Utilities.IsTableEmpty(tAvailableAirAA) == false then
                     local tMovePoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]
+                    local bConsiderCtrlK = false
+                    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] >= 1750 and M28Conditions.TeamHasLowMass(iTeam) then
+                        local tInties = EntityCategoryFilterDown(categories.TECH1, tAvailableAirAA)
+                        if M28Utilities.IsTableEmpty(tInties) == false then
+                            local tASFs = EntityCategoryFilterDown(categories.TECH3, tAvailableAirAA)
+                            if M28Utilities.IsTableEmpty(tASFs) == false and table.getn(tASFs) >= 6 then
+                                bConsiderCtrlK = true
+                            end
+                        end
+                    end
                     for iUnit, oUnit in tAvailableAirAA do
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering idle airAA order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' Unit fuel='..oUnit:GetFuelRatio()..'; Unit health%='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; support point='..repru(tMovePoint)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
-                        if oUnit:GetFuelRatio() < 0.6 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.85 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering idle airAA order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' Unit fuel='..oUnit:GetFuelRatio()..'; Unit health%='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; support point='..repru(tMovePoint)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; bConsiderCtrlK='..tostring(bConsiderCtrlK)) end
+                        if bConsiderCtrlK and EntityCategoryContains(categories.TECH1, oUnit.UnitId) then
+                            bConsiderCtrlK = false
+                            local bMoveUnitToRally = false
+                            if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]) >= 10 then
+                                local tUnitZoneData, tUnitTeamZoneData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+                                if not(tUnitTeamZoneData[M28Map.subrefLZbCoreBase]) then bMoveUnitToRally = true end
+                            end
+                            if bMoveUnitToRally then
+                                M28Orders.IssueTrackedMove(oUnit, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], 10, false, 'AACtrlKI', false)
+                            else
+                                M28Orders.IssueTrackedKillUnit(oUnit)
+                                M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOnlyGetASFs] = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': CtrlKing unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                            end
+                        elseif oUnit:GetFuelRatio() < 0.6 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.85 then
                             table.insert(tAirForRefueling, oUnit)
                         else
                             M28Orders.IssueTrackedMove(oUnit, tMovePoint, 10, false, 'AAIdle', false)
@@ -3375,18 +3399,6 @@ function ManageGunships(iTeam, iAirSubteam)
     local oFrontGunship
     local bGunshipWantsAirScout = false
     if M28Utilities.IsTableEmpty(tAvailableGunships) == false then
-        local iOurGunshipThreat = M28UnitInfo.GetAirThreatLevel(tAvailableGunships, false, false, false, true, false, false)
-
-        --GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo, bBlueprintThreat)
-        local iOurGunshipAA = M28UnitInfo.GetAirThreatLevel(tAvailableGunships, false,  true,               false,              false, false, false)
-        local bHaveT3Gunships = false
-        if iOurGunshipThreat >= 2000 then
-            if EntityCategoryContains(categories.TECH3 + categories.EXPERIMENTAL, tAvailableGunships[1].UnitId) then bHaveT3Gunships = true
-            elseif M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.TECH3 + categories.EXPERIMENTAL, tAvailableGunships)) == false then
-                bHaveT3Gunships = true
-            end
-        end
-
 
         --Prioroity targets to attack - search for enemies around start positions (ignore AA):
         local tEnemyGroundTargets = {}
@@ -3406,6 +3418,25 @@ function ManageGunships(iTeam, iAirSubteam)
                         bGunshipWantsAirScout = true
                     end
                 end
+            end
+        end
+
+
+        local tGunshipsNearFront = {}
+        for iUnit, oUnit in tAvailableGunships do
+            if M28Utilities.GetDistanceBetweenPositions(oFrontGunship:GetPosition(), oUnit:GetPosition()) <= 50 then
+                table.insert(tGunshipsNearFront, oUnit)
+            end
+        end
+        local iOurGunshipThreat = M28UnitInfo.GetAirThreatLevel(tGunshipsNearFront, false, false, false, true, false, false)
+
+        --GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGroundToAir, bIncludeAirToGround, bIncludeNonCombatAir, bIncludeAirTorpedo, bBlueprintThreat)
+        local iOurGunshipAA = M28UnitInfo.GetAirThreatLevel(tAvailableGunships, false,  true,               false,              false, false, false)
+        local bHaveT3Gunships = false
+        if iOurGunshipThreat >= 2000 then
+            if EntityCategoryContains(categories.TECH3 + categories.EXPERIMENTAL, tAvailableGunships[1].UnitId) then bHaveT3Gunships = true
+            elseif M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.TECH3 + categories.EXPERIMENTAL, tAvailableGunships)) == false then
+                bHaveT3Gunships = true
             end
         end
 
@@ -3432,6 +3463,9 @@ function ManageGunships(iTeam, iAirSubteam)
 
                 end
             end
+            local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
+            local tGunshipsNearFront = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryGunship, oFrontGunship:GetPosition(), 50, 'Ally')
+            LOG(sFunctionRef..': Threat of gunships within 50 of front gunship='..M28UnitInfo.GetAirThreatLevel(tGunshipsNearFront, false, false, false, true, false, false)..'; iOurGunshipThreat='..iOurGunshipThreat)
         end
 
         local iMaxEnemyAirAA --Amount of enemy airaa threat required to make gunships to target enemies nearby
