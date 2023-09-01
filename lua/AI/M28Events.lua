@@ -460,7 +460,6 @@ function OnEnhancementComplete(oUnit, sEnhancement)
             if EntityCategoryContains(categories.COMMAND + categories.SUBCOMMANDER, oUnit.UnitId) then
                 oUnit[M28ACU.refiUpgradeCount] = (oUnit[M28ACU.refiUpgradeCount] or 0) + 1
                 if sEnhancement == 'Teleporter' then
-                    bDebugMessages = true
                     if bDebugMessages == true then LOG(sFunctionRef..': Flagging that unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' has got teleporter upgrade and setting weapon prioritisation accordingly') end
                     oUnit[M28ACU.refbACUHasTeleport] = true
                     if ScenarioInfo.Options.Victory == "demoralization" then
@@ -2082,7 +2081,7 @@ end
 
 function OnTeleportComplete(self, teleporter, location, orientation)
     local sFunctionRef = 'OnTeleportComplete'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     --if bDebugMessages == true then LOG('OnTeleportComplete - self='..reprs(self)..'; teleporter='..reprs(teleporter)..'; location='..reprs(location)) end
     if self:GetAIBrain().M28AI and self[M28ACU.refbACUHasTeleport] then

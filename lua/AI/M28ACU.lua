@@ -2241,7 +2241,7 @@ end
 function GetBestTeleSnipeUnitTarget(oACU, iTeam)
     --Make sure we have a relatively recent target list since we are proceeding to teleport
     local sFunctionRef = 'GetBestTeleSnipeUnitTarget'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     M28Team.RefreshPotentialTeleSnipeTargets(iTeam, 1)
@@ -2254,11 +2254,15 @@ function GetBestTeleSnipeUnitTarget(oACU, iTeam)
             if M28UnitInfo.IsUnitValid(oUnit) then
                 if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) then
                     iCurTargetValue = 20000 --will only have an ACU if in assassination mode
+                    if table.getn(M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs]) == 1 and ScenarioInfo.Options.Victory == "demoralization" and M28UnitInfo.GetCombatThreatRating({M28Team.tTeamData[iTeam][M28Team.reftEnemyACUs][1]}, true) <= 4000 then
+                        iCurTargetValue = 250000 --i.e. if we kill the ACU then it is better than killing a game ender (although will reduce to less than a gameender if it has high health)
+                    end
                     local iUnitHealth = oUnit:GetHealth()
                     local iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, true)
                     iUnitHealth = iUnitHealth + iCurShield
                     if iUnitHealth >= 15000 then
-                        iCurTargetValue = iCurTargetValue - math.min(iCurTargetValue * 0.6, (iUnitHealth - 15000) * 0.3)
+                        iCurTargetValue = 180000 --likely better to target a gameender than ACU if acu is high health
+                        iCurTargetValue = iCurTargetValue - math.min(iCurTargetValue * 0.6, math.max((iUnitHealth - 15000) * 0.3))
                     end
                 else
                     iCurTargetValue = oUnit:GetBlueprint().Economy.BuildCostMass * oUnit:GetFractionComplete()
@@ -2287,7 +2291,7 @@ function GetBestLocationForTeleSnipeTarget(oACU, oSnipeTarget, iTeam, bJustCheck
 
 
     local sFunctionRef = 'GetBestLocationForTeleSnipeTarget'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --We ahve a valid oSnipeTarget for oACU to teleport to and try and kill, now we want to refine the teleport destination, e.g. to avoid volatile units and PD
@@ -2296,6 +2300,7 @@ function GetBestLocationForTeleSnipeTarget(oACU, oSnipeTarget, iTeam, bJustCheck
     local iMinDistanceAway = 0
     local iDistFromAOEWanted = 2
     local iMaxDistFromTarget = (oACU[M28UnitInfo.refiDFRange] or 30) - 2
+    if EntityCategoryContains(categories.MOBILE - M28UnitInfo.refCategoryScathis, oSnipeTarget.UnitId) then iMaxDistFromTarget = iMaxDistFromTarget - 8 end
 
     local iTargetPlateau, iTargetLandZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oSnipeTarget:GetPosition())
 
@@ -2451,7 +2456,7 @@ function GetBestLocationForTeleSnipeTarget(oACU, oSnipeTarget, iTeam, bJustCheck
                         end
                     end
                 end
-                if iDistanceInterval == 0 or (tBestTarget and iPDDPSThreshold <= 400) then break end
+                if iDistanceInterval <= 0 or (tBestTarget and iPDDPSThreshold <= 400) then break end
             end
         end
 
@@ -2466,7 +2471,9 @@ function GetBestLocationForTeleSnipeTarget(oACU, oSnipeTarget, iTeam, bJustCheck
             else
                 iMaxDPSWanted = iBaseTargetPDDPS * 0.8
             end
-            UpdateBestTargetIfSafeLocationNearTargetUnit(oSnipeTarget, iTargetBuildingSize, math.min(iTargetBuildingSize + 4 * 4, (oACU[M28UnitInfo.refiDFRange] or 30) - 6), iMaxDPSWanted)
+            local iVolatileHealthLevel = nil
+            if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1 and ScenarioInfo.Options.Victory == "demoralization" then iVolatileHealthLevel = 9000 end
+            UpdateBestTargetIfSafeLocationNearTargetUnit(oSnipeTarget, iTargetBuildingSize, math.min(iMaxDistFromTarget, iTargetBuildingSize + 4 * 4, (oACU[M28UnitInfo.refiDFRange] or 30) - 6), iMaxDPSWanted, iVolatileHealthLevel)
             if bDebugMessages == true then LOG(sFunctionRef..': Attempted to change target to avoid PD, tBestTarget after change='..repru(tBestTarget)) end
             if bJustCheckIfLocationWithLowPDThreat and tBestTarget then
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -2500,7 +2507,7 @@ function GetBestLocationForTeleSnipeTarget(oACU, oSnipeTarget, iTeam, bJustCheck
                     if iMinDistanceAway > 0 then
                         --Snipe target is volatile, so try and avoid
                         if bDebugMessages == true then LOG(sFunctionRef..': Snipe target is volatile so will try and avoid') end
-                        UpdateBestTargetIfSafeLocationNearTargetUnit(oSnipeTarget, iMinDistanceAway, iMinDistanceAway + 4, iBaseTargetPDDPS * 0.25, iBaseTargetVolatileDamage * 0.5)
+                        UpdateBestTargetIfSafeLocationNearTargetUnit(oSnipeTarget, iMinDistanceAway, math.min(iMinDistanceAway + 4, iMaxDistFromTarget), iBaseTargetPDDPS * 0.25, iBaseTargetVolatileDamage * 0.5)
 
                     else
                         --We arent trying to avoid explosion from the target itself so consider avoiding explosion from nearby T3 pgens
@@ -2509,7 +2516,7 @@ function GetBestLocationForTeleSnipeTarget(oACU, oSnipeTarget, iTeam, bJustCheck
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to try and avoid nearby volatile units, iBaseTargetVolatileDamage='..iBaseTargetVolatileDamage..'; iTargetBuildingSize='..iTargetBuildingSize) end
                         if iBaseTargetVolatileDamage > 0 then
                             if bDebugMessages == true then LOG(sFunctionRef..': Will try searching for safer locations') end
-                            UpdateBestTargetIfSafeLocationNearTargetUnit(oSnipeTarget, iTargetBuildingSize, math.min(iTargetBuildingSize + 4 * 2, (oACU[M28UnitInfo.refiDFRange] or 30) - 6), iBaseTargetPDDPS * 0.25, 2000)
+                            UpdateBestTargetIfSafeLocationNearTargetUnit(oSnipeTarget, iTargetBuildingSize, math.min(iMaxDistFromTarget, iTargetBuildingSize + 4 * 2, (oACU[M28UnitInfo.refiDFRange] or 30) - 6), iBaseTargetPDDPS * 0.25, 2000)
                         end
                     end
                 end
@@ -2533,7 +2540,6 @@ function HaveTelesnipeAction(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local bGivenACUOrder = false
-    if oACU[refbACUHasTeleport] then bDebugMessages = true end
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code for brain '..aiBrain.Nickname..'; Does ACU have special micro active='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive] or false)) end
     if not(oACU[M28UnitInfo.refbSpecialMicroActive]) then
@@ -2541,35 +2547,73 @@ function HaveTelesnipeAction(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
         --First check if we want to get upgrades to enable a tele-snipe
         local sUpgradeWanted
         if not(oACU[refbACUHasTeleport]) and EntityCategoryContains(categories.CYBRAN + categories.SERAPHIM, oACU.UnitId) then
-            if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 750 + 300 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+            if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 600 + 450 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
                 local bConsiderSniping = false
                 if not(ScenarioInfo.Options.Victory == "demoralization") then
                     if bDebugMessages == true then LOG(sFunctionRef..': Arent in assassination mode so will consider sniping') end
                     bConsiderSniping = true
+                elseif M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
+                    bConsiderSniping = true
                 else
-                    if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
-                        bConsiderSniping = true
-                        --Only get teleport on seraphim if we have no cybran ACU; dont get teleport on either if we are already getting teleport (or have it) on another ACU
-                        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-                            local tFriendlyACUs = oBrain:GetListOfUnits(categories.COMMAND * categories.CYBRAN + categories.COMMAND * categories.SERAPHIM, true, false)
-                            if M28Utilities.IsTableEmpty(tFriendlyACUs) == false then
-                                for iFriendlyACU, oFriendlyACU in tFriendlyACUs do
-                                    if not(oFriendlyACU == oACU) then
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Checking if other ACUs are planning on getting teleport, ACU owned by brain '..oBrain.Nickname..': oFriendlyACU[refbPlanningToGetTeleport]='..tostring(oFriendlyACU[refbPlanningToGetTeleport] or false)..'; oFriendlyACU[refbACUHasTeleport]='..tostring(oFriendlyACU[refbACUHasTeleport])) end
-                                        if oFriendlyACU[refbPlanningToGetTeleport] or oFriendlyACU[refbACUHasTeleport] then
-                                            bConsiderSniping = false
-                                            break
-                                        elseif EntityCategoryContains(categories.CYBRAN, oFriendlyACU.UnitId) and EntityCategoryContains(categories.SERAPHIM, oACU.UnitId) then
-                                            bConsiderSniping = false
-                                            break
-                                        end
+                    --Assassination, and down to last ACU, only go for telesnipe as a last resort
+                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]) == false then
+                        local iEnemyArtiCount = 0
+                        function GetArtiEquivValue(oUnit)
+                            local iArtiValue = 0
+                            if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder - M28UnitInfo.refCategorySML, oUnit.UnitId) then
+                                iArtiValue = 3
+                            elseif EntityCategoryContains(M28UnitInfo.refCategorySML * categories.EXPERIMENTAL, oUnit.UnitId) then
+                                iArtiValue = 2
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryNovax, oUnit.UnitId) then
+                                iArtiValue = 0.6
+                            else
+                                iArtiValue = 1
+                            end
+                            return iArtiValue
+                        end
+                        for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure] do
+                            if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() >= 0.85 then
+                                iEnemyArtiCount = iEnemyArtiCount + GetArtiEquivValue(oUnit)
+                            end
+                        end
+                        if iEnemyArtiCount >= 3 then
+                            local iFriendlyArtiCount = 0
+                            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                                local tFriendlyExperimentals = GetListOfUnits(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryNovax + M28UnitInfo.refCategoryFixedT3Arti, false, false)
+                                for iUnit, oUnit in tFriendlyExperimentals do
+                                    if oUnit:GetFractionComplete() >= 0.4 then
+                                        iFriendlyArtiCount = iFriendlyArtiCount + GetArtiEquivValue(oUnit)
                                     end
                                 end
                             end
-                            if not(bConsiderSniping) then break end
+                            if iFriendlyArtiCount < 2 and iEnemyArtiCount - iFriendlyArtiCount >= 3 then
+                                bConsiderSniping = true
+                            end
                         end
                     end
                 end
+                if bConsiderSniping then
+                    --Only get teleport on seraphim if we have no cybran ACU; dont get teleport on either if we are already getting teleport (or have it) on another ACU
+                    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                        local tFriendlyACUs = oBrain:GetListOfUnits(categories.COMMAND * categories.CYBRAN + categories.COMMAND * categories.SERAPHIM, true, false)
+                        if M28Utilities.IsTableEmpty(tFriendlyACUs) == false then
+                            for iFriendlyACU, oFriendlyACU in tFriendlyACUs do
+                                if not(oFriendlyACU == oACU) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Checking if other ACUs are planning on getting teleport, ACU owned by brain '..oBrain.Nickname..': oFriendlyACU[refbPlanningToGetTeleport]='..tostring(oFriendlyACU[refbPlanningToGetTeleport] or false)..'; oFriendlyACU[refbACUHasTeleport]='..tostring(oFriendlyACU[refbACUHasTeleport])) end
+                                    if oFriendlyACU[refbPlanningToGetTeleport] or oFriendlyACU[refbACUHasTeleport] then
+                                        bConsiderSniping = false
+                                        break
+                                    elseif EntityCategoryContains(categories.CYBRAN, oFriendlyACU.UnitId) and EntityCategoryContains(categories.SERAPHIM, oACU.UnitId) then
+                                        bConsiderSniping = false
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                        if not(bConsiderSniping) then break end
+                    end
+                end
+
                 if bDebugMessages == true then LOG(sFunctionRef..': bConsiderSniping='..tostring(bConsiderSniping)) end
                 if bConsiderSniping then
                     --Do we have any viable targets?
@@ -2583,7 +2627,7 @@ function HaveTelesnipeAction(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
         end
         if bDebugMessages == true then LOG(sFunctionRef..': sUpgradeWanted='..(sUpgradeWanted or 'nil')) end
         if sUpgradeWanted then
-            --oACU[refbPlanningToGetTeleport] = true
+            oACU[refbPlanningToGetTeleport] = true
             bGivenACUOrder = true
             --Are we in core base? if not then move to core base
             if not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) then
@@ -2597,7 +2641,6 @@ function HaveTelesnipeAction(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
         else
             if bDebugMessages == true then LOG(sFunctionRef..': Dont want to get upgrade, does ACU already have teleport='..tostring(oACU[refbACUHasTeleport] or false)) end
             if oACU[refbACUHasTeleport] then
-                bDebugMessages = true
                 --Are we not in core base? Teleport to core base
                 if bDebugMessages == true then LOG(sFunctionRef..': Are we in a core base='..tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase])) end
                 if not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) then
