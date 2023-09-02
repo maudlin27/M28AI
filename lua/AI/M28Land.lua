@@ -1528,11 +1528,13 @@ function ShieldUnitsInLandZone(tTeamTargetLZData, tShieldsToAssign, bAssignAllSh
         M28Utilities.ErrorHandler('Are trying to send mobile shields to support a land zone that has no allied combat units in it and no units wanting shielding')
     else
         if M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.reftoLZUnitsWantingMobileShield]) == false then
-            for iTarget, oTarget in tTeamTargetLZData[M28Map.reftoLZUnitsWantingMobileShield] do
+            --Prioritise t2 arti if have enemy t2 arti in zone
+            function AssignClosestMobileShieldToTarget(oTarget)
+                --Returns false if should abort
                 if not(oTarget[refoAssignedMobileShield]) then
                     if M28Utilities.IsTableEmpty(tShieldsToAssign) then
                         bNoUnitsWantingShielding = false
-                        break
+                        return false
                     else
                         --Assign the closest mobile shield
                         local iCurDist
@@ -1546,7 +1548,7 @@ function ShieldUnitsInLandZone(tTeamTargetLZData, tShieldsToAssign, bAssignAllSh
                                 iClosestDist = iCurDist
                                 iClosestRef = iShield
                             end
-                            break
+                            return false
                         end
                         tShieldsToAssign[iClosestRef][refoMobileShieldTarget] = oTarget
                         oTarget[refoAssignedMobileShield] = tShieldsToAssign[iClosestRef]
@@ -1555,6 +1557,19 @@ function ShieldUnitsInLandZone(tTeamTargetLZData, tShieldsToAssign, bAssignAllSh
                         if bDebugMessages == true then LOG(sFunctionRef..': Have just removed shield with iClosestRef='..iClosestRef..' from the table of tShieldsToAssign; is table empty='..tostring(M28Utilities.IsTableEmpty(tShieldsToAssign))..'; size of table='..table.getn(tShieldsToAssign)) end
                     end
                 end
+            end
+            local tT2ArtiToPrioritise
+            if M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
+                tT2ArtiToPrioritise = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti, tTeamTargetLZData[M28Map.reftoLZUnitsWantingMobileShield])
+                if M28Utilities.IsTableEmpty(tT2ArtiToPrioritise) == false then
+                    for iTarget, oTarget in tT2ArtiToPrioritise do
+                        if AssignClosestMobileShieldToTarget(oTarget) == false then break end
+                    end
+                end
+            end
+
+            for iTarget, oTarget in tTeamTargetLZData[M28Map.reftoLZUnitsWantingMobileShield] do
+                if AssignClosestMobileShieldToTarget(oTarget) == false then break end
             end
         end
         if (M28Utilities.IsTableEmpty(tShieldsToAssign) == false or M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.subrefAlliedACU]) == false) and bAssignAllShields then
