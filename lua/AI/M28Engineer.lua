@@ -1351,7 +1351,7 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
         LOG(sFunctionRef..': iTeam='..aiBrain.M28Team..'; aiBrain='..aiBrain.Nickname..'; Time='..GetGameTimeSeconds()..'; tLastOrder reprs='..reprs(tLastOrder)..'; tLastBuildLocationForUnit if we think it is the same='..repru(tLastBuildLocationForUnit)..'; sBlueprintToBuild='..sBlueprintToBuild..'; Building size of BP to build='..M28UnitInfo.GetBuildingSize(sBlueprintToBuild)..'; Engineer position='..repru(oEngineer:GetPosition())..'; Dist to target='..M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), tTargetLocation)..'; iEngineerSegmentX='..iEngineerSegmentX..'Z='..iEngineerSegmentZ)
     end
 
-    local bLocationBuildableImmediately
+    local bLocationBuildableImmediately, bBestLocationBuildableImmediately
     local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
     --Start of game - build factory closer to hydro if possible
     if GetGameTimeSeconds() <= 60 and EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, sBlueprintToBuild) then
@@ -1529,6 +1529,7 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
             if iCurPriority > iHighestPriority then
                 iHighestPriority = iCurPriority
                 iBestLocationRef = iCurLocation
+                bBestLocationBuildableImmediately = bLocationBuildableImmediately
                 if bDebugMessages == true then LOG(sFunctionRef..': Have a new best priority, iHighestPriority='..iHighestPriority) end
             end
         end
@@ -1585,8 +1586,8 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
             end
         end
     end
-
-    if not(bLocationBuildableImmediately) and bTryOtherLocationsIfNoneBuildableImmediately then
+    if bDebugMessages == true then LOG(sFunctionRef..': bBestLocationBuildableImmediately='..tostring(bBestLocationBuildableImmediately)..'; bTryOtherLocationsIfNoneBuildableImmediately='..tostring(bTryOtherLocationsIfNoneBuildableImmediately or false)) end
+    if not(bBestLocationBuildableImmediately) and bTryOtherLocationsIfNoneBuildableImmediately then
         local tLZTeamData
         local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
         if (iLandZone or 0) > 0 and iPlateau > 0 then
@@ -6198,6 +6199,80 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             if bDebugMessages == true then LOG(sFunctionRef..': Have flagged we want air staging with iBPWanted='..iBPWanted) end
         end
     end
+
+    --1st experimental - Enemy has land experimental and we dont have one of our own yet (and havent completed one before)
+    iCurPriority = iCurPriority + 1
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] == 0 and M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] <= 18000 then
+        local iEnemyHighestPercentComplete = 0
+        local iClosestExperimental = 100000
+        for iExperimental, oExperimental in M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals] do
+            if M28UnitInfo.IsUnitValid(oExperimental) then
+                iEnemyHighestPercentComplete = math.max(iEnemyHighestPercentComplete, oExperimental:GetFractionComplete())
+                iClosestExperimental = math.min(iClosestExperimental, M28Utilities.GetDistanceBetweenPositions(oExperimental:GetPosition(), tLZData[M28Map.subrefMidpoint]))
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': iEnemyHighestPercentComplete='..iEnemyHighestPercentComplete..'; iClosestExperimental='..iClosestExperimental) end
+        if iEnemyHighestPercentComplete > 0 and iClosestExperimental <= 700 then
+            local iAliveExperimentals = 0
+            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                local tFriendlyExperimentals = oBrain:GetListOfUnits(M28UnitInfo.refCategoryLandExperimental, false, false)
+                if M28Utilities.IsTableEmpty(tFriendlyExperimentals) == false then
+                    for iExperimental, oExperimental in tFriendlyExperimentals do
+                        if oExperimental:GetFractionComplete() >= 0.95 then
+                            iAliveExperimentals = iAliveExperimentals + 1
+                        end
+                    end
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': iAliveExperimentals='..iAliveExperimentals) end
+            if iAliveExperimentals == 0 then
+
+                local iHighestCompleteExperimentalInZone = 0
+                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
+                    local tExperimentalsUnderConstruction = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandExperimental, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                    if M28Utilities.IsTableEmpty(tExperimentalsUnderConstruction) == false then
+                        for iUnit, oUnit in tExperimentalsUnderConstruction do
+                            iHighestCompleteExperimentalInZone = math.max(iHighestCompleteExperimentalInZone, oUnit:GetFractionComplete())
+                        end
+                    end
+
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': iHighestCompleteExperimentalInZone='..iHighestCompleteExperimentalInZone) end
+                if iHighestCompleteExperimentalInZone + 0.2 >= iEnemyHighestPercentComplete then
+                    --Assist the experimental
+                    HaveActionToAssign(refActionBuildExperimental, 1, 240)
+                else
+                    --Assist air factory
+                    iBPWanted = 240
+                    if bHaveLowPower and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] <= 0.6 then iBPWanted = 120 end
+                    local tAirFacsToAssist = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory * M28UnitInfo.ConvertTechLevelToCategory(M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech]), tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                    local oAirFactoryToAssist
+                    if M28Utilities.IsTableEmpty(   tAirFacsToAssist) then
+                        tAirFacsToAssist = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of air facs to assist empty='..tostring(M28Utilities.IsTableEmpty(tAirFacsToAssist))..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone) end
+                    if M28Utilities.IsTableEmpty(tAirFacsToAssist) == false then
+
+                        local iHighestAirFac = 0
+                        local iCurTechLevel
+                        for iFactory, oFactory in tAirFacsToAssist do
+                            iCurTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)
+                            if iCurTechLevel > iHighestAirFac then
+                                iHighestAirFac = iCurTechLevel
+                                oAirFactoryToAssist = oFactory
+                            end
+                        end
+                        if oAirFactoryToAssist then
+                            HaveActionToAssign(refActionAssistAirFactory, 1, iBPWanted, oAirFactoryToAssist)
+                        end
+
+                        HaveActionToAssign(refActionAssistAirFactory, 1, iBPWanted, oAirFactoryToAssist)
+                    end
+                end
+            end
+        end
+    end
+
 
 
     --Shielding in a high mass scenario

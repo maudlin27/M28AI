@@ -170,7 +170,7 @@ end
 function ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData, oOptionalUnderConstructionHydro)
     --If have hydro under construction then assist the hydro if it's within build range; if not under construciton or out of build range then move towards it
     local sFunctionRef = 'ACUActionAssistHydro'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --Redundancy - make sure we have hydros in this LZ:
@@ -338,7 +338,7 @@ end
 
 function GetACUEarlyGameOrders(aiBrain, oACU)
     local sFunctionRef = 'GetACUEarlyGameOrders'
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
@@ -434,6 +434,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                     --For Cadmium green its 51.9
                     local tClosestHydroToACU
                     local iClosestDistToACU = 100000
+
                     local iCurHydroDist
                     local bHaveUnderConstructionFirstHydro = false
                     local oOptionalUnderConstructionHydro --used for redundancy
@@ -535,9 +536,10 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                         end
                     else --Have a hydro so get more mexes initially
                         --Max mex to build
+                        local iHydroDistToStart = M28Utilities.GetDistanceBetweenPositions(tClosestHydroToACU, tLZOrWZData[M28Map.subrefMidpoint])
                         local iMexInLandZone = 0
                         if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZMexLocations]) == false then iMexInLandZone = table.getn(tLZOrWZData[M28Map.subrefLZMexLocations]) end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Hydro is nearby, Gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; iMexInLandZone='..iMexInLandZone..'; Gross base energy income='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Hydro is nearby, Gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; iMexInLandZone='..iMexInLandZone..'; Gross base energy income='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; Dist of closest hydro='..iHydroDistToStart) end
                         --Do we have a hydro underconstruction in this land zone?
                         if aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 12 * iResourceMod then
                             local tHydroInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryHydro, tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits])
@@ -551,6 +553,8 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                 end
                             end
                         end
+                        local iMexCap = 4
+                        if iHydroDistToStart >= 75 then iMexCap = 3 end --e.g. Verdant Valley - dist is c.95, and we power-stall if going for 4 mexes (even after getting 4 trees).  Theta passage dist is 32
                         local bHaveUnbuiltMexNearHydro = false
                         if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false then
                             local iDistanceThreshold = 80 - 5 * (tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3])
@@ -561,10 +565,11 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                 end
                             end
                         end
+
                         if bHaveUnderConstructionFirstHydro and (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 1.2 * iResourceMod or tLZOrWZTeamData[M28Map.subrefMexCountByTech][1] >= math.min(3, iMexInLandZone)) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Have underconstruction hydro and equiv of 3 mexes or every mex in zone so will try and assist it') end
                             ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData, oOptionalUnderConstructionHydro)
-                        elseif bHaveUnbuiltMexNearHydro and aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(4, iMexInLandZone) * 0.2 * aiBrain[M28Economy.refiBrainBuildRateMultiplier] or (aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(4, iMexInLandZone) * 0.2 * iResourceMod and aiBrain:GetEconomyStored('MASS') < 100) then
+                        elseif bHaveUnbuiltMexNearHydro and aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(iMexCap, iMexInLandZone) * 0.2 * aiBrain[M28Economy.refiBrainBuildRateMultiplier] or (aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(4, iMexInLandZone) * 0.2 * iResourceMod and aiBrain:GetEconomyStored('MASS') < 100) then
                             if bDebugMessages == true then LOG(sFunctionRef..': We ahve mexes in land zone and we havent built on all of them so will build a mex') end
                             ACUActionBuildMex(aiBrain, oACU)
                             if M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]) then M28Utilities.ErrorHandler('ACU wants to build a mex but failed to find anywhere') end
@@ -802,6 +807,29 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                             end
                             if oPowerToSwitchTo then
                                 M28Orders.IssueTrackedRepair(oACU, oPowerToSwitchTo, false, 'EGPwrR', false)
+                            end
+                        end
+                    end
+                end
+                --Hydro and power-stalling and tree reclaim within build area - reclaim trees
+            elseif aiBrain:GetEconomyStored('ENERGY') <= 30 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 10 then
+                local iReclaimSegmentX, iReclaimSegmentZ = M28Map.GetReclaimSegmentsFromLocation(oACU:GetPosition())
+                if bDebugMessages == true then LOG(sFunctionRef..': Are power stalling, will see if energy reclaim nearby, energy in segment are in='..M28Map.tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][M28Map.refSegmentReclaimTotalEnergy]) end
+                if M28Map.tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][M28Map.refSegmentReclaimTotalEnergy] > 10 then
+                    local iBuildRange = oACU:GetBlueprint().Economy.MaxBuildDistance
+                    local rNearbyRect = M28Utilities.GetRectAroundLocation(oACU:GetPosition(), iBuildRange)
+                    local tReclaimables = M28Map.GetReclaimInRectangle(4, rNearbyRect, false)
+                    if M28Utilities.IsTableEmpty(tReclaimables) == false then
+                        local tWrecksToReclaim = {}
+                        for iWreck, oWreck in tReclaimables do
+                            if (oWreck.MaxEnergyReclaim or 0) >= 10 and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oWreck.CachePosition) <= iBuildRange then
+                                table.insert(tWrecksToReclaim, oWreck)
+                            end
+                        end
+                        if M28Utilities.IsTableEmpty(tWrecksToReclaim) == false then
+                            M28Orders.IssueTrackedClearCommands(oACU)
+                            for iWreck, oWreck in tWrecksToReclaim do
+                                M28Orders.IssueTrackedReclaim(oACU, oWreck, true, 'ACUTree', false)
                             end
                         end
                     end
@@ -1762,6 +1790,7 @@ function ConsiderNearbyReclaim(iPlateau, iLandZone, tLZData, tLZTeamData, oACU, 
 
     local iTotalReclaimWanted
     local iIndividualReclaimThreshold
+    local bGetEnergy = false
     if bOnlyConsiderIfInBuildRange then
         if oACU[refiUpgradeCount] > 0 and not(oACU:HasEnhancement('AdvancedEngineering')) then
             if (tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) or not(M28Conditions.TeamHasLowMass(oACU:GetAIBrain().M28Team)) then
@@ -1783,6 +1812,11 @@ function ConsiderNearbyReclaim(iPlateau, iLandZone, tLZData, tLZTeamData, oACU, 
                 iIndividualReclaimThreshold = iIndividualReclaimThresholdOverride or 10
             end
         end
+        if oACU:GetAIBrain():GetEconomyStored('ENERGY') <= 50 then
+            bGetEnergy = true
+            iTotalReclaimWanted = 15
+            iIndividualReclaimThreshold = iIndividualReclaimThresholdOverride or 15
+        end
     else
         if M28Conditions.TeamHasLowMass(oACU:GetAIBrain().M28Team) then
             iTotalReclaimWanted = 75
@@ -1794,9 +1828,10 @@ function ConsiderNearbyReclaim(iPlateau, iLandZone, tLZData, tLZTeamData, oACU, 
         if tLZTeamData[M28Map.subrefLZbCoreBase] and (GetGameTimeSeconds() <= 300 and M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.subrefiTeamGrossMass]) <= 5 then iTotalReclaimWanted = iTotalReclaimWanted * 2 end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': LZ reclaim mass='..tLZData[M28Map.subrefTotalMassReclaim]..'; Team mass % stored='..M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.subrefiTeamLowestMassPercentStored]..'; iTotalReclaimWanted='..iTotalReclaimWanted..'; iIndividualReclaimThreshold='..iIndividualReclaimThreshold..'; bOnlyConsiderIfInBuildRange='..tostring(bOnlyConsiderIfInBuildRange or false)) end
-    if tLZData[M28Map.subrefTotalMassReclaim] >= iTotalReclaimWanted and M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.subrefiTeamLowestMassPercentStored] <= 0.6 then
+
+    if (bGetEnergy and tLZData[M28Map.subrefLZTotalEnergyReclaim] >= iTotalReclaimWanted) or (not(bGetEnergy) and tLZData[M28Map.subrefTotalMassReclaim] >= iTotalReclaimWanted and M28Team.tTeamData[oACU:GetAIBrain().M28Team][M28Team.subrefiTeamLowestMassPercentStored] <= 0.6) then
         --If any reclaim of iIndividualReclaimThreshold+ value then get ACU to reclaim
-        M28Engineer.GetEngineerToReclaimNearbyArea(oACU, 1, tLZTeamData, iPlateau, iLandZone, false, (bOnlyConsiderIfInBuildRange or false), iIndividualReclaimThreshold)
+        M28Engineer.GetEngineerToReclaimNearbyArea(oACU, 1, tLZTeamData, iPlateau, iLandZone, bGetEnergy, (bOnlyConsiderIfInBuildRange or false), iIndividualReclaimThreshold)
         if bDebugMessages == true then LOG(sFunctionRef..': ACU last order after checking for reclaim in area='..reprs(oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]])) end
         local tLastOrder = oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]]
         if tLastOrder and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueReclaim then

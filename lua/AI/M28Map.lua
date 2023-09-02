@@ -1489,6 +1489,30 @@ function AssignSegmentsNearMexesToLandZones()
                 if bDebugMessages == true then LOG(sFunctionRef..': iMex='..iMex..'; iBaseSegmentXZ='..iBaseSegmentX..'-'..iBaseSegmentZ..'; tMex='..repru(tMex)..'; iMexLandZone='..(iMexLandZone or 0)..'; iBaseQueueCount='..iBaseQueueCount..'; tiAdjacentSegmentsForSearchCountByMex[0][iBaseQueueCount]='..repru(tiAdjacentSegmentsForSearchCountByMex[0][iBaseQueueCount])..'; iMexLandLabel='..(iMexLandLabel or 'nil')..'; iMaxSegmentSearchDistance='..iMaxSegmentSearchDistance) end
                 --tiBaseQueueSegments[iBaseQueueCount] = {iBaseSegmentX, iBaseSegmentZ}
             end
+            --Cycle through any hydro locations that have been recorded near a start position and also add as a 'base' location to search from
+
+            if bDebugMessages == true then LOG(sFunctionRef..': Is tHydroNearStart empty='..tostring(M28Utilities.IsTableEmpty(tHydroNearStart))) end
+            if M28Utilities.IsTableEmpty(tHydroNearStart) == false then
+                for iEntry, tHydroLocation in tHydroNearStart do
+                    iBaseSegmentX, iBaseSegmentZ = GetPathingSegmentFromPosition(tHydroLocation)
+                    iMexLandZone = tLandZoneBySegment[iBaseSegmentX][iBaseSegmentZ]
+                    iMexLandLabel = NavUtils.GetTerrainLabel('Land', tHydroLocation)
+
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering hydro at position '..repru(tHydroLocation)..'; iMexLandZone='..(iMexLandZone or 'nil')..'; iMexLandLabel='..(iMexLandLabel or 'nil')) end
+
+                    if (iMexLandZone or 0) > 0 and (iMexLandLabel or 0) > 0 then
+                        iBaseQueueCount = iBaseQueueCount + 1
+                        iBaseSegmentX, iBaseSegmentZ = GetPathingSegmentFromPosition(tHydroLocation)
+                        tiAdjacentSegmentsForSearchCountByMex[0][iBaseQueueCount] = {{iBaseSegmentX, iBaseSegmentZ, iMexLandZone, iMexLandLabel, tHydroLocation}}
+                        if bDebugMessages == true then LOG(sFunctionRef..': Added hydro as a base location') end
+                    else
+                        if not(tbSegmentHasDifferentZone[iBaseSegmentX]) then tbSegmentHasDifferentZone[iBaseSegmentX] = {} end
+                    end
+                end
+            end
+
+
+
             --Cycle through each base position and consider adjcent pathable segments for inclusion in the base position's zone.  Record any such segments as the base points for the next search count (so the process repeats up to iMaxSegmentSearchDistance times)
             for iSearchCount = 1, iMaxSegmentSearchDistance + 1 do --+1 since we only consider iSearchCount-1 values
                 tiAdjacentSegmentsForSearchCountByMex[iSearchCount] = {}
@@ -2727,7 +2751,11 @@ function RecordHydroInLandZone(tHydro, iPlateau, iLandZone, bNearStartPosition)
     if M28Conditions.CanBuildOnHydroLocation(tHydro) then
         table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefHydroUnbuiltLocations], tHydro)
     end
-    if bNearStartPosition then table.insert(tHydroNearStart, tHydro) end
+    if bNearStartPosition then
+        table.insert(tHydroNearStart, tHydro)
+        local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tHydro)
+        RecordSegmentLandZone(iSegmentX, iSegmentZ, iPlateau, iLandZone)
+    end
 end
 
 local function RecordAllHydroInLandZones()
@@ -3744,6 +3772,7 @@ local function SetupLandZones()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     WaitTicks(1)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     if bDebugMessages == true then
         LOG(sFunctionRef..': Finished assining area aound mexes, will now draw resulting land zones, system time='..GetSystemTimeSecondsOnlyForProfileUse())
         DrawLandZones()
@@ -3778,6 +3807,7 @@ local function SetupLandZones()
     ForkThread(RecordTravelDistBetweenZonesOverTime)
 
     --If debug is enabled, draw land zones (different colour for each land zone on a plateau)
+
     if bDebugMessages == true then
         LOG(sFunctionRef..': Finished generating all land zones, will now draw them. System time='..GetSystemTimeSecondsOnlyForProfileUse())
         DrawLandZones()
