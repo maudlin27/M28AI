@@ -95,15 +95,7 @@ function CheckIfUnitWantsFixedShield(oUnit, bCheckForNearbyShields, iOptionalShi
             local oBP = oUnit:GetBlueprint()
             --Dont get shields for other shields (to avoid infinite shields)
             if bDebugMessages == true then LOG(sFunctionRef..': Unit mass cost='..oBP.Economy.BuildCostMass..'; Shieldm ax health='..(oBP.Defense.Shield.ShieldMaxHealth or 0)) end
-            local bT2ArtiAgainstEnemyT2ArtiOrFatboy
-            if EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) then
-                local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, oUnit:GetAIBrain().M28Team)
-                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then bT2ArtiAgainstEnemyT2ArtiOrFatboy = true
-                elseif tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] >= 1500 then
-                    bT2ArtiAgainstEnemyT2ArtiOrFatboy = true
-                end
-            end
-            if (bT2ArtiAgainstEnemyT2ArtiOrFatboy or oBP.Economy.BuildCostMass >= 2000) and (oBP.Defense.Shield.ShieldMaxHealth or 0) == 0 then
+            if oBP.Economy.BuildCostMass >= 2000 and (oBP.Defense.Shield.ShieldMaxHealth or 0) == 0 then
                 if bDebugMessages == true then LOG(sFunctionRef..': Unit health='..oBP.Defense.Health..'; Defending against t3 arti for iTeam'..oUnit:GetAIBrain().M28Team..'='..tostring(M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refbDefendAgainstArti] or false)) end
                 if oBP.Defense.Health / oBP.Economy.BuildCostMass < 1 or EntityCategoryContains(M28UnitInfo.refCategoryFixedT2Arti, oUnit.UnitId) or ((M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refbDefendAgainstArti] or M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refiEnemyAirToGroundThreat] >= 12000) and oBP.Economy.BuildCostMass >= 3000 and EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId)) then
                     if M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.refbDefendAgainstArti] and oBP.Economy.BuildCostMass >= 12000 then iShieldsWanted = 2
