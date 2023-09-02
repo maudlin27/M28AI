@@ -3050,8 +3050,6 @@ function GetCategoryToBuildOrAssistFromAction(iActionToAssign, iMinTechLevel, ai
         elseif iActionToAssign == refActionBuildShield or iActionToAssign == refActionBuildSecondShield then
             --NOTE: Separately this gets changed to tech3 if need increased range
             if M28Map.bIsCampaignMap then iCategoryToBuild = M28UnitInfo.refCategoryFixedShield
-            elseif iMinTechLevel == 2 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false and not(aiBrain[M28Overseer.refbDefendAgainstArti]) and not(aiBrain[M28Overseer.refbCloseToUnitCap]) then
-                iCategoryToBuild = M28UnitInfo.refCategoryFixedShield * categories.TECH2
             elseif aiBrain[M28Overseer.refbDefendAgainstArti] or aiBrain[M28Overseer.refbCloseToUnitCap] or M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyAirToGroundThreat] >= 12000 then
                 iCategoryToBuild = M28UnitInfo.refCategoryFixedShield * categories.TECH3
             else
