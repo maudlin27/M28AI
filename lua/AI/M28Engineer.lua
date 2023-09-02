@@ -7126,8 +7126,9 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 --Get friendly T2 arti threat
                 local iT2ArtiThreat = 0
                 local iT2ArtiCount = 0
+                local tT2Arti
                 if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
-                    local tT2Arti = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                    tT2Arti = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti, tLZTeamData[M28Map.subrefLZTAlliedUnits])
                     if M28Utilities.IsTableEmpty(tT2Arti) == false then
                         iT2ArtiThreat = M28UnitInfo.GetCombatThreatRating(tT2Arti, false, true) --Will be 60% of mass cost per getcombatthreatrating
                         for iArti, oArti in tT2Arti do
@@ -7149,19 +7150,49 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                         if bHaveLowMass or bHaveLowPower then iBPWanted = iBPWanted * 0.75 end
                     end
 
-                    --adjust location to build if we already have 3 t2 arti so we build towards enemy
-                    local tLocationToBuild
-                    if iT2ArtiCount >= 3 and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) then
-                        tLocationToBuild = M28Utilities.MoveInDirection(tLZData[M28Map.subrefMidpoint], M28Utilities.GetAngleFromAToB(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]), 20, true, false)
-                        if not(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tLocationToBuild) == iPlateau) then
-                            tLocationToBuild = {tLZData[M28Map.subrefMidpoint][1]. tLZData[M28Map.subrefMidpoint][2]. tLZData[M28Map.subrefMidpoint][3]}
+                    --Build shield instead of T2 art ifi we ahve 2+ T2 arti and want shielding for them
+                    local bGetShieldingInstead = false
+                    if iT2ArtiCount >= 2 and tT2Arti and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitWantingFixedShield]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti, tLZTeamData[M28Map.reftoLZUnitWantingFixedShield])) == false then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want shielding for land zone for T2 arti unless we already have several fixed shields') end
+                        local tExistingFixedShields = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                        local iExistingShields = 0
+                        if M28Utilities.IsTableEmpty(tExistingFixedShields) == false then
+                            for iShield, oShield in tExistingFixedShields do
+                                if oShield:GetFractionComplete() == 1 then
+                                    iExistingShields = iExistingShields + 1
+                                end
+                            end
                         end
-                    else
-                        tLocationToBuild = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
+                        if iExistingShields < 2 and (iExistingShields == 9 or iT2AritCount >= 3) then bGetShieldingInstead = true end
                     end
+                    local oArtiToShield
+                    if bGetShieldingInstead then
+                        for iArti, oArti in tT2Arti do
+                            if M28Utilities.IsTableEmpty(oArti[M28Building.reftoShieldsProvidingCoverage]) then
+                                oArtiToShield = oArti
+                                break
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': oArtiToShield='..(oArtiToShield.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oArtiToShield) or 'nil')) end
+                    end
+                    if bGetShieldingInstead and M28UnitInfo.IsUnitValid(oArtiToShield) then
+                        HaveActionToAssign(refActionBuildShield, 2, iBPWanted, oArtiToShield)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will build shield to cover arti isntead of more arti') end
+                    else
+                        --adjust location to build if we already have 3 t2 arti so we build towards enemy
+                        local tLocationToBuild
+                        if iT2ArtiCount >= 3 and not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) then
+                            tLocationToBuild = M28Utilities.MoveInDirection(tLZData[M28Map.subrefMidpoint], M28Utilities.GetAngleFromAToB(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase]), 20, true, false)
+                            if not(NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, tLocationToBuild) == iPlateau) then
+                                tLocationToBuild = {tLZData[M28Map.subrefMidpoint][1]. tLZData[M28Map.subrefMidpoint][2]. tLZData[M28Map.subrefMidpoint][3]}
+                            end
+                        else
+                            tLocationToBuild = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
+                        end
 
-                    HaveActionToAssign(refActionBuildEmergencyArti, 2, iBPWanted, tLocationToBuild)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Want to build emergency arti, iBPWanted='..iBPWanted) end
+                        HaveActionToAssign(refActionBuildEmergencyArti, 2, iBPWanted, tLocationToBuild)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want to build emergency arti, iBPWanted='..iBPWanted) end
+                    end
                 end
             end
 
