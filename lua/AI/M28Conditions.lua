@@ -417,10 +417,10 @@ function SafeToUpgradeUnit(oUnit)
 
 
 
-    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
+    local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
     local bSafeZone = false
-    if (iLandZone or 'nil') > 0 and not(iPlateau == 0) then
-        local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+    if (iLandOrWaterZone or 'nil') > 0 and not(iPlateauOrZero == 0) then
+        local tLZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
         if M28Utilities.IsTableEmpty(tLZData) == false then
             local tLZTeamData = tLZData[M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team]
             if not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ]) then
@@ -430,7 +430,7 @@ function SafeToUpgradeUnit(oUnit)
             end
             --ACU specific:
             if EntityCategoryContains(categories.COMMAND, oUnit.UnitId) and tLZTeamData[M28Map.reftClosestFriendlyBase] then
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering upgrading ACU, iLandZone='..iLandZone..'; bSafeZone before extra checks='..tostring(bSafeZone or false)..'; tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or false)..'; ACU health='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; Is table of nearby friendly T2 PD empty='..tostring(M28Utilities.IsTableEmpty(oUnit:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryT2PlusPD, oUnit:GetPosition(), 15, 'Ally')))) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering upgrading ACU, iLandOrWaterZone='..iLandOrWaterZone..'; bSafeZone before extra checks='..tostring(bSafeZone or false)..'; tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or false)..'; ACU health='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; Is table of nearby friendly T2 PD empty='..tostring(M28Utilities.IsTableEmpty(oUnit:GetAIBrain():GetUnitsAroundPoint(M28UnitInfo.refCategoryT2PlusPD, oUnit:GetPosition(), 15, 'Ally')))) end
                 -- dont treat as safe if low health unless close to a base
                 local iDistToClosestFriendlyBase = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase])
                 if bSafeZone and iDistToClosestFriendlyBase > 10 then
@@ -505,8 +505,8 @@ function SafeToUpgradeUnit(oUnit)
             end
 
             --If are within range of enemy t2 arti and not a core base then dont trear as safe unless both mex and arti alive for at least 8m
-            if bDebugMessages == true then LOG(sFunctionRef..': Checking if enemy T2 arti in range if we think this is safe, bSafeZone='..tostring(bSafeZone)..'; iPlateau='..iPlateau..'; Is core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])..'; Zone='..(iLandZone or 'nil')..'; Is table of enemy t2 arti empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]))) end
-            if bSafeZone and iPlateau > 0 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
+            if bDebugMessages == true then LOG(sFunctionRef..': Checking if enemy T2 arti in range if we think this is safe, bSafeZone='..tostring(bSafeZone)..'; iPlateau='..iPlateauOrZero..'; Is core base='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])..'; Zone='..(iLandOrWaterZone or 'nil')..'; Is table of enemy t2 arti empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]))) end
+            if bSafeZone and iPlateauOrZero > 0 and not(tLZTeamData[M28Map.subrefLZbCoreBase]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false then
                 local bBothAliveForAWhile = true
                 if GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeCreated] or 0) <= 480 then bBothAliveForAWhile = false
                 else
@@ -528,7 +528,9 @@ function SafeToUpgradeUnit(oUnit)
                 end
             end
         else
-            M28Utilities.ErrorHandler('Dont have a valid LZData table for iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; Unit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; will treat as safe for non-mobilre units only')
+            M28Utilities.ErrorHandler('Dont have a valid LZData table for iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; Unit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; will treat as safe for non-mobilre units only')
+            bDebugMessages = true
+            if bDebugMessages == true then M28Utilities.DrawLocation(oUnit:GetPosition()) end
             if not(EntityCategoryContains(categories.MOBILE, oUnit.UnitId)) then
                 bSafeZone = true
             end
