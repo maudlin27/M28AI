@@ -1278,7 +1278,7 @@ function DecideToLaunchNukeSMLOrTMLMissile()  end --Done only to make it easier 
 function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
     --Should be called via forkthread when missile created due to creating a loop
     --oOptioanlWeapon - if specified then can get the missile speed
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderLaunchingMissile'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -2871,4 +2871,97 @@ function DelayedConsiderLaunchingMissile(oLauncher, iSecondsToWait)
     if M28UnitInfo.IsUnitValid(oLauncher) then
         ConsiderLaunchingMissile(oLauncher)
     end
+end
+
+function AreUnitsAdjacent(oFirstUnit, oSecondUnit)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'AreUnitsAdjacent'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iFirstUnitSize = M28UnitInfo.GetBuildingSize(oFirstUnit.UnitId) * 0.5
+    local iSecondUnitSize = M28UnitInfo.GetBuildingSize(oSecondUnit.UnitId) * 0.5
+    local iMaxDif = iFirstUnitSize + iSecondUnitSize + 0.749 --assumed margin of error after where got to with mexes (where would go with 2.749 distance)
+    local iMinDif = iFirstUnitSize + iSecondUnitSize - 0.749
+
+    local iXDif = math.abs(oFirstUnit:GetPosition()[1] - oSecondUnit:GetPosition()[1])
+    local iZDif = math.abs(oFirstUnit:GetPosition()[3] - oSecondUnit:GetPosition()[3])
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering oFirstUnit='..oFirstUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFirstUnit)..'; Position='..repru(oFirstUnit:GetPosition())..'; Size='..iFirstUnitSize..'; Second unit='..oSecondUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSecondUnit)..'; oSecondUnit position='..repru(oSecondUnit:GetPosition())..'; iSecondUnitSize='..iSecondUnitSize..'; iXDif='..iXDif..'; iZDif='..iZDif) end
+    if (iXDif <= iMaxDif and iXDif >= iMinDif) or (iZDif <= iMaxDif and iZDif >= iMinDif) then
+        --Are we in a corner position?
+        --[[local iCornerDif = iFirstUnitSize + iSecondUnitSize - 0.1
+        if bDebugMessages == true then LOG(sFunctionRef..': Units are close to each other, iXDif='..iXDif..'; iZDif='..iZDif..'; iCornerDif='..iCornerDif) end
+        if iXDif < iCornerDif or iZDif < iCornerDif then--]]
+            --Max smallest dif due to size dif
+            local iMaxSmallestDif = math.abs(iFirstUnitSize - iSecondUnitSize) + 0.749
+            if iXDif < iMaxSmallestDif or iZDif < iMaxSmallestDif then
+
+
+                if bDebugMessages == true then LOG(sFunctionRef..': Units are adjacent') end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                return true
+            end
+        --end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Units are adjacent') end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return false
+end
+
+function ConsiderGiftingPowerToTeammateForAdjacency(oUnit)
+    --Call when a t3 power has been constructed by an M28 brain
+    --WARNING: Not tested fully, so only gives a rough approximation.  do further testing if more accuracy needed
+
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderGiftingPowerToTeammateForAdjacency'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local aiBrain = oUnit:GetAIBrain()
+    local iTeam = aiBrain.M28Team
+    if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
+        local iPotentialAdjacencyCategories = M28UnitInfo.refCategoryExperimentalLevel + M28UnitInfo.refCategoryAirFactory + M28UnitInfo.refCategoryStructure * categories.TECH3
+
+        if EntityCategoryContains(M28UnitInfo.refCategoryT3Power, oUnit.UnitId) then
+            --Are we adjacent to any air factories, omni, nuke launchers, t3 arti, owned by another teammate, and have no adjacency of such units on our own?
+
+            if bDebugMessages == true then LOG(sFunctionRef..': is table of adjacent units empty='..tostring(M28Utilities.IsTableEmpty(oUnit.AdjacentUnits))) end
+            if M28Utilities.IsTableEmpty(oUnit.AdjacentUnits) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(iPotentialAdjacencyCategories, oUnit.AdjacentUnits)) then
+                --We have no existing adjacency
+                local tNearbyUnitsOfInterest = aiBrain:GetUnitsAroundPoint(iPotentialAdjacencyCategories, oUnit:GetPosition(), M28UnitInfo.GetBuildingSize(oUnit.UnitId) + 1, 'Ally')
+                if M28Utilities.IsTableEmpty(tNearbyUnitsOfInterest) == false then
+                    for iNearbyUnit, oNearbyUnit in tNearbyUnitsOfInterest do
+                        if not(oNearbyUnit:GetAIBrain() == aiBrain) and oNearbyUnit:GetAIBrain().M28Team == iTeam then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oNearbyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearbyUnit)..'; Position='..repru(oNearbyUnit:GetPosition())..'; oUnit position='..repru(oUnit:GetPosition())) end
+                            if AreUnitsAdjacent(oUnit, oNearbyUnit) then
+                                --Gift to other brain
+                                M28Team.TransferUnitsToPlayer({oUnit}, oNearbyUnit:GetAIBrain():GetArmyIndex(), false)
+                                break
+                            end
+                        end
+                    end
+                end
+            end
+        else
+            local iSpecificAdjacencyCategories = M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE + M28UnitInfo.refCategorySML * categories.TECH3 + M28UnitInfo.refCategoryAirFactory * categories.TECH3 + M28UnitInfo.refCategoryMassFab * categories.TECH3 + M28UnitInfo.refCategoryT3Radar
+            if EntityCategoryContains(iSpecificAdjacencyCategories, oUnit.UnitId) then
+                if bDebugMessages == true then LOG(sFunctionRef..': is table of adjacent units empty='..tostring(M28Utilities.IsTableEmpty(oUnit.AdjacentUnits))) end
+                if M28Utilities.IsTableEmpty(oUnit.AdjacentUnits) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryT3Power, oUnit.AdjacentUnits)) then
+                    --We have no existing adjacency
+                    local tNearbyUnitsOfInterest = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryT3Power, oUnit:GetPosition(), M28UnitInfo.GetBuildingSize(oUnit.UnitId) + 1, 'Ally')
+                    if M28Utilities.IsTableEmpty(tNearbyUnitsOfInterest) == false then
+                        for iNearbyUnit, oNearbyUnit in tNearbyUnitsOfInterest do
+                            if not(oNearbyUnit:GetAIBrain() == aiBrain) and oNearbyUnit:GetAIBrain().M28Team == iTeam then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oNearbyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearbyUnit)..'; Position='..repru(oNearbyUnit:GetPosition())..'; oUnit position='..repru(oUnit:GetPosition())) end
+                                if AreUnitsAdjacent(oUnit, oNearbyUnit) then
+                                    --Gift nearby t3 power to this unit's brain owner
+                                    M28Team.TransferUnitsToPlayer({oNearbyUnit}, oUnit:GetAIBrain():GetArmyIndex(), false)
+                                    break
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

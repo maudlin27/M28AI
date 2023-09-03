@@ -1217,6 +1217,11 @@ function OnConstructed(oEngineer, oJustBuilt)
                                     end
                                 end
                             end
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryPower * categories.TECH3, oJustBuilt.UnitId) then
+                            ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)
+                        end
+                        if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE + M28UnitInfo.refCategorySML * categories.TECH3 + M28UnitInfo.refCategoryAirFactory * categories.TECH3 + M28UnitInfo.refCategoryMassFab * categories.TECH3 + M28UnitInfo.refCategoryT3Radar, oJustBuilt.UnitId) then
+                            ForkThread(M28Building.ConsiderGiftingPowerToTeammateForAdjacency, oJustBuilt)
                         end
                         --Clear engineers that just built this
 
