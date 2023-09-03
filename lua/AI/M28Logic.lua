@@ -290,7 +290,34 @@ function IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisHea
         local tTargetPos = oTarget:GetPosition()
         local iShieldCategory = M28UnitInfo.refCategoryMobileLandShield + M28UnitInfo.refCategoryFixedShield
         if bIgnoreMobileShields then iShieldCategory = M28UnitInfo.refCategoryFixedShield end
-        local tNearbyShields = aiBrain:GetUnitsAroundPoint(iShieldCategory, tTargetPos, iShieldSearchRange, sSearchType)
+
+        local tNearbyShields
+        local bDontDoDistanceCheck = false
+
+        if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oTarget.UnitId) then
+            bDontDoDistanceCheck = true
+            if bIgnoreMobileShields then
+                --We are tracking fixed shields already
+                tNearbyShields = oTarget[M28Building.reftoShieldsProvidingCoverage]
+            else
+                tNearbyShields = {}
+                if M28Utilities.IsTableEmpty(oTarget[M28Building.reftoShieldsProvidingCoverage]) == false then
+                    for iShield, oShield in oTarget[M28Building.reftoShieldsProvidingCoverage] do
+                        table.insert(tNearbyShields, oShield)
+                        bDontDoDistanceCheck = true
+                    end
+                end
+                local tNearbyMobileShields = aiBrain:GetUnitsAroundPoint(iShieldCategory - M28UnitInfo.refCategoryStructure, tTargetPos, iShieldSearchRange, sSearchType)
+                if M28Utilities.IsTableEmpty(tNearbyMobileShields) == false then
+                    bDontDoDistanceCheck = false
+                    for iShield, oShield in tNearbyMobileShields do
+                        table.insert(tNearbyShields, oShield)
+                    end
+                end
+            end
+        else
+            tNearbyShields = aiBrain:GetUnitsAroundPoint(iShieldCategory, tTargetPos, iShieldSearchRange, sSearchType)
+        end
         if bDebugMessages == true then LOG(sFunctionRef..': Searching for shields around '..repru(tTargetPos)..'; iShieldSearchRange='..iShieldSearchRange..'; sSearchType='..sSearchType) end
         local iShieldCurHealth, iShieldMaxHealth
         local iTotalShieldCurHealth = 0
@@ -312,8 +339,10 @@ function IsTargetUnderShield(aiBrain, oTarget, iIgnoreShieldsWithLessThanThisHea
                         if bDebugMessages == true then LOG(sFunctionRef..': Target has a shield, will check its shield size and how close that is to the target') end
                         iCurShieldRadius = oCurUnitBP.Defense.Shield.ShieldSize * 0.5
                         if iCurShieldRadius > 0 then
-                            iCurDistanceFromTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tTargetPos)
-                            if bDebugMessages == true then LOG(sFunctionRef..': iCurDistance to shield='..iCurDistanceFromTarget..'; iCurShieldRadius='..iCurShieldRadius..'; shield position='..repru(oUnit:GetPosition())..'; target position='..repru(tTargetPos)) end
+                            if not(bDontDoDistanceCheck) then iCurDistanceFromTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tTargetPos)
+                            else iCurDistanceFromTarget = 0
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': iCurDistance to shield='..iCurDistanceFromTarget..'; iCurShieldRadius='..iCurShieldRadius..'; shield position='..repru(oUnit:GetPosition())..'; target position='..repru(tTargetPos)..'; bDontDoDistanceCheck='..tostring(bDontDoDistanceCheck)) end
                             if iCurDistanceFromTarget <= (iCurShieldRadius + iShieldSizeAdjust) then --if dont increase by anything then half of unit might be under shield which means bombs cant hit it
                                 if bDebugMessages == true then LOG(sFunctionRef..': Shield is large enough to cover target, will check its health') end
                                 iShieldCurHealth, iShieldMaxHealth = M28UnitInfo.GetCurrentAndMaximumShield(oUnit)

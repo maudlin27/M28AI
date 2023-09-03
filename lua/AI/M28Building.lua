@@ -241,6 +241,36 @@ function UpdateShieldCoverageOfUnits(oShield, bTreatAsDead)
     end
 end
 
+function RecordUnitShieldCoverage(oUnit)
+    --For all units, not just M28 specific, so e.g. a TML will recognise when it's firing at a shielded target
+    --Intended to be called when a unit is created
+    if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) then
+        local aiBrain = oUnit:GetAIBrain()
+        --Is this a shield? if so then update all units around it
+        if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield, oUnit.UnitId) then
+            local iShieldRadius = oUnit:GetBlueprint().Defense.Shield.ShieldSize * 0.5 - 1
+            local tNearbyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryStructure, oUnit:GetPosition(), iShieldRadius, 'Ally')
+            if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
+                for iNearbyUnit, oNearbyUnit in tNearbyUnits do
+                    RecordIfShieldIsProtectingUnit(oUnit, oNearbyUnit, iShieldRadius, true)
+                end
+            end
+        else
+            local iPotentialShieldRadius = 22 --seraphim is 23 radius
+            local tNearbyShields = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryFixedShield, oUnit:GetPosition(), iPotentialShieldRadius, 'Ally')
+            if M28Utilities.IsTableEmpty(tNearbyShields) == false then
+                local iShieldRadius
+                for iShield, oShield in tNearbyShields do
+                    if oShield:GetFractionComplete() == 1 then
+                        iShieldRadius = oShield:GetBlueprint().Defense.Shield.ShieldSize * 0.5 - 1
+                        RecordIfShieldIsProtectingUnit(oShield, oUnit, iShieldRadius, true)
+                    end
+                end
+            end
+        end
+    end
+end
+
 function ForkedCheckForAnotherMissile(oUnit)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ForkedCheckForAnotherMissile'
@@ -1248,7 +1278,7 @@ function DecideToLaunchNukeSMLOrTMLMissile()  end --Done only to make it easier 
 function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
     --Should be called via forkthread when missile created due to creating a loop
     --oOptioanlWeapon - if specified then can get the missile speed
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderLaunchingMissile'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -1397,56 +1427,61 @@ function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
                         iBestTargetValue = 120 --wont consider targets worth less than this
                         local sLauncherLocationRef = M28Utilities.ConvertLocationToReference(oLauncher:GetPosition())
                         for iUnit, oUnit in tValidTargets do
-                                                    --GetDamageFromBomb(aiBrain, tBaseLocation,         iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory)
-                            iCurTargetValue = M28Logic.GetDamageFromBomb(aiBrain, oUnit:GetPosition(), iAOE, iDamage,       nil,                                nil,                true,                           nil,                nil,                            nil,                                        false,              nil,                            true)
-                            if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then iCurTargetValue = iCurTargetValue * 1.5 end
-                            --Adjust value if we think the missile will hit a cliff
-                            if oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef] == nil then
-                                if not(oUnit[tbExpectMissileBlockedByCliff]) then oUnit[tbExpectMissileBlockedByCliff] = {} end
-                                local tExpectedMissileVertical = M28Utilities.MoveInDirection(oLauncher:GetPosition(), M28Utilities.GetAngleFromAToB(oLauncher:GetPosition(), oUnit:GetPosition()), 31, true)
-                                tExpectedMissileVertical[2] = tExpectedMissileVertical[2] + 60 --Doing testing, it actually only goes up by 50, but I think it travels in an arc from here to the target, as in a test scenario doing at less than +60 meant it thought it would hit a cliff when it didnt
-                                -- {oLauncher:GetPosition()[1], oLauncher:GetPosition()[2] + 65, oLauncher:GetPosition()[3]}
-                                oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef] = M28Logic.IsLineBlocked(aiBrain, tExpectedMissileVertical, oUnit:GetPosition(), iAOE, false)
-                            end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Potential TML target '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurTargetValue before adj for blocked='..iCurTargetValue..'; oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef]='..tostring(oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef])..'; oUnit[refiTMLShotsFired]='..(oUnit[refiTMLShotsFired] or 0)..'; refiTimeOfLastLaunch='..(oUnit[refiTimeOfLastLaunch] or 'nil')..'; oUnit[refbProtectedByTerrain]='..tostring(oUnit[refbProtectedByTerrain] or false)..'; oLauncher[reftTerrainBlockedTargets]='..repru(oLauncher[reftTerrainBlockedTargets] or {'nil'})..'; iDamage='..iDamage..'; iAOE='..iAOE..'; Unit health='..oUnit:GetHealth()..'; Unit position='..repru(oUnit:GetPosition())) end
-                            if oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef] then iCurTargetValue = iCurTargetValue * 0.2 end
-                            --Check against actual terrain blocked blacklist
-                            if oUnit[refbProtectedByTerrain] then
+                            if M28Utilities.IsTableEmpty(oUnit[reftoShieldsProvidingCoverage]) == false then
                                 iCurTargetValue = 0
-                            elseif M28Utilities.IsTableEmpty(oLauncher[reftTerrainBlockedTargets]) == false then
-                                for iEntry, tLocation in oLauncher[reftTerrainBlockedTargets] do
-                                    if M28Utilities.GetDistanceBetweenPositions(tLocation, oUnit:GetPosition()) <= 1.5 then
-                                        oUnit[refbProtectedByTerrain] = true
-                                        iCurTargetValue = 0
-                                        break
-                                    end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Shields are covering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                            else
+                                --GetDamageFromBomb(aiBrain, tBaseLocation,         iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory)
+                                iCurTargetValue = M28Logic.GetDamageFromBomb(aiBrain, oUnit:GetPosition(), iAOE, iDamage,       nil,                                nil,                true,                           nil,                nil,                            nil,                                        false,              nil,                            true)
+                                if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then iCurTargetValue = iCurTargetValue * 1.5 end
+                                --Adjust value if we think the missile will hit a cliff
+                                if oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef] == nil then
+                                    if not(oUnit[tbExpectMissileBlockedByCliff]) then oUnit[tbExpectMissileBlockedByCliff] = {} end
+                                    local tExpectedMissileVertical = M28Utilities.MoveInDirection(oLauncher:GetPosition(), M28Utilities.GetAngleFromAToB(oLauncher:GetPosition(), oUnit:GetPosition()), 31, true)
+                                    tExpectedMissileVertical[2] = tExpectedMissileVertical[2] + 60 --Doing testing, it actually only goes up by 50, but I think it travels in an arc from here to the target, as in a test scenario doing at less than +60 meant it thought it would hit a cliff when it didnt
+                                    -- {oLauncher:GetPosition()[1], oLauncher:GetPosition()[2] + 65, oLauncher:GetPosition()[3]}
+                                    oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef] = M28Logic.IsLineBlocked(aiBrain, tExpectedMissileVertical, oUnit:GetPosition(), iAOE, false)
                                 end
-                            end
-                            if iCurTargetValue > 0 and (oUnit[refiTMLShotsFired] or 0) > 0 then
-                                --Reduce shots fired if we dealt damage with our last missile (as may have e.g. hit mass storage blocking us from reaching the target mex)
-                                if bDebugMessages == true then LOG(sFunctionRef..': Last TML target='..(oLauncher[refoLastTMLTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oLauncher[refoLastTMLTarget]) or 'nil')..'; Launcher mass killed='..(oLauncher.VetExperience or oLauncher.Sync.totalMassKilled or 0)..'; TML mass kills='..(oLauncher[refiLastTMLMassKills] or 0)) end
-                                if oLauncher[refoLastTMLTarget] == oUnit and (oLauncher.VetExperience or oLauncher.Sync.totalMassKilled or 0) > (oLauncher[refiLastTMLMassKills] or 0) then
-                                    oLauncher[refiLastTMLMassKills] = (oLauncher.VetExperience or oLauncher.Sync.totalMassKilled or 0)
-                                    oUnit[refiTMLShotsFired] = oUnit[refiTMLShotsFired] - 1
-                                end
-                                if oUnit[refiTMLShotsFired] > 0 or oUnit[refiTimeOfLastLaunch] then
-                                    local iUnitMaxHealth = oUnit:GetMaxHealth()
-                                    local iUnitCurShield, iUnitMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit)
-                                    if (iUnitMaxHealth + iUnitMaxShield <= iDamage and M28UnitInfo.IsUnitValid(oUnit[refoLastTMLLauncher])) and (not(oUnit[refoLastTMLLauncher] == oLauncher) or GetGameTimeSeconds() - (oUnit[refiTimeOfLastLaunch] or -100) <= 35) then
-                                        iCurTargetValue = 0
-                                    else
-
-                                        local iExpectedShots = math.ceil((iUnitMaxHealth + iUnitMaxShield) / iDamage)
-                                        if oUnit[refiTMLShotsFired] > iExpectedShots then
-                                            --Reduce by 50% for each time are over
-                                            iCurTargetValue = iCurTargetValue * 0.5^(oUnit[refiTMLShotsFired] - iExpectedShots)
-                                            if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) and oUnit[refiTMLShotsFired] - iExpectedShots >= 3 then
-                                                iCurTargetValue = 0
-                                            end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Potential TML target '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurTargetValue before adj for blocked='..iCurTargetValue..'; oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef]='..tostring(oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef])..'; oUnit[refiTMLShotsFired]='..(oUnit[refiTMLShotsFired] or 0)..'; refiTimeOfLastLaunch='..(oUnit[refiTimeOfLastLaunch] or 'nil')..'; oUnit[refbProtectedByTerrain]='..tostring(oUnit[refbProtectedByTerrain] or false)..'; oLauncher[reftTerrainBlockedTargets]='..repru(oLauncher[reftTerrainBlockedTargets] or {'nil'})..'; iDamage='..iDamage..'; iAOE='..iAOE..'; Unit health='..oUnit:GetHealth()..'; Unit position='..repru(oUnit:GetPosition())..'; Is reftoShieldsProvidingCoverage empty='..tostring(M28Utilities.IsTableEmpty(oUnit[reftoShieldsProvidingCoverage]))) end
+                                if oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef] then iCurTargetValue = iCurTargetValue * 0.2 end
+                                --Check against actual terrain blocked blacklist
+                                if oUnit[refbProtectedByTerrain] then
+                                    iCurTargetValue = 0
+                                elseif M28Utilities.IsTableEmpty(oLauncher[reftTerrainBlockedTargets]) == false then
+                                    for iEntry, tLocation in oLauncher[reftTerrainBlockedTargets] do
+                                        if M28Utilities.GetDistanceBetweenPositions(tLocation, oUnit:GetPosition()) <= 1.5 then
+                                            oUnit[refbProtectedByTerrain] = true
+                                            iCurTargetValue = 0
+                                            break
                                         end
                                     end
+                                end
+                                if iCurTargetValue > 0 and (oUnit[refiTMLShotsFired] or 0) > 0 then
+                                    --Reduce shots fired if we dealt damage with our last missile (as may have e.g. hit mass storage blocking us from reaching the target mex)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Last TML target='..(oLauncher[refoLastTMLTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oLauncher[refoLastTMLTarget]) or 'nil')..'; Launcher mass killed='..(oLauncher.VetExperience or oLauncher.Sync.totalMassKilled or 0)..'; TML mass kills='..(oLauncher[refiLastTMLMassKills] or 0)) end
+                                    if oLauncher[refoLastTMLTarget] == oUnit and (oLauncher.VetExperience or oLauncher.Sync.totalMassKilled or 0) > (oLauncher[refiLastTMLMassKills] or 0) then
+                                        oLauncher[refiLastTMLMassKills] = (oLauncher.VetExperience or oLauncher.Sync.totalMassKilled or 0)
+                                        oUnit[refiTMLShotsFired] = oUnit[refiTMLShotsFired] - 1
+                                    end
+                                    if oUnit[refiTMLShotsFired] > 0 or oUnit[refiTimeOfLastLaunch] then
+                                        local iUnitMaxHealth = oUnit:GetMaxHealth()
+                                        local iUnitCurShield, iUnitMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit)
+                                        if (iUnitMaxHealth + iUnitMaxShield <= iDamage and M28UnitInfo.IsUnitValid(oUnit[refoLastTMLLauncher])) and (not(oUnit[refoLastTMLLauncher] == oLauncher) or GetGameTimeSeconds() - (oUnit[refiTimeOfLastLaunch] or -100) <= 35) then
+                                            iCurTargetValue = 0
+                                        else
 
-                                    if bDebugMessages == true then LOG(sFunctionRef..': iUnitMaxHealth='..iUnitMaxHealth..'; iUnitMaxShield='..iUnitMaxShield..'; oUnit[refiTMLShotsFired]='..oUnit[refiTMLShotsFired]..'; oUnit[refiTimeOfLastLaunch]='..(oUnit[refiTimeOfLastLaunch] or 'nil')..'; iCurTargetValue after adjusting for excess='..iCurTargetValue) end
+                                            local iExpectedShots = math.ceil((iUnitMaxHealth + iUnitMaxShield) / iDamage)
+                                            if oUnit[refiTMLShotsFired] > iExpectedShots then
+                                                --Reduce by 50% for each time are over
+                                                iCurTargetValue = iCurTargetValue * 0.5^(oUnit[refiTMLShotsFired] - iExpectedShots)
+                                                if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) and oUnit[refiTMLShotsFired] - iExpectedShots >= 3 then
+                                                    iCurTargetValue = 0
+                                                end
+                                            end
+                                        end
+
+                                        if bDebugMessages == true then LOG(sFunctionRef..': iUnitMaxHealth='..iUnitMaxHealth..'; iUnitMaxShield='..iUnitMaxShield..'; oUnit[refiTMLShotsFired]='..oUnit[refiTMLShotsFired]..'; oUnit[refiTimeOfLastLaunch]='..(oUnit[refiTimeOfLastLaunch] or 'nil')..'; iCurTargetValue after adjusting for excess='..iCurTargetValue) end
+                                    end
                                 end
                             end
                             if iBestTargetValue < iCurTargetValue then

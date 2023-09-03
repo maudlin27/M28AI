@@ -313,6 +313,12 @@ function OnUnitDeath(oUnit)
                             M28Building.TMLDied(oUnit)
                         end
                     end
+
+                    --Fixed shields
+                    if M28Utilities.IsTableEmpty(oUnit[M28Building.reftoUnitsCoveredByShield]) == false then
+                        M28Building.UpdateShieldCoverageOfUnits(oUnit, true)
+                    end
+
                     --Ythotha deathball avoidance
                     --Note -seraphimunits.lua contains SEnergyBallUnit which looks like it is for when the death ball is spawned; ID is XSL0402; SpawnElectroStorm is in the ythotha script
                     --Sandbox test - have c.36s from ythotha dying to energy ball dying, so want to run away for half of this (18s) plus extra time based on how far away we already were
@@ -357,7 +363,7 @@ function OnUnitDeath(oUnit)
                         --Fixed shielding
                         if oUnit[M28Building.refbUnitWantsShielding] or oUnit[M28Building.reftoUnitsCoveredByShield] or oUnit[M28Building.reftoShieldsProvidingCoverage] then
                             if oUnit[M28Building.reftoUnitsCoveredByShield] then
-                                M28Building.UpdateShieldCoverageOfUnits(oUnit, true)
+                                --M28Building.UpdateShieldCoverageOfUnits(oUnit, true) --Already done above for all ai now
                             else
                                 M28Building.CheckIfUnitWantsFixedShield(oUnit)
                             end
@@ -1051,6 +1057,8 @@ function OnConstructed(oEngineer, oJustBuilt)
                 M28Engineer.SearchForBuildableLocationsNearDestroyedBuilding(oJustBuilt)
             end
 
+            M28Building.RecordUnitShieldCoverage(oJustBuilt)
+
 
 
             --M28 specific
@@ -1565,6 +1573,11 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                     elseif EntityCategoryContains(M28UnitInfo.refCategorySonar, oUnit.UnitId) then
                         M28Navy.UpdateZoneIntelForSonar(oUnit)
                     end
+                end
+
+                --Non-M28 specific for constructed units
+                if oUnit:GetFractionComplete() == 1 then
+                    M28Building.RecordUnitShieldCoverage(oUnit)
                 end
             end
 
