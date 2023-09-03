@@ -123,21 +123,21 @@ refCategorySonar = categories.STRUCTURE * categories.SONAR + categories.MOBILESO
 refCategoryT1Sonar = refCategorySonar * categories.TECH1
 refCategoryT2Sonar = refCategorySonar * categories.TECH2
 refCategoryT3Sonar = refCategorySonar * categories.TECH3
-refCategoryStructure = categories.STRUCTURE - categories.WALL
+refCategoryStructure = categories.STRUCTURE - categories.WALL - categories.EXTERNALFACTORYUNIT
 refCategoryWall = categories.STRUCTURE * categories.WALL --NOTE: Some walls are props; this is for if want a wall that can build
 refCategoryUnitsWithOmni = categories.OMNI + categories.COMMAND + categories.OVERLAYOMNI
 
 
 --Building - factory
-refCategoryLandFactory = categories.LAND * categories.FACTORY * categories.STRUCTURE
+refCategoryLandFactory = categories.LAND * categories.FACTORY * categories.STRUCTURE - categories.EXTERNALFACTORYUNIT
 refCategoryLandHQ =refCategoryLandFactory - categories.SUPPORTFACTORY
-refCategoryAirFactory = categories.AIR * categories.FACTORY * categories.STRUCTURE - categories.ORBITALSYSTEM --Novax is an air factory, so excluded from being treated as an air factory by my logic
+refCategoryAirFactory = categories.AIR * categories.FACTORY * categories.STRUCTURE - categories.ORBITALSYSTEM - categories.EXTERNALFACTORYUNIT --Novax is an air factory, so excluded from being treated as an air factory by my logic
 refCategoryAirHQ = refCategoryAirFactory - categories.SUPPORTFACTORY
-refCategoryNavalFactory = categories.NAVAL * categories.FACTORY * categories.STRUCTURE
+refCategoryNavalFactory = categories.NAVAL * categories.FACTORY * categories.STRUCTURE - categories.EXTERNALFACTORYUNIT
 refCategoryNavalHQ = refCategoryNavalFactory - categories.SUPPORTFACTORY
 refCategoryFactory = refCategoryLandFactory + refCategoryAirFactory + refCategoryNavalFactory
 refCategoryAllHQFactories = refCategoryFactory - categories.SUPPORTFACTORY
-refCategoryQuantumGateway = categories.STRUCTURE * categories.GATE * categories.TECH3 * categories.FACTORY
+refCategoryQuantumGateway = categories.STRUCTURE * categories.GATE * categories.TECH3 * categories.FACTORY - categories.EXTERNALFACTORYUNIT
 
 --Building - defensive
 refCategoryT2PlusPD = categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.DIRECTFIRE * categories.TECH1

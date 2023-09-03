@@ -3134,6 +3134,10 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     local tWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone]
     local iTeam = aiBrain.M28Team
     local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
+    if not(tWZTeamData) then
+        M28Utilities.ErrorHandler('Factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..' doesnt have WZ team data; iPond='..(iPond or 'nil')..'; iWaterZone='..(iWaterZone or 'nil'))
+        if bDebugMessages == true then M28Utilities.DrawLocation(oFactory:GetPosition()) end
+    end
     local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)
     local tiMAAThresholdByTech = { 50, 500, 1000, 1000 }
 
@@ -3623,7 +3627,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
         LOG(sFunctionRef .. ': Have no categories to build')
     end
     oFactory[refiTimeSinceLastFailedToGetOrder] = GetGameTimeSeconds() --Redundancy, will also include in parent logic
-    tWZTeamData[M28Map.subrefiTimeNavalFacHadNothingToBuild] = GetGameTimeSeconds()
+    if tWZTeamData then tWZTeamData[M28Map.subrefiTimeNavalFacHadNothingToBuild] = GetGameTimeSeconds() end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
