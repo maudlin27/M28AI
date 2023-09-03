@@ -217,6 +217,7 @@ tAirSubteamData = {}
     reftPriorityUnitsWantingScout = 'M28PriUnFrSct' --e.g. if gunship wants an air scout to help reveal cloaked units, this would include the gunship to shadow
     refiLastTorpBomberAdjacencyLevel = 'M28ASTLastTBAdj' --i.e. 3 means we last looked up to 3 adjacency levels out for targets
     refbOnlyGetASFs = 'M28OnlyGetASFs' --true if we should only get asfs now
+    reftWaterZonesHasFriendlyTorps = 'M28WZWiTor' --[x] is the water zone, returns true if we have torpedo bombers in it
 
 
 --Land subteam data varaibles (used for factory production logic)
@@ -284,6 +285,7 @@ function CreateNewAirSubteam(aiBrain)
     tAirSubteamData[aiBrain.M28AirSubteam] = {}
     tAirSubteamData[aiBrain.M28AirSubteam][subreftoFriendlyM28Brains] = {}
     tAirSubteamData[aiBrain.M28AirSubteam][reftACUExpAndPriorityDefenceOnSubteam] = {}
+    tAirSubteamData[iTotalAirSubteamCount][reftWaterZonesHasFriendlyTorps] = {}
     if not(tTeamData[aiBrain.M28Team][subrefAirSubteamsInTeam]) then tTeamData[aiBrain.M28Team][subrefAirSubteamsInTeam] = {} end
     table.insert(tTeamData[aiBrain.M28Team][subrefAirSubteamsInTeam], iTotalAirSubteamCount)
 
