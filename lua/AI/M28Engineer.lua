@@ -7201,7 +7201,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
     end
 
-    bDebugMessages = false
 
 
     --More power

@@ -529,7 +529,6 @@ function SafeToUpgradeUnit(oUnit)
             end
         else
             M28Utilities.ErrorHandler('Dont have a valid LZData table for iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; Unit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..'; will treat as safe for non-mobilre units only')
-            bDebugMessages = true
             if bDebugMessages == true then M28Utilities.DrawLocation(oUnit:GetPosition()) end
             if not(EntityCategoryContains(categories.MOBILE, oUnit.UnitId)) then
                 bSafeZone = true

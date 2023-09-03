@@ -984,7 +984,6 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         end
         if bDebugMessages == true then LOG(sFunctionRef..': bWantIndirectSubjectToNumbers='..tostring(bWantIndirectSubjectToNumbers)) end
         if bWantIndirectSubjectToNumbers then
-            bDebugMessages = true
             local iTechCategory = M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)
             local iCurIndirectFire = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryIndirect * iTechCategory)
             local bConsiderShieldsInstead = false
@@ -1006,7 +1005,6 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                     return sBPIDToBuild
                 end
             end
-            bDebugMessages = false
         end
 
     end
