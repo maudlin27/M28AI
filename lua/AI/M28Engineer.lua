@@ -7165,7 +7165,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                                 end
                             end
                         end
-                        if iExistingShields < 2 and (iExistingShields == 9 or iT2AritCount >= 3) then bGetShieldingInstead = true end
+                        if iExistingShields < 2 and (iExistingShields == 9 or iT2ArtiCount >= 3) then bGetShieldingInstead = true end
                     end
                     local oArtiToShield
                     if bGetShieldingInstead then

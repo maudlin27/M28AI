@@ -2505,6 +2505,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                         if bDebugMessages == true then LOG(sFunctionRef..': oOurNearestUnitToFirebase='..oOurNearestUnitToFirebase.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOurNearestUnitToFirebase)..'; oNearestFirebaseUnit='..oNearestFirebaseUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestFirebaseUnit)..'; Dist between them='..M28Utilities.GetDistanceBetweenPositions(oOurNearestUnitToFirebase:GetPosition(), oNearestFirebaseUnit:GetPosition())) end
 
                         if oOurNearestUnitToFirebase and oNearestFirebaseUnit then
+                            iCurFirebaseThreat = 0
                             iDistToFirebase = M28Utilities.GetDistanceBetweenPositions(oOurNearestUnitToFirebase:GetPosition(), oNearestFirebaseUnit:GetPosition())
                             iClosestFirebaseDist = math.min(iClosestFirebaseDist, iDistToFirebase)
                             if iDistToFirebase <= 140 then
