@@ -5175,7 +5175,7 @@ function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, 
         elseif bDebugMessages == true then
             LOG(sFunctionRef .. ': No SML detected but will build SMD anyway as a precaution as we have a good economy')
         end
-        iEnemyNukes = math.max(iEnemyNormalNukes, iEnemyBattleshipNukes, 1) --Redundancy - if table isnt empty enemy must have at least one, and will assume they have 1 if we are building as a precaution
+        iEnemyNukes = math.max(iEnemyNormalNukes, iEnemyBattleshipNukes * 0.2, 1) --Redundancy - if table isnt empty enemy must have at least one, and will assume they have 1 if we are building as a precaution
         if bDebugMessages == true then
             LOG(sFunctionRef .. ': iSMDsWeHave=' .. iSMDsWeHave .. '; iEnemyNukes=' .. iEnemyNukes..'; iEnemyNormalNukes='..iEnemyNormalNukes..'; iEnemyBattleshipNukes='..iEnemyBattleshipNukes..'; bEnemyNukeNotConstructed='..tostring(bEnemyNukeNotConstructed))
             if iEnemyNukes > 1 then
