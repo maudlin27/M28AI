@@ -2458,6 +2458,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
     iAvailableCombatUnitThreat = iAvailableCombatUnitThreat + math.min(iAvailableCombatUnitThreat, tLZTeamData[M28Map.subrefiAvailableMobileShieldThreat])
 
     local bHaveSignificantCombatCloserToFirebase = false
+    local iClosestFirebaseDist = 100000
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false then
         --Is the firebase not in range of a core LZ?
         local bFirebaseInCoreLZRange = false
@@ -2468,6 +2469,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
         local iClosestDist
         local iCurFirebaseThreat
         local bIsAdjacent
+        local iDistToFirebase
 
         for iEntry, tPlateauAndLZ in tLZTeamData[M28Map.subreftEnemyFirebasesInRange] do
             if M28Map.tAllPlateaus[tPlateauAndLZ[1]][M28Map.subrefPlateauLandZones][tPlateauAndLZ[2]][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] then
@@ -2501,55 +2503,71 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             end
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': oOurNearestUnitToFirebase='..oOurNearestUnitToFirebase.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOurNearestUnitToFirebase)..'; oNearestFirebaseUnit='..oNearestFirebaseUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestFirebaseUnit)..'; Dist between them='..M28Utilities.GetDistanceBetweenPositions(oOurNearestUnitToFirebase:GetPosition(), oNearestFirebaseUnit:GetPosition())) end
-                        if oOurNearestUnitToFirebase and oNearestFirebaseUnit and M28Utilities.GetDistanceBetweenPositions(oOurNearestUnitToFirebase:GetPosition(), oNearestFirebaseUnit:GetPosition()) <= 140 then
-                            iCurFirebaseThreat = M28UnitInfo.GetCombatThreatRating(tEnemyT2ArtiAndShields, true, true)
-                            if iCurFirebaseThreat > 0 then
-                                bIsAdjacent = false
-                                if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][tPlateauAndLZ[2]]][M28Map.subrefLZPath]) == false then
 
-                                    --Include friendly units in LZs between here and the firebase
-                                    if bDebugMessages == true then
-                                        --LOG(sFunctionRef..': iLandZone='..reprs(iLandZone))
-                                        --LOG(sFunctionRef..': tPlateauAndLZ[2]='..reprs(tPlateauAndLZ[2]))
-                                        --LOG(sFunctionRef..': tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][tPlateauAndLZ[2]]='..reprs(tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][tPlateauAndLZ[2]]))
-                                        --LOG(sFunctionRef..': pathing='..reprs(tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][tPlateauAndLZ[2]]][M28Map.subrefLZPath]))
-                                        --LOG(sFunctionRef..': tLZData[M28Map.subrefLZPathingToOtherLandZones]='..reprs(tLZData[M28Map.subrefLZPathingToOtherLandZones]))
-                                        LOG(sFunctionRef..': Will cycle through all LZs between LZ'..reprs(iLandZone or 'nil')..' and LZ'..reprs(tPlateauAndLZ[2] or 'nil')..' and factor in friendly threat; Entry in pathing table='..reprs(tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][tPlateauAndLZ[2]] or 'nil')..'; reprs of pathing='..reprs(tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][tPlateauAndLZ[2]]][M28Map.subrefLZPath])..'; tLZData[M28Map.subrefLZPathingToOtherLandZones]='..reprs(tLZData[M28Map.subrefLZPathingToOtherLandZones]))
-                                    end
+                        if oOurNearestUnitToFirebase and oNearestFirebaseUnit then
+                            iDistToFirebase = M28Utilities.GetDistanceBetweenPositions(oOurNearestUnitToFirebase:GetPosition(), oNearestFirebaseUnit:GetPosition())
+                            iClosestFirebaseDist = math.min(iClosestFirebaseDist, iDistToFirebase)
+                            if iDistToFirebase <= 140 then
+                                iCurFirebaseThreat = M28UnitInfo.GetCombatThreatRating(tEnemyT2ArtiAndShields, true, true)
+                                if iCurFirebaseThreat > 0 then
+                                    bIsAdjacent = false
+                                    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][tPlateauAndLZ[2]]][M28Map.subrefLZPath]) == false then
 
-                                    for iEntry, iAdjacentLandZone in tLZData[M28Map.subrefLZAdjacentLandZones] do
-                                        if iAdjacentLandZone == tPlateauAndLZ[2] then
-                                            bIsAdjacent = true
+                                        --Include friendly units in LZs between here and the firebase
+                                        if bDebugMessages == true then
+                                            --LOG(sFunctionRef..': iLandZone='..reprs(iLandZone))
+                                            --LOG(sFunctionRef..': tPlateauAndLZ[2]='..reprs(tPlateauAndLZ[2]))
+                                            --LOG(sFunctionRef..': tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][tPlateauAndLZ[2]]='..reprs(tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][tPlateauAndLZ[2]]))
+                                            --LOG(sFunctionRef..': pathing='..reprs(tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][tPlateauAndLZ[2]]][M28Map.subrefLZPath]))
+                                            --LOG(sFunctionRef..': tLZData[M28Map.subrefLZPathingToOtherLandZones]='..reprs(tLZData[M28Map.subrefLZPathingToOtherLandZones]))
+                                            LOG(sFunctionRef..': Will cycle through all LZs between LZ'..reprs(iLandZone or 'nil')..' and LZ'..reprs(tPlateauAndLZ[2] or 'nil')..' and factor in friendly threat; Entry in pathing table='..reprs(tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][tPlateauAndLZ[2]] or 'nil')..'; reprs of pathing='..reprs(tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][tPlateauAndLZ[2]]][M28Map.subrefLZPath])..'; tLZData[M28Map.subrefLZPathingToOtherLandZones]='..reprs(tLZData[M28Map.subrefLZPathingToOtherLandZones]))
                                         end
-                                    end
-                                    for iEntry, iPathLZ in tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][tPlateauAndLZ[2]]][M28Map.subrefLZPath] do
-                                        if not(iPathLZ == iLandZone) then
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Friendly LZ that will pass through to get to firebase='..iPathLZ..'; Friendly combat threat of this='..(M28Map.tAllPlateaus[tPlateauAndLZ[1]][M28Map.subrefPlateauLandZones][iPathLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTThreatAllyCombatTotal] or 'nil')) end
-                                            iCurFirebaseThreat = iCurFirebaseThreat - (M28Map.tAllPlateaus[tPlateauAndLZ[1]][M28Map.subrefPlateauLandZones][iPathLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTThreatAllyCombatTotal] or 'nil')
-                                            if not(bHaveSignificantCombatCloserToFirebase) and M28Map.tAllPlateaus[tPlateauAndLZ[1]][M28Map.subrefPlateauLandZones][iPathLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTThreatAllyCombatTotal] >= 4000 then
-                                                bHaveSignificantCombatCloserToFirebase = true
+
+                                        for iEntry, iAdjacentLandZone in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                                            if iAdjacentLandZone == tPlateauAndLZ[2] then
+                                                bIsAdjacent = true
+                                            end
+                                        end
+                                        for iEntry, iPathLZ in tLZData[M28Map.subrefLZPathingToOtherLandZones][tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][tPlateauAndLZ[2]]][M28Map.subrefLZPath] do
+                                            if not(iPathLZ == iLandZone) then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Friendly LZ that will pass through to get to firebase='..iPathLZ..'; Friendly combat threat of this='..(M28Map.tAllPlateaus[tPlateauAndLZ[1]][M28Map.subrefPlateauLandZones][iPathLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTThreatAllyCombatTotal] or 'nil')) end
+                                                iCurFirebaseThreat = iCurFirebaseThreat - (M28Map.tAllPlateaus[tPlateauAndLZ[1]][M28Map.subrefPlateauLandZones][iPathLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTThreatAllyCombatTotal] or 'nil')
+                                                if not(bHaveSignificantCombatCloserToFirebase) and M28Map.tAllPlateaus[tPlateauAndLZ[1]][M28Map.subrefPlateauLandZones][iPathLZ][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTThreatAllyCombatTotal] >= 4000 then
+                                                    bHaveSignificantCombatCloserToFirebase = true
+                                                end
                                             end
                                         end
                                     end
-                                end
-                                if bIsAdjacent then
-                                    --Track adjacent firebase threat so if we want to take this into account later we can; dont think we are double-counting this though so currently only using to affect decision on whether to automatically retreat
-                                    iAdjacentFirebaseThreat = iAdjacentFirebaseThreat + math.max(iCurFirebaseThreat, 0)
+                                    if bIsAdjacent then
+                                        --Track adjacent firebase threat so if we want to take this into account later we can; dont think we are double-counting this though so currently only using to affect decision on whether to automatically retreat
+                                        iAdjacentFirebaseThreat = iAdjacentFirebaseThreat + math.max(iCurFirebaseThreat, 0)
+                                    end
                                 end
                             end
                             iFirebaseThreatAdjust = iFirebaseThreatAdjust + math.max(iCurFirebaseThreat, 0)
                         end
                     end
+                else
+                    iClosestFirebaseDist = 0
                 end
             end
         end
     end
 
-    --If enemy has a firebase, then retreat if we dont have enough threat to beat it
+    --If enemy has a firebase, then retreat if we dont have enough threat to beat it and we dont have significant indirect force
     local bRunFromFirebase = false
     if iFirebaseThreatAdjust > 0 and not(bHaveSignificantCombatCloserToFirebase) and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] < math.min(20000, iFirebaseThreatAdjust)  then
         --Retreat
         bRunFromFirebase = true
+        if iClosestFirebaseDist <= 100 then
+            local tFriendlyIndirect = EntityCategoryFilterDown(M28UnitInfo.refCategoryIndirect, tAvailableCombatUnits)
+            if M28Utilities.IsTableEmpty( tFriendlyIndirect) == false then
+                if table.getn(tFriendlyIndirect) >= 10 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Exception to decision to run from firebase') end
+                    bRunFromFirebase = false
+                end
+            end
+        end
     end
     if bDebugMessages == true then LOG(sFunctionRef..': iFirebaseThreatAdjust='..iFirebaseThreatAdjust..'; bRunFromFirebase='..tostring(bRunFromFirebase)..'; tLZTeamData[M28Map.subreftEnemyFirebasesInRange]='..reprs(tLZTeamData[M28Map.subreftEnemyFirebasesInRange])..'; subrefiNearbyEnemyLongRangeThreat='..tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat]..'; Enemies in adj wZ='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])) end
 
