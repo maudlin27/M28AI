@@ -994,7 +994,9 @@ function OverseerManager(aiBrain)
 
 
     local bSetHook = false --Used for debugging
+    local M28Config = import('/mods/M28AI/lua/M28Config.lua')
     while not(aiBrain:IsDefeated()) and not(aiBrain.M28IsDefeated) do
+        if GetGameTimeSeconds() >= 1260 then M28Config.M28ShowUnitNames = true M28Config.M28ShowEnemyUnitNames = true end
         local bEnabledProfiling = false
         --[[ if GetGameTimeSeconds() >= 2100 and not(bEnabledProfiling) then
              if not(import('/mods/M28AI/lua/M28Config.lua').M28RunProfiling) then

@@ -529,8 +529,21 @@ function RecordGroundThreatForLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
     end
 
     --Include long range threats
+    if bDebugMessages == true then LOG(sFunctionRef..': Is table of long range threats empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats]))) end
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats]) == false then
-        tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] = M28UnitInfo.GetCombatThreatRating(tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats], true)
+        local tNearbyLongRangeThreats = {}
+        for iUnit, oUnit in tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats] do
+            if M28UnitInfo.IsUnitValid(oUnit) then
+                if bDebugMessages == true then LOG(sFunctionRef..': Long range threat unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Dist to midpoint='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])..'; Unit range='..(oUnit[M28UnitInfo.refiCombatRange] or 0)) end
+                if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= (oUnit[M28UnitInfo.refiCombatRange] or 0) + 55 then
+                    table.insert(tNearbyLongRangeThreats, oUnit)
+                end
+            end
+        end
+        if M28Utilities.IsTableEmpty(tNearbyLongRangeThreats) then tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] = 0
+        else
+            tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] = M28UnitInfo.GetCombatThreatRating(tLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats], true)
+        end
     else
         tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] = 0
     end

@@ -903,6 +903,7 @@ function LongRangeThreatMonitor(iTeam)
     local iTableSize
     local sreftiLastPlateauAndZone = 'M28LRLstPZ'
     local iPlateauOrZero, iLandOrWaterZone
+
     if bDebugMessages == true then LOG(sFunctionRef..': About to start long range enemy unit monitor for team '..iTeam..'; Is table empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iTeam][reftLongRangeEnemyMobileUnits]))) end
     while M28Utilities.IsTableEmpty(tTeamData[iTeam][reftLongRangeEnemyMobileUnits]) == false do
         --Check all units still alive
@@ -920,6 +921,7 @@ function LongRangeThreatMonitor(iTeam)
                     if bDebugMessages == true then LOG(sFunctionRef..': iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; sreftiLastPlateauAndZone='..repru( oUnit[sreftiLastPlateauAndZone])) end
                     if iPlateauOrZero == oUnit[sreftiLastPlateauAndZone][1] and iLandOrWaterZone == oUnit[sreftiLastPlateauAndZone][2] then
                         --Do nothing - no change
+                        if bDebugMessages == true then LOG(sFunctionRef..': No change in units zone from last time we ran so dont need to do anything further') end
                     else
                         --has changed - remove from previous entries if it had any
                         if (oUnit[sreftiLastPlateauAndZone][2] or 0) > 0 then
@@ -946,13 +948,17 @@ function LongRangeThreatMonitor(iTeam)
 
                         --Add to nearby zones
                         oUnit[sreftiLastPlateauAndZone] = {[1]=iPlateauOrZero,[2]=iLandOrWaterZone}
-                        local iMaxDist = oUnit[M28UnitInfo.refiDFRange] + 40
+                        local iMaxDist = oUnit[M28UnitInfo.refiDFRange] + 120 --tried +40 (meaning 140 range on fatboy) but led to fatboy getting free hits on units with the dist between zones being 195; have therefore increased the dist threshold, and added in a distance check into the zone itself which will go with a slightly lower distance
                         local iMaxTravelDist = iMaxDist * 2
                         local tLZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
                         local iAdjLZ
+                        if bDebugMessages == true then LOG(sFunctionRef..': Unit has changed zones, is table of pathing to other zones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]))) end
                         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
                             for iEntry, tSubtable in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
-                                if tSubtable[M28Map.subrefLZTravelDist] > iMaxTravelDist then break end
+                                if tSubtable[M28Map.subrefLZTravelDist] > iMaxTravelDist then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Are too far from the other zone so will stop searching, travel dist='..tSubtable[M28Map.subrefLZTravelDist]..'; iMaxTravelDist='..iMaxTravelDist..'; Zone='..tSubtable[M28Map.subrefLZNumber]) end
+                                    break
+                                end
                                 iAdjLZ = tSubtable[M28Map.subrefLZNumber]
                                 local tAdjLZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ]
                                 if bDebugMessages == true then LOG(sFunctionRef..': Checking if we are close to zone '..iAdjLZ..'; Dist to this='..M28Utilities.GetDistanceBetweenPositions(tAdjLZData[M28Map.subrefMidpoint], tLZData[M28Map.subrefMidpoint])..'; iMaxDist='..iMaxDist) end
@@ -976,6 +982,8 @@ function LongRangeThreatMonitor(iTeam)
                                         if bDebugMessages == true then LOG(sFunctionRef..': Just added unit to table of long range threats for zone '..iAdjLZ..' on plateau '..iPlateauOrZero) end
                                         table.insert(tAdjLZTeamData[M28Map.subrefoNearbyEnemyLongRangeThreats], oUnit)
                                     end
+                                else
+                                    if bDebugMessages == true then LOG(sFunctionRef..': straight line dist is too far away so wont record') end
                                 end
                             end
                         end
@@ -984,6 +992,7 @@ function LongRangeThreatMonitor(iTeam)
                 end
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': End of loop, gametime='..GetGameTimeSeconds()) end
 
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitSeconds(1)
