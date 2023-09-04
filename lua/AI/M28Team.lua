@@ -650,7 +650,7 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
     local sFunctionRef = 'AddUnitToLandZoneForBrain'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oUnit.UnitId == 'ueb2101' and oUnit:GetAIBrain():GetArmyIndex() == 8 then bDebugMessages = true end
 
     if EntityCategoryContains(categories.MOBILE * categories.AIR, oUnit.UnitId) and not(bIsEnemyAirUnit) and not(EntityCategoryContains(M28UnitInfo.refCategoryEngineer + categories.EXPERIMENTAL, oUnit.UnitId)) then M28Utilities.ErrorHandler('Havent flagged that an air unit is an air unit') end
 
@@ -720,6 +720,7 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
                 if bDebugMessages == true then LOG(sFunctionRef..': Add unit as a friendly unit to Plateau-LZ='..iPlateauRef..'-'..iLandZoneRef..' and team='..aiBrain.M28Team..'; Is table of friendly units empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauRef][M28Map.subrefPlateauLandZones][iLandZoneRef][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTAlliedUnits]))) end
             end
         elseif iPlateauRef == 0 and iLandZoneRef then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will try adding to water zone instead') end
             if (GetGameTimeSeconds() - (oUnit['BackupZoneAssignmentTime'] or -1)) >= 1 then
                 oUnit['BackupZoneAssignmentTime'] = GetGameTimeSeconds() --Preemptive to stop potential infinite loop if we call addunittolandzone from addunittowaterzone
                 AddUnitToWaterZoneForBrain(aiBrain, oUnit, iLandZoneRef, bIsEnemyAirUnit)
@@ -843,7 +844,7 @@ function ConsiderAssigningUnitToZoneForBrain(aiBrain, oUnit)
         local sFunctionRef = 'ConsiderAssigningUnitToZoneForBrain'
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+        if oUnit.UnitId == 'ueb2101' and aiBrain.M28AI and oUnit:GetAIBrain():GetArmyIndex() == 8 then bDebugMessages = true end
 
         if bDebugMessages == true then LOG(sFunctionRef..': Checking at time '..GetGameTimeSeconds()..' if should assign unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to a plateau/other table. Considered for assignment repru='..repru(oUnit[M28UnitInfo.reftbConsideredForAssignmentByTeam])..'; Unit brain team='..(oUnit:GetAIBrain().M28Team or 'nil')..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
         if M28UnitInfo.IsUnitValid(oUnit) then --redundancy
@@ -1149,7 +1150,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
     local sFunctionRef = 'AssignUnitToLandZoneOrPond'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if oUnit.UnitId == 'ueb2101' and aiBrain:GetArmyIndex() == 8 then bDebugMessages = true end
 
     if M28UnitInfo.IsUnitValid(oUnit) then
         --Campaign specific - dont include units flagged as not being killable
@@ -1297,7 +1298,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                                                         table.insert(toEngineersToClear, oEngineer)
                                                                     else
                                                                         local oFocus = oEngineer:GetFocusUnit()
-                                                                        LOG(sFunctionRef..': Focus unit is '..(oFocus.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFocus) or 'nil'))
+                                                                        if bDebugMessages == true then LOG(sFunctionRef..': Focus unit is '..(oFocus.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFocus) or 'nil')) end
                                                                         if oFocus then LOG(sFunctionRef..': oFocus fraction complete='..oFocus:GetFractionComplete()) end
                                                                         if not(M28UnitInfo.IsUnitValid(oFocus)) or oFocus:GetFractionComplete() == 0 then
                                                                             table.insert(toEngineersToClear, oEngineer)

@@ -2731,6 +2731,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Finished checking for nearest enemy unit, is it valid='..tostring(M28UnitInfo.IsUnitValid(oNearestEnemyToMidpoint))) end
         if oNearestEnemyToMidpoint and M28Conditions.IsLocationInPlayableArea(oNearestEnemyToMidpoint:GetPosition()) then
+            local tEnemyEngineers = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subrefTEnemyUnits]) --TEMP CODE
             if tLZTeamData[M28Map.subrefLZbCoreBase] then
                 --Adjust rally points for core base if nearby enemy in case we end up going closer to the enemy instead of furhter away
                 if M28Utilities.GetDistanceBetweenPositions(tAmphibiousRallyPoint, tLZData[M28Map.subrefMidpoint]) <= 5 then
@@ -2846,6 +2847,30 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                     table.insert(tSkirmisherEnemies, oUnit)
                 end
                 table.insert(tSkirmisherEnemies, oNearestEnemyToMidpoint)
+                local bMoveToStopPDConstruction = false
+                if M28Utilities.IsTableEmpty(tEnemyEngineers) == false and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] <= 100 and (iAvailableCombatUnitThreat or 0) >= math.min(40, tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 3)  then
+                    local tEnemyPD = EntityCategoryFilterDown(M28UnitInfo.refCategoryPD, tLZTeamData[M28Map.subrefTEnemyUnits])
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy PD empty='..tostring(M28Utilities.IsTableEmpty(tEnemyPD))) end
+                    if M28Utilities.IsTableEmpty(tEnemyPD) == false then
+                        bMoveToStopPDConstruction = true
+                        for iPD, oPD in tEnemyPD do
+                            if oPD:GetFractionComplete() == 1 then
+                                bMoveToStopPDConstruction = false
+                                break
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': bMoveToStopPDConstruction before doublechecking threats='..tostring(bMoveToStopPDConstruction)) end
+                        if bMoveToStopPDConstruction then
+                            --Check we have significantly more threat if excluding under-construction PD
+                            bMoveToStopPDConstruction = false
+                            local iPDThreat = M28UnitInfo.GetCombatThreatRating(tEnemyPD, true)
+                            if bDebugMessages == true then LOG(sFunctionRef..': iPDThreat='..iPDThreat) end
+                            if (iAvailableCombatUnitThreat or 0) > 2 * tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] - iPDThreat then
+                                bMoveToStopPDConstruction = true
+                            end
+                        end
+                    end
+                end
 
                 if bDebugMessages == true then LOG(sFunctionRef..': Scenario 1 - will cycle through available combat units, is tSkirmisherEnemies empty='..tostring(M28Utilities.IsTableEmpty(tSkirmisherEnemies))..'; oNearestEnemyToMidpoint='..(oNearestEnemyToMidpoint.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyToMidpoint) or 'nil')) end
                 for iUnit, oUnit in tAvailableCombatUnits do
@@ -2882,7 +2907,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                         M28Orders.IssueTrackedAttack(oUnit, oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck], false, 'InRngEn', false)
                                     else
                                         --Attackmove (unless we have far more threat in this zone and arent a megalith or fatboy)
-                                        if tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > 5000 and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 10 and not((oUnit[M28UnitInfo.refiDFRange] or 0) >= 64 or EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryFatboy, oUnit.UnitID)) then
+                                        if bMoveToStopPDConstruction or (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > 5000 and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 10 and not((oUnit[M28UnitInfo.refiDFRange] or 0) >= 64 or EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryFatboy, oUnit.UnitID))) then
                                             M28Orders.IssueTrackedMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], (oUnit[M28UnitInfo.refiDFRange] or oUnit[M28UnitInfo.refiIndirectRange]) * 0.5, false, 'KMve'..iLandZone, false)
                                         else
                                             M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], (oUnit[M28UnitInfo.refiDFRange] or oUnit[M28UnitInfo.refiIndirectRange]) * 0.5, false, 'KAMve'..iLandZone)
@@ -3180,8 +3205,9 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 end
                 local tOurDFAndT1ArtiUnits = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandCombat, tAvailableCombatUnits)
                 local bConsolidateAtMidpoint = false
+                local iOurCombatThreat
                 if M28Utilities.IsTableEmpty(tOurDFAndT1ArtiUnits) == false then
-                    local iOurCombatThreat = M28UnitInfo.GetCombatThreatRating(tOurDFAndT1ArtiUnits, false)
+                    iOurCombatThreat = M28UnitInfo.GetCombatThreatRating(tOurDFAndT1ArtiUnits, false)
                     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefAlliedACU]) == false then
                         if M28Map.iMapSize > 256 then
                             iOurCombatThreat = iOurCombatThreat + M28UnitInfo.GetCombatThreatRating(tLZTeamData[M28Map.subrefAlliedACU], false) * 0.9
@@ -3325,7 +3351,32 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                 end
 
                 if bAttackWithEverything then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will attack with everything, oNearestEnemyToMidpoint='..oNearestEnemyToMidpoint.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyToMidpoint)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oNearestEnemyToMidpoint))..'; oNearestEnemyToMidpoint position='..repru(oNearestEnemyToMidpoint:GetPosition())..'; Last known position='..repru(oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])) end
+                    local bMoveToStopPDConstruction = false
+                    if bDebugMessages == true then LOG(sFunctionRef..': Seeing if we have enough threat to try and stop PD being built, tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..(tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; iAvailableCombatUnitThreat='..(iAvailableCombatUnitThreat or 'nil')) end
+                    if M28Utilities.IsTableEmpty(tEnemyEngineers) == false and tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] <= 100 and (iAvailableCombatUnitThreat or 0) >= math.min(40, tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 3)  then
+                        local tEnemyPD = EntityCategoryFilterDown(M28UnitInfo.refCategoryPD, tLZTeamData[M28Map.subrefTEnemyUnits])
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of enemy PD empty='..tostring(M28Utilities.IsTableEmpty(tEnemyPD))) end
+                        if M28Utilities.IsTableEmpty(tEnemyPD) == false then
+                            bMoveToStopPDConstruction = true
+                            for iPD, oPD in tEnemyPD do
+                                if oPD:GetFractionComplete() == 1 then
+                                    bMoveToStopPDConstruction = false
+                                    break
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': bMoveToStopPDConstruction before doublechecking threats='..tostring(bMoveToStopPDConstruction)) end
+                            if bMoveToStopPDConstruction then
+                                --Check we have significantly more threat if excluding under-construction PD
+                                bMoveToStopPDConstruction = false
+                                local iPDThreat = M28UnitInfo.GetCombatThreatRating(tEnemyPD, true)
+                                if bDebugMessages == true then LOG(sFunctionRef..': iPDThreat='..iPDThreat) end
+                                if (iAvailableCombatUnitThreat or 0) > 2 * tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] - iPDThreat then
+                                    bMoveToStopPDConstruction = true
+                                end
+                            end
+                        end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Will attack with everything, oNearestEnemyToMidpoint='..oNearestEnemyToMidpoint.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestEnemyToMidpoint)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oNearestEnemyToMidpoint))..'; oNearestEnemyToMidpoint position='..repru(oNearestEnemyToMidpoint:GetPosition())..'; Last known position='..repru(oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; bMoveToStopPDConstruction='..tostring(bMoveToStopPDConstruction or false)) end
 
                     for iUnit, oUnit in tAvailableCombatUnits do
                         --If we are close to the last known position such that we will be able to see there is no longer a unit there, then update this unit's position for next cycle
@@ -3385,10 +3436,10 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                     end
 
                                     --Attackmove (unless we have far more threat in this zone)
-                                elseif tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > 5000 and not((oUnit[M28UnitInfo.refiDFRange] or 0) >= 64 or EntityCategoryContains(M28UnitInfo.refCategorySkirmisher, oUnit.UnitID)) and
+                                elseif (bMoveToStopPDConstruction and not(M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tEnemyEngineers, math.min(15, oUnit[M28UnitInfo.refiDFRange] - 4.5), iTeam, false, nil, nil))) or (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > 5000 and not((oUnit[M28UnitInfo.refiDFRange] or 0) >= 64 or EntityCategoryContains(M28UnitInfo.refCategorySkirmisher, oUnit.UnitID)) and
                                         ((tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 6) or
                                                 --If lots of T1 arti want to keep moving with experimentals/other units or theyll get slaughtered
-                                                (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 1.1 and EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) and (tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] >= 400 or EntityCategoryContains(M28UnitInfo.refCategoryIndirect + M28UnitInfo.refCategorySkirmisher, oNearestEnemyToMidpoint.UnitId)))) then
+                                                (tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 1.1 and EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) and (tLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] >= 400 or EntityCategoryContains(M28UnitInfo.refCategoryIndirect + M28UnitInfo.refCategorySkirmisher, oNearestEnemyToMidpoint.UnitId))))) then
 
                                     M28Orders.IssueTrackedMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], (oUnit[M28UnitInfo.refiDFRange] or oUnit[M28UnitInfo.refiIndirectRange]) * 0.5, false, 'MWE'..iLandZone, false)
                                 else
