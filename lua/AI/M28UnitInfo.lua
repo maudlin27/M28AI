@@ -135,6 +135,7 @@ refCategoryAirFactory = categories.AIR * categories.FACTORY * categories.STRUCTU
 refCategoryAirHQ = refCategoryAirFactory - categories.SUPPORTFACTORY
 refCategoryNavalFactory = categories.NAVAL * categories.FACTORY * categories.STRUCTURE - categories.EXTERNALFACTORYUNIT
 refCategoryNavalHQ = refCategoryNavalFactory - categories.SUPPORTFACTORY
+refCategoryMobileLandFactory = categories.LAND * categories.FACTORY * categories.STRUCTURE * categories.EXTERNALFACTORYUNIT
 refCategoryFactory = refCategoryLandFactory + refCategoryAirFactory + refCategoryNavalFactory
 refCategoryAllHQFactories = refCategoryFactory - categories.SUPPORTFACTORY
 refCategoryQuantumGateway = categories.STRUCTURE * categories.GATE * categories.TECH3 * categories.FACTORY - categories.EXTERNALFACTORYUNIT

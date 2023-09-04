@@ -2118,10 +2118,12 @@ function DetermineWhatToBuild(aiBrain, oFactory)
         sBPIDToBuild = GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     elseif EntityCategoryContains(M28UnitInfo.refCategoryQuantumGateway, oFactory.UnitId) then
         sBPIDToBuild = GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
+    elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileLandFactory, oFactory.UnitId) then
+        sBPIDToBuild = GetBlueprintToBuildForMobileLandFactory(aiBrain, oFactory)
     else
         M28Utilities.ErrorHandler('Need to add code - unexpected factory type')
     end
-    return sBPIDToBuild
+        return sBPIDToBuild
 end
 function IsFactoryReadyToBuild(oFactory)
     if oFactory:GetFractionComplete() == 1 and oFactory:GetWorkProgress() == 0 and oFactory:GetFractionComplete() == 1 and not (oFactory:IsUnitState('Building')) and not (oFactory:IsUnitState('Upgrading')) and not (oFactory:IsUnitState('Busy')) and
@@ -2460,7 +2462,7 @@ function IdleFactoryMonitor(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     while not (aiBrain.M28IsDefeated) do
-        local tOurFactories = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway, false, true)
+        local tOurFactories = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategoryMobileLandFactory, false, true)
         local tCommandQueue
         local sBPToBuild
         local iTeam
@@ -3680,6 +3682,29 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
 
     function ConsiderBuildingCategory(iCategoryToBuild, bOptionalGetCheapest)
         sBPIDToBuild = GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oFactory, nil, nil, bOptionalGetCheapest, nil, false)
+        if bDebugMessages == true then LOG(sFunctionRef .. ': Time=' .. GetGameTimeSeconds() .. ' Factory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; LZ=' .. iLandZone .. '; iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; sBPIDToBuild before adjusting for override=' .. (sBPIDToBuild or 'nil')) end
+        if sBPIDToBuild then sBPIDToBuild = AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamData, iFactoryTechLevel) end
+        if sBPIDToBuild then
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) --Assumes we will end code if we get to this point
+            return sBPIDToBuild
+        end
+    end
+
+    local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+    local tLZTeamData = tLZData[M28Map.subrefLZTeamData][aiBrain.M28Team]
+    local iTeam = aiBrain.M28Team
+    local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
+    local bHaveLowPower = M28Conditions.HaveLowPower(iTeam)
+
+    local sBPIDToBuild
+    if bDebugMessages == true then
+        LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; bHvaeLowPower=' .. tostring(bHaveLowPower))
+    end
+    local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory) --to be safe given we include it in adjustblueprintforoverrides
+    local iCurrentConditionToTry = 0
+
+    function ConsiderBuildingCategory(iCategoryToBuild, bOptionalGetCheapest)
+        sBPIDToBuild = GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oFactory, nil, nil, bOptionalGetCheapest, nil, false)
         if bDebugMessages == true then
             LOG(sFunctionRef .. ': Time=' .. GetGameTimeSeconds() .. ' Factory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; LZ=' .. iLandZone .. '; iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; sBPIDToBuild before adjusting for override=' .. (sBPIDToBuild or 'nil'))
         end
@@ -3707,6 +3732,112 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
                 LOG(sFunctionRef .. ': Foudn a RAS SACU blueprint to build=' .. (sBPIDToBuild or 'nil'))
             end
             return sBPIDToBuild
+        end
+    end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function GetBlueprintToBuildForMobileLandFactory(aiBrain, oFactory)
+    local sFunctionRef = 'GetBlueprintToBuildForMobileLandFactory'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iPlateau, iLandZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oFactory:GetPosition())
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; brain='..aiBrain.Nickname..'; Position='..repru(oFactory:GetPosition())..'; Time='..GetGameTimeSeconds()..'; iPlateau or zero='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
+
+    if (iPlateau or -1) > 0 and (iLandZone or 0) > 0 then --not in a water zone
+        local sBPIDToBuild
+        local iFactoryTechLevel = 3
+        local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+        local iTeam = aiBrain.M28Team
+        local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+        local iCurrentConditionToTry = 0
+        local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
+
+        function ConsiderBuildingCategory(iCategoryToBuild, bOptionalGetCheapest)
+            sBPIDToBuild = GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oFactory, nil, nil, bOptionalGetCheapest, nil, false)
+            if bDebugMessages == true then
+                LOG(sFunctionRef .. ': Time=' .. GetGameTimeSeconds() .. ' Factory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; LZ=' .. iLandZone .. '; iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; sBPIDToBuild before adjusting for override=' .. (sBPIDToBuild or 'nil'))
+            end
+            if sBPIDToBuild then
+                sBPIDToBuild = AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamData, iFactoryTechLevel)
+            end
+            if sBPIDToBuild then
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) --Assumes we will end code if we get to this point
+                return sBPIDToBuild
+            end
+        end
+
+        local iMAACategoryWanted = M28UnitInfo.refCategoryMAA * categories.TECH2
+        if aiBrain[M28Overseer.refbCloseToUnitCap] then iMAACategoryWanted = M28UnitInfo.refCategoryMAA end
+
+        --Build T2 MAA if enemy has air units in this zone
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if bDebugMessages == true then LOG(sFunctionRef..': High priority air builder check, iCurrentConditionToTry='..iCurrentConditionToTry..'; Is table of enemy air units emty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]))..'; Have low mass='..tostring(bHaveLowMass)..'; MAA wanted='..(tLZTeamData[M28Map.subrefLZMAAThreatWanted] or 'nil')..'; Ally MAA='..(tLZTeamData[M28Map.subrefLZThreatAllyMAA] or 'nil')..'; Enemy air to ground='..(tLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 'nil')) end
+        if (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) == false or not(bHaveLowMass) and (tLZTeamData[M28Map.subrefLZMAAThreatWanted] > tLZTeamData[M28Map.subrefLZThreatAllyMAA] or tLZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0)) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Wil ltry and get more MAA') end
+            if ConsiderBuildingCategory(iMAACategoryWanted) then return sBPIDToBuild end
+        end
+
+        --Build engineer if we have lots of reclaim in this zone and large enemy threat
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if bDebugMessages == true then LOG(sFunctionRef..': Engineer for reclaim builder - mass in LZ='..tLZData[M28Map.subrefTotalMassReclaim]..'; Enemy mobile DF='..tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal]..'; Want BP='..tostring(tLZTeamData[M28Map.subrefTbWantBP])) end
+        if tLZData[M28Map.subrefTotalMassReclaim] >= 1000 and tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] <= 500 and tLZTeamData[M28Map.subrefTbWantBP] then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will try and get an engineer') end
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+        end
+
+        --Build t1 arti if have nearby DF enemies in this zone
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] >= 500 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will get t1 arti') end
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect * categories.TECH1, true) then return sBPIDToBuild end
+        end
+
+        --Build engineer if have unclaimed mexes in zone and no engineers
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] <= 10 and tLZTeamData[M28Map.subrefTbWantBP] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefMexUnbuiltLocations]) == false and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subrefLZTAlliedUnits]))) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Unclaimed mexes, will try and get engineer') end
+            if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+        end
+
+        --Build MAA if have need of it in this zone
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if tLZTeamData[M28Map.subrefLZThreatAllyMAA] <= 1500 and (tLZTeamData[M28Map.subrefLZThreatAllyMAA] <= 400 or tLZTeamData[M28Map.subrefLZMAAThreatWanted] > tLZTeamData[M28Map.subrefLZThreatAllyMAA] and tLZTeamData[M28Map.subrefLZThreatAllyGroundAA] <= 5000) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Have too little MAA in zone will try and get more') end
+            if ConsiderBuildingCategory(iMAACategoryWanted) then return sBPIDToBuild end
+        end
+
+        --Build MAA if need it in adjacent zone, and also check if we want to build mobile shields
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+            local bHaveZoneWantingMobileShields = tLZTeamData[M28Map.refbLZWantsMobileShield]
+            for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                if ((tAdjLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > 0 or (tAdjLZTeamData[M28Map.refiEnemyAirAAThreat] or 0) >= 750) and (tLZTeamData[M28Map.subrefLZThreatAllyMAA] <= math.max(2000, (tAdjLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) * 2 + (tAdjLZTeamData[M28Map.refiEnemyAirAAThreat] or 0) * 0.25)) then
+                    if ConsiderBuildingCategory(iMAACategoryWanted) then return sBPIDToBuild end
+                end
+                if not(bHaveZoneWantingMobileShields) then bHaveZoneWantingMobileShields = tAdjLZTeamData[M28Map.refbLZWantsMobileShield] end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': bHaveZoneWantingMobileShields='..tostring(bHaveZoneWantingMobileShields)..'; Have low power='..tostring(M28Conditions.HaveLowPower(iTeam))) end
+            if bHaveZoneWantingMobileShields and not(M28Conditions.HaveLowPower(iTeam)) then
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryMobileLandShield) then return sBPIDToBuild end
+            end
+        end
+
+
+        --If we are close to overflowing build combat units
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if bDebugMessages == true then LOG(sFunctionRef..': High level of mass check, bHaveLowMass='..tostring(bHaveLowMass)..'; Lowest mass% stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]) end
+        if not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.4 then
+            if tLZTeamData[M28Map.subrefTbWantBP] and tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] <= 20 and ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then
+                return sBPIDToBuild
+            elseif (tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestFriendlyBase]) == tLZData[M28Map.subrefLZIslandRef]) and ConsiderBuildingCategory(M28UnitInfo.refCategoryDFTank) then
+                return sBPIDToBuild
+            elseif tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and ConsiderBuildingCategory(M28UnitInfo.refCategoryAmphibiousCombat) then return sBPIDToBuild
+            end
         end
     end
 

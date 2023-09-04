@@ -2206,7 +2206,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
     local sFunctionRef = 'ManageAirAAUnits'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if GetGameTimeSeconds() >= 800 then local M28Config = import('/mods/M28AI/lua/M28Config.lua') M28Config.M28ShowUnitNames = true M28Config.M28ShowEnemyUnitNames = true if GetGameTimeSeconds() >= 1100 then bDebugMessages = true end end
+
 
     --Get available airAA units (owned by M28 brains in our subteam):
     local tAvailableAirAA, tAirForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, M28UnitInfo.refCategoryAirAA)
