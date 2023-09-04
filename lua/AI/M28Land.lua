@@ -2731,7 +2731,6 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Finished checking for nearest enemy unit, is it valid='..tostring(M28UnitInfo.IsUnitValid(oNearestEnemyToMidpoint))) end
         if oNearestEnemyToMidpoint and M28Conditions.IsLocationInPlayableArea(oNearestEnemyToMidpoint:GetPosition()) then
-            local tEnemyEngineers = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subrefTEnemyUnits]) --TEMP CODE
             if tLZTeamData[M28Map.subrefLZbCoreBase] then
                 --Adjust rally points for core base if nearby enemy in case we end up going closer to the enemy instead of furhter away
                 if M28Utilities.GetDistanceBetweenPositions(tAmphibiousRallyPoint, tLZData[M28Map.subrefMidpoint]) <= 5 then
