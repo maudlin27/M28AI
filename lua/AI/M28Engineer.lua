@@ -2539,7 +2539,9 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering UEF specific, iCurFatboyCount='..iCurFatboyCount..'; iCurNovaxCount='..iCurNovaxCount..'; iCurT3AritCount='..iCurT3ArtiCount) end
                     if bCanPathByLand then
-                        if iCurFatboyCount == 0 then
+                        if bEnemyHasFatboys and iCurNovaxCount == 0 then
+                            iCategoryWanted = M28UnitInfo.refCategoryNovaxCentre
+                        elseif iCurFatboyCount == 0 then
                             iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
                             --Game-ender for late game scenarios where enemy has their own arti and as a team we have already tried building a number of experimentals
                         elseif not(bDontConsiderGameEnderInMostCases) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 170 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 200 and iCurT3ArtiCount == 0  and iTeamLandExperimentals >= 2 and M28Team.tTeamData[iTeam][M28Team.subrefiOurGunshipThreat] >= 12000 and M28Map.iMapSize >= 512 and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryGameEnder) == 0 and M28Conditions.GetTeamLifetimeBuildCount(iTeam, M28UnitInfo.refCategoryExperimentalLevel) >= 2 * (1.5 + M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
