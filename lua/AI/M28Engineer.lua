@@ -2442,6 +2442,10 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
             --Land subteam - use aiBrain.M28LandSubteam
             local iSubteamSize =  table.getn(M28Team.tLandSubteamData[aiBrain.M28LandSubteam][M28Team.subreftoFriendlyM28Brains])
             local iEnemyLandExperimentalCount = table.getn(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftEnemyLandExperimentals])
+            local bEnemyHasFatboys = false
+            if M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFatboy, M28Team.tTeamData[aiBrain.M28Team][M28Team.reftEnemyLandExperimentals])) == false then
+                bEnemyHasFatboys = true
+            end
             local iTeam = aiBrain.M28Team
             local iDistToNearestEnemyBase = M28Utilities.GetDistanceBetweenPositions(tLZOrWZTeamData[M28Map.reftClosestEnemyBase], tLZOrWZData[M28Map.subrefMidpoint])
             local bCanPathByLand
@@ -2628,7 +2632,12 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                 elseif tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionCybran] then
                     iFactionRequired = M28UnitInfo.refFactionCybran
                     --If cant path to enemy with amphibious (rather than land) then consider T3 arti
-                    if not(bCanPathAmphibiously) or iTeamLandExperimentals >=  math.max(5, iEnemyLandExperimentalCount * 1.25) then
+                    local iCurAirExperimentals = 0
+                    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                        iCurAirExperimentals = iCurAirExperimentals + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryGunship * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar)
+                    end
+
+                    if not(bCanPathAmphibiously) or iTeamLandExperimentals + iCurAirExperimentals * 1.5 >=  math.max(5, iEnemyLandExperimentalCount * 1.25) then
                         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 80 and iDistToNearestEnemyBase <= 750 then
                             if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFixedT3Arti) < 4 then
                                 iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti
@@ -2642,12 +2651,8 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                     else
                         --Consider air experimental in some rarer cases late game
                         local bGetAirExperimentalInstead = false
-                        if iTeamLandExperimentals >= 4 and (iTeamLandExperimentals >= 7 or M28Conditions.TeamHasAirControl(iTeam) or M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] >= 10000) then
-                            local iCurAirExperimentals = 0
-                            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-                                iCurAirExperimentals = iCurAirExperimentals + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryGunship * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar)
-                            end
-                            if iCurAirExperimentals == 0 or (iCurAirExperimentals * 4 < iTeamLandExperimentals and (iCurAirExperimentals + 1) * 10000 < M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat]) then
+                        if (bEnemyHasFatboys and iTeamLandExperimentals >= 1) or (iTeamLandExperimentals >= 4 and (iTeamLandExperimentals >= 7 or M28Conditions.TeamHasAirControl(iTeam) or M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] >= 10000)) then
+                            if iCurAirExperimentals == 0 or (bEnemyHasFatboys and (iCurAirExperimentals <= math.max(1, iTeamLandExperimentals) or iCurAirExperimentals * 10000 < M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat])) or (iCurAirExperimentals * 4 < iTeamLandExperimentals and (iCurAirExperimentals + 1) * 10000 < M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat]) then
                                 bGetAirExperimentalInstead = true
                             end
                         end
@@ -2666,7 +2671,12 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                     end
                 elseif tbEngineersOfFactionOrNilIfAlreadyAssigned[M28UnitInfo.refFactionAeon] then
                     iFactionRequired = M28UnitInfo.refFactionAeon
-                    if not(bCanPathAmphibiously) or (not(bCanPathByLand) and iDistToNearestEnemyBase >= 350 and iEnemyLandExperimentalCount == 0) or iTeamLandExperimentals >= math.max(5, iEnemyLandExperimentalCount + 1) then
+                    local iCurAirExperimentals = 0
+                    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                        iCurAirExperimentals = iCurAirExperimentals + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryGunship * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar)
+                    end
+
+                    if not(bCanPathAmphibiously) or (not(bCanPathByLand) and iDistToNearestEnemyBase >= 350 and iEnemyLandExperimentalCount == 0) or iTeamLandExperimentals + iCurAirExperimentals * 1.75 >= math.max(5, iEnemyLandExperimentalCount + 1) then
                         if iDistToNearestEnemyBase <= 750 then
                             if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFixedT3Arti) < 4 then
                                 iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti
@@ -2679,12 +2689,8 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                     else
                         --Consider air experimental in some rarer cases late game
                         local bGetAirExperimentalInstead = false
-                        if iTeamLandExperimentals >= 4 and (iTeamLandExperimentals >= 7 or M28Conditions.TeamHasAirControl(iTeam) or M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] >= 10000) then
-                            local iCurAirExperimentals = 0
-                            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-                                iCurAirExperimentals = iCurAirExperimentals + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryGunship * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar)
-                            end
-                            if iCurAirExperimentals == 0 or (iCurAirExperimentals * 4 < iTeamLandExperimentals and (iCurAirExperimentals + 1) * 10000 < M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat]) then
+                        if (bEnemyHasFatboys and iTeamLandExperimentals >= 1) or (iTeamLandExperimentals >= 4 and (iTeamLandExperimentals >= 7 or M28Conditions.TeamHasAirControl(iTeam) or M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] >= 10000)) then
+                            if iCurAirExperimentals == 0 or (bEnemyHasFatboys and (iCurAirExperimentals <= math.max(1, iTeamLandExperimentals) or iCurAirExperimentals * 10000 < M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat])) or  (iCurAirExperimentals * 4 < iTeamLandExperimentals and (iCurAirExperimentals + 1) * 10000 < M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat]) then
                                 bGetAirExperimentalInstead = true
                             end
                         end

@@ -3479,7 +3479,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             tRallyPoint = M28Utilities.MoveInDirection(oClosestFriendlyUnitToAnEnemyFirebase:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestFriendlyUnitToAnEnemyFirebase:GetPosition(), tLZData[M28Map.subrefMidpoint]), math.min(M28Utilities.GetDistanceBetweenPositions(oClosestFriendlyUnitToAnEnemyFirebase:GetPosition(), tRallyPoint), 15), true, false, true)
                             local iAltPlateau, iAltLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tRallyPoint)
                             if not(iAltPlateau == iPlateau) then
-                                tRallyPoint = GetPositionAtOrNearTargetInPathingGroup(oClosestFriendlyUnitToAnEnemyFirebase:GetPosition(), tRallyPoint, 0, 0, oClosestFriendlyUnitToAnEnemyFirebase, false, false, nil)
+                                tRallyPoint = M28Map.GetPositionAtOrNearTargetInPathingGroup(oClosestFriendlyUnitToAnEnemyFirebase:GetPosition(), tRallyPoint, 0, 0, oClosestFriendlyUnitToAnEnemyFirebase, false, false, nil)
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': Will try and consolidate based on the closest unit to enemy firebase, tRallyPoint adjusted for this='..repru(tRallyPoint)) end
                         else
