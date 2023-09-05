@@ -45,6 +45,7 @@ refiOrderIssueTeleport = 23
 --Other tracking: Against units
 toUnitsOrderedToRepairThis = 'M28OrderRepairing' --Table of units given an order to repair the unit
 refiEstimatedLastPathPoint = 'M28OrderLastPathRef' --If a unit is being given an order to follow a path, then when its orders are refreshed this shoudl be updated based on what path we think is currently the target
+refiTimeOfLastRemovalUpgrade = 'M28OrdUpgRem' --if ACU given an upgrade that removes upgrades, then this will record the time, to help workaround an issue where the tracking for the new upgrade (post removal) goes through before tracking for the completion of the old (removal) upgrade
 
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 local M28UnitInfo = import('/mods/M28AI/lua/AI/M28UnitInfo.lua')
@@ -593,6 +594,13 @@ function IssueTrackedUpgrade(oUnit, sUpgradeRef, bAddToExistingQueue, sOptionalO
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 end
 
+function DelayedUpgradeTracking(oUnit, sUpgradeRef)
+    WaitTicks(2)
+    if M28UnitInfo.IsUnitValid(oUnit) and oUnit:IsUnitState('Upgrading') then
+        M28Team.UpdateUpgradeTrackingOfUnit(oUnit, false, sUpgradeRef)
+    end
+end
+
 function IssueTrackedEnhancement(oUnit, sUpgradeRef, bAddToExistingQueue, sOptionalOrderDesc)
     local sFunctionRef = 'IssueTrackedEnhancement'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -666,6 +674,8 @@ function IssueTrackedEnhancement(oUnit, sUpgradeRef, bAddToExistingQueue, sOptio
             oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
             table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderEnhancement, [subrefsOrderBlueprint] =sEnhancementOverride})
             IssueScript({oUnit}, {TaskName = 'EnhanceTask', Enhancement = sEnhancementOverride})
+            M28Team.UpdateUpgradeTrackingOfUnit(oUnit, false, sEnhancementOverride)
+            oUnit[refiTimeOfLastRemovalUpgrade] = GetGameTimeSeconds()
         else
             if not(bAddToExistingQueue) then IssueTrackedClearCommands(oUnit) end
             if not(oUnit[reftiLastOrders]) then oUnit[reftiLastOrders] = {} oUnit[refiOrderCount] = 0 end
@@ -673,7 +683,11 @@ function IssueTrackedEnhancement(oUnit, sUpgradeRef, bAddToExistingQueue, sOptio
             table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderEnhancement, [subrefsOrderBlueprint] = sUpgradeRef})
             --LOG('About ot tell unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; owned by '..oUnit:GetAIBrain().Nickname..' to get enhancement upgrade '..sUpgradeRef..'; ACU upgrade count='..(oUnit[import('/mods/M28AI/lua/AI/M28ACU.lua').refiUpgradeCount] or 'nil'))
             IssueScript({oUnit}, {TaskName = 'EnhanceTask', Enhancement = sUpgradeRef})
+            if bDebugMessages == true then LOG(sFunctionRef..': WIll ugprade unit with actual upgrade '..sUpgradeRef) end
             M28Team.UpdateUpgradeTrackingOfUnit(oUnit, false, sUpgradeRef)
+            if oUnit[refiTimeOfLastRemovalUpgrade] and GetGameTimeSeconds() - oUnit[refiTimeOfLastRemovalUpgrade] <= 1 then
+                ForkThread(DelayedUpgradeTracking, oUnit, sUpgradeRef)
+            end
         end
 
     end
