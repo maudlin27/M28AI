@@ -360,7 +360,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
                 sBPIDToBuild = nil
             end
         end
-        if sBPIDToBuild and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] <= 1 and (aiBrain[M28Overseer.refiExpectedRemainingCap] < 40 or (aiBrain[M28Overseer.refiExpectedRemainingCap] < 70 and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] == 0)) then
+        if sBPIDToBuild and (aiBrain[M28Overseer.refiExpectedRemainingCap] < 10 or (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] <= 1 and (aiBrain[M28Overseer.refiExpectedRemainingCap] < 40 or (aiBrain[M28Overseer.refiExpectedRemainingCap] < 70 and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] == 0)))) then
             --Dont build anything if already have lots of it
             if bDebugMessages == true then LOG(sFunctionRef..': Are close to unit cap, sBPIDToBuild after initial close to unit override='..(sBPIDToBuild or 'nil')..'; Current units owned of this already='..aiBrain:GetCurrentUnits(categories[sBPIDToBuild])) end
             local iCurUnitsOfCategory = aiBrain:GetCurrentUnits(categories[sBPIDToBuild])

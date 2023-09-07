@@ -917,6 +917,7 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
             end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if close to unit cap, bDontWantDueToUnitCap='..tostring(bDontWantDueToUnitCap)..'; M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap]='..(M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap] or 'nil')..'; iAverageCurAirAndLandFactories='..iAverageCurAirAndLandFactories..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone) end
 
     --Norush or eco slot at T2 and lower when arent overflowing mass
     if (M28Overseer.bNoRushActive and M28Overseer.iNoRushTimer - GetGameTimeSeconds() >= 30) or (tLZTeamData[M28Map.refbBaseInSafePosition] and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.7) then
@@ -1023,12 +1024,13 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
         if bDebugMessages == true then LOG(sFunctionRef..': We have at least 20 mass per sec so want to have more than 1 factory') end
         bWantMoreFactories = true
     end
-    --decent eco and air fac count is < 1 on average in teamgame (ie want every player to consider getting air fac)
+    --decent eco and air fac count is < 1 on average in teamgame (ie want every player to consider getting air fac) and dealing with core base
     if not(bWantMoreFactories) and iTeamCount > 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 8 * iTeamCount and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 3) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 100 and tLZTeamData[M28Map.subrefLZbCoreBase] and not(HaveLowPower(iTeam)) then
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
             local tAirFacs = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
             if M28Utilities.IsTableEmpty(tAirFacs) then
                 bWantMoreFactories = true
+                if bDebugMessages == true then LOG(sFunctionRef..': Want to build more land factories as have no air fac in this zone') end
             end
         end
     end
@@ -1053,14 +1055,17 @@ function WantMoreFactories(iTeam, iPlateau, iLandZone)
     --More factories in cases where overflowing and have no T3 engineers or active upgrades (e.g. campaign missions with unit restrictions)
     if not(bWantMoreFactories) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.99 and tLZTeamData[M28Map.subrefLZbCoreBase] and iAverageCurAirAndLandFactories <= 15 and not(HaveLowPower(iTeam)) then
         bWantMoreFactories = true
+        if bDebugMessages == true then LOG(sFunctionRef..': Overflowing mass with no t3 engineers so want to build more factories') end
     end
 
     --Override - if we dont have a HQ for the factory type then want to rebuild it
     if not(bWantMoreFactories) and (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] == 0 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] == 0) then
         --Is it likely we have built and then lost the factory?
         if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] == 0 and (M28Team.tTeamData[iTeam][M28Team.subrefiTotalFactoryCountByType][M28Factory.refiFactoryTypeAir] or 0) > 0 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Want to rebuild air factory as have no HQ') end
             bWantMoreFactories = true
         elseif M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] == 0 and (M28Team.tTeamData[iTeam][M28Team.subrefiTotalFactoryCountByType][M28Factory.refiFactoryTypeLand] or 0) > 0 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Want to rebuild land factory as have no HQ') end
             bWantMoreFactories = true
         end
     end

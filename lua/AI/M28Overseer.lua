@@ -735,6 +735,11 @@ function CheckUnitCap(aiBrain)
                 if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryGunship) > 0 then
                     tiCategoryToDestroy[2] = M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND + M28UnitInfo.refCategoryBomber * categories.TECH1
                 end
+            else
+                --exclude t2 maa if we have t3 maa
+                if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMAA * categories.TECH3) > 0 then
+                    tiCategoryToDestroy[0] = tiCategoryToDestroy[0] + M28UnitInfo.refCategoryMAA * categories.TECH2
+                end
             end
         end
 

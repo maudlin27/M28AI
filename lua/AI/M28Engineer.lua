@@ -4468,7 +4468,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     local sFunctionRef = 'ConsiderActionToAssign'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    
 
     --Dont try getting any mroe BP for htis action if have run out of buildable locations
     local iExpectedBuildingSize = tiLastBuildingSizeFromActionForTeam[iTeam][iActionToAssign]
@@ -8118,6 +8118,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 if not(bExpansionOnSameIslandAsBase) or M28Map.iMapSize >= 750 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.9 then iFactoriesWanted = iFactoriesWanted + math.max(1, iFactoriesWanted / 3) end
             end
         end
+        if iFactoriesWanted >= 1 and M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeLastNearUnitCap] and not(M28Conditions.WantMoreFactories(iTeam, iPlateau, iLandZone)) then iFactoriesWanted = 1 end
         if bDebugMessages == true then LOG(sFunctionRef..': iFactoriesWanted='..iFactoriesWanted..'; bWantMorePower='..tostring(bWantMorePower)..'; bHaveLowMass='..tostring(bHaveLowMass)..'; Mass% stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]..'; Map size='..M28Map.iMapSize..'; bExpansionOnSameIslandAsBase='..tostring(bExpansionOnSameIslandAsBase)..'; Island mex count='..M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tLZData[M28Map.subrefLZIslandRef]]..'; LZ mex count='..tLZData[M28Map.subrefLZMexCount]) end
         if iFactoriesWanted > 2 then
             --Does enemy have any units/threats on this island within a certain range?
@@ -8880,7 +8881,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             if M28Utilities.IsTableEmpty(tExistingLandFactories) == false then
                 iExistingFactories = table.getn(tExistingLandFactories)
             end
-            if iExistingFactories < 2 then
+            if iExistingFactories < 2 and M28Conditions.WantMoreFactories(iTeam, iPlateau, iLandZone) then
                 --HaveActionToAssign(iActionToAssign, iMinTechLevelWanted, iBuildPowerWanted, vOptionalVariable, bDontIncreaseLZBPWanted, bBPIsInAdditionToExisting)
                 if bDebugMessages == true then LOG(sFunctionRef..': Want to build land factory as only have 1 factory') end
                 HaveActionToAssign(refActionBuildLandFactory, 1, 40)
