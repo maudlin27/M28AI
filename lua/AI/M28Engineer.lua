@@ -2411,7 +2411,7 @@ function RecordBuildableCoreWaterZoneLocationsNearStartOfGame()
 end
 
 function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFactionOrNilIfAlreadyAssigned, tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero, iLandOrWaterZone)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'DecideOnExperimentalToBuild'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -5499,7 +5499,7 @@ function GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLan
     local sFunctionRef = 'GetExperimentalsBeingBuiltInThisAndOtherLandZones'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iOptionalCategoryFilter and not(bOptionalReturnMassToCompleteOtherZoneUnderConstruction) then bDebugMessages = true end
+
 
     local bHaveExperimentalForThisLandZone = false
     local iOtherLandZonesWithExperimental = 0
@@ -5533,10 +5533,14 @@ function GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLan
                         end
                     end
                 end
-                if not(iOptionalCategoryFilter) then bIncludeCurEntry = true
+                if not(iOptionalCategoryFilter) then
+                    bIncludeCurEntry = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Dont have an optional category filter o will include this zone as building an experimental') end
                 elseif bIncludeCurEntry == nil then
-                    sCurBPBeingBuilt = oEngi[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint]
+                    sCurBPBeingBuilt = oEngi[M28Orders.reftiLastOrders][(oEngi[M28Orders.refiOrderCount] or 1)][M28Orders.subrefsOrderBlueprint]
+                    if bDebugMessages == true then LOG(sFunctionRef..': sCurBPBeingBuilt='..(sCurBPBeingBuilt or 'nil')) end
                     if sCurBPBeingBuilt and EntityCategoryContains(iOptionalCategoryFilter, sCurBPBeingBuilt) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Are building a unit of the specified category so will include this zone as building an experimental') end
                         bIncludeCurEntry = true
                     end
                 end
