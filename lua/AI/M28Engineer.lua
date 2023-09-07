@@ -2411,7 +2411,7 @@ function RecordBuildableCoreWaterZoneLocationsNearStartOfGame()
 end
 
 function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFactionOrNilIfAlreadyAssigned, tLZOrWZData, tLZOrWZTeamData, iPlateauOrZero, iLandOrWaterZone)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'DecideOnExperimentalToBuild'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -2490,6 +2490,7 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                 --Consider getting nukes
                 if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] then --dont want nuke built too far from base
                     --Do we already have nukes?
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of nukes in this zone empty='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategorySML, tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits])))) end
                     if M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategorySML, tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits])) then
                         --Do teammates have no more than 1 nuke?
                         local iTeamNukes = 0
@@ -2499,9 +2500,10 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                             if iTeamNukes > 0 and oBrain:GetFactionIndex() == M28UnitInfo.refFactionSeraphim then iTeamNukes = iTeamNukes + oBrain:GetCurrentUnits(M28UnitInfo.refCategorySML * categories.EXPERIMENTAL) * 2 end
                         end
                         local bHaveExperimentalForThisLandZone, iOtherLandZonesWithExperimental, iMassToComplete = GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateauOrZero, iLandOrWaterZone, false, nil, M28UnitInfo.refCategorySML)
+                        if bDebugMessages == true then LOG(sFunctionRef..': iTeamNukes based on getcurrentunits='..iTeamNukes..'; iOtherLandZonesWithExperimental='..iOtherLandZonesWithExperimental) end
                         iTeamNukes = iTeamNukes + iOtherLandZonesWithExperimental
 
-                        if bDebugMessages == true then LOG(sFunctionRef..': iTeamNukes='..iTeamNukes) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iTeamNukes after update='..iTeamNukes) end
                         if iTeamNukes == 0 or (iTeamNukes == 1 and M28Map.iMapSize > 512) then
                             local iHighestNukeTargetValue = M28Building.GetHighestNukeTargetValue(tLZOrWZData, tLZOrWZTeamData, aiBrain.M28Team)
                             if bDebugMessages == true then LOG(sFunctionRef..': iHighestNukeTargetValue='..iHighestNukeTargetValue..'; Team gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]) end
@@ -5488,37 +5490,60 @@ end
 
 function GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLandZone, bOptionalReturnMassToCompleteOtherZoneUnderConstruction, iOptionalSearchRange, iOptionalCategoryFilter)
     --returns two variables, the first is true/false if iLandZone has a queued experimental to build; the second is the number of other land zones for iTeam that have queued experimentals to build
-    --Optional variables are all for if bOptionalReturnMassToCompleteOtherZoneUnderConstruction is true:
-        --will return the amount of mass needed to complete all under construction experimentals in other zones
-        --Will only include those within iOptionalSearchRange
-        --And also only if they meet any category specified by iOptionalCategoryFilter (will include everything if nil)
+    --Optional variables are all for if bOptionalReturnMassToCompleteOtherZoneUnderConstruction is true, except for iOptionalCategoryFilter
+        --bOptionalReturnMassToCompleteOtherZoneUnderConstruction will return the amount of mass needed to complete all under construction experimentals in other zones
+        --iOptionalSearchRange Will only include those within iOptionalSearchRange
+    --iOptionalCategoryFilter - if specified, then will only count engineers who are building or are queued to build a unit meeting this category (will include everything if nil)
+
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetExperimentalsBeingBuiltInThisAndOtherLandZones'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if iOptionalCategoryFilter and not(bOptionalReturnMassToCompleteOtherZoneUnderConstruction) then bDebugMessages = true end
+
     local bHaveExperimentalForThisLandZone = false
     local iOtherLandZonesWithExperimental = 0
     local iMassToComplete
     if bOptionalReturnMassToCompleteOtherZoneUnderConstruction then iMassToComplete = 0 end
 
+    if bDebugMessages == true then LOG(sFunctionRef..': Is table of engis building exp empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals]))..'; iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iTeam='..iTeam..'; Time='..GetGameTimeSeconds()) end
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals]) == false then
         local tiPlateauAndLZBuildingExperimental = {}
         local toUnderConstructionExperimentalsInOtherZonesByUnitRef = {}
         local iCurPlateau, iCurLZ
+        local bIncludeCurEntry
+        local sCurBPBeingBuilt
         for iEngi, oEngi in M28Team.tTeamData[iTeam][M28Team.subreftTeamEngineersBuildingExperimentals] do
             if M28UnitInfo.IsUnitValid(oEngi) and oEngi[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam] then
                 iCurPlateau = oEngi[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][1]
                 iCurLZ = oEngi[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2]
+                bIncludeCurEntry = nil
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering engineer '..oEngi.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngi)..'; iCurPlateau='..(iCurPlateau or 'nil')..'; iCurLZ='..(iCurLZ or 'nil')..'; Engi last order blueprint='..(oEngi[M28Orders.reftiLastOrders][(oEngi[M28Orders.refiOrderCount] or 1)][M28Orders.subrefsOrderBlueprint] or 'nil')) end
                 if bOptionalReturnMassToCompleteOtherZoneUnderConstruction then --Check if want to include this
                     if not(iCurLZ == iLandZone and iPlateau == iCurPlateau) then
+                        bIncludeCurEntry = false
                         local oCurExperimental = oEngi:GetFocusUnit()
                         if oCurExperimental and oCurExperimental:GetFractionComplete() < 1 then
                             if not(iOptionalCategoryFilter) or EntityCategoryContains(iOptionalCategoryFilter, oCurExperimental.UnitId) then
                                 if not(toUnderConstructionExperimentalsInOtherZonesByUnitRef[oCurExperimental.EntityId]) then
+                                    bIncludeCurEntry = true
                                     toUnderConstructionExperimentalsInOtherZonesByUnitRef[oCurExperimental.EntityId] = oCurExperimental
                                 end
                             end
                         end
                     end
                 end
-                if not(tiPlateauAndLZBuildingExperimental[iCurPlateau]) then tiPlateauAndLZBuildingExperimental[iCurPlateau] = {} end
-                tiPlateauAndLZBuildingExperimental[iCurPlateau][iCurLZ] = (tiPlateauAndLZBuildingExperimental[iCurPlateau][iCurLZ] or 0) + 1
+                if not(iOptionalCategoryFilter) then bIncludeCurEntry = true
+                elseif bIncludeCurEntry == nil then
+                    sCurBPBeingBuilt = oEngi[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint]
+                    if sCurBPBeingBuilt and EntityCategoryContains(iOptionalCategoryFilter, sCurBPBeingBuilt) then
+                        bIncludeCurEntry = true
+                    end
+                end
+                if bIncludeCurEntry then
+                    if not(tiPlateauAndLZBuildingExperimental[iCurPlateau]) then tiPlateauAndLZBuildingExperimental[iCurPlateau] = {} end
+                    tiPlateauAndLZBuildingExperimental[iCurPlateau][iCurLZ] = (tiPlateauAndLZBuildingExperimental[iCurPlateau][iCurLZ] or 0) + 1
+                end
             end
         end
         if M28Utilities.IsTableEmpty(tiPlateauAndLZBuildingExperimental) == false then
@@ -5541,6 +5566,7 @@ function GetExperimentalsBeingBuiltInThisAndOtherLandZones(iTeam, iPlateau, iLan
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return bHaveExperimentalForThisLandZone, iOtherLandZonesWithExperimental, iMassToComplete
 end
 
