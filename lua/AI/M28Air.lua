@@ -4362,6 +4362,8 @@ function UpdateTransportLocationShortlist(iTeam)
     local sFunctionRef = 'UpdateTransportLocationShortlist'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastTransportShortlistUpdate] = GetGameTimeSeconds()
     M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist] = {}
 
@@ -4667,6 +4669,9 @@ function ManageTransports(iTeam, iAirSubteam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageTransports'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+
     if bDebugMessages == true then LOG(sFunctionRef..': Time of last transport shortlist update='..(M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastTransportShortlistUpdate] or 0)..'; Cur time='..GetGameTimeSeconds()..'; Dif='..GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastTransportShortlistUpdate] or 0)) end
     if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastTransportShortlistUpdate] or 0) >= 0.8 then
         UpdateTransportLocationShortlist(iTeam)

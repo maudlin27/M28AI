@@ -69,8 +69,8 @@ function ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearchForAdjace
         if bDebugMessages == true then LOG(sFunctionRef..': Will assist part complete building='..oNearestPartComplete.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestPartComplete)) end
         local tLastOrder = oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]]
         --if not(tLastOrder[M28Orders.subrefoOrderUnitTarget] == oNearestPartComplete) then --Dont need this step, as the order already takes this into account, and reissues once we get within build range
-            M28Orders.IssueTrackedRepair(oACU, oNearestPartComplete, false, 'ACUComplB', false)
-            --M28Orders.IssueTrackedGuard(oACU, oNearestPartComplete, false)
+        M28Orders.IssueTrackedRepair(oACU, oNearestPartComplete, false, 'ACUComplB', false)
+        --M28Orders.IssueTrackedGuard(oACU, oNearestPartComplete, false)
         --end
 
     else
@@ -455,7 +455,10 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                     if not(bHydroBuildOrder) then
                         --Redundancy 1 incase have a hydro registered to core zone instead of nearby and we ahve travlled to nearby zone
                         local tNearbyHydro = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryHydro, oACU:GetPosition(), 35, 'Ally')
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of nearby hydros empty='..tostring(M28Utilities.IsTableEmpty(tNearbyHydro))) end
+                        local oCompleteHydro
                         if M28Utilities.IsTableEmpty(tNearbyHydro) == false then
+
                             for iHydro, oHydro in tNearbyHydro do
                                 if oHydro:GetAIBrain() == aiBrain and oHydro:GetFractionComplete() < 1 then
                                     iCurHydroDist = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oHydro:GetPosition())
@@ -464,10 +467,17 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                         tClosestHydroToACU = oHydro:GetPosition()
                                         oOptionalUnderConstructionHydro = oHydro
                                     end
+                                else
+                                    oCompleteHydro = oHydro
                                 end
                             end
                         end
-                        if oOptionalUnderConstructionHydro then bHydroBuildOrder = true end
+                        if not(oOptionalUnderConstructionHydro) and oCompleteHydro then
+                            iClosestDistToACU = M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oCompleteHydro:GetPosition())
+                            tClosestHydroToACU = oCompleteHydro:GetPosition()
+                            bHydroBuildOrder = true
+                        elseif oOptionalUnderConstructionHydro then bHydroBuildOrder = true
+                        end
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Will adjust build order depending on if have hydro nearby. Is table of land zone hydros empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefHydroLocations]))..'; bHydroBuildOrder='..tostring(bHydroBuildOrder)) end
                     if not(bHydroBuildOrder) then
@@ -583,7 +593,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                         end
 
                         --Redundancy if fail to get order from above
-                        if bDebugMessages == true then LOG(sFunctionRef..': Is ACU table of last orders empty after attempting above='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is ACU table of last orders empty after attempting above='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))..'; Does ACU have a valid order='..tostring(M28Conditions.DoesACUHaveValidOrder(oACU))) end
                         if not(M28Conditions.DoesACUHaveValidOrder(oACU)) and oACU[refbDoingInitialBuildOrder] then
                             --Is it just that we want to assist a hydro and engineers havent started one yet? If so then check if we have an engineer assigned to build one, and check the game time
                             if GetGameTimeSeconds() <= 180 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 10 * iResourceMod and M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefHydroLocations]) == false then
@@ -2629,7 +2639,7 @@ function HaveTelesnipeAction(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
                                 iArtiValue = 3
                             elseif EntityCategoryContains(M28UnitInfo.refCategorySML * categories.EXPERIMENTAL, oUnit.UnitId) then
                                 iArtiValue = 2
-                            elseif EntityCategoryContains(M28UnitInfo.refCategoryNovax, oUnit.UnitId) then
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryNovaxCentre, oUnit.UnitId) then
                                 iArtiValue = 0.6
                             else
                                 iArtiValue = 1
@@ -2644,7 +2654,7 @@ function HaveTelesnipeAction(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
                         if iEnemyArtiCount >= 3 then
                             local iFriendlyArtiCount = 0
                             for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-                                local tFriendlyExperimentals = GetListOfUnits(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryNovax + M28UnitInfo.refCategoryFixedT3Arti, false, false)
+                                local tFriendlyExperimentals = oBrain:GetListOfUnits(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryNovaxCentre + M28UnitInfo.refCategoryFixedT3Arti, false, false)
                                 for iUnit, oUnit in tFriendlyExperimentals do
                                     if oUnit:GetFractionComplete() >= 0.4 then
                                         iFriendlyArtiCount = iFriendlyArtiCount + GetArtiEquivValue(oUnit)

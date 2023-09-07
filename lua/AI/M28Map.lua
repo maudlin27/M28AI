@@ -1442,7 +1442,7 @@ function AssignSegmentsNearMexesToLandZones()
         local tTableBeforePositions = {{iSegmentX - 1, iSegmentZ, {{tBasePosition[1] - 1, 0, tBasePosition[3]}}}, {iSegmentX, iSegmentZ - 1, {{tBasePosition[1], 0, tBasePosition[3] - 1}}}, {iSegmentX, iSegmentZ + 1, {{tBasePosition[1], 0, tBasePosition[3] + 1}}}, {iSegmentX + 1, iSegmentZ, {{tBasePosition[1] + 1, 0, tBasePosition[3]}}}}
         if iLandZoneSegmentSize > 1 then
             for iEntry, tSubtable in tTableBeforePositions do
-                if bDebugMessages == true then LOG(sFunctionRef..': tSubtable='..repru(tSubtable)..'; tSubtable[3]='..repru(tSubtable[3])) end
+                --if bDebugMessages == true then LOG(sFunctionRef..': tSubtable='..repru(tSubtable)..'; tSubtable[3]='..repru(tSubtable[3])) end
                 for iPositionAdjust = 2, iLandZoneSegmentSize, 1 do
                     if iEntry == 1 then
                         table.insert(tSubtable[3], {tBasePosition[1] - iPositionAdjust, 0, tBasePosition[3]})
@@ -1456,7 +1456,7 @@ function AssignSegmentsNearMexesToLandZones()
                 end
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': tTableBeforePositions='..repru(tTableBeforePositions)) end
+        --if bDebugMessages == true then LOG(sFunctionRef..': tTableBeforePositions='..repru(tTableBeforePositions)) end
         return tTableBeforePositions
     end
 
@@ -1486,7 +1486,7 @@ function AssignSegmentsNearMexesToLandZones()
                 else
                     if not(tbSegmentHasDifferentZone[iBaseSegmentX]) then tbSegmentHasDifferentZone[iBaseSegmentX] = {} end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': iMex='..iMex..'; iBaseSegmentXZ='..iBaseSegmentX..'-'..iBaseSegmentZ..'; tMex='..repru(tMex)..'; iMexLandZone='..(iMexLandZone or 0)..'; iBaseQueueCount='..iBaseQueueCount..'; tiAdjacentSegmentsForSearchCountByMex[0][iBaseQueueCount]='..repru(tiAdjacentSegmentsForSearchCountByMex[0][iBaseQueueCount])..'; iMexLandLabel='..(iMexLandLabel or 'nil')..'; iMaxSegmentSearchDistance='..iMaxSegmentSearchDistance) end
+                if bDebugMessages == true then LOG(sFunctionRef..': iMex='..iMex..'; iPlateau='..iPlateau..'; iBaseSegmentXZ='..iBaseSegmentX..'-'..iBaseSegmentZ..'; tMex='..repru(tMex)..'; iMexLandZone='..(iMexLandZone or 0)..'; iBaseQueueCount='..iBaseQueueCount..'; tiAdjacentSegmentsForSearchCountByMex[0][iBaseQueueCount]='..repru(tiAdjacentSegmentsForSearchCountByMex[0][iBaseQueueCount])..'; iMexLandLabel='..(iMexLandLabel or 'nil')..'; iMaxSegmentSearchDistance='..iMaxSegmentSearchDistance) end
                 --tiBaseQueueSegments[iBaseQueueCount] = {iBaseSegmentX, iBaseSegmentZ}
             end
             --Cycle through any hydro locations that have been recorded near a start position and also add as a 'base' location to search from
@@ -1494,22 +1494,26 @@ function AssignSegmentsNearMexesToLandZones()
             if bDebugMessages == true then LOG(sFunctionRef..': Is tHydroNearStart empty='..tostring(M28Utilities.IsTableEmpty(tHydroNearStart))) end
             if M28Utilities.IsTableEmpty(tHydroNearStart) == false then
                 for iEntry, tHydroLocation in tHydroNearStart do
-                    iBaseSegmentX, iBaseSegmentZ = GetPathingSegmentFromPosition(tHydroLocation)
-                    iMexLandZone = tLandZoneBySegment[iBaseSegmentX][iBaseSegmentZ]
-                    iMexLandLabel = NavUtils.GetTerrainLabel('Land', tHydroLocation)
-
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering hydro at position '..repru(tHydroLocation)..'; iMexLandZone='..(iMexLandZone or 'nil')..'; iMexLandLabel='..(iMexLandLabel or 'nil')) end
-
-                    if (iMexLandZone or 0) > 0 and (iMexLandLabel or 0) > 0 then
-                        iBaseQueueCount = iBaseQueueCount + 1
+                    if bDebugMessages == true then LOG(sFunctionRef..': Hover terrain label for hydro='..NavUtils.GetTerrainLabel(refPathingTypeHover, tHydroLocation)) end
+                    if NavUtils.GetTerrainLabel(refPathingTypeHover, tHydroLocation) == iPlateau then
                         iBaseSegmentX, iBaseSegmentZ = GetPathingSegmentFromPosition(tHydroLocation)
-                        tiAdjacentSegmentsForSearchCountByMex[0][iBaseQueueCount] = {{iBaseSegmentX, iBaseSegmentZ, iMexLandZone, iMexLandLabel, tHydroLocation}}
-                        if bDebugMessages == true then LOG(sFunctionRef..': Added hydro as a base location') end
-                    else
-                        if not(tbSegmentHasDifferentZone[iBaseSegmentX]) then tbSegmentHasDifferentZone[iBaseSegmentX] = {} end
+                        iMexLandZone = tLandZoneBySegment[iBaseSegmentX][iBaseSegmentZ]
+                        iMexLandLabel = NavUtils.GetTerrainLabel('Land', tHydroLocation)
+
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering hydro at position '..repru(tHydroLocation)..'; iMexLandZone='..(iMexLandZone or 'nil')..'; iMexLandLabel='..(iMexLandLabel or 'nil')) end
+
+                        if (iMexLandZone or 0) > 0 and (iMexLandLabel or 0) > 0 then
+                            iBaseQueueCount = iBaseQueueCount + 1
+                            iBaseSegmentX, iBaseSegmentZ = GetPathingSegmentFromPosition(tHydroLocation)
+                            tiAdjacentSegmentsForSearchCountByMex[0][iBaseQueueCount] = {{iBaseSegmentX, iBaseSegmentZ, iMexLandZone, iMexLandLabel, tHydroLocation}}
+                            if bDebugMessages == true then LOG(sFunctionRef..': Added hydro as a base location') end
+                        else
+                            if not(tbSegmentHasDifferentZone[iBaseSegmentX]) then tbSegmentHasDifferentZone[iBaseSegmentX] = {} end
+                        end
                     end
                 end
             end
+
 
 
 
@@ -1799,6 +1803,7 @@ local function AssignRemainingSegmentsToLandZones()
                     end
                 end
 
+
                 --Cycle through adjacent segments to see if find a land zone, and if so then assign this
                 local tiSegmentsForAssignment = {}
                 local iLandZoneToUse
@@ -1811,7 +1816,7 @@ local function AssignRemainingSegmentsToLandZones()
                     for iEntry, tiSegmentXZAndZone in tiAdjacentSegmentsForSearchBySearchCount[iSearchCount-1] do
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering iSearchCount-1='..(iSearchCount - 1)..'; tiSegmentXZAndZone='..repru(tiSegmentXZAndZone)) end
                         for iNeighbourEntry, tiNeighbourXZ in GetNeighbours(tiSegmentXZAndZone[1], tiSegmentXZAndZone[2], tiSegmentXZAndZone[5]) do
-                            if bDebugMessages == true then LOG(sFunctionRef..': Cycling through each neighbour for iSearchCount='..iSearchCount..' and iEntry='..iEntry..', neighbour Segment XZ=X'..tiNeighbourXZ[1]..'Z'..tiNeighbourXZ[2]..'; iNeighbourEntry='..iNeighbourEntry..'; tLandZoneBySegment for this='..(tLandZoneBySegment[tiNeighbourXZ[1]][tiNeighbourXZ[2]] or 'nil')..'; tiSegmentsForAssignment[tiNeighbourXZ[1]][tiNeighbourXZ[2]]='..tostring(tiSegmentsForAssignment[tiNeighbourXZ[1]][tiNeighbourXZ[2]] or false)) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Cycling through each neighbour for iSearchCount='..iSearchCount..' and iEntry='..iEntry..', neighbour Segment XZ=X'..tiNeighbourXZ[1]..'Z'..tiNeighbourXZ[2]..'; iNeighbourEntry='..iNeighbourEntry..'; tLandZoneBySegment for this='..(tLandZoneBySegment[tiNeighbourXZ[1]][tiNeighbourXZ[2]] or 'nil')..'; tiSegmentsForAssignment[tiNeighbourXZ[1]][tiNeighbourXZ[2]]='..tostring(tiSegmentsForAssignment[tiNeighbourXZ[1]][tiNeighbourXZ[2]] or false)..'; iPlateauGroup='..iPlateauGroup..'; Neighbour plateau='..(NavUtils.GetTerrainLabel(refPathingTypeHover, GetPositionFromPathingSegments(tiNeighbourXZ[1], tiNeighbourXZ[2])))) end
                             if not(tLandZoneBySegment[tiNeighbourXZ[1]][tiNeighbourXZ[2]]) or not(iLandPathingGroupWanted == NavUtils.GetTerrainLabel(refPathingTypeLand, GetPositionFromPathingSegments(tiNeighbourXZ[1], tiNeighbourXZ[2]))) then
                                 --The neighbour doesnt have an assignment either or isnt in the same plateau, if we haven't recorded it already as a segment for assignment, then receord it if it is in the same land terrain label as the base position
                                 if not(tiSegmentsForAssignment[tiNeighbourXZ[1]][tiNeighbourXZ[2]]) then
@@ -1899,7 +1904,7 @@ local function AssignRemainingSegmentsToLandZones()
                 LOG(sFunctionRef..': No land pathing group for base position '..repru(tBasePosition)..'; iBaseSegmentX='..iBaseSegmentX..'; iBaseSegmentZ='..iBaseSegmentZ..'; will draw base position')
                 M28Utilities.DrawLocation(tBasePosition)
             end
-        end
+            end
 
     end
 
@@ -2052,6 +2057,7 @@ local function AssignMexesALandZone()
 
     --Subfunction - if we have a mex to assign to a land zone then this subfunction should be called to check for any nearby mexes without a zone and assign these to the same zone
     function AddNearbyMexesToLandZone(iPlateau, iCurLandZone, tMex, iRecursiveCount)
+        if bDebugMessages == true then LOG(sFunctionRef..': Adding nearby mexes to land zone, iPlateau='..iPlateau..'; iCurLandZone='..iCurLandZone..'; tMex='..repru(tMex)..'; iRecursiveCount='..iRecursiveCount..'; Hover terrain label for tMex='..NavUtils.GetTerrainLabel(refPathingTypeHover, tMex)) end
         if iRecursiveCount < 10 then --If around 13 or 14 then run into recursive limit and crash
             local iLandGroupWanted = NavUtils.GetTerrainLabel(refPathingTypeLand, tMex)
             local iMaxRange
@@ -2097,6 +2103,7 @@ local function AssignMexesALandZone()
     for iIndex, tStartPosition in tRelevantStartPointsByIndex do
         iLZToUse = nil
         iCurPlateau = NavUtils.GetTerrainLabel(refPathingTypeHover, tStartPosition)
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering tStartPosition='..repru(tStartPosition)..'; iCurPlateau based on hover terrain label='..(iCurPlateau or 'nil')) end
         --Are we close to an existing start position such that we should use the same LZ for both positions?
         if M28Utilities.IsTableEmpty(tiStartIndexPlateauAndLZ) == false then
             for iExistingIndex, tExistingPlateauAndLZ in tiStartIndexPlateauAndLZ do
@@ -3776,6 +3783,13 @@ local function SetupLandZones()
     if bDebugMessages == true then
         LOG(sFunctionRef..': Finished assining area aound mexes, will now draw resulting land zones, system time='..GetSystemTimeSecondsOnlyForProfileUse())
         DrawLandZones()
+        --If want to only draw zones for 1 plateau use below instead
+        --[[local iCurColour = 0
+        for iLandZone, tLZData in tAllPlateaus[88][subrefPlateauLandZones] do
+            iCurColour = iCurColour + 1
+            if iCurColour >= 9 then iCurColour = 1 end
+            DrawSpecificLandZone(88, iLandZone)
+        end--]]
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(5)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)

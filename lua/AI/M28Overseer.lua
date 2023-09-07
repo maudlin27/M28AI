@@ -464,6 +464,14 @@ function NoRushMonitor()
 end
 
 function TestCustom(aiBrain)
+    --M28Map.DrawSpecificLandZone(88, 1, 3)
+
+    local iCurColour = 0
+    for iLandZone, tLZData in M28Map.tAllPlateaus[88][M28Map.subrefPlateauLandZones] do
+        iCurColour = iCurColour + 1
+        if iCurColour >= 9 then iCurColour = 1 end
+        M28Map.DrawSpecificLandZone(88, iLandZone)
+    end
 
     --New water zone logic testing
     --local tWZData = M28Map.tPondDetails[51][M28Map.subrefPondWaterZones][269]
