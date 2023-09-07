@@ -856,13 +856,17 @@ function DelayedTransportReloadCheck(oUnit, oOrderTarget)
     --Ended up abandoning this as it didnt solve the issue and causes other issues
     local sFunctionRef = 'DelayedTransportReloadCheck'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local tTransportPositionAtStart = {oOrderTarget:GetPosition()[1], oOrderTarget:GetPosition()[2], oOrderTarget:GetPosition()[3]}
     local tUnitPositionAtStart = {oUnit:GetPosition()[1], oUnit:GetPosition()[2], oUnit:GetPosition()[3]}
+
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     WaitSeconds(5)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     function AreUnitsStillValidAndNotClose(tLastUnitPosition)
-        if M28UnitInfo.IsUnitValid(oUnit) and M28UnitInfo.IsUnitValid(oOrderTarget) and not(oUnit:IsUnitState('Attached')) and oUnit[M28Engineer.refiAssignedAction] == M28Engineer.refActionLoadOntoTransport and M28Utilities.GetRoughDistanceBetweenPositions(oUnit:GetPosition(), oOrderTarget:GetPosition()) >= 4 and M28Utilities.GetRoughDistanceBetweenPositions(oUnit:GetPosition(), tLastUnitPosition) <= 1 then
+        if M28UnitInfo.IsUnitValid(oUnit) and M28UnitInfo.IsUnitValid(oOrderTarget) and not(oUnit:IsUnitState('Attached')) and oUnit[M28Engineer.refiAssignedAction] == M28Engineer.refActionLoadOntoTransport and oOrderTarget[M28Air.refoTransportUnitTryingToLoad] == oUnit and M28Utilities.GetRoughDistanceBetweenPositions(oUnit:GetPosition(), oOrderTarget:GetPosition()) >= 4 and M28Utilities.GetRoughDistanceBetweenPositions(oUnit:GetPosition(), tLastUnitPosition) <= 1 then
             return true
         end
         return false
@@ -875,7 +879,7 @@ function DelayedTransportReloadCheck(oUnit, oOrderTarget)
         WaitSeconds(1)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         iTotalLoopWait = iTotalLoopWait + 1
-        if iTotalLoopWait >= 4 then
+        if iTotalLoopWait >= 5 then
             if bDebugMessages == true then LOG(sFunctionRef..': iTotalLoopWait='..iTotalLoopWait..'; Transport position='..repru(oOrderTarget:GetPosition())) end
             if oOrderTarget:GetPosition()[2] - GetSurfaceHeight(oOrderTarget:GetPosition()[1], oOrderTarget:GetPosition()[3]) <= 1 then
                 bSuspectedFailedLoad = true
@@ -885,6 +889,10 @@ function DelayedTransportReloadCheck(oUnit, oOrderTarget)
     end
     if bDebugMessages == true then LOG(sFunctionRef..': bSuspectedFailedLoad='..tostring(bSuspectedFailedLoad or false)) end
     if bSuspectedFailedLoad then
+        --Warp to the transport then retry
+        local tWarpLocation = oOrderTarget:GetPosition()
+        tWarpLocation[2] = GetSurfaceHeight(tWarpLocation[1], tWarpLocation[3])
+        Warp(oUnit, tWarpLocation, oUnit:GetOrientation())
         IssueTrackedTransportLoad(oUnit, oOrderTarget, false, 'BackupTL', true, true)
     end
 
@@ -897,6 +905,8 @@ function IssueTrackedTransportLoad(oUnit, oOrderTarget, bAddToExistingQueue, sOp
     local sFunctionRef = 'IssueTrackedTransportLoad'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
 
     --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uel01059' and oUnit:GetAIBrain():GetArmyIndex() == 2 then
         bDebugMessages = true
@@ -967,7 +977,7 @@ function IssueTrackedTransportLoad(oUnit, oOrderTarget, bAddToExistingQueue, sOp
 
         if bDebugMessages == true then LOG(sFunctionRef..': Unit last order='..reprs(tLastOrder)..'; Special micro active='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; bOverrideMicroOrder='..tostring(bOverrideMicroOrder or false)..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)..'; Transport state='..M28UnitInfo.GetUnitState(oOrderTarget)) end
 
-        if not(tLastOrder[subrefiOrderType] == refiOrderLoadOntoTransport and oOrderTarget == tLastOrder[subrefoOrderUnitTarget]) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive])) then
+        if bDontTryBackup or (not(tLastOrder[subrefiOrderType] == refiOrderLoadOntoTransport and oOrderTarget == tLastOrder[subrefoOrderUnitTarget]) and (bOverrideMicroOrder or not(oUnit[M28UnitInfo.refbSpecialMicroActive]))) then
             if not(bAddToExistingQueue) or M28Utilities.IsTableEmpty(   tLastOrder) then
                 --if not(bDontUpdateUnitBeingLoaded) then
                 IssueTrackedClearCommands(oOrderTarget) --Jip mentioned you can need to clear a transport's existing queue for a new load order to work
@@ -982,7 +992,7 @@ function IssueTrackedTransportLoad(oUnit, oOrderTarget, bAddToExistingQueue, sOp
             IssueTransportLoad({oUnit}, oOrderTarget)
             oOrderTarget[M28Air.refiTransportTimeSpentWaiting] = math.max(0, (oOrderTarget[M28Air.refiTransportTimeSpentWaiting] or 0) - 15)
             if bDebugMessages == true then LOG(sFunctionRef..': Just sent transport load order') end
-            --if not(bDontTryBackup) then ForkThread(DelayedTransportReloadCheck, oUnit, oOrderTarget) end --Found this didnt solve the problem had in one replay so wont try applying this until have a better solution
+            if not(bDontTryBackup) then ForkThread(DelayedTransportReloadCheck, oUnit, oOrderTarget) end --Found this caused more problems than it solved when it  just reissued the order; however per sprouto's suggestion warping the engineer first solves most issues where this happens; is on a 10s delay so should be slower than a human
         end
         if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
     end
