@@ -82,12 +82,13 @@ refiTimeBetweenIFShots = 'M28IFTime'
 refbSniperRifleEnabled = 'M28UnitSniperRifleEnabled' --True if seraphim sniperbot has its long range sniperrifle enabled
 
 --Weapon priorities
-refWeaponPriorityGunship = {'MOBILE SHIELD', 'MOBILE ANTIAIR CRUISER', 'MOBILE ANTIAIR', 'ANTIAIR', 'STRUCTURE SHIELD', 'VOLATILE', 'MASSEXTRACTION', 'GROUNDATTACK', 'TECH3 MOBILE', 'TECH2 MOBILE', 'TECH1 MOBILE', 'ALLUNITS'}
+refWeaponPriorityGunship = {'STRUCTURE EXPERIMENTAL, STRUCTURE ARTILLERY TECH3, ARTILLERY EXPERIMENTAL', 'MOBILE SHIELD', 'MOBILE ANTIAIR CRUISER', 'MOBILE ANTIAIR', 'ANTIAIR', 'STRUCTURE SHIELD', 'VOLATILE STRUCTURE', 'MASSEXTRACTION', 'VOLATILE MOBILE', 'GROUNDATTACK', 'TECH3 MOBILE', 'TECH2 MOBILE', 'TECH1 MOBILE', 'ALLUNITS'}
 refWeaponPriorityDestroyer = {'SHIELD NAVAL', 'SUBMERSIBLE', 'EXPERIMENTAL NAVAL, TECH3 NAVAL MOBILE', 'TECH2 NAVAL MOBILE', 'STRUCTURE SHIELD', 'STRUCTURE DEFENSE DIRECTFIRE TECH2, STRUCTURE DEFENSE DIRECTFIRE TECH3, STRUCTURE INDIRECTFIRE ARTILLERY', 'EXPERIMENTAL STRUCTURE, STRUCTURE TECH3 SILO, STRUCTURE TECH3 VOLATILE', 'MOBILE LAND EXPERIMENTAL, MOBILE LAND HOVER DIRECTFIRE', 'MASSPRODUCTION TECH2, MASSPRODUCTION TECH3', 'MOBILE LAND TECH3 DIRECTFIRE, MOBILE LAND TECH3 INDIRECTFIRE', 'EXPERIMENTAL', 'NAVAL', 'STRUCTURE', 'ALLUNITS'}
 refWeaponPriorityBattleShip = {'EXPERIMENTAL NAVAL, TECH3 NAVAL', 'TECH2 NAVAL', 'STRUCTURE SHIELD', 'STRUCTURE INDIRECTFIRE ARTILLERY', 'EXPERIMENTAL STRUCTURE, STRUCTURE TECH3 SILO, STRUCTURE TECH3 VOLATILE', 'MOBILE LAND EXPERIMENTAL, MOBILE LAND TECH3 DIRECTFIRE, MOBILE LAND TECH3 INDIRECTFIRE', 'EXPERIMENTAL', 'NAVAL', 'STRUCTURE', 'ALLUNITS'}
 refWeaponPriorityMissileShip = {'SHIELD STRUCTURE, ANTIMISSILE STRUCTURE', 'STRUCTURE INDIRECTFIRE ARTILLERY TECH2', 'EXPERIMENTAL STRUCTURE, STRUCTURE ARTILLERY TECH3, STRUCTURE TECH3 SILO', 'STRUCTURE TECH3 VOLATILE', 'STRUCTURE TECH3 ECONOMIC', 'STRUCTURE NAVAL TECH3, STRUCTURE NAVAL TECH2', 'STRUCTURE TECH3', 'STRUCTURE TECH2 ECONOMIC', 'STRUCTURE TECH2', 'STRUCTURE VOLATILE, STRUCTURE DEFENSE, STRUCTURE FACTORY, STRUCTURE INTELLIGENCE', 'STRUCTURE', 'NAVAL SHIELD', 'SHIELD', 'EXPERIMENTAL NAVAL', 'EXPERIMENTAL', 'TECH3 NAVAL', 'TECH2 NAVAL', 'INDIRECTFIRE NAVAL', 'TECH3', 'TECH2', 'ALLUNITS'}
 refWeaponPriorityTeleSnipeInclACU = {'COMMAND', 'STRUCTURE EXPERIMENTAL, STRUCTURE ARTILLERY TECH3, ARTILLERY EXPERIMENTAL', 'STRUCTURE DEFENSE DIRECTFIRE TECH1', 'STRUCTURE DEFENSE DIRECTFIRE', 'STRUCTURE TECH3 ENERGYPRODUCTION, STRUCTURE TECH3 MASSFABRICATION', 'STRUCTURE TECH3 MASSEXTRACTION', 'ALLUNITS'}
 refWeaponPriorityTeleSnipeExclACU = {'STRUCTURE EXPERIMENTAL, STRUCTURE ARTILLERY TECH3, ARTILLERY EXPERIMENTAL', 'COMMAND', 'STRUCTURE DEFENSE DIRECTFIRE TECH1', 'STRUCTURE DEFENSE DIRECTFIRE', 'STRUCTURE TECH3 ENERGYPRODUCTION, STRUCTURE TECH3 MASSFABRICATION', 'STRUCTURE TECH3 MASSEXTRACTION', 'ALLUNITS'}
+refWeaponPriorityT2Arti = {'ARTILLERY EXPERIMENTAL', 'ARTILLERY STRUCTURE, SNIPER', 'SHIELD STRUCTURE', 'CRUISER, ANTISHIELD', 'INDIRECTFIRE', 'SHIELD', 'VOLATILE', 'TECH3 STRUCTURE', 'TECH3 MOBILE', 'ALLUNITS'}
 
 
 refbPaused = 'M28UnitPaused' --true if unit is paused
@@ -122,21 +123,22 @@ refCategorySonar = categories.STRUCTURE * categories.SONAR + categories.MOBILESO
 refCategoryT1Sonar = refCategorySonar * categories.TECH1
 refCategoryT2Sonar = refCategorySonar * categories.TECH2
 refCategoryT3Sonar = refCategorySonar * categories.TECH3
-refCategoryStructure = categories.STRUCTURE - categories.WALL
+refCategoryStructure = categories.STRUCTURE - categories.WALL - categories.EXTERNALFACTORYUNIT
 refCategoryWall = categories.STRUCTURE * categories.WALL --NOTE: Some walls are props; this is for if want a wall that can build
 refCategoryUnitsWithOmni = categories.OMNI + categories.COMMAND + categories.OVERLAYOMNI
 
 
 --Building - factory
-refCategoryLandFactory = categories.LAND * categories.FACTORY * categories.STRUCTURE
+refCategoryLandFactory = categories.LAND * categories.FACTORY * categories.STRUCTURE - categories.EXTERNALFACTORYUNIT
 refCategoryLandHQ =refCategoryLandFactory - categories.SUPPORTFACTORY
-refCategoryAirFactory = categories.AIR * categories.FACTORY * categories.STRUCTURE - categories.ORBITALSYSTEM --Novax is an air factory, so excluded from being treated as an air factory by my logic
+refCategoryAirFactory = categories.AIR * categories.FACTORY * categories.STRUCTURE - categories.ORBITALSYSTEM - categories.EXTERNALFACTORYUNIT --Novax is an air factory, so excluded from being treated as an air factory by my logic
 refCategoryAirHQ = refCategoryAirFactory - categories.SUPPORTFACTORY
-refCategoryNavalFactory = categories.NAVAL * categories.FACTORY * categories.STRUCTURE
+refCategoryNavalFactory = categories.NAVAL * categories.FACTORY * categories.STRUCTURE - categories.EXTERNALFACTORYUNIT
 refCategoryNavalHQ = refCategoryNavalFactory - categories.SUPPORTFACTORY
+refCategoryMobileLandFactory = categories.LAND * categories.FACTORY * categories.STRUCTURE * categories.EXTERNALFACTORYUNIT
 refCategoryFactory = refCategoryLandFactory + refCategoryAirFactory + refCategoryNavalFactory
 refCategoryAllHQFactories = refCategoryFactory - categories.SUPPORTFACTORY
-refCategoryQuantumGateway = categories.STRUCTURE * categories.GATE * categories.TECH3 * categories.FACTORY
+refCategoryQuantumGateway = categories.STRUCTURE * categories.GATE * categories.TECH3 * categories.FACTORY - categories.EXTERNALFACTORYUNIT
 
 --Building - defensive
 refCategoryT2PlusPD = categories.STRUCTURE * categories.DIRECTFIRE - categories.STRUCTURE * categories.DIRECTFIRE * categories.TECH1

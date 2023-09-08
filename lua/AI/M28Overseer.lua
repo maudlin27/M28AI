@@ -464,6 +464,14 @@ function NoRushMonitor()
 end
 
 function TestCustom(aiBrain)
+    --M28Map.DrawSpecificLandZone(88, 1, 3)
+
+    local iCurColour = 0
+    for iLandZone, tLZData in M28Map.tAllPlateaus[88][M28Map.subrefPlateauLandZones] do
+        iCurColour = iCurColour + 1
+        if iCurColour >= 9 then iCurColour = 1 end
+        M28Map.DrawSpecificLandZone(88, iLandZone)
+    end
 
     --New water zone logic testing
     --local tWZData = M28Map.tPondDetails[51][M28Map.subrefPondWaterZones][269]
@@ -735,6 +743,11 @@ function CheckUnitCap(aiBrain)
                 if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryGunship) > 0 then
                     tiCategoryToDestroy[2] = M28UnitInfo.refCategoryMobileLand * categories.TECH1 - categories.COMMAND + M28UnitInfo.refCategoryBomber * categories.TECH1
                 end
+            else
+                --exclude t2 maa if we have t3 maa
+                if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMAA * categories.TECH3) > 0 then
+                    tiCategoryToDestroy[0] = tiCategoryToDestroy[0] + M28UnitInfo.refCategoryMAA * categories.TECH2
+                end
             end
         end
 
@@ -992,10 +1005,14 @@ function OverseerManager(aiBrain)
 
     --ForkThread(TestCustom, aiBrain)
 
-
+    local M28Config = import('/mods/M28AI/lua/M28Config.lua')
     local bSetHook = false --Used for debugging
+    local M28Config = import('/mods/M28AI/lua/M28Config.lua')
     while not(aiBrain:IsDefeated()) and not(aiBrain.M28IsDefeated) do
+        if GetGameTimeSeconds() >= 1260 then M28Config.M28ShowUnitNames = true M28Config.M28ShowEnemyUnitNames = true end
         local bEnabledProfiling = false
+        local bDebugMessages = false
+
         --[[ if GetGameTimeSeconds() >= 2100 and not(bEnabledProfiling) then
              if not(import('/mods/M28AI/lua/M28Config.lua').M28RunProfiling) then
                  ForkThread(M28Profiler.ProfilerActualTimePerTick)
