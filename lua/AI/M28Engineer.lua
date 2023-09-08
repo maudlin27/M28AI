@@ -2797,7 +2797,7 @@ end
 
 function CheckForNearbyEnemies()  end --This is incorporated into available engineers by tech - added to make it easier to locate logic
 function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZTeamData, iTeam, iPlateauOrPond, iLandZone, bIsWaterZone)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'FilterToAvailableEngineersByTech'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -10234,7 +10234,7 @@ function ClearEngineersBuildingUnit(oEngineer, oJustBuilt, bClearEngineersBuildi
             local tLastOrder = oCurEngineer[M28Orders.reftiLastOrders][oCurEngineer[M28Orders.refiOrderCount]]
             local iOrderDistToJustBuilt
             --Ignore if last order was to load onto transport
-            if not(tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderLoadOntoTransport) and not(oEngineer[refiAssignedAction] == refActionLoadOntoTransport then --redundancy
+            if not(tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderLoadOntoTransport) and not(oEngineer[refiAssignedAction] == refActionLoadOntoTransport) then --redundancy
                 if M28Utilities.IsTableEmpty(tLastOrder[M28Orders.subreftOrderPosition]) == false then iOrderDistToJustBuilt = M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subreftOrderPosition], oJustBuilt:GetPosition()) end
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering if should clear engineer, oJustBuilt='..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..'; oCurEngineer='..oCurEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oCurEngineer)..'; iOrderDistToJustBuilt='..iOrderDistToJustBuilt..'; tLastOrder[M28Orders.subrefoOrderUnitTarget]='..(tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tLastOrder[M28Orders.subrefoOrderUnitTarget]) or 'nil')..'; iAction='..(iAction or 'nil')..'; Cur engineer action='..(oCurEngineer[refiAssignedAction] or 'nil')) end
                 if iOrderDistToJustBuilt <= 1 or tLastOrder[M28Orders.subrefoOrderUnitTarget] == oJustBuilt then
