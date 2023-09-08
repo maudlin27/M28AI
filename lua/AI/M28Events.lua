@@ -1663,7 +1663,9 @@ function OnCreateBrain(aiBrain, planName, bIsHuman)
         if bDebugMessages == true then LOG(sFunctionRef..': M28Map.bIsCampaignMap='..tostring(M28Map.bIsCampaignMap or false)) end
 
         --Logic to run for all brains
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         M28Map.RecordBrainStartPoint(aiBrain)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
         if bIsHuman then
             LOG('Human player brain '..aiBrain.Nickname..' created; Index='..aiBrain:GetArmyIndex()..'; start position='..repru(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()]))

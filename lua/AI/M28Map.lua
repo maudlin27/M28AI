@@ -5116,7 +5116,7 @@ function CreateWaterZones()
 
     local iSystemTimeStart = GetSystemTimeSecondsOnlyForProfileUse()
     --local iMapSize = math.max(rMapPotentialPlayableArea[3] - rMapPotentialPlayableArea[1], rMapPotentialPlayableArea[4] - rMapPotentialPlayableArea[2])
-    local iWaterZoneInterval = math.min(200, 115 + 20 * math.floor(iMapSize / 512)) --i.e. 125 for 5km, 135 for 10km, 155 for 20km, 200 for 80km (previously tried 130 + 30 * floor(size/512) but WZ were too big and caused unexpected results with air logic
+    local iWaterZoneInterval = 115 + 20 * math.floor(iMapSize / 512) --i.e. 125 for 5km, 135 for 10km, 155 for 20km, 200 for 80km (previously tried 130 + 30 * floor(size/512) but WZ were too big and caused unexpected results with air logic
 
 
     --local iMinDistanceFromFactoryBuildPosition = 100
@@ -6171,6 +6171,7 @@ function RecordWaterZonePathingToOtherWaterZones()
     local iStartWZAdjacencyTablePosition
     local iEndWZAdjacencyTablePosition
     local bUseAdjacentApproach
+    local bUseFastestApproach --even faster/more simplified than adjacent approach, done because on e.g. frostmill it was taking 15m and still not finishing with doing 415 water zones
 
     function CalculateWaterZoneTravelDistance(iWaterZone, tWZData, iOtherWaterZone, tOtherWZData, iOptionalNavalTravelDistance)
         if iWaterZone < iOtherWaterZone then
@@ -6221,13 +6222,16 @@ function RecordWaterZonePathingToOtherWaterZones()
 
     for iPond, tPondSubtable in tPondDetails do
         M28Profiler.FunctionProfiler(sFunctionRef..': Pond '..iPond, M28Profiler.refProfilerStart)
-
+        bUseFastestApproach = false
+        bUseAdjacentApproach = false
         if tPondSubtable[subrefPondWZCount] >= 21 then --Would take c.70s on a 56 size water zone pond, which is 3.1k squared, so reducing to 21 which is 441 squraed (i.e. hopefully means if would take >10s for this pond under default approach will use less accurate but faster method)
-            bUseAdjacentApproach = true
-        else bUseAdjacentApproach = false
+            if tPondSubtable[subrefPondWZCount] >= 50 and (iMapSize > 1024 or (tPondSubtable[subrefPondWZCount] >= 100 and iMapSize == 1024)) then
+                bUseFastestApproach = true
+            else
+                bUseAdjacentApproach = true
+            end
         end
-
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering pond '..iPond..', WZ count='..tPondSubtable[subrefPondWZCount]..'; bUseAdjacentApproach='..tostring(bUseAdjacentApproach)) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering pond '..iPond..', WZ count='..tPondSubtable[subrefPondWZCount]..'; bUseAdjacentApproach='..tostring(bUseAdjacentApproach)..'; System time='..GetSystemTimeSecondsOnlyForProfileUse()..'; bUseFastestApproach='..tostring(bUseFastestApproach)) end
         if bUseAdjacentApproach then
             --First calculate detailed pathing for each adjacent water zone
             for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
@@ -6295,11 +6299,13 @@ function RecordWaterZonePathingToOtherWaterZones()
             end
         end
         --Want to do this even if we have done the adjacency approach, to make sure we have got pathing in place for eveyr zone
+        local iReplacementDistIfUsingFastMethod
         for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
             --Cycle through each other water zone in this pond and determine pathing
             if bDebugMessages == true then LOG(sFunctionRef..': Detailed pathing appraoch for ponds with fewer water zones - About to calculate pathing to each other water zone for iWaterZone='..iWaterZone..'; in iPond='..iPond..'; subrefWZSegments size='..table.getn(tWZData[subrefWZSegments])) end
             for iOtherWaterZone, tOtherWZData in tPondSubtable[subrefPondWaterZones] do
-                CalculateWaterZoneTravelDistance(iWaterZone, tWZData, iOtherWaterZone, tOtherWZData)
+                if bUseFastestApproach then iReplacementDistIfUsingFastMethod = M28Utilities.GetDistanceBetweenPositions(tWZData[subrefMidpoint], tOtherWZData[subrefMidpoint]) end
+                CalculateWaterZoneTravelDistance(iWaterZone, tWZData, iOtherWaterZone, tOtherWZData, iReplacementDistIfUsingFastMethod)
                 --[[if not(iWaterZone == iOtherWaterZone) then
                     if iWaterZone < iOtherWaterZone then
                         iLowestWZ = iWaterZone
@@ -6404,9 +6410,11 @@ function SetupMap()
 
     --Create table with details on all plateaus (initially just those with mexes, although the land zone logic may add to this)
     RecordAllPlateaus() --Needed first since will organise land zones by plateau
+    if bDebugMessages == true then LOG(sFunctionRef..': After RecordAllPlateaus, system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
 
     --Setup land zones
     SetupLandZones()
+    if bDebugMessages == true then LOG(sFunctionRef..': After SetuplandZones, system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
 
     RecordIslands()
     RecordPondDetails()
@@ -7074,7 +7082,11 @@ function RecordBrainStartPoint(oBrain)
             WaitTicks(1)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        M28Profiler.FunctionProfiler('NavUtilsGenerate', M28Profiler.refProfilerStart)
         NavUtils.Generate()
+        M28Profiler.FunctionProfiler('NavUtilsGenerate', M28Profiler.refProfilerEnd)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         SetupPlayableAreaAndSegmentSizes()
     end
 

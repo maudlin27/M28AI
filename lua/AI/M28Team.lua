@@ -1309,7 +1309,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                                                     else
                                                                         local oFocus = oEngineer:GetFocusUnit()
                                                                         if bDebugMessages == true then LOG(sFunctionRef..': Focus unit is '..(oFocus.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oFocus) or 'nil')) end
-                                                                        if oFocus then LOG(sFunctionRef..': oFocus fraction complete='..oFocus:GetFractionComplete()) end
+                                                                        if bDebugMessages == true and oFocus then LOG(sFunctionRef..': oFocus fraction complete='..oFocus:GetFractionComplete()) end
                                                                         if not(M28UnitInfo.IsUnitValid(oFocus)) or oFocus:GetFractionComplete() == 0 then
                                                                             table.insert(toEngineersToClear, oEngineer)
                                                                         end
