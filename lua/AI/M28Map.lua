@@ -4038,8 +4038,8 @@ function RecordIslands()
                                 end
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': Plateau '..iPlateau..': Finished recording pathing to get from iLandZone='..iLandZone..' to iClosestLZRef='..(iClosestLZRef or 'nil')..' in island '..iIsland..'; tLZData[subrefLZPathingToOtherIslands]='..repru(tLZData[subrefLZPathingToOtherIslands])) end
+                            M28Profiler.FunctionProfiler(sFunctionRef..': land path', M28Profiler.refProfilerEnd)
                         end
-                        M28Profiler.FunctionProfiler(sFunctionRef..': land path', M28Profiler.refProfilerEnd)
                     end
                 end
             end
