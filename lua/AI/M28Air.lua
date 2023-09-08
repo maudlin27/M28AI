@@ -4358,7 +4358,7 @@ function UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam)
 end
 
 function UpdateTransportLocationShortlist(iTeam)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateTransportLocationShortlist'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -4666,7 +4666,7 @@ function GetTransportEngiCargoAndRemainingCapacity(oUnit, iEngiTechLevel)
 end
 
 function ManageTransports(iTeam, iAirSubteam)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageTransports'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

@@ -20,6 +20,7 @@ bPlayableAreaSetup = false
 bMapLandSetupComplete = false --set to true once have finished setting up map (used to decide how long to wait before starting main aibrain logic)
 bWaterZoneInitialCreation = false --set to true once have finished code for recording water zones (note WZ setup wont be fully complete yet)
 bWaterZoneFirstTeamInitialisation = false --set to true when the first team runs logic for creating team related variables for a water zone
+bRecordedIslands = false
 bIsCampaignMap = false --set at start of game
 bFirstM28TeamHasBeenInitialised = false --set to true once we have run the teaminitialisation function
 
@@ -3836,167 +3837,179 @@ function RecordIslands()
     local sFunctionRef = 'RecordIslands'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    --Decide how detailed pathing to do when identifying the nearest land zone - on large maps we want to use straight line distance due to how long the map can take to load
-    bDebugMessages = true
-    local bUseDistanceForNearestIslandLZ = false
-    local bConsiderIgnoringTravelDistForShortlist = false
-    local bActuallyIgnoreTravelDistForShortlist
-    if iMapSize >= 512 then --10km+
-        local iTotalLandZoneCount = 0
-        for iPlateau, tPlateauSubtable in tAllPlateaus do
-            iTotalLandZoneCount = iTotalLandZoneCount + (tPlateauSubtable[subrefLandZoneCount] or 0)
-        end
-        if iTotalLandZoneCount >= 45 or (iTotalLandZoneCount >= 30 and iMapSize >= 512) then
-            bUseDistanceForNearestIslandLZ = true
-            if iTotalLandZoneCount >= 100 and iMapSize >= 1024 then bConsiderIgnoringTravelDistForShortlist = true end
-        end
-        if bDebugMessages == true then LOG(sFunctionRef..': iTotalLandZoneCount='..iTotalLandZoneCount..'; bUseDistanceForNearestIslandLZ='..tostring(bUseDistanceForNearestIslandLZ)) end
-    end
-    bDebugMessages = false
+    if not(bRecordedIslands) then
+        bRecordedIslands = true
 
-    --First record every island where there are mexes in the plateau or the location is relatively large
-    for iPlateau, tPlateauSubtable in tAllPlateaus do
-        if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; About to record any islands for plateau '..iPlateau..'; if it has mexes, tPlateauSubtable[subrefPlateauTotalMexCount]='..tPlateauSubtable[subrefPlateauTotalMexCount]) end
-        if (tPlateauSubtable[subrefPlateauTotalMexCount] or 0) > 0 or (tPlateauSubtable[subrefPlateauMaxRadius] or 0) >= 50 then
-            tPlateauSubtable[subrefPlateauIslandLandZones] = {}
-            tPlateauSubtable[subrefPlateauIslandMexCount] = { }
-            local tLandZonesWithoutIslands = {}
-            for iLandZone, tLZData in tPlateauSubtable[subrefPlateauLandZones] do
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering iLandZone='..iLandZone..'; in Plateau '..iPlateau..'; Amphibious label='..(NavUtils.GetTerrainLabel(refPathingTypeLand, tLZData[subrefMidpoint]) or 'nil')) end
-                tLZData[subrefLZIslandRef] = NavUtils.GetTerrainLabel(refPathingTypeLand, tLZData[subrefMidpoint])
-                if (tLZData[subrefLZIslandRef] or -1) > 0 then
-                    if not(tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]]) then tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]] = {} end
-                    table.insert(tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]], iLandZone)
-                    tPlateauSubtable[subrefPlateauIslandMexCount][tLZData[subrefLZIslandRef]] = (tPlateauSubtable[subrefPlateauIslandMexCount][tLZData[subrefLZIslandRef]] or 0) + tLZData[subrefLZMexCount]
-                else
-                    table.insert(tLandZonesWithoutIslands, iLandZone)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Dont have an island ref for iLandZone='..iLandZone..'; so will record in tLandZonesWithoutIslands') end
-                end
+        --Decide how detailed pathing to do when identifying the nearest land zone - on large maps we want to use straight line distance due to how long the map can take to load
+        local bUseDistanceForNearestIslandLZ = false
+        local bConsiderIgnoringTravelDistForShortlist = false
+        local bActuallyIgnoreTravelDistForShortlist
+        if iMapSize >= 512 then --10km+
+            local iTotalLandZoneCount = 0
+            for iPlateau, tPlateauSubtable in tAllPlateaus do
+                iTotalLandZoneCount = iTotalLandZoneCount + (tPlateauSubtable[subrefLandZoneCount] or 0)
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Finished checking all land zones for plateau '..iPlateau..' for first pass; is table of tLandZonesWithoutIslands empty='..tostring(M28Utilities.IsTableEmpty(tLandZonesWithoutIslands))) end
-            if M28Utilities.IsTableEmpty(tLandZonesWithoutIslands) == false then
-                for iEntry, iLandZone in tLandZonesWithoutIslands do
-                    local tLZData = tPlateauSubtable[subrefPlateauLandZones][iLandZone]
-                    --Cycle through adjacent LZs to see if any of them have an island recorded
-                    M28Profiler.FunctionProfiler(sFunctionRef..': AjdLZ', M28Profiler.refProfilerStart)
-                    if M28Utilities.IsTableEmpty(tLZData[subrefLZPathingToOtherLandZones]) == false then
-                        for iEntry, tSubtable in tLZData[subrefLZPathingToOtherLandZones] do
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering adjacent LZs for iLandZone='..iLandZone..'; Adjacent LZ='..tSubtable[subrefLZNumber]..'; Island ref for this='..(tPlateauSubtable[subrefPlateauLandZones][tSubtable[subrefLZNumber]][subrefLZIslandRef] or 'nil')) end
-                            if (tPlateauSubtable[subrefPlateauLandZones][tSubtable[subrefLZNumber]][subrefLZIslandRef] or 0) > 0 then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Will use htis island ref') end
-                                tLZData[subrefLZIslandRef] = tPlateauSubtable[subrefPlateauLandZones][tSubtable[subrefLZNumber]][subrefLZIslandRef]
-                                if not(tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]]) then tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]] = {} end
-                                table.insert(tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]], iLandZone)
-                                tPlateauSubtable[subrefPlateauIslandMexCount][tLZData[subrefLZIslandRef]] = (tPlateauSubtable[subrefPlateauIslandMexCount][tLZData[subrefLZIslandRef]] or 0) + tLZData[subrefLZMexCount]
-                                break
+            if iTotalLandZoneCount >= 45 or (iTotalLandZoneCount >= 30 and iMapSize >= 512) then
+                bUseDistanceForNearestIslandLZ = true
+                if iTotalLandZoneCount >= 100 and iMapSize >= 1024 then bConsiderIgnoringTravelDistForShortlist = true end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': iTotalLandZoneCount='..iTotalLandZoneCount..'; bUseDistanceForNearestIslandLZ='..tostring(bUseDistanceForNearestIslandLZ)) end
+        end
+
+        --First record every island where there are mexes in the plateau or the location is relatively large
+        for iPlateau, tPlateauSubtable in tAllPlateaus do
+            if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; About to record any islands for plateau '..iPlateau..'; if it has mexes, tPlateauSubtable[subrefPlateauTotalMexCount]='..tPlateauSubtable[subrefPlateauTotalMexCount]) end
+            if (tPlateauSubtable[subrefPlateauTotalMexCount] or 0) > 0 or (tPlateauSubtable[subrefPlateauMaxRadius] or 0) >= 50 then
+                tPlateauSubtable[subrefPlateauIslandLandZones] = {}
+                tPlateauSubtable[subrefPlateauIslandMexCount] = { }
+                local tLandZonesWithoutIslands = {}
+                for iLandZone, tLZData in tPlateauSubtable[subrefPlateauLandZones] do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iLandZone='..iLandZone..'; in Plateau '..iPlateau..'; Amphibious label='..(NavUtils.GetTerrainLabel(refPathingTypeLand, tLZData[subrefMidpoint]) or 'nil')) end
+                    tLZData[subrefLZIslandRef] = NavUtils.GetTerrainLabel(refPathingTypeLand, tLZData[subrefMidpoint])
+                    if (tLZData[subrefLZIslandRef] or -1) > 0 then
+                        if not(tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]]) then tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]] = {} end
+                        table.insert(tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]], iLandZone)
+                        tPlateauSubtable[subrefPlateauIslandMexCount][tLZData[subrefLZIslandRef]] = (tPlateauSubtable[subrefPlateauIslandMexCount][tLZData[subrefLZIslandRef]] or 0) + tLZData[subrefLZMexCount]
+                    else
+                        table.insert(tLandZonesWithoutIslands, iLandZone)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Dont have an island ref for iLandZone='..iLandZone..'; so will record in tLandZonesWithoutIslands') end
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished checking all land zones for plateau '..iPlateau..' for first pass; is table of tLandZonesWithoutIslands empty='..tostring(M28Utilities.IsTableEmpty(tLandZonesWithoutIslands))) end
+                if M28Utilities.IsTableEmpty(tLandZonesWithoutIslands) == false then
+                    for iEntry, iLandZone in tLandZonesWithoutIslands do
+                        local tLZData = tPlateauSubtable[subrefPlateauLandZones][iLandZone]
+                        --Cycle through adjacent LZs to see if any of them have an island recorded
+                        M28Profiler.FunctionProfiler(sFunctionRef..': AjdLZ', M28Profiler.refProfilerStart)
+                        if M28Utilities.IsTableEmpty(tLZData[subrefLZPathingToOtherLandZones]) == false then
+                            for iEntry, tSubtable in tLZData[subrefLZPathingToOtherLandZones] do
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering adjacent LZs for iLandZone='..iLandZone..'; Adjacent LZ='..tSubtable[subrefLZNumber]..'; Island ref for this='..(tPlateauSubtable[subrefPlateauLandZones][tSubtable[subrefLZNumber]][subrefLZIslandRef] or 'nil')) end
+                                if (tPlateauSubtable[subrefPlateauLandZones][tSubtable[subrefLZNumber]][subrefLZIslandRef] or 0) > 0 then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Will use htis island ref') end
+                                    tLZData[subrefLZIslandRef] = tPlateauSubtable[subrefPlateauLandZones][tSubtable[subrefLZNumber]][subrefLZIslandRef]
+                                    if not(tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]]) then tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]] = {} end
+                                    table.insert(tPlateauSubtable[subrefPlateauIslandLandZones][tLZData[subrefLZIslandRef]], iLandZone)
+                                    tPlateauSubtable[subrefPlateauIslandMexCount][tLZData[subrefLZIslandRef]] = (tPlateauSubtable[subrefPlateauIslandMexCount][tLZData[subrefLZIslandRef]] or 0) + tLZData[subrefLZMexCount]
+                                    break
+                                end
                             end
                         end
-                    end
-                    M28Profiler.FunctionProfiler(sFunctionRef..': AjdLZ', M28Profiler.refProfilerEnd)
-                    M28Profiler.FunctionProfiler(sFunctionRef..': MidpointSearch', M28Profiler.refProfilerStart)
-                    --If still dont have an island ref then try searching around the midpoint until come across an island
-                    if (tLZData[subrefLZIslandRef] or 0) == 0 then
-                        local tAltMidpoint
-                        for iAdjust = 1, 50 do
-                            for iXMod = -1, 1, 1 do
-                                for iZMod = -1, 1, 1 do
-                                    tAltMidpoint = {tLZData[subrefMidpoint][1] + iAdjust * iXMod, 0, tLZData[subrefMidpoint][3] + iAdjust * iZMod}
-                                    tAltMidpoint[2] = GetTerrainHeight(tAltMidpoint[1], tAltMidpoint[3])
-                                    tLZData[subrefLZIslandRef] = NavUtils.GetTerrainLabel(refPathingTypeLand, tAltMidpoint)
-                                    if (tLZData[subrefLZIslandRef] or 0) > 0 then
-                                        break
+                        M28Profiler.FunctionProfiler(sFunctionRef..': AjdLZ', M28Profiler.refProfilerEnd)
+                        M28Profiler.FunctionProfiler(sFunctionRef..': MidpointSearch', M28Profiler.refProfilerStart)
+                        --If still dont have an island ref then try searching around the midpoint until come across an island
+                        if (tLZData[subrefLZIslandRef] or 0) == 0 then
+                            local tAltMidpoint
+                            for iAdjust = 1, 50 do
+                                for iXMod = -1, 1, 1 do
+                                    for iZMod = -1, 1, 1 do
+                                        tAltMidpoint = {tLZData[subrefMidpoint][1] + iAdjust * iXMod, 0, tLZData[subrefMidpoint][3] + iAdjust * iZMod}
+                                        tAltMidpoint[2] = GetTerrainHeight(tAltMidpoint[1], tAltMidpoint[3])
+                                        tLZData[subrefLZIslandRef] = NavUtils.GetTerrainLabel(refPathingTypeLand, tAltMidpoint)
+                                        if (tLZData[subrefLZIslandRef] or 0) > 0 then
+                                            break
+                                        end
                                     end
+                                    if (tLZData[subrefLZIslandRef] or 0) > 0 then break end
                                 end
                                 if (tLZData[subrefLZIslandRef] or 0) > 0 then break end
                             end
-                            if (tLZData[subrefLZIslandRef] or 0) > 0 then break end
+                            if (tLZData[subrefLZIslandRef] or 0) == 0 then tLZData[subrefLZIslandRef] = 0 end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Finished searching nearby, tLZData[subrefLZIslandRef]='..(tLZData[subrefLZIslandRef] or 'nil')) end
                         end
-                        if (tLZData[subrefLZIslandRef] or 0) == 0 then tLZData[subrefLZIslandRef] = 0 end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Finished searching nearby, tLZData[subrefLZIslandRef]='..(tLZData[subrefLZIslandRef] or 'nil')) end
+                        M28Profiler.FunctionProfiler(sFunctionRef..': MidpointSearch', M28Profiler.refProfilerEnd)
                     end
-                    M28Profiler.FunctionProfiler(sFunctionRef..': MidpointSearch', M28Profiler.refProfilerEnd)
                 end
-            end
-            if bDebugMessages == true then LOG(sFunctionRef..': Finished recording all islands in plateau '..iPlateau..'; Mex count by island='..repru(tPlateauSubtable[subrefPlateauIslandMexCount])..'; LZs by island='..repru(tPlateauSubtable[subrefPlateauIslandLandZones])) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished recording all islands in plateau '..iPlateau..'; Mex count by island='..repru(tPlateauSubtable[subrefPlateauIslandMexCount])..'; LZs by island='..repru(tPlateauSubtable[subrefPlateauIslandLandZones])) end
 
-            bDebugMessages = true
-            local iIslandCount
-            if bConsiderIgnoringTravelDistForShortlist then
-                bActuallyIgnoreTravelDistForShortlist = false
-                iIslandCount = 0
-                for iIsland, tLandZonesInIsland in tPlateauSubtable[subrefPlateauIslandLandZones] do
-                    iIslandCount = iIslandCount + 1
-                end
-                if bDebugMessages == true then LOG(sFunctionRef..': Plateau '..iPlateau..' has iIslandCount of '..iIslandCount..'; and land zone count of '..(tPlateauSubtable[subrefLandZoneCount] or 0)) end
-                if iIslandCount >= 25 then
-                    bActuallyIgnoreTravelDistForShortlist = true
-                end
-            end
-
-
-
-
-            M28Profiler.FunctionProfiler(sFunctionRef..': Pathing', M28Profiler.refProfilerStart)
-            for iLandZone, tLZData in tPlateauSubtable[subrefPlateauLandZones] do
-                --For performance reasons only record pathing for zones with mexes
-                if tLZData[subrefLZMexCount] > 0 then
-
-                    --Cycle through each island in this plateau and consider pathing for it
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will record the pathing to every island from iLandZone='..iLandZone..'; ') end
+                local iIslandCount
+                if bConsiderIgnoringTravelDistForShortlist then
+                    bActuallyIgnoreTravelDistForShortlist = false
+                    iIslandCount = 0
                     for iIsland, tLandZonesInIsland in tPlateauSubtable[subrefPlateauIslandLandZones] do
-                        --Only consider islands with mexes (for performance reasons)
-                        if tPlateauSubtable[subrefPlateauIslandMexCount][iIsland] > 0 and not(iIsland == tLZData[subrefLZIslandRef]) then
-                            --Get the land zone in this island that is closest to our current land zone
-                            M28Profiler.FunctionProfiler(sFunctionRef..': Excl land path', M28Profiler.refProfilerStart)
-                            local iClosestLZRef
-                            local iClosestTravelDist = 100000
-                            local iCurTravelDistance
+                        iIslandCount = iIslandCount + 1
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Plateau '..iPlateau..' has iIslandCount of '..iIslandCount..'; and land zone count of '..(tPlateauSubtable[subrefLandZoneCount] or 0)) end
+                    if iIslandCount >= 25 then
+                        bActuallyIgnoreTravelDistForShortlist = true
+                        if bDebugMessages == true then LOG(sFunctionRef..': will use faster but less accurate pathing method') end
+                    end
+                end
 
-                            if bUseDistanceForNearestIslandLZ then
-                                if bActuallyIgnoreTravelDistForShortlist then
-                                    local iCurDistance, iCurPosition
-                                    for iEntry, iIslandLZ in tLandZonesInIsland do
-                                        iCurDistance = M28Utilities.GetDistanceBetweenPositions(tLZData[subrefMidpoint], tPlateauSubtable[subrefPlateauLandZones][iIslandLZ][subrefMidpoint])
-                                        if iCurDistance < iClosestTravelDist then
-                                            iClosestTravelDist = iCurDistance
-                                            iClosestLZRef = iIslandLZ
+
+
+
+                M28Profiler.FunctionProfiler(sFunctionRef..': Pathing', M28Profiler.refProfilerStart)
+                for iLandZone, tLZData in tPlateauSubtable[subrefPlateauLandZones] do
+                    --For performance reasons only record pathing for zones with mexes
+                    if tLZData[subrefLZMexCount] > 0 then
+
+                        --Cycle through each island in this plateau and consider pathing for it
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will record the pathing to every island from iLandZone='..iLandZone..'; ') end
+                        for iIsland, tLandZonesInIsland in tPlateauSubtable[subrefPlateauIslandLandZones] do
+                            --Only consider islands with mexes (for performance reasons)
+                            if tPlateauSubtable[subrefPlateauIslandMexCount][iIsland] > 0 and not(iIsland == tLZData[subrefLZIslandRef]) then
+                                --Get the land zone in this island that is closest to our current land zone
+                                M28Profiler.FunctionProfiler(sFunctionRef..': Excl land path', M28Profiler.refProfilerStart)
+                                local iClosestLZRef
+                                local iClosestTravelDist = 100000
+                                local iCurTravelDistance
+
+                                if bUseDistanceForNearestIslandLZ then
+                                    if bActuallyIgnoreTravelDistForShortlist then
+                                        local iCurDistance, iCurPosition
+                                        for iEntry, iIslandLZ in tLandZonesInIsland do
+                                            iCurDistance = M28Utilities.GetDistanceBetweenPositions(tLZData[subrefMidpoint], tPlateauSubtable[subrefPlateauLandZones][iIslandLZ][subrefMidpoint])
+                                            if iCurDistance < iClosestTravelDist then
+                                                iClosestTravelDist = iCurDistance
+                                                iClosestLZRef = iIslandLZ
+                                            end
+                                        end
+                                    else
+                                        local tiTopThreeZonesByDistance = {}
+                                        local tiDistanceOfTopThreeZones = {[1]=100000, [2]=100000,[3]=100000}
+                                        local iCurDistance, iCurPosition
+                                        for iEntry, iIslandLZ in tLandZonesInIsland do
+                                            iCurDistance = M28Utilities.GetDistanceBetweenPositions(tLZData[subrefMidpoint], tPlateauSubtable[subrefPlateauLandZones][iIslandLZ][subrefMidpoint])
+
+                                            if iCurDistance < tiDistanceOfTopThreeZones[3] then
+                                                if iCurDistance <     tiDistanceOfTopThreeZones[2] then
+                                                    if iCurDistance < tiDistanceOfTopThreeZones[1] then
+                                                        iCurPosition = 1
+                                                    else
+                                                        iCurPosition = 2
+                                                    end
+                                                else
+                                                    iCurPosition = 3
+                                                end
+                                                if iCurPosition == 1 then
+                                                    tiTopThreeZonesByDistance[3] = tiTopThreeZonesByDistance[2]
+                                                    tiDistanceOfTopThreeZones[3] = tiDistanceOfTopThreeZones[2]
+                                                    tiTopThreeZonesByDistance[2] = tiTopThreeZonesByDistance[1]
+                                                    tiDistanceOfTopThreeZones[3] = tiDistanceOfTopThreeZones[2]
+                                                elseif iCurPosition == 2 then
+                                                    tiTopThreeZonesByDistance[3] = tiTopThreeZonesByDistance[2]
+                                                    tiDistanceOfTopThreeZones[3] = tiDistanceOfTopThreeZones[2]
+                                                end
+                                                tiTopThreeZonesByDistance[iCurPosition] = iIslandLZ
+                                                tiDistanceOfTopThreeZones[iCurPosition] = iCurDistance
+                                            end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': iCurTravelDistance='..repru(iCurTravelDistance)..'; iClosestTravelDist='..repru(iClosestTravelDist)) end
+                                        end
+                                        --Get the closest of these
+                                        local iClosestTravelDist = 100000
+
+                                        for iEntry, iIslandLZ in tiTopThreeZonesByDistance do
+                                            iCurTravelDistance = M28Utilities.GetTravelDistanceBetweenPositions(tLZData[subrefMidpoint], tPlateauSubtable[subrefPlateauLandZones][iIslandLZ][subrefMidpoint], refPathingTypeHover)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': iCurTravelDistance='..repru(iCurTravelDistance)..'; iClosestTravelDist='..repru(iClosestTravelDist)) end
+                                            if iCurTravelDistance and iCurTravelDistance < iClosestTravelDist then
+                                                iClosestTravelDist = iCurTravelDistance
+                                                iClosestLZRef = iIslandLZ
+                                            end
                                         end
                                     end
                                 else
-                                    local tiTopThreeZonesByDistance = {}
-                                    local tiDistanceOfTopThreeZones = {[1]=100000, [2]=100000,[3]=100000}
-                                    local iCurDistance, iCurPosition
                                     for iEntry, iIslandLZ in tLandZonesInIsland do
-                                        iCurDistance = M28Utilities.GetDistanceBetweenPositions(tLZData[subrefMidpoint], tPlateauSubtable[subrefPlateauLandZones][iIslandLZ][subrefMidpoint])
 
-                                        if iCurDistance < tiDistanceOfTopThreeZones[3] then
-                                            if iCurDistance <     tiDistanceOfTopThreeZones[2] then
-                                                if iCurDistance < tiDistanceOfTopThreeZones[1] then
-                                                    iCurPosition = 1
-                                                else
-                                                    iCurPosition = 2
-                                                end
-                                            else
-                                                iCurPosition = 3
-                                            end
-                                            if iCurPosition == 1 then
-                                                tiTopThreeZonesByDistance[3] = tiTopThreeZonesByDistance[2]
-                                                tiDistanceOfTopThreeZones[3] = tiDistanceOfTopThreeZones[2]
-                                                tiTopThreeZonesByDistance[2] = tiTopThreeZonesByDistance[1]
-                                                tiDistanceOfTopThreeZones[3] = tiDistanceOfTopThreeZones[2]
-                                            elseif iCurPosition == 2 then
-                                                tiTopThreeZonesByDistance[3] = tiTopThreeZonesByDistance[2]
-                                                tiDistanceOfTopThreeZones[3] = tiDistanceOfTopThreeZones[2]
-                                            end
-                                            tiTopThreeZonesByDistance[iCurPosition] = iIslandLZ
-                                            tiDistanceOfTopThreeZones[iCurPosition] = iCurDistance
-                                        end
-                                        if bDebugMessages == true then LOG(sFunctionRef..': iCurTravelDistance='..repru(iCurTravelDistance)..'; iClosestTravelDist='..repru(iClosestTravelDist)) end
-                                    end
-                                    --Get the closest of these
-                                    local iClosestTravelDist = 100000
-
-                                    for iEntry, iIslandLZ in tiTopThreeZonesByDistance do
                                         iCurTravelDistance = M28Utilities.GetTravelDistanceBetweenPositions(tLZData[subrefMidpoint], tPlateauSubtable[subrefPlateauLandZones][iIslandLZ][subrefMidpoint], refPathingTypeHover)
                                         if bDebugMessages == true then LOG(sFunctionRef..': iCurTravelDistance='..repru(iCurTravelDistance)..'; iClosestTravelDist='..repru(iClosestTravelDist)) end
                                         if iCurTravelDistance and iCurTravelDistance < iClosestTravelDist then
@@ -4005,82 +4018,112 @@ function RecordIslands()
                                         end
                                     end
                                 end
-                            else
-                                for iEntry, iIslandLZ in tLandZonesInIsland do
 
-                                    iCurTravelDistance = M28Utilities.GetTravelDistanceBetweenPositions(tLZData[subrefMidpoint], tPlateauSubtable[subrefPlateauLandZones][iIslandLZ][subrefMidpoint], refPathingTypeHover)
-                                    if bDebugMessages == true then LOG(sFunctionRef..': iCurTravelDistance='..repru(iCurTravelDistance)..'; iClosestTravelDist='..repru(iClosestTravelDist)) end
-                                    if iCurTravelDistance and iCurTravelDistance < iClosestTravelDist then
-                                        iClosestTravelDist = iCurTravelDistance
-                                        iClosestLZRef = iIslandLZ
-                                    end
-                                end
-                            end
-
-                            --Get the position in the current table
-                            local iPosition = 1
-                            if not(tLZData[subrefLZPathingToOtherIslands]) then
-                                tLZData[subrefLZPathingToOtherIslands] = {}
-                                iPosition = 1
-                            else
-                                for iExistingIsland, tExistingSubtable in tLZData[subrefLZPathingToOtherIslands] do
-                                    if tExistingSubtable[subrefIslandTravelDist] < iClosestTravelDist then
-                                        iPosition = iPosition + 1
-                                    else
-                                        break
-                                    end
-                                end
-                            end
-                            M28Profiler.FunctionProfiler(sFunctionRef..': Excl land path', M28Profiler.refProfilerEnd)
-                            M28Profiler.FunctionProfiler(sFunctionRef..': land path', M28Profiler.refProfilerStart)
-                            local tFullPath, iPathSize, iDistance = NavUtils.PathTo(refPathingTypeHover, tLZData[subrefMidpoint], tPlateauSubtable[subrefPlateauLandZones][iClosestLZRef][subrefMidpoint], nil)
-
-                            --Reduce tFullPath to a table of land zones
-                            if tFullPath then
-                                local iPathingPlateau, iPathingLandZone
-                                local tPathingLZConsidered = {}
-                                local tPathingLZFromStartToTarget = {}
-
-
-                                local iTravelDistance = 0
-                                local tStart = {tLZData[subrefMidpoint][1], tLZData[subrefMidpoint][2], tLZData[subrefMidpoint][3]}
-                                local tEnd = {tPlateauSubtable[subrefPlateauLandZones][iClosestLZRef][subrefMidpoint][1], tPlateauSubtable[subrefPlateauLandZones][iClosestLZRef][subrefMidpoint][2], tPlateauSubtable[subrefPlateauLandZones][iClosestLZRef][subrefMidpoint][3]}
-                                tFullPath[0] = tStart
-                                tFullPath[iPathSize + 1] = tEnd
-                                for iPath = 1, iPathSize + 1 do
-                                    iTravelDistance = iTravelDistance + VDist2(tFullPath[iPath - 1][1], tFullPath[iPath - 1][3], tFullPath[iPath][1], tFullPath[iPath][3])
-                                    iPathingPlateau, iPathingLandZone = GetPlateauAndLandZoneReferenceFromPosition(tFullPath[iPath])
-                                    if iPathingLandZone > 0 then
-                                        if not(tPathingLZConsidered[iPathingLandZone]) and not(iLandZone == iPathingLandZone) then
-                                            tPathingLZConsidered[iPathingLandZone] = true
-                                            table.insert(tPathingLZFromStartToTarget, iPathingLandZone)
+                                --Get the position in the current table
+                                local iPosition = 1
+                                if not(tLZData[subrefLZPathingToOtherIslands]) then
+                                    tLZData[subrefLZPathingToOtherIslands] = {}
+                                    iPosition = 1
+                                else
+                                    for iExistingIsland, tExistingSubtable in tLZData[subrefLZPathingToOtherIslands] do
+                                        if tExistingSubtable[subrefIslandTravelDist] < iClosestTravelDist then
+                                            iPosition = iPosition + 1
+                                        else
+                                            break
                                         end
                                     end
                                 end
-                                if not(tPathingLZConsidered[iClosestLZRef]) then
-                                    table.insert(tPathingLZFromStartToTarget, iPathingLandZone)
-                                    tPathingLZConsidered[iClosestLZRef] = true
+                                M28Profiler.FunctionProfiler(sFunctionRef..': Excl land path', M28Profiler.refProfilerEnd)
+                                M28Profiler.FunctionProfiler(sFunctionRef..': land path', M28Profiler.refProfilerStart)
+                                local tPathingLZFromStartToTarget = {}
+                                if bActuallyIgnoreTravelDistForShortlist then
+                                    --Since we are only recording the land zones along the path, just check if both the target and destination land zones have an adjacent water zone in the same pond; if they do, have these as the start and end land zones
+                                    if M28Utilities.IsTableEmpty(tLZData[subrefAdjacentWaterZones]) == false then
+                                        local tiValidPonds = {}
+                                        local tTargetLZData = tPlateauSubtable[subrefPlateauLandZones][iClosestLZRef]
+
+                                        if M28Utilities.IsTableEmpty(tTargetLZData[subrefAdjacentWaterZones]) == false then
+                                            local tbIsTargetWaterZone = {}
+                                            for iEntry, tWZSubtable in tTargetLZData[subrefAdjacentWaterZones] do
+                                                tiValidPonds[tiPondByWaterZone[tWZSubtable[subrefAWZRef]]] = true
+                                                tbIsTargetWaterZone[tWZSubtable[subrefAWZRef]] = true
+                                            end
+                                            local bHaveAdjacentWaterZonesInSamePond = false
+                                            --local iCurCycle = 0
+                                            local tiAdjacentWaterZones = {}
+
+                                            --tiAdjacentWaterZones[0] = {}
+                                            for iEntry, tWZSubtable in tLZData[subrefAdjacentWaterZones] do
+                                                if tiValidPonds[tiPondByWaterZone[tWZSubtable[subrefAWZRef]]] then
+                                                    bHaveAdjacentWaterZonesInSamePond = true
+                                                    break
+                                                    --table.insert(tiAdjacentWaterZones[0], tWZSubtable[subrefAWZRef])
+                                                end
+                                            end
+                                            if bHaveAdjacentWaterZonesInSamePond then
+                                                table.insert(tPathingLZFromStartToTarget, iLandZone)
+                                                table.insert(tPathingLZFromStartToTarget, iClosestLZRef)
+
+                                                table.insert(tLZData[subrefLZPathingToOtherIslands], iPosition, {[subrefIslandNumber] = iIsland, [subrefIslandClosestLZRef] = iClosestLZRef, [subrefLZTravelDist] = iClosestTravelDist, [subrefIslandLZPath] = { } })
+                                                --Add in the LZ path
+                                                for iEntry, iLZ in tPathingLZFromStartToTarget do
+                                                    table.insert(tLZData[subrefLZPathingToOtherIslands][iPosition][subrefIslandLZPath], iLZ)
+                                                end
+                                            end
+                                        end
+                                    end
+
                                 end
-                                table.insert(tLZData[subrefLZPathingToOtherIslands], iPosition, {[subrefIslandNumber] = iIsland, [subrefIslandClosestLZRef] = iClosestLZRef, [subrefLZTravelDist] = iClosestTravelDist, [subrefIslandLZPath] = { } })
-                                --Add in the LZ path
-                                for iEntry, iLZ in tPathingLZFromStartToTarget do
-                                    table.insert(tLZData[subrefLZPathingToOtherIslands][iPosition][subrefIslandLZPath], iLZ)
+                                if M28Utilities.IsTableEmpty(tPathingLZFromStartToTarget) then
+                                    local tFullPath, iPathSize, iDistance = NavUtils.PathTo(refPathingTypeHover, tLZData[subrefMidpoint], tPlateauSubtable[subrefPlateauLandZones][iClosestLZRef][subrefMidpoint], nil)
+
+                                    --Reduce tFullPath to a table of land zones
+                                    if tFullPath then
+                                        local iPathingPlateau, iPathingLandZone
+                                        local tPathingLZConsidered = {}
+
+
+                                        local iTravelDistance = 0
+                                        local tStart = {tLZData[subrefMidpoint][1], tLZData[subrefMidpoint][2], tLZData[subrefMidpoint][3]}
+                                        local tEnd = {tPlateauSubtable[subrefPlateauLandZones][iClosestLZRef][subrefMidpoint][1], tPlateauSubtable[subrefPlateauLandZones][iClosestLZRef][subrefMidpoint][2], tPlateauSubtable[subrefPlateauLandZones][iClosestLZRef][subrefMidpoint][3]}
+                                        tFullPath[0] = tStart
+                                        tFullPath[iPathSize + 1] = tEnd
+                                        for iPath = 1, iPathSize + 1 do
+                                            iTravelDistance = iTravelDistance + VDist2(tFullPath[iPath - 1][1], tFullPath[iPath - 1][3], tFullPath[iPath][1], tFullPath[iPath][3])
+                                            iPathingPlateau, iPathingLandZone = GetPlateauAndLandZoneReferenceFromPosition(tFullPath[iPath])
+                                            if iPathingLandZone > 0 then
+                                                if not(tPathingLZConsidered[iPathingLandZone]) and not(iLandZone == iPathingLandZone) then
+                                                    tPathingLZConsidered[iPathingLandZone] = true
+                                                    table.insert(tPathingLZFromStartToTarget, iPathingLandZone)
+                                                end
+                                            end
+                                        end
+                                        if not(tPathingLZConsidered[iClosestLZRef]) then
+                                            table.insert(tPathingLZFromStartToTarget, iPathingLandZone)
+                                            tPathingLZConsidered[iClosestLZRef] = true
+                                        end
+                                        table.insert(tLZData[subrefLZPathingToOtherIslands], iPosition, {[subrefIslandNumber] = iIsland, [subrefIslandClosestLZRef] = iClosestLZRef, [subrefLZTravelDist] = iClosestTravelDist, [subrefIslandLZPath] = { } })
+                                        --Add in the LZ path
+                                        for iEntry, iLZ in tPathingLZFromStartToTarget do
+                                            table.insert(tLZData[subrefLZPathingToOtherIslands][iPosition][subrefIslandLZPath], iLZ)
+                                        end
+                                    end
                                 end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Plateau '..iPlateau..': Finished recording pathing to get from iLandZone='..iLandZone..' to iClosestLZRef='..(iClosestLZRef or 'nil')..' in island '..iIsland..'; tLZData[subrefLZPathingToOtherIslands]='..repru(tLZData[subrefLZPathingToOtherIslands])) end
+                                M28Profiler.FunctionProfiler(sFunctionRef..': land path', M28Profiler.refProfilerEnd)
                             end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Plateau '..iPlateau..': Finished recording pathing to get from iLandZone='..iLandZone..' to iClosestLZRef='..(iClosestLZRef or 'nil')..' in island '..iIsland..'; tLZData[subrefLZPathingToOtherIslands]='..repru(tLZData[subrefLZPathingToOtherIslands])) end
-                            M28Profiler.FunctionProfiler(sFunctionRef..': land path', M28Profiler.refProfilerEnd)
                         end
                     end
                 end
-            end
-            M28Profiler.FunctionProfiler(sFunctionRef..': Pathing', M28Profiler.refProfilerEnd)
-            if bDebugMessages == true then LOG(sFunctionRef..': Finished recording for iPlateau='..iPlateau) end
+                M28Profiler.FunctionProfiler(sFunctionRef..': Pathing', M28Profiler.refProfilerEnd)
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished recording for iPlateau='..iPlateau) end
             else
-            if not(tPlateauSubtable[subrefPlateauLandZones]) then
-            M28Utilities.ErrorHandler('Have no land zone recorded for plateau '..iPlateau, false, true)
-            end
+                if not(tPlateauSubtable[subrefPlateauLandZones]) then
+                    M28Utilities.ErrorHandler('Have no land zone recorded for plateau '..iPlateau, false, true)
+                end
             end
         end
+    end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -5538,6 +5581,7 @@ function SetupWaterZones()
         if bDebugMessages == true then LOG(sFunctionRef..': Finished recording water zone midpoint etc., system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
         RecordHydroInWaterZones()
         RecordWaterZoneAdjacentLandZones()
+        RecordIslands()
         RecordAdjacentWaterZones()
         if bDebugMessages == true then LOG(sFunctionRef..': Finished recording adjacency for land zones vs water zones, system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
         RecordWaterZonePathingToOtherWaterZones()
@@ -6446,12 +6490,13 @@ function SetupMap()
     SetupLandZones()
     if bDebugMessages == true then LOG(sFunctionRef..': After SetuplandZones, system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
 
-    RecordIslands()
+
     RecordPondDetails()
 
     bMapLandSetupComplete = true
     if bDebugMessages == true then LOG(sFunctionRef..': Finished setting up land aspects of the map, will move on to water zones, time='..GetGameTimeSeconds()..'; system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
     SetupWaterZones() --Includes a wait to make sure we have M28 brains
+    RecordIslands()
     if bDebugMessages == true then LOG(sFunctionRef..': Finished setting up water zones, will also now clal forked threads for other aspects, time='..GetGameTimeSeconds()..'; system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
     ForkThread(ClearTemporarySetupVariables)
     ForkThread(ReclaimManager)

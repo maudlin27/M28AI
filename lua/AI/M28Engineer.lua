@@ -2797,7 +2797,7 @@ end
 
 function CheckForNearbyEnemies()  end --This is incorporated into available engineers by tech - added to make it easier to locate logic
 function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZTeamData, iTeam, iPlateauOrPond, iLandZone, bIsWaterZone)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'FilterToAvailableEngineersByTech'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -3315,6 +3315,9 @@ function ClearEngineerTracking(oEngineer)
     --Unpause unit if it was paused (redundancy)
     if oEngineer[M28UnitInfo.refbPaused] then M28UnitInfo.PauseOrUnpauseMassUsage(oEngineer, false) end
 
+    --Reset stuck count
+    oEngineer[M28Conditions.refiEngineerStuckCheckCount] = 0
+
     oEngineer[refbPrimaryBuilder] = false
     oEngineer[refiAssignedActionPriority] = nil
     oEngineer[refiAssignedAction] = nil
@@ -3436,6 +3439,7 @@ function ClearEngineerTracking(oEngineer)
         oEngineer[refoUnitActivelyShielding] = nil
 
     end
+
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -5050,7 +5054,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                     end
                 elseif iActionToAssign == refActionLoadOntoTransport then
                     if iTotalBuildPowerWanted > 0 and iEngiCount > 0 then
-                        --Load onto first transport in LZ needing engis (max 1 engi per transport)
+                        --Load onto first transport in LZ needing engis (max 1 engi per transport)]
                         for iTransport, oTransport in tLZOrWZTeamData[M28Map.reftoTransportsWaitingForEngineers] do
                             if bDebugMessages == true then LOG(sFunctionRef..': Trying to load engi into transport, iEngiCount='..iEngiCount..'; iTotalBuildPowerWanted='..iTotalBuildPowerWanted..'; oTransport='..oTransport.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTransport)..'; Engineer='..(tEngineersOfTechWanted[iEngiCount].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tEngineersOfTechWanted[iEngiCount]) or 'nil')..'; Transport engis wanted='..oTransport[M28Air.refiEngisWanted]..'; Transport cargo capacity='..M28Air.GetTransportEngiCargoAndRemainingCapacity(oTransport, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech])) end
                             M28Orders.IssueTrackedTransportLoad(tEngineersOfTechWanted[iEngiCount], oTransport, false, sOrderRef, false)
@@ -10215,6 +10219,12 @@ end
 
 function ClearEngineersBuildingUnit(oEngineer, oJustBuilt, bClearEngineersBuildingAtSameLocation)
     --Note - oJustBuilt can also be a unit under construction (e.g. if we want to cancel construction and reclaim it)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ClearEngineersBuildingUnit'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+
     local iAction = oEngineer[refiAssignedAction]
 
     function ClearEngineerIfActionObseleteNow(oCurEngineer, bCalledViaRepairTracking)
@@ -10223,24 +10233,31 @@ function ClearEngineersBuildingUnit(oEngineer, oJustBuilt, bClearEngineersBuildi
             --Does it have the same action, or alternatitvely is it trying to build something at this location that will now be blocked?
             local tLastOrder = oCurEngineer[M28Orders.reftiLastOrders][oCurEngineer[M28Orders.refiOrderCount]]
             local iOrderDistToJustBuilt
-            if M28Utilities.IsTableEmpty(tLastOrder[M28Orders.subreftOrderPosition]) == false then iOrderDistToJustBuilt = M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subreftOrderPosition], oJustBuilt:GetPosition()) end
-            if iOrderDistToJustBuilt <= 1 or tLastOrder[M28Orders.subrefoOrderUnitTarget] == oJustBuilt then
-                bClearEngineer = true
-            elseif bCalledViaRepairTracking and oCurEngineer:GetFocusUnit() == oJustBuilt then
-                bClearEngineer = true
-                --Are we building something near here that is now blocked?
-            elseif iOrderDistToJustBuilt and iOrderDistToJustBuilt <= 10 and tLastOrder[M28Orders.subrefsOrderBlueprint] then
-                local oBlueprint = __blueprints[tLastOrder[M28Orders.subrefsOrderBlueprint]]
-                local iBuildingRadius = math.min(oBlueprint.Physics.SkirtSizeX, oBlueprint.Physics.SkirtSizeZ) * 0.5
-                if iOrderDistToJustBuilt < iBuildingRadius * 1.45 then --1.4142 should be enough, 1.45 used for prudence
-                    --do more precise check
-                    if math.abs(tLastOrder[M28Orders.subreftOrderPosition][1] - oJustBuilt:GetPosition()[1]) < iBuildingRadius and math.abs(tLastOrder[M28Orders.subreftOrderPosition][3] - oJustBuilt:GetPosition()[3]) < iBuildingRadius then
-                        bClearEngineer = true
+            --Ignore if last order was to load onto transport
+            if not(tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderLoadOntoTransport) and not(oEngineer[refiAssignedAction] == refActionLoadOntoTransport then --redundancy
+                if M28Utilities.IsTableEmpty(tLastOrder[M28Orders.subreftOrderPosition]) == false then iOrderDistToJustBuilt = M28Utilities.GetDistanceBetweenPositions(tLastOrder[M28Orders.subreftOrderPosition], oJustBuilt:GetPosition()) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering if should clear engineer, oJustBuilt='..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..'; oCurEngineer='..oCurEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oCurEngineer)..'; iOrderDistToJustBuilt='..iOrderDistToJustBuilt..'; tLastOrder[M28Orders.subrefoOrderUnitTarget]='..(tLastOrder[M28Orders.subrefoOrderUnitTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tLastOrder[M28Orders.subrefoOrderUnitTarget]) or 'nil')..'; iAction='..(iAction or 'nil')..'; Cur engineer action='..(oCurEngineer[refiAssignedAction] or 'nil')) end
+                if iOrderDistToJustBuilt <= 1 or tLastOrder[M28Orders.subrefoOrderUnitTarget] == oJustBuilt then
+                    bClearEngineer = true
+                elseif bCalledViaRepairTracking and oCurEngineer:GetFocusUnit() == oJustBuilt then
+                    bClearEngineer = true
+                    --Are we building something near here that is now blocked?
+                elseif iOrderDistToJustBuilt and iOrderDistToJustBuilt <= 10 and tLastOrder[M28Orders.subrefsOrderBlueprint] then
+                    local oBlueprint = __blueprints[tLastOrder[M28Orders.subrefsOrderBlueprint]]
+                    local iBuildingRadius = math.min(oBlueprint.Physics.SkirtSizeX, oBlueprint.Physics.SkirtSizeZ) * 0.5
+                    if iOrderDistToJustBuilt < iBuildingRadius * 1.45 then --1.4142 should be enough, 1.45 used for prudence
+                        --do more precise check
+                        if math.abs(tLastOrder[M28Orders.subreftOrderPosition][1] - oJustBuilt:GetPosition()[1]) < iBuildingRadius and math.abs(tLastOrder[M28Orders.subreftOrderPosition][3] - oJustBuilt:GetPosition()[3]) < iBuildingRadius then
+                            bClearEngineer = true
+                        end
                     end
-                end
 
+                end
             end
-            if bClearEngineer then M28Orders.IssueTrackedClearCommands(oCurEngineer) end
+            if bClearEngineer then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will clear engineer') end
+                M28Orders.IssueTrackedClearCommands(oCurEngineer)
+            end
         end
     end
 
@@ -10271,6 +10288,7 @@ function ClearEngineersBuildingUnit(oEngineer, oJustBuilt, bClearEngineersBuildi
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function ClearEngineersWhoseTargetIsNowBlockedByUnitConstructionStarted(oEngineer, oConstruction)
