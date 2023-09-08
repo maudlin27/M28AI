@@ -6036,7 +6036,7 @@ function RecordLandZonePathingToOtherLandZonesInSamePlateau()
     end
 
     for iPlateau, tPlateauSubtable in tAllPlateaus do
-        M28Profiler.FunctionProfiler(sFunctionRef..': iPlateau '..iPlateau, M28Profiler.refProfilerStart)
+        if tPlateauSubtable[subrefLandZoneCount] >= 5 then M28Profiler.FunctionProfiler(sFunctionRef..': iPlateau '..iPlateau, M28Profiler.refProfilerStart) end
 
         tiTempLandPathingDistanceForLZ[iPlateau] = {}
 
@@ -6155,7 +6155,7 @@ function RecordLandZonePathingToOtherLandZonesInSamePlateau()
             if bDebugMessages == true then LOG(sFunctionRef..': Finished considering all pathing for iStartLandZone='..iStartLandZone..'; tiTempLandPathingDistanceForLZ[iPlateau]='..repru(tiTempLandPathingDistanceForLZ[iPlateau])) end
         end
 
-        M28Profiler.FunctionProfiler(sFunctionRef..': Plateau '..iPlateau, M28Profiler.refProfilerEnd)
+        if tPlateauSubtable[subrefLandZoneCount] >= 5 then M28Profiler.FunctionProfiler(sFunctionRef..': iPlateau '..iPlateau, M28Profiler.refProfilerEnd) end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
