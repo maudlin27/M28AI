@@ -2592,6 +2592,19 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             end
         end
 
+        --High priority transport if a large map and we ought to have enough
+        iCurrentConditionToTry = iCurrentConditionToTry + 1
+        if bDebugMessages == true then LOG(sFunctionRef..': High priority transport builder even if have low power, Team net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; Factoyr b uild count='..oFactory[refiTotalBuildCount]..'; Brain % energy stored='..aiBrain:GetEconomyStoredRatio('ENERGY')..'; Brain gross energy='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]) end
+        if oFactory[refiTotalBuildCount] <= 5 and iFactoryTechLevel == 1 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 10 * (0.5 + 0.5 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) * aiBrain[M28Economy.refiBrainBuildRateMultiplier] or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 6 and aiBrain:GetEconomyStored('ENERGY') >= 2000)) and aiBrain:GetEconomyStoredRatio('ENERGY') >= 0.15 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 22 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Is island shortlist empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist]))) end
+            if (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist]) == false or M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist]) == false) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryTransport) == 0 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryTransport) == 0 then
+                M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refiTimeLastTriedBuildingTransport] = GetGameTimeSeconds()
+                if ConsiderBuildingCategory(M28UnitInfo.refCategoryTransport - categories.TECH3 - categories.EXPERIMENTAL) then
+                    return sBPIDToBuild
+                end
+            end
+        end
+
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if bDebugMessages == true then
             LOG(sFunctionRef .. ': AIr fac engi builder: bHaveLowMass=' .. tostring(bHaveLowMass) .. '; M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] .. '; subrefTbWantBP=' .. tostring(tLZTeamData[M28Map.subrefTbWantBP] or false))
@@ -2615,7 +2628,8 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             if M28Utilities.IsTableEmpty(tEngisOfTechInZone) == false then
                 iEngisOfTechInZone = table.getn(tEngisOfTechInZone)
             end
-            if iEngisOfTechInZone < 3 or (iEngisOfTechInZone < 5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 0) or (iEngisOfTechInZone < 10 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 1000 or iBPWanted >= 100))
+            local iMinEngisWanted = math.max(5, math.min(15, aiBrain[M28Economy.refiGrossMassBaseIncome] / (1.5 * aiBrain[M28Economy.refiOurHighestFactoryTechLevel])))
+            if iEngisOfTechInZone < 3 or (iEngisOfTechInZone < iMinEngisWanted and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 0) or (iEngisOfTechInZone < iMinEngisWanted + 5 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 1000 or iBPWanted >= 100))
                     or (iEngisOfTechInZone < 50 and iBPWanted / 10 > iEngisOfTechInZone and iFactoryTechLevel >= 3 and (M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or M28Conditions.GetNumberOfUnitsCurrentlyBeingBuiltOfCategoryInZone(tLZTeamData, M28UnitInfo.refCategoryEngineer * categories.TECH3) <= math.min(2, iBPWanted / M28Engineer.tiBPByTech[3]))) then
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then
                     return sBPIDToBuild
@@ -2734,10 +2748,27 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
 
             --early-game Transport (high priority)
             iCurrentConditionToTry = iCurrentConditionToTry + 1
-            if (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist]) == false or M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist]) == false) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryTransport) == 0 and ((iFactoryTechLevel <= 2 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryTransport) <= 1) or (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and GetGameTimeSeconds() - (M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refiTimeLastTriedBuildingTransport] or -100) >= 180)) then
-                M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refiTimeLastTriedBuildingTransport] = GetGameTimeSeconds()
-                if ConsiderBuildingCategory(M28UnitInfo.refCategoryTransport - categories.TECH3 - categories.EXPERIMENTAL) then
-                    return sBPIDToBuild
+            if (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist]) == false or M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist]) == false) then
+                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoTransportsWaitingForEngineers]) == false and iFactoryTechLevel <= 2 then
+                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
+                else
+                    local iCurTransports = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryTransport)
+                    local iCurDropLocations = 0
+                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist]) == false then iCurDropLocations = table.getn(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist]) end
+                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist]) == false then iCurDropLocations = iCurDropLocations + table.getn(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist]) end
+                    local iTransportsWanted = 1
+                    if iCurDropLocations >= 3 and M28Map.iMapSize >= 750 then --i.e. 20k (1024) or larger most of the time
+                        iTransportsWanted = math.max(1, iCurDropLocations / (2 * (M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] + table.getn(M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains]))))
+                    end
+
+                    if bDebugMessages == true then LOG(sFunctionRef..': iCurTransports='..iCurTransports..'; iCurDropLocations='..iCurDropLocations..'; iTransportsWanted='..iTransportsWanted) end
+
+                    if iCurTransports < iTransportsWanted and ((iFactoryTechLevel <= 2 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryTransport) <= iTransportsWanted + 1) or (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and GetGameTimeSeconds() - (M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refiTimeLastTriedBuildingTransport] or -100) >= 180)) then
+                        M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refiTimeLastTriedBuildingTransport] = GetGameTimeSeconds()
+                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryTransport - categories.TECH3 - categories.EXPERIMENTAL) then
+                            return sBPIDToBuild
+                        end
+                    end
                 end
             end
 
@@ -2827,14 +2858,30 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 end
             else
                 --We have suitably high tech level to consider normal air production (and engineer production)
-                --High mass - build more engineers
+                --High mass or low engi count - build more engineers
                 iCurrentConditionToTry = iCurrentConditionToTry + 1
                 if bDebugMessages == true then
                     LOG(sFunctionRef .. ': High mass engi builder: bHaveLowMass=' .. tostring(bHaveLowMass) .. '; Lowest mass % stored=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored])
                 end
-                if tLZTeamData[M28Map.subrefTbWantBP] and not (bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.4 then
-                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then
-                        return sBPIDToBuild
+                iCurrentConditionToTry = iCurrentConditionToTry + 1
+                if bDebugMessages == true then
+                    LOG(sFunctionRef .. ': Another engi builder - iFactoryTechLevel=' .. iFactoryTechLevel .. '; Highest friendly tech=' .. M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] .. '; Mass stored=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored])
+                end
+                if tLZTeamData[M28Map.subrefTbWantBP] then
+                    --Do we have fewer than 5 engineers of this tech level in this zone and we have some mass stored? if so then build another engineer (also build another engineer if we have fewer than 3 engineers even with low mass)
+                    local iEngisOfTechInZone = 0
+                    local iBPWanted = tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][1] + tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][2] + tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][3]
+                    local tEngisOfTechInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel), tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                    if M28Utilities.IsTableEmpty(tEngisOfTechInZone) == false then
+                        iEngisOfTechInZone = table.getn(tEngisOfTechInZone)
+                    end
+                    local iMinEngisWanted = math.max(5, math.min(20, aiBrain[M28Economy.refiGrossMassBaseIncome] / (1.5 * aiBrain[M28Economy.refiOurHighestFactoryTechLevel])))
+
+                    if iEngisOfTechInZone < iMinEngisWanted or (not (bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.4) and not(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingMass]) then
+
+                        if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then
+                            return sBPIDToBuild
+                        end
                     end
                 end
 

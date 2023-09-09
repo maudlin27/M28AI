@@ -4463,7 +4463,9 @@ function AssignValuesToLandZones(iTeam)
         local tFriendlyNonPDBuildings
         local bAdjacentToCoreFactory
         local iFriendlyBuildingValue
+        local iCurCycleCount = 0
         while M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false do
+            iCurCycleCount = iCurCycleCount + 1 --used so we dont wait the first time, so we have recorded which zones are core zones
             local tiPlateauAndLZWithFriendlyStartPosition = {}
             local iBaseCategory
             for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
@@ -4508,7 +4510,7 @@ function AssignValuesToLandZones(iTeam)
                         if tiPlateauAndLZWithFriendlyStartPosition[iPlateau][iLandZone] or tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbCoreBaseOverride] then
                             tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] = true
                             if bDebugMessages == true then LOG(sFunctionRef..': Core LZ='..iLandZone..' for plateau '..iPlateau..'; All adjacent zones='..repru(tLandZoneData[M28Map.subrefLZAdjacentLandZones])..'; tiPlateauAndLZWithFriendlyStartPosition[iPlateau][iLandZone]=nil='..tostring(tiPlateauAndLZWithFriendlyStartPosition[iPlateau][iLandZone] == nil)..'; tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbCoreBaseOverride]='..tostring(tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbCoreBaseOverride] or false)..'; Island ref='..(tLandZoneData[M28Map.subrefLZIslandRef] or 'nil')) end
-                        --adjacent zones iwth lots of mexes in them and high mex count - consider treating as a core base
+                            --adjacent zones iwth lots of mexes in them and high mex count - consider treating as a core base
                         elseif tLandZoneData[M28Map.subrefLZMexCount] >= 4 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 and M28Utilities.IsTableEmpty(tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedUnits]) == false then
                             --Are we adjacent to a core zone and we contain a factory or high value unit? If so then treat us as a core LZ
                             bAdjacentToCoreFactory = false
@@ -4528,10 +4530,11 @@ function AssignValuesToLandZones(iTeam)
                             end
 
                         end
-
-                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                        WaitTicks(1)
-                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                        if iCurCycleCount > 1 then --dont want to wait the first time, as on large maps can mean a delay in the ACU building
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            WaitTicks(1)
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                        end
                     end
                 end
             end

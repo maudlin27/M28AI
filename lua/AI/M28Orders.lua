@@ -147,7 +147,7 @@ function IssueTrackedClearCommands(oUnit)
     --Clear orders:
     IssueClearCommands({oUnit})
 
-    --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uel01059' and oUnit:GetAIBrain():GetArmyIndex() == 2 then --and oUnit:GetAIBrain():GetArmyIndex() == 6 then
+    --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uel010513' then --and oUnit:GetAIBrain():GetArmyIndex() == 2 then --and oUnit:GetAIBrain():GetArmyIndex() == 6 then
         LOG('Just issuedclearcommands to unit'..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds())
         M28Utilities.ErrorHandler('Audit trail', true, true)
     end--]]
@@ -695,11 +695,34 @@ function IssueTrackedEnhancement(oUnit, sUpgradeRef, bAddToExistingQueue, sOptio
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function DestroyUnitAfterDelay(oUnit, iSecondsToWait)
+    local sFunctionRef = 'DestroyUnitAfterDelay'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+
+
+    WaitSeconds(1)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if M28UnitInfo.IsUnitValid(oUnit) then
+
+        if bDebugMessages == true then LOG(sFunctionRef..': Failed to kill unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with unit state '..M28UnitInfo.GetUnitState(oUnit)) end
+        oUnit:DestroyUnit(0)
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function IssueTrackedKillUnit(oUnit)
     IssueTrackedClearCommands(oUnit)
     oUnit[refiOrderCount] = 1
     oUnit[reftiLastOrders] = {{[subrefiOrderType] = refiOrderKill}}
+    if oUnit[M28UnitInfo.refbTriedToKill] then
+        --Fork thread to try a dif method in 1s
+        --ForkThread(DestroyUnitAfterDelay, oUnit, 1) --Disabled for now as the scneario where it happened (where I suspect it was engineers who were in a transport) didnt trigger after separate change, so not currently required
+    else
+        oUnit[M28UnitInfo.refbTriedToKill] = true
+    end
+
     oUnit:Kill()
+
 end
 
 --[[function IssueTrackedOrder(oUnit, iOrderType, tOrderPosition, oOrderTarget, sOrderBlueprint)
@@ -908,8 +931,7 @@ function IssueTrackedTransportLoad(oUnit, oOrderTarget, bAddToExistingQueue, sOp
 
 
 
-    --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uel01059' and oUnit:GetAIBrain():GetArmyIndex() == 2 then
-        bDebugMessages = true
+    --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uel010513' then--and oUnit:GetAIBrain():GetArmyIndex() == 2 then
         LOG('IssueTrackedTransportLoad for unit'..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds())
         M28Utilities.ErrorHandler('Audit trail', true, true)
     end--]]
@@ -993,6 +1015,9 @@ function IssueTrackedTransportLoad(oUnit, oOrderTarget, bAddToExistingQueue, sOp
             oOrderTarget[M28Air.refiTransportTimeSpentWaiting] = math.max(0, (oOrderTarget[M28Air.refiTransportTimeSpentWaiting] or 0) - 15)
             if bDebugMessages == true then LOG(sFunctionRef..': Just sent transport load order') end
             if not(bDontTryBackup) then ForkThread(DelayedTransportReloadCheck, oUnit, oOrderTarget) end --Found this caused more problems than it solved when it  just reissued the order; however per sprouto's suggestion warping the engineer first solves most issues where this happens; is on a 10s delay so should be slower than a human
+            --Treat engi as having a high priority action now
+            M28Engineer.TrackEngineerAction(oUnit, M28Engineer.refActionLoadOntoTransport, false, 1)
+            oUnit[import('/mods/M28AI/lua/AI/M28Conditions.lua').refiEngineerStuckCheckCount] = 0
         end
         if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
     end
