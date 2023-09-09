@@ -685,13 +685,14 @@ function CheckUnitCap(aiBrain)
     --for i, army in armies do
     --end
     local iCurUnits = aiBrain:GetCurrentUnits(categories.ALLUNITS - M28UnitInfo.refCategoryWall) + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryWall) * 0.25
-    local iThreshold = math.max(math.ceil(iUnitCap * 0.02), 10)
+    local iCurFactories = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory)
+    local iThreshold = math.min(30, math.max(math.ceil(iUnitCap * 0.02), 10, iCurFactories * 0.5))
     local iCurUnitsDestroyed = 0
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..'; iCurUnits='..iCurUnits..'; iUnitCap='..iUnitCap..'; iThreshold='..iThreshold) end
     if iCurUnits > (iUnitCap - iThreshold * 5) then
         aiBrain[refbCloseToUnitCap] = true
         M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeLastNearUnitCap] = GetGameTimeSeconds()
-        local iMaxToDestroy = math.max(5, math.ceil(iUnitCap * 0.01), 20 - (iUnitCap - iCurUnits))
+        local iMaxToDestroy = math.max(5, math.ceil(iUnitCap * 0.01), math.max(20, iCurFactories) - (iUnitCap - iCurUnits))
         if iUnitCap - iCurUnits < 10 then iMaxToDestroy = math.max(10, iMaxToDestroy) end
         local tUnitsToDestroy
         local tiCategoryToDestroy = {
@@ -771,16 +772,31 @@ function CheckUnitCap(aiBrain)
                 tUnitsToDestroy = aiBrain:GetListOfUnits(tiCategoryToDestroy[iAdjustmentLevel], false, false)
                 if M28Utilities.IsTableEmpty(tUnitsToDestroy) == false then
                     M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] = math.min((M28Team.tTeamData[aiBrain.M28Team][M28Team.refiLowestUnitCapAdjustmentLevel] or 100), iAdjustmentLevel)
+                    local bKillUnit
                     for iUnit, oUnit in tUnitsToDestroy do
                         if oUnit.Kill then
-                            if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitsDestroyed so far='..iCurUnitsDestroyed..'; Will destroy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to avoid going over unit cap') end
-                            M28Orders.IssueTrackedKillUnit(oUnit)
-                            if EntityCategoryContains(M28UnitInfo.refCategoryWall, oUnit.UnitId) then
-                                iCurUnitsDestroyed = iCurUnitsDestroyed + 0.25
-                            else
-                                iCurUnitsDestroyed = iCurUnitsDestroyed + 1
+                            --Dont kill an engineer that is building, reclaiming, repairing or capturing (unless it is building/repairing and not ap rimary engineer
+                            bKillUnit = true
+                            if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
+                                if  oUnit:IsUnitState('Reclaiming') or oUnit:IsUnitState('Capturing') then
+                                    bKillUnit = false
+                                elseif oUnit[M28Engineer.refbPrimaryBuilder] and (oUnit:IsUnitState('Building') or oUnit:IsUnitState('Repairing')) then
+                                    bKillUnit = false
+                                end
                             end
-                            if iCurUnitsDestroyed >= iMaxToDestroy then break end
+                            if bKillUnit then
+                                if bDebugMessages == true then LOG(sFunctionRef..': iCurUnitsDestroyed so far='..iCurUnitsDestroyed..'; Will destroy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to avoid going over unit cap') end
+                                if not(oUnit[M28UnitInfo.refbTriedToKill]) then
+                                    if EntityCategoryContains(M28UnitInfo.refCategoryWall, oUnit.UnitId) then
+                                        iCurUnitsDestroyed = iCurUnitsDestroyed + 0.25
+                                    else
+                                        iCurUnitsDestroyed = iCurUnitsDestroyed + 1
+                                    end
+                                end
+                                M28Orders.IssueTrackedKillUnit(oUnit)
+
+                                if iCurUnitsDestroyed >= iMaxToDestroy then break end
+                            end
                         end
                     end
                 end
@@ -938,7 +954,7 @@ function GetCivilianCaptureTargets(aiBrain)
     local iCategoriesOfInterest = M28UnitInfo.refCategoryLandCombat * categories.RECLAIMABLE - categories.TECH1
     local tUnitsOfInterest = aiBrain:GetUnitsAroundPoint(iCategoriesOfInterest, tStartPoint, iSearchRange, 'Neutral')
     if not(tUnitsOfInterest) then tUnitsOfInterest = {} end
-    local tNeutralMexes = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMex, tStartPoint, 10000, 'Neutral')
+    local tNeutralMexes = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryHydro, tStartPoint, 10000, 'Neutral')
     if M28Utilities.IsTableEmpty(tNeutralMexes) == false then
         for iMex, oMex in tNeutralMexes do
             table.insert(tUnitsOfInterest, oMex)
@@ -946,7 +962,7 @@ function GetCivilianCaptureTargets(aiBrain)
     end
 
     local iMaxPowerSearchRange = math.min(250, iClosestEnemyBase * 0.225)
-    local tNearbyPower = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryPower - categories.TECH3, tStartPoint, iMaxPowerSearchRange, 'Neutral')
+    local tNearbyPower = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryPower, tStartPoint, iMaxPowerSearchRange, 'Neutral')
     if M28Utilities.IsTableEmpty(tNearbyPower) == false then
         for iPower, oPower in tNearbyPower do
             table.insert(tUnitsOfInterest, oPower)

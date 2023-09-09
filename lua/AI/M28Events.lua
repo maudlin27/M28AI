@@ -1628,10 +1628,11 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                     M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityT2Arti, true)
                 end
                 --Check unit cap
-                if (oUnit[M28Overseer.refiExpectedRemainingCap] or 0) <= 100 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have too many units, expected remaining cap='..(aiBrain[M28Overseer.refiExpectedRemainingCap] or 0)) end
+                if (aiBrain[M28Overseer.refiExpectedRemainingCap] or 0) <= 100 then
                     M28Overseer.CheckUnitCap(aiBrain)
                 else
-                    oUnit[M28Overseer.refiExpectedRemainingCap] = oUnit[M28Overseer.refiExpectedRemainingCap] - 1
+                    aiBrain[M28Overseer.refiExpectedRemainingCap] = aiBrain[M28Overseer.refiExpectedRemainingCap] - 1
                 end
             end
         end

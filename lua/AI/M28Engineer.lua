@@ -5813,6 +5813,18 @@ function GetClosestMobileTMLIfWantMoreTMD(iTeam, tLZTeamData)
     return oMobileTMLToDefendAgainst
 end
 
+function GetCaptureBPWanted(oUnitToCapture, bHaveLowPower, iTeam, bIsCoreBase)
+    local iTargetBuildTime = (oUnitToCapture:GetBlueprint().Economy.BuildTime or 1)
+    local iBPWanted = math.min(5 + 20 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech], iTargetBuildTime * 0.25)
+
+    local iTimeToCapture = iTargetBuildTime / iBPWanted
+    if iTimeToCapture >= 10 and not(bHaveLowPower) then
+        iBPWanted = math.min(40 * M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech], iTargetBuildTime / 10)
+    end
+    iBPWanted = math.max(5, iBPWanted)
+    return iBPWanted
+end
+
 function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, iLandZone, tEngineers)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderCoreBaseLandZoneEngineerAssignment'
@@ -7717,9 +7729,20 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Have units to capture for zone '..iLandZone..'; after freshing them is table empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]))) end
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]) == false then
-            local oUnitToCapture = M28Utilities.GetNearestUnit(tLZData[M28Map.subreftoUnitsToCapture], tLZData[M28Map.subrefMidpoint])
-            if bDebugMessages == true then LOG(sFunctionRef..': Unit to cpature='..oUnitToCapture.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToCapture)) end
-            HaveActionToAssign(refActionCaptureUnit, 1, 25, oUnitToCapture)
+            local oUnitToCapture
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 75 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+                local tPotentialCapture = EntityCategoryFilterDown(categories.ALLUNITS - M28UnitInfo.refCategoryT3Power, tLZData[M28Map.subreftoUnitsToCapture])
+                if M28Utilities.IsTableEmpty(tPotentialCapture) == false then
+                    oUnitToCapture = M28Utilities.GetNearestUnit(tPotentialCapture, tLZData[M28Map.subrefMidpoint])
+                end
+            else
+                oUnitToCapture = M28Utilities.GetNearestUnit(tLZData[M28Map.subreftoUnitsToCapture], tLZData[M28Map.subrefMidpoint])
+            end
+            if oUnitToCapture then
+                if bDebugMessages == true then LOG(sFunctionRef..': Unit to cpature='..oUnitToCapture.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToCapture)) end
+                iBPWanted = GetCaptureBPWanted(oUnitToCapture, bHaveLowPower, iTeam, tLZTeamData[M28Map.subrefLZbCoreBase])
+                HaveActionToAssign(refActionCaptureUnit, 1, iBPWanted, oUnitToCapture)
+            end
         end
     end
 
@@ -8227,12 +8250,12 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     if iExistingLandFactory < iFactoriesWanted then
         --Dont want to build air factories at a core expansion point, instead only want land
         --[[local bWantAirNotLand = M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
-        local iFactoryAction
-        if bWantAirNotLand then iFactoryAction = refActionBuildAirFactory
-        else
-            if bDebugMessages == true then LOG(sFunctionRef..': Want to build land factory not air factory4') end
-            iFactoryAction = refActionBuildLandFactory
-        end--]]
+    local iFactoryAction
+    if bWantAirNotLand then iFactoryAction = refActionBuildAirFactory
+    else
+        if bDebugMessages == true then LOG(sFunctionRef..': Want to build land factory not air factory4') end
+        iFactoryAction = refActionBuildLandFactory
+    end--]]
         iBPWanted = 10
         if bExistingFactoryIsComplete then iBPWanted = 5 end
         local iMaxTechLevelIfAny
@@ -8355,12 +8378,12 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         iBPWanted = 10
         if not(bHaveLowMass) then iBPWanted = math.min(30, 3 * tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]]) end
         --[[local bWantAirNotLand = M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData)
-        local iFactoryAction
-        if bWantAirNotLand then iFactoryAction = refActionBuildAirFactory
-        else
-            if bDebugMessages == true then LOG(sFunctionRef..': Want to build land factory not air factory5') end
-            iFactoryAction = refActionBuildLandFactory
-        end--]]
+    local iFactoryAction
+    if bWantAirNotLand then iFactoryAction = refActionBuildAirFactory
+    else
+        if bDebugMessages == true then LOG(sFunctionRef..': Want to build land factory not air factory5') end
+        iFactoryAction = refActionBuildLandFactory
+    end--]]
         if bDebugMessages == true then LOG(sFunctionRef..': Want more BP for land factories, iBPWanted='..iBPWanted..' iExistingLandFactory='..iExistingLandFactory..'; iFactoriesWanted='..iFactoriesWanted) end
         HaveActionToAssign(refActionBuildLandFactory, 1, iBPWanted, nil)
     end
@@ -8538,9 +8561,21 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Have units to capture for zone '..iLandZone..', after freshing them is table empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]))) end
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToCapture]) == false then
-            local oUnitToCapture = M28Utilities.GetNearestUnit(tLZData[M28Map.subreftoUnitsToCapture], tLZData[M28Map.subrefMidpoint])
-            if bDebugMessages == true then LOG(sFunctionRef..': Unit to cpature='..oUnitToCapture.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToCapture)) end
-            HaveActionToAssign(refActionCaptureUnit, 1, 25, oUnitToCapture)
+            local oUnitToCapture
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 75 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+                local tPotentialCapture = EntityCategoryFilterDown(categories.ALLUNITS - M28UnitInfo.refCategoryT3Power, tLZData[M28Map.subreftoUnitsToCapture])
+                if M28Utilities.IsTableEmpty(tPotentialCapture) == false then
+                    oUnitToCapture = M28Utilities.GetNearestUnit(tPotentialCapture, tLZData[M28Map.subrefMidpoint])
+                end
+            else
+                oUnitToCapture = M28Utilities.GetNearestUnit(tLZData[M28Map.subreftoUnitsToCapture], tLZData[M28Map.subrefMidpoint])
+            end
+            if oUnitToCapture then
+                if bDebugMessages == true then LOG(sFunctionRef..': Unit to cpature='..oUnitToCapture.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToCapture)) end
+                iBPWanted = GetCaptureBPWanted(oUnitToCapture, bHaveLowPower, iTeam, tLZTeamData[M28Map.subrefLZbCoreBase])
+                HaveActionToAssign(refActionCaptureUnit, 1, iBPWanted, oUnitToCapture)
+            end
+
         end
     end
 
@@ -8989,10 +9024,10 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 75 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.5 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < math.max(250, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.5) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 20) then
         local iMinTechLevelForPower = 1
         --[[if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 then
-        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 22 then iMinTechLevelForPower = 1
-        elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 110 then iMinTechLevelForPower = 2
-        end
-    end--]]
+    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 22 then iMinTechLevelForPower = 1
+    elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 110 then iMinTechLevelForPower = 2
+    end
+end--]]
         HaveActionToAssign(refActionBuildPower, iMinTechLevelForPower, tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 6)
     end
 
@@ -9136,7 +9171,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     --[[iCurPriority = iCurPriority + 1
 iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
 if iHighestTechEngiAvailable > 0 and tLZData[M28Map.subrefTotalMassReclaim] >= 5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.6 then
-    HaveActionToAssign(refActionReclaimArea, 1, math.min(100, math.max(10, tLZData[M28Map.subrefTotalMassReclaim] / 10)), false, true)
+HaveActionToAssign(refActionReclaimArea, 1, math.min(100, math.max(10, tLZData[M28Map.subrefTotalMassReclaim] / 10)), false, true)
 end--]]
 
 
@@ -9655,8 +9690,20 @@ function ConsiderWaterZoneEngineerAssignment(tWZTeamData, iTeam, iPond, iWaterZo
         end
         if bDebugMessages == true then LOG(sFunctionRef..': Finishedupdating if have units to capture for zone, after freshing them is table empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subreftoUnitsToCapture]))) end
         if M28Utilities.IsTableEmpty(tWZData[M28Map.subreftoUnitsToCapture]) == false then
-            local oUnitToCapture = M28Utilities.GetNearestUnit(tWZData[M28Map.subreftoUnitsToCapture], tWZData[M28Map.subrefMidpoint])
-            HaveActionToAssign(refActionCaptureUnit, 1, 25, oUnitToCapture)
+            local oUnitToCapture
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 75 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+                local tPotentialCapture = EntityCategoryFilterDown(categories.ALLUNITS - M28UnitInfo.refCategoryT3Power, tLZData[M28Map.subreftoUnitsToCapture])
+                if M28Utilities.IsTableEmpty(tPotentialCapture) == false then
+                    oUnitToCapture = M28Utilities.GetNearestUnit(tPotentialCapture, tLZData[M28Map.subrefMidpoint])
+                end
+            else
+                oUnitToCapture = M28Utilities.GetNearestUnit(tLZData[M28Map.subreftoUnitsToCapture], tLZData[M28Map.subrefMidpoint])
+            end
+            if oUnitToCapture then
+                if bDebugMessages == true then LOG(sFunctionRef..': Unit to cpature='..oUnitToCapture.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToCapture)) end
+                iBPWanted = GetCaptureBPWanted(oUnitToCapture, bHaveLowPower, iTeam, tLZTeamData[M28Map.subrefLZbCoreBase])
+                HaveActionToAssign(refActionCaptureUnit, 1, iBPWanted, oUnitToCapture)
+            end
         end
     end
 

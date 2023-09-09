@@ -1871,11 +1871,14 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam)
             end
         end
     end
-    --Send any units that couldnt be refueld to the air rally point
+    --Send any units that couldnt be refueld to the closest friendly base air rally point
     if M28Utilities.IsTableEmpty(tUnitsUnableToRefuel) == false then
         M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastAirStagingShortage] = GetGameTimeSeconds()
         if bDebugMessages == true then LOG(sFunctionRef..': Flagged that we want air staging for units on team '..iTeam..' at time '..GetGameTimeSeconds()) end
         local tRallyPoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
+        local tRallyLZData, tRallyLZTeamData = M28Map.GetLandOrWaterZoneData(tRallyPoint, true, iTeam)
+        local tRefuelBase
+        if tRallyLZTeamData[M28Map.reftClosestFriendlyBase] then tRefuelBase = tRallyLZTeamData[M28Map.reftClosestFriendlyBase] else tRefuelBase = tRallyPoint end
         --If close to unit cap consider ctrl-King unit if it is close to the rally point
         if (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) == 0 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap] or -100) <= 10 then
             --Ctrlk units if close to rally point and aibrain owner is close to unit cap
@@ -1885,7 +1888,7 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam)
                     iCtrlKCount = iCtrlKCount + 1
                     M28Orders.IssueTrackedKillUnit(oUnit)
                 else
-                    M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 10, false, 'UCWntStgn', false)
+                    M28Orders.IssueTrackedMove(oUnit, tRefuelBase, 10, false, 'UCWntStgn', false)
                 end
             end
         else
@@ -1902,7 +1905,7 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam)
                 end
             end
             for iUnit, oUnit in tUnitsUnableToRefuel do
-                M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 10, false, 'WntStgn', false)
+                M28Orders.IssueTrackedMove(oUnit, tRefuelBase, 10, false, 'WntStgn', false)
                 if bConsiderKillingUnits and oUnit:GetFuelRatio() <= 0.1 and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tRallyPoint) <= 10 then
                     M28Orders.IssueTrackedKillUnit(oUnit)
                     bConsiderKillingUnits = false --max one per second

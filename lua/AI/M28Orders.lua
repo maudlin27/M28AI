@@ -695,11 +695,34 @@ function IssueTrackedEnhancement(oUnit, sUpgradeRef, bAddToExistingQueue, sOptio
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function DestroyUnitAfterDelay(oUnit, iSecondsToWait)
+    local sFunctionRef = 'DestroyUnitAfterDelay'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+
+
+    WaitSeconds(1)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if M28UnitInfo.IsUnitValid(oUnit) then
+
+        if bDebugMessages == true then LOG(sFunctionRef..': Failed to kill unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' with unit state '..M28UnitInfo.GetUnitState(oUnit)) end
+        oUnit:DestroyUnit(0)
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function IssueTrackedKillUnit(oUnit)
     IssueTrackedClearCommands(oUnit)
     oUnit[refiOrderCount] = 1
     oUnit[reftiLastOrders] = {{[subrefiOrderType] = refiOrderKill}}
+    if oUnit[M28UnitInfo.refbTriedToKill] then
+        --Fork thread to try a dif method in 1s
+        --ForkThread(DestroyUnitAfterDelay, oUnit, 1) --Disabled for now as the scneario where it happened (where I suspect it was engineers who were in a transport) didnt trigger after separate change, so not currently required
+    else
+        oUnit[M28UnitInfo.refbTriedToKill] = true
+    end
+
     oUnit:Kill()
+
 end
 
 --[[function IssueTrackedOrder(oUnit, iOrderType, tOrderPosition, oOrderTarget, sOrderBlueprint)
