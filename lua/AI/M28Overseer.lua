@@ -895,7 +895,7 @@ function RevealCiviliansToAI(aiBrain)
 end
 
 function RevealCivilainsToAIByGivingVision(aiBrain)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RevealCivilainsToAIByGivingVision'
     --First wait a couple of seconds to give a chance for units to be created
     if GetGameTimeSeconds() <= 4.4 then
@@ -919,7 +919,7 @@ function RevealCivilainsToAIByGivingVision(aiBrain)
 end
 
 function GetCivilianCaptureTargets(aiBrain)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetCivilianCaptureTargets'
 
     WaitTicks(2) --tried 1 tick but not working for civilian mexes
@@ -942,6 +942,14 @@ function GetCivilianCaptureTargets(aiBrain)
     if M28Utilities.IsTableEmpty(tNeutralMexes) == false then
         for iMex, oMex in tNeutralMexes do
             table.insert(tUnitsOfInterest, oMex)
+        end
+    end
+
+    local iMaxPowerSearchRange = math.min(250, iClosestEnemyBase * 0.225)
+    local tNearbyPower = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryPower - categories.TECH3, tStartPoint, iMaxPowerSearchRange, 'Neutral')
+    if M28Utilities.IsTableEmpty(tNearbyPower) == false then
+        for iPower, oPower in tNearbyPower do
+            table.insert(tUnitsOfInterest, oPower)
         end
     end
     --local sPathing = M28Map.refPathingTypeAmphibious
