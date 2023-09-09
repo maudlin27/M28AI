@@ -4395,7 +4395,7 @@ function UpdateTransportLocationShortlist(iTeam)
         --Cycle through every island, check it's not listed in the above table, and then record as a potential island to consider dropping
         local bAlreadyIncluded = false
         local iClosestLZToBase, iClosestBasePlateau, iClosestBaseLZ, iCurDistToFriendlyBase
-        local iMexesAlreadyBuiltOn
+        local iMexesAlreadyBuiltOn, bHaveLandFactoryOnIsland
         for iPlateau, tPlateauSubtable in M28Map.tAllPlateaus do
             if bDebugMessages == true then LOG(sFunctionRef..': Considering iPlateau='..iPlateau..'; Is table of island land zones empty='..tostring(M28Utilities.IsTableEmpty(tPlateauSubtable[M28Map.subrefPlateauIslandLandZones]))) end
             if M28Utilities.IsTableEmpty(tPlateauSubtable[M28Map.subrefPlateauIslandLandZones]) == false then
@@ -4411,7 +4411,6 @@ function UpdateTransportLocationShortlist(iTeam)
                                 iClosestBasePlateau = nil
                                 iClosestBaseLZ = nil
                                 --Cycle through every land zone to check for friendly bases on the same plateau, and for how many mexes we have built on
-                                iMexesAlreadyBuiltOn = 0
                                 for iEntry, iLandZone in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandLandZones][iIsland] do
                                     local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
                                     --Get plateau of the nearest allied base for the first entry, since presumably all land zones have the same plateau, so stop searching if the first one is on a dif plateau
@@ -4424,10 +4423,9 @@ function UpdateTransportLocationShortlist(iTeam)
                                     if iCurDistToFriendlyBase < iClosestLZToBase then
                                         iClosestLZToBase = iCurDistToFriendlyBase
                                     end
-                                    iMexesAlreadyBuiltOn = iMexesAlreadyBuiltOn + tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3]
                                 end
                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering island '..iIsland..'; iClosestLZToBase='..iClosestLZToBase..'; iClosestBasePlateau='..(iClosestBasePlateau or 'nil')..'; iClosestLZToBase='..(iClosestLZToBase or 'nil')..'; Island mex count='..tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland]) end
-                                if iMexesAlreadyBuiltOn < tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland] and iClosestLZToBase >= 190 or (iClosestLZToBase >= 140 and tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland] >= 7) then
+                                if iClosestLZToBase >= 190 or (iClosestLZToBase >= 140 and tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland] >= 7) then
                                     bAlreadyIncluded = false
                                     if not(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau][iPlateau]) then M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau][iPlateau] = {}
                                     else
@@ -4439,6 +4437,7 @@ function UpdateTransportLocationShortlist(iTeam)
                                         end
                                     end
                                     if not(bAlreadyIncluded) then
+                                        --this is a 1-off at game start that records locations we might conceivably want to drop during the game - see later loop which factors in things like friendly units
                                         table.insert(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau][iPlateau], iIsland)
                                     end
                                 end
@@ -4455,6 +4454,8 @@ function UpdateTransportLocationShortlist(iTeam)
     if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..' About to create shortlist of isalnds to drop, is reftiPotentialDropIslandsByPlateau empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau]))..'; repru of this='..repru(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau])) end
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau]) == false then
         local bTooMuchThreatOrEngisTraveling
+        local iMexesAlreadyBuiltOn = 0
+
         for iPlateau, tIslands in M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau] do
             for iEntry, iIsland in tIslands do
                 --Have we not had a recent failed drop?
@@ -4465,11 +4466,14 @@ function UpdateTransportLocationShortlist(iTeam)
                     bTooMuchThreatOrEngisTraveling = false
                     for iLZEntry, iLandZone in M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandLandZones][iIsland] do
                         local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering iLandZone='..iLandZone..' in the island, enemy threat='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Is table of enemy engineers traveling here empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEngineersTravelingHere]))) end
+
+                        iMexesAlreadyBuiltOn = iMexesAlreadyBuiltOn + tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3]
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering iLandZone='..iLandZone..' in the island, enemy threat='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Is table of enemy engineers traveling here empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEngineersTravelingHere]))..'; iMexesAlreadyBuiltOn='..iMexesAlreadyBuiltOn) end
                         if tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 175 or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEngineersTravelingHere]) == false then
                             bTooMuchThreatOrEngisTraveling = true
                             break
                         elseif M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
+                            --(we already checked for factories earlier so this is partially a redundancy, as well as expanding to include engineers
                             local tEngineersAndFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
                             if M28Utilities.IsTableEmpty(tEngineersAndFactories) == false then
                                 for iUnit, oUnit in tEngineersAndFactories do
@@ -4482,6 +4486,7 @@ function UpdateTransportLocationShortlist(iTeam)
                         end
                         if bTooMuchThreatOrEngisTraveling then break end
                     end
+                    if not(bTooMuchThreatOrEngisTraveling) and iMexesAlreadyBuiltOn >= M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][iIsland] then bTooMuchThreatOrEngisTraveling = true end
                     if bDebugMessages == true then LOG(sFunctionRef..': bTooMuchThreatOrEngisTraveling='..tostring(bTooMuchThreatOrEngisTraveling)) end
                     if not(bTooMuchThreatOrEngisTraveling) then
                         table.insert(tShortlist, {iPlateau, iIsland})

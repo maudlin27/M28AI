@@ -147,10 +147,10 @@ function IssueTrackedClearCommands(oUnit)
     --Clear orders:
     IssueClearCommands({oUnit})
 
-    if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uel010513' then --and oUnit:GetAIBrain():GetArmyIndex() == 2 then --and oUnit:GetAIBrain():GetArmyIndex() == 6 then
+    --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uel010513' then --and oUnit:GetAIBrain():GetArmyIndex() == 2 then --and oUnit:GetAIBrain():GetArmyIndex() == 6 then
         LOG('Just issuedclearcommands to unit'..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds())
         M28Utilities.ErrorHandler('Audit trail', true, true)
-    end
+    end--]]
 
     --Unit name
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit) end
@@ -908,10 +908,10 @@ function IssueTrackedTransportLoad(oUnit, oOrderTarget, bAddToExistingQueue, sOp
 
 
 
-    if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uel010513' then--and oUnit:GetAIBrain():GetArmyIndex() == 2 then
+    --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uel010513' then--and oUnit:GetAIBrain():GetArmyIndex() == 2 then
         LOG('IssueTrackedTransportLoad for unit'..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds())
         M28Utilities.ErrorHandler('Audit trail', true, true)
-    end
+    end--]]
 
     --If the transport already has a unit told to load onto it, then this sends the assigned unit to move to that unit's position, and then to queue up the transport load order
     local bMoveIntoPositionInstead = false

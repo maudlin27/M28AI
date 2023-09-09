@@ -1487,7 +1487,9 @@ function OnCreate(oUnit, bIgnoreMapSetup)
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-        if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time'..GetGameTimeSeconds()..'; oUnit[M28OnCrRn]='..tostring(oUnit['M28OnCrRn'] or false)..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete or false)..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; M28Map.bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation)) end
+        if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uab11038' then bDebugMessages = true end
+
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time'..GetGameTimeSeconds()..'; oUnit[M28OnCrRn]='..tostring(oUnit['M28OnCrRn'] or false)..'; M28Map.bMapLandSetupComplete='..tostring(M28Map.bMapLandSetupComplete or false)..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; M28Map.bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation)..'; Unit brain='..oUnit:GetAIBrain().Nickname..'; Is civliain brain='..tostring(M28Conditions.IsCivilianBrain(oUnit:GetAIBrain()))) end
         if (not(M28Map.bMapLandSetupComplete) or not(M28Map.bWaterZoneInitialCreation)) and not(bIgnoreMapSetup) then --Start of game ACU creation happens before we have setup the map
             while not(M28Map.bMapLandSetupComplete) or not(M28Map.bWaterZoneInitialCreation) do
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -1496,7 +1498,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                 if GetGameTimeSeconds() >= 5 and M28Map.bMapLandSetupComplete then
                     M28Utilities.ErrorHandler('Water zone initial creation still not done, will stop waiting now')
                     break
-                 end
+                end
             end
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitTicks(1)

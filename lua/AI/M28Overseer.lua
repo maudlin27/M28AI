@@ -465,13 +465,14 @@ end
 
 function TestCustom(aiBrain)
     --M28Map.DrawSpecificLandZone(88, 1, 3)
-
-    local iCurColour = 0
+    local tCivilianMexes = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMex, M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()], 10000, 'Neutral')
+    LOG('TestCustom: is table of civilian mexes empty at time '..GetGameTimeSeconds()..'='..tostring(M28Utilities.IsTableEmpty(tCivilianMexes)))
+    --[[local iCurColour = 0
     for iLandZone, tLZData in M28Map.tAllPlateaus[88][M28Map.subrefPlateauLandZones] do
         iCurColour = iCurColour + 1
         if iCurColour >= 9 then iCurColour = 1 end
         M28Map.DrawSpecificLandZone(88, iLandZone)
-    end
+    end--]]
 
     --New water zone logic testing
     --local tWZData = M28Map.tPondDetails[51][M28Map.subrefPondWaterZones][269]
@@ -894,14 +895,19 @@ function RevealCiviliansToAI(aiBrain)
 end
 
 function RevealCivilainsToAIByGivingVision(aiBrain)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RevealCivilainsToAIByGivingVision'
+    --First wait a couple of seconds to give a chance for units to be created
+    if GetGameTimeSeconds() <= 4.4 then
+        local iTimeToWait = math.min(3, 4.4 - GetGameTimeSeconds())
+        WaitSeconds(iTimeToWait)
+    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': About to reveal civilains and then consider capture targets if this is M28Brain, aiBrain.M28AI='..tostring(aiBrain.M28AI or false)..'; nickname='..(aiBrain.Nickname or 'nil')) end
     if aiBrain.M28AI then --redundancy
         local tACU = aiBrain:GetListOfUnits(categories.COMMAND, false, true)
         for iUnit, oUnit in tACU do
-            M28UnitInfo.GiveUnitTemporaryVision(oUnit, 1000)
+            M28UnitInfo.GiveUnitTemporaryVision(oUnit, 10000)
             break
         end
         --Consider capture targets
@@ -913,10 +919,10 @@ function RevealCivilainsToAIByGivingVision(aiBrain)
 end
 
 function GetCivilianCaptureTargets(aiBrain)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetCivilianCaptureTargets'
 
-    WaitTicks(1)
+    WaitTicks(2) --tried 1 tick but not working for civilian mexes
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     local tStartPoint = M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()]
     local iPlateauWanted, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tStartPoint)
@@ -931,10 +937,17 @@ function GetCivilianCaptureTargets(aiBrain)
     local iSearchRange = math.min(450, math.max(iClosestEnemyBase * 0.6, 200, math.min(275, iClosestEnemyBase * 0.75)))
     local iCategoriesOfInterest = M28UnitInfo.refCategoryLandCombat * categories.RECLAIMABLE - categories.TECH1
     local tUnitsOfInterest = aiBrain:GetUnitsAroundPoint(iCategoriesOfInterest, tStartPoint, iSearchRange, 'Neutral')
+    if not(tUnitsOfInterest) then tUnitsOfInterest = {} end
+    local tNeutralMexes = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMex, tStartPoint, 10000, 'Neutral')
+    if M28Utilities.IsTableEmpty(tNeutralMexes) == false then
+        for iMex, oMex in tNeutralMexes do
+            table.insert(tUnitsOfInterest, oMex)
+        end
+    end
     --local sPathing = M28Map.refPathingTypeAmphibious
 
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Running for aiBrain='..aiBrain.Nickname..' at gametime='..GetGameTimeSeconds()..'; Is table of tUnitsOfInterest empty='..tostring(M28Utilities.IsTableEmpty(tUnitsOfInterest))..'; iPlateauWanted='..iPlateauWanted..'; iClosestEnemyBase='..iClosestEnemyBase..'; iSearchRange='..iSearchRange..'; Is table of enemy units with further range empty='..tostring(M28Utilities.IsTableEmpty(aiBrain:GetUnitsAroundPoint(iCategoriesOfInterest, tStartPoint, 1000, 'Enemy')))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Running for aiBrain='..aiBrain.Nickname..' at gametime='..GetGameTimeSeconds()..'; Is table of tUnitsOfInterest empty='..tostring(M28Utilities.IsTableEmpty(tUnitsOfInterest))..'; iPlateauWanted='..iPlateauWanted..'; iClosestEnemyBase='..iClosestEnemyBase..'; iSearchRange='..iSearchRange..'; Is table of enemy units with further range empty='..tostring(M28Utilities.IsTableEmpty(aiBrain:GetUnitsAroundPoint(iCategoriesOfInterest, tStartPoint, 1000, 'Enemy')))..'; Is tNeutralMexes empty='..tostring(M28Utilities.IsTableEmpty(tNeutralMexes))) end
     if M28Utilities.IsTableEmpty(tUnitsOfInterest) == false then
         local iCurPlateau, iCurLandZone
         for iUnit, oUnit in tUnitsOfInterest do
@@ -1022,7 +1035,7 @@ function OverseerManager(aiBrain)
          end--]]
 
         --if GetGameTimeSeconds() >= 2700 then import('/mods/M28AI/lua/M28Config.lua').M28ShowUnitNames = true end
-        --if GetGameTimeSeconds() >= 20 and GetGameTimeSeconds() <= 40 then TestCustom(aiBrain) end
+        --if GetGameTimeSeconds() >= 3 and GetGameTimeSeconds() <= 15 then TestCustom(aiBrain) end
         --Enable below to help figure out infinite loops
         --[[if GetGameTimeSeconds() >= 173 and not(bSetHook) then
             bSetHook = true

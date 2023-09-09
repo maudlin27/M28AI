@@ -1919,7 +1919,7 @@ function GiveUnitTemporaryVision(oUnit, iVision)
             DisplayName = 'CrateVisBuff',
             BuffType = 'CrateVisBuff',
             Stacks = 'ALWAYS',
-            Duration = 2,
+            Duration = 3,
             Affects = {
                 VisionRadius = {
                     Add = iVision,
