@@ -147,7 +147,7 @@ function IssueTrackedClearCommands(oUnit)
     --Clear orders:
     IssueClearCommands({oUnit})
 
-    if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uel01051' then --and oUnit:GetAIBrain():GetArmyIndex() == 2 then --and oUnit:GetAIBrain():GetArmyIndex() == 6 then
+    if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uel010513' then --and oUnit:GetAIBrain():GetArmyIndex() == 2 then --and oUnit:GetAIBrain():GetArmyIndex() == 6 then
         LOG('Just issuedclearcommands to unit'..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds())
         M28Utilities.ErrorHandler('Audit trail', true, true)
     end
@@ -908,11 +908,10 @@ function IssueTrackedTransportLoad(oUnit, oOrderTarget, bAddToExistingQueue, sOp
 
 
 
-    --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uel01051' then--and oUnit:GetAIBrain():GetArmyIndex() == 2 then
-        bDebugMessages = true
+    if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uel010513' then--and oUnit:GetAIBrain():GetArmyIndex() == 2 then
         LOG('IssueTrackedTransportLoad for unit'..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds())
         M28Utilities.ErrorHandler('Audit trail', true, true)
-    end--]]
+    end
 
     --If the transport already has a unit told to load onto it, then this sends the assigned unit to move to that unit's position, and then to queue up the transport load order
     local bMoveIntoPositionInstead = false
@@ -995,7 +994,7 @@ function IssueTrackedTransportLoad(oUnit, oOrderTarget, bAddToExistingQueue, sOp
             if not(bDontTryBackup) then ForkThread(DelayedTransportReloadCheck, oUnit, oOrderTarget) end --Found this caused more problems than it solved when it  just reissued the order; however per sprouto's suggestion warping the engineer first solves most issues where this happens; is on a 10s delay so should be slower than a human
             --Treat engi as having a high priority action now
             M28Engineer.TrackEngineerAction(oUnit, M28Engineer.refActionLoadOntoTransport, false, 1)
-            oUnit[M28Engineer.refiEngineerStuckCheckCount] = 0
+            oUnit[import('/mods/M28AI/lua/AI/M28Conditions.lua').refiEngineerStuckCheckCount] = 0
         end
         if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
     end
