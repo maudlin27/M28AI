@@ -3869,12 +3869,12 @@ local function SetupLandZones()
 
     if bDebugMessages == true then LOG(sFunctionRef..': Finished LZ patrol paths, sys time='..GetSystemTimeSecondsOnlyForProfileUse()) end
     --Use below if want to highlight a particular plateua at this stage:
-    bDebugMessages = true local iCurColour = 0 if M28Utilities.IsTableEmpty(tAllPlateaus[145][subrefPlateauLandZones]) == false then for iLandZone, tLZData in tAllPlateaus[145][subrefPlateauLandZones] do
+    --[[bDebugMessages = true local iCurColour = 0 if M28Utilities.IsTableEmpty(tAllPlateaus[145][subrefPlateauLandZones]) == false then for iLandZone, tLZData in tAllPlateaus[145][subrefPlateauLandZones] do
         iCurColour = iCurColour + 1
         if iCurColour >= 9 then iCurColour = 1 end
         DrawSpecificLandZone(145, iLandZone)
         LOG(sFunctionRef..': Segment count for LZ '..iLandZone..'='..tLZData[subrefLZTotalSegmentCount]) end
-    end     bDebugMessages = false
+    end     bDebugMessages = false--]]
 
     RecordPathingBetweenZones() --Includes a waitticks(1)
 
