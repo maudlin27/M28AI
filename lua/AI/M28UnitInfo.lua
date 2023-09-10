@@ -14,6 +14,9 @@ local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 tUnitThreatByIDAndType = {} --Calculated at the start of the game
 tiThreatRefsCalculated = {} --table of the threat ID references that have done blueprint checks on
 
+tbBuildOnLandLayerCaps = {['Land'] = true, ['Air'] = true, ['9'] = true, ['3'] = true, ['11'] = true} --used to translate the result of UnitBlueprint.Physics.BuildOnLayerCaps which doesnt return the table shown in the blueprint but instead returns one of these values (or 'Air' - which is what a czar returns)
+tbBuildOnWaterLayerCaps = {['Water'] = true, ['9'] = true, ['3'] = true, ['11'] = true, ['12'] = true}
+
 --Factions
 refFactionUEF = 1
 refFactionAeon = 2
@@ -942,6 +945,34 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
     return 0
 end
 
+function CheckBlueprintSizeSupport(oBP, sUnitId)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'CheckBlueprintSizeSupport'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..sUnitId..'; Can this be built by T3 engi='..tostring(EntityCategoryContains(categories.BUILTBYTIER3ENGINEER, sUnitId))) end
+    if EntityCategoryContains(categories.BUILTBYTIER3ENGINEER, sUnitId) then
+        local iUnitSize = GetBuildingSize(sUnitId)
+        local bBuildOnLand = false
+        if tbBuildOnLandLayerCaps[oBP.Physics.BuildOnLayerCaps] then bBuildOnLand = true end
+        local bBuildOnSea = false
+        if tbBuildOnWaterLayerCaps[oBP.Physics.BuildOnLayerCaps] then bBuildOnSea = true end
+        if bDebugMessages == true then LOG(sFunctionRef..': bBuildOnLand='..tostring(bBuildOnLand)..'; bBuildOnSea='..tostring(bBuildOnSea)..'; tsBlueprintsBySize='..repru(M28Engineer.tsBlueprintsBySize)..'; oBP.Physics.BuildOnLayerCaps='..repru(oBP.Physics.BuildOnLayerCaps)..'; tbBuildOnLandLayerCaps[BuildOnLayerCaps]='..tostring(tbBuildOnLandLayerCaps[oBP.Physics.BuildOnLayerCaps] or false)) end
+        if bBuildOnLand and not(M28Engineer.tsBlueprintsBySize[iUnitSize]) then
+            M28Engineer.tsBlueprintsBySize[iUnitSize] = sUnitId
+            M28Engineer.iMaxBuildingSize = math.max(M28Engineer.iMaxBuildingSize, iUnitSize)
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..sUnitId..'; iUnitSize='..iUnitSize..'; wasnt recorded in land size table so have added') end
+        end
+        if bBuildOnSea and not(M28Engineer.tsWZBlueprintsBySize[iUnitSize]) then
+            M28Engineer.tsWZBlueprintsBySize[iUnitSize] = sUnitId
+            M28Engineer.iMaxBuildingSize = math.max(M28Engineer.iMaxBuildingSize, iUnitSize)
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..sUnitId..'; iUnitSize='..iUnitSize..'; wasnt recorded in water size table so have added') end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function CalculateBlueprintThreatsByType()
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'CalculateBlueprintThreatsByType'
@@ -1015,6 +1046,7 @@ function CalculateBlueprintThreatsByType()
                 --iCount = iCount + 1
                 --if iCount >= 10 then break end
                 ForkThread(RecordBlueprintThreatValues, oBP, sUnitId)
+                ForkThread(CheckBlueprintSizeSupport, oBP, sUnitId)
             end
         end
 
