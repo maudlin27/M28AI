@@ -130,7 +130,7 @@ function ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLandOrWaterZone, 
     local iMaxAreaToSearch = 35
     local iCategoryToBuild
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code for aiBrain '..aiBrain.Nickname..' at time '..GetGameTimeSeconds()) end
-    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) then M28Utilities.ErrorHandler('Empty allied units table') end
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) and GetGameTimeSeconds() >= 10 then M28Utilities.ErrorHandler('Empty allied units table, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; Is LZTeamData empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData))) end
     if iFactoryCategoryOverride then iCategoryToBuild = iFactoryCategoryOverride
     else
         local iTeam = oACU:GetAIBrain().M28Team
@@ -361,6 +361,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
 
     local iPlateauOrZero, iLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
 
+
     local tLZOrWZData
     local tLZOrWZTeamData
     local iTeam = oACU:GetAIBrain().M28Team
@@ -374,7 +375,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
         tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][aiBrain.M28Team]
     end
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Considering ACU for brain '..oACU:GetAIBrain().Nickname..'; Time='..GetGameTimeSeconds()..'; ACU state='..M28UnitInfo.GetUnitState(oACU)..'; iPlateauOrZero='..iPlateauOrZero..'; iLZOrWZ='..(iLZOrWZ or 'nil')) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering ACU for brain '..oACU:GetAIBrain().Nickname..'; Time='..GetGameTimeSeconds()..'; ACU state='..M28UnitInfo.GetUnitState(oACU)..'; iPlateauOrZero='..iPlateauOrZero..'; iLZOrWZ='..(iLZOrWZ or 'nil')..'; Hover label at position='..NavUtils.GetTerrainLabel(M28Map.refPathingTypeHover, oACU:GetPosition())..'; ACU position='..repru(oACU:GetPosition())) end
 
     --Nearby enemy units in other land zone if we already have a complete land factory
     if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory) >= 1 and iPlateauOrZero > 0 and AttackNearestEnemyWithACU(iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, oACU, 40) then
@@ -736,7 +737,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                                             MoveACUToNearbyWaterForFactory(aiBrain, oACU, tLZOrWZData)
 
                                                         else
-                                                            M28Utilities.ErrorHandler('Unable to get any action for ACU')
+                                                            M28Utilities.ErrorHandler('Unable to get any action for ACU owned by brain '..aiBrain.Nickname)
                                                         end
                                                     else
                                                         M28Utilities.ErrorHandler('Unable to get early game action for ACU')

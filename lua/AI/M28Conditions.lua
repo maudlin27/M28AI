@@ -650,6 +650,7 @@ function HaveLowPower(iTeam)
                     bHaveLowPower = true
                     --Low power levels - apply slightly different test where it's ok to not have 100% energy
                 elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 25 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 2.2 then
+                    --if bDebugMessages == true then LOG(sFunctionRef..': iTeam='..iTeam..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored]='..( M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] or 'nil')..'; Lowest mass% stored='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] or 'nil')..'; Team net energy='..(M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] or 'nil')) end
                     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] >= math.max(0.35, math.min(0.9, M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] * 2.5)) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= 0.5 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] >= 0.9 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= -9)) then
                         --Do nothing (false)
                     else
