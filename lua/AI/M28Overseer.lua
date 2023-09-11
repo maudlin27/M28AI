@@ -297,7 +297,7 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
     end
     if bM27InGame then
         --Count how many players - if more than 1 then desync risk
-        if iHumans >= 1 then
+        if iHumans > 1 then
             bDontPlayWithM27 = true --Azraeel came across desyncs when playing with M27 and M28 together
             bIncompatible = true
         end
