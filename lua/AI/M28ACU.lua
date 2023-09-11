@@ -64,7 +64,7 @@ function ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearchForAdjace
             end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; brain='..aiBrain.Nickname..'; Is tNearbyUnitsOfCategoryToBuild empty='..tostring(M28Utilities.IsTableEmpty(tNearbyUnitsOfCategoryToBuild))..'; Is oNearestPartComplete valid='..tostring(M28UnitInfo.IsUnitValid(oNearestPartComplete))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; brain='..aiBrain.Nickname..'; ACU='..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..'; Is tNearbyUnitsOfCategoryToBuild empty='..tostring(M28Utilities.IsTableEmpty(tNearbyUnitsOfCategoryToBuild))..'; Is oNearestPartComplete valid='..tostring(M28UnitInfo.IsUnitValid(oNearestPartComplete))) end
     if M28UnitInfo.IsUnitValid(oNearestPartComplete) then
         if bDebugMessages == true then LOG(sFunctionRef..': Will assist part complete building='..oNearestPartComplete.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestPartComplete)) end
         local tLastOrder = oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]]
@@ -1111,6 +1111,12 @@ function GetACUUpgradeWanted(oACU, bWantToDoTeleSnipe)
                     else iResourceFactor = iResourceFactor * 1.25
                     end
                 end
+                if M28Overseer.bNoRushActive and M28Overseer.iNoRushTimer - GetGameTimeSeconds() > 120 then
+                    if M28Conditions.HaveLowMass(aiBrain) or M28Conditions.HaveLowPower(aiBrain.M28Team) then
+                        iResourceFactor = iResourceFactor * 2.5
+                    else iResourceFactor = iResourceFactor * 1.75
+                    end
+                end
                 if aiBrain[M28Factory.refiHighestFactoryBuildCount] >= 20 + 10 * oACU[refiUpgradeCount] then
 
                     if M28Map.bIsCampaignMap then
@@ -2009,10 +2015,14 @@ function MoveToOtherLandZone(iPlateau, tLZData, iLandZone, oACU)
         end
     end
     if iLZToMoveTo then
-        M28Orders.IssueTrackedMove(oACU, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLZToMoveTo][M28Map.subrefMidpoint], 6, false, 'ACMLZ'..iLZToMoveTo, false)
-        oACU[refiTimeLastToldToMoveToZone] = GetGameTimeSeconds()
-        oACU[refiLastPlateauAndZoneToMoveTo] = {iPlateau, iLZToMoveTo}
-        if bDebugMessages == true then LOG(sFunctionRef..': Telling ACU to move to zone '..iLZToMoveTo..' at time='..GetGameTimeSeconds()) end
+        if M28Overseer.bNoRushActive and not(M28Conditions.IsLocationInNoRushArea(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLZToMoveTo][M28Map.subrefMidpoint])) then
+            iLZToMoveTo = nil
+        else
+            M28Orders.IssueTrackedMove(oACU, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLZToMoveTo][M28Map.subrefMidpoint], 6, false, 'ACMLZ'..iLZToMoveTo, false)
+            oACU[refiTimeLastToldToMoveToZone] = GetGameTimeSeconds()
+            oACU[refiLastPlateauAndZoneToMoveTo] = {iPlateau, iLZToMoveTo}
+            if bDebugMessages == true then LOG(sFunctionRef..': Telling ACU to move to zone '..iLZToMoveTo..' at time='..GetGameTimeSeconds()) end
+        end
     end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -2802,7 +2812,7 @@ function GetACUOrder(aiBrain, oACU)
     M28Orders.UpdateRecordedOrders(oACU)
 
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code for brain '..oACU:GetAIBrain().Nickname..', time='..GetGameTimeSeconds()..'; oACU[refbDoingInitialBuildOrder]='..tostring(oACU[refbDoingInitialBuildOrder])..'; ACU unit state='..M28UnitInfo.GetUnitState(oACU)..'; iPlateau='..(iPlateauOrZero or 'nil')..'; iLandZone='..(iLandOrWaterZone or 'nil')..'; Can ACU use overcharge='..tostring(M28Conditions.CanUnitUseOvercharge(oACU:GetAIBrain(), oACU))..'; ACU position='..repru(oACU:GetPosition())..'; ACU Orders (before updates)='..reprs(oACU[M28Orders.reftiLastOrders])..'; Is special micro active='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive] or false)..'; Time to stop micro='..(oACU[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')..'; Brian nickname='..aiBrain.Nickname..'; reftSpecialObjectiveMoveLocation='..repru(oACU[reftSpecialObjectiveMoveLocation])..'; Enemy combat threat='..(tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; Is table of unbuilt mexes empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefMexUnbuiltLocations]))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code for brain '..oACU:GetAIBrain().Nickname..', ACU='..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..'; time='..GetGameTimeSeconds()..'; oACU[refbDoingInitialBuildOrder]='..tostring(oACU[refbDoingInitialBuildOrder])..'; ACU unit state='..M28UnitInfo.GetUnitState(oACU)..'; iPlateau='..(iPlateauOrZero or 'nil')..'; iLandZone='..(iLandOrWaterZone or 'nil')..'; Can ACU use overcharge='..tostring(M28Conditions.CanUnitUseOvercharge(oACU:GetAIBrain(), oACU))..'; ACU position='..repru(oACU:GetPosition())..'; ACU Orders (before updates)='..reprs(oACU[M28Orders.reftiLastOrders])..'; Is special micro active='..tostring(oACU[M28UnitInfo.refbSpecialMicroActive] or false)..'; Time to stop micro='..(oACU[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')..'; Brian nickname='..aiBrain.Nickname..'; reftSpecialObjectiveMoveLocation='..repru(oACU[reftSpecialObjectiveMoveLocation])..'; Enemy combat threat='..(tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; Is table of unbuilt mexes empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefMexUnbuiltLocations]))) end
 
     --Is the ACU busy with something?
     if oACU:IsUnitState('Upgrading') then

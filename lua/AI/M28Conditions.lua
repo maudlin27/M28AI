@@ -415,7 +415,10 @@ function SafeToUpgradeUnit(oUnit)
     local sFunctionRef = 'SafeToUpgradeUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if M28Overseer.bNoRushActive and M28Overseer.iNoRushTimer - GetGameTimeSeconds() >= 120 then --have al ower 60s timer later on which just flags the zone as safe but does other checks after that
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return true
+    end
 
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
     local bSafeZone = false
@@ -1431,6 +1434,15 @@ function GetThreatOfApproachingEnemyACUsAndNearestACU(tLZData, tLZTeamData, iPla
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return iTotalACUThreat, nil
+end
+
+function IsLocationInNoRushArea(tLocation)
+    for iStart, tStart in M28Overseer.reftNoRushM28StartPoints do
+        if M28Utilities.GetDistanceBetweenPositions(tLocation, tStart) < M28Overseer.iNoRushRange then
+            return true
+        end
+    end
+    return false
 end
 
 function NoRushPreventingHydro(tLZOrWZData)
