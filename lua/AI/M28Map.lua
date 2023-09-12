@@ -169,6 +169,8 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
 
         --Land scout/intel related
         subreftPatrolPath = 'PatrPth' --table of locations intended for a land scout to patrol the perimeter of the land zone / water zone
+        reftoAllOmniRadar = 'AllOmn' --table of all omni radar units providing some coverage to this zone's midpoint - i.e. includes ally and enemy alike
+        refiAllOmniCoverage = 'AllOmC' --Omni coverage of the zone midpoint by any player (ally and enemy alike)
 
         --Island related
         subrefLZIslandRef = 'Island' --the island ref of the land zone (can also get by using NavUtils.GetLabel(refPathingTypeHover) for the midpoint
@@ -270,9 +272,11 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             refbWantLandScout = 'LandScout' --True/false, used by water and land zones
             refiRadarCoverage = 'RadCov' --Radar coverage of the centre of the land zone midpoint
             refiOmniCoverage = 'OmnCov' --Omni coverage of the centre of the land or water zone midpoint
+            refiEnemyOmniCoverage = 'EOmCov' --Enemy omni coverage of the centre of the land or water zone midpoint
             refiSonarCoverage = 'SonCov' --Sonar coverage of the centre of the land or water zone midpoint (intended for water zones)
             refoBestRadar = 'BestRad' --Radar providing the best Radar Coverage for the land zone midpoint
             refoBestSonar = 'BestSon' --Sonar providing the best sonar coverage for the water zone midpoint
+            --Note: reftoAllOmniRadar is against LZData and contains all omni for all players
             refiTimeLastHadVisual = 'LstVis' --Gametimeseconds that last had an intel unit (e.g. land or air scout) in the land or water zone
             refiScoutingPriority = 'SctPrio' --will return the scouting priority (i.e. 1, 2 or 3 per below subrefs)
                 subrefiScoutingHighPriority = 1
@@ -1092,6 +1096,7 @@ local function AddNewLandZoneReferenceToPlateau(iPlateau)
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTotalEnergyReclaim] = 0
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTravelDistToOtherLandZones] = {}
     tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZPlayerWallSegments] = {}
+    tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][refiAllOmniCoverage] = 0
 
     if bDebugMessages == true then LOG('Time='..GetGameTimeSeconds()..'; Finished setting up variables for iPlateau='..iPlateau..'; iLandZone='..iLandZone) end
 
@@ -5211,6 +5216,7 @@ function RecordWaterZoneAtPosition(tSegmentPosition)
         end
         tPondDetails[iPond][subrefPondWaterZones][iTotalWaterZoneCount] = {}
         tPondDetails[iPond][subrefPondWaterZones][iTotalWaterZoneCount][subrefWZSegments] = {}
+        tPondDetails[iPond][subrefPondWaterZones][refiAllOmniCoverage] = 0
         tPondDetails[iPond][subrefPondWZCount] = (tPondDetails[iPond][subrefPondWZCount] or 0) + 1
         tiPondByWaterZone[iTotalWaterZoneCount] = iPond
         local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tSegmentPosition)

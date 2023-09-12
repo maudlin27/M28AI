@@ -1319,6 +1319,8 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
         local iOurBestIndirectRange = 0
         local bIncludeUnit
 
+        local iEnemyOmniCoverage = M28Conditions.GetEnemyOmniCoverageOfZone(0, iWaterZone, iTeam)
+
         local iMobileShieldMassThreshold = 750 --When assigning mobile shields will also restrict further so e.g. seraphim mobile shields will have a higher threshold
         local iMobileShieldHigherMAAMassThreshold = 1500 --for if we have MAA and enemy doesnt have much air threat
         local iMobileStealthMassThreshold = 700 --will get adjusted further
@@ -1402,15 +1404,17 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                         if iUnitMassCost >= iMobileShieldMassThreshold and (iUnitMassCost >= iMobileShieldHigherMAAMassThreshold or iMobileShieldHigherMAAMassThreshold == iMobileShieldMassThreshold or not(EntityCategoryContains(M28UnitInfo.refCategoryMAA, oUnit.UnitId))) then
                             table.insert(tWZTeamData[M28Map.reftoWZUnitsWantingMobileShield], oUnit)
                         end
-                        if iUnitMassCost >= iMobileStealthHigherMassThreshold then
-                            table.insert(tWZTeamData[M28Map.reftoWZUnitsWantingMobileStealth], oUnit)
-                        elseif iUnitMassCost >= iMobileStealthMassThreshold and EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryIndirect - categories.TECH1, oUnit.UnitId) then
-                            --Only say we want a mobile shield if the unit doesnt have one assigned
-                            iMobileStealthLowerThresholdCount = iMobileStealthLowerThresholdCount + 1
-
-                            if iMobileStealthLowerThresholdCount >= 3 or oUnit[M28Land.refoAssignedMobileStealth] then
-                                iMobileStealthLowerThresholdCount = 0
+                        if iEnemyOmniCoverage <= 20 then
+                            if iUnitMassCost >= iMobileStealthHigherMassThreshold then
                                 table.insert(tWZTeamData[M28Map.reftoWZUnitsWantingMobileStealth], oUnit)
+                            elseif iUnitMassCost >= iMobileStealthMassThreshold and EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryIndirect - categories.TECH1, oUnit.UnitId) then
+                                --Only say we want a mobile shield if the unit doesnt have one assigned
+                                iMobileStealthLowerThresholdCount = iMobileStealthLowerThresholdCount + 1
+
+                                if iMobileStealthLowerThresholdCount >= 3 or oUnit[M28Land.refoAssignedMobileStealth] then
+                                    iMobileStealthLowerThresholdCount = 0
+                                    table.insert(tWZTeamData[M28Map.reftoWZUnitsWantingMobileStealth], oUnit)
+                                end
                             end
                         end
                     end
@@ -1445,7 +1449,12 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
         --Mobile stealth data:
         if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftoWZUnitsWantingMobileStealth]) == false then
             for iUnit, oUnit in tWZTeamData[M28Map.reftoWZUnitsWantingMobileStealth] do
-                if oUnit[M28Land.refoAssignedMobileStealth] then
+                if iEnemyOmniCoverage > 20 then
+                    if M28UnitInfo.IsUnitValid(oUnit[M28Land.refoAssignedMobileStealth]) then
+                        oUnit[M28Land.refoAssignedMobileStealth][M28Land.refoMobileStealthTarget] = nil
+                        oUnit[M28Land.refoAssignedMobileStealth] = nil
+                    end
+                elseif oUnit[M28Land.refoAssignedMobileStealth] then
                     if not(M28UnitInfo.IsUnitValid(oUnit[M28Land.refoAssignedMobileStealth])) then
                         oUnit[M28Land.refoAssignedMobileStealth] = nil
                         tWZTeamData[M28Map.refbWZWantsMobileStealth] = true
@@ -1456,6 +1465,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                     if bDebugMessages == true then LOG(sFunctionRef..': Recording that the water zone '..iWaterZone..' wants mobile Stealths as it has a unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' that doesnt have an assigned mobile Stealth yet') end
                 end
             end
+            if iEnemyOmniCoverage > 20 then tWZTeamData[M28Map.refbWZWantsMobileStealth] = false end --redundancy
         end
         if M28Utilities.IsTableEmpty(tMobileStealths) == false then
             ManageMobileStealthsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tMobileStealths)

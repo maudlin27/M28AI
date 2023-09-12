@@ -2701,6 +2701,7 @@ function TeamInitialisation(iM28Team)
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZDFThreatWanted] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiRadarCoverage] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiOmniCoverage] = 0
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiEnemyOmniCoverage] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.refiRecentlyFailedScoutAttempts] = 0
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefQueuedBuildings] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZThreatEnemyMobileDFTotal] = 0
@@ -2757,6 +2758,7 @@ function WaterZoneTeamInitialisation(iTeam)
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiRadarCoverage] = 0
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiSonarCoverage] = 0
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiOmniCoverage] = 0
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiEnemyOmniCoverage] = 0
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiRecentlyFailedScoutAttempts] = 0
             --tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refoBestRadar] --nil by default
             --tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.reftClosestFriendlyBase] --Updated separately

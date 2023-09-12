@@ -1819,3 +1819,25 @@ function GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZTeamData, iT
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return iUnderConstructionInOtherZones
 end
+
+function GetEnemyOmniCoverageOfZone(iPlateauOrZero, iLandOrWaterZone, iTeam)
+    local tLZOrWZData
+    if iPlateauOrZero == 0 then
+
+        tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+    else tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+    end
+    local iEnemyOmniCoverage = 0
+    if (tLZOrWZData[M28Map.refiAllOmniCoverage] or 0) > 0 then
+        local iCurOmniCoverage = 0
+        for iUnit, oUnit in tLZOrWZData[M28Map.reftoAllOmniRadar] do
+            if not(oUnit:GetAIBrain().M28Team == iTeam) then
+                iCurOmniCoverage = (oUnit:GetBlueprint().Intel.OmniRadius or 0) - M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint])
+                if iCurOmniCoverage > iEnemyOmniCoverage then
+                    iEnemyOmniCoverage = iCurOmniCoverage
+                end
+            end
+        end
+    end
+    return iEnemyOmniCoverage
+end
