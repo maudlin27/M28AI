@@ -1866,7 +1866,7 @@ function ManageMobileStealthsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, i
     local sFunctionRef = 'ManageMobileStealthsInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    bDebugMessages = true
+
 
     if bDebugMessages == true then
         local iEnemyOmniCoverage = M28Conditions.GetEnemyOmniCoverageOfZone(iPlateau, iLandZone, iTeam)

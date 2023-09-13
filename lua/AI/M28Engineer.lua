@@ -2706,16 +2706,26 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                     for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
                         iCurAirExperimentals = iCurAirExperimentals + oBrain:GetCurrentUnits(M28UnitInfo.refCategoryGunship * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar)
                     end
+                    local iEnemyT3ArtiEquivalent = M28Conditions.GetT3ArtiEquivalent(iTeam, 0.4, 3, true, nil)
+                    local iFriendlyGameEnderUnderConstruction = M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZOrWZTeamData, iTeam, M28UnitInfo.refCategoryGameEnder)
 
                     if not(bCanPathAmphibiously) or (not(bCanPathByLand) and iDistToNearestEnemyBase >= 350 and iEnemyLandExperimentalCount == 0) or ((not(bDontConsiderGameEnderInMostCases) or iDistToNearestEnemyBase <= 750) and iTeamLandExperimentals + iCurAirExperimentals * 1.6 >= math.max(5, iEnemyLandExperimentalCount + 1)) then
                         if iDistToNearestEnemyBase <= 750 then
                             if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFixedT3Arti) < 4 then
                                 iCategoryWanted = M28UnitInfo.refCategoryFixedT3Arti
                             else
-                                iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
+                                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= math.max(275, 110 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and iEnemyT3ArtiEquivalent <= 1.4 and iFriendlyGameEnderUnderConstruction == 0 then
+                                    iCategoryWanted = M28UnitInfo.refCategoryParagon
+                                else
+                                    iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
+                                end
                             end
                         else
-                            iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
+                            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= math.max(275, 110 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and iEnemyT3ArtiEquivalent <= 1.4 and iFriendlyGameEnderUnderConstruction == 0 then
+                                iCategoryWanted = M28UnitInfo.refCategoryParagon
+                            else
+                                iCategoryWanted = M28UnitInfo.refCategoryExperimentalArti
+                            end
                         end
                     else
                         --Consider air experimental in some rarer cases late game
@@ -2728,8 +2738,12 @@ function DecideOnExperimentalToBuild(iActionToAssign, aiBrain, tbEngineersOfFact
                         if bGetAirExperimentalInstead then
                             iCategoryWanted = M28UnitInfo.refCategoryGunship * categories.EXPERIMENTAL + M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL + M28UnitInfo.refCategoryCzar
                         else
-                            --Build GC
-                            iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
+                            --Build GC or paragon
+                            if ((iTeamLandExperimentals >= 5 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 70) or (iTeamLandExperimentals >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 80 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= math.max(275, 110 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) and iEnemyT3ArtiEquivalent <= 1.4 and iFriendlyGameEnderUnderConstruction == 0 then
+                                iCategoryWanted = M28UnitInfo.refCategoryParagon
+                            else
+                                iCategoryWanted = M28UnitInfo.refCategoryLandExperimental
+                            end
                             --Dont reset faction requirement as GC is better than most other factions
                         end
                     end
@@ -5440,14 +5454,8 @@ function GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, bCoreZone, bHave
             if bHaveLowMass and GetGameTimeSeconds() <= 1200 and not(ScenarioInfo.Ariel and ScenarioInfo.UEF and ScenarioInfo.Colonies) then --First 20m
                 --Does enemy have a >=60% complete arti, and game is at least 10m old?
                 if GetGameTimeSeconds() >= 600 then
-                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoT3Arti]) == false then
-                        for iArti, oArti in M28Team.tTeamData[iTeam][M28Team.subreftoT3Arti] do
-                            if oArti:GetFractionComplete() >= 0.6 then
-                                --Want to get shield
-                                break
-                            end
-                            bGetShield = false
-                        end
+                    if M28Conditions.GetT3ArtiEquivalent(iTeam, 1, 0, false, 0.6) > 0 then
+                        bGetShield = true
                     else
                         bGetShield = false
                     end

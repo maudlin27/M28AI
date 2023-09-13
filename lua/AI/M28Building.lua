@@ -16,6 +16,8 @@ local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
+local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
+local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 
 --Global variables
 iTMLMissileRange = 256 --e.g. use if dont have access to a unit blueprint
@@ -2996,4 +2998,88 @@ function ConsiderGiftingPowerToTeammateForAdjacency(oUnit)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function JustBuiltParagon(oParagon)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'JustBuiltParagon'
+
+    WaitTicks(1)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if M28UnitInfo.IsUnitValid(oParagon) then
+        if bDebugMessages == true then LOG(sFunctionRef..': oParagon owner='..oParagon:GetAIBrain().Nickname..'; Unit='..oParagon.UnitId..M28UnitInfo.GetUnitLifetimeCount(oParagon)..'; GameTime='..GetGameTimeSeconds()..'; Fraction complete='..oParagon:GetFractionComplete()..'; oParagon(M28BuiltParagon)='..tostring(oParagon['M28BuiltParagon'] or false)) end
+        if not(oParagon['M28BuiltParagon']) then
+            oParagon['M28BuiltParagon'] = true
+            local aiBrain = oParagon:GetAIBrain()
+            local iTeam = aiBrain.M28Team
+            if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
+                --Gift mexes, mass storage, RAS SACUs, and half of our pgens to another teammate
+                local oOtherBrain
+                local iMaxEngineersToGift = math.min(aiBrain[M28Overseer.refiExpectedRemainingCap] * 0.5, 30)
+                local iEngineersGifted = 0
+                for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                    if not(oBrain == aiBrain) and not(aiBrain.M28IsDefeated) then
+                        if oBrain[M28Economy.refiGrossMassBaseIncome] <= 500 then
+                            oOtherBrain = oBrain
+                            --Gift all non-land factories (retain land so we still build some units)
+                            local tFactoriesToGift = oBrain:GetListOfUnits(M28UnitInfo.refCategoryNavalFactory + M28UnitInfo.refCategoryAirFactory + M28UnitInfo.refCategoryQuantumGateway, false, true)
+                            if M28Utilities.IsTableEmpty(tFactoriesToGift) == false then
+                                M28Team.TransferUnitsToPlayer(tFactoriesToGift, aiBrain:GetArmyIndex(), false)
+                            end
+                            if iEngineersGifted < iMaxEngineersToGift then
+                                local tEngineersAvailable = oBrain:GetListOfUnits(M28UnitInfo.refCategoryEngineer, false, true)
+                                if M28Utilities.IsTableEmpty(tEngineersAvailable) == false then
+                                    local tEngineersToGift = {}
+                                    local iCurCount = 0
+
+
+                                    for iUnit, oUnit in tEngineersAvailable do
+                                        iCurCount = iCurCount + 1
+                                        if iCurCount >= 2 then
+                                            if not(oUnit:IsUnitState('Attached')) and not(oUnit[M28Engineer.refbPrimaryBuilder]) then
+                                                table.insert(tEngineersToGift, oUnit)
+                                                iEngineersGifted = iEngineersGifted + 1
+                                                if iEngineersGifted >= iMaxEngineersToGift then break end
+                                            end
+                                            iCurCount = 0
+                                        end
+
+                                    end
+                                    if M28Utilities.IsTableEmpty(tEngineersToGift) == false then
+                                        M28Team.TransferUnitsToPlayer(tEngineersToGift, aiBrain:GetArmyIndex(), false)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+                if oOtherBrain then
+                    local tUnitsToGift = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryT1Power + M28UnitInfo.refCategoryT2Power + M28UnitInfo.refCategoryMassStorage + M28UnitInfo.refCategoryRASSACU, false, true)
+                    if M28Utilities.IsTableEmpty(tUnitsToGift) then
+                        tUnitsToGift = {}
+                    end
+                    local tT3Power = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryT3Power, false, true)
+                    if M28Utilities.IsTableEmpty(tT3Power) == false then
+                        local iCurCount = -1
+                        local iGiftThreshold = 1
+                        for iUnit, oUnit in tT3Power do
+                            iCurCount = iCurCount + 1
+                            if iCurCount >= iGiftThreshold then
+                                iCurCount = 0
+                                table.insert(tUnitsToGift, oUnit)
+                            end
+                        end
+                    end
+                    if M28Utilities.IsTableEmpty(tUnitsToGift) == false then
+
+                        M28Team.TransferUnitsToPlayer(tUnitsToGift, oOtherBrain:GetArmyIndex(), false)
+
+                    end
+                end
+
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+
 end

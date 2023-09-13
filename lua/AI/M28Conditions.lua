@@ -1841,3 +1841,32 @@ function GetEnemyOmniCoverageOfZone(iPlateauOrZero, iLandOrWaterZone, iTeam)
     end
     return iEnemyOmniCoverage
 end
+
+function GetT3ArtiEquivalent(iTeam, iNovaxFactor, iNonArtiGameEnderFactor, bApplyFractionComplete, iOptionalMinFractionComplete)
+    local iT3ArtiEquivalent = 0
+    local iBaseValue
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]) == false then
+        if IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure], false) then
+            for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure] do
+                iBaseValue = 0
+                if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti, oUnit.UnitId) then
+                    iBaseValue = 1
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryNovaxCentre, oUnit.UnitId) then
+                    iBaseValue = iNovaxFactor
+                elseif EntityCategoryContains(categories.ARTILLERY * categories.EXPERIMENTAL, oUnit.UnitId) then
+                    iBaseValue = 3
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, oUnit.UnitId) then
+                    iBaseValue = iNonArtiGameEnderFactor
+                end
+                if iBaseValue > 0 then
+                    if not(iOptionalMinFractionComplete) or oUnit:GetFractionComplete() >= iOptionalMinFractionComplete then
+                        if bApplyFractionComplete then iT3ArtiEquivalent = iT3ArtiEquivalent + iBaseValue * oUnit:GetFractionComplete()
+                        else iT3ArtiEquivalent = iT3ArtiEquivalent + iBaseValue
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return iT3ArtiEquivalent
+end

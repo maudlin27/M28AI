@@ -1424,18 +1424,10 @@ function ManageEnergyStalls(iTeam)
             if bDebugMessages == true then LOG(sFunctionRef .. ': About to consider if we have an energy stall or not. Lowest energy % stored=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestEnergyPercentStored] .. '; M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]=' .. M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] .. '; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]=' .. tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy])) end
             --First consider unpausing
             if bDebugMessages == true then LOG(sFunctionRef .. ': If we have flagged that we are stalling energy then will check if we have enough to start unpausing things') end
-            local iT3Arti = 0
-            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoT3Arti]) == false then
-                iT3Arti = table.getn(M28Team.tTeamData[iTeam][M28Team.subreftoT3Arti])
-                -- = oBrain:GetCurrentUnits(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti)
-            end
+
             local iPercentMod = 0
             local iNetMod = 0
-            if iT3Arti > 0 then
-                iPercentMod = 0.1
-                --Already factored in to the net income, this gives a further buffer
-                iNetMod = 25 + (iT3Arti - 1) * 100
-            end
+
             --Also increase net energy if are at tech 3 and lack 3k power
             if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 then
                 if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 300 then iNetMod = iNetMod + 25 end

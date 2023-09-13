@@ -104,7 +104,6 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
 
     --Notable unit count and threat details
     refbDefendAgainstArti = 'M28TeamDefendAgainstArti' --true if enemy has t3 arti or equivelnt
-    subreftoT3Arti = 'M28TeamT3Arti' --table of T3 and experimental arti that M28 players on the team have
     reftEnemyTML = 'M28TeamEnTML' --table of enemy TML
     reftEnemyMobileTML = 'M28TeamEnMobTML' --Table of enemy TML, includes cruisers and missile ships
     refbActiveMobileTMLMonitor = 'M28TeamActiveMobTM' --True if have an active monitor for this team
