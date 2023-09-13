@@ -415,7 +415,10 @@ function SafeToUpgradeUnit(oUnit)
     local sFunctionRef = 'SafeToUpgradeUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if M28Overseer.bNoRushActive and M28Overseer.iNoRushTimer - GetGameTimeSeconds() >= 120 then --have al ower 60s timer later on which just flags the zone as safe but does other checks after that
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return true
+    end
 
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
     local bSafeZone = false
@@ -1433,6 +1436,15 @@ function GetThreatOfApproachingEnemyACUsAndNearestACU(tLZData, tLZTeamData, iPla
     return iTotalACUThreat, nil
 end
 
+function IsLocationInNoRushArea(tLocation)
+    for iStart, tStart in M28Overseer.reftNoRushM28StartPoints do
+        if M28Utilities.GetDistanceBetweenPositions(tLocation, tStart) < M28Overseer.iNoRushRange then
+            return true
+        end
+    end
+    return false
+end
+
 function NoRushPreventingHydro(tLZOrWZData)
     --If norush is active then returns true if any hydro points in this LZ/WZ are outside the norush radius of the nearest allied base
     local sFunctionRef = 'NoRushPreventingHydro'
@@ -1806,4 +1818,55 @@ function GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZTeamData, iT
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return iUnderConstructionInOtherZones
+end
+
+function GetEnemyOmniCoverageOfZone(iPlateauOrZero, iLandOrWaterZone, iTeam)
+    local tLZOrWZData
+    if iPlateauOrZero == 0 then
+
+        tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+    else tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+    end
+    local iEnemyOmniCoverage = 0
+    if (tLZOrWZData[M28Map.refiAllOmniCoverage] or 0) > 0 then
+        local iCurOmniCoverage = 0
+        for iUnit, oUnit in tLZOrWZData[M28Map.reftoAllOmniRadar] do
+            if not(oUnit:GetAIBrain().M28Team == iTeam) then
+                iCurOmniCoverage = (oUnit:GetBlueprint().Intel.OmniRadius or 0) - M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint])
+                if iCurOmniCoverage > iEnemyOmniCoverage then
+                    iEnemyOmniCoverage = iCurOmniCoverage
+                end
+            end
+        end
+    end
+    return iEnemyOmniCoverage
+end
+
+function GetT3ArtiEquivalent(iTeam, iNovaxFactor, iNonArtiGameEnderFactor, bApplyFractionComplete, iOptionalMinFractionComplete)
+    local iT3ArtiEquivalent = 0
+    local iBaseValue
+    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]) == false then
+        if IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure], false) then
+            for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure] do
+                iBaseValue = 0
+                if EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti, oUnit.UnitId) then
+                    iBaseValue = 1
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryNovaxCentre, oUnit.UnitId) then
+                    iBaseValue = iNovaxFactor
+                elseif EntityCategoryContains(categories.ARTILLERY * categories.EXPERIMENTAL, oUnit.UnitId) then
+                    iBaseValue = 3
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, oUnit.UnitId) then
+                    iBaseValue = iNonArtiGameEnderFactor
+                end
+                if iBaseValue > 0 then
+                    if not(iOptionalMinFractionComplete) or oUnit:GetFractionComplete() >= iOptionalMinFractionComplete then
+                        if bApplyFractionComplete then iT3ArtiEquivalent = iT3ArtiEquivalent + iBaseValue * oUnit:GetFractionComplete()
+                        else iT3ArtiEquivalent = iT3ArtiEquivalent + iBaseValue
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return iT3ArtiEquivalent
 end

@@ -31,6 +31,7 @@ refiCurrentAssignmentValue = 'M28LandAssignedValue' --when a combat unit is give
 refiCurrentAssignmentPlateauAndLZ = 'M28LandAssignedPlatLZ' --returns {iPlateau, iLandZone} that the units orders have been coordinated by
 refiTimeOfLastAssignment = 'M28LandLastAssignmenttime' --returns gametimeseconds that the unit was last assigned to the available units of a land zone
 reftiRadarPlateauAndLandZonesCoveredByTeam = 'M28LandRadarLZs' --Returns talbes of {iPlateau, iLandZone} that the radar is providing the best radar coverage of
+reftiRadarPlateauAndLandZonesCoveredByOmni = 'M28LandOmniLZs' --Returns talbes of {iPlateau, iLandZone} that the radar is providing some omni coverage of
 --See M28navy for sonar equivalent
 refoAssignedMobileShield = 'M28LandAssignedMobileShield' --Gives the mobile shield assigned ot this unit
 refoMobileShieldTarget = 'M28LandMobileShieldTarget' --the unit that the mobile shield is trying to protect
@@ -1865,7 +1866,12 @@ function ManageMobileStealthsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, i
     local sFunctionRef = 'ManageMobileStealthsInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Size of tMobileStealths='..table.getn(tMobileStealths)) end
+
+
+    if bDebugMessages == true then
+        local iEnemyOmniCoverage = M28Conditions.GetEnemyOmniCoverageOfZone(iPlateau, iLandZone, iTeam)
+        LOG(sFunctionRef..': Start of code, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; Size of tMobileStealths='..table.getn(tMobileStealths)..'; iEnemyOmniCoverage='..iEnemyOmniCoverage)
+    end
 
     local tStealthsToAssign = {}
     local tEnemyBase = tLZTeamData[M28Map.reftClosestEnemyBase]
@@ -1883,6 +1889,7 @@ function ManageMobileStealthsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, i
         end
         tEnemyBase = M28Map.PlayerStartPoints[oClosestBrain:GetArmyIndex()]
     end
+
 
     for iUnit, oUnit in tMobileStealths do
         if oUnit[refoMobileStealthTarget] and M28UnitInfo.IsUnitValid(oUnit[refoMobileStealthTarget]) then
@@ -4119,6 +4126,8 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
         local iOurBestIndirectRange = 0
         local bIncludeUnit
 
+        local iEnemyOmniCoverage = M28Conditions.GetEnemyOmniCoverageOfZone(iPlateau, iLandZone, iTeam)
+
         local iMobileShieldMassThreshold = 150 --When assigning mobile shields will also restrict further so e.g. seraphim mobile shields will have a higher threshold
         local iMobileShieldHigherMAAMassThreshold = 400 --for if we have MAA and enemy doesnt have much air threat
         local iMobileStealthMassThreshold = 200 --will get adjusted further
@@ -4142,7 +4151,9 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                         if bDebugMessages == true then LOG(sFunctionRef..': ACU is in list of allied units for iPlateau'..iPlateau..'; iLandZone='..iLandZone) end
                         bLandZoneOrAdjHasUnitsWantingScout = true
                         table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
-                        table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth], oUnit)
+                        if iEnemyOmniCoverage <= 20 then
+                            table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth], oUnit)
+                        end
 
                         if not(oUnit[M28ACU.refbTreatingAsACU]) and oUnit:GetAIBrain().M28AI then ForkThread(M28ACU.ManageACU, oUnit:GetAIBrain(), oUnit) end --redundancy, wouldnt expect this to normally trigger
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryLandScout, oUnit.UnitId) then
@@ -4190,15 +4201,17 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                             if iUnitMassCost >= iMobileShieldMassThreshold and (iUnitMassCost >= iMobileShieldHigherMAAMassThreshold or iMobileShieldHigherMAAMassThreshold == iMobileShieldMassThreshold or not(EntityCategoryContains(M28UnitInfo.refCategoryMAA, oUnit.UnitId))) then
                                 table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
                             end
-                            if iUnitMassCost >= iMobileStealthHigherMassThreshold then
-                                table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth], oUnit)
-                            elseif iUnitMassCost >= iMobileStealthMassThreshold and EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryIndirect - categories.TECH1, oUnit.UnitId) then
-                                --Only say we want a mobile shield if the unit doesnt have one assigned
-                                iMobileStealthLowerThresholdCount = iMobileStealthLowerThresholdCount + 1
-
-                                if iMobileStealthLowerThresholdCount >= 3 or oUnit[refoAssignedMobileStealth] then
-                                    iMobileStealthLowerThresholdCount = 0
+                            if iEnemyOmniCoverage <= 20 then
+                                if iUnitMassCost >= iMobileStealthHigherMassThreshold then
                                     table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth], oUnit)
+                                elseif iUnitMassCost >= iMobileStealthMassThreshold and EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryIndirect - categories.TECH1, oUnit.UnitId) then
+                                    --Only say we want a mobile shield if the unit doesnt have one assigned
+                                    iMobileStealthLowerThresholdCount = iMobileStealthLowerThresholdCount + 1
+
+                                    if iMobileStealthLowerThresholdCount >= 3 or oUnit[refoAssignedMobileStealth] then
+                                        iMobileStealthLowerThresholdCount = 0
+                                        table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth], oUnit)
+                                    end
                                 end
                             end
                         end
@@ -4238,8 +4251,14 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
         end
         --Mobile stealth data:
         if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth]) == false then
+
             for iUnit, oUnit in tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth] do
-                if oUnit[refoAssignedMobileStealth] then
+                if iEnemyOmniCoverage > 20 then
+                    if M28UnitInfo.IsUnitValid(oUnit[refoAssignedMobileStealth]) then
+                        oUnit[refoAssignedMobileStealth][refoMobileStealthTarget] = nil
+                        oUnit[refoAssignedMobileStealth] = nil
+                    end
+                elseif oUnit[refoAssignedMobileStealth] then
                     if not(M28UnitInfo.IsUnitValid(oUnit[refoAssignedMobileStealth])) then
                         oUnit[refoAssignedMobileStealth] = nil
                         tLZTeamData[M28Map.refbLZWantsMobileStealth] = true
@@ -4250,7 +4269,9 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                     if bDebugMessages == true then LOG(sFunctionRef..': Recording that the land zone '..iLandZone..' wants mobile Stealths as it has a unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' that doesnt have an assigned mobile Stealth yet') end
                 end
             end
+            if iEnemyOmniCoverage > 20 then tLZTeamData[M28Map.refbLZWantsMobileStealth] = false end
         end
+
         if M28Utilities.IsTableEmpty(tMobileStealths) == false then
             ManageMobileStealthsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, tMobileStealths)
         end
@@ -4881,6 +4902,78 @@ function DrawReclaimSegmentsInLandZone(iPlateau, iLandZone)
 
 end
 
+function UpdateRecordedAllPlayerOmni(oRadar, bDestroyed)
+    local oBP = oRadar:GetBlueprint()
+    local iRadarOmni =  (oBP.Intel.OmniRadius or 0)
+
+    if iRadarOmni > 0 then
+        local iMaxZoneDistance = iRadarOmni + 50
+
+        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oRadar:GetPosition())
+        if iPlateau and iLandZone then
+            local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+            if tLZData then
+                function UpdateOmniCoverageForZone(iCurPlateauOrPond, iCurLZOrWZ, bIsWaterZone)
+                    local tCurLZOrWZData
+                    if bIsWaterZone then
+                        tCurLZOrWZData = M28Map.tPondDetails[iCurPlateauOrPond][M28Map.subrefPondWaterZones][iCurLZOrWZ]
+                    else tCurLZOrWZData = M28Map.tAllPlateaus[iCurPlateauOrPond][M28Map.subrefPlateauLandZones][iCurLZOrWZ]
+                    end
+
+                    --Remove oRadar from the table of omni in this zone
+                    if bDestroyed then
+                        if M28Utilities.IsTableEmpty(tCurLZOrWZData[M28Map.reftoAllOmniRadar]) == false then
+                            --Update the table
+                            local iEntryCount = table.getn(tCurLZOrWZData[M28Map.reftoAllOmniRadar])
+                            for iCurEntry = iEntryCount, 1, -1 do
+                                local oUnit = tCurLZOrWZData[M28Map.reftoAllOmniRadar][iCurEntry]
+                                if not(M28UnitInfo.IsUnitValid(oUnit)) or oUnit == oRadar then
+                                    table.remove(tCurLZOrWZData[M28Map.reftoAllOmniRadar], iCurEntry)
+                                end
+                            end
+                        end
+                    else
+                        local bAddToTable = true
+                        if not(tCurLZOrWZData[M28Map.reftoAllOmniRadar]) then tCurLZOrWZData[M28Map.reftoAllOmniRadar] = {}
+                        else
+                            for iUnit, oUnit in tCurLZOrWZData[M28Map.reftoAllOmniRadar] do
+                                if oUnit == oRadar then bAddToTable = false break end
+                            end
+                        end
+                        if bAddToTable and iRadarOmni - M28Utilities.GetDistanceBetweenPositions(oRadar:GetPosition(), tCurLZOrWZData[M28Map.subrefMidpoint]) > 0 then
+                            table.insert(tCurLZOrWZData[M28Map.reftoAllOmniRadar], oRadar)
+                        end
+                    end
+
+                    local iBestOmniCoverage = 0
+                    if M28Utilities.IsTableEmpty(tCurLZOrWZData[M28Map.reftoAllOmniRadar]) == false then
+                        local iCurOmniCoverage
+                        for iUnit, oUnit in tCurLZOrWZData[M28Map.reftoAllOmniRadar] do
+                            iCurOmniCoverage = (oUnit:GetBlueprint().Intel.OmniRadius or 0)
+                            if iCurOmniCoverage > iBestOmniCoverage  then
+                                iCurOmniCoverage = math.max(0, iCurOmniCoverage - M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tCurLZOrWZData[M28Map.subrefMidpoint]))
+                                if iCurOmniCoverage > iBestOmniCoverage then
+                                    iBestOmniCoverage = iCurOmniCoverage
+                                end
+                            end
+                        end
+
+                    end
+                    tCurLZOrWZData[M28Map.refiAllOmniCoverage] = iBestOmniCoverage
+                end
+
+                UpdateOmniCoverageForZone(iPlateau, iLandZone, false)
+                if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
+                    for iEntry, tSubtable in tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+                        if tSubtable[M28Map.subrefiDistance] > iMaxZoneDistance then break end
+                        UpdateOmniCoverageForZone(tSubtable[M28Map.subrefiPlateauOrPond], tSubtable[M28Map.subrefiLandOrWaterZoneRef], tSubtable[M28Map.subrefbIsWaterZone])
+                    end
+                end
+            end
+        end
+    end
+end
+
 function UpdateRadarCoverageForDestroyedRadar(oRadar)
     --First update land zones
     if M28Utilities.IsTableEmpty(oRadar[reftiRadarPlateauAndLandZonesCoveredByTeam]) == false then
@@ -4895,6 +4988,7 @@ function UpdateRadarCoverageForDestroyedRadar(oRadar)
                         tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar] = nil
                         tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refiRadarCoverage] = 0
                         tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refiOmniCoverage] = 0
+
                         local tNearbyRadar = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryRadar, tLZData[M28Map.subrefMidpoint], 600, 'Ally')
                         local iCurIntelRange
                         local iBestIntelRange = 0
@@ -4984,6 +5078,8 @@ function UpdateRadarCoverageForDestroyedRadar(oRadar)
             end
         end
     end
+    --Then update enemy recorded omni range
+    UpdateRecordedAllPlayerOmni(oRadar, true)
 end
 
 function UpdateZoneIntelForRadar(oRadar)
@@ -5110,6 +5206,7 @@ function UpdateZoneIntelForRadar(oRadar)
                     end
                 end
             end
+            UpdateRecordedAllPlayerOmni(oRadar, false)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

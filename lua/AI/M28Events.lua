@@ -1073,6 +1073,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                     local iTeam = aiBrain.M28Team
                     if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oJustBuilt.UnitId) then
                         M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] = M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] + 1
+                        if EntityCategoryContains(M28UnitInfo.refCategoryParagon, oJustBuilt.UnitId) then
+                            ForkThread(M28Building.JustBuiltParagon, oJustBuilt)
+                        end
                     end
 
                     --Experimental air - no longer record in land/water zone
@@ -1602,6 +1605,8 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                     M28Economy.UpdateGrossIncomeForUnit(oUnit, false) --This both includes a check of the unit type, and cehcks we havent already recorded
                     if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) and not(oUnit.M28OnConstructedCalled) then
                         ForkThread(M28Economy.UpdateLandZoneM28MexByTechCount, oUnit) --we run the same logic via onconstructed
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryParagon, oUnit.UnitId) and not(oUnit.M28OnConstructedCalled) then
+                        ForkThread(M28Building.JustBuiltParagon, oUnit)
                     end
 
                 end

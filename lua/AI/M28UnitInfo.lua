@@ -916,8 +916,11 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                                     end
                                 elseif EntityCategoryContains(categories.OVERLAYANTIAIR, sCurUnitBP) == true then
                                     iMassMod = 0.04
-                                    if sCurUnitBP == 'ues0401' then iMassMod = 1 end --atlantis misclassifiefd as not anti-air
-                                    if EntityCategoryContains(categories.FRIGATE, sCurUnitBP) then iMassMod = 0.18 end
+                                    if sCurUnitBP == 'ues0401' then iMassMod = 1 --atlantis misclassifiefd as not anti-air
+                                    elseif EntityCategoryContains(categories.FRIGATE, sCurUnitBP) then iMassMod = 0.18
+                                    elseif sCurUnitBP == 'url0402' then
+                                        iMassMod = 0.016 --monkeylord - it has half the dps of a t2 mobile flak with no aoe (although it has better range and health), so its threat will be equivalent to 2 mobile T2 MAA so that gunships are more likely to engage it
+                                    end
                                 end
                             end
                         end

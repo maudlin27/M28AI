@@ -16,6 +16,8 @@ local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
 local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 local M28Factory = import('/mods/M28AI/lua/AI/M28Factory.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
+local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
+local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 
 --Global variables
 iTMLMissileRange = 256 --e.g. use if dont have access to a unit blueprint
@@ -322,103 +324,104 @@ function RecordUnitsInRangeOfTMLAndAnyTMDProtection(oTML, tOptionalUnitsToConsid
     local sFunctionRef = 'RecordUnitsInRangeOfTMLAndAnyTMDProtection'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    if M28UnitInfo.IsUnitValid(oTML) then
+
+        local iTMLRange = math.max((oTML[M28UnitInfo.refiManualRange] or 0), (oTML[M28UnitInfo.refiIndirectRange] or 0))
+        if iTMLRange == 0 then iTMLRange = iTMLMissileRange end
+        --Increase range if mobile
+        if EntityCategoryContains(categories.MOBILE, oTML.UnitId) then
+            iTMLRange = iTMLRange + 10
+        end
+        --Increase range for aoe
+        iTMLRange = iTMLRange + (oTML[M28UnitInfo.refiIndirectAOE] or 2)
+        if bDebugMessages == true then LOG(sFunctionRef..': TMl range: Manual range='..(oTML[M28UnitInfo.refiManualRange] or 0)..'; IF range='..(oTML[M28UnitInfo.refiIndirectRange] or 0)..'; AOE='..(oTML[M28UnitInfo.refiIndirectAOE] or 2)..'; Is TML mobile='..tostring(EntityCategoryContains(categories.MOBILE, oTML.UnitId))..'; TML='..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)) end
 
 
-    local iTMLRange = math.max((oTML[M28UnitInfo.refiManualRange] or 0), (oTML[M28UnitInfo.refiIndirectRange] or 0))
-    if iTMLRange == 0 then iTMLRange = iTMLMissileRange end
-    --Increase range if mobile
-    if EntityCategoryContains(categories.MOBILE, oTML.UnitId) then
-        iTMLRange = iTMLRange + 10
-    end
-    --Increase range for aoe
-    iTMLRange = iTMLRange + (oTML[M28UnitInfo.refiIndirectAOE] or 2)
-    if bDebugMessages == true then LOG(sFunctionRef..': TMl range: Manual range='..(oTML[M28UnitInfo.refiManualRange] or 0)..'; IF range='..(oTML[M28UnitInfo.refiIndirectRange] or 0)..'; AOE='..(oTML[M28UnitInfo.refiIndirectAOE] or 2)..'; Is TML mobile='..tostring(EntityCategoryContains(categories.MOBILE, oTML.UnitId))..'; TML='..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)) end
-
-
-    local iTMLTeam = oTML:GetAIBrain().M28Team
-    local tNearbyTMD = {}
-    local tUnitsToProtect = {}
-    local tiTeamsWithUnitsThatMightWantTMD = {}
-    if tOptionalUnitsToConsider then
-        for iUnit, oUnit in tOptionalUnitsToConsider do
-            if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oTML:GetPosition()) <= iTMLRange then
-                table.insert(tUnitsToProtect, oUnit)
+        local iTMLTeam = oTML:GetAIBrain().M28Team
+        local tNearbyTMD = {}
+        local tUnitsToProtect = {}
+        local tiTeamsWithUnitsThatMightWantTMD = {}
+        if tOptionalUnitsToConsider then
+            for iUnit, oUnit in tOptionalUnitsToConsider do
+                if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oTML:GetPosition()) <= iTMLRange then
+                    table.insert(tUnitsToProtect, oUnit)
+                end
             end
         end
-    end
-    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code for oTML='..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)..' at time of '..GetGameTimeSeconds()..'; Is tOptionalUnitsToConsider nil='..tostring(tOptionalUnitsToConsider == nil)) end
-    for iTMDTeam = 1, M28Team.iTotalTeamCount do
-        --Get all TMD that could stop this TML, and all units it could threaten
-        if not(iTMDTeam == iTMLTeam) then
-            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTMDTeam][M28Team.subreftoFriendlyActiveBrains]) == false then
-                local oTMDBrain
-                for iBrain, oBrain in M28Team.tTeamData[iTMDTeam][M28Team.subreftoFriendlyActiveBrains] do
-                    oTMDBrain = oBrain
-                    break
-                end
-
-                local tTeamNearbyTMD = oTMDBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryTMD, oTML:GetPosition(), iTMLRange + 13, 'Ally')
-                if M28Utilities.IsTableEmpty(tTeamNearbyTMD) == false then
-                    for iUnit, oUnit in tTeamNearbyTMD do
-                        table.insert(tNearbyTMD, oUnit)
+        if bDebugMessages == true then LOG(sFunctionRef..': Near start of code for oTML='..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)..' at time of '..GetGameTimeSeconds()..'; Is tOptionalUnitsToConsider nil='..tostring(tOptionalUnitsToConsider == nil)) end
+        for iTMDTeam = 1, M28Team.iTotalTeamCount do
+            --Get all TMD that could stop this TML, and all units it could threaten
+            if not(iTMDTeam == iTMLTeam) then
+                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTMDTeam][M28Team.subreftoFriendlyActiveBrains]) == false then
+                    local oTMDBrain
+                    for iBrain, oBrain in M28Team.tTeamData[iTMDTeam][M28Team.subreftoFriendlyActiveBrains] do
+                        oTMDBrain = oBrain
+                        break
                     end
-                end
-                if not(tOptionalUnitsToConsider) then
-                    --i.e. this is the first time we are considering the TML
-                    table.insert(M28Team.tTeamData[iTMDTeam][M28Team.reftEnemyTML], oTML)
-                    local tTeamUnitsToProtect = oTMDBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryProtectFromTML, oTML:GetPosition(), iTMLRange, 'Ally')
-                    if bDebugMessages == true then LOG(sFunctionRef..': Is tTeamUnitsToProtect empty='..tostring(M28Utilities.IsTableEmpty(tTeamUnitsToProtect))..'; iTMLRange='..iTMLRange..'; TML position='..repru(oTML:GetPosition())) end
-                    if M28Utilities.IsTableEmpty(tTeamUnitsToProtect) == false then
-                        for iUnit, oUnit in tTeamUnitsToProtect do
-                            table.insert(tUnitsToProtect, oUnit)
+
+                    local tTeamNearbyTMD = oTMDBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryTMD, oTML:GetPosition(), iTMLRange + 13, 'Ally')
+                    if M28Utilities.IsTableEmpty(tTeamNearbyTMD) == false then
+                        for iUnit, oUnit in tTeamNearbyTMD do
+                            table.insert(tNearbyTMD, oUnit)
                         end
                     end
-                end
-            end
-        end
-    end
-    --Below not needed - had put it in when thought was reason TML wasnt firing but the civilians in campaign were already assigned teams as had updated the iscivilian flag for campaign
-    --[[if not(tOptionalUnitsToConsider) and M28Map.bIsCampaignMap then
-        local iTMLIndex = oTML:GetAIBrain():GetArmyIndex()
-        for iBrain, oBrain in ArmyBrains do
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering oBrain='..oBrain.Nickname..'; M28Team='..(oBrain.M28Team or 'nil')..'; IsEnemy='..tostring(IsEnemy(iTMLIndex, oBrain:GetArmyIndex()))) end
-            if not(oBrain.M28Team) and IsEnemy(iTMLIndex, oBrain:GetArmyIndex()) then
-                local tTeamUnitsToProtect = oBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryProtectFromTML, oTML:GetPosition(), iTMLRange, 'Ally')
-                if M28Utilities.IsTableEmpty(tTeamUnitsToProtect) == false then
-                    for iUnit, oUnit in tTeamUnitsToProtect do
-                        local bAlreadyIncluded = false
-                        if M28Utilities.IsTableEmpty(tUnitsToProtect) == false then
-                            for iRecorded, oRecorded in tUnitsToProtect do
-                                if oRecorded == oUnit then bAlreadyIncluded = true break end
+                    if not(tOptionalUnitsToConsider) then
+                        --i.e. this is the first time we are considering the TML
+                        table.insert(M28Team.tTeamData[iTMDTeam][M28Team.reftEnemyTML], oTML)
+                        local tTeamUnitsToProtect = oTMDBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryProtectFromTML, oTML:GetPosition(), iTMLRange, 'Ally')
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is tTeamUnitsToProtect empty='..tostring(M28Utilities.IsTableEmpty(tTeamUnitsToProtect))..'; iTMLRange='..iTMLRange..'; TML position='..repru(oTML:GetPosition())) end
+                        if M28Utilities.IsTableEmpty(tTeamUnitsToProtect) == false then
+                            for iUnit, oUnit in tTeamUnitsToProtect do
+                                table.insert(tUnitsToProtect, oUnit)
                             end
                         end
-                        if not(bAlreadyIncluded) then
-                            table.insert(tUnitsToProtect, oUnit)
-                        end
                     end
                 end
             end
         end
-    end--]]
-
-    if bDebugMessages == true then LOG(sFunctionRef..': Is table of units to protect empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToProtect))..'; Is table of TMD empty='..tostring(M28Utilities.IsTableEmpty(tNearbyTMD))) end
-    if M28Utilities.IsTableEmpty(tUnitsToProtect) == false then
-        local iCurTeam
-        for iUnit, oUnit in tUnitsToProtect do
-            if not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
-                --Update various tracking variables based on whether TMD are protecting this unit or not (i.e. updates TML for potential targets, TMD for units theyre covering, and units for TML that have hte unit in their range)
-                RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tNearbyTMD)
-                iCurTeam = oUnit:GetAIBrain().M28Team
-                if iCurTeam then
-                    if not(tiTeamsWithUnitsThatMightWantTMD[iCurTeam]) then tiTeamsWithUnitsThatMightWantTMD[iCurTeam] = {} end
-                    table.insert(tiTeamsWithUnitsThatMightWantTMD[iCurTeam], oUnit)
+        --Below not needed - had put it in when thought was reason TML wasnt firing but the civilians in campaign were already assigned teams as had updated the iscivilian flag for campaign
+        --[[if not(tOptionalUnitsToConsider) and M28Map.bIsCampaignMap then
+            local iTMLIndex = oTML:GetAIBrain():GetArmyIndex()
+            for iBrain, oBrain in ArmyBrains do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering oBrain='..oBrain.Nickname..'; M28Team='..(oBrain.M28Team or 'nil')..'; IsEnemy='..tostring(IsEnemy(iTMLIndex, oBrain:GetArmyIndex()))) end
+                if not(oBrain.M28Team) and IsEnemy(iTMLIndex, oBrain:GetArmyIndex()) then
+                    local tTeamUnitsToProtect = oBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryProtectFromTML, oTML:GetPosition(), iTMLRange, 'Ally')
+                    if M28Utilities.IsTableEmpty(tTeamUnitsToProtect) == false then
+                        for iUnit, oUnit in tTeamUnitsToProtect do
+                            local bAlreadyIncluded = false
+                            if M28Utilities.IsTableEmpty(tUnitsToProtect) == false then
+                                for iRecorded, oRecorded in tUnitsToProtect do
+                                    if oRecorded == oUnit then bAlreadyIncluded = true break end
+                                end
+                            end
+                            if not(bAlreadyIncluded) then
+                                table.insert(tUnitsToProtect, oUnit)
+                            end
+                        end
+                    end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Finished considering if unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is protected from the TML by TMD') end
             end
-        end
-        if M28Utilities.IsTableEmpty(tiTeamsWithUnitsThatMightWantTMD) == false then
-            for iTeam, tUnits in tiTeamsWithUnitsThatMightWantTMD do
-                RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnits)
+        end--]]
+
+        if bDebugMessages == true then LOG(sFunctionRef..': Is table of units to protect empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToProtect))..'; Is table of TMD empty='..tostring(M28Utilities.IsTableEmpty(tNearbyTMD))) end
+        if M28Utilities.IsTableEmpty(tUnitsToProtect) == false then
+            local iCurTeam
+            for iUnit, oUnit in tUnitsToProtect do
+                if not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
+                    --Update various tracking variables based on whether TMD are protecting this unit or not (i.e. updates TML for potential targets, TMD for units theyre covering, and units for TML that have hte unit in their range)
+                    RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tNearbyTMD)
+                    iCurTeam = oUnit:GetAIBrain().M28Team
+                    if iCurTeam then
+                        if not(tiTeamsWithUnitsThatMightWantTMD[iCurTeam]) then tiTeamsWithUnitsThatMightWantTMD[iCurTeam] = {} end
+                        table.insert(tiTeamsWithUnitsThatMightWantTMD[iCurTeam], oUnit)
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Finished considering if unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is protected from the TML by TMD') end
+                end
+            end
+            if M28Utilities.IsTableEmpty(tiTeamsWithUnitsThatMightWantTMD) == false then
+                for iTeam, tUnits in tiTeamsWithUnitsThatMightWantTMD do
+                    RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnits)
+                end
             end
         end
     end
@@ -2995,4 +2998,88 @@ function ConsiderGiftingPowerToTeammateForAdjacency(oUnit)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function JustBuiltParagon(oParagon)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'JustBuiltParagon'
+
+    WaitTicks(1)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if M28UnitInfo.IsUnitValid(oParagon) then
+        if bDebugMessages == true then LOG(sFunctionRef..': oParagon owner='..oParagon:GetAIBrain().Nickname..'; Unit='..oParagon.UnitId..M28UnitInfo.GetUnitLifetimeCount(oParagon)..'; GameTime='..GetGameTimeSeconds()..'; Fraction complete='..oParagon:GetFractionComplete()..'; oParagon(M28BuiltParagon)='..tostring(oParagon['M28BuiltParagon'] or false)) end
+        if not(oParagon['M28BuiltParagon']) then
+            oParagon['M28BuiltParagon'] = true
+            local aiBrain = oParagon:GetAIBrain()
+            local iTeam = aiBrain.M28Team
+            if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
+                --Gift mexes, mass storage, RAS SACUs, and half of our pgens to another teammate
+                local oOtherBrain
+                local iMaxEngineersToGift = math.min(aiBrain[M28Overseer.refiExpectedRemainingCap] * 0.5, 30)
+                local iEngineersGifted = 0
+                for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                    if not(oBrain == aiBrain) and not(aiBrain.M28IsDefeated) then
+                        if oBrain[M28Economy.refiGrossMassBaseIncome] <= 500 then
+                            oOtherBrain = oBrain
+                            --Gift all non-land factories (retain land so we still build some units)
+                            local tFactoriesToGift = oBrain:GetListOfUnits(M28UnitInfo.refCategoryNavalFactory + M28UnitInfo.refCategoryAirFactory + M28UnitInfo.refCategoryQuantumGateway, false, true)
+                            if M28Utilities.IsTableEmpty(tFactoriesToGift) == false then
+                                M28Team.TransferUnitsToPlayer(tFactoriesToGift, aiBrain:GetArmyIndex(), false)
+                            end
+                            if iEngineersGifted < iMaxEngineersToGift then
+                                local tEngineersAvailable = oBrain:GetListOfUnits(M28UnitInfo.refCategoryEngineer, false, true)
+                                if M28Utilities.IsTableEmpty(tEngineersAvailable) == false then
+                                    local tEngineersToGift = {}
+                                    local iCurCount = 0
+
+
+                                    for iUnit, oUnit in tEngineersAvailable do
+                                        iCurCount = iCurCount + 1
+                                        if iCurCount >= 2 then
+                                            if not(oUnit:IsUnitState('Attached')) and not(oUnit[M28Engineer.refbPrimaryBuilder]) then
+                                                table.insert(tEngineersToGift, oUnit)
+                                                iEngineersGifted = iEngineersGifted + 1
+                                                if iEngineersGifted >= iMaxEngineersToGift then break end
+                                            end
+                                            iCurCount = 0
+                                        end
+
+                                    end
+                                    if M28Utilities.IsTableEmpty(tEngineersToGift) == false then
+                                        M28Team.TransferUnitsToPlayer(tEngineersToGift, aiBrain:GetArmyIndex(), false)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+                if oOtherBrain then
+                    local tUnitsToGift = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryT1Power + M28UnitInfo.refCategoryT2Power + M28UnitInfo.refCategoryMassStorage + M28UnitInfo.refCategoryRASSACU, false, true)
+                    if M28Utilities.IsTableEmpty(tUnitsToGift) then
+                        tUnitsToGift = {}
+                    end
+                    local tT3Power = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryT3Power, false, true)
+                    if M28Utilities.IsTableEmpty(tT3Power) == false then
+                        local iCurCount = -1
+                        local iGiftThreshold = 1
+                        for iUnit, oUnit in tT3Power do
+                            iCurCount = iCurCount + 1
+                            if iCurCount >= iGiftThreshold then
+                                iCurCount = 0
+                                table.insert(tUnitsToGift, oUnit)
+                            end
+                        end
+                    end
+                    if M28Utilities.IsTableEmpty(tUnitsToGift) == false then
+
+                        M28Team.TransferUnitsToPlayer(tUnitsToGift, oOtherBrain:GetArmyIndex(), false)
+
+                    end
+                end
+
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+
 end
