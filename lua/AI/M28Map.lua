@@ -5216,7 +5216,7 @@ function RecordWaterZoneAtPosition(tSegmentPosition)
         end
         tPondDetails[iPond][subrefPondWaterZones][iTotalWaterZoneCount] = {}
         tPondDetails[iPond][subrefPondWaterZones][iTotalWaterZoneCount][subrefWZSegments] = {}
-        tPondDetails[iPond][subrefPondWaterZones][refiAllOmniCoverage] = 0
+        tPondDetails[iPond][subrefPondWaterZones][iTotalWaterZoneCount][refiAllOmniCoverage] = 0
         tPondDetails[iPond][subrefPondWZCount] = (tPondDetails[iPond][subrefPondWZCount] or 0) + 1
         tiPondByWaterZone[iTotalWaterZoneCount] = iPond
         local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tSegmentPosition)
