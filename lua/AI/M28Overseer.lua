@@ -1030,6 +1030,10 @@ function OverseerManager(aiBrain)
         WaitTicks(1)
     end
 
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'OverseerManager'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
 
 
     --Initialise main systems
@@ -1037,7 +1041,9 @@ function OverseerManager(aiBrain)
 
     --Wait until we can give orders before doing main logic
     while (GetGameTimeSeconds() <= 4.5) do
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
 
     --ForkThread(TestCustom, aiBrain)
@@ -1046,9 +1052,7 @@ function OverseerManager(aiBrain)
     local bSetHook = false --Used for debugging
     local M28Config = import('/mods/M28AI/lua/M28Config.lua')
     while not(aiBrain:IsDefeated()) and not(aiBrain.M28IsDefeated) do
-        if GetGameTimeSeconds() >= 1260 then M28Config.M28ShowUnitNames = true M28Config.M28ShowEnemyUnitNames = true end
         local bEnabledProfiling = false
-        local bDebugMessages = false
 
         --[[ if GetGameTimeSeconds() >= 2100 and not(bEnabledProfiling) then
              if not(import('/mods/M28AI/lua/M28Config.lua').M28RunProfiling) then
@@ -1069,7 +1073,9 @@ function OverseerManager(aiBrain)
             LOG('Have started the main hook of function calls')
         end--]]
         ForkThread(M28Economy.RefreshEconomyData, aiBrain)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitSeconds(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
 end
 

@@ -7309,16 +7309,18 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingACUs]) == false then
         local oACUUpgradingForTeleportInThisZone
         local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua') --done here incase having it above causes issues (havent actually tested, but m28acu refers to parts of m28engineer)
-        for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingACUs] do
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering upgrading ACU oACU='..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' owned by brain '..oACU:GetAIBrain().Nickname..'; Unit state='..M28UnitInfo.GetUnitState(oACU)..'; Planning to get teleport='..tostring(oACU[M28ACU.refbPlanningToGetTeleport])) end
-            if oACU[M28ACU.refbPlanningToGetTeleport] and oACU:IsUnitState('Upgrading') then
-                --Is ACU in this zone or nearby?
+        if M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingACUs], false) then
+            for iACU, oACU in M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingACUs] do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering upgrading ACU oACU='..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..' owned by brain '..oACU:GetAIBrain().Nickname..'; Unit state='..M28UnitInfo.GetUnitState(oACU)..'; Planning to get teleport='..tostring(oACU[M28ACU.refbPlanningToGetTeleport])) end
+                if oACU[M28ACU.refbPlanningToGetTeleport] and oACU:IsUnitState('Upgrading') then
+                    --Is ACU in this zone or nearby?
 
-                local iACUPlateauOrZero, iACULandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
-                if bDebugMessages == true then LOG(sFunctionRef..': Have ACU wanting to get teleport whose unit state is upgrading, ACU brain='..oACU:GetAIBrain().Nickname..'; iACUPlateauOrZero='..(iACUPlateauOrZero or 'nil')..'; iACULandOrWaterZone='..(iACULandOrWaterZone or 'nil')..'; This plateau='..iPlateau..'; This LZ='..iLandZone..'; Dist from ACU to this zone midpoint='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], oACU:GetPosition())) end
-                if iACUPlateauOrZero == iPlateau and iACULandOrWaterZone == iLandZone then --or M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], oACU:GetPosition()) <= 100) then
-                    oACUUpgradingForTeleportInThisZone = oACU
-                    break
+                    local iACUPlateauOrZero, iACULandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have ACU wanting to get teleport whose unit state is upgrading, ACU brain='..oACU:GetAIBrain().Nickname..'; iACUPlateauOrZero='..(iACUPlateauOrZero or 'nil')..'; iACULandOrWaterZone='..(iACULandOrWaterZone or 'nil')..'; This plateau='..iPlateau..'; This LZ='..iLandZone..'; Dist from ACU to this zone midpoint='..M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], oACU:GetPosition())) end
+                    if iACUPlateauOrZero == iPlateau and iACULandOrWaterZone == iLandZone then --or M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], oACU:GetPosition()) <= 100) then
+                        oACUUpgradingForTeleportInThisZone = oACU
+                        break
+                    end
                 end
             end
         end

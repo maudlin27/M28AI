@@ -3314,12 +3314,13 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
     local iResisueOrderDistanceHover = 15
 
     --First split the MAA into those that need to run (due to being in range of DF units) and those that can advance
+    local tAvailableSubjectToAA = {}
     local tMAAToAdvance = {}
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, Time='..GetGameTimeSeconds()..' for iPond='..iPond..' iWaterZone '..iWaterZone..' iTeam '..iTeam..'; Is table of nearest combat enemies empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftoNearestCombatEnemies]))) end
     if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftoNearestCombatEnemies]) then
         --No DF enemies so treat all MAA as being available
         if bDebugMessages == true then LOG(sFunctionRef..': No nearby combat enemies so treating all MAA as being available') end
-        tMAAToAdvance = tAvailableMAA
+        tAvailableSubjectToAA = tAvailableMAA
     else
         local iRunThreshold = 30
         if tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 then
@@ -3338,7 +3339,92 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
 
                 M28Orders.IssueTrackedMove(oUnit, tRallyPoint, iResisueOrderDistanceHover, false, 'NRun'..iWaterZone)
             else
-                table.insert(tMAAToAdvance, oUnit)
+                table.insert(tAvailableSubjectToAA, oUnit)
+            end
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': is table of tAvailableSubjectToAA empty after running from DF threats='..tostring(M28Utilities.IsTableEmpty(tAvailableSubjectToAA))) end
+    if M28Utilities.IsTableEmpty(tAvailableSubjectToAA) == false then
+        --Retreat individual MAA units if in range of enemy air and enemy has high air to ground threat
+        local tMAAToRunFromAir = {}
+        local iEnemyAirToGroundThreat = tWZTeamData[M28Map.refiEnemyAirToGroundThreat]
+        local iOurAAThreat = tWZTeamData[M28Map.subrefWZThreatAlliedAA]
+        if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
+            for _, iAdjWZ in tWZData[M28Map.subrefWZAdjacentWaterZones] do --include half of the 'excess' enemy air to ground threat in adjacent zones
+                local tAdjWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
+                iEnemyAirToGroundThreat = iEnemyAirToGroundThreat + ((tAdjWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) -  (tAdjWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) * 3)*0.5
+            end
+        end
+
+        if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefAdjacentLandZones]) == false then
+            for _, tSubtable in tWZData[M28Map.subrefAdjacentLandZones] do
+                local tAdjLZTeamData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefWPlatAndLZNumber][1]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefWPlatAndLZNumber][2]][M28Map.subrefLZTeamData][iTeam]
+                iEnemyAirToGroundThreat = iEnemyAirToGroundThreat + (tAdjLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) + (tAdjLZTeamData[M28Map.refiEnemyAirOtherThreat] or 0)
+            end
+        end
+        local tEnemyAirToRunFrom
+        if bDebugMessages == true then LOG(sFunctionRef..': iEnemyAirToGroundThreat='..iEnemyAirToGroundThreat..'; iOurAAThreat='..iOurAAThreat) end
+        if iEnemyAirToGroundThreat > iOurAAThreat then
+            --We may lose if our AA goes up against their air threat, so want to retreat any AA units that are reasonably in-range
+            local iCategoriesToAvoid = M28UnitInfo.refCategoryAirToGround - M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL -M28UnitInfo.refCategoryBomber * categories.TECH3 --dont want to avoid t3 or exp bombers since they struggle to turn around
+            if tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 and M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftWZEnemyAirUnits]) == false then
+                tEnemyAirToRunFrom = EntityCategoryFilterDown(iCategoriesToAvoid, tWZTeamData[M28Map.reftWZEnemyAirUnits])
+            end
+            if not(tEnemyAirToRunFrom) then tEnemyAirToRunFrom = {} end
+            if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
+                for _, iAdjWZ in tWZData[M28Map.subrefWZAdjacentWaterZones] do --include half of the 'excess' enemy air to ground threat in adjacent zones
+                    local tAdjWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAdjWZ]][M28Map.subrefPondWaterZones][iAdjWZ][M28Map.subrefWZTeamData][iTeam]
+                    if tAdjWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 and   M28Utilities.IsTableEmpty(tAdjWZTeamData[M28Map.reftWZEnemyAirUnits]) == false then
+                        local tAdditionalAirToRunFrom = EntityCategoryFilterDown(iCategoriesToAvoid, tAdjWZTeamData[M28Map.reftWZEnemyAirUnits])
+                        if M28Utilities.IsTableEmpty(tAdditionalAirToRunFrom) == false then
+                            for iUnit, oUnit in tAdditionalAirToRunFrom do
+                                if M28UnitInfo.IsUnitValid(oUnit) then table.insert(tEnemyAirToRunFrom, oUnit) end
+                            end
+                        end
+                    end
+                end
+            end
+            if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefAdjacentLandZones]) == false then
+                for _, tSubtable in tWZData[M28Map.subrefAdjacentLandZones] do --include half of the 'excess' enemy air to ground threat in adjacent zones
+                    local tAdjLZTeamData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefWPlatAndLZNumber][1]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefWPlatAndLZNumber][2]][M28Map.subrefLZTeamData][iTeam]
+                    if tAdjLZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 and   M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.reftLZEnemyAirUnits]) == false then
+                        local tAdditionalAirToRunFrom = EntityCategoryFilterDown(iCategoriesToAvoid, tAdjLZTeamData[M28Map.reftLZEnemyAirUnits])
+                        if M28Utilities.IsTableEmpty(tAdditionalAirToRunFrom) == false then
+                            for iUnit, oUnit in tAdditionalAirToRunFrom do
+                                if M28UnitInfo.IsUnitValid(oUnit) then table.insert(tEnemyAirToRunFrom, oUnit) end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Is tEnemyAirToRunFrom empty='..tostring(M28Utilities.IsTableEmpty(tEnemyAirToRunFrom))) end
+        if M28Utilities.IsTableEmpty(tEnemyAirToRunFrom) then
+            tMAAToAdvance = tAvailableSubjectToAA
+        else
+            local iAttackMoveDistWithinRangeWanted = 4
+            local iMoveDistWithinRange = 8
+
+            local bAAInRange, iCurDistWithinRange
+            for iMAA, oMAA in tAvailableSubjectToAA do
+                bAAInRange = false
+                for iAirUnit, oAirUnit in tEnemyAirToRunFrom do
+                    iCurDistWithinRange = (oMAA[M28UnitInfo.refiAARange] or 0) - M28Utilities.GetDistanceBetweenPositions(oMAA:GetPosition(), oAirUnit:GetPosition())
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering oMAA='..oMAA.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMAA)..'; AA range='..(oMAA[M28UnitInfo.refiAARange] or 0)..'; oAirUnit='..oAirUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oAirUnit)..'; Dist to oAirUnit='..M28Utilities.GetDistanceBetweenPositions(oMAA:GetPosition(), oAirUnit:GetPosition())) end
+                    if iCurDistWithinRange >= iAttackMoveDistWithinRangeWanted then
+                        bAAInRange = true
+                        if iCurDistWithinRange >= iMoveDistWithinRange then
+                            --Move away
+                            M28Orders.IssueTrackedMove(oMAA, tRallyPoint, iResisueOrderDistanceHover, false, 'AAMRun'..iWaterZone)
+                        else
+                            --Attack move away
+                            M28Orders.IssueTrackedAttackMove(oMAA, tRallyPoint, iResisueOrderDistanceHover, false, 'AAARun'..iWaterZone)
+                        end
+                        break
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': bAAInRange='..tostring(bAAInRange)) end
+                if not(bAAInRange) then table.insert(tMAAToAdvance, oMAA) end
             end
         end
     end
@@ -3378,7 +3464,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Finished checking for combat AA units, iBestRange='..iBestRange) end
             --if iBestRange >= 80 then
-                --search for enemy buildings both for potential targets, and t2 arti/pd to retreat from
+            --search for enemy buildings both for potential targets, and t2 arti/pd to retreat from
             local iDistanceThreshold = math.max(iBestRange + 90, 40+128)
             local bDontCheckPlayableArea = M28Map.bIsCampaignMap
             local iBestEnemyRangeForThisZone
