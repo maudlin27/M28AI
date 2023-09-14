@@ -145,12 +145,15 @@ function IssueTrackedClearCommands(oUnit)
     end
 
     --Clear orders:
-    IssueClearCommands({oUnit})
-
-    --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uel010513' then --and oUnit:GetAIBrain():GetArmyIndex() == 2 then --and oUnit:GetAIBrain():GetArmyIndex() == 6 then
-        LOG('Just issuedclearcommands to unit'..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds())
+    --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'url01058' then --and oUnit:GetAIBrain():GetArmyIndex() == 2 then --and oUnit:GetAIBrain():GetArmyIndex() == 6 then
+        LOG('Just about to issuedclearcommands to unit'..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds()..'; Unit state before clearing='..M28UnitInfo.GetUnitState(oUnit))
         M28Utilities.ErrorHandler('Audit trail', true, true)
     end--]]
+
+    IssueClearCommands({oUnit})
+
+
+
 
     --Unit name
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit) end
@@ -931,7 +934,7 @@ function IssueTrackedTransportLoad(oUnit, oOrderTarget, bAddToExistingQueue, sOp
 
 
 
-    --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uel010513' then--and oUnit:GetAIBrain():GetArmyIndex() == 2 then
+    --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'url01058' then--and oUnit:GetAIBrain():GetArmyIndex() == 2 then
         LOG('IssueTrackedTransportLoad for unit'..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds())
         M28Utilities.ErrorHandler('Audit trail', true, true)
     end--]]

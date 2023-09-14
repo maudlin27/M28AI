@@ -4757,7 +4757,7 @@ function ManageTransports(iTeam, iAirSubteam)
                 local oUnit = tAvailableTransports[iUnitRef]
                 local bTravelToSameIsland = false
                 iIslandToTravelTo, iPlateauToTravelTo, iLandZoneToTravelTo = GetIslandPlateauAndLandZoneForTransportToTravelTo(iTeam, oUnit)
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering transport '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iDistance='..iDistance..'; iIslandToTravelTo='..(iIslandToTravelTo or 'nil')..'; iPlateauToTravelTo='..(iPlateauToTravelTo or 'nil')..'; iLandZoneToTravelTo='..(iLandZoneToTravelTo or 'nil')) end
+                if bDebugMessages == true then LOG(sFunctionRef..': iUnitRef='..iUnitRef..'; Considering transport '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iDistance='..iDistance..'; iIslandToTravelTo='..(iIslandToTravelTo or 'nil')..'; iPlateauToTravelTo='..(iPlateauToTravelTo or 'nil')..'; iLandZoneToTravelTo='..(iLandZoneToTravelTo or 'nil')) end
                 if not(iIslandToTravelTo) then
 
                     iIslandToTravelTo, iPlateauToTravelTo, iLandZoneToTravelTo = GetFarAwayLandZoneOnCurrentIslandForTransportToTravelTo(iTeam, oUnit)
@@ -4839,10 +4839,13 @@ function ManageTransports(iTeam, iAirSubteam)
                                     local tEngineersInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tCurLZOrWZTeamData[M28Map.subrefLZTAlliedUnits])
                                     for iEngineer, oEngineer in tEngineersInZone do
                                         if M28UnitInfo.IsUnitValid(oEngineer) and oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionLoadOntoTransport and not(oEngineer:IsUnitState('Attached')) then
-                                            iCurEngiDist = M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), oUnit:GetPosition())
-                                            if iCurEngiDist < iClosestLoadingEngineerDist then
-                                                iClosestLoadingEngineerDist = iCurEngiDist
-                                                oClosestLoadingEngineer = oEngineer
+                                            local tEngineerLastOrder = oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]]
+                                            if not(M28UnitInfo.IsUnitValid(tEngineerLastOrder[M28Orders.subrefoOrderUnitTarget])) or tEngineerLastOrder[M28Orders.subrefoOrderUnitTarget] == oUnit or not(EntityCategoryContains(M28UnitInfo.refCategoryTransport, oUnit)) then
+                                                iCurEngiDist = M28Utilities.GetDistanceBetweenPositions(oEngineer:GetPosition(), oUnit:GetPosition())
+                                                if iCurEngiDist < iClosestLoadingEngineerDist then
+                                                    iClosestLoadingEngineerDist = iCurEngiDist
+                                                    oClosestLoadingEngineer = oEngineer
+                                                end
                                             end
                                         end
                                     end
