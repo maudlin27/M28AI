@@ -1122,8 +1122,10 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
             end
         end
 
-        if not(tTargetLocation) then tTargetLocation = tEngineerPosition end
 
+        if M28Utilities.IsTableEmpty(tTargetLocation) then tTargetLocation = tEngineerPosition end
+        if bDebugMessages == true then LOG(sFunctionRef..': finishrd checking if tTargetLocation is valid, tTargetLocation='..repru(tTargetLocation)..'; tEngineerPosition='..repru(tEngineerPosition)..'; is engineer valid='..tostring(M28UnitInfo.IsUnitValid(oEngineer))) end
+        
         --Target location adjustments
         local oClosestUnitToTML
         if EntityCategoryContains(M28UnitInfo.refCategoryTMD, sBlueprintToBuild) then
@@ -1150,6 +1152,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
                 end
                 local iDistToMoveAway = 10
                 if EntityCategoryContains(categories.AEON, sBlueprintToBuild) then iDistToMoveAway = 6 end
+                if bDebugMessages == true then LOG(sFunctionRef..': Updating target location for oClosestUnitToTML at position '..repru(oClosestUnitToTML:GetPosition())) end
                 tTargetLocation = M28Utilities.MoveInDirection(oClosestUnitToTML:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestUnitToTML:GetPosition(), tClosestTMLLocation), 10, true, false, true)
                 if iStartingPlateau > 0 and iStartingLZ > 0 then
                     --Check the new target location is in the same LZ, if not then change distance to 0
@@ -1225,6 +1228,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
                 tPotentialBuildLocations = GetPotentialAdjacencyLocations(aiBrain, sBlueprintToBuild, tTargetLocation, iMaxAreaToSearch, iCatToBuildBy, oUnitToBuildBy)
                 if bDebugMessages == true then LOG(sFunctionRef..': Finished getting potential adjacency locations, sBlueprintToBuild='..sBlueprintToBuild..'; tPotentialBuildLocations='..repru(tPotentialBuildLocations)) end
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': is tPotentialBuildLocations empty='..tostring(M28Utilities.IsTableEmpty(tPotentialBuildLocations))..'; tTargetLocation='..repru(tTargetLocation)) end
             if M28Utilities.IsTableEmpty(tPotentialBuildLocations) then
                 --use the predefined build locations for the land zoneM28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]M28Map.subrefBuildLocationSegmentCountBySize][iSize]
                 local iPlateauOrZero, iLandOrWaterZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
