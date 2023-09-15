@@ -10602,25 +10602,35 @@ function GetLocationToBuildWall(oEngineer, oJustBuilt, sWallBP)
 
     local oPDToSurround
     if EntityCategoryContains(M28UnitInfo.refCategoryPD * categories.TECH1, oJustBuilt.UnitId) then
-        oPDToSurround = oJustBuilt
+        if oJustBuilt:GetBlueprint().Physics.SkirtSizeX <= 1 then
+            oPDToSurround = oJustBuilt
+        end
     else
         --Search nearby for T1 PD
         local tNearbyUnits = GetUnitsInRect(M28Utilities.GetRectAroundLocation(oJustBuilt:GetPosition(), 1.9))
         if M28Utilities.IsTableEmpty(tNearbyUnits) == false then
             local tNearbyPD = EntityCategoryFilterDown(M28UnitInfo.refCategoryPD * categories.TECH1, tNearbyUnits)
             if M28Utilities.IsTableEmpty(tNearbyPD) == false then
-                local iCurDist
-                local iClosestDist = 10000
-                if table.getn(tNearbyPD) > 1 then
-                    for iPD, oPD in tNearbyPD do
-                        iCurDist = M28Utilities.GetRoughDistanceBetweenPositions(oPD:GetPosition(), oJustBuilt:GetPosition())
-                        if iCurDist < iClosestDist then
-                            iClosestDist = iCurDist
-                            oPDToSurround = oPD
-                        end
+                local tSuitablePDSize = {}
+                for iUnit, oUnit in tNearbyPD do
+                    if oUnit:GetBlueprint().Physics.SkirtSizeX <= 1 then
+                        table.insert(tSuitablePDSize, oUnit)
                     end
-                else
-                    oPDToSurround = tNearbyPD[1]
+                end
+                if M28Utilities.IsTableEmpty(tSuitablePDSize) == false then
+                    local iCurDist
+                    local iClosestDist = 10000
+                    if table.getn(tSuitablePDSize) > 1 then
+                        for iPD, oPD in tSuitablePDSize do
+                            iCurDist = M28Utilities.GetRoughDistanceBetweenPositions(oPD:GetPosition(), oJustBuilt:GetPosition())
+                            if iCurDist < iClosestDist then
+                                iClosestDist = iCurDist
+                                oPDToSurround = oPD
+                            end
+                        end
+                    else
+                        oPDToSurround = tSuitablePDSize[1]
+                    end
                 end
             end
         end
