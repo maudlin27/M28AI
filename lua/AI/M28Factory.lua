@@ -2805,6 +2805,40 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA * categories.TECH3) then return sBPIDToBuild end
             end
 
+            --Priority AirAA if need to support ahwassa
+            iCurrentConditionToTry = iCurrentConditionToTry + 1
+            if iFactoryTechLevel == 3 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Priority AirAA for experimental bomber, our bomber threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat]..'; Our AirAA threat='..M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat]) end
+                if M28Team.tTeamData[iTeam][M28Team.subrefiOurBomberThreat] >= math.max(10000, M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] * 1.25) then
+                    if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA * categories.TECH3) then return sBPIDToBuild end
+                elseif M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] <= 10000 then
+                    --Are we building an ahwassa that is 50%+ constructed?
+                    local tAhwassaInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of ahwassa in zone empty='..tostring(M28Utilities.IsTableEmpty(tAhwassaInZone))) end
+                    if M28Utilities.IsTableEmpty(tAhwassaInZone) == false then
+                        if M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] <= 5000 then
+                            if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA * categories.TECH3) then return sBPIDToBuild end
+                        else
+                            local bPartwayDone = false
+                            for iUnit, oUnit in tAhwassaInZone do
+                                if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() >= 0.5 then
+                                    bPartwayDone = true
+                                    break
+                                end
+                            end
+                            if bPartwayDone then
+                                if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA * categories.TECH3) then return sBPIDToBuild end
+                            end
+                        end
+                    end
+                    if M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] <= 5000 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Number of experimentals under construction in other zones='..M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZTeamData, iTeam, M28UnitInfo.refCategoryAirToGround * categories.EXPERIMENTAL)) end
+                        if M28Conditions.GetNumberOfUnderConstructionUnitsOfCategoryInOtherZones(tLZTeamData, iTeam, M28UnitInfo.refCategoryAirToGround * categories.EXPERIMENTAL) > 0 then
+                            if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA * categories.TECH3) then return sBPIDToBuild end
+                        end
+                    end
+                end
+            end
 
             --General production - depends on if we have highest tech level, or if we dont have t3 air yet
             if bDebugMessages == true then

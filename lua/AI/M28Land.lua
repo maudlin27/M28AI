@@ -1989,16 +1989,46 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
                 iRunThreshold = 7
             end
         end
+        local bMovingTowardsEnemy, iAngleToRally, iAngleToNearestUnit, bAmphibiousUnit
+        local bCampaignMap = M28Map.bIsCampaignMap
         for iUnit, oUnit in tAvailableMAA do
             --Run if within 14 of being in range of enemy direct fire
-            if M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], iRunThreshold, iTeam, true) then
+                                --CloseToEnemyUnit(tStartPosition, tUnitsToCheck,                           iDistThreshold, iTeam, bIncludeEnemyDFRange, iAltThresholdToDFRange, oUnitIfConsideringAngleAndLastShot, oOptionalFriendlyUnitToRecordClosestEnemy, iOptionalDistThresholdForStructure, bIncludeEnemyAntiNavyRange)
+            if M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tLZTeamData[M28Map.reftoNearestDFEnemies], iRunThreshold, iTeam, true                    , nil,                  nil,                                oUnit) then
                 if bDebugMessages == true then
                     LOG(sFunctionRef..': MAA '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is too close to DF enemy, iRunThreshold='..iRunThreshold..'; will run back; will list out enemy units and distance to us in a moment')
                     for iEnemy, oEnemy in tLZTeamData[M28Map.reftoNearestDFEnemies] do
                         LOG('oEnemy='..oEnemy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemy)..'; DF r ange='..(oEnemy[M28UnitInfo.refiDFRange] or 'nil')..'; Dist to this MAA unit='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEnemy[M28UnitInfo.reftLastKnownPositionByTeam][iTeam])..'; Actual distance using actual position='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oEnemy:GetPosition()))
                     end
                 end
-                if EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnit.UnitId) then
+                --Does moving towards the rally point take us closer to the enemy?
+                bMovingTowardsEnemy = false
+                bAmphibiousUnit = EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnit.UnitId)
+                local tTempRetreatLocation
+                if oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck] then
+                    local tCurRallyPoint
+                    if bAmphibiousUnit then
+                        tCurRallyPoint = tAmphibiousRallyPoint
+                    else
+                        tCurRallyPoint = tRallyPoint
+                    end
+                    iAngleToRally = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tRallyPoint)
+                    iAngleToNearestUnit = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oUnit[M28UnitInfo.refoClosestEnemyFromLastCloseToEnemyUnitCheck]:GetPosition())
+                    if M28Utilities.GetAngleDifference(iAngleToRally, iAngleToNearestUnit) <= 45 then
+                        bMovingTowardsEnemy = true
+                        --Can we move in the opposite direction to the enemy?
+                        tTempRetreatLocation = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleToNearestUnit + 180, 20, true, false, bCampaignMap)
+                        if M28Utilities.IsTableEmpty(tTempRetreatLocation) == false then
+                            if not(NavUtils.GetTerrainLabel(M28Map.refPathingTypeLand, tTempRetreatLocation) == tLZData[M28Map.subrefLZIslandRef]) then
+                                tTempRetreatLocation = nil
+                            end
+                        end
+
+                    end
+                end
+                if M28Utilities.IsTableEmpty(tTempRetreatLocation) == false then
+                    M28Orders.IssueTrackedMove(oUnit, tTempRetreatLocation, 6, 'ORun'..iLandZone)
+                elseif bAmphibiousUnit then
                     M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'ARun'..iLandZone)
                 else
                     M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'Run'..iLandZone)
