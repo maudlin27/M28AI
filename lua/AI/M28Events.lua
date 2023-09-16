@@ -1473,7 +1473,7 @@ function OnDetectedBy(oUnitDetected, iBrainIndex)
         M28Team.ConsiderAssigningUnitToZoneForBrain(aiBrain, oUnitDetected) --This function includes check of whether this is an M28 brain, and updates last known position
         if aiBrain.M28AI then
             --Update highest enemy ground unti health
-            if M28Map.bFirstM28TeamHasBeenInitialised and EntityCategoryContains(M28UnitInfo.refCategoryLandCombat - categories.COMMAND - categories.SUBCOMMANDER - M28UnitInfo.refCategoryLandScout, oUnitDetected.UnitId) then
+            if M28Map.bFirstM28TeamHasBeenInitialised and M28UnitInfo.IsUnitValid(oUnitDetected) and EntityCategoryContains(M28UnitInfo.refCategoryLandCombat - categories.COMMAND - categories.SUBCOMMANDER - M28UnitInfo.refCategoryLandScout, oUnitDetected.UnitId) then
                 local iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnitDetected)
                 local iMaxHealth = oUnitDetected:GetMaxHealth() + iMaxShield
                 if iMaxHealth > (M28Team.tTeamData[aiBrain.M28Team][M28Team.refiEnemyHighestMobileLandHealth] or 0) and M28Map.bMapLandSetupComplete then

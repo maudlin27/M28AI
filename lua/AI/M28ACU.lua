@@ -1675,14 +1675,19 @@ function AttackNearestEnemyWithACU(iPlateau, iLandZone, tLZData, tLZTeamData, oA
                 end
 
                 if oACU[M28UnitInfo.refiDFRange] <= iEnemyHighestDFInThisLZ then iDistToBeInRange = 2.5
-                elseif oACU[M28UnitInfo.refiDFRange] - 8 >= iEnemyHighestDFInThisLZ then
+                elseif oACU[M28UnitInfo.refiDFRange] - 6 >= iEnemyHighestDFInThisLZ then
                     --If nearest enemy unit isnt facing us then increase dist to be in range
-                    if M28Utilities.GetAngleDifference(M28UnitInfo.GetUnitFacingAngle(oEnemyToTarget), M28Utilities.GetAngleFromAToB(oEnemyToTarget:GetPosition(), oACU:GetPosition())) >= 55 then
+                    local iAngleDif = M28Utilities.GetAngleDifference(M28UnitInfo.GetUnitFacingAngle(oEnemyToTarget), M28Utilities.GetAngleFromAToB(oEnemyToTarget:GetPosition(), oACU:GetPosition()))
+                    if iAngleDif >= 55 then
                         iDistToBeInRange = 2.5
+                    elseif iAngleDif <= 10 and oEnemyToTarget:IsUnitState('Moving') then
+                        iDistToBeInRange = 0.25
                     end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iAngleDif='..iAngleDif..'; iDistToBeInRange='..iDistToBeInRange) end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': oEnemyToTarget='..oEnemyToTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToTarget)..'; iClosestDist='..iClosestDist..'; iDistToBeInRange='..iDistToBeInRange..'; ACU DF range='..(oACU[M28UnitInfo.refiDFRange] or 0)..'; ACU position='..repru(oACU:GetPosition())..'; Enemy unit to target='..repru(oEnemyToTarget:GetPosition())..'; Dist betweeh tnem straight line='..M28Utilities.GetDistanceBetweenPositions(oEnemyToTarget:GetPosition(), oACU:GetPosition())) end
-                if iClosestDist and iClosestDist + iDistToBeInRange <= oACU[M28UnitInfo.refiDFRange] and (M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.75 or tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 165) then
+                local iStraightLineDist = M28Utilities.GetDistanceBetweenPositions(oEnemyToTarget:GetPosition(), oACU:GetPosition())
+                if bDebugMessages == true then LOG(sFunctionRef..': oEnemyToTarget='..oEnemyToTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEnemyToTarget)..'; iClosestDist='..iClosestDist..'; iDistToBeInRange='..iDistToBeInRange..'; ACU DF range='..(oACU[M28UnitInfo.refiDFRange] or 0)..'; ACU position='..repru(oACU:GetPosition())..'; Enemy unit to target='..repru(oEnemyToTarget:GetPosition())..'; Dist betweeh tnem straight line='..M28Utilities.GetDistanceBetweenPositions(oEnemyToTarget:GetPosition(), oACU:GetPosition())..'; ACU health percent='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; Enemy combat total='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]) end
+                if iStraightLineDist + iDistToBeInRange <= oACU[M28UnitInfo.refiDFRange] and (M28UnitInfo.GetUnitHealthPercent(oACU) <= 0.75 or tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 165) then
                     --Retreat temporarily - if aren't in a core zone then retreat to rally point
                     local tRallyPoint
                     if tLZTeamData[M28Map.subrefLZbCoreBase] then

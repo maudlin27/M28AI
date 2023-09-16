@@ -2478,6 +2478,8 @@ function ReserveLocationsForGameEnder(oUnit)
     local sFunctionRef = 'ReserveLocationsForGameEnder'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, gametimeseconds is '..GetGameTimeSeconds()..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; owned by '..oUnit:GetAIBrain().Nickname..' on team '..oUnit:GetAIBrain().M28Team) end
 
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())

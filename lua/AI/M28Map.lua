@@ -307,6 +307,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             refbIslandBeachhead = 'IslBeachd' --true if we are sending units to a closest island LZ to try and attack enemy - means will check for nearby untis vs enemy nearby units when deciding whether to attack or not
             refiTimeOfLastTorpAttack = 'TLstTorp' --Gametimeseconds that last sent torpedo bombers to attack units in this location
             reftoTransportsWaitingForEngineers = 'TWntEng' --Table of any transports in this LZ wanting engineers
+            refiTransportRecentUnloadCount = 'TRUnC' --Number of times transports have tried to unload here recently
             refiTimeLastBuiltAtFactory = 'TLstBFac' --Gametimeseconds that a factory last tried ot build (used to make sure we spread things out by several ticks)
             reftoGroundFireFriendlyTarget = 'TGFTrg' --Location of a ground fire target that we wont be trying to target via normal means, e..g intended for Cybran mission 2 where need to ground fire temples that dont show as enemies and cant be reclaimed
             reftObjectiveSMDLocation = 'TSMDOL' --For campaign maps - locaiton of SMD to complete objective

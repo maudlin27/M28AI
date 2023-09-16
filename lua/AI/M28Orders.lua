@@ -145,12 +145,15 @@ function IssueTrackedClearCommands(oUnit)
     end
 
     --Clear orders:
-    IssueClearCommands({oUnit})
-
-    --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uel010513' then --and oUnit:GetAIBrain():GetArmyIndex() == 2 then --and oUnit:GetAIBrain():GetArmyIndex() == 6 then
-        LOG('Just issuedclearcommands to unit'..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds())
+    --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'url01058' then --and oUnit:GetAIBrain():GetArmyIndex() == 2 then --and oUnit:GetAIBrain():GetArmyIndex() == 6 then
+        LOG('Just about to issuedclearcommands to unit'..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds()..'; Unit state before clearing='..M28UnitInfo.GetUnitState(oUnit))
         M28Utilities.ErrorHandler('Audit trail', true, true)
     end--]]
+
+    IssueClearCommands({oUnit})
+
+
+
 
     --Unit name
     if M28Config.M28ShowUnitNames then UpdateUnitNameForOrder(oUnit) end
@@ -852,6 +855,7 @@ function ReleaseStoredUnits(oUnit, bAddToExistingQueue, sOptionalOrderDesc, bOve
 end
 
 
+
 function IssueTrackedTransportUnload(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
     UpdateRecordedOrders(oUnit)
     --If we are close enough then issue the order again - consider the first order given if not to add to existing queue
@@ -869,6 +873,11 @@ function IssueTrackedTransportUnload(oUnit, tOrderPosition, iDistanceToReissueOr
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderUnloadTransport, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
         IssueTransportUnload({oUnit}, tOrderPosition)
+        if EntityCategoryContains(M28UnitInfo.refCategoryTransport, oUnit.UnitId) and oUnit[M28Air.refiTargetZoneForDrop] and oUnit:GetAIBrain().M28AI then
+            local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(tOrderPosition, true, oUnit:GetAIBrain().M28Team)
+            tLZOrWZTeamData[M28Map.refiTransportRecentUnloadCount] = (tLZOrWZTeamData[M28Map.refiTransportRecentUnloadCount] or 0) + 1
+            M28Utilities.DelayChangeVariable(tLZOrWZTeamData, M28Map.refiTransportRecentUnloadCount, -1, 600, nil, nil, nil, nil, true)
+        end
     end
     if M28Config.M28ShowUnitNames and tLastOrder[subrefiOrderType] then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 
@@ -931,7 +940,7 @@ function IssueTrackedTransportLoad(oUnit, oOrderTarget, bAddToExistingQueue, sOp
 
 
 
-    --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'uel010513' then--and oUnit:GetAIBrain():GetArmyIndex() == 2 then
+    --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'url01058' then--and oUnit:GetAIBrain():GetArmyIndex() == 2 then
         LOG('IssueTrackedTransportLoad for unit'..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds())
         M28Utilities.ErrorHandler('Audit trail', true, true)
     end--]]

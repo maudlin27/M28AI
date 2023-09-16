@@ -442,10 +442,12 @@ function MoveInDirection(tStart, iAngle, iDistance, bKeepInMapBounds, bTravelUnd
         end
         --Get actual distance required to keep within map bounds
         local iNewDistWanted = 10000
-        if tTargetPosition[1] < rPlayableArea[1] then iNewDistWanted = (iDistance + 0.1) * (tStart[1] - rPlayableArea[1]) / (tStart[1] - tTargetPosition[1]) end
-        if tTargetPosition[3] < rPlayableArea[2] then iNewDistWanted = math.min(iNewDistWanted, (iDistance + 0.1) * (tStart[3] - rPlayableArea[2]) / (tStart[3] - tTargetPosition[3])) end
-        if tTargetPosition[1] > rPlayableArea[3] then iNewDistWanted = math.min(iNewDistWanted, (iDistance + 0.1) * (rPlayableArea[3] - tStart[1]) / (tTargetPosition[1] - tStart[1])) end
-        if tTargetPosition[3] > rPlayableArea[4] then iNewDistWanted = math.min(iNewDistWanted, (iDistance + 0.1) * (rPlayableArea[4] - tStart[3]) / (tTargetPosition[3] - tStart[3])) end
+
+        if tTargetPosition[1] < rPlayableArea[1] then iNewDistWanted = (iDistance - 0.5) * (tStart[1] - rPlayableArea[1]) / (tStart[1] - tTargetPosition[1]) end
+        if tTargetPosition[3] < rPlayableArea[2] then iNewDistWanted = math.min(iNewDistWanted, (iDistance - 0.5) * (tStart[3] - rPlayableArea[2]) / (tStart[3] - tTargetPosition[3])) end
+        if tTargetPosition[1] > rPlayableArea[3] then iNewDistWanted = math.min(iNewDistWanted, (iDistance - 0.5) * (rPlayableArea[3] - tStart[1]) / (tTargetPosition[1] - tStart[1])) end
+        if tTargetPosition[3] > rPlayableArea[4] then iNewDistWanted = math.min(iNewDistWanted, (iDistance - 0.5) * (rPlayableArea[4] - tStart[3]) / (tTargetPosition[3] - tStart[3])) end
+        --if GetGameTimeSeconds() >= 2160 and iDistance == 200 then LOG('tStart='..repru(tStart)..'; tTargetPosition='..repru(tTargetPosition)..'; rPlayableArea='..repru(rPlayableArea)..'; iNewDistWanted='..iNewDistWanted..'; (10k means we dont need to adjust for playable area so will just return target position)') end
 
         if iNewDistWanted == 10000 then
             --if bDebugMessages == true then LOG(sFunctionRef..': Are inside playable area, returning tTargetPosition='..repru(tTargetPosition)) end
@@ -595,7 +597,7 @@ function GetAverageOfLocations(tAllLocations)
     return tAveragePos
 end
 
-function ForkedDelayedChangedVariable(oVariableOwner, sVariableName, vVariableValue, iDelayInSeconds, sOptionalOwnerConditionRef, iMustBeLessThanThisTimeValue, iMustBeMoreThanThisTimeValue, vMustNotEqualThisValue)
+function ForkedDelayedChangedVariable(oVariableOwner, sVariableName, vVariableValue, iDelayInSeconds, sOptionalOwnerConditionRef, iMustBeLessThanThisTimeValue, iMustBeMoreThanThisTimeValue, vMustNotEqualThisValue, bChangeByVariableValue)
     --After waiting iDelayInSeconds, changes the variable to vVariableValue.
     local sFunctionRef = 'ForkedDelayedChangedVariable'
 
@@ -609,15 +611,20 @@ function ForkedDelayedChangedVariable(oVariableOwner, sVariableName, vVariableVa
             elseif vMustNotEqualThisValue and oVariableOwner[sOptionalOwnerConditionRef] == vMustNotEqualThisValue then bReset = false
             end
         end
-        if bReset then oVariableOwner[sVariableName] = vVariableValue end
+        if bReset then
+            if bChangeByVariableValue then oVariableOwner[sVariableName] = (oVariableOwner[sVariableName] or 0) + vVariableValue
+            else
+                oVariableOwner[sVariableName] = vVariableValue
+            end
+        end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function DelayChangeVariable(oVariableOwner, sVariableName, vVariableValue, iDelayInSeconds, sOptionalOwnerConditionRef, iMustBeLessThanThisTimeValue, iMustBeMoreThanThisTimeValue, vMustNotEqualThisValue)
+function DelayChangeVariable(oVariableOwner, sVariableName, vVariableValue, iDelayInSeconds, sOptionalOwnerConditionRef, iMustBeLessThanThisTimeValue, iMustBeMoreThanThisTimeValue, vMustNotEqualThisValue, bChangeByVariableValue)
     --sOptionalOwnerConditionRef - can specify a variable for oVariableOwner; if so then the value of this variable must be <= iMustBeLessThanThisTimeValue
     --e.g. if delay reset a variable, but are claling multiple times so want to only reset on the latest value, then this allows for that
-    ForkThread(ForkedDelayedChangedVariable, oVariableOwner, sVariableName, vVariableValue, iDelayInSeconds, sOptionalOwnerConditionRef, iMustBeLessThanThisTimeValue, iMustBeMoreThanThisTimeValue, vMustNotEqualThisValue)
+    ForkThread(ForkedDelayedChangedVariable, oVariableOwner, sVariableName, vVariableValue, iDelayInSeconds, sOptionalOwnerConditionRef, iMustBeLessThanThisTimeValue, iMustBeMoreThanThisTimeValue, vMustNotEqualThisValue, bChangeByVariableValue)
 end
 
 function DrawCircleAtTarget(tLocation, iColour, iDisplayCount, iCircleSize) --Dont call DrawCircle since this is a built in function
