@@ -442,10 +442,12 @@ function MoveInDirection(tStart, iAngle, iDistance, bKeepInMapBounds, bTravelUnd
         end
         --Get actual distance required to keep within map bounds
         local iNewDistWanted = 10000
-        if tTargetPosition[1] < rPlayableArea[1] then iNewDistWanted = (iDistance + 0.1) * (tStart[1] - rPlayableArea[1]) / (tStart[1] - tTargetPosition[1]) end
-        if tTargetPosition[3] < rPlayableArea[2] then iNewDistWanted = math.min(iNewDistWanted, (iDistance + 0.1) * (tStart[3] - rPlayableArea[2]) / (tStart[3] - tTargetPosition[3])) end
-        if tTargetPosition[1] > rPlayableArea[3] then iNewDistWanted = math.min(iNewDistWanted, (iDistance + 0.1) * (rPlayableArea[3] - tStart[1]) / (tTargetPosition[1] - tStart[1])) end
-        if tTargetPosition[3] > rPlayableArea[4] then iNewDistWanted = math.min(iNewDistWanted, (iDistance + 0.1) * (rPlayableArea[4] - tStart[3]) / (tTargetPosition[3] - tStart[3])) end
+
+        if tTargetPosition[1] < rPlayableArea[1] then iNewDistWanted = (iDistance - 0.5) * (tStart[1] - rPlayableArea[1]) / (tStart[1] - tTargetPosition[1]) end
+        if tTargetPosition[3] < rPlayableArea[2] then iNewDistWanted = math.min(iNewDistWanted, (iDistance - 0.5) * (tStart[3] - rPlayableArea[2]) / (tStart[3] - tTargetPosition[3])) end
+        if tTargetPosition[1] > rPlayableArea[3] then iNewDistWanted = math.min(iNewDistWanted, (iDistance - 0.5) * (rPlayableArea[3] - tStart[1]) / (tTargetPosition[1] - tStart[1])) end
+        if tTargetPosition[3] > rPlayableArea[4] then iNewDistWanted = math.min(iNewDistWanted, (iDistance - 0.5) * (rPlayableArea[4] - tStart[3]) / (tTargetPosition[3] - tStart[3])) end
+        if GetGameTimeSeconds() >= 2160 and iDistance == 200 then LOG('tStart='..repru(tStart)..'; tTargetPosition='..repru(tTargetPosition)..'; rPlayableArea='..repru(rPlayableArea)..'; iNewDistWanted='..iNewDistWanted..'; (10k means we dont need to adjust for playable area so will just return target position)') end
 
         if iNewDistWanted == 10000 then
             --if bDebugMessages == true then LOG(sFunctionRef..': Are inside playable area, returning tTargetPosition='..repru(tTargetPosition)) end
