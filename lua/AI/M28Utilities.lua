@@ -597,7 +597,7 @@ function GetAverageOfLocations(tAllLocations)
     return tAveragePos
 end
 
-function ForkedDelayedChangedVariable(oVariableOwner, sVariableName, vVariableValue, iDelayInSeconds, sOptionalOwnerConditionRef, iMustBeLessThanThisTimeValue, iMustBeMoreThanThisTimeValue, vMustNotEqualThisValue)
+function ForkedDelayedChangedVariable(oVariableOwner, sVariableName, vVariableValue, iDelayInSeconds, sOptionalOwnerConditionRef, iMustBeLessThanThisTimeValue, iMustBeMoreThanThisTimeValue, vMustNotEqualThisValue, bChangeByVariableValue)
     --After waiting iDelayInSeconds, changes the variable to vVariableValue.
     local sFunctionRef = 'ForkedDelayedChangedVariable'
 
@@ -611,15 +611,20 @@ function ForkedDelayedChangedVariable(oVariableOwner, sVariableName, vVariableVa
             elseif vMustNotEqualThisValue and oVariableOwner[sOptionalOwnerConditionRef] == vMustNotEqualThisValue then bReset = false
             end
         end
-        if bReset then oVariableOwner[sVariableName] = vVariableValue end
+        if bReset then
+            if bChangeByVariableValue then oVariableOwner[sVariableName] = (oVariableOwner[sVariableName] or 0) + vVariableValue
+            else
+                oVariableOwner[sVariableName] = vVariableValue
+            end
+        end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function DelayChangeVariable(oVariableOwner, sVariableName, vVariableValue, iDelayInSeconds, sOptionalOwnerConditionRef, iMustBeLessThanThisTimeValue, iMustBeMoreThanThisTimeValue, vMustNotEqualThisValue)
+function DelayChangeVariable(oVariableOwner, sVariableName, vVariableValue, iDelayInSeconds, sOptionalOwnerConditionRef, iMustBeLessThanThisTimeValue, iMustBeMoreThanThisTimeValue, vMustNotEqualThisValue, bChangeByVariableValue)
     --sOptionalOwnerConditionRef - can specify a variable for oVariableOwner; if so then the value of this variable must be <= iMustBeLessThanThisTimeValue
     --e.g. if delay reset a variable, but are claling multiple times so want to only reset on the latest value, then this allows for that
-    ForkThread(ForkedDelayedChangedVariable, oVariableOwner, sVariableName, vVariableValue, iDelayInSeconds, sOptionalOwnerConditionRef, iMustBeLessThanThisTimeValue, iMustBeMoreThanThisTimeValue, vMustNotEqualThisValue)
+    ForkThread(ForkedDelayedChangedVariable, oVariableOwner, sVariableName, vVariableValue, iDelayInSeconds, sOptionalOwnerConditionRef, iMustBeLessThanThisTimeValue, iMustBeMoreThanThisTimeValue, vMustNotEqualThisValue, bChangeByVariableValue)
 end
 
 function DrawCircleAtTarget(tLocation, iColour, iDisplayCount, iCircleSize) --Dont call DrawCircle since this is a built in function

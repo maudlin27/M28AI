@@ -855,6 +855,7 @@ function ReleaseStoredUnits(oUnit, bAddToExistingQueue, sOptionalOrderDesc, bOve
 end
 
 
+
 function IssueTrackedTransportUnload(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
     UpdateRecordedOrders(oUnit)
     --If we are close enough then issue the order again - consider the first order given if not to add to existing queue
@@ -872,6 +873,11 @@ function IssueTrackedTransportUnload(oUnit, tOrderPosition, iDistanceToReissueOr
         oUnit[refiOrderCount] = oUnit[refiOrderCount] + 1
         table.insert(oUnit[reftiLastOrders], {[subrefiOrderType] = refiOrderUnloadTransport, [subreftOrderPosition] = {tOrderPosition[1], tOrderPosition[2], tOrderPosition[3]}})
         IssueTransportUnload({oUnit}, tOrderPosition)
+        if EntityCategoryContains(M28UnitInfo.refCategoryTransport, oUnit.UnitId) and oUnit[M28Air.refiTargetZoneForDrop] and oUnit:GetAIBrain().M28AI then
+            local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(tOrderPosition, true, oUnit:GetAIBrain().M28Team)
+            tLZOrWZTeamData[M28Map.refiTransportRecentUnloadCount] = (tLZOrWZTeamData[M28Map.refiTransportRecentUnloadCount] or 0) + 1
+            M28Utilities.DelayChangeVariable(tLZOrWZTeamData, M28Map.refiTransportRecentUnloadCount, -1, 600, nil, nil, nil, nil, true)
+        end
     end
     if M28Config.M28ShowUnitNames and tLastOrder[subrefiOrderType] then UpdateUnitNameForOrder(oUnit, sOptionalOrderDesc) end
 
