@@ -354,7 +354,7 @@ end
 
 function GetACUEarlyGameOrders(aiBrain, oACU)
     local sFunctionRef = 'GetACUEarlyGameOrders'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
@@ -384,7 +384,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
 
         --Are we already building something?
         if bDebugMessages == true then LOG(sFunctionRef..': ACU unit state='..M28UnitInfo.GetUnitState(oACU)) end
-        if not(oACU:IsUnitState('Building')) and not(oACU:IsUnitState('Repairing')) then
+        if not(oACU:IsUnitState('Building')) and not(oACU:IsUnitState('Repairing')) and (aiBrain:GetEconomyStoredRatio('MASS') <= 0.95 or not(oACU:IsUnitState('Reclaiming'))) then
 
             M28Air.UpdateTransportLocationShortlist(iTeam) --Redundancy
 
@@ -786,10 +786,42 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
 
             end
         else
-            if bDebugMessages == true then LOG(sFunctionRef..': Are building so wont give any new orders subject to Pgen execption') end
             --Rare case where ACU and engieners start building pgen at the same time, leading to them both building separately to each other; solution - if ACU fraction complete is <10%, switch to the engi built one if it is in the build range
             local oACUFocusUnit = oACU:GetFocusUnit()
-            if EntityCategoryContains(M28UnitInfo.refCategoryPower * categories.TECH1, oACUFocusUnit.UnitId) and aiBrain:GetEconomyStored('ENERGY') < 1500 and oACUFocusUnit:GetFractionComplete() < 0.1 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Are building so wont give any new orders subject to Pgen execption and reclaiming wreck mass exception. is oACUFocusUnit valid='..tostring(M28UnitInfo.IsUnitValid(oACUFocusUnit)))
+                if M28UnitInfo.IsUnitValid(oACUFocusUnit) then LOG(sFunctionRef..': Focus unit='..oACUFocusUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACUFocusUnit)..'; Fraction complete='..oACUFocusUnit:GetFractionComplete()..'; ACU work progress='..oACU:GetWorkProgress()) end
+            end
+            --If about to overflow mass, dont have a valid unit being built, and we have at least 1 factory in the zone, then build power or do nothing
+            if not(M28UnitInfo.IsUnitValid(oACUFocusUnit)) and aiBrain:GetEconomyStoredRatio('MASS') >= 0.95 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits])) == false then
+                --Are overflowing mass presumably from trying to build on a wreck - either build power or (if we have lots of power) clear orders
+                if bDebugMessages == true then LOG(sFunctionRef..': Will try either clearing commands or building power') end
+                if aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 80 then
+                    M28Orders.IssueTrackedClearCommands(oACU)
+                else
+                    --Is there an under construction hydro in this zone? if so assist it, otherwise build a pgen
+                    local bHaveUnderConstructionFirstHydro = false
+                    local oOptionalUnderConstructionHydro
+                    local tHydroInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryHydro, tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits])
+                    if M28Utilities.IsTableEmpty(tHydroInZone) == false then
+                        for iHydro, oHydro in tHydroInZone do
+                            if oHydro:GetFractionComplete() < 1 and oHydro:GetAIBrain() == aiBrain then
+                                bHaveUnderConstructionFirstHydro = true
+                                oOptionalUnderConstructionHydro = oHydro
+                                break
+                            end
+                        end
+                    end
+                    if bHaveUnderConstructionFirstHydro then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want to assist hydro') end
+                        ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData, oOptionalUnderConstructionHydro)
+                    else
+                        ACUActionBuildPower(aiBrain, oACU)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want to build power') end
+                    end
+                end
+
+
+            elseif EntityCategoryContains(M28UnitInfo.refCategoryPower * categories.TECH1, oACUFocusUnit.UnitId) and aiBrain:GetEconomyStored('ENERGY') < 1500 and oACUFocusUnit:GetFractionComplete() < 0.1 then
                 local tNearbyPower = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryPower * categories.TECH1, oACU:GetPosition(), oACU:GetBlueprint().Economy.MaxBuildDistance + M28UnitInfo.GetBuildingSize(oACUFocusUnit.UnitId), 'Ally')
                 if bDebugMessages == true then LOG(sFunctionRef..': Is table of nearby power empty='..tostring(M28Utilities.IsTableEmpty(tNearbyPower))) end
                 if M28Utilities.IsTableEmpty(tNearbyPower) == false and table.getn(tNearbyPower) >= 2 then
@@ -2788,7 +2820,7 @@ end
 
 function GetACUOrder(aiBrain, oACU)
     local sFunctionRef = 'GetACUOrder'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
