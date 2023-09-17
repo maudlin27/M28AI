@@ -249,6 +249,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             --Engineer related values
             subreftoPartBuiltMexes = 'PBMex' --If we are building a mex and the builder gets its orders cleared or dies, and it was building a mex, then the mex should be recorded in a table so it can be rebuilt
             subrefTbWantBP = 'WantBP' --true if we want BP at any tech level
+            subreftiBPWantedByAction = 'BPByAct' --table of bp wanted for each action for a zone
             subrefTBuildPowerByTechWanted = 'BPByTechW' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power wanted wanted
             subreftbBPByFactionWanted = 'BPByFaction' --[x] = faction ref, returns true if we want engineers of that faction
             subrefTEngineersTravelingHere = 'EUnitsTrav' --Table of any engineer units in another LZ/WZ that have been told to move to this LZ/WZ

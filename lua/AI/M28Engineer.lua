@@ -4508,7 +4508,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     local sFunctionRef = 'ConsiderActionToAssign'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iPlateauOrPond == 2 and iLandOrWaterZone == 4 and iTotalBuildPowerWanted > 0 then bDebugMessages = true M28Utilities.ErrorHandler('Audit trail', true, true) end
+
 
     --Dont try getting any mroe BP for htis action if have run out of buildable locations
     local iExpectedBuildingSize = tiLastBuildingSizeFromActionForTeam[iTeam][iActionToAssign]
@@ -5163,7 +5163,23 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
 
         --If we still have build power we want to assign, record in the land zone
         if bDebugMessages == true then LOG(sFunctionRef..': About to update BP wanted for iPlateauOrPond'..iPlateauOrPond..'; iLandOrWaterZone='..iLandOrWaterZone..'; iTeam='..iTeam..'; iTotalBuildPowerWanted='..iTotalBuildPowerWanted..'; tLZBuildPowerByTechWanted before update='..repru(tLZOrWZTeamData[M28Map.subrefTBuildPowerByTechWanted])) end
-        if iTotalBuildPowerWanted > 0 and not(bDontIncreaseLZBPWanted) then tLZOrWZTeamData[M28Map.subrefTBuildPowerByTechWanted][iMinTechWanted] = (tLZOrWZTeamData[M28Map.subrefTBuildPowerByTechWanted][iMinTechWanted] or 0) + iTotalBuildPowerWanted end
+        if iTotalBuildPowerWanted > 0 and not(bDontIncreaseLZBPWanted) then
+            local iAdditionalBuildPowerWanted
+            if not(tLZOrWZTeamData[M28Map.subreftiBPWantedByAction][iActionToAssign]) then
+                iAdditionalBuildPowerWanted = iTotalBuildPowerWanted
+            else
+                if bBPIsInAdditionToExisting then
+                    iAdditionalBuildPowerWanted = iTotalBuildPowerWanted
+                    iTotalBuildPowerWanted = tLZOrWZTeamData[M28Map.subreftiBPWantedByAction][iActionToAssign] + iTotalBuildPowerWanted
+                else
+                    iAdditionalBuildPowerWanted = math.max(0, iTotalBuildPowerWanted - tLZOrWZTeamData[M28Map.subreftiBPWantedByAction][iActionToAssign])
+                end
+            end
+            if iAdditionalBuildPowerWanted > 0 then
+                tLZOrWZTeamData[M28Map.subreftiBPWantedByAction][iActionToAssign] = iTotalBuildPowerWanted
+                tLZOrWZTeamData[M28Map.subrefTBuildPowerByTechWanted][iMinTechWanted] = (tLZOrWZTeamData[M28Map.subrefTBuildPowerByTechWanted][iMinTechWanted] or 0) + iTotalBuildPowerWanted
+            end
+        end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -8030,7 +8046,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     local sFunctionRef = 'ConsiderMinorLandZoneEngineerAssignment'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iPlateau == 2 and iLandZone == 4 then bDebugMessages = true end
+
 
     --if bDebugMessages == true then M28Map.DrawSpecificLandZone(iPlateau, iLandZone, 1) end
     local iBPWanted
@@ -9937,7 +9953,7 @@ function ConsiderLandOrWaterZoneEngineerAssignment(tLZOrWZTeamData, iTeam, iPlat
     local sFunctionRef = 'ConsiderLandOrWaterZoneEngineerAssignment'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iPlateauOrPond == 2 and iLandOrWaterZone == 4 then bDebugMessages = true end
+
 
     if bDebugMessages == true then
         LOG(sFunctionRef .. ': Start of code, iTeam=' .. iTeam .. '; iPlateauOrPond=' .. iPlateauOrPond .. '; iLandOrWaterZone=' .. iLandOrWaterZone .. '; is tEngineers empty=' .. tostring(M28Utilities.IsTableEmpty(tEngineers)) .. '; Is this a core base LZ=' .. tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or false) .. '; bIsWaterZone=' .. tostring(bIsWaterZone or false)..'; tLZOrWZTeamData[M28Map.subrefTbWantBP] before reset='..tostring(tLZOrWZTeamData[M28Map.subrefTbWantBP] or false))
@@ -9949,6 +9965,8 @@ function ConsiderLandOrWaterZoneEngineerAssignment(tLZOrWZTeamData, iTeam, iPlat
             tLZOrWZTeamData[M28Map.subreftbBPByFactionWanted][iFaction] = false
         end
     end
+    --Clear tracking of engineers wanted by action
+    tLZOrWZTeamData[M28Map.subreftiBPWantedByAction] = {}
 
     if bIsWaterZone then
         ConsiderWaterZoneEngineerAssignment(tLZOrWZTeamData, iTeam, iPlateauOrPond, iLandOrWaterZone, tEngineers, bIsWaterZone)
