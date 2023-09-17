@@ -511,7 +511,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                 end
                 local iCurLandFactories = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory)
 
-                if M28Map.bIsLowMexMap then
+                if M28Map.bIsLowMexMap and GetGameTimeSeconds() <= 1800 then
                     GetLowMexMapEarlyACUOrder(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData)
                 else
                     if iCurLandFactories == 0 then
