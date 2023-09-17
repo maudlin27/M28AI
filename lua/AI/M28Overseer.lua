@@ -658,6 +658,7 @@ function Initialisation(aiBrain)
     ForkThread(SetupNoRushDetails, aiBrain)
     ForkThread(M28UnitInfo.CalculateBlueprintThreatsByType) --Records air and ground threat values for every blueprint
     ForkThread(M28Team.RecordAllPlayers, aiBrain)
+    ForkThread(M28Map.CheckIfLowMexMap)
     ForkThread(M28Economy.EconomyInitialisation, aiBrain)
     ForkThread(M28Engineer.EngineerInitialisation, aiBrain)
     ForkThread(M28ACU.ManageACU, aiBrain)

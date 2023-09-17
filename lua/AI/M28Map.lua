@@ -23,6 +23,8 @@ bWaterZoneFirstTeamInitialisation = false --set to true when the first team runs
 bRecordedIslands = false
 bIsCampaignMap = false --set at start of game
 bFirstM28TeamHasBeenInitialised = false --set to true once we have run the teaminitialisation function
+bIsLowMexMap = false --true if are dealing with a low mex map
+bLowMexMapCheck = false --true if have checked if dealing with a low mex map
 
 --Pathing types
 --NavLayers 'Land' | 'Water' | 'Amphibious' | 'Hover' | 'Air'
@@ -6523,6 +6525,35 @@ function RecordWaterZonePathingToOtherWaterZones()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function CheckIfLowMexMap()
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'CheckIfLowMexMap'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if not(bLowMexMapCheck) then
+        bLowMexMapCheck = true
+        local iTotalMexCount = 0
+        for iPlateau, tPlateauSubtable in tAllPlateaus do
+            iTotalMexCount = iTotalMexCount + (tPlateauSubtable[subrefPlateauTotalMexCount] or 0)
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': iTotalMexCount='..iTotalMexCount..'; Players at start='..M28Team.iPlayersAtGameStart) end
+
+        if iTotalMexCount <= M28Team.iPlayersAtGameStart * 2.5 then
+            --2.5 or fewer mexes per player - check total reclaim - cant rely on normal reclaiming tracking since likely hasnt been updated yet (and we need to know early on so we can decide whether to build a factory or not)
+            local rRect = Rect(rMapPlayableArea[1], rMapPlayableArea[2], rMapPlayableArea[3], rMapPlayableArea[4])
+            local iTotalReclaimMass = GetReclaimInRectangle(3, rRect)
+            if iTotalReclaimMass <= 200 then
+                bIsLowMexMap = true
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': iTotalReclaimMass='..iTotalReclaimMass..'; bIsLowMexMap='..tostring(bIsLowMexMap)) end
+        end
+    end
+
+
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function SetupMap()
     --Sets up non-brain specific info on the map
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -6593,6 +6624,8 @@ function SetupMap()
     if bIsCampaignMap then
         SetupPlayableAreaAndSegmentSizes()
     end
+
+    CheckIfLowMexMap()
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
