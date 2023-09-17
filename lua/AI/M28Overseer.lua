@@ -657,7 +657,7 @@ function Initialisation(aiBrain)
     LOG('About to proceed with initialisation, aiBrain='..aiBrain.Nickname..'; bBeginSessionTriggered='..tostring(bBeginSessionTriggered or false)..'; Navmesh generated='..tostring(import("/lua/sim/navgenerator.lua").IsGenerated()))
     ForkThread(SetupNoRushDetails, aiBrain)
     ForkThread(M28UnitInfo.CalculateBlueprintThreatsByType) --Records air and ground threat values for every blueprint
-    ForkThread(M28Team.RecordAllPlayers, aiBrain)
+    ForkThread(M28Team.RecordAllPlayers)
     ForkThread(M28Map.CheckIfLowMexMap)
     ForkThread(M28Economy.EconomyInitialisation, aiBrain)
     ForkThread(M28Engineer.EngineerInitialisation, aiBrain)

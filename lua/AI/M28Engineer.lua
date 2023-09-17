@@ -7084,21 +7084,39 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --1 T3 mass fab if not defending against T3 arti and have lots of t3 mexes
     iCurPriority = iCurPriority + 1
-    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 and tLZTeamData[M28Map.subrefMexCountByTech][3] >= tLZData[M28Map.subrefLZMexCount] and not(bHaveLowPower) and not(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250 + 500 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and not(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) then
-        local iExistingT3MassFabs = 0
-        local iUnderConstructionT3MassFabs = 0
-        local tExistingMassFabs = EntityCategoryFilterDown(M28UnitInfo.refCategoryMassFab * categories.TECH3, tLZTeamData[M28Map.subrefLZTAlliedUnits])
-        if M28Utilities.IsTableEmpty( tExistingMassFabs) == false then
-            for iUnit, oUnit in tExistingMassFabs do
-                if oUnit:GetFractionComplete() < 1 then iUnderConstructionT3MassFabs = iUnderConstructionT3MassFabs + 1
-                else iExistingT3MassFabs = iExistingT3MassFabs + 1
+    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 and tLZTeamData[M28Map.subrefMexCountByTech][3] >= tLZData[M28Map.subrefLZMexCount] and not(bHaveLowPower) and not(M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti]) then
+        if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 250 + 500 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or (M28Map.bIsLowMexMap and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 260 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]) then
+            local iExistingT3MassFabs = 0
+            local iUnderConstructionT3MassFabs = 0
+            local tExistingMassFabs = EntityCategoryFilterDown(M28UnitInfo.refCategoryMassFab * categories.TECH3, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+            if M28Utilities.IsTableEmpty( tExistingMassFabs) == false then
+                for iUnit, oUnit in tExistingMassFabs do
+                    if oUnit:GetFractionComplete() < 1 then iUnderConstructionT3MassFabs = iUnderConstructionT3MassFabs + 1
+                    else iExistingT3MassFabs = iExistingT3MassFabs + 1
+                    end
                 end
             end
-        end
-        if iExistingT3MassFabs == 0 or iUnderConstructionT3MassFabs > 0 then
-            iBPWanted = 90
-            if bWantMorePower then iBPWanted = 45 end
-            HaveActionToAssign(refActionBuildT3MassFab, 3, iBPWanted)
+            if iExistingT3MassFabs == 0 or iUnderConstructionT3MassFabs > 0 or (iExistingT3MassFabs <= 4 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 8 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or M28Map.bIsLowMexMap)) then
+                iBPWanted = 90
+                if bWantMorePower then iBPWanted = 45 end
+                HaveActionToAssign(refActionBuildT3MassFab, 3, iBPWanted)
+            elseif M28Map.bIsLowMexMap then
+                local tQuantumGateways = EntityCategoryFilterDown(M28UnitInfo.refCategoryQuantumGateway, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                local iExistingGateways = 0
+                if M28Utilities.IsTableEmpty( tQuantumGateways) == false then
+                    for iUnit, oUnit in tQuantumGateways do
+                        if oUnit:GetFractionComplete() == 1 then
+                            iExistingGateways = iExistingT3MassFabs + 1
+                        end
+                    end
+                end
+                if iExistingGateways == 0 then
+                    iBPWanted = 70
+                    if bWantMorePower then iBPWanted = 35 end
+                    HaveActionToAssign(refActionBuildQuantumGateway, 3, iBPWanted)
+                end
+
+            end
         end
     end
 

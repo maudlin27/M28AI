@@ -366,7 +366,7 @@ function GetLowMexMapEarlyACUOrder(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOr
     if aiBrain[M28Economy.refiGrossMassBaseIncome] < math.min(4, iMexInLandZone) * 0.2 * iResourceMod then
         ACUActionBuildMex(aiBrain, oACU)
         --want 40 energy for every 2 mass
-    elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] <= math.min(25, aiBrain[M28Economy.refiGrossMassBaseIncome] * 20) then
+    elseif aiBrain[M28Economy.refiGrossEnergyBaseIncome] < math.max(8, math.min(25, aiBrain[M28Economy.refiGrossMassBaseIncome] * 14)) then
         local bHydroBuildOrder = false
         local tClosestHydroToACU
         local iClosestDistToACU = 100000
@@ -392,11 +392,14 @@ function GetLowMexMapEarlyACUOrder(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOr
             ACUActionBuildPower(aiBrain, oACU)
         end
     else
-        --Build factory if dont have one and have lots of mass stored
-        if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory) == 0 and aiBrain:GetEconomyStoredRatio('MASS') >= 0.95 then
+        --Build factory if dont have one and have lots of mass stored, or there are other mexes we want to get
+        local iCurFactories = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory)
+        if iCurFactories == 0 and (aiBrain:GetEconomyStoredRatio('MASS') >= 0.95 or tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] > 0) then
+            ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryLandFactory)
+        elseif iCurFactories == 0 and M28Conditions.GetMexesNotNearPlayerStartingZone() > 0 then
             ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryLandFactory)
         else
-            --Attack nearby units
+            --Attack (further away) nearby units
             if not(AttackNearestEnemyWithACU(iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, oACU, 100)) then
                 --Get any reclaim, if any
                 if not(ConsiderNearbyReclaim(iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, oACU, false, 1)) then
@@ -425,11 +428,11 @@ function GetLowMexMapEarlyACUOrder(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOr
                     end
                 end
             end
-        end
+            end
 
+        end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-end
 
 function GetACUEarlyGameOrders(aiBrain, oACU)
     local sFunctionRef = 'GetACUEarlyGameOrders'
@@ -511,7 +514,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                 end
                 local iCurLandFactories = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory)
 
-                if M28Map.bIsLowMexMap and GetGameTimeSeconds() <= 1800 then
+                if M28Map.bIsLowMexMap and GetGameTimeSeconds() <= 1800 and tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] == 0 then
                     GetLowMexMapEarlyACUOrder(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData)
                 else
                     if iCurLandFactories == 0 then
