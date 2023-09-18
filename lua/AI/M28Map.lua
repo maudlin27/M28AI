@@ -6056,8 +6056,6 @@ function RecordLandZonePathingToOtherLandZonesInSamePlateau()
     local tiTempLandPathingDistanceForLZ = {}
 
     function CalculateLandZoneTravelDistance(iPlateau, iStartLandZone, tLZData, iTargetLandZone, tOtherLZData, iOptionalLandTravelDistance, tOptionalLandZoneTravelPath)
-        if (iStartLandZone == 21 or iTargetLandZone == 21) and (iStartLandZone == 34 or iTargetLandZone == 34) and iPlateau == 88 then bDebugMessages = true else bDebugMessages = false end
-
 
 
         if iStartLandZone < iTargetLandZone then
@@ -6110,6 +6108,8 @@ function RecordLandZonePathingToOtherLandZonesInSamePlateau()
             end
             if iLandTravelDistance then
                 tiTempLandPathingDistanceForLZ[iPlateau][iLowestLZ][iHighestLZ] = iLandTravelDistance
+                if not(tiTempLandPathingDistanceForLZ[iPlateau][iHighestLZ]) then tiTempLandPathingDistanceForLZ[iPlateau][iHighestLZ] = {} end
+                tiTempLandPathingDistanceForLZ[iPlateau][iHighestLZ][iLowestLZ] = iLandTravelDistance
 
                 --Record the travel distance
                 if not(tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZTravelDistToOtherLandZones][iPlateau]) then tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZTravelDistToOtherLandZones][iPlateau] = {} end
@@ -6208,6 +6208,8 @@ function RecordLandZonePathingToOtherLandZonesInSamePlateau()
         if tPlateauSubtable[subrefLandZoneCount] >= 5 then M28Profiler.FunctionProfiler(sFunctionRef..': iPlateau '..iPlateau, M28Profiler.refProfilerStart) end
 
         tiTempLandPathingDistanceForLZ[iPlateau] = {}
+        tAdjacencyEntriesByZoneAndLevel = {}
+        tiZoneAdjacencyLevelByStartZone = {}
         iDetailedAdjacencyLevel = iBaseDetailedAdjacencyLevel
 
         if iMapSize >= 512 and tPlateauSubtable[subrefLandZoneCount] >= 14 then --i.e. calculations being done is effectively this number squared
@@ -6218,109 +6220,82 @@ function RecordLandZonePathingToOtherLandZonesInSamePlateau()
 
         if bDebugMessages == true then LOG(sFunctionRef..': Considering iPlateau '..iPlateau..', LZ count='..tPlateauSubtable[subrefLandZoneCount]..'; bUseAdjacentApproach='..tostring(bUseAdjacentApproach)..'; iMapSize='..(iMapSize or 'nil')) end
         if bUseAdjacentApproach then
-            --First calculate detailed pathing for each adjacent Land zone
-
+            --First record adjacncies for each zone
+            tAdjacencyEntriesByZoneAndLevel[1] = {}
             for iStartLandZone, tLZData in tPlateauSubtable[subrefPlateauLandZones] do
+                tAdjacencyEntriesByZoneAndLevel[iStartLandZone] = {}
+                tAdjacencyEntriesByZoneAndLevel[iStartLandZone][1] = {}
+                tiZoneAdjacencyLevelByStartZone[iStartLandZone] = {}
                 for _, iTargetLandZone in tLZData[subrefLZAdjacentLandZones] do
+                    table.insert(tAdjacencyEntriesByZoneAndLevel[iStartLandZone][1], iTargetLandZone)
                     local tOtherLZData = tPlateauSubtable[subrefPlateauLandZones][iTargetLandZone]
+                    tiZoneAdjacencyLevelByStartZone[iStartLandZone][iTargetLandZone] = 1
                     CalculateLandZoneTravelDistance(iPlateau, iStartLandZone, tLZData, iTargetLandZone, tOtherLZData) --Detailed method
-                    if bDebugMessages == true then LOG(sFunctionRef..': Finished calculating adjacency for iStartLandZone='..iStartLandZone..'; iTargetLandZone='..iTargetLandZone) end
                 end
             end
 
-            local bKeepSearching
-            local iCurAdjacencyLevel
-            local tAdjacencyEntriesByLevel = {}
-            local iPrevAdjacencyLevel
-            local tiShortestTravelToTargetZone
-            local tPathFromAdjZoneToNextAdjZone
-            local tiPathFromStartToNextAdjZone
-            local iCurEntryApproxTravelDist
-            local tbZoneConsideredForThisZone
-            local bNotAlreadyRecordedTravelDistance
-            local iClosestNextAdjacencyZone
+            local bNoNewEntries
 
-            for iStartLandZone, tLZData in tPlateauSubtable[subrefPlateauLandZones] do
-                if iPlateau == 88 and (iStartLandZone == 21 or iStartLandZone == 2 or iStartLandZone == 11 or iStartLandZone == 17) then bDebugMessages = true else bDebugMessages = false end
-                bKeepSearching = true
+            for iCurAdjacencyLevel = 2, 100 do --redundancy, shouldnt need 100 adjacency levels
+                bNoNewEntries = true
+                tAdjacencyEntriesByZoneAndLevel[iCurAdjacencyLevel] = {}
+                for iStartLandZone, tLZData in tPlateauSubtable[subrefPlateauLandZones] do
+                    tAdjacencyEntriesByZoneAndLevel[iStartLandZone][iCurAdjacencyLevel] = {}
+                    local tPrevAdjacencyZonesByTargetZone = {}
+                    for _, iPrevAdjacentZone in tAdjacencyEntriesByZoneAndLevel[iCurAdjacencyLevel - 1] do
+                        --Cycle through each zone adjacent to the previous adjacent zone, and consider if we haven't already calculated the pathing from startlandzone to this
+                        local tCurLZData = tPlateauSubtable[subrefPlateauLandZones][iPrevAdjacentZone]
+                        if M28Utilities.IsTableEmpty(tCurLZData[subrefLZAdjacentLandZones]) == false then
+                            for _, iTargetLandZone in tCurLZData[subrefLZAdjacentLandZones] do
+                                if not(tiZoneAdjacencyLevelByStartZone[iStartLandZone][iTargetLandZone]) then
+                                    bNoNewEntries = false
 
-                if bDebugMessages == true then LOG(sFunctionRef..': About to record all travel distances using adjacency method (for higher adjacency values) for iStartLandZone='..iStartLandZone) end
-                iCurAdjacencyLevel = 1
-
-                tAdjacencyEntriesByLevel = {}
-                tAdjacencyEntriesByLevel[1] = {}
-                tbZoneConsideredForThisZone = {}
-                for _, iTargetLandZone in tLZData[subrefLZAdjacentLandZones] do
-                    table.insert(tAdjacencyEntriesByLevel[iCurAdjacencyLevel], iTargetLandZone)
-                end
-                while bKeepSearching do
-                    bKeepSearching = false
-                    iPrevAdjacencyLevel = iCurAdjacencyLevel
-                    iCurAdjacencyLevel = iCurAdjacencyLevel + 1
-                    tAdjacencyEntriesByLevel[iCurAdjacencyLevel] = {}
-                    tiShortestTravelToTargetZone = {}
-                    tiPathFromStartToNextAdjZone = {}
-                    iClosestNextAdjacencyZone = nil
-
-                    for iEntry, iAdjacentLandZone in tAdjacencyEntriesByLevel[iPrevAdjacencyLevel] do
-                        if not(iAdjacentLandZone == iStartLandZone) then
-                            tPathFromAdjZoneToNextAdjZone = {}
-                            for _, iNextAdjacencyZone in tPlateauSubtable[subrefPlateauLandZones][iAdjacentLandZone][subrefLZAdjacentLandZones] do
-                                if iPlateau == 88 and (iStartLandZone == 21 or iStartLandZone == 2 or iStartLandZone == 11 or iStartLandZone == 17) and (iNextAdjacencyZone == 21 or iNextAdjacencyZone == 2 or iNextAdjacencyZone == 11 or iNextAdjacencyZone == 17) then bDebugMessages = true else bDebugMessages = false end
-                                --E.g. zone travel from zzone 1 to zone 5 - when we record 1 to 5, that means we also ahve travel from 5 to 1; however since we are using an adjacency search approach, we still want zone 5 to keep searching even if every adjacent zone has been recorded, in case there are further out zone sthat havent been recorded, hence the use of both tbZoneConsideredForThisZone and bNotAlreadyRecordedTravelDistance
-                                bNotAlreadyRecordedTravelDistance = (not(tiTempLandPathingDistanceForLZ[iPlateau][iStartLandZone][iNextAdjacencyZone]) and not(tiTempLandPathingDistanceForLZ[iPlateau][iNextAdjacencyZone][iStartLandZone]))
-                                if bDebugMessages == true then LOG(sFunctionRef..': iStartLandZone='..iStartLandZone..'; iAdjacentLandZone='..iAdjacentLandZone..'; iNextAdjacencyZone='..iNextAdjacencyZone..'; iPrevAdjacencyLevel='..iPrevAdjacencyLevel..'; iCurAdjacencyLevel='..iCurAdjacencyLevel..'; Is tbZoneConsideredForThisZone[iNextAdjacencyZone] nil='..tostring(tbZoneConsideredForThisZone[iNextAdjacencyZone] == nil)..'; bNotAlreadyRecordedTravelDistance='..tostring(bNotAlreadyRecordedTravelDistance)..'; tiTempLandPathingDistanceForLZ[iPlateau][iStartLandZone][iNextAdjacencyZone]='..(tiTempLandPathingDistanceForLZ[iPlateau][iStartLandZone][iNextAdjacencyZone] or 'nil')..'; tiTempLandPathingDistanceForLZ[iPlateau][iNextAdjacencyZone][iStartLandZone]='..(tiTempLandPathingDistanceForLZ[iPlateau][iNextAdjacencyZone][iStartLandZone] or 'nil')) end
-                                if not(tbZoneConsideredForThisZone[iNextAdjacencyZone]) or bNotAlreadyRecordedTravelDistance then
-                                    bKeepSearching = true
-                                    tbZoneConsideredForThisZone[iNextAdjacencyZone] = true
-                                    if bDebugMessages == true then LOG(sFunctionRef..': iCurAdjacencyLevel='..iCurAdjacencyLevel..'; iStartLandZone='..iStartLandZone..'; iAdjacentLandZone='..iAdjacentLandZone..'; iNextAdjacencyZone='..iNextAdjacencyZone..'; bNotAlreadyRecordedTravelDistance='..tostring(bNotAlreadyRecordedTravelDistance)) end
-                                    table.insert(tAdjacencyEntriesByLevel[iCurAdjacencyLevel], iNextAdjacencyZone)
-                                    if bNotAlreadyRecordedTravelDistance then
-                                        if iCurAdjacencyLevel <= iDetailedAdjacencyLevel then
-                                            --Do detailed calculation instead (this has a check to make sure we dont do more than once)
-                                            CalculateLandZoneTravelDistance(iPlateau, iStartLandZone, tLZData, iNextAdjacencyZone, tPlateauSubtable[subrefPlateauLandZones][iNextAdjacencyZone])
-                                            if iPlateau == 88 and (iStartLandZone == 21 or iStartLandZone == 2 or iStartLandZone == 11 or iStartLandZone == 17) and (iAdjacentLandZone == 21 or iAdjacentLandZone == 2 or iAdjacentLandZone == 11 or iAdjacentLandZone == 17) then bDebugMessages = true else bDebugMessages = false end
-                                            if bDebugMessages == true then
-                                                LOG(sFunctionRef..': Doing detailed calculation for iNextAdjacencyZone, tiTempLandPathingDistanceForLZ[iPlateau][iStartLandZone][iAdjacentLandZone] after this='..(tiTempLandPathingDistanceForLZ[iPlateau][iStartLandZone][iAdjacentLandZone] or 'nil'))
-                                                local tTempStartLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone]
-                                                local tTempTargetLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iAdjacentLandZone]
-                                                LOG(sFunctionRef..': Straight line dist between midpoint of start and target LZ='..M28Utilities.GetDistanceBetweenPositions(tTempStartLZData[subrefMidpoint], tTempTargetLZData[subrefMidpoint])..'; tTempStartLZData[subrefMidpoint]='..repru(tTempStartLZData[subrefMidpoint])..'; tTempTargetLZData[subrefMidpoint]='..repru(tTempTargetLZData[subrefMidpoint])..'; iStartLandZone='..iStartLandZone..'; iAdjacentLandZone='..iAdjacentLandZone..'; iNextAdjacencyZone='..iNextAdjacencyZone)
-                                            end
-                                        else
-                                            if bDebugMessages == true then LOG(sFunctionRef..': iStartLandZone='..iStartLandZone..'; iAdjacentLandZone='..iAdjacentLandZone..'; iNextAdjacencyZone='..iNextAdjacencyZone..'; tiTempLandPathingDistanceForLZ from adj LZ to next adj='..(tiTempLandPathingDistanceForLZ[iPlateau][iAdjacentLandZone][iNextAdjacencyZone] or 'nil')..'; Next adjacency to adjacent='..(tiTempLandPathingDistanceForLZ[iPlateau][iNextAdjacencyZone][iAdjacentLandZone] or 'nil')..'; tiTempLandPathingDistanceForLZ start to adj='..(tiTempLandPathingDistanceForLZ[iPlateau][iStartLandZone][iAdjacentLandZone] or 'nil')..'; Adj to start='..(tiTempLandPathingDistanceForLZ[iPlateau][iAdjacentLandZone][iStartLandZone] or 'nil')..'; tiShortestTravelToTargetZone[iNextAdjacencyZone]='..(tiShortestTravelToTargetZone[iNextAdjacencyZone] or 'nil')) end
-                                            iCurEntryApproxTravelDist = (tiTempLandPathingDistanceForLZ[iPlateau][iAdjacentLandZone][iNextAdjacencyZone] or tiTempLandPathingDistanceForLZ[iPlateau][iNextAdjacencyZone][iAdjacentLandZone]) + (tiTempLandPathingDistanceForLZ[iPlateau][iStartLandZone][iAdjacentLandZone] or tiTempLandPathingDistanceForLZ[iPlateau][iAdjacentLandZone][iStartLandZone])
-                                            if not(tiShortestTravelToTargetZone[iNextAdjacencyZone]) or iCurEntryApproxTravelDist < tiShortestTravelToTargetZone[iNextAdjacencyZone] then
-                                                tiShortestTravelToTargetZone[iNextAdjacencyZone] = iCurEntryApproxTravelDist
-                                                iClosestNextAdjacencyZone = iNextAdjacencyZone
-                                                if bDebugMessages == true then LOG(sFunctionRef..': This path is likely the shortest identified, iCurEntryApproxTravelDist='..iCurEntryApproxTravelDist..'; Setting iClosestNextAdjacencyZone='..iClosestNextAdjacencyZone) end
-                                            end
-                                        end
+                                    if iCurAdjacencyLevel <= iDetailedAdjacencyLevel then
+                                        --Do detailed calculation instead (this has a check to make sure we dont do more than once)
+                                        CalculateLandZoneTravelDistance(iPlateau, iStartLandZone, tLZData, iTargetLandZone, tPlateauSubtable[subrefPlateauLandZones][iTargetLandZone])
+                                        tiZoneAdjacencyLevelByStartZone[iStartLandZone][iTargetLandZone] = iCurAdjacencyLevel
+                                        table.insert(tAdjacencyEntriesByZoneAndLevel[iStartLandZone][iCurAdjacencyLevel], iTargetLandZone)
+                                    else
+                                        --Do adjacency method
+                                        table.insert(tPrevAdjacencyZonesByTargetZone[iTargetLandZone], iPrevAdjacentZone)
                                     end
                                 end
                             end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Finished either running detailed check or working out the closest adjacency zone to do adjacency calculation for iStartLandZone='..iStartLandZone..'; iAdjacentLandZone='..iAdjacentLandZone..', iClosestNextAdjacencyZone='..(iClosestNextAdjacencyZone or 'nil')) end
-                            if iClosestNextAdjacencyZone then
-                                --Start iwth path to adj zone then add in tPathFromAdjZoneToNextAdjZone
-                                tiPathFromStartToNextAdjZone[iClosestNextAdjacencyZone] = {}
-                                local iAdjacentRef = tLZData[subrefLZPathingToOtherLZEntryRef][iAdjacentLandZone]
-                                if bDebugMessages == true then LOG(sFunctionRef..': iStartLandZone='..iStartLandZone..'; iAdjacentLandZone='..iAdjacentLandZone..'; iClosestNextAdjacencyZone='..iClosestNextAdjacencyZone..'; Refs for start LZ to other LZs='..repru(tLZData[subrefLZPathingToOtherLZEntryRef])..'; iCurAdjacencyLevel='..iCurAdjacencyLevel..'; iAdjacentRef='..iAdjacentRef..'; tLZData[subrefLZPathingToOtherLandZones][iAdjacentRef][subrefLZPath]='..repru(tLZData[subrefLZPathingToOtherLandZones][iAdjacentRef][subrefLZPath])) end
-                                for iEntry, iPathingLandZone in tLZData[subrefLZPathingToOtherLandZones][iAdjacentRef][subrefLZPath] do
-                                    table.insert(tiPathFromStartToNextAdjZone[iClosestNextAdjacencyZone], iPathingLandZone)
-                                end
-                                --Add the final destination
-                                table.insert(tiPathFromStartToNextAdjZone[iClosestNextAdjacencyZone], iClosestNextAdjacencyZone)
-                            end
                         end
+
                     end
-                    --Now record each entry
-                    if bDebugMessages == true then LOG(sFunctionRef..': Is tiShortestTravelToTargetZone empty='..tostring(tiShortestTravelToTargetZone)..'; repru='..repru(tiShortestTravelToTargetZone)..'; iClosestNextAdjacencyZone='..(iClosestNextAdjacencyZone or 'nil')..'; Is tiPathFromStartToNextAdjZone empty='..tostring(M28Utilities.IsTableEmpty(tiPathFromStartToNextAdjZone))) end
-                    if M28Utilities.IsTableEmpty(tiShortestTravelToTargetZone) == false then
-                        for iNextAdjacencyZone, iTravelDistance in tiShortestTravelToTargetZone do
-                            CalculateLandZoneTravelDistance(iPlateau, iStartLandZone, tLZData, iNextAdjacencyZone, tPlateauSubtable[subrefPlateauLandZones][iNextAdjacencyZone], iTravelDistance, tiPathFromStartToNextAdjZone[iNextAdjacencyZone])
-                            if iPlateau == 88 and (iStartLandZone == 21 or iStartLandZone == 2 or iStartLandZone == 11 or iStartLandZone == 17) and (iNextAdjacencyZone == 21 or iNextAdjacencyZone == 2 or iNextAdjacencyZone == 11 or iNextAdjacencyZone == 17) then bDebugMessages = true else bDebugMessages = false end
+
+                    --Determine any zones under the adjacency method
+                    if M28Utilities.IsTableEmpty(tPrevAdjacencyZonesByTargetZone) == false then
+                        for iTargetLandZone, tPrevZones in tPrevAdjacencyZonesByTargetZone do
+                            local iClosestPrevAdjacentZone
+
+                            local iCurDistance
+                            local iClosestDistance = 100000
+                            for iEntry, iPrevAdjacentZone in tPrevZones do
+                                iCurDistance =  tiTempLandPathingDistanceForLZ[iPlateau][iStartLandZone][iPrevAdjacentZone] + tiTempLandPathingDistanceForLZ[iPlateau][iPrevAdjacentZone][iTargetLandZone]
+                                if iCurDistance < iClosestDistance then
+                                    iClosestDistance = iCurDistance
+                                    iClosestPrevAdjacentZone = iPrevAdjacentZone
+                                end
+                            end
+
+                            --Now work out the path based on iClosestPrevAdjacentZone
+                            local tiLZPath = {}
+                            tiPathFromStartToNextAdjZone[iClosestNextAdjacencyZone] = {}
+                            local iAdjacentRef = tLZData[subrefLZPathingToOtherLZEntryRef][iAdjacentLandZone]
+                            if bDebugMessages == true then LOG(sFunctionRef..': iStartLandZone='..iStartLandZone..'; iAdjacentLandZone='..iAdjacentLandZone..'; iClosestNextAdjacencyZone='..iClosestNextAdjacencyZone..'; Refs for start LZ to other LZs='..repru(tLZData[subrefLZPathingToOtherLZEntryRef])..'; iCurAdjacencyLevel='..iCurAdjacencyLevel..'; iAdjacentRef='..iAdjacentRef..'; tLZData[subrefLZPathingToOtherLandZones][iAdjacentRef][subrefLZPath]='..repru(tLZData[subrefLZPathingToOtherLandZones][iAdjacentRef][subrefLZPath])) end
+                            for iEntry, iPathingLandZone in tLZData[subrefLZPathingToOtherLandZones][iAdjacentRef][subrefLZPath] do
+                                table.insert(tiLZPath, iPathingLandZone)
+                            end
+                            --Add the final destination
+                            table.insert(tiLZPath, iTargetLandZone)
+
+                            CalculateLandZoneTravelDistance(iPlateau, iStartLandZone, tLZData, iTargetLandZone, tPlateauSubtable[subrefPlateauLandZones][iTargetLandZone], iClosestDistance, tiLZPath)
                         end
                     end
                 end
+                if bNoNewEntries then break end
             end
         end
         --Want to do this even if we have done the adjacency approach, to make sure we have got pathing in place for eveyr zone
@@ -6542,7 +6517,7 @@ function RecordWaterZonePathingToOtherWaterZones()
 end
 
 function CheckIfLowMexMap()
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'CheckIfLowMexMap'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

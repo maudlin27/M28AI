@@ -5224,7 +5224,7 @@ end
 
 function GetBPToAssignToSMD(iPlateau, iLandZone, iTeam, tLZTeamData, bCoreZone, bHaveLowMass, bWantMorePower)
     --Returns BP to assign, and whether it should be assigned to assist the SMD (returns true) rather than building a new SMD
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetBPToAssignToSMD'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
