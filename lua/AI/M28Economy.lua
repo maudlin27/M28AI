@@ -503,8 +503,9 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed, bIgnoreEnhancements)
                 local iMassGen
                 local iEnergyGen
                 if EntityCategoryContains(M28UnitInfo.refCategoryParagon, oUnit.UnitId) then
-                    iMassGen = 10000
-                    iEnergyGen = 1000000
+                    iMassGen = 10000 * 0.1
+                    iEnergyGen = 1000000 * 0.1
+                    if bDebugMessages == true then LOG(sFunctionRef..': We have a paragon, setting mass gen and energy gen accordingly, iMassGen='..iMassGen) end
                 else
                     local oBP = oUnit:GetBlueprint()
                     iMassGen = math.max(oBP.Economy.ProductionPerSecondMass or 0) * 0.1
@@ -596,6 +597,7 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed, bIgnoreEnhancements)
                     iMassGen = iMassGen * -1
                     iEnergyGen = iEnergyGen * -1
                     oUnit[refoBrainRecordedForEconomy] = nil
+                    if bDebugMessages == true then LOG(sFunctionRef..': Unit destroyed so will reduce mass gen') end
                 else
                     oUnit[refoBrainRecordedForEconomy] = aiBrain
                     --Set temporary flag that we have just built a lot of power (if we have)
