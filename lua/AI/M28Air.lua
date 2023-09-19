@@ -3604,9 +3604,13 @@ function ManageGunships(iTeam, iAirSubteam)
 
         local tGunshipsNearFront = {}
         local tGunshipsNotNearFront = {}
+        local iCurDist
+        local iCloseToFrontThreshold = 50
+
         for iUnit, oUnit in tAvailableGunships do
             if bDebugMessages == true then LOG(sFunctionRef..': Considering how close unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is to front gunship '..oFrontGunship.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFrontGunship)..'; Dist='..M28Utilities.GetDistanceBetweenPositions(oFrontGunship:GetPosition(), oUnit:GetPosition())..'; Threat of unit='..M28UnitInfo.GetAirThreatLevel({ oUnit}, false, false, false, true, false, false)) end
-            if M28Utilities.GetDistanceBetweenPositions(oFrontGunship:GetPosition(), oUnit:GetPosition()) <= 50 then
+            iCurDist = M28Utilities.GetDistanceBetweenPositions(oFrontGunship:GetPosition(), oUnit:GetPosition())
+            if iCurDist <= iCloseToFrontThreshold then
                 table.insert(tGunshipsNearFront, oUnit)
             else
                 table.insert(tGunshipsNotNearFront, oUnit)
@@ -4012,12 +4016,47 @@ function ManageGunships(iTeam, iAirSubteam)
                 else
                     local tMovePoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
                     --DOnt wnat to move to support point, as support point is based in part on front gunship, so end up with a circular logic
-                    for iUnit, oUnit in tAvailableGunships do
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering idle gunship order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' Unit fuel='..oUnit:GetFuelRatio()..'; Unit health%='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; support point='..repru(tMovePoint)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
-                        if (oUnit:GetFuelRatio() < 0.6 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.85) and not(EntityCategoryContains(categories.CANNOTUSEAIRSTAGING, oUnit.UnitId)) then
-                            table.insert(tGunshipsForRefueling, oUnit)
-                        else
-                            M28Orders.IssueTrackedMove(oUnit, tMovePoint, 10, false, 'GSIdle', false)
+                    if M28Utilities.IsTableEmpty(tGunshipsNearFront) == false then
+                        for iUnit, oUnit in tGunshipsNearFront do
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering idle gunship order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' Unit fuel='..oUnit:GetFuelRatio()..'; Unit health%='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; support point='..repru(tMovePoint)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))) end
+                            if (oUnit:GetFuelRatio() < 0.6 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.85) and not(EntityCategoryContains(categories.CANNOTUSEAIRSTAGING, oUnit.UnitId)) then
+                                table.insert(tGunshipsForRefueling, oUnit)
+                            else
+                                M28Orders.IssueTrackedMove(oUnit, tMovePoint, 10, false, 'GSIdle', false)
+                            end
+                        end
+                    end
+
+                    --Further away gunships - consider whether we want to move closer to the front gunship
+                    if M28Utilities.IsTableEmpty(tGunshipsNotNearFront) == false then
+                        local tiPlateauAndZonesConsidered = {}
+                        local bCurEntrySafe
+
+                        for iUnit, oUnit in tGunshipsNotNearFront do
+                            if (oUnit:GetFuelRatio() < 0.6 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.85) and not(EntityCategoryContains(categories.CANNOTUSEAIRSTAGING, oUnit.UnitId)) then
+                                table.insert(tGunshipsForRefueling, oUnit)
+                            else
+                                local iCurPlateauOrZero, iCurZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                                if tiPlateauAndZonesConsidered[iCurPlateauOrZero][iCurZone] == nil then --will approximate by assuming every gunship in the same zone will give the same result, even if the positiontowardsfront may be slightly different
+                                    bCurEntrySafe = false
+                                    local tPositionTowardsFront = M28Utilities.MoveInDirection(oUnit:GetPosition(), M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oFrontGunship:GetPosition()), iCloseToFrontThreshold * 0.5, true, false, false)
+                                    if tPositionTowardsFront then
+                                        local iFrontPlateauOrZero, iFrontZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tPositionTowardsFront)
+                                        bCurEntrySafe = not(DoesEnemyHaveAAThreatAlongPath(iTeam, iCurPlateauOrZero, iCurZone, iFrontPlateauOrZero, iFrontZone, false, 140, 0, false, iAirSubteam, true, false, nil))
+
+                                        if not(tiPlateauAndZonesConsidered[iCurPlateauOrZero]) then tiPlateauAndZonesConsidered[iCurPlateauOrZero] = {} end
+                                        tiPlateauAndZonesConsidered[iCurPlateauOrZero][iCurZone] = bCurEntrySafe
+                                    end
+                                else
+                                    bCurEntrySafe = tiPlateauAndZonesConsidered[iCurPlateauOrZero][iCurZone]
+                                end
+                                if bCurEntrySafe then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Moving unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to be closer to front gunship despite the general retreat order') end
+                                    M28Orders.IssueTrackedMove(oUnit, oFrontGunship:GetPosition(), 10, false, 'FACons', false)
+                                else
+                                    M28Orders.IssueTrackedMove(oUnit, tMovePoint, 10, false, 'FAGSId', false)
+                                end
+                            end
                         end
                     end
                 end
