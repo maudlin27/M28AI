@@ -682,7 +682,7 @@ function GetClosestPlateauOrZeroAndZoneToPosition(tPosition)
                         end
                     end
                 end
-                if iAdjust >= 100 then M28Utilities.ErrorHandler('Likely error locating valid segment for iSegmentX-Z='..iSegmentX..'-'..iSegmentZ) end
+                if iAdjust >= 100 then M28Utilities.ErrorHandler('Likely error locating valid segment for iSegmentX-Z='..iSegmentX..'-'..iSegmentZ..'; iMaxLandSegmentX='..iMaxLandSegmentX..'; iMaxLandSegmentZ='..iMaxLandSegmentZ..'; iLandZoneSegmentSize='..iLandZoneSegmentSize..'; iMapSize='..iMapSize) end
             end
         else
             --Have a valid plateau and land or water zone
@@ -3294,14 +3294,18 @@ local function RecordTravelDistBetweenZonesOverTime()
 end
 
 function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordClosestAllyAndEnemyBaseForEachLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    while not(bMapLandSetupComplete) do
+    while not(bMapLandSetupComplete) or not(bWaterZoneInitialCreation) do
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(1)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        if GetGameTimeSeconds() >= 5 and (bMapLandSetupComplete or GetGameTimeSeconds() >= 10) then
+            M28Utilities.ErrorHandler('Have been waiting too long for map setup to complete')
+        break
+        end
     end
 
     local tEnemyBases = {}
@@ -3383,9 +3387,24 @@ function RecordClosestAllyAndEnemyBaseForEachLandZone(iTeam)
                     end
                     if not(bHaveCloserTeammate) then break end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Finished cehcking if have closer teammate than us to each enemy base, bHaveCloserTeammate='..tostring(bHaveCloserTeammate)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished cehcking if have closer teammate than us to each enemy base, bHaveCloserTeammate='..tostring(bHaveCloserTeammate)..'; tBaseFriendlyBase='..repru(tBaseFriendlyBase)..'; iTeam='..(iTeam or 'nil')) end
                 if bHaveCloserTeammate then
                     local tBaseLZOrWZData, tBaseLZOrWZTeamData = GetLandOrWaterZoneData(tBaseFriendlyBase, true, iTeam)
+                    if tBaseLZOrWZData and not(tBaseLZOrWZTeamData) then
+                        local iPlateauOrZero, iLandOrWaterZone = GetClosestPlateauOrZeroAndZoneToPosition(tBaseFriendlyBase)
+                        if iPlateauOrZero == 0 then --we havent have called WaterZoneTeamInitialisation yet (as of v32)
+                            if not(tBaseLZOrWZData[subrefWZTeamData]) then tBaseLZOrWZData[subrefWZTeamData] = {} end
+                            if not(tBaseLZOrWZData[subrefWZTeamData][iTeam]) then tBaseLZOrWZData[subrefWZTeamData][iTeam] = {} end
+                            tBaseLZOrWZTeamData = tBaseLZOrWZData[subrefWZTeamData][iTeam]
+                        end
+                    end
+                    if bDebugMessages == true then
+                        local iPlateauOrZero, iLandOrWaterZone = GetClosestPlateauOrZeroAndZoneToPosition(tBaseFriendlyBase)
+                        LOG(sFunctionRef..': iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; Is tBaseLZOrWZData empty='..tostring(M28Utilities.IsTableEmpty(tBaseLZOrWZData))..'; Is team data empty='..tostring(M28Utilities.IsTableEmpty(tBaseLZOrWZTeamData)))
+                        if iPlateauOrZero == 0 then
+                            LOG(sFunctionRef..': Pond='..(tiPondByWaterZone[iLandOrWaterZone] or 'nil'))
+                        end
+                    end
                     tBaseLZOrWZTeamData[refbBaseInSafePosition] = true
                 end
             end
@@ -3406,7 +3425,10 @@ function RecordClosestAllyAndEnemyBaseForEachWaterZone(iTeam)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             WaitTicks(1)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-            if GetGameTimeSeconds() >= 5 then break end
+            if GetGameTimeSeconds() >= 5 then
+                M28Utilities.ErrorHandler('Have been waiting too long for map setup to complete')
+                break
+            end
         end
 
         local tEnemyBases = {}
@@ -7233,21 +7255,33 @@ function InPlayableArea(tLocation) --NOTE - also have the same function in M28Co
 end
 
 function GetLandOrWaterZoneData(tLocation, bReturnTeamDataAsWell, iOptionalTeam)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetLandOrWaterZoneData'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
     local iPlateauOrZero, iLandOrWaterZone = GetClosestPlateauOrZeroAndZoneToPosition(tLocation)
     if (iLandOrWaterZone or 0) > 0 then
         if iPlateauOrZero == 0 then
             --Water zone
             if bReturnTeamDataAsWell then
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return tPondDetails[tiPondByWaterZone[iLandOrWaterZone]][subrefPondWaterZones][iLandOrWaterZone], tPondDetails[tiPondByWaterZone[iLandOrWaterZone]][subrefPondWaterZones][iLandOrWaterZone][subrefWZTeamData][iOptionalTeam]
             else
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return tPondDetails[tiPondByWaterZone[iLandOrWaterZone]][subrefPondWaterZones][iLandOrWaterZone]
             end
         else
             if bReturnTeamDataAsWell then
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return tAllPlateaus[iPlateauOrZero][subrefPlateauLandZones][iLandOrWaterZone], tAllPlateaus[iPlateauOrZero][subrefPlateauLandZones][iLandOrWaterZone][subrefLZTeamData][iOptionalTeam]
             else
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return tAllPlateaus[iPlateauOrZero][subrefPlateauLandZones][iLandOrWaterZone]
             end
+        end
+    else
+        if bDebugMessages == true then LOG(sFunctionRef..': Unsable to find a valid zone for position '..repru(tLocation)..'; will draw in red')
+            M28Utilities.DrawLocation(tLocation, 2)
         end
     end
 end

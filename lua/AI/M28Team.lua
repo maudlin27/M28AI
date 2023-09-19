@@ -2729,6 +2729,7 @@ function TeamInitialisation(iM28Team)
     end
     --NOTE: Water zone data is handled via RecordClosestAllyAndEnemyBaseForEachWaterZone, to ensure it is run after water zones are created
     if M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftoFriendlyActiveM28Brains]) == false then
+        if bDebugMessages == true then LOG(sFunctionRef..': Team has active M28 brains, iM28Team='..iM28Team..'; Time='..GetGameTimeSeconds()..'; bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation or false)) end
         TeamEconomyRefresh(iM28Team)
         ForkThread(M28Map.RecordClosestAllyAndEnemyBaseForEachLandZone, iM28Team)
         ForkThread(M28Map.RecordClosestAllyAndEnemyBaseForEachWaterZone, iM28Team)
