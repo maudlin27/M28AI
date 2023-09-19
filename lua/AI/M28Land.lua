@@ -1203,6 +1203,8 @@ function ReviseTargetLZIfFarAway(tLZData, iTeam, iPlateau, iStartLandZone, iTarg
     local sFunctionRef = 'ReviseTargetLZIfFarAway'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     local iNewTargetLZ = iTargetLandZone
     if not(tLZData[M28Map.subrefLZPathingToOtherLZEntryRef][iTargetLandZone]) then
         M28Map.ConsiderAddingTargetLandZoneToDistanceFromBaseTable(iPlateau, iStartLandZone, iTargetLandZone, tLZData[M28Map.subrefMidpoint])
@@ -3955,6 +3957,7 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
         if iDFLZToSupport > 0 then
             if bDebugMessages == true then LOG(sFunctionRef..': Want to support LZ '..iDFLZToSupport..'; Will adjust DF to get via point if it is far away; midpoint of iDFToSupport='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iDFLZToSupport][M28Map.subrefMidpoint])..'; Midpoint of this LZ='..repru(tLZData[M28Map.subrefMidpoint])) end
             iDFLZToSupport = ReviseTargetLZIfFarAway(tLZData, iTeam, iPlateau, iLandZone, iDFLZToSupport, 2)
+            if bDebugMessages == true then LOG(sFunctionRef..': iDFLZToSupport after revising target for far away LZ='..iDFLZToSupport..'; Midpoint of this zone='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iDFLZToSupport][M28Map.subrefMidpoint])) end
 
             for iUnit, oUnit in tDFUnits do
                 M28Orders.IssueTrackedMove(oUnit, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iDFLZToSupport][M28Map.subrefMidpoint], 6, false, 'DFMovLZ'..iDFLZToSupport..';'..iLandZone)
@@ -4508,12 +4511,13 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
             if bDebugMessages == true then LOG(sFunctionRef..': Will update if this land zone wants some DF support='..tostring(bWantDFSupport)..'; bWantIndirectSupport='..tostring(bWantIndirectSupport)) end
         else
             local bWantIndirectSupport = false
-            if bDebugMessages == true then LOG(sFunctionRef..': Are there enemis in this or adjacent LZ, for iPlateau='..iPlateau..'; iLandZone='..iLandZone..'='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; Do we have a valid nearby structure in other plateau='..tostring( M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere]))..'; Our highest land tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Are there enemis in this or adjacent LZ, for iPlateau='..iPlateau..'; iLandZone='..iLandZone..'='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; Do we have a valid nearby structure in other plateau='..tostring( M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere]))..'; Our highest land tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]..'; bWantDFSupport='..tostring(bWantDFSupport)) end
             if GetGameTimeSeconds() - (tLZTeamData[M28Map.subrefiTimeOfMMLFiringNearTMD] or -100) <= 10 and not(tLZData[M28Map.subrefbPacifistArea]) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Have had MML firing recently near TMD so want more indirect fire support') end
                 bWantIndirectSupport = true
             elseif not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and not(bWantIndirectSupport) and M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.refoNearestStructureInOtherPlateauIfNoEnemiesHere]) and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech] >= 3 then
                 bWantIndirectSupport = M28Conditions.IsNearbyStructureThatWeCanReachWithIndirect(tLZData, tLZTeamData, iTeam)
+                if bDebugMessages == true then LOG(sFunctionRef..': bWantIndirectSupport after checking if nearby structure we can reach with indirect='..tostring(bWantIndirectSupport)) end
             end
             UpdateDFSupportForEarlyGameEngineers()
             UpdateIfLandZoneWantsSupport(tLZTeamData, iPlateau, iLandZone, iTeam, bWantDFSupport, bWantIndirectSupport)

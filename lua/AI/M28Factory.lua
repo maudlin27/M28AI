@@ -1325,7 +1325,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             local iCurIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZData[M28Map.subrefMidpoint])
             local iEnemyIsland = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase])
             if bDebugMessages == true then
-                LOG(sFunctionRef .. ': iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; iCurIsland=' .. iCurIsland .. '; iEnemyIsland=' .. iEnemyIsland .. '; iFactoryTechLevel=' .. iFactoryTechLevel .. '; Cur engineers of this tech level=' .. aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) .. '; Cur DF units of this tech level=' .. aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMobileLand * categories.DIRECTFIRE * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)))
+                LOG(sFunctionRef .. ': iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; iCurIsland=' .. (iCurIsland or 'nil') .. '; iEnemyIsland=' .. (iEnemyIsland or 'nil') .. '; iFactoryTechLevel=' .. iFactoryTechLevel .. '; Cur engineers of this tech level=' .. aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) .. '; Cur DF units of this tech level=' .. aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMobileLand * categories.DIRECTFIRE * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)))
             end
             if iCurIsland == iEnemyIsland and math.min(8 - M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount], aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))) > math.max(1, aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMobileLand * categories.DIRECTFIRE * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel))) then
                 if bCanPathToEnemyWithLand then
@@ -2080,7 +2080,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
         --Want factories to have a lifetime build count of indirect fire units
         iCurrentConditionToTry = iCurrentConditionToTry + 1
-        if not(bHaveLowMass) and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryIndirect, false) < 5 then
+        if not(bHaveLowMass) and ((bCanPathToEnemyWithLand and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryIndirect, false) < 5) or (not(bCanPathToEnemyWithLand) and not(bHaveLowMass) and M28Conditions.GetFactoryLifetimeCount(oFactory, M28UnitInfo.refCategoryIndirect, false) < 1)) then
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryIndirect) then return sBPIDToBuild end
         end
 
@@ -2088,6 +2088,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.95 then
             if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedCombatUnits]) or table.getn(tLZTeamData[M28Map.subrefLZTAlliedCombatUnits]) < 25 then
+                if tLZTeamData[M28Map.subrefTbWantBP] and ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryIndirect) then return sBPIDToBuild end
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryIndirect) then return sBPIDToBuild end
             end
         end
@@ -2599,6 +2600,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             if bDebugMessages == true then LOG(sFunctionRef..': Is island shortlist empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist]))) end
             if (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist]) == false or M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist]) == false) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryTransport) == 0 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryTransport) == 0 then
                 M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refiTimeLastTriedBuildingTransport] = GetGameTimeSeconds()
+                if bDebugMessages == true then LOG(sFunctionRef..': Will try and build a transport as a high priority, iCurrentConditionToTry='..iCurrentConditionToTry) end
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryTransport - categories.TECH3 - categories.EXPERIMENTAL) then
                     return sBPIDToBuild
                 end
@@ -2765,6 +2767,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
 
                     if iCurTransports < iTransportsWanted and ((iFactoryTechLevel <= 2 and M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryTransport) <= iTransportsWanted + 1) or (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and GetGameTimeSeconds() - (M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refiTimeLastTriedBuildingTransport] or -100) >= 180)) then
                         M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refiTimeLastTriedBuildingTransport] = GetGameTimeSeconds()
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will try and build a transport as a relatively high priority, iCurrentConditionToTry='..iCurrentConditionToTry) end
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryTransport - categories.TECH3 - categories.EXPERIMENTAL) then
                             return sBPIDToBuild
                         end
@@ -3092,6 +3095,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 if (M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftTransportIslandDropShortlist]) == false or M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist]) == false) and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryTransport) == 0 then
                     if GetGameTimeSeconds() - (M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refiTimeLastTriedBuildingTransport] or -100) >= 120 then
                         M28Team.tAirSubteamData[aiBrain.M28AirSubteam][M28Team.refiTimeLastTriedBuildingTransport] = GetGameTimeSeconds()
+                        if bDebugMessages == true then LOG(sFunctionRef..':lower priority transport builder, iCurrentConditionToTry='..iCurrentConditionToTry) end
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryTransport - categories.TECH3 - categories.EXPERIMENTAL) then return sBPIDToBuild end
                     end
                 end

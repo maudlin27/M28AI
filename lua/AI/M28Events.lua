@@ -975,6 +975,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                     end
                 end
 
+
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             end
         end
@@ -1288,6 +1289,17 @@ function OnConstructed(oEngineer, oJustBuilt)
                     elseif EntityCategoryContains(categories.STEALTH, oJustBuilt.UnitId) then
                         --Make sure stealth is enabled
                         M28UnitInfo.EnableUnitStealth(oJustBuilt)
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryPower + M28UnitInfo.refCategoryMex, oJustBuilt.UnitId) then
+                        --Consider gifting power and mexes to a teammate
+                        if oJustBuilt:GetAIBrain()[M28Economy.refiGrossMassBaseIncome] >= 1000 and oJustBuilt:GetAIBrain()[M28Economy.refiGrossEnergyBaseIncome] >= 100000 and M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
+                            local oParagonBrain = oJustBuilt:GetAIBrain()
+                            for iBrain, oBrain in  M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                                if not(oBrain == oParagonBrain) and not(oBrain.M28IsDefeated) and oBrain[M28Economy.refiGrossMassBaseIncome] < 1000 then
+                                    M28Team.TransferUnitsToPlayer({ oJustBuilt }, oBrain:GetArmyIndex(), false)
+                                    break
+                                end
+                            end
+                        end
                     end
 
                     --Mobile land units - give a micro move order so they dont block the factory
@@ -1614,6 +1626,11 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                 local aiBrain = oUnit:GetAIBrain()
                 if EntityCategoryContains(M28UnitInfo.refCategoryExperimentalLevel, oUnit.UnitId) then
                     M28Air.AddPriorityAirDefenceTarget(oUnit)
+                    if EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oUnit.UnitId) then
+                        M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityFatboy, true)
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryMegalith, oUnit.UnitId) then
+                        M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityMegalith, true)
+                    end
                     --WEAPON PRIORITIES
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) then
                     M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityGunship, true)

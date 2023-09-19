@@ -464,9 +464,13 @@ function NoRushMonitor()
 end
 
 function TestCustom(aiBrain)
-    --M28Map.DrawSpecificLandZone(88, 1, 3)
-    local tCivilianMexes = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMex, M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()], 10000, 'Neutral')
-    LOG('TestCustom: is table of civilian mexes empty at time '..GetGameTimeSeconds()..'='..tostring(M28Utilities.IsTableEmpty(tCivilianMexes)))
+    M28Map.DrawLandZonePath(88, 21, 34)
+
+    --[[M28Map.DrawSpecificLandZone(88, 40, 3)
+    M28Map.DrawSpecificLandZone(88, 13, 4)
+    M28Map.DrawSpecificLandZone(88, 34, 5)--]]
+    --local tCivilianMexes = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMex, M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()], 10000, 'Neutral')
+    --LOG('TestCustom: is table of civilian mexes empty at time '..GetGameTimeSeconds()..'='..tostring(M28Utilities.IsTableEmpty(tCivilianMexes)))
     --[[local iCurColour = 0
     for iLandZone, tLZData in M28Map.tAllPlateaus[88][M28Map.subrefPlateauLandZones] do
         iCurColour = iCurColour + 1
@@ -657,7 +661,8 @@ function Initialisation(aiBrain)
     LOG('About to proceed with initialisation, aiBrain='..aiBrain.Nickname..'; bBeginSessionTriggered='..tostring(bBeginSessionTriggered or false)..'; Navmesh generated='..tostring(import("/lua/sim/navgenerator.lua").IsGenerated()))
     ForkThread(SetupNoRushDetails, aiBrain)
     ForkThread(M28UnitInfo.CalculateBlueprintThreatsByType) --Records air and ground threat values for every blueprint
-    ForkThread(M28Team.RecordAllPlayers, aiBrain)
+    ForkThread(M28Team.RecordAllPlayers)
+    ForkThread(M28Map.CheckIfLowMexMap)
     ForkThread(M28Economy.EconomyInitialisation, aiBrain)
     ForkThread(M28Engineer.EngineerInitialisation, aiBrain)
     ForkThread(M28ACU.ManageACU, aiBrain)
