@@ -2375,7 +2375,7 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
                                     end
                                 end
                                 if bDebugMessages == true then LOG(sFunctionRef..': Is oBuildingToAttack valid='..tostring(M28UnitInfo.IsUnitValid(oBuildingToAttack))..'; Is table of blocked buildings empty='..tostring(M28Utilities.IsTableEmpty(toBlockedBuildingsAndDistWithinRange))) end
-                                if not(oBuildingToAttack) and M28Utilities.IsTableEmpty(toBlockedBuildingsAndDistWithinRange) == false and GetGameTimeSeconds() >= 960 then
+                                if not(oBuildingToAttack) and M28Utilities.IsTableEmpty(toBlockedBuildingsAndDistWithinRange) == false then
                                     --We have buildings that are within our DF range threshold - if we move back by the distance with which we are in range, is our shot still blocked?
                                     local iAngleFromBuilding
                                     local iFurthestInRange = 0
