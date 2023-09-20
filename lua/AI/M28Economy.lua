@@ -891,6 +891,10 @@ function GetCategoriesAndActionsToPause(iTeam, bStallingMass, bPauseNotUnpause)
 
             end
         end
+        if not(bPauseNotUnpause) then
+            table.insert(tCategoriesByPriority, M28UnitInfo.refCategoryT2Mex)
+            table.insert(tCategoriesByPriority, M28UnitInfo.refCategoryT1Mex)
+        end
 
         return tCategoriesByPriority, tEngineerActionsByPriority
     else
@@ -1415,6 +1419,8 @@ function ManageEnergyStalls(iTeam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageEnergyStalls'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
 
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
         local bPauseNotUnpause = true
