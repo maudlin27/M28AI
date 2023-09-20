@@ -2038,7 +2038,7 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
                         end
                         iMaxSearchRange = math.max(2, iMaxSearchRange)
                         local tEnemyBuildings = aiBrain:GetUnitsAroundPoint(iBombardmentBuildingCategory, tMexInfo[M28Map.subrefMexLocation], math.min(iBombardmentSearchRange, iMaxSearchRange), 'Enemy')
-                        if bDebugMessages == true then LOG(sFunctionRef .. ': Is table of enemy buildings around mex empty=' .. tostring(M28Utilities.IsTableEmpty(tEnemyBuildings))) end
+                        if bDebugMessages == true then LOG(sFunctionRef .. ': Is table of enemy buildings around mex empty=' .. tostring(M28Utilities.IsTableEmpty(tEnemyBuildings))..'; iBombardmentSearchRange='..iBombardmentSearchRange..'; iMaxSearchRange='..iMaxSearchRange) end
                         if M28Utilities.IsTableEmpty(tEnemyBuildings) == false then
                             iClosestMexDist = iCurDist
                             iClosestMexRef = iMex
@@ -2224,7 +2224,7 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
 
         for iUnit, oUnit in tPotentialBombardmentUnits do
             bDontCheckIfTargetUnderwater = (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) > 0
-            if bDebugMessages == true then LOG(sFunctionRef .. ': Considering unit ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. '; is underwater=' .. tostring(M28UnitInfo.IsUnitUnderwater(oUnit)) .. '; oUnit[M28UnitInfo.refiDFRange]=' .. (oUnit[M28UnitInfo.refiDFRange] or 'nil') .. '; oUnit[M28UnitInfo.refiIndirectRange]=' .. (oUnit[M28UnitInfo.refiIndirectRange] or 'nil')) end
+            if bDebugMessages == true then LOG(sFunctionRef .. ': Considering unit ' .. oUnit.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oUnit) .. '; is underwater=' .. tostring(M28UnitInfo.IsUnitUnderwater(oUnit)) .. '; oUnit[M28UnitInfo.refiDFRange]=' .. (oUnit[M28UnitInfo.refiDFRange] or 'nil') .. '; oUnit[M28UnitInfo.refiIndirectRange]=' .. (oUnit[M28UnitInfo.refiIndirectRange] or 'nil')..'; Unit position='..repru(oUnit:GetPosition())) end
 
             if not (M28UnitInfo.IsUnitUnderwater(oUnit)) then
                 bRetreatUnit = false
@@ -2312,7 +2312,10 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
                         else
 
                             oBuildingToAttack = nil
+                            local tBuildingToAttackMoveViaPoint
                             if bCheckForBuildingsToAttack then
+                                local toBlockedBuildingsAndDistWithinRange = {}
+                                local iRangeThreshold = 10
                                 local iDistToPriority
                                 local iClosestDist = 100000
                                 if M28Utilities.IsTableEmpty(tEnemyStructuresNearFrontUnit) == false then
@@ -2325,6 +2328,9 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
                                                 if (oUnit[M28UnitInfo.refiDFRange] or 0) > (oUnit[M28UnitInfo.refiIndirectRange] or 0) and ((oUnit[M28UnitInfo.refbLastShotBlocked] and (GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or -100)) >= 10 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastCheck] or -100) < 6 and iDistToPriority <= oUnit[M28UnitInfo.refiDFRange] and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastCheck] or 0) <= 4) or M28Logic.IsShotBlocked(oUnit, oPriority)) then
                                                     --Blocked so dont want to try and attack this building
                                                     if bDebugMessages == true then LOG(sFunctionRef..': DF unit who we think will be blocked from firing at oPriority='..oPriority.UnitId..M28UnitInfo.GetUnitLifetimeCount(oPriority)..' so will ignore oPriority') end
+                                                    if iDistToPriority < (oUnit[M28UnitInfo.refiDFRange] or 0) - iRangeThreshold then
+                                                        table.insert(toBlockedBuildingsAndDistWithinRange, {oPriority, (oUnit[M28UnitInfo.refiDFRange] or 0) - iDistToPriority})
+                                                    end
                                                 else
                                                     iClosestDist = iDistToPriority
                                                     oBuildingToAttack = oPriority
@@ -2368,8 +2374,30 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
                                         end
                                     end
                                 end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Is oBuildingToAttack valid='..tostring(M28UnitInfo.IsUnitValid(oBuildingToAttack))..'; Is table of blocked buildings empty='..tostring(M28Utilities.IsTableEmpty(toBlockedBuildingsAndDistWithinRange))) end
+                                if not(oBuildingToAttack) and M28Utilities.IsTableEmpty(toBlockedBuildingsAndDistWithinRange) == false and GetGameTimeSeconds() >= 960 then
+                                    --We have buildings that are within our DF range threshold - if we move back by the distance with which we are in range, is our shot still blocked?
+                                    local iAngleFromBuilding
+                                    local iFurthestInRange = 0
+                                    for iEntry, tUnitAndDist in toBlockedBuildingsAndDistWithinRange do
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..tUnitAndDist[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(tUnitAndDist[1])..'; tUnitAndDist[2]='..tUnitAndDist[2]..'; iFurthestInRange='..iFurthestInRange) end
+                                        if tUnitAndDist[2] > iFurthestInRange then
+                                            iAngleFromBuilding = M28Utilities.GetAngleFromAToB(tUnitAndDist[1]:GetPosition(), oUnit:GetPosition())
+                                            local tMoveViaPoint = M28Utilities.MoveInDirection(oUnit:GetPosition(), iAngleFromBuilding, tUnitAndDist[2]-1, true, false, not(bDontCheckIfTargetUnderwater))
+                                            if bDebugMessages == true then LOG(sFunctionRef..': tMoveViaPoint='..repru(tMoveViaPoint)..'; Cur poisition='..repru(oUnit:GetPosition())..'; Is shot blocked='..tostring(M28Logic.IsShotBlocked(oUnit, tUnitAndDist[1], false, tMoveViaPoint))..'; iPond='..iPond..'; Naval path label for move point='..NavUtils.GetTerrainLabel(M28Map.refPathingTypeNavy, tMoveViaPoint)) end
+                                            if M28Utilities.IsTableEmpty( tMoveViaPoint) == false and iPond == NavUtils.GetTerrainLabel(M28Map.refPathingTypeNavy, tMoveViaPoint) and not(M28Logic.IsShotBlocked(oUnit, tUnitAndDist[1], false, tMoveViaPoint)) then
+                                                iFurthestInRange = tUnitAndDist[2]
+                                                oBuildingToAttack = tUnitAndDist[1]
+                                                bBlockedSoMove = true
+                                                tBlockedShotActualMoveLocation = {tMoveViaPoint[1], tMoveViaPoint[2], tMoveViaPoint[3]}
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Adding as a new building to attack') end
+                                            end
+                                        end
+                                    end
+                                end-- iRangeThreshold
                             end
                         end
+                        if bDebugMessages == true then LOG(sFunctionRef..': is oBuildingToAttack valid='..tostring(M28UnitInfo.IsUnitValid(oBuildingToAttack))..'; bBlockedSoMove='..tostring(bBlockedSoMove)..'; tBlockedShotActualMoveLocation='..repru(tBlockedShotActualMoveLocation)..'; bConsiderGroundAttack='..tostring(bConsiderGroundAttack)) end
                         if not (oBuildingToAttack) or (bBlockedSoMove and tBlockedShotActualMoveLocation) then
                             --ToDo - figure out solution to both cliff temporarily blocking (where if we dont attack-move we are ok)
                             --ToDo - and the converse where we are ok but if we move towards the target a cliff ends up blocking us until we move further away

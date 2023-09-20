@@ -8245,8 +8245,13 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             end
         end
         iFactoriesWanted = math.min(4, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandMexCount][tLZData[M28Map.subrefLZIslandRef]] - 2)
-        if bExpansionOnSameIslandAsBase then iFactoriesWanted = math.max(1, math.min(4, iFactoriesWanted, tLZData[M28Map.subrefLZMexCount] - 2)) end
-        if not(bWantMorePower) and not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.4 then
+        local iIslandZoneCount = table.getn(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauIslandLandZones][tLZData[M28Map.subrefLZIslandRef]])
+        if bExpansionOnSameIslandAsBase then iFactoriesWanted = math.max(1, math.min(4, iFactoriesWanted, tLZData[M28Map.subrefLZMexCount] - 2))
+        else
+            if iIslandZoneCount < 4 then iFactoriesWanted = math.max(1, math.min(iFactoriesWanted, iIslandZoneCount * 0.5)) end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': iIslandZoneCount='..iIslandZoneCount..'; iFactoriesWanted pre adj='..iFactoriesWanted) end
+        if (iIslandZoneCount > 2 or tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and not(bWantMorePower) and not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.4 then
 
             if not(bExpansionOnSameIslandAsBase) or M28Map.iMapSize >= 750 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.6 then iFactoriesWanted = iFactoriesWanted + 1 end
             if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.8 then
@@ -8277,7 +8282,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                 if iFactoriesWanted > 3 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.8 then
                     iFactoriesWanted = 3
                 else
-                    iFactoriesWanted = 2
+                    iFactoriesWanted = 2 --only here if we have >=2 factories wanted
                 end
             end
         end
