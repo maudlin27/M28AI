@@ -1334,6 +1334,8 @@ function SendMAAToSupportLandZone(tMAAToAdvance, iPlateau, iTeam, iLZOrWZToSuppo
     local sFunctionRef = 'SendMAAToSupportLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    if iLZOrWZToSupport == 41 and bWaterZone then bDebugMessages = true end
+
     local tAltLZOrWZData
     local tAltTeamLZOrWZData
     local tTargetPosition
@@ -1366,6 +1368,7 @@ function SendMAAToSupportLandZone(tMAAToAdvance, iPlateau, iTeam, iLZOrWZToSuppo
         end
         local tbRemovedMAAReferencesByRef = {}
         for iUnitRef, iDistance in M28Utilities.SortTableByValue(tDistToTargetByRef, false) do
+            if bDebugMessages == true then LOG(sFunctionRef..': About to issue order to move for iUnitRef='..iUnitRef..'; tMAAToAdvance[iUnitRef]='..(tMAAToAdvance[iUnitRef].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tMAAToAdvance[iUnitRef]) or 'nil')..' to go to tTargetPosition='..repru(tTargetPosition)) end
             M28Orders.IssueTrackedMove(tMAAToAdvance[iUnitRef], tTargetPosition, 10, false, 'MVELZ'..iLZOrWZToSupport)
             iMAAThreatWanted = iMAAThreatWanted - M28UnitInfo.GetAirThreatLevel({ tMAAToAdvance[iUnitRef] }, false, false, true, false, false, false)
             tbRemovedMAAReferencesByRef[iUnitRef] = true
@@ -1373,7 +1376,7 @@ function SendMAAToSupportLandZone(tMAAToAdvance, iPlateau, iTeam, iLZOrWZToSuppo
         end
         if M28Utilities.IsTableEmpty(tbRemovedMAAReferencesByRef) == false then
             --Remove any MAA that have given orders from tMAAToAdvance:
-            if not(bWaterZone) then
+            if M28Utilities.IsTableEmpty(tHoverMAAToAdvance) then
                 local iRevisedIndex = 1
                 local iTableSize = table.getn(tMAAToAdvance)
 
@@ -2176,9 +2179,37 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
                                     end
                                 end
                             end
+                            --Consider sending MAA to all zones (i.e. land and water, and other islands)
+                            if M28Utilities.IsTableEmpty(tHoverMAA) == false and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
+                                local iZoneMAAWanted
+                                for iEntry, tSubtable in tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+                                    local tAltLZOrWZData, tAltLZOrWZTeamData
+                                    if tSubtable[M28Map.subrefbIsWaterZone] then
+                                        tAltLZOrWZData = M28Map.tPondDetails[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPondWaterZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
+                                        tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                                        iZoneMAAWanted = tAltLZOrWZTeamData[M28Map.subrefWZMAAThreatWanted]
+                                    else
+                                        if tSubtable[M28Map.subrefiPlateauOrPond] == iPlateau then
+                                            tAltLZOrWZData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
+                                            tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                                            iZoneMAAWanted = tAltLZOrWZTeamData[M28Map.subrefLZMAAThreatWanted]
+                                        else
+                                            iZoneMAAWanted = 0
+                                        end
+                                    end
+                                    if iZoneMAAWanted >= 5 then
+                                        bDebugMessages = true
+                                        if bDebugMessages == true then LOG(sFunctionRef..': About to send MAA to support LZ or WZ ref='..tSubtable[M28Map.subrefiLandOrWaterZoneRef]..'; Is water zone='..tostring(tSubtable[M28Map.subrefbIsWaterZone])..'; iZoneMAAWanted='..iZoneMAAWanted..'; iPlateau='..iPlateau..'; Is table of tHoverMAA empty='..tostring(M28Utilities.IsTableEmpty(tHoverMAA))) end
+                                        SendMAAToSupportLandZone(tMAAToAdvance, iPlateau, iTeam, tSubtable[M28Map.subrefiLandOrWaterZoneRef], 1.5, tSubtable[M28Map.subrefbIsWaterZone], tHoverMAA)
+                                        bDebugMessages = false
+                                        if M28Utilities.IsTableEmpty(tHoverMAA) then break end
+                                    end
+                                end
+                            end
                         end
                     end
                 end
+
 
                 --If sitll have MAA available, then send to existing land zones with a greater factor
                 if M28Utilities.IsTableEmpty(tMAAToAdvance) == false then
@@ -2227,17 +2258,21 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
 
             if M28Utilities.IsTableEmpty(tMAAToAdvance) == false then
                 if bDebugMessages == true then LOG(sFunctionRef..': Still have spare MAA, tLZData[M28Map.subrefLZIslandRef]='..(tLZData[M28Map.subrefLZIslandRef] or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iPlateau='..(iPlateau or 'nil')) end
-                --Only flag that we have no MAA targets for a core base if we have T2+ MAA with no target
-                local bT2PlusMAAInCoreBase = false
+                --Only flag that we have no MAA targets for a core base if we have 10+ MAA, including T2+ MAA, with no target
+                local bEnoughMAAInZone = false
                 if tLZTeamData[M28Map.subrefLZbCoreBase] then
-                    for iUnit, oUnit in tMAAToAdvance do
-                        if EntityCategoryContains(categories.TECH2 + categories.TECH3, oUnit.UnitId) then
-                            bT2PlusMAAInCoreBase = true
-                            break
-                        end
+                    local tT2PlusMAAToAdvance = EntityCategoryFilterDown(categories.TECH2 + categories.TECH3, tMAAToAdvance)
+                    if table.getn(tT2PlusMAAToAdvance) >= 8 then
+                        bEnoughMAAInZone = true
                     end
+                elseif tLZTeamData[M28Map.subrefLZCoreExpansion] then
+                    if table.getn(tMAAToAdvance) >= 2 then
+                        bEnoughMAAInZone = true
+                    end
+                else
+                    bEnoughMAAInZone = true
                 end
-                if not(bT2PlusMAAInCoreBase) then
+                if bEnoughMAAInZone then
                     M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoMAATargetsByIsland][tLZData[M28Map.subrefLZIslandRef]] = GetGameTimeSeconds()
                 end
                 --Go to rally point instead
