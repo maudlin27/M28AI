@@ -2976,7 +2976,7 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
                                     oNearestReclaimableEnemy = oNearestReclaimableDangerousEnemy
                                 end
                                 bEngiIsUnavailable = true
-                                if bDebugMessages == true then LOG(sFunctionRef..': Will reclaim or capture unit, is capture target='..tostring(oNearestReclaimableEnemy[M28UnitInfo.refbIsCaptureTarget])) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will reclaim or capture unit, is capture target='..tostring(oNearestReclaimableEnemy[M28UnitInfo.refbIsCaptureTarget])..'; Is oNearestReclaimableEnemy valid='..tostring(M28UnitInfo.IsUnitValid(oNearestReclaimableEnemy))) end
                                 if oNearestReclaimableEnemy[M28UnitInfo.refbIsCaptureTarget] then
                                     TrackEngineerAction(oEngineer, refActionCaptureUnit, false, 1)
                                     --Dont capture if already capturing (redundancy)
@@ -7878,7 +7878,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     if not(bHaveLowPower) and M28Team.tTeamData[iTeam][M28Team.refiConstructedExperimentalCount] >= 3 and (
             (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 95 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.55 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= 20 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 10000)
                     or (M28Map.bIsCampaignMap and ((M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 100) <= 2 or (not(bHaveLowMass) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 60 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])) then
-        bDebugMessages = true
         local bAlreadyHaveGameEnderUnderConstruction = false
         local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
         if bDebugMessages == true then LOG(sFunctionRef..': About to check for nearby gameenders for team '..(iTeam or 'nil')..'; First active M28brain aibrain='..(aiBrain.Nickanme or 'nil')..'; LZ midpoint='..repru(tLZData[M28Map.subrefMidpoint])) end
@@ -7925,7 +7924,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 end
             end
         end
-        bDebugMessages = false
     end
 
     --Low priority island support - will consider further away distances tahn before, up to a distance of 400, and only if the island wants T1 engineer BP
@@ -8396,6 +8394,21 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         if bDebugMessages == true then LOG(sFunctionRef..': We have unbuilt mex locations for this land zone, locations='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations])) end
         HaveActionToAssign(refActionBuildMex, 1, 5)
     end
+
+    --Reclaim enemy building if have available engineers, and enemy has buildings but no combat threat
+    iCurPriority = iCurPriority + 1
+    if not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+        iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
+        if iHighestTechEngiAvailable > 0 then
+            local oNearestEnemyUnitToMidpoint = M28Utilities.GetNearestUnit(tLZTeamData[M28Map.subrefTEnemyUnits], tLZData[M28Map.subrefMidpoint])
+            if M28UnitInfo.IsUnitValid(oNearestEnemyUnitToMidpoint) then
+                HaveActionToAssign(refActionReclaimEnemyUnit, 1, 5, oNearestEnemyUnitToMidpoint)
+
+            end
+        end
+    end
+
+
 
     --AA if enemy has air to ground threat
     if bDebugMessages == true then LOG(sFunctionRef..': High priority AA builder: iNearbyEnemyAirToGroundThreat='..iNearbyEnemyAirToGroundThreat..'; enemy air to ground threat='..tLZTeamData[M28Map.refiEnemyAirToGroundThreat]..'; Enemy AirAA threat='..tLZTeamData[M28Map.refiEnemyAirAAThreat]) end

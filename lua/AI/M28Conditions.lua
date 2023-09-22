@@ -1911,24 +1911,31 @@ function GetT3ArtiEquivalent(iTeam, iNovaxFactor, iNonArtiGameEnderFactor, bAppl
 end
 
 function GetMexesNotNearPlayerStartingZone()
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetMexesNotNearPlayerStartingZone'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iMexesNotInStartZone = 0
+    if bDebugMessages == true then LOG(sFunctionRef..': is table of mass poitns empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tMassPoints))) end
     if M28Utilities.IsTableEmpty(M28Map.tMassPoints) == false then
+        if bDebugMessages == true then LOG(sFunctionRef..': Total mass points='..table.getn(M28Map.tMassPoints)..'; M28Map.PlayerStartPoints='..repru(M28Map.PlayerStartPoints)) end
         local tbStartPointPlateauAndZones = {}
         local iCurPlateauOrZero, iCurLandOrWaterZone
         for iIndex, tStartPoint in M28Map.PlayerStartPoints do
             iCurPlateauOrZero, iCurLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tStartPoint)
             if not(tbStartPointPlateauAndZones[iCurPlateauOrZero]) then tbStartPointPlateauAndZones[iCurPlateauOrZero] = {} end
             tbStartPointPlateauAndZones[iCurPlateauOrZero][iCurPlateauOrZero] = true
+            if bDebugMessages == true then LOG(sFunctionRef..': recording start point for index '..iIndex..'; tStartPoint='..repru(tStartPoint)) end
         end
 
-        local bMexInStartPoint = false
         for iMex, tMex in M28Map.tMassPoints do
             iCurPlateauOrZero, iCurLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tMex)
-            if not(tbStartPointPlateauAndZones[iCurPlateauOrZero][iCurPlateauOrZero]) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering tMex='..repru(tMex)..'; tbStartPointPlateauAndZones[iCurPlateauOrZero][iCurPlateauOrZero]='..tostring(tbStartPointPlateauAndZones[iCurPlateauOrZero][iCurPlateauOrZero] or false)) end
+            if not(tbStartPointPlateauAndZones[iCurPlateauOrZero][iCurLandOrWaterZone]) then
                 iMexesNotInStartZone = iMexesNotInStartZone + 1
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return iMexesNotInStartZone
 end

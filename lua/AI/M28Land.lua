@@ -2199,10 +2199,8 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
                                         end
                                     end
                                     if iZoneMAAWanted >= 5 then
-                                        bDebugMessages = true
                                         if bDebugMessages == true then LOG(sFunctionRef..': About to send MAA to support LZ or WZ ref='..tSubtable[M28Map.subrefiLandOrWaterZoneRef]..'; Is water zone='..tostring(tSubtable[M28Map.subrefbIsWaterZone])..'; iZoneMAAWanted='..iZoneMAAWanted..'; iPlateau='..iPlateau..'; Is table of tHoverMAA empty='..tostring(M28Utilities.IsTableEmpty(tHoverMAA))) end
                                         SendMAAToSupportLandZone(tMAAToAdvance, iPlateau, iTeam, tSubtable[M28Map.subrefiLandOrWaterZoneRef], 1.5, tSubtable[M28Map.subrefbIsWaterZone], tHoverMAA)
-                                        bDebugMessages = false
                                         if M28Utilities.IsTableEmpty(tHoverMAA) then break end
                                     end
                                 end

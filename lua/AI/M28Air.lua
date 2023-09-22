@@ -2252,7 +2252,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
     local sFunctionRef = 'ManageAirAAUnits'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if M28Team.GetFirstActiveM28Brain(iTeam):GetCurrentUnits(M28UnitInfo.refCategoryAirAA * categories.TECH3) >= 60 and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 10000 then bDebugMessages = true end
+
 
     --Get available airAA units (owned by M28 brains in our subteam):
     local tAvailableAirAA, tAirForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, M28UnitInfo.refCategoryAirAA)

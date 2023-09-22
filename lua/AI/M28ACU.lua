@@ -362,7 +362,7 @@ end
 
 function GetLowMexMapEarlyACUOrder(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData)
     local sFunctionRef = 'GetLowMexMapEarlyACUOrder'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, aiBrain[M28Economy.refiGrossEnergyBaseIncome]='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; aiBrain[M28Economy.refiGrossMassBaseIncome]='..aiBrain[M28Economy.refiGrossMassBaseIncome]) end
@@ -402,6 +402,7 @@ function GetLowMexMapEarlyACUOrder(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOr
     else
         --Build factory if dont have one and have lots of mass stored, or there are other mexes we want to get
         local iCurFactories = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory)
+        if bDebugMessages == true then LOG(sFunctionRef..': iCurFactories='..iCurFactories..'; GetMexesNotNearPlayerStartingZone='..M28Conditions.GetMexesNotNearPlayerStartingZone()) end
         if iCurFactories == 0 and (aiBrain:GetEconomyStoredRatio('MASS') >= 0.95 or tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] > 0) then
             ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryLandFactory)
         elseif iCurFactories == 0 and M28Conditions.GetMexesNotNearPlayerStartingZone() > 0 then
@@ -436,15 +437,15 @@ function GetLowMexMapEarlyACUOrder(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOr
                     end
                 end
             end
-            end
-
         end
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
 
 function GetACUEarlyGameOrders(aiBrain, oACU)
     local sFunctionRef = 'GetACUEarlyGameOrders'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
