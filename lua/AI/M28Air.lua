@@ -2025,7 +2025,7 @@ function AssignAirAATargets(tAvailableAirAA, tEnemyTargets)
 
         iThreatWanted = M28UnitInfo.GetAirThreatLevel({ oEnemyUnit }, true, true, false, true, true, true)
         --Increase threat to assign to AA units
-        if EntityCategoryContains(categories.ANTIAIR, oEnemyUnit.UnitId) then
+        if EntityCategoryContains(categories.ANTIAIR + categories.EXPERIMENTAL, oEnemyUnit.UnitId) then
             iThreatWanted = iThreatWanted * 3
             table.insert(tEnemyAirAAUnits, oEnemyUnit) --Will want to assign more if have spare AirAA
         end
@@ -2252,7 +2252,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
     local sFunctionRef = 'ManageAirAAUnits'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if M28Team.GetFirstActiveM28Brain(iTeam):GetCurrentUnits(M28UnitInfo.refCategoryAirAA * categories.TECH3) >= 60 and M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 10000 then bDebugMessages = true end
 
     --Get available airAA units (owned by M28 brains in our subteam):
     local tAvailableAirAA, tAirForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, M28UnitInfo.refCategoryAirAA)
@@ -2547,8 +2547,8 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                 if iPlateauOrZero == 0 then
                     if (iLandOrWaterZone or 0) > 0 then
 
-                            if iAASearchType == refiIgnoreAllAA and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]) then
-                --function AddEnemyAirInWaterZoneIfNoAA(iWaterZone,         bAddAdjacentZones, refiAASearchType,        iOptionalGroundThreatThresholdOverride, iOptionalAirThreatThresholdOverride,                    iOptionalMaxDistToEdgeOfAdjacentZone, tOptionalStartPointForEdgeOfAdacentZone,                              toOptionalUnitOverride, iOptionalAdjacentZoneSearchType)
+                        if iAASearchType == refiIgnoreAllAA and not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir]) then
+                            --function AddEnemyAirInWaterZoneIfNoAA(iWaterZone,         bAddAdjacentZones, refiAASearchType,        iOptionalGroundThreatThresholdOverride, iOptionalAirThreatThresholdOverride,                    iOptionalMaxDistToEdgeOfAdjacentZone, tOptionalStartPointForEdgeOfAdacentZone,                              toOptionalUnitOverride, iOptionalAdjacentZoneSearchType)
                             AddEnemyAirInWaterZoneIfNoAA(iLandOrWaterZone, true, refiIgnoreAllAA,        iGunshipGroundAAThreshold               , nil                            , iDistanceToZoneEdgeToConsider, M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition(), nil            , refiAvoidOnlyGroundAA)
                         else
                             AddEnemyAirInWaterZoneIfNoAA(iLandOrWaterZone, false, iAASearchType,        iGunshipGroundAAThreshold               , nil                            , iDistanceToZoneEdgeToConsider, M28Team.tAirSubteamData[iAirSubteam][M28Team.refoFrontGunship]:GetPosition())

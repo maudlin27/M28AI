@@ -818,13 +818,23 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                     --Adjust threat for health
                     iHealthThreatFactor = 1
                     if iHealthFactor > 0 then
-                        iHealthPercentage = GetUnitHealthPercent(oUnit)
                         --Assume low health experimental is has more health than it does - e.g. might heal, or might be under construction
-                        if iHealthPercentage < 1 and EntityCategoryContains(categories.EXPERIMENTAL, oUnit) and oUnit:GetFractionComplete() >= 0.2 then
-                            if bEnemyUnits then iHealthPercentage = math.min(1, math.max(0.4, iHealthPercentage * 1.5))
+                        if EntityCategoryContains(categories.EXPERIMENTAL, oUnit) then
+                            --Does unit have a shield?
+                            if EntityCategoryContains(categories.PERSONALSHIELD + categories.SHIELD, oUnit.UnitId) then
+                                local iCurShield, iMaxShield = GetCurrentAndMaximumShield(oUnit, true)
+                                iHealthPercentage = (oUnit:GetHealth() + iCurShield) / (oUnit:GetMaxHealth() + iMaxShield)
                             else
-                                iHealthPercentage = math.min(1, math.max(0.3, iHealthPercentage * 1.4))
+                                iHealthPercentage = GetUnitHealthPercent(oUnit)
+                                if iHealthPercentage < 1 and oUnit:GetFractionComplete() >= 0.2 then
+                                    if bEnemyUnits then iHealthPercentage = math.min(1, math.max(0.4, iHealthPercentage * 1.5))
+                                    else
+                                        iHealthPercentage = math.min(1, math.max(0.3, iHealthPercentage * 1.4))
+                                    end
+                                end
                             end
+                        else
+                            iHealthPercentage = GetUnitHealthPercent(oUnit)
                         end
                         iHealthThreatFactor = (1 - (1-iHealthPercentage) * iHealthFactor) * iHealthThreatFactor
                     end
