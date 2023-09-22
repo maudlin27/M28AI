@@ -1334,7 +1334,7 @@ function SendMAAToSupportLandZone(tMAAToAdvance, iPlateau, iTeam, iLZOrWZToSuppo
     local sFunctionRef = 'SendMAAToSupportLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iLZOrWZToSupport == 41 and bWaterZone then bDebugMessages = true end
+
 
     local tAltLZOrWZData
     local tAltTeamLZOrWZData
