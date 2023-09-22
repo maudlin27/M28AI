@@ -752,8 +752,10 @@ function RefreshUnitsToReclaim(iTeam, iPlateau, iLandZone)
     function KeepCurEntry(tArray, iEntry)
         return M28UnitInfo.IsUnitValid(tArray[iEntry])
     end
-    M28Utilities.RemoveEntriesFromArrayBasedOnCondition(tUnitsToReclaim, KeepCurEntry)
-    if bDebugMessages == true then LOG(sFunctionRef..': Is table empty after removing dead units='..tostring(M28Utilities.IsTableEmpty(tUnitsToReclaim))) end
+    if M28Utilities.IsTableEmpty(tUnitsToReclaim) == false then
+        M28Utilities.RemoveEntriesFromArrayBasedOnCondition(tUnitsToReclaim, KeepCurEntry)
+        if bDebugMessages == true then LOG(sFunctionRef..': Is table empty after removing dead units='..tostring(M28Utilities.IsTableEmpty(tUnitsToReclaim))) end
+    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
