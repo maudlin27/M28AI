@@ -183,7 +183,8 @@ function ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData, oOpti
         local iBuildRange = oACU:GetBlueprint().Economy.MaxBuildDistance
         local iMinRangeToAssist = iBuildRange + 10
         local oNearestUnderConstructionHydro
-        if not(oOptionalUnderConstructionHydro) then
+        local iCompletedHydroCount = 0
+        if not(oOptionalUnderConstructionHydro) or oOptionalUnderConstructionHydro:GetFractionComplete() == 1 then
             if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefHydroUnbuiltLocations]) == false then
                 for iHydro, tHydro in tLZOrWZData[M28Map.subrefHydroLocations] do
                     iCurDist = M28Utilities.GetDistanceBetweenPositions(tHydro, oACU:GetPosition())
@@ -193,17 +194,24 @@ function ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData, oOpti
             local tNearbyHydro = EntityCategoryFilterDown(M28UnitInfo.refCategoryHydro, tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits])
             if M28Utilities.IsTableEmpty(tNearbyHydro) == false then
                 for iHydro, oHydro in tNearbyHydro do
-                    iCurDist = M28Utilities.GetDistanceBetweenPositions(oHydro:GetPosition(), oACU:GetPosition())
-                    if iCurDist < iNearestHydro then
-                        iNearestHydro = iCurDist
-                        tNearestHydro = oHydro:GetPosition()
-                        oNearestUnderConstructionHydro = oHydro
+                    if M28UnitInfo.IsUnitValid(oHydro) then
+                        if oHydro:GetFractionComplete() < 1 then
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oHydro:GetPosition(), oACU:GetPosition())
+                            if iCurDist < iNearestHydro then
+                                iNearestHydro = iCurDist
+                                tNearestHydro = oHydro:GetPosition()
+                                oNearestUnderConstructionHydro = oHydro
+                            end
+                        else
+                            iCompletedHydroCount = iCompletedHydroCount + 1
+                        end
                     end
                 end
             end
         else
             tNearestHydro = oOptionalUnderConstructionHydro:GetPosition()
             iNearestHydro = M28Utilities.GetDistanceBetweenPositions(oOptionalUnderConstructionHydro:GetPosition(), oACU:GetPosition())
+
         end
         --If we are in range of a hydro then assist it (or wait until construction is started)
         if bDebugMessages == true then LOG(sFunctionRef..': Checking if have hydro near enough to consider mvoing to and assisting, iNearestHydro='..iNearestHydro..'; iMinRangeToAssist='..iMinRangeToAssist) end
@@ -223,9 +231,9 @@ function ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData, oOpti
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': oUnderConstructionHydro='..(oUnderConstructionHydro.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnderConstructionHydro) or 'nil')) end
-            if oUnderConstructionHydro then
+            if oUnderConstructionHydro and oUnderConstructionHydro:GetFractionComplete() < 1 then
                 M28Orders.IssueTrackedRepair(oACU, oUnderConstructionHydro, false, 'RH')
-            else
+            elseif not(oUnderConstructionHydro) then
                 oACU['M28BOHydroWait'] = ( oACU['M28BOHydroWait'] or 0) + 1
                 if  oACU['M28BOHydroWait'] >= 20 then
                     ACUActionBuildPower(aiBrain, oACU)
@@ -234,7 +242,7 @@ function ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData, oOpti
                     M28Orders.IssueTrackedMove(oACU, oACU:GetPosition(), 3, false, 'W4C')
                 end
             end
-        elseif tNearestHydro then
+        elseif tNearestHydro and (iCompletedHydroCount == 0 or table.getn(tLZOrWZData[M28Map.subrefHydroLocations]) > iCompletedHydroCount) then
             --Move to be near hydro
             local tLocationNearHydro = M28Engineer.GetLocationToMoveForConstruction(oACU, tNearestHydro, 'ueb1102', -0.5, false)
             if tLocationNearHydro then
@@ -394,6 +402,7 @@ function GetLowMexMapEarlyACUOrder(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOr
     else
         --Build factory if dont have one and have lots of mass stored, or there are other mexes we want to get
         local iCurFactories = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory)
+        if bDebugMessages == true then LOG(sFunctionRef..': iCurFactories='..iCurFactories..'; GetMexesNotNearPlayerStartingZone='..M28Conditions.GetMexesNotNearPlayerStartingZone()) end
         if iCurFactories == 0 and (aiBrain:GetEconomyStoredRatio('MASS') >= 0.95 or tLZOrWZTeamData[M28Map.subrefMexCountByTech][2] + tLZOrWZTeamData[M28Map.subrefMexCountByTech][3] > 0) then
             ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOrWZData, tLZOrWZTeamData, M28UnitInfo.refCategoryLandFactory)
         elseif iCurFactories == 0 and M28Conditions.GetMexesNotNearPlayerStartingZone() > 0 then
@@ -428,11 +437,11 @@ function GetLowMexMapEarlyACUOrder(aiBrain, oACU, iPlateauOrZero, iLZOrWZ, tLZOr
                     end
                 end
             end
-            end
-
         end
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
 
 function GetACUEarlyGameOrders(aiBrain, oACU)
     local sFunctionRef = 'GetACUEarlyGameOrders'
@@ -797,8 +806,8 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                         if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefHydroLocations]) == false then ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData) end
                         if bDebugMessages == true then LOG(sFunctionRef..': Redundancy - Attempted to assist hydro, is table of last orders empty='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))..'; DoesACUHaveValidOrder(oACU)='..tostring(M28Conditions.DoesACUHaveValidOrder(oACU))) end
                         if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
-                            local iCurPower =  aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower)
-                            if iCurPower <= 7 or (iCurPower <= 12 and aiBrain:GetEconomyStoredRatio('MASS') >= 0.25 and aiBrain:GetEconomyStoredRatio('ENERGY') <= 0.95) then
+                            local iCurPower =  aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryPower) + aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryHydro) * 5
+                            if iCurPower <= 7 or (iCurPower <= 13 and aiBrain:GetEconomyStoredRatio('MASS') >= 0.25 and aiBrain:GetEconomyStoredRatio('ENERGY') <= 0.95) then
                                 ACUActionBuildPower(aiBrain, oACU)
                             end
                             if bDebugMessages == true then LOG(sFunctionRef..': Redundancy - Attempted to build power, is table of last orders empty='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))..'; DoesACUHaveValidOrder(oACU)='..tostring(M28Conditions.DoesACUHaveValidOrder(oACU))..'; Cur factory count='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory)) end

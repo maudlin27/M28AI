@@ -147,7 +147,7 @@ function IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, iAOE, bRet
     end
 end
 
-function IsShotBlocked(oFiringUnit, oTargetUnit, bAntiNavyAttack)
+function IsShotBlocked(oFiringUnit, oTargetUnit, bAntiNavyAttack, tAltMoveFirstToFirePosition)
     --Returns true or false depending on if oFiringUnit can hit oTargetUnit in a straight line
     --intended for direct fire units only
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -161,6 +161,15 @@ function IsShotBlocked(oFiringUnit, oTargetUnit, bAntiNavyAttack)
     else
         local tShotStartPosition = GetDirectFireWeaponPosition(oFiringUnit)
         if tShotStartPosition then
+            if tAltMoveFirstToFirePosition then
+
+                local iHeightDif = tShotStartPosition[2] - GetSurfaceHeight(tShotStartPosition[1], tShotStartPosition[3])
+                if iHeightDif > 0 then
+                    tShotStartPosition[2] = tAltMoveFirstToFirePosition[2] + iHeightDif
+                end
+                tShotStartPosition[1] = tAltMoveFirstToFirePosition[1]
+                tShotStartPosition[3] = tAltMoveFirstToFirePosition[3]
+            end
             if bDebugMessages == true then LOG(sFunctionRef..': tShotStartPosition='..repru(tShotStartPosition)) end
             if tShotStartPosition[2] <= 0 then bShotIsBlocked = true
             else

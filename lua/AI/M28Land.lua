@@ -32,6 +32,9 @@ refiCurrentAssignmentPlateauAndLZ = 'M28LandAssignedPlatLZ' --returns {iPlateau,
 refiTimeOfLastAssignment = 'M28LandLastAssignmenttime' --returns gametimeseconds that the unit was last assigned to the available units of a land zone
 reftiRadarPlateauAndLandZonesCoveredByTeam = 'M28LandRadarLZs' --Returns talbes of {iPlateau, iLandZone} that the radar is providing the best radar coverage of
 reftiRadarPlateauAndLandZonesCoveredByOmni = 'M28LandOmniLZs' --Returns talbes of {iPlateau, iLandZone} that the radar is providing some omni coverage of
+refoSREnemyTarget = 'M28LndSRTrg' --If we have a SR unit told to target an enemy, this tracks it so we dont switch to retreat logic when we move into a new zone in pursuit
+refiTimeOfSREnemyTarget = 'M28LndSRTTim' --Gametimeseconds
+
 --See M28navy for sonar equivalent
 refoAssignedMobileShield = 'M28LandAssignedMobileShield' --Gives the mobile shield assigned ot this unit
 refoMobileShieldTarget = 'M28LandMobileShieldTarget' --the unit that the mobile shield is trying to protect
@@ -1334,6 +1337,8 @@ function SendMAAToSupportLandZone(tMAAToAdvance, iPlateau, iTeam, iLZOrWZToSuppo
     local sFunctionRef = 'SendMAAToSupportLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     local tAltLZOrWZData
     local tAltTeamLZOrWZData
     local tTargetPosition
@@ -1366,6 +1371,7 @@ function SendMAAToSupportLandZone(tMAAToAdvance, iPlateau, iTeam, iLZOrWZToSuppo
         end
         local tbRemovedMAAReferencesByRef = {}
         for iUnitRef, iDistance in M28Utilities.SortTableByValue(tDistToTargetByRef, false) do
+            if bDebugMessages == true then LOG(sFunctionRef..': About to issue order to move for iUnitRef='..iUnitRef..'; tMAAToAdvance[iUnitRef]='..(tMAAToAdvance[iUnitRef].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tMAAToAdvance[iUnitRef]) or 'nil')..' to go to tTargetPosition='..repru(tTargetPosition)) end
             M28Orders.IssueTrackedMove(tMAAToAdvance[iUnitRef], tTargetPosition, 10, false, 'MVELZ'..iLZOrWZToSupport)
             iMAAThreatWanted = iMAAThreatWanted - M28UnitInfo.GetAirThreatLevel({ tMAAToAdvance[iUnitRef] }, false, false, true, false, false, false)
             tbRemovedMAAReferencesByRef[iUnitRef] = true
@@ -1373,7 +1379,7 @@ function SendMAAToSupportLandZone(tMAAToAdvance, iPlateau, iTeam, iLZOrWZToSuppo
         end
         if M28Utilities.IsTableEmpty(tbRemovedMAAReferencesByRef) == false then
             --Remove any MAA that have given orders from tMAAToAdvance:
-            if not(bWaterZone) then
+            if M28Utilities.IsTableEmpty(tHoverMAAToAdvance) then
                 local iRevisedIndex = 1
                 local iTableSize = table.getn(tMAAToAdvance)
 
@@ -1538,11 +1544,13 @@ function ShieldUnitsInLandZone(tTeamTargetLZData, tShieldsToAssign, bAssignAllSh
     local sFunctionRef = 'ShieldUnitsInLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
     --local tTargetLandZone = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iTargetLandZone][M28Map.subrefLZTeamData][iTeam]
     local bNoUnitsWantingShielding = true
     if M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.subrefLZTAlliedCombatUnits]) and M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.reftoLZUnitsWantingMobileShield]) and M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.subrefAlliedACU]) then
         M28Utilities.ErrorHandler('Are trying to send mobile shields to support a land zone that has no allied combat units in it and no units wanting shielding')
     else
+        if bDebugMessages == true then LOG(sFunctionRef..': Is table of units wanting mobile shield empty='..tostring(M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.reftoLZUnitsWantingMobileShield]))) end
         if M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.reftoLZUnitsWantingMobileShield]) == false then
             --Prioritise t2 arti if have enemy t2 arti in zone
             function AssignClosestMobileShieldToTarget(oTarget)
@@ -1558,19 +1566,19 @@ function ShieldUnitsInLandZone(tTeamTargetLZData, tShieldsToAssign, bAssignAllSh
                         local iClosestRef
 
                         for iShield, oShield in tShieldsToAssign do
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering entry iShield='..iShield..'; Shield unit='..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)) end
                             iCurDist = M28Utilities.GetDistanceBetweenPositions(oShield:GetPosition(), oTarget:GetPosition())
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering entry iShield='..iShield..'; Shield unit='..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; iCurDist='..iCurDist..'; iClosestDist='..iClosestDist..'; oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)) end
                             if iCurDist < iClosestDist then
                                 iClosestDist = iCurDist
                                 iClosestRef = iShield
                             end
-                            return false
                         end
                         tShieldsToAssign[iClosestRef][refoMobileShieldTarget] = oTarget
                         oTarget[refoAssignedMobileShield] = tShieldsToAssign[iClosestRef]
                         MoveToShieldTarget(tShieldsToAssign[iClosestRef], tTeamTargetLZData[M28Map.reftClosestEnemyBase])
                         table.remove(tShieldsToAssign, iClosestRef)
                         if bDebugMessages == true then LOG(sFunctionRef..': Have just removed shield with iClosestRef='..iClosestRef..' from the table of tShieldsToAssign; is table empty='..tostring(M28Utilities.IsTableEmpty(tShieldsToAssign))..'; size of table='..table.getn(tShieldsToAssign)) end
+                        return not(M28Utilities.IsTableEmpty(tShieldsToAssign))
                     end
                 end
             end
@@ -1799,21 +1807,31 @@ function ManageMobileShieldsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
         local iClosestLZWithNoThreat
         local iClosestLZNotWantingShieldButWithUnits
         local iClosestLZWithAnyCombatUnits
+        local tiAllOtherLZWantingShields = {}
         if tLZTeamData[M28Map.subrefbLZWantsSupport] and not(tLZTeamData[M28Map.refbLZWantsMobileShield]) and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedCombatUnits]) == false or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefAlliedACU]) == false) then iClosestLZNotWantingShieldButWithUnits = iLandZone end
         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
             for iEntry, tPathingDetails in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
                 local tTeamTargetLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][tPathingDetails[M28Map.subrefLZNumber]][M28Map.subrefLZTeamData][iTeam]
+                if bDebugMessages == true then LOG(sFunctionRef..': iLandZone='..iLandZone..'; Considering other land zone '..tPathingDetails[M28Map.subrefLZNumber]..'; Other land zone DF threat='..(tTeamTargetLZData[M28Map.subrefLZThreatAllyMobileDFTotal] or 'nil')..'; Does this zone want mobile shields='..tostring(tTeamTargetLZData[M28Map.refbLZWantsMobileShield] or false)) end
                 if tTeamTargetLZData[M28Map.refbLZWantsMobileShield] then
                     if tTeamTargetLZData[M28Map.refiEnemyAirToGroundThreat] > 0 or tTeamTargetLZData[M28Map.subrefTThreatEnemyCombatTotal] >= 40 then
                         ShieldUnitsInLandZone(tTeamTargetLZData, tShieldsToAssign)
                         if M28Utilities.IsTableEmpty(tShieldsToAssign) then break end
-                    elseif M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.subrefTEnemyUnits]) == false or tTeamTargetLZData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
-                        table.insert(tiClosestLZWithNearbyThreat, tPathingDetails[M28Map.subrefLZNumber])
-                    elseif not(iClosestLZWithNoThreat) then iClosestLZWithNoThreat = tPathingDetails[M28Map.subrefLZNumber]
+                    else
+                        if M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.subrefTEnemyUnits]) == false or tTeamTargetLZData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
+                            table.insert(tiClosestLZWithNearbyThreat, tPathingDetails[M28Map.subrefLZNumber])
+                        else
+                            table.insert(tiAllOtherLZWantingShields, tPathingDetails[M28Map.subrefLZNumber])
+                            if not(iClosestLZWithNoThreat) then iClosestLZWithNoThreat = tPathingDetails[M28Map.subrefLZNumber] end
+                        end
                     end
                 elseif not(iClosestLZNotWantingShieldButWithUnits) then
-                    if tTeamTargetLZData[M28Map.subrefbLZWantsSupport] and M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.subrefLZTAlliedCombatUnits]) == false then iClosestLZNotWantingShieldButWithUnits = tPathingDetails[M28Map.subrefLZNumber] end
-                    if not(iClosestLZWithAnyCombatUnits) and (M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.subrefLZTAlliedCombatUnits]) == false or M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.subrefAlliedACU]) == false) then iClosestLZWithAnyCombatUnits = tPathingDetails[M28Map.subrefLZNumber] end
+                    if tTeamTargetLZData[M28Map.subrefbLZWantsSupport] and M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.subrefLZTAlliedCombatUnits]) == false then
+                        iClosestLZNotWantingShieldButWithUnits = tPathingDetails[M28Map.subrefLZNumber]
+                    end
+                    if not(iClosestLZWithAnyCombatUnits) and (M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.subrefLZTAlliedCombatUnits]) == false or M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.subrefAlliedACU]) == false) then
+                        iClosestLZWithAnyCombatUnits = tPathingDetails[M28Map.subrefLZNumber]
+                    end
                 end
 
             end
@@ -1835,25 +1853,38 @@ function ManageMobileShieldsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iL
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Is tShieldsToAssign empty after checking for closest LZ with no threat='..tostring(M28Utilities.IsTableEmpty(tShieldsToAssign))..'; iClosestLZNotWantingShieldButWithUnits='..(iClosestLZNotWantingShieldButWithUnits or 'nil')) end
                 if M28Utilities.IsTableEmpty(tShieldsToAssign) == false then
-                    M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoShieldTargetsByPlateau][iPlateau] = GetGameTimeSeconds()
-                    --Dont have any land zones that want a mobile shield, but we have mobile shields - find the closest LZ  that wants DF or IF support and has DF or IF units, and send them here; if that's this LZ, then have them go to the unit closest to the enemy in this LZ, but without assigning them
-                    if iClosestLZNotWantingShieldButWithUnits or iClosestLZWithAnyCombatUnits then
-                        local tTeamTargetLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][(iClosestLZNotWantingShieldButWithUnits or iClosestLZWithAnyCombatUnits)][M28Map.subrefLZTeamData][iTeam]
-                        if bDebugMessages == true then LOG(sFunctionRef..': Have mobile shields to assign, closest LZ with friendly combat units that wants more units='..(iClosestLZNotWantingShieldButWithUnits or 'nil')..'; iClosestLZWithAnyCombatUnits='..(iClosestLZWithAnyCombatUnits or 'nil')..'; DOes this LZ want mobile shields='..tostring(tTeamTargetLZData[M28Map.refbLZWantsMobileShield] or false)..'; is table of units wanting shielding empty='..tostring(M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.reftoLZUnitsWantingMobileShield]))) end
-                        ShieldUnitsInLandZone(tTeamTargetLZData, tShieldsToAssign, true)
-                    end
-                    if M28Utilities.IsTableEmpty(tShieldsToAssign) == false then
-                        --cant find any land zones with friendly combat units so have nowhere to assign mobile shields; will send them all to the nearest rally point instead
-                        local tRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2)
-                        local tAmphibiousRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2, true)
-                        for iUnit, oUnit in tShieldsToAssign do
-                            if EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnit.UnitId) then
-                                M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'ASBckup'..iLandZone)
-                            else
-                                M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'SBckup'..iLandZone)
+                    if M28Utilities.IsTableEmpty(tiAllOtherLZWantingShields) == false then
+                        for iEntry, iZone in tiAllOtherLZWantingShields do
+                            if not(iZone ==iClosestLZWithNoThreat) then
+                                local tTeamTargetLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iClosestLZWithNoThreat][M28Map.subrefLZTeamData][iTeam]
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have mobile shields to assign, considering zone that wants shielding, iZone='..iZone..'; DOes this LZ want mobile shields='..tostring(tTeamTargetLZData[M28Map.refbLZWantsMobileShield] or false)..'; is table of units wanting shielding empty='..tostring(M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.reftoLZUnitsWantingMobileShield]))) end
+                                ShieldUnitsInLandZone(tTeamTargetLZData, tShieldsToAssign)
+                                if M28Utilities.IsTableEmpty(tShieldsToAssign) then break end
                             end
                         end
+                    end
+                    if M28Utilities.IsTableEmpty(tShieldsToAssign) == false then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Still have shields to assign after considering all zones with adjacent enemy threats, so will flag that we failed to have shield targets for plateau '..iPlateau..'; For reference, the current land zone considering this is '..iLandZone..'; Time='..GetGameTimeSeconds()) end
+                        M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoShieldTargetsByPlateau][iPlateau] = GetGameTimeSeconds()
+                        --Dont have any land zones that want a mobile shield, but we have mobile shields - find the closest LZ  that wants DF or IF support and has DF or IF units, and send them here; if that's this LZ, then have them go to the unit closest to the enemy in this LZ, but without assigning them
+                        if iClosestLZNotWantingShieldButWithUnits or iClosestLZWithAnyCombatUnits then
+                            local tTeamTargetLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][(iClosestLZNotWantingShieldButWithUnits or iClosestLZWithAnyCombatUnits)][M28Map.subrefLZTeamData][iTeam]
+                            if bDebugMessages == true then LOG(sFunctionRef..': Have mobile shields to assign, closest LZ with friendly combat units that wants more units='..(iClosestLZNotWantingShieldButWithUnits or 'nil')..'; iClosestLZWithAnyCombatUnits='..(iClosestLZWithAnyCombatUnits or 'nil')..'; DOes this LZ want mobile shields='..tostring(tTeamTargetLZData[M28Map.refbLZWantsMobileShield] or false)..'; is table of units wanting shielding empty='..tostring(M28Utilities.IsTableEmpty(tTeamTargetLZData[M28Map.reftoLZUnitsWantingMobileShield]))) end
+                            ShieldUnitsInLandZone(tTeamTargetLZData, tShieldsToAssign, true)
+                        end
+                        if M28Utilities.IsTableEmpty(tShieldsToAssign) == false then
+                            --cant find any land zones with friendly combat units so have nowhere to assign mobile shields; will send them all to the nearest rally point instead
+                            local tRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2)
+                            local tAmphibiousRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2, true)
+                            for iUnit, oUnit in tShieldsToAssign do
+                                if EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnit.UnitId) then
+                                    M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'ASBckup'..iLandZone)
+                                else
+                                    M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'ShBckup'..iLandZone)
+                                end
+                            end
 
+                        end
                     end
 
                 end
@@ -1956,7 +1987,7 @@ function ManageMobileStealthsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, i
                         if bDebugMessages == true then LOG(sFunctionRef..': couldnt find any land zones with friendly combat units so have nowhere to assign mobile Stealths; will send them all to the nearest rally point instead') end
                         local tRallyPoint = GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, 2)
                         for iUnit, oUnit in tStealthsToAssign do
-                            M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'SBckup'..iLandZone)
+                            M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'StBckup'..iLandZone)
                         end
 
                     end
@@ -2176,9 +2207,36 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
                                     end
                                 end
                             end
+                            --Consider sending MAA to all zones (i.e. land and water, and other islands)
+                            M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefMidpoint])
+                            if M28Utilities.IsTableEmpty(tHoverMAA) == false and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
+                                local iZoneMAAWanted
+                                for iEntry, tSubtable in tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+                                    local tAltLZOrWZData, tAltLZOrWZTeamData
+                                    if tSubtable[M28Map.subrefbIsWaterZone] then
+                                        tAltLZOrWZData = M28Map.tPondDetails[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPondWaterZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
+                                        tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                                        iZoneMAAWanted = tAltLZOrWZTeamData[M28Map.subrefWZMAAThreatWanted]
+                                    else
+                                        if tSubtable[M28Map.subrefiPlateauOrPond] == iPlateau then
+                                            tAltLZOrWZData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
+                                            tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                                            iZoneMAAWanted = tAltLZOrWZTeamData[M28Map.subrefLZMAAThreatWanted]
+                                        else
+                                            iZoneMAAWanted = 0
+                                        end
+                                    end
+                                    if iZoneMAAWanted >= 5 then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': About to send MAA to support LZ or WZ ref='..tSubtable[M28Map.subrefiLandOrWaterZoneRef]..'; Is water zone='..tostring(tSubtable[M28Map.subrefbIsWaterZone])..'; iZoneMAAWanted='..iZoneMAAWanted..'; iPlateau='..iPlateau..'; Is table of tHoverMAA empty='..tostring(M28Utilities.IsTableEmpty(tHoverMAA))) end
+                                        SendMAAToSupportLandZone(tMAAToAdvance, iPlateau, iTeam, tSubtable[M28Map.subrefiLandOrWaterZoneRef], 1.5, tSubtable[M28Map.subrefbIsWaterZone], tHoverMAA)
+                                        if M28Utilities.IsTableEmpty(tHoverMAA) then break end
+                                    end
+                                end
+                            end
                         end
                     end
                 end
+
 
                 --If sitll have MAA available, then send to existing land zones with a greater factor
                 if M28Utilities.IsTableEmpty(tMAAToAdvance) == false then
@@ -2227,17 +2285,21 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
 
             if M28Utilities.IsTableEmpty(tMAAToAdvance) == false then
                 if bDebugMessages == true then LOG(sFunctionRef..': Still have spare MAA, tLZData[M28Map.subrefLZIslandRef]='..(tLZData[M28Map.subrefLZIslandRef] or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iPlateau='..(iPlateau or 'nil')) end
-                --Only flag that we have no MAA targets for a core base if we have T2+ MAA with no target
-                local bT2PlusMAAInCoreBase = false
+                --Only flag that we have no MAA targets for a core base if we have 10+ MAA, including T2+ MAA, with no target
+                local bEnoughMAAInZone = false
                 if tLZTeamData[M28Map.subrefLZbCoreBase] then
-                    for iUnit, oUnit in tMAAToAdvance do
-                        if EntityCategoryContains(categories.TECH2 + categories.TECH3, oUnit.UnitId) then
-                            bT2PlusMAAInCoreBase = true
-                            break
-                        end
+                    local tT2PlusMAAToAdvance = EntityCategoryFilterDown(categories.TECH2 + categories.TECH3, tMAAToAdvance)
+                    if table.getn(tT2PlusMAAToAdvance) >= 8 then
+                        bEnoughMAAInZone = true
                     end
+                elseif tLZTeamData[M28Map.subrefLZCoreExpansion] then
+                    if table.getn(tMAAToAdvance) >= 2 then
+                        bEnoughMAAInZone = true
+                    end
+                else
+                    bEnoughMAAInZone = true
                 end
-                if not(bT2PlusMAAInCoreBase) then
+                if bEnoughMAAInZone then
                     M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoMAATargetsByIsland][tLZData[M28Map.subrefLZIslandRef]] = GetGameTimeSeconds()
                 end
                 --Go to rally point instead
@@ -3160,10 +3222,14 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 if bConsiderAttackingACU and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategorySkirmisher - M28UnitInfo.refCategoryFatboy, oUnit.UnitId) and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), toEnemyACUsInZone, 6 + oUnit[M28UnitInfo.refiDFRange], iTeam, false, nil, nil, nil, nil, nil) then
                                     GetUnitToAttackNearestACU(oUnit)
                                     --Attackmove (unless we have far more threat in this zone)
-                                elseif tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > 5000 and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 10 and not((oUnit[M28UnitInfo.refiDFRange] or 0) >= 64 or EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryFatboy, oUnit.UnitID)) then
-                                    M28Orders.IssueTrackedMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], (oUnit[M28UnitInfo.refiDFRange] or oUnit[M28UnitInfo.refiIndirectRange]) * 0.5, false, 'SRDFM'..iLandZone, false)
                                 else
-                                    M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], (oUnit[M28UnitInfo.refiDFRange] or oUnit[M28UnitInfo.refiIndirectRange]) * 0.5, false, 'SRDFA'..iLandZone)
+                                    oUnit[refoSREnemyTarget] = oNearestEnemyToMidpoint
+                                    oUnit[refiTimeOfSREnemyTarget] = GetGameTimeSeconds()
+                                    if tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > 5000 and tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal] > tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] * 10 and not((oUnit[M28UnitInfo.refiDFRange] or 0) >= 64 or EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryFatboy, oUnit.UnitID)) then
+                                        M28Orders.IssueTrackedMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], (oUnit[M28UnitInfo.refiDFRange] or oUnit[M28UnitInfo.refiIndirectRange]) * 0.5, false, 'SRDFM'..iLandZone, false)
+                                    else
+                                        M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], (oUnit[M28UnitInfo.refiDFRange] or oUnit[M28UnitInfo.refiIndirectRange]) * 0.5, false, 'SRDFA'..iLandZone)
+                                    end
                                 end
                             end
                         end
@@ -3782,7 +3848,14 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
     if bRunFromFirebase or (tLZTeamData[M28Map.subrefiNearbyEnemyLongRangeThreat] > math.max(100, tLZTeamData[M28Map.subrefLZTThreatAllyCombatTotal])) then
         for iUnit, oUnit in tAvailableCombatUnits do --Only retreat units from this LZ
             if oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone then
-                if EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnit.UnitId) then
+                --If we have recently been given a short range target, or are almost in range of the target, then we may have moved into this zone temporarily, in which case continue with attacking the target
+                if M28UnitInfo.IsUnitValid(oUnit[refoSREnemyTarget]) and not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher, oUnit.UnitId)) and (GetGameTimeSeconds() - oUnit[refiTimeOfSREnemyTarget] <= 20 or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oUnit[refoSREnemyTarget]:GetPosition()) <= oUnit[M28UnitInfo.refiDFRange] + 10) then
+                    if EntityCategoryContains(M28UnitInfo.refCategoryExperimental, oUnit.UnitId) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oUnit[refoSREnemyTarget]:GetPosition()) <= (oUnit[M28UnitInfo.refiDFRange] or 0) - 10 then
+                        M28Orders.IssueTrackedAggressiveMove(oUnit, oUnit[refoSREnemyTarget]:GetPosition(), 6, false, 'SRHistAT'..iLandZone)
+                    else
+                        M28Orders.IssueTrackedMove(oUnit, oUnit[refoSREnemyTarget]:GetPosition(), 6, false, 'SRHistMT'..iLandZone)
+                    end
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnit.UnitId) then
                     M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'AFBRetr'..iLandZone)
                 else
                     M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'FBRetr'..iLandZone)
@@ -4997,6 +5070,7 @@ function UpdateRecordedAllPlayerOmni(oRadar, bDestroyed)
                 end
 
                 UpdateOmniCoverageForZone(iPlateau, iLandZone, false)
+                M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefMidpoint])
                 if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
                     for iEntry, tSubtable in tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
                         if tSubtable[M28Map.subrefiDistance] > iMaxZoneDistance then break end

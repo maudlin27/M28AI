@@ -732,12 +732,29 @@ function WantMorePower(iTeam)
             else
                 local iNetPowerWanted
                 local iHighestTeamTech = M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]
+                local iUpgradingMexAdditionalFactor = 0
+                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) == false then
+                    local iUpgradingMexes = 0
+                    if iHighestTeamTech <= 2 then
+                        iUpgradingMexes = table.getn(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes])
+                    else
+                        local tUpgradingT2PlusMexes = EntityCategoryFilterDown(categories.TECH2 + categories.TECH3, M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes])
+                        if M28Utilities.IsTableEmpty(tUpgradingT2PlusMexes) == false then
+                            iUpgradingMexes = table.getn(tUpgradingT2PlusMexes)
+                        end
+                    end
+                    if iUpgradingMexes >= 3 then
+                        iUpgradingMexAdditionalFactor = iUpgradingMexes * 0.02
+                    end
+                end
                 if iHighestTeamTech >= 3 then
-                    iNetPowerWanted = math.max(50, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.2)
+
+                    iNetPowerWanted = math.max(50, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.2 + iUpgradingMexAdditionalFactor)
+
                 elseif iHighestTeamTech == 2 then
-                    iNetPowerWanted = math.max(15, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.15)
+                    iNetPowerWanted = math.max(15, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.15 + iUpgradingMexAdditionalFactor)
                 elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 20 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
-                    iNetPowerWanted = math.max(3, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.1)
+                    iNetPowerWanted = math.max(3, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.1 + iUpgradingMexAdditionalFactor)
                 else
                     iNetPowerWanted = 2
                 end
@@ -1894,24 +1911,31 @@ function GetT3ArtiEquivalent(iTeam, iNovaxFactor, iNonArtiGameEnderFactor, bAppl
 end
 
 function GetMexesNotNearPlayerStartingZone()
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetMexesNotNearPlayerStartingZone'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iMexesNotInStartZone = 0
+    if bDebugMessages == true then LOG(sFunctionRef..': is table of mass poitns empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tMassPoints))) end
     if M28Utilities.IsTableEmpty(M28Map.tMassPoints) == false then
+        if bDebugMessages == true then LOG(sFunctionRef..': Total mass points='..table.getn(M28Map.tMassPoints)..'; M28Map.PlayerStartPoints='..repru(M28Map.PlayerStartPoints)) end
         local tbStartPointPlateauAndZones = {}
         local iCurPlateauOrZero, iCurLandOrWaterZone
         for iIndex, tStartPoint in M28Map.PlayerStartPoints do
             iCurPlateauOrZero, iCurLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tStartPoint)
             if not(tbStartPointPlateauAndZones[iCurPlateauOrZero]) then tbStartPointPlateauAndZones[iCurPlateauOrZero] = {} end
             tbStartPointPlateauAndZones[iCurPlateauOrZero][iCurPlateauOrZero] = true
+            if bDebugMessages == true then LOG(sFunctionRef..': recording start point for index '..iIndex..'; tStartPoint='..repru(tStartPoint)) end
         end
 
-        local bMexInStartPoint = false
         for iMex, tMex in M28Map.tMassPoints do
             iCurPlateauOrZero, iCurLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tMex)
-            if not(tbStartPointPlateauAndZones[iCurPlateauOrZero][iCurPlateauOrZero]) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering tMex='..repru(tMex)..'; tbStartPointPlateauAndZones[iCurPlateauOrZero][iCurPlateauOrZero]='..tostring(tbStartPointPlateauAndZones[iCurPlateauOrZero][iCurPlateauOrZero] or false)) end
+            if not(tbStartPointPlateauAndZones[iCurPlateauOrZero][iCurLandOrWaterZone]) then
                 iMexesNotInStartZone = iMexesNotInStartZone + 1
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return iMexesNotInStartZone
 end

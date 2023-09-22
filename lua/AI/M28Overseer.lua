@@ -464,7 +464,9 @@ function NoRushMonitor()
 end
 
 function TestCustom(aiBrain)
-    M28Map.DrawLandZonePath(88, 21, 34)
+    LOG('Is novax restricted='..tostring(import("/lua/game.lua").IsRestricted('xeb2402', aiBrain:GetArmyIndex())))
+
+    --M28Map.DrawLandZonePath(88, 21, 34)
 
     --[[M28Map.DrawSpecificLandZone(88, 40, 3)
     M28Map.DrawSpecificLandZone(88, 13, 4)
