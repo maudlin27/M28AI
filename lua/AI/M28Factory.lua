@@ -3829,6 +3829,8 @@ function GetBlueprintToBuildForMobileLandFactory(aiBrain, oFactory)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     local iPlateau, iLandZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oFactory:GetPosition())
 
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, oFactory='..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; brain='..aiBrain.Nickname..'; Position='..repru(oFactory:GetPosition())..'; Time='..GetGameTimeSeconds()..'; iPlateau or zero='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
@@ -3907,8 +3909,9 @@ function GetBlueprintToBuildForMobileLandFactory(aiBrain, oFactory)
                 end
                 if not(bHaveZoneWantingMobileShields) then bHaveZoneWantingMobileShields = tAdjLZTeamData[M28Map.refbLZWantsMobileShield] end
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': bHaveZoneWantingMobileShields='..tostring(bHaveZoneWantingMobileShields)..'; Have low power='..tostring(M28Conditions.HaveLowPower(iTeam))) end
-            if bHaveZoneWantingMobileShields and not(M28Conditions.HaveLowPower(iTeam)) then
+            if bDebugMessages == true then LOG(sFunctionRef..': bHaveZoneWantingMobileShields='..tostring(bHaveZoneWantingMobileShields)..'; Have low power='..tostring(M28Conditions.HaveLowPower(iTeam)).. 'Cur time='..GetGameTimeSeconds()..'; Time last had no shield targets for this plateau='..(M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoShieldTargetsByPlateau][iPlateau] or 'nil')) end
+            if bHaveZoneWantingMobileShields and not(M28Conditions.HaveLowPower(iTeam)) and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoShieldTargetsByPlateau][iPlateau] or -100) >= 30 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will build mobile land shield') end
                 if ConsiderBuildingCategory(M28UnitInfo.refCategoryMobileLandShield) then return sBPIDToBuild end
             end
         end

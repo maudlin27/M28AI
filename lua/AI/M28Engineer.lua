@@ -249,9 +249,9 @@ tiActionOrder = {
 
 --Adjacent categories to search for for a particular action
 tiActionAdjacentCategory = {
-    [refActionBuildPower] = M28UnitInfo.refCategoryAirFactory * categories.TECH3 + M28UnitInfo.refCategoryAirFactory * categories.TECH2 + M28UnitInfo.refCategoryT3Radar + M28UnitInfo.refCategorySMD + M28UnitInfo.refCategorySML + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti * categories.UEF,
-    [refActionBuildSecondPower] = M28UnitInfo.refCategoryAirFactory * categories.TECH3 + M28UnitInfo.refCategoryT3Radar + M28UnitInfo.refCategorySMD + M28UnitInfo.refCategorySML + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti * categories.UEF,
-    [refActionBuildThirdPower] = M28UnitInfo.refCategorySML + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti * categories.UEF,
+    [refActionBuildPower] = M28UnitInfo.refCategoryAirFactory * categories.TECH3 + M28UnitInfo.refCategoryAirFactory * categories.TECH2 + M28UnitInfo.refCategoryT3Radar + M28UnitInfo.refCategorySMD + M28UnitInfo.refCategorySML + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti * categories.UEF + M28UnitInfo.refCategoryMassFab * categories.TECH3,
+    [refActionBuildSecondPower] = M28UnitInfo.refCategoryAirFactory * categories.TECH3 + M28UnitInfo.refCategoryT3Radar + M28UnitInfo.refCategorySMD + M28UnitInfo.refCategorySML + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti * categories.UEF + M28UnitInfo.refCategoryMassFab * categories.TECH3,
+    [refActionBuildThirdPower] = M28UnitInfo.refCategorySML + M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti * categories.UEF + M28UnitInfo.refCategoryMassFab * categories.TECH3,
     [refActionBuildLandFactory] = M28UnitInfo.refCategoryMex,
     [refActionBuildAirFactory] = M28UnitInfo.refCategoryT3Power + M28UnitInfo.refCategoryHydro,
     [refActionBuildSecondAirFactory] = M28UnitInfo.refCategoryT3Power + M28UnitInfo.refCategoryHydro,

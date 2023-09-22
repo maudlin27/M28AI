@@ -1025,7 +1025,7 @@ function ManageMobileStealthsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWa
                         M28Utilities.ErrorHandler('couldnt find any water zones with friendly combat units so have nowhere to assign mobile Stealths; will send them all to the nearest rally point instead')
                         local tRallyPoint = GetNearestWaterRallyPoint(tWZData, iTeam, iPond, iWaterZone)
                         for iUnit, oUnit in tStealthsToAssign do
-                            M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'SBckup'..iWaterZone)
+                            M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'SNtBckup'..iWaterZone)
                         end
 
                     end
