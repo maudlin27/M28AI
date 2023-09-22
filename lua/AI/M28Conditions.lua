@@ -1911,7 +1911,7 @@ function GetT3ArtiEquivalent(iTeam, iNovaxFactor, iNonArtiGameEnderFactor, bAppl
 end
 
 function GetMexesNotNearPlayerStartingZone()
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetMexesNotNearPlayerStartingZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
