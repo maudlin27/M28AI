@@ -2180,6 +2180,7 @@ function ManageMAAInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, t
                                 end
                             end
                             --Consider sending MAA to all zones (i.e. land and water, and other islands)
+                            M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefMidpoint])
                             if M28Utilities.IsTableEmpty(tHoverMAA) == false and M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
                                 local iZoneMAAWanted
                                 for iEntry, tSubtable in tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
@@ -5032,6 +5033,7 @@ function UpdateRecordedAllPlayerOmni(oRadar, bDestroyed)
                 end
 
                 UpdateOmniCoverageForZone(iPlateau, iLandZone, false)
+                M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefMidpoint])
                 if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
                     for iEntry, tSubtable in tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
                         if tSubtable[M28Map.subrefiDistance] > iMaxZoneDistance then break end
