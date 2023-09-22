@@ -732,12 +732,29 @@ function WantMorePower(iTeam)
             else
                 local iNetPowerWanted
                 local iHighestTeamTech = M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]
+                local iUpgradingMexAdditionalFactor = 0
+                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes]) == false then
+                    local iUpgradingMexes = 0
+                    if iHighestTeamTech <= 2 then
+                        iUpgradingMexes = table.getn(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes])
+                    else
+                        local tUpgradingT2PlusMexes = EntityCategoryFilterDown(categories.TECH2 + categories.TECH3, M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingMexes])
+                        if M28Utilities.IsTableEmpty(tUpgradingT2PlusMexes) == false then
+                            iUpgradingMexes = table.getn(tUpgradingT2PlusMexes)
+                        end
+                    end
+                    if iUpgradingMexes >= 3 then
+                        iUpgradingMexAdditionalFactor = iUpgradingMexes * 0.02
+                    end
+                end
                 if iHighestTeamTech >= 3 then
-                    iNetPowerWanted = math.max(50, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.2)
+
+                    iNetPowerWanted = math.max(50, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.2 + iUpgradingMexAdditionalFactor)
+
                 elseif iHighestTeamTech == 2 then
-                    iNetPowerWanted = math.max(15, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.15)
+                    iNetPowerWanted = math.max(15, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.15 + iUpgradingMexAdditionalFactor)
                 elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 20 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
-                    iNetPowerWanted = math.max(3, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.1)
+                    iNetPowerWanted = math.max(3, M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] * 0.1 + iUpgradingMexAdditionalFactor)
                 else
                     iNetPowerWanted = 2
                 end

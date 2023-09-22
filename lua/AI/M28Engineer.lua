@@ -8721,6 +8721,22 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         end
     end
 
+    --late game power (in case running out of space in core zone)
+    iCurPriority = iCurPriority + 1
+    if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.85 then bDebugMessages = true end
+    if bDebugMessages == true then LOG(sFunctionRef..': Checking if we want power in minor zone, bHaveLowPower='..tostring(bHaveLowPower)..'; tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]='..tostring(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])..'; Mass % stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]..'; bHaveLowMass='..tostring(bHaveLowMass)..'; MexT3 count='..tLZTeamData[M28Map.subrefMexCountByTech][3]..'; tLZTeamData[M28Map.subrefLZSValue]='..tLZTeamData[M28Map.subrefLZSValue]..'; iExistingFactory='..iExistingFactory) end
+    if (bHaveLowPower or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.8 and M28Conditions.WantMorePower(iTeam))) and not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]) and not(bHaveLowMass) and (tLZTeamData[M28Map.subrefMexCountByTech][3] >= 3 or tLZTeamData[M28Map.subrefLZSValue] >= 10000 or (bAdjacentToCoreZone and tLZTeamData[M28Map.subrefMexCountByTech][3] >= 1)) then
+        --Either adjacent to core zone, or have a land fac in this zone, or relatively close to our base
+        if bDebugMessages == true then LOG(sFunctionRef..': tLZTeamData[M28Map.refiModDistancePercent]='..tLZTeamData[M28Map.refiModDistancePercent]..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]) end
+        if bAdjacentToCoreZone or iExistingFactory > 0 or tLZTeamData[M28Map.refiModDistancePercent] <= 0.15 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.95 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 3000) then
+            if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 350 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.35 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.7 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= 30 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 80 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 900 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])) then
+                iBPWanted = 90
+                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.85 then iBPWanted = 180 end
+                HaveActionToAssign(refActionBuildPower, 3, iBPWanted)
+            end
+        end
+    end
+
     --Shield assistance
     iCurPriority = iCurPriority + 1
     iBPWanted = GetBPForShieldAssistance(tLZTeamData, iTeam)
