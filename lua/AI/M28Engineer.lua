@@ -6811,12 +6811,20 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         if (iCurPDThreat <= 1700 or (iCurPDThreat <= 2800 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 6 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount])) and (iCurPDThreat == 0 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] > 1) then
             --Get nearby enemy threat, but only for adjacent LZs
             local iEnemyThreat = tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]
+
             if bDebugMessages == true then LOG(sFunctionRef..': enemy combat threat in this zone='..iEnemyThreat..'; Is table of adjacent zones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]))) end
             if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                 for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                     local tAltLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjLZ='..iAdjLZ..'; Enemy threat in AdjLZ='..(tAltLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)..'; Mobile DF='..(tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0)..'; Mobile indirect='..(tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 0)) end
-                    iEnemyThreat = iEnemyThreat + math.max(math.min(500, (tAltLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)), (tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) + (tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 0))
+                    --onlu use df+IF i best enemy structure range is > 0 and < 35
+                    if (tAltLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) > 0 then
+                        if (tAltLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 50) < 35 then
+                            iEnemyThreat = iEnemyThreat + (tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) + (tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 0)
+                        else
+                            iEnemyThreat = iEnemyThreat + math.max(math.min(500, (tAltLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)), (tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] or 0) + (tAltLZTeamData[M28Map.subrefLZThreatEnemyMobileIndirectTotal] or 0))
+                        end
+                    end
                 end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': iEnemyThreat='..iEnemyThreat) end
@@ -6993,7 +7001,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want to build a factory, bWantMoreFactories='..tostring(bWantMoreFactories)..'; bHaveLowMass='..tostring(bHaveLowMass)..'; Mass % stored='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]..'; Highest tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
     if bWantMoreFactories and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 11 and (not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.4 or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 and GetGameTimeSeconds() <= 600 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.05) or (M28Map.iMapSize <= 256 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] >= 150 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0)))) then
-        bDebugMessages = true
         if (M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] or 0) > 0 then
             if bHaveLowMass then iBPWanted =  tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 2
             else iBPWanted = tiBPByTech[M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]] * 4
@@ -7025,7 +7032,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         if bHaveLowPower and bWantAirNotLand then iBPWanted = iBPWanted * 0.5 end
         if bDebugMessages == true then LOG(sFunctionRef..': Wnat to build a factory, iBPWanted='..iBPWanted..'; iFactoryAction='..iFactoryAction..'; bWantAirNotLand='..tostring(bWantAirNotLand)) end
         HaveActionToAssign(iFactoryAction, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech], iBPWanted, nil)
-        bDebugMessages = false
     end
 
 
