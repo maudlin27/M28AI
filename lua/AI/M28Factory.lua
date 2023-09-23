@@ -36,6 +36,9 @@ refiTotalBuildCount = 'M28FacTotBC' --against oFactory, Total number of units th
 reftFactoryRallyPoint = 'M28FacRally' --against oFactory, Location to send units to when theyre built
 refiFirstTimeOfLastOrder = 'M28FOrTim' --against oFactory, time that we gave an order for the factory to build a unit (cleared when a unit is built or a different blueprint order is given) - used to spot for factories with units blocking them
 
+--Variables against units (generally):
+refiTimeOfLastFacBlockOrder = 'M28FacBlkO' --Gametimeseconds that a unit was told to move (to try and unblock a factory)
+
 --Variables against brain
 refiHighestFactoryBuildCount = 'M28FacBrTotBC' --against aiBrain, Highest build count of a factory
 
@@ -2213,10 +2216,14 @@ function MovePotentialBlockingUnitsFromFactory(oFactory)
         if M28Utilities.IsTableEmpty(tMobileLandInRect) == false then
             for iUnit, oUnit in tMobileLandInRect do
                 if oUnit:GetFractionComplete() == 1 and oUnit:GetAIBrain().M28AI and oUnit:GetAIBrain().M28Team == aiBrain.M28Team and not(oUnit:IsUnitState('Upgrading')) then
-                    --Move the unit
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will try and move potential blocking unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
-                    M28Orders.IssueTrackedMove(oUnit, oFactory[reftFactoryRallyPoint], 0, false, 'FacBlock', true)
-                    M28Micro.TrackTemporaryUnitMicro(oUnit, 2)
+                    --Move the unit unless we've recently given such an order
+                    if GetGameTimeSeconds() - (oUnit[refiTimeOfLastFacBlockOrder] or -100) > 10 then
+
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will try and move potential blocking unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                        M28Orders.IssueTrackedMove(oUnit, oFactory[reftFactoryRallyPoint], 0, false, 'FacBlock', true)
+                        M28Micro.TrackTemporaryUnitMicro(oUnit, 2)
+                        oUnit[refiTimeOfLastFacBlockOrder] = GetGameTimeSeconds()
+                    end
                 end
             end
         end

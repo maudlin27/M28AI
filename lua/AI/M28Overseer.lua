@@ -975,6 +975,7 @@ function GetCivilianCaptureTargets(aiBrain)
             table.insert(tUnitsOfInterest, oPower)
         end
     end
+
     --local sPathing = M28Map.refPathingTypeAmphibious
 
 

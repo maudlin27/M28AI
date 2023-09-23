@@ -2849,7 +2849,7 @@ end
 
 function CheckForNearbyEnemies()  end --This is incorporated into available engineers by tech - added to make it easier to locate logic
 function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZTeamData, iTeam, iPlateauOrPond, iLandZone, bIsWaterZone)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'FilterToAvailableEngineersByTech'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
