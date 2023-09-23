@@ -6765,7 +6765,17 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 if bDebugMessages == true then LOG(sFunctionRef..': iNearbyMobileThreat='..iNearbyMobileThreat..'; iCurPDThreat='..iCurPDThreat..'; iApproachingACUThreat='..iApproachingACUThreat..'; Dist between ACU and this LZ midpoint='..M28Utilities.GetDistanceBetweenPositions(tNearestEnemyACU, tLZData[M28Map.subrefMidpoint])) end
                 if iNearbyMobileThreat < 200 or iCurPDThreat < iApproachingACUThreat or iCurPDThreat + iNearbyMobileThreat < iApproachingACUThreat * 1.75 then
                     local iACUThreatFactorWanted = 1.75
-                    if iCurPDThreat >= 2400 and M28Utilities.GetDistanceBetweenPositions(tNearestEnemyACU, tLZData[M28Map.subrefMidpoint]) >= 80 then iACUThreatFactorWanted = 1.4 end
+                    --below check - ACU doesnt have gun yet and presumably not much veterancy, and we have near-full health T1 and T2 PD
+                    if iApproachingACUThreat <= 1150 and iCurPDThreat >= 900 then
+                        if (bHaveLowMass or M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.3) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 6 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
+                            iACUThreatFactorWanted = 0.85 --i.e. if we have some nearby mobile threat (even if not much) will be enough
+                        else
+                            iACUThreatFactorWanted = 1.2
+                        end
+                    elseif iCurPDThreat >= 2400 and M28Utilities.GetDistanceBetweenPositions(tNearestEnemyACU, tLZData[M28Map.subrefMidpoint]) >= 80 then
+                        iACUThreatFactorWanted = 1.4
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iACUThreatFactorWanted='..iACUThreatFactorWanted..'; bHaveLowMass='..tostring(bHaveLowMass)..'; Lowest mass percent='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) end
                     if iCurPDThreat + iNearbyMobileThreat < iApproachingACUThreat * iACUThreatFactorWanted then
                         iBPWanted = 40
                         if not(bHaveLowMass) and not(bHaveLowPower) then iBPWanted = 80 end
@@ -6830,7 +6840,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     --Is this early-game, with a relatively low enemy threat, and do we have nearby combat units that can deal with the enemy?
                     local bWantToGetPD = true
 
-                    if iEnemyThreat <= 400 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 and GetGameTimeSeconds() <= 600 then
+                    if iEnemyThreat <= 600 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] <= 2 and GetGameTimeSeconds() <= 720 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] < 6 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
                         local iNearbyFriendlyMobileThreat = tLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal]
                         if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                             for iEntry, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
@@ -6838,9 +6848,10 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                                 iNearbyFriendlyMobileThreat = iNearbyFriendlyMobileThreat + (tAltLZTeamData[M28Map.subrefLZThreatAllyMobileDFTotal] or 0)
                             end
                         end
-                        if iNearbyFriendlyMobileThreat > iEnemyThreat * 1.2 then
+                        if iNearbyFriendlyMobileThreat > iEnemyThreat * 1.2 or (bHaveLowMass and iCurPDThreat + iNearbyFriendlyMobileThreat > iEnemyThreat * 2.5) then
                             bWantToGetPD = false
                         end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iNearbyFriendlyMobileThreat='..iNearbyFriendlyMobileThreat) end
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': bWantToGetPD='..tostring(bWantToGetPD)..'; iEnemyThreat='..iEnemyThreat..'; Highest tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
                     if bWantToGetPD then
