@@ -19,6 +19,7 @@ local M28Config = import('/mods/M28AI/lua/M28Config.lua')
 local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
 local M28Air = import('/mods/M28AI/lua/AI/M28Air.lua')
+local M28ACU = import('/mods/M28AI/lua/AI/M28ACU.lua')
 
 
 
@@ -2848,7 +2849,7 @@ end
 
 function CheckForNearbyEnemies()  end --This is incorporated into available engineers by tech - added to make it easier to locate logic
 function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZTeamData, iTeam, iPlateauOrPond, iLandZone, bIsWaterZone)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'FilterToAvailableEngineersByTech'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -2910,6 +2911,11 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
     if bInCoreZone then iThresholdToRunFromMobileEnemies = 10 end
 
     local iEnemyUnitSearchRange = iThresholdToRunFromMobileEnemies + math.max(10, (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0), (tLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0), (tLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] or 0), (tLZTeamData[M28Map.subrefWZBestEnemyDFRange] or 0), (tLZTeamData[M28Map.subrefWZBestEnemyAntiNavyRange] or 0))
+
+    local bCheckForReclaim
+    if (tLZData[M28Map.subrefTotalMassReclaim] or 0) > 40 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 8 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.1 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamMassStored] <= 300 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.35)) then
+        bCheckForReclaim = true
+    end
 
     if tEngineers then
         if bDebugMessages == true then LOG(sFunctionRef..': iEnemyUnitSearchRange='..iEnemyUnitSearchRange..'; iThresholdToRunFromMobileEnemies='..iThresholdToRunFromMobileEnemies) end
@@ -3060,6 +3066,18 @@ function FilterToAvailableEngineersByTech(tEngineers, bInCoreZone, tLZData, tLZT
             if not(bEngiIsUnavailable) then
                 bEngiIsUnavailable = not(M28Conditions.IsEngineerAvailable(oEngineer))
                 if bDebugMessages == true then LOG(sFunctionRef..': Entry in table='..iEngineer..'; Considering if engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' is available, result='..tostring(M28Conditions.IsEngineerAvailable(oEngineer, true))..'; Eng unit state='..M28UnitInfo.GetUnitState(oEngineer)..'; bEngiIsUnavailable='..tostring(bEngiIsUnavailable)) end
+                if bCheckForReclaim then
+                    if not(bEngiIsUnavailable) then
+                        if M28ACU.ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrPond, iLandZone, tLZData, tLZTeamData, oEngineer, true, 20) then
+                            bEngiIsUnavailable = true
+                        end
+                    elseif oEngineer:IsUnitState('Moving') and oEngineer[refiAssignedAction] == refActionMoveToLandZone then
+                        --Engineer is already busy; exception if engineer is traveling to another zone where want to reissue its old order after issuing a reclaim order
+                        if M28ACU.ConsiderNearbyReclaimForACUOrEngineer(iPlateauOrPond, iLandZone, tLZData, tLZTeamData, oEngineer, true, 50) then
+                            bEngiIsUnavailable = true
+                        end
+                    end
+                end
             end
             if bEngiIsUnavailable then
                 table.insert(toAssignedEngineers, oEngineer)

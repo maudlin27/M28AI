@@ -1408,7 +1408,7 @@ function OnReclaimFinished(oEngineer, oReclaim)
                     local iTeam =  oEngineer:GetAIBrain().M28Team
                     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
                     local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
-                    M28ACU.ConsiderNearbyReclaim(iPlateau, iLandZone, tLZData, tLZTeamData, oEngineer, true)
+                    M28ACU.ConsiderNearbyReclaimForACUOrEngineer(iPlateau, iLandZone, tLZData, tLZTeamData, oEngineer, true)
                 end
             elseif M28Utilities.IsTableEmpty(oReclaim[M28Engineer.reftUnitsReclaimingUs]) == false then
                 local tEngineersToClear = {}
