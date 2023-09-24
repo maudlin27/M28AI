@@ -10806,9 +10806,15 @@ function GetLocationToBuildWall(oEngineer, oJustBuilt, sWallBP)
                     local tTargetLocation = {tPDToSurround[1] + iXAdjust, tPDToSurround[2], tPDToSurround[3] + iZAdjust}
                     tTargetLocation[2] = GetSurfaceHeight(tTargetLocation[1], tTargetLocation[3])
                     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Can engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' that has just built unit '..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..' at position '..repru(oJustBuilt:GetPosition())..' build at tTargetLocation '..repru(tTargetLocation)..'='..tostring(CanBuildAtLocation(aiBrain, sWallBP, tTargetLocation, nil, nil, nil, false, true, false, true))..'; Simple can build check='..tostring(aiBrain:CanBuildStructureAt(sWallBP, tTargetLocation))) end
-                    if CanBuildAtLocation(aiBrain, sWallBP, tTargetLocation, iPlateau, iLandZone, nil, false, true, false, true) then
-                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Can engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..' that has just built unit '..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..' at position '..repru(oJustBuilt:GetPosition())..' build at tTargetLocation '..repru(tTargetLocation)..'='..tostring(CanBuildAtLocation(aiBrain, sWallBP, tTargetLocation, nil, nil, nil, false, true, false, true))..'; Simple can build check='..tostring(aiBrain:CanBuildStructureAt(sWallBP, tTargetLocation))..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
+                    if (iPlateau or 0) > 0 and (iLandZone or 0) > 0 then
+                        --CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOptionalPlateauGroupOrZero, iOptionalLandOrWaterZone, iEngiActionToIgnore, bClearActionsIfNotStartedBuilding, bCheckForQueuedBuildings, bCheckForOverlappingBuildings, bCheckBlacklistIfNoGameEnder)
+                        if CanBuildAtLocation(aiBrain, sWallBP,         tTargetLocation,     iPlateau,                  iLandZone, nil, false, true, false, true) then
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            return tTargetLocation
+                        end
+                    --sometimes an area might appear to be on a cliff but could still fit a wall piece
+                    elseif aiBrain:CanBuildStructureAt(sWallBP, tTargetLocation) then
                         return tTargetLocation
                     end
                 end

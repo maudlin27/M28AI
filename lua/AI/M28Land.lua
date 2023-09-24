@@ -266,7 +266,7 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
     local sFunctionRef = 'UpdateUnitPositionsAndLandZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iRecordedLandZone == 9 and iRecordedPlateau == 2 then bDebugMessages = true end
+
 
     local iRevisedIndex = 1
     local iTableSize = table.getn(tUnits)
@@ -733,7 +733,7 @@ function RunFromEnemy(oUnitToRun, oEnemy, iTeam, iPlateau, iDistanceToRun)
     local sFunctionRef = 'RunFromEnemy'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if oUnitToRun.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnitToRun) == 'xsl01012' then bDebugMessages = true end
+
 
     local iAngleFromEnemy = M28Utilities.GetAngleFromAToB(oEnemy:GetPosition(), oUnitToRun:GetPosition())
     --MoveInDirection(tStart, iAngle,           iDistance, bKeepInMapBounds, bTravelUnderwater, bKeepInCampaignPlayableArea)
@@ -793,7 +793,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
     local sFunctionRef = 'ManageLandZoneScouts'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if iLandZone == 9 then bDebugMessages = true end
+    if iLandZone == 10 and M28Utilities.IsTableEmpty(tScouts) == false and table.getn(tScouts) >= 1 then bDebugMessages = true end
 
     tLZTeamData[M28Map.refbWantLandScout] = false
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want a land scout for iPlateau '..iPlateau..'; iLandZone='..iLandZone..'; bLandZoneContainsNonScouts='..tostring(bLandZoneContainsNonScouts or false)..'; Enemy combat threat='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Is table of land scouts traveling here empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTScoutsTravelingHere]))..'; Is table of scouts currently in this LZ empty='..tostring(M28Utilities.IsTableEmpty(tScouts))..'; Time='..GetGameTimeSeconds()) end
@@ -878,7 +878,7 @@ function ManageLandZoneScouts(tLZData, tLZTeamData, iTeam, iPlateau, iLandZone, 
                                     if bConsiderAttacking or (((oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId)) and not(oUnit == oPrevEnemyToRunFrom)) then
                                         iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], oScout:GetPosition()) - (oUnit[M28UnitInfo.refiDFRange] or 0)
                                         if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then iCurDist = iCurDist - (oUnit:GetBlueprint().Economy.MaxBuildDistance or 0) end
-                                        if iCurDist < iClosestDangerousEnemy and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 then
+                                        if iCurDist < iClosestDangerousEnemy and (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and not(EntityCategoryContains(M28UnitInfo.refCategoryLandScout - categories.SERAPHIM, oUnit.UnitId))  then
                                             oClosestDangerousEnemy = oUnit
                                             iClosestDangerousEnemy = iCurDist
                                         end
