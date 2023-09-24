@@ -1082,7 +1082,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
 
     --Support category for this zone (except very early game)
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-        --Near unit cap - dont build anything at land fac if low mass and not highest tech level
+    --Near unit cap - dont build anything at land fac if low mass and not highest tech level
     if aiBrain[M28Overseer.refbCloseToUnitCap] and (iFactoryTechLevel < math.min(3, M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyLandFactoryTech]) or (bHaveLowMass and not(tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ]))) then
         --Try and get an upgrade if dont have low mass
         if not(bHaveLowMass) and (iFactoryTechLevel < aiBrain[M28Economy.refiOurHighestLandFactoryTech] or (iFactoryTechLevel < 3 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]))) then
