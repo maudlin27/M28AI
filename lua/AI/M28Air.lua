@@ -146,8 +146,8 @@ function RefreshZonelessAir(iTeam)
         local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
 
         if aiBrain then
-            --UpdateUnitPositionsAndLandZone(aiBrain, tUnits,                                                       iTeam, iRecordedPlateau, iRecordedLandZone, bUseLastKnownPosition, bAreAirUnits)
-            M28Land.UpdateUnitPositionsAndLandZone(aiBrain, M28Team.tTeamData[iTeam][M28Team.reftoEnemyUnitsWithNoLZ], iTeam, nil,              nil,            true,                   true)
+            --UpdateUnitPositionsAndLandZone(aiBrain, tUnits,                                                       iTeam, iRecordedPlateau, iRecordedLandZone, bUseLastKnownPosition, bAreAirUnits, tLZTeamData, bUpdateTimeOfLastEnemyPositionCheck, bAreEnemyUnits)
+            M28Land.UpdateUnitPositionsAndLandZone(aiBrain, M28Team.tTeamData[iTeam][M28Team.reftoEnemyUnitsWithNoLZ], iTeam, nil,              nil,            true,                   true,           nil,        false,                              true)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -5348,12 +5348,14 @@ function ManageNovax(iTeam, iAirSubteam)
                             --Water zone
                             tLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone][M28Map.subrefWZTeamData][iTeam]
                             if GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.subrefiTimeOfLastEnemyUnitPosUpdate] or -100) >= 2 then
-                                M28Navy.UpdateUnitPositionsAndWaterZone(oBrain, tLZOrWZTeamData[M28Map.subrefTEnemyUnits], iTeam, iLandOrWaterZone, false, false, tLZOrWZTeamData, true)
+                                        --UpdateUnitPositionsAndWaterZone(aiBrain, tUnits,                              iTeam, iRecordedWaterZone, bUseLastKnownPosition, bAreAirUnits, tWZTeamData, bUpdateTimeOfLastEnemyPositionCheck, bAreEnemyUnits)
+                                M28Navy.UpdateUnitPositionsAndWaterZone(oBrain, tLZOrWZTeamData[M28Map.subrefTEnemyUnits], iTeam, iLandOrWaterZone, false,                  false,      tLZOrWZTeamData, true,                              true)
                             end
                         else
                             tLZOrWZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
                             if GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.subrefiTimeOfLastEnemyUnitPosUpdate] or -100) >= 2 then
-                                M28Land.UpdateUnitPositionsAndLandZone(oBrain, tLZOrWZTeamData[M28Map.subrefTEnemyUnits], iTeam, iPlateauOrZero, iLandOrWaterZone, false, false, tLZOrWZTeamData, true)
+                                     --UpdateUnitPositionsAndLandZone(aiBrain, tUnits,                                  iTeam, iRecordedPlateau, iRecordedLandZone, bUseLastKnownPosition, bAreAirUnits, tLZTeamData, bUpdateTimeOfLastEnemyPositionCheck, bAreEnemyUnits)
+                                M28Land.UpdateUnitPositionsAndLandZone(oBrain, tLZOrWZTeamData[M28Map.subrefTEnemyUnits], iTeam, iPlateauOrZero, iLandOrWaterZone, false,                   false, tLZOrWZTeamData,     true,                                   true)
                             end
                         end
                     end

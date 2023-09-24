@@ -162,7 +162,8 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                                         --if we reclaimed an enemy unit, then update units in that zone if arent many units left
                                         if not(tLZTeamData[M28Map.subrefTEnemyUnits][2]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
                                             if bDebugMessages == true then LOG(sFunctionRef..': have just killed a unit so will update the position of all enemy units in the zone, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; Time='..GetGameTimeSeconds()) end
-                                            M28Land.UpdateUnitPositionsAndLandZone(oKillerBrain, tLZTeamData[M28Map.subrefTEnemyUnits], oKillerBrain.M28Team, iPlateauOrZero, iLandOrWaterZone, true, false, tLZTeamData, false)
+                                                    --UpdateUnitPositionsAndLandZone(aiBrain,   tUnits,                                 iTeam,              iRecordedPlateau, iRecordedLandZone, bUseLastKnownPosition, bAreAirUnits, tLZTeamData, bUpdateTimeOfLastEnemyPositionCheck, bAreEnemyUnits)
+                                            M28Land.UpdateUnitPositionsAndLandZone(oKillerBrain, tLZTeamData[M28Map.subrefTEnemyUnits], oKillerBrain.M28Team, iPlateauOrZero, iLandOrWaterZone, true,                   false,          tLZTeamData, true,                                  true)
                                         end
                                     end
 
