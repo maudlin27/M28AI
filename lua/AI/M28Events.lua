@@ -162,7 +162,8 @@ function OnKilled(oUnitKilled, instigator, type, overkillRatio)
                                         --if we reclaimed an enemy unit, then update units in that zone if arent many units left
                                         if not(tLZTeamData[M28Map.subrefTEnemyUnits][2]) and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEnemyUnits]) == false then
                                             if bDebugMessages == true then LOG(sFunctionRef..': have just killed a unit so will update the position of all enemy units in the zone, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; Time='..GetGameTimeSeconds()) end
-                                            M28Land.UpdateUnitPositionsAndLandZone(oKillerBrain, tLZTeamData[M28Map.subrefTEnemyUnits], oKillerBrain.M28Team, iPlateauOrZero, iLandOrWaterZone, true, false, tLZTeamData, false)
+                                                    --UpdateUnitPositionsAndLandZone(aiBrain,   tUnits,                                 iTeam,              iRecordedPlateau, iRecordedLandZone, bUseLastKnownPosition, bAreAirUnits, tLZTeamData, bUpdateTimeOfLastEnemyPositionCheck, bAreEnemyUnits)
+                                            M28Land.UpdateUnitPositionsAndLandZone(oKillerBrain, tLZTeamData[M28Map.subrefTEnemyUnits], oKillerBrain.M28Team, iPlateauOrZero, iLandOrWaterZone, true,                   false,          tLZTeamData, true,                                  true)
                                         end
                                     end
 
@@ -1408,7 +1409,7 @@ function OnReclaimFinished(oEngineer, oReclaim)
                     local iTeam =  oEngineer:GetAIBrain().M28Team
                     local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
                     local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
-                    M28ACU.ConsiderNearbyReclaim(iPlateau, iLandZone, tLZData, tLZTeamData, oEngineer, true)
+                    M28ACU.ConsiderNearbyReclaimForACUOrEngineer(iPlateau, iLandZone, tLZData, tLZTeamData, oEngineer, true)
                 end
             elseif M28Utilities.IsTableEmpty(oReclaim[M28Engineer.reftUnitsReclaimingUs]) == false then
                 local tEngineersToClear = {}
@@ -2037,8 +2038,8 @@ function ReclaimTargetObjectiveAdded(Type, Complete, Title, Description, Target)
 end
 
 function OnMissileIntercepted(oLauncher, target, oTMD, position)
-    --M28AI specific
-    if not(oLauncher.Dead) and oLauncher:GetAIBrain().M28AI and M28UnitInfo.IsUnitValid(oTMD) then
+    --M28AI specific - also exclude if TMD is owned by the same team, as as of 24/09/2023 there's a bug with FAF where this callback triggers with oTMD being another or the same MML
+    if not(oLauncher.Dead) and oLauncher:GetAIBrain().M28AI and M28UnitInfo.IsUnitValid(oTMD) and not(oLauncher:GetAIBrain().M28Team == oTMD:GetAIBrain().M28Team) then
         local sFunctionRef = 'OnMissileIntercepted'
         local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -2046,8 +2047,8 @@ function OnMissileIntercepted(oLauncher, target, oTMD, position)
         --MML - record time that were last intercepted if dealing with non-aeo TMD (used to build more MML) for both the MML and the TMD land zones
         if bDebugMessages == true then LOG('Missile intercepted, oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..'; is launcher a nuke='..tostring(EntityCategoryContains(M28UnitInfo.refCategorySML, oLauncher.UnitId))..'; is launcher valid='..tostring(M28UnitInfo.IsUnitValid(oLauncher))) end
         if EntityCategoryContains(M28UnitInfo.refCategoryMML, oLauncher.UnitId) then --and not(EntityCategoryContains(categories.AEON, oTMD.UnitId)) and EntityCategoryContains(M28UnitInfo.refCategoryTMD, oTMD.UnitId) then
-            if bDebugMessages == true then LOG('MML intercepted by tmd') end
             local iTeam = oLauncher:GetAIBrain().M28Team
+            if bDebugMessages == true then LOG('MML intercepted by tmd, oLauncher='..(oLauncher.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oLauncher) or 'nil')..'; oTMD='..(oTMD.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oTMD) or 'nil')..'; Launcher team='..iTeam..'; Launcher brain='..oLauncher:GetAIBrain().Nickname..'; TMD nickname='..oTMD:GetAIBrain().Nickname) end
             local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oLauncher:GetPosition(), true, oLauncher)
             if (iLandZone or 0) > 0 and iPlateau > 0 then
                 local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]

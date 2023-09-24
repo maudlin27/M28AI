@@ -171,8 +171,9 @@ function UpdateLandZoneM28AllMexByTech(aiBrain, iPlateau, iLandZone, oOptionalUn
     if bDebugMessages == true then LOG(sFunctionRef..': Time of game='..GetGameTimeSeconds()..'; Is table of allied units for iPlateau '..iPlateau..' iLandZone '..iLandZone..' empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]))) end
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
         local tAllMexes = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tLZTeamData[M28Map.subrefLZTAlliedUnits])
-        --Update list of units in this LZ in case some of the mexes are dead now
-        M28Land.UpdateUnitPositionsAndLandZone(aiBrain, tAllMexes, aiBrain.M28Team, iPlateau, iLandZone, false)
+        --Update list of allied mex units in this LZ in case some of the mexes are dead now
+                --UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam,    iRecordedPlateau, iRecordedLandZone, bUseLastKnownPosition, bAreAirUnits, tLZTeamData, bUpdateTimeOfLastEnemyPositionCheck, bAreEnemyUnits)
+        M28Land.UpdateUnitPositionsAndLandZone(aiBrain, tAllMexes, aiBrain.M28Team, iPlateau, iLandZone,            false)
 
         local tMexesByTech = {}
         local iMexCount = 0
