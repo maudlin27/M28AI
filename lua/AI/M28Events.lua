@@ -872,7 +872,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
 
 
 
-                if bDebugMessages == true then LOG(sFunctionRef..': Construction just started for oConstruction='..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..' at time '..GetGameTimeSeconds()) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Construction just started for oConstruction='..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..' at time '..GetGameTimeSeconds()..'; postiion='..repru(oConstruction:GetPosition())) end
                 --Record any mexes so we can repair them if construction gets interrupted
                 if EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oConstruction.UnitId) then
                     M28Engineer.RecordPartBuiltMex(oEngineer, oConstruction)

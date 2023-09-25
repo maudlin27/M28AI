@@ -1338,7 +1338,7 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
 
 
 
-    local iHighestPriority = -100
+    local iHighestPriority = -1000
     local iCurPriority, iCurDistance
     local iBestLocationRef
     local oEngiBP = oEngineer:GetBlueprint()
@@ -1441,7 +1441,7 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
                     iCurPriority = iCurPriority + 4
                 else
                     bLocationBuildableImmediately = false
-                    if iCurDistance <= iBuilderRange then iCurPriority = iCurPriority - 2 end
+                    if iCurDistance <= iBuilderRange then iCurPriority = iCurPriority + 2 end
                 end
                 if iCurDistance <= 50 then
                     if iCurDistance <= math.max(10, iBuilderRange - 0.5) then
