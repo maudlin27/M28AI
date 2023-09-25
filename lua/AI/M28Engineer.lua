@@ -1089,7 +1089,9 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
             end
         end
     end
+
     if sBlueprintToBuild == nil then
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished trying to get blueprint to build, but unable to find one') end
     else
 
         if iOptionalEngineerAction then
@@ -1126,7 +1128,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
 
         if M28Utilities.IsTableEmpty(tTargetLocation) then tTargetLocation = tEngineerPosition end
         if bDebugMessages == true then LOG(sFunctionRef..': finishrd checking if tTargetLocation is valid, tTargetLocation='..repru(tTargetLocation)..'; tEngineerPosition='..repru(tEngineerPosition)..'; is engineer valid='..tostring(M28UnitInfo.IsUnitValid(oEngineer))) end
-        
+
         --Target location adjustments
         local oClosestUnitToTML
         if EntityCategoryContains(M28UnitInfo.refCategoryTMD, sBlueprintToBuild) then
@@ -1647,6 +1649,7 @@ function GetLocationToMoveForConstruction(oUnit, tTargetLocation, sBlueprintID, 
     local iPathingGroupWanted = NavUtils.GetLabel(sPathing, oUnit:GetPosition())
 
     local tPotentialMoveLocation
+    if bDebugMessages == true then LOG(sFunctionRef..': Start, time='..GetGameTimeSeconds()..'; tTargetLocatino='..repru(tTargetLocation)..'; Unit position='..repru(oUnit:GetPosition())..'; sBlueprintID='..(sBlueprintID or 'nil')..'; oUnit='..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')) end
     local iAngleFromTargetToBuilder = M28Utilities.GetAngleFromAToB(tTargetLocation, oUnit:GetPosition())
     local iBuildRange = oUnit:GetBlueprint().Economy.MaxBuildDistance
     local iDistanceWantedFromTarget = math.max(1, iBuildRange + (iBuildDistanceMod or 0))
@@ -2262,6 +2265,7 @@ function GetPartCompleteBuilding(aiBrain, oBuilder, iCategoryToBuild, iBuildingS
             end
         end
     end
+
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return oNearestPartCompleteBuilding
 end
@@ -4959,7 +4963,9 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                     sBlueprint, tBuildLocation = GetBlueprintAndLocationToBuild(aiBrain, oFirstEngineer, iActionToAssign, iCategoryWanted, iMaxSearchRange, iAdjacencyCategory, nil, false, nil, nil, false, tLZOrWZTeamData)
                                 end
                                 if bDebugMessages == true then LOG(sFunctionRef..': Just got blueprint and location to build for oFirstEngineer='..oFirstEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFirstEngineer)..'; iActionTOAssign='..iActionToAssign..'; sBlueprint='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation)..'; Is tiActionAdjacentCategory[iActionToAssign] nil='..tostring(tiActionAdjacentCategory[iActionToAssign] == nil)) end
-                                if sBlueprint then
+                                if M28Utilities.IsTableEmpty(tBuildLocation) then
+                                    M28Utilities.ErrorHandler('Unable to find build location, sBlueprint='..(sBlueprint or 'nil')..'; iActionToAssign='..(iActionToAssign or 'nil')..'; P'..(iPlateauOrPond or 'nil')..'Z'..(iLandOrWaterZone or 'nil'))
+                                elseif sBlueprint then
                                     local tMoveLocation
                                     while iTotalBuildPowerWanted > 0 and iEngiCount > 0 do
                                         if bDebugMessages == true then LOG(sFunctionRef..': Assigning engineer for building action '..iActionToAssign..'; iEngiCount='..iEngiCount..'; iTotalBuildPowerWanted='..iTotalBuildPowerWanted..'; tiActionOrder[iActionToAssign]='..(tiActionOrder[iActionToAssign] or 'nil')..'; sBlueprint='..sBlueprint..'; tBuildLocation='..repru(tBuildLocation)..'; Eng cur state='..M28UnitInfo.GetUnitState(tEngineersOfTechWanted[iEngiCount])) end
@@ -4980,6 +4986,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                                 if iActionToAssign == refActionBuildMex and iTotalBuildPowerWanted > 0 and iEngiCount > 0 then
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Were building a mex at tBuildLocation='..repru(tBuildLocation)..'; however have already assigned an engineer and have more to assign, so will build at a different mex now') end
                                                     sBlueprint, tBuildLocation = GetBlueprintAndLocationToBuild(aiBrain, oFirstEngineer, iActionToAssign, iCategoryWanted, iMaxSearchRange, iAdjacencyCategory, nil, false, nil, nil, false, tLZOrWZTeamData)
+                                                    if M28Utilities.IsTableEmpty(tBuildLocation) then break end
                                                     if bDebugMessages == true then LOG(sFunctionRef..': New mex build location='..repru(tBuildLocation)) end
                                                 end
                                             else
@@ -6079,8 +6086,23 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 HaveActionToAssign(refActionBuildPower, 1, 10)
             else
 
-                if bDebugMessages == true then LOG(sFunctionRef..': iCurPriority='..iCurPriority..':  Will try and build a hydro') end
-                HaveActionToAssign(refActionBuildHydro, 1, 10)
+                if bDebugMessages == true then LOG(sFunctionRef..': iCurPriority='..iCurPriority..':  Will try and build a hydro, unless we have no unbuilt locations and have no part complete hydro in which case will build power') end
+                local bCanBuildOrAssistHydro = false
+                if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefHydroUnbuiltLocations]) == false then
+                    bCanBuildOrAssistHydro = true
+                else
+                    local tHydroInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryHydro, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                    if M28Utilities.IsTableEmpty(tHydroInZone) == false then
+                        for iUnit, oUnit in tHydroInZone do
+                            if oUnit:GetFractionComplete() < 1 then bCanBuildOrAssistHydro = true break end
+                        end
+                    end
+                end
+                if bCanBuildOrAssistHydro then
+                    HaveActionToAssign(refActionBuildHydro, 1, 10)
+                else
+                    HaveActionToAssign(refActionBuildPower, 1, 5)
+                end
             end
         elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 0 then
             if bDebugMessages == true then LOG(sFunctionRef..': iCurPriority='..iCurPriority..': Will try and build PGens') end
@@ -6175,9 +6197,10 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     --Unclaimed mex in the zone
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then
-        LOG(sFunctionRef..': Considering if unbuilt or part build mexes in t his LZ, is subrefMexUnbuiltLocations empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]))..'; Is subreftoPartBuiltMexes empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoPartBuiltMexes])))
+        LOG(sFunctionRef..': Considering if unbuilt or part build mexes in t his LZ, is subrefMexUnbuiltLocations empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]))..'; Is subreftoPartBuiltMexes empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoPartBuiltMexes]))..'; Mex by tech='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; subrefLZMexCount='..tLZData[M28Map.subrefLZMexCount])
         if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]) == false then
             LOG(sFunctionRef..': Size of unbuilt locations table='..table.getn(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]))
+
         end
     end
     if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]) == false then
@@ -6189,7 +6212,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                 iBPWanted = 20
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Have a total of '..table.getn(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations])..' unbuilt mex locations in this zone, iBPWanted='..iBPWanted..'; Highest friendly tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
+        if bDebugMessages == true then LOG(sFunctionRef..': High priority mex builder, Have a total of '..table.getn(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations])..' unbuilt mex locations in this zone, iBPWanted='..iBPWanted..'; Highest friendly tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
         HaveActionToAssign(refActionBuildMex, 1, iBPWanted)
     elseif M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoPartBuiltMexes]) == false then
         --Do we have no engineers assigned to building a mex?
