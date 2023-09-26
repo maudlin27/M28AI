@@ -464,12 +464,13 @@ function NoRushMonitor()
 end
 
 function TestCustom(aiBrain)
-    LOG('Is novax restricted='..tostring(import("/lua/game.lua").IsRestricted('xeb2402', aiBrain:GetArmyIndex())))
+    --LOG('Is novax restricted='..tostring(import("/lua/game.lua").IsRestricted('xeb2402', aiBrain:GetArmyIndex())))
 
     --M28Map.DrawLandZonePath(88, 21, 34)
 
-    --[[M28Map.DrawSpecificLandZone(88, 40, 3)
-    M28Map.DrawSpecificLandZone(88, 13, 4)
+
+    M28Map.DrawSpecificLandZone(89, 28, 4)
+    --[[
     M28Map.DrawSpecificLandZone(88, 34, 5)--]]
     --local tCivilianMexes = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMex, M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()], 10000, 'Neutral')
     --LOG('TestCustom: is table of civilian mexes empty at time '..GetGameTimeSeconds()..'='..tostring(M28Utilities.IsTableEmpty(tCivilianMexes)))
@@ -1071,7 +1072,7 @@ function OverseerManager(aiBrain)
          end--]]
 
         --if GetGameTimeSeconds() >= 2700 then import('/mods/M28AI/lua/M28Config.lua').M28ShowUnitNames = true end
-        --if GetGameTimeSeconds() >= 3 and GetGameTimeSeconds() <= 15 then TestCustom(aiBrain) end
+        if GetGameTimeSeconds() >= 3 and GetGameTimeSeconds() <= 15 then TestCustom(aiBrain) end
         --Enable below to help figure out infinite loops
         --[[if GetGameTimeSeconds() >= 173 and not(bSetHook) then
             bSetHook = true

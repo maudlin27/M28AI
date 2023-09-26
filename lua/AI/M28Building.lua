@@ -1061,7 +1061,7 @@ function RecordPriorityShields(iTeam, tLZTeamData)
 end
 
 function OnMexDeath(tUnitPosition)
-    --Call via fork thread due to the WaitSeconds(2) in it; however note that as this is forked, the unit (mex) may not exist anymore, so tUnitPosition needs to be a copy of the position table, and dont want to pass the unit object
+    --Call via fork thread due to the WaitSeconds() in it; however note that as this is forked, the unit (mex) may not exist anymore, so tUnitPosition needs to be a copy of the position table, and dont want to pass the unit object
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'OnMexDeath'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -1132,8 +1132,8 @@ function OnMexDeath(tUnitPosition)
                                     local tCurMexClosestLocation
                                     for iEntry, tMex in tLZOrWZData[M28Map.subrefLZMexLocations] do --(WZ uses same ref ID definition)
                                         iCurAbsDif = math.abs(tMex[1] - tUnitPosition[1]) + math.abs(tMex[3] - tUnitPosition[3])
-                                        if iCurAbsDif < iClosestMexLocation then
-                                            iClosestMexLocation = iCurAbsDif
+                                        if iCurAbsDif < iCurMexClosestLocation then
+                                            iCurMexClosestLocation = iCurAbsDif
                                             tCurMexClosestLocation = {tMex[1], tMex[2], tMex[3]}
                                         end
                                     end

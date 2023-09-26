@@ -1207,10 +1207,11 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
                 local bCheckForQueuedBuildings = true
                 --ACU shouldnt check for queued buildings as otherwise it treats its own queued order as meaning it cant build there!
                 if EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then bCheckForQueuedBuildings = false end
+                local tBackupResourceLocation
                 for iCurResource, tCurResource in tResourceLocations do
                     if bDebugMessages == true then
                         --CanBuildAtLocation(aiBrain, sBlueprintToBuild, tTargetLocation, iOptionalPlateauGroupOrZero, iOptionalLandOrWaterZone, iEngiActionToIgnore, bClearActionsIfNotStartedBuilding, bCheckForQueuedBuildings, bCheckForOverlappingBuildings)
-                        LOG(sFunctionRef..': Checking if can build '..sBlueprintToBuild..' on resource location '..repru(tCurResource)..'; result='..tostring(CanBuildAtLocation(aiBrain, sBlueprintToBuild, tCurResource, iPlateau, iLandZone, nil, false, true, false))..'; will draw locations we can build on in blue, and those we cant in red. bCheckForQueuedBuildings='..tostring(bCheckForQueuedBuildings or false))
+                        LOG(sFunctionRef..': Checking if can build '..sBlueprintToBuild..' on resource location '..repru(tCurResource)..'; result='..tostring(CanBuildAtLocation(aiBrain, sBlueprintToBuild, tCurResource, iPlateau, iLandZone, nil, false, true, false))..'; Can we build just using the brain function check='..tostring(aiBrain:CanBuildStructureAt(sBlueprintToBuild, tCurResource))..'; Is table of units in rect around tCurResource empty='..tostring(M28Utilities.IsTableEmpty(GetUnitsInRect(M28Utilities.GetRectAroundLocation(tCurResource, 0.49))))..'; will draw locations we can build on in blue, and those we cant in red. bCheckForQueuedBuildings='..tostring(bCheckForQueuedBuildings or false))
                         if CanBuildAtLocation(aiBrain, sBlueprintToBuild, tCurResource, iPlateauOrZero, iLandOrWaterZone, nil, false, bCheckForQueuedBuildings, false, false, false) then
                             M28Utilities.DrawLocation(tCurResource, 1)
                         else
@@ -1221,7 +1222,15 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
                         if bDontCheckForNoRush or M28Conditions.IsLocationInNoRushArea(tCurResource) then
                             table.insert(tPotentialBuildLocations, tCurResource)
                         end
+                    elseif not(tBackupResourceLocation) and aiBrain:CanBuildStructureAt(sBlueprintToBuild, tCurResource) then
+                        tBackupResourceLocation = {tCurResource[1], tCurResource[2], tCurResource[3]}
                     end
+                end
+                --Backup - sometimes (very rarely) we might have 1 engineer trying to build a mex, aibrain shows it as able to build, but hte main canbuildatlocation doesnt; this will add the first such location as somewhere to build if otherwise we wouldnt build anywhere despite having unbuilt locations
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering if need backup location, tBackupResourceLocation='..repru(tBackupResourceLocation)..'; tPotentialBuildLocations='..repru(tPotentialBuildLocations)..'; Is tPotentialBuildLocations empty='..tostring(M28Utilities.IsTableEmpty(tPotentialBuildLocations))) end
+                if tBackupResourceLocation and M28Utilities.IsTableEmpty(tPotentialBuildLocations) then
+                    table.insert(tPotentialBuildLocations, tBackupResourceLocation)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Relying on backup location') end
                 end
             end
         else
@@ -4557,7 +4566,6 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
-
     --Dont try getting any mroe BP for htis action if have run out of buildable locations
     local iExpectedBuildingSize = tiLastBuildingSizeFromActionForTeam[iTeam][iActionToAssign]
     if bDebugMessages == true then
@@ -4934,6 +4942,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                 local oFirstEngineer = tEngineersOfTechWanted[iEngiCount]
                                 local sBlueprint, tBuildLocation
                                 local iAdjacencyCategory
+
                                 if bDebugMessages == true then LOG(sFunctionRef..': About to get the blueprint and build location, oFirstEngineer='..oFirstEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFirstEngineer)) end
                                 if iActionToAssign == refActionBuildShield or iActionToAssign == refActionBuildSecondShield then
                                     GetMaxShieldSearchRangeForEngineer(oFirstEngineer, iCategoryWanted)
