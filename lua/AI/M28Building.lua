@@ -1072,6 +1072,9 @@ function OnMexDeath(tUnitPosition)
     local tMexLocations
     local tLZOrWZData
     local iWaterZone, iPond
+
+
+
     if iPlateau and not(iLandZone) then
         iWaterZone = M28Map.GetWaterZoneFromPosition(tUnitPosition)
         if iWaterZone then
@@ -1086,7 +1089,7 @@ function OnMexDeath(tUnitPosition)
 
 
 
-    if bDebugMessages == true then LOG(sFunctionRef..': is table of mex locations empty='..tostring( M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]))..'; iLandZone='..(iLandZone or 'nil')) end
+    if bDebugMessages == true then LOG(sFunctionRef..': is table of mex locations empty='..tostring( M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]))..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; tUnitPosition='..repru(tUnitPosition)..'; is tMexLocations empty='..tostring(M28Utilities.IsTableEmpty(tMexLocations))..'; iWaterZone='..(iWaterZone or 'nil')) end
     if M28Utilities.IsTableEmpty(tMexLocations) == false then
         --Record time of last mex death against LZ data to help with error messages
         tLZOrWZData[M28Map.refiTimeOfLastMexDeath] = GetGameTimeSeconds()
@@ -1105,6 +1108,7 @@ function OnMexDeath(tUnitPosition)
                 tClosestMexLocation = {tMex[1], tMex[2], tMex[3]}
             end
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting a period of time and then searching for closest mex location, tClosestMexLocation='..repru(tClosestMexLocation)..'; Time='..GetGameTimeSeconds()..'; iPlateau='..iPlateau..'; iLandZone='..(iLandZone or 'nil')) end
         if not(tClosestMexLocation) then M28Utilities.ErrorHandler('Couldnt find a mex in this zone close enough to the unit position on death')
         else
             for iMexLocation, tMexLocation in tMexLocations do
@@ -1174,6 +1178,11 @@ function OnMexDeath(tUnitPosition)
                 end
             end
         end
+        if bDebugMessages == true then
+            if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations] after update is empty')
+            else LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations] after update has a size '..table.getn(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..', table='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]))
+            end
+        end
     else
         M28Utilities.ErrorHandler('Mex has died but not in a recognised land or water zone that has mexes')
     end
@@ -1198,6 +1207,9 @@ function OnMexConstructionStarted(oUnit)
     local tMexLocations
     local tLZOrWZData
     local iWaterZone, iPond
+
+
+
     if iPlateau and not(iLandZone) then
         iWaterZone = M28Map.GetWaterZoneFromPosition(oUnit:GetPosition())
         if iWaterZone then
@@ -1300,8 +1312,11 @@ function OnMexConstructionStarted(oUnit)
                     end
                 end
                 if not(bHaveMexHere) then
-                    M28Utilities.ErrorHandler('OnCreate triggered for a mex but no unbuilt locations near it, iPlateau='..iPlateau..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Map setup complete='..tostring(M28Map.bMapLandSetupComplete)..'; bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation or false), true)
-                    if bDebugMessages == true then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations]='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit position='..repru(oUnit:GetPosition())..'; reprs of unit='..reprs(oUnit)) end
+                    --we have a 1s delay on a mex dying before checking for available locations, so this could explain this
+                    if tLZOrWZData[M28Map.refiTimeOfLastMexDeath] and GetGameTimeSeconds() - tLZOrWZData[M28Map.refiTimeOfLastMexDeath] > 1.01 then
+                        M28Utilities.ErrorHandler('OnCreate triggered for a mex but no unbuilt locations near it, iPlateau='..iPlateau..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Map setup complete='..tostring(M28Map.bMapLandSetupComplete)..'; bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation or false), true)
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations]='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit position='..repru(oUnit:GetPosition())) end
                 end
             end
         end
