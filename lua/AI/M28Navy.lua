@@ -1022,13 +1022,14 @@ function ManageMobileStealthsInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWa
                 if bDebugMessages == true then LOG(sFunctionRef..': Is tStealthsToAssign empty after checking for closest WZ with no threat='..tostring(M28Utilities.IsTableEmpty(tStealthsToAssign))..'; iClosestWZNotWantingStealthButWithUnits='..(iClosestWZNotWantingStealthButWithUnits or 'nil')) end
                 if M28Utilities.IsTableEmpty(tStealthsToAssign) == false then
                     --Dont have any water zones that want a mobile Stealth, but we have mobile Stealths - find the closest WZ  that wants DF support and has DF units, and send them here; if that's this WZ, then have them go to the unit closest to the enemy in this WZ, but without assigning them
+                    M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoStealthBoatTargetsByPond][iPond] = GetGameTimeSeconds()
                     if iClosestWZNotWantingStealthButWithUnits or iClosestWZWithAnyCombatUnits then
                         local tTeamTargetWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][(iClosestWZNotWantingStealthButWithUnits or iClosestWZWithAnyCombatUnits)][M28Map.subrefWZTeamData][iTeam]
                         if bDebugMessages == true then LOG(sFunctionRef..': Have mobile Stealths to assign, closest WZ with friendly combat units that wants more units='..(iClosestWZNotWantingStealthButWithUnits or 'nil')..'; iClosestWZWithAnyCombatUnits='..(iClosestWZWithAnyCombatUnits or 'nil')..'; DOes this WZ want mobile Stealths='..tostring(tTeamTargetWZData[M28Map.refbWZWantsMobileStealth] or false)..'; is table of units wanting Stealthing empty='..tostring(M28Utilities.IsTableEmpty(tTeamTargetWZData[M28Map.reftoWZUnitsWantingMobileStealth]))) end
                         StealthUnitsInWaterZone(tTeamTargetWZData, tStealthsToAssign, true)
                     end
                     if M28Utilities.IsTableEmpty(tStealthsToAssign) == false then
-                        M28Utilities.ErrorHandler('couldnt find any water zones with friendly combat units so have nowhere to assign mobile Stealths; will send them all to the nearest rally point instead')
+                        if bDebugMessages == true then LOG(sFunctionRef..': couldnt find any water zones with friendly combat units so have nowhere to assign mobile Stealths; will send them all to the nearest rally point instead') end
                         local tRallyPoint = GetNearestWaterRallyPoint(tWZData, iTeam, iPond, iWaterZone)
                         for iUnit, oUnit in tStealthsToAssign do
                             M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, 'SNtBckup'..iWaterZone)

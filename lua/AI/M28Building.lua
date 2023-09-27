@@ -324,6 +324,8 @@ function RecordUnitsInRangeOfTMLAndAnyTMDProtection(oTML, tOptionalUnitsToConsid
     local sFunctionRef = 'RecordUnitsInRangeOfTMLAndAnyTMDProtection'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     if M28UnitInfo.IsUnitValid(oTML) then
 
         local iTMLRange = math.max((oTML[M28UnitInfo.refiManualRange] or 0), (oTML[M28UnitInfo.refiIndirectRange] or 0))
@@ -407,6 +409,7 @@ function RecordUnitsInRangeOfTMLAndAnyTMDProtection(oTML, tOptionalUnitsToConsid
         if M28Utilities.IsTableEmpty(tUnitsToProtect) == false then
             local iCurTeam
             for iUnit, oUnit in tUnitsToProtect do
+
                 if not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
                     --Update various tracking variables based on whether TMD are protecting this unit or not (i.e. updates TML for potential targets, TMD for units theyre covering, and units for TML that have hte unit in their range)
                     RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tNearbyTMD)
@@ -463,6 +466,8 @@ function RecordTMLAndTMDForUnitJustBuilt(oUnit)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordTMLAndTMDForUnitJustBuilt'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
 
     local oTMDBrain = oUnit:GetAIBrain()
     local iTMDTeam = oTMDBrain.M28Team
@@ -651,6 +656,9 @@ function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange)
         if bDebugMessages == true then LOG(sFunctionRef..': Will record this unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' against table of unprotected units for TML as it isnt blocked by any of the TMD, bAlreadyIncluded='..tostring(bAlreadyIncluded or false)) end
         if not(bAlreadyIncluded) then
             table.insert(oTML[reftUnprotectedUnitTargetsForThisTML], oUnit)
+            if oUnit:GetAIBrain().M28AI then
+                RecordIfUnitsWantTMDCoverageAgainstLandZone(oUnit:GetAIBrain().M28Team, { oUnit })
+            end
         end
     else
         --is covered by TMD, make sure not listed in reftUnprotectedUnitTargetsForThisTML
@@ -678,7 +686,7 @@ function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange)
             end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Will record this unit against the TML as being in range, but not vulnerable, unless already included, bAlreadyIncluded='..tostring(bAlreadyIncluded)) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Will record this unit against the TML as being in range, unless already included, bAlreadyIncluded='..tostring(bAlreadyIncluded)) end
     if not(bAlreadyIncluded) then
         table.insert(oTML[reftUnitsInRangeOfThisTML], oUnit)
     end
@@ -945,22 +953,22 @@ function UpdateLZUnitsWantingTMDForUnitDeath(oUnit)
                 if tLZTeamData[M28Map.reftUnitsWantingTMD][iOrigIndex] then
                     if M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.reftUnitsWantingTMD][iOrigIndex]) then --I.e. this should run the logic to decide whether we want to keep this entry of the table or remove it
                         --We want to keep the entry; Move the original index to be the revised index number (so if e.g. a table of 1,2,3 removed 2, then this would've resulted in the revised index being 2 (i.e. it starts at 1, then icnreases by 1 for the first valid entry); this then means we change the table index for orig index 3 to be 2
-            if (iOrigIndex ~= iRevisedIndex) then
-            tLZTeamData[M28Map.reftUnitsWantingTMD][iRevisedIndex] = tLZTeamData[M28Map.reftUnitsWantingTMD][iOrigIndex]
-            tLZTeamData[M28Map.reftUnitsWantingTMD][iOrigIndex] = nil
+                        if (iOrigIndex ~= iRevisedIndex) then
+                            tLZTeamData[M28Map.reftUnitsWantingTMD][iRevisedIndex] = tLZTeamData[M28Map.reftUnitsWantingTMD][iOrigIndex]
+                            tLZTeamData[M28Map.reftUnitsWantingTMD][iOrigIndex] = nil
+                        end
+                        iRevisedIndex = iRevisedIndex + 1 --i.e. this will be the position of where the next value that we keep will be located
+                    else
+                        tLZTeamData[M28Map.reftUnitsWantingTMD][iOrigIndex] = nil
+                    end
+                end
             end
-            iRevisedIndex = iRevisedIndex + 1 --i.e. this will be the position of where the next value that we keep will be located
-            else
-            tLZTeamData[M28Map.reftUnitsWantingTMD][iOrigIndex] = nil
-            end
-            end
-            end
-            end
-            end
-            oUnit[refbUnitWantsMoreTMD] = false --redundancy
         end
+    end
+    oUnit[refbUnitWantsMoreTMD] = false --redundancy
+end
 
-function GetUnitWantingTMD(tLZData, tLZTeamData)
+function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam)
     --Gets the unit closest to the nearest enemy base that wants TMD; also refreshes the table for any dead units
     local iUnitsWantingTMD = table.getn(tLZTeamData[M28Map.reftUnitsWantingTMD])
     local iClosestDist = 10000
@@ -982,12 +990,25 @@ function GetUnitWantingTMD(tLZData, tLZTeamData)
     local tExistingTMD = EntityCategoryFilterDown(M28UnitInfo.refCategoryTMD, tLZTeamData[M28Map.subrefLZTAlliedUnits])
     if M28Utilities.IsTableEmpty(tExistingTMD) == false then
         local iExistingValidTMD = table.getn(tExistingTMD)
-        if iExistingValidTMD >= 10 then
-            M28Utilities.ErrorHandler('Have 10 TMD in land zone so wont build any more TMD, risk we may be overbuilding TMD, will clear entries', true)
-            tLZTeamData[M28Map.reftUnitsWantingTMD] = {}
-            return nil
+
+        --Max TMD limit - no. of mexes in the zone * 0.5 if lower; also higher TMD if we have Aeon TMD
+        local iTMDLimit = math.min(30, math.max(10, (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3]) * 0.5, tLZTeamData[M28Map.subrefLZSValue] / 5000))
+        if iExistingValidTMD >= iTMDLimit then
+            local iEnemyTotalTMLCount = 0
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyTML]) == false then
+                iEnemyTotalTMLCount = table.getn(M28Team.tTeamData[iTeam][M28Team.reftEnemyTML])
+            end
+            if iExistingValidTMD > math.min(31, iTMDLimit + iEnemyTotalTMLCount * 2) then
+
+
+
+                M28Utilities.ErrorHandler('Have 10 TMD in land zone so wont build any more TMD, risk we may be overbuilding TMD, will clear entries', true)
+                tLZTeamData[M28Map.reftUnitsWantingTMD] = {}
+                return nil
+            end
         end
     end
+
     return oClosestUnit
 end
 
@@ -1060,18 +1081,23 @@ function RecordPriorityShields(iTeam, tLZTeamData)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function OnMexDeath(tUnitPosition)
-    --Call via fork thread due to the WaitSeconds(2) in it; however note that as this is forked, the unit (mex) may not exist anymore, so tUnitPosition needs to be a copy of the position table, and dont want to pass the unit object
+function OnMexDeath(tUnitPosition, sUnitRef, sLifetimeCount, iOwnerArmyIndex)
+    --Call via fork thread due to the WaitSeconds() in it; however note that as this is forked, the unit (mex) may not exist anymore, so tUnitPosition needs to be a copy of the position table, and dont want to pass the unit object
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'OnMexDeath'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; tUnitPosition='..repru(tUnitPosition)) end
+
+
 
     --local tUnitPosition = {oUnit:GetPosition()[1], oUnit:GetPosition()[2], oUnit:GetPosition()[3]}
     local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tUnitPosition)
     local tMexLocations
     local tLZOrWZData
     local iWaterZone, iPond
+
+
+
     if iPlateau and not(iLandZone) then
         iWaterZone = M28Map.GetWaterZoneFromPosition(tUnitPosition)
         if iWaterZone then
@@ -1086,7 +1112,7 @@ function OnMexDeath(tUnitPosition)
 
 
 
-    if bDebugMessages == true then LOG(sFunctionRef..': is table of mex locations empty='..tostring( M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]))..'; iLandZone='..(iLandZone or 'nil')) end
+    if bDebugMessages == true then LOG(sFunctionRef..': is table of mex locations empty='..tostring( M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]))..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; tUnitPosition='..repru(tUnitPosition)..'; is tMexLocations empty='..tostring(M28Utilities.IsTableEmpty(tMexLocations))..'; iWaterZone='..(iWaterZone or 'nil')) end
     if M28Utilities.IsTableEmpty(tMexLocations) == false then
         --Record time of last mex death against LZ data to help with error messages
         tLZOrWZData[M28Map.refiTimeOfLastMexDeath] = GetGameTimeSeconds()
@@ -1094,57 +1120,90 @@ function OnMexDeath(tUnitPosition)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitSeconds(1) --dont treat mex as available for a second (this is to help cover scenarios where if a mex has 'died' due to being upgraded, the new building will be here) - was a 2s delay, are trying 1s delay now to see if causes an issue
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-        for iMexLocation, tMexLocation in tMexLocations do
-            --Prev line - redid at same time as changing approach for removing an unbuilt location to try and be more accurate
-            --if M28Utilities.GetDistanceBetweenPositions(tMexLocation, oUnit:GetPosition()) <= 0.9 then
-            --Revised line:
-            if math.abs(tMexLocation[1] - tUnitPosition[1]) < 0.9 and math.abs(tMexLocation[3] - tUnitPosition[3]) < 0.9 then
-                --Do we have any mexes in this location?
-                local rRect = M28Utilities.GetRectAroundLocation(tMexLocation, 0.9)
-                local tUnitsInRect = GetUnitsInRect(rRect)
-                if bDebugMessages == true then
-                    LOG(sFunctionRef..': Is tUnitsInRect empty='..tostring(M28Utilities.IsTableEmpty(tUnitsInRect)))
+
+        local tClosestMexLocation
+        local iClosestMexLocation = 2.1 --no point considering mexes further away
+        local iCurAbsDif
+        for iEntry, tMex in tLZOrWZData[M28Map.subrefLZMexLocations] do --(WZ uses same ref ID definition)
+            iCurAbsDif = math.abs(tMex[1] - tUnitPosition[1]) + math.abs(tMex[3] - tUnitPosition[3])
+            if iCurAbsDif < iClosestMexLocation then
+                iClosestMexLocation = iCurAbsDif
+                tClosestMexLocation = {tMex[1], tMex[2], tMex[3]}
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting a period of time and then searching for closest mex location, tClosestMexLocation='..repru(tClosestMexLocation)..'; Time='..GetGameTimeSeconds()..'; iPlateau='..iPlateau..'; iLandZone='..(iLandZone or 'nil')) end
+        if not(tClosestMexLocation) then M28Utilities.ErrorHandler('Couldnt find a mex in this zone close enough to the unit position on death')
+        else
+            --for iMexLocation, tMexLocation in tMexLocations do
+                --Prev line - redid at same time as changing approach for removing an unbuilt location to try and be more accurate
+                --if M28Utilities.GetDistanceBetweenPositions(tMexLocation, oUnit:GetPosition()) <= 0.9 then
+                --Revised line:
+                --if tMexLocation[1] == tClosestMexLocation[1] and tMexLocation[3] == tClosestMexLocation[3] then
+                    --Do we have any mexes in this location?
+                    local rRect = M28Utilities.GetRectAroundLocation(tClosestMexLocation, 0.9)
+                    local tUnitsInRect = GetUnitsInRect(rRect)
+                    if bDebugMessages == true then
+                        LOG(sFunctionRef..': Is tUnitsInRect empty='..tostring(M28Utilities.IsTableEmpty(tUnitsInRect)))
+                        if M28Utilities.IsTableEmpty(tUnitsInRect) == false then
+                            LOG(sFunctionRef..': If filter to just mexes is the table empty='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tUnitsInRect))))
+                        end
+                    end
+                    local bNoMex = true
                     if M28Utilities.IsTableEmpty(tUnitsInRect) == false then
-                        LOG(sFunctionRef..': If filter to just mexes is the table empty='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tUnitsInRect))))
-                    end
-                end
-                local bNoMex = true
-                if M28Utilities.IsTableEmpty(tUnitsInRect) == false then
-                    local tMexes = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tUnitsInRect)
-                    if M28Utilities.IsTableEmpty(tMexes) == false then
-                        for iMex, oMex in tMexes do
-                            if M28UnitInfo.IsUnitValid(oMex) then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Have a valid mex in this location, oMex='..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)) end
-                                bNoMex = false
-                                break
+                        local tMexes = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tUnitsInRect)
+                        if M28Utilities.IsTableEmpty(tMexes) == false then
+                            for iMex, oMex in tMexes do
+                                if M28UnitInfo.IsUnitValid(oMex) and not(oMex.UnitId == sUnitRef and M28UnitInfo.GetUnitLifetimeCount(oMex) == sLifetimeCount and oMex:GetAIBrain():GetArmyIndex() == iOwnerArmyIndex) then
+                                    local tMexPosition = oMex:GetPosition()
+                                    --Get closest mex to this, in case there's another mex that's closer
+                                    local iCurMexClosestLocation = 2.1
+                                    local tCurMexClosestLocation
+                                    for iEntry, tMex in tLZOrWZData[M28Map.subrefLZMexLocations] do --(WZ uses same ref ID definition)
+                                        iCurAbsDif = math.abs(tMex[1] - tMexPosition[1]) + math.abs(tMex[3] - tMexPosition[3])
+                                        if iCurAbsDif < iCurMexClosestLocation then
+                                            iCurMexClosestLocation = iCurAbsDif
+                                            tCurMexClosestLocation = {tMex[1], tMex[2], tMex[3]}
+                                        end
+                                    end
+                                    if tCurMexClosestLocation[1] == tClosestMexLocation[1] and tCurMexClosestLocation[3] == tClosestMexLocation[3] then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Have a valid mex in this location, oMex='..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)..'; Army Index='..oMex:GetAIBrain():GetArmyIndex()..'; sUnitRef='..sUnitRef..'; sLifetimeCount='..sLifetimeCount..'; iOwnerArmyIndex='..(iOwnerArmyIndex or 'nil')..'; tCurMexClosestLocation='..repru(tCurMexClosestLocation)..'; Mex position='..repru(oMex:GetPosition())..'; tUnitPosition='..repru(tUnitPosition)..'; tClosestMexLocation='..repru(tClosestMexLocation)) end
+                                        bNoMex = false
+                                        break
+                                    end
+                                end
                             end
                         end
                     end
-                end
-                if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if we have a mex at this location anymore, bNoMex='..tostring(bNoMex)) end
-                if bNoMex then
-                    local bAlreadyRecorded = false
-                    if not(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) then
-                        tLZOrWZData[M28Map.subrefMexUnbuiltLocations] = {}
-                    else
-                        for iEntry, tUnbuiltLocation in tLZOrWZData[M28Map.subrefMexUnbuiltLocations] do --redundancy in case this code triggers more than once, as were comign across unbuilt locations with the same entry listed more than once (although it wasnt showing up with a reprs/repru)
-                            if math.abs(tUnbuiltLocation[1] - tMexLocation[1]) < 0.9 and math.abs(tUnbuiltLocation[3] - tMexLocation[3]) < 0.9 then
-                                bAlreadyRecorded = true
-                                break
+                    if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if we have a mex at this location anymore, bNoMex='..tostring(bNoMex)) end
+                    if bNoMex then
+                        local bAlreadyRecorded = false
+                        if not(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) then
+                            tLZOrWZData[M28Map.subrefMexUnbuiltLocations] = {}
+                        else
+                            for iEntry, tUnbuiltLocation in tLZOrWZData[M28Map.subrefMexUnbuiltLocations] do --redundancy in case this code triggers more than once, as were comign across unbuilt locations with the same entry listed more than once (although it wasnt showing up with a reprs/repru)
+                                if tUnbuiltLocation[1] == tClosestMexLocation[1] and tUnbuiltLocation[3] == tClosestMexLocation[3] then
+                                    bAlreadyRecorded = true
+                                    break
+                                end
                             end
                         end
-                    end
-                    if not(bAlreadyRecorded) then
-                        table.insert(tLZOrWZData[M28Map.subrefMexUnbuiltLocations], tMexLocation)
-                        if bDebugMessages == true then
-                            LOG(sFunctionRef..': Recording location as being unbuilt as mex is dead and no mexes visible there now')
-                            M28Utilities.DrawLocation(tMexLocation)
+                        if not(bAlreadyRecorded) then
+                            table.insert(tLZOrWZData[M28Map.subrefMexUnbuiltLocations], tClosestMexLocation)
+                            if bDebugMessages == true then
+                                LOG(sFunctionRef..': Recording location as being unbuilt as mex is dead and no mexes visible there now')
+                                M28Utilities.DrawLocation(tMexLocation)
+                            end
+                        else
+                            if bDebugMessages == true then LOG(sFunctionRef..': Already recorded this location as unbuilt') end
                         end
-                    else
-                        if bDebugMessages == true then LOG(sFunctionRef..': Already recorded this location as unbuilt') end
+                        --break
                     end
-                    break
-                end
+                --end
+            --end
+        end
+        if bDebugMessages == true then
+            if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations] after update is empty')
+            else LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations] after update has a size '..table.getn(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..', table='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]))
             end
         end
     else
@@ -1171,6 +1230,9 @@ function OnMexConstructionStarted(oUnit)
     local tMexLocations
     local tLZOrWZData
     local iWaterZone, iPond
+
+
+
     if iPlateau and not(iLandZone) then
         iWaterZone = M28Map.GetWaterZoneFromPosition(oUnit:GetPosition())
         if iWaterZone then
@@ -1186,8 +1248,22 @@ function OnMexConstructionStarted(oUnit)
     if bDebugMessages == true then LOG(sFunctionRef..': The time is '..GetGameTimeSeconds()..'; Have just started construction for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Is M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]))..'; Unit position='..repru(oUnit:GetPosition())) end
     local bFoundMexLocation = false
     if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false then
+        --Find the closest mex location in the zone
+        local tClosestMexLocation
+        local iClosestMexLocation = 2.1 --no point considering mexes further away
+        local iCurAbsDif
+        local tUnitPosition = oUnit:GetPosition()
+        for iEntry, tMex in tLZOrWZData[M28Map.subrefLZMexLocations] do --(WZ uses same ref ID definition)
+            iCurAbsDif = math.abs(tMex[1] - tUnitPosition[1]) + math.abs(tMex[3] - tUnitPosition[3])
+            if iCurAbsDif < iClosestMexLocation then
+                iClosestMexLocation = iCurAbsDif
+                tClosestMexLocation = {tMex[1], tMex[2], tMex[3]}
+            end
+        end
+
+
         local iSizeBefore = table.getn(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])
-        if bDebugMessages == true then LOG('About to loop through Mex locations; iPlateau='..iPlateau..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; reprs='..reprs(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..'; iSizeBefore='..iSizeBefore) end
+        if bDebugMessages == true then LOG('About to loop through Mex locations; iPlateau='..iPlateau..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; reprs='..reprs(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..'; iSizeBefore='..iSizeBefore..'; tClosestMexLocation='..repru(tClosestMexLocation)) end
         --local iSizeAfter
         --local iLocationToRemove
         if bDebugMessages == true then
@@ -1195,18 +1271,23 @@ function OnMexConstructionStarted(oUnit)
                 LOG(sFunctionRef..': iMexLocation='..iMexLocation..'; tMexLocation='..repru(tMexLocation))
             end
         end
-        for iEntry = iSizeBefore, 1, -1 do
-            local tMexLocation = tLZOrWZData[M28Map.subrefMexUnbuiltLocations][iEntry]
-            if bDebugMessages == true then LOG(sFunctionRef..': Comparing dist for iEntry '..iEntry..'; tMexLocation='..repru(tMexLocation)) end
-            if math.abs(tMexLocation[1] - oUnit:GetPosition()[1]) < 1 and math.abs(tMexLocation[3] - oUnit:GetPosition()[3]) < 1 then
-                if bDebugMessages == true then
-                    LOG(sFunctionRef..': Have built a mex within 1 of a mex location so will treat this mex location as no longer available. iEntry='..iEntry)
-                    M28Utilities.DrawLocation(tMexLocation, 2)
+        if tClosestMexLocation then
+            for iEntry = iSizeBefore, 1, -1 do
+                local tMexLocation = tLZOrWZData[M28Map.subrefMexUnbuiltLocations][iEntry]
+                if bDebugMessages == true then LOG(sFunctionRef..': Comparing dist for iEntry '..iEntry..'; tMexLocation='..repru(tMexLocation)..'; tClosestMexLocation='..repru(tClosestMexLocation)) end
+                if tMexLocation[1] == tClosestMexLocation[1] and tMexLocation[3] == tClosestMexLocation[3] then
+                    if bDebugMessages == true then
+                        LOG(sFunctionRef..': Have built a mex within 1 of a mex location so will treat this mex location as no longer available. iEntry='..iEntry)
+                        M28Utilities.DrawLocation(tMexLocation, 2)
+                    end
+                    bFoundMexLocation = true
+                    local vRemoved = table.remove(tLZOrWZData[M28Map.subrefMexUnbuiltLocations], iEntry)
+                    if bDebugMessages == true then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations] after removal='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..'; vRemoved='..reprs(vRemoved)..'; iSizeBefore='..iSizeBefore) end
+                    break
                 end
-                bFoundMexLocation = true
-                local vRemoved = table.remove(tLZOrWZData[M28Map.subrefMexUnbuiltLocations], iEntry)
-                if bDebugMessages == true then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations] after removal='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..'; vRemoved='..reprs(vRemoved)..'; iSizeBefore='..iSizeBefore) end
             end
+        else
+            M28Utilities.ErrorHandler('Couldnt find a mex location close enough')
         end
         --Old code - had issues with this sometimes where e.g. would have a table that with reprs showed as only having 1 entry, but it actually had 2 and were identical
         --[[for iMexLocation, tMexLocation in tLZOrWZData[M28Map.subrefMexUnbuiltLocations] do
@@ -1242,8 +1323,24 @@ function OnMexConstructionStarted(oUnit)
         if oUnit.CanTakeDamage and not(oUnit.IsUpgrade) and (GetGameTimeSeconds() - (tLZOrWZData[M28Map.refiTimeOfLastMexDeath] or 0)) > 2.1 then
             --Ignore if early game and is owned by non-human brain, or campaign and owned by non-M28AI non-human brain
             if oUnit:GetAIBrain().BrainType == 'Human' or oUnit:GetAIBrain().M28AI or (GetGameTimeSeconds() >= 10 and not(M28Map.bIsCampaignMap)) then
-                M28Utilities.ErrorHandler('OnCreate triggered for a mex but no unbuilt locations near it, iPlateau='..iPlateau..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Map setup complete='..tostring(M28Map.bMapLandSetupComplete)..'; bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation or false), true)
-                if bDebugMessages == true then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations]='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit position='..repru(oUnit:GetPosition())..'; reprs of unit='..reprs(oUnit)) end
+                local tNearbyRect = M28Utilities.GetRectAroundLocation(oUnit:GetPosition(), 0.49)
+                local tUnitsWhereDied = GetUnitsInRect(tNearbyRect)
+                local bHaveMexHere = false
+                if M28Utilities.IsTableEmpty(tNearbyRect) == false then
+                    for iBuilding, oBuilding in tNearbyRect do
+                        if not(oBuilding == oUnit) and EntityCategoryContains(M28UnitInfo.refCategoryMex, oBuilding.UnitId) and M28UnitInfo.IsUnitValid(oBuilding) then
+                            bHaveMexHere = true
+                            break
+                        end
+                    end
+                end
+                if not(bHaveMexHere) then
+                    --we have a 1s delay on a mex dying before checking for available locations, so this could explain this
+                    if tLZOrWZData[M28Map.refiTimeOfLastMexDeath] and GetGameTimeSeconds() - tLZOrWZData[M28Map.refiTimeOfLastMexDeath] > 1.01 then
+                        M28Utilities.ErrorHandler('OnCreate triggered for a mex but no unbuilt locations near it, iPlateau='..iPlateau..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Map setup complete='..tostring(M28Map.bMapLandSetupComplete)..'; bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation or false), true)
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations]='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit position='..repru(oUnit:GetPosition())) end
+                end
             end
         end
     end

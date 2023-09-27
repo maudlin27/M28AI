@@ -283,7 +283,7 @@ function OnUnitDeath(oUnit)
                             local tMexPosition = {oUnit:GetPosition()[1], oUnit:GetPosition()[2], oUnit:GetPosition()[3]}
                             if bDebugMessages == true then LOG(sFunctionRef..': About to call OnMexDeath via fork, tMexPosition='..repru(tMexPosition)) end
                             if tMexPosition[1] == 0 and tMexPosition[2] == 0 then M28Utilities.ErrorHandler('Dont have a valid mex position - mex is showing as 0,0,0') end
-                            ForkThread(M28Building.OnMexDeath, tMexPosition) --Need to fork thread or else get an error when try to wait in the building logic
+                            ForkThread(M28Building.OnMexDeath, tMexPosition, (oUnit.UnitId or 'nil'), (M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil'), oUnit:GetAIBrain():GetArmyIndex()) --Need to fork thread or else get an error when try to wait in the building logic
                         end
                         --[[local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
                         if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]) == false then
@@ -872,7 +872,7 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
 
 
 
-                if bDebugMessages == true then LOG(sFunctionRef..': Construction just started for oConstruction='..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..' at time '..GetGameTimeSeconds()) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Construction just started for oConstruction='..oConstruction.UnitId..M28UnitInfo.GetUnitLifetimeCount(oConstruction)..' at time '..GetGameTimeSeconds()..'; postiion='..repru(oConstruction:GetPosition())) end
                 --Record any mexes so we can repair them if construction gets interrupted
                 if EntityCategoryContains(M28UnitInfo.refCategoryT1Mex, oConstruction.UnitId) then
                     M28Engineer.RecordPartBuiltMex(oEngineer, oConstruction)

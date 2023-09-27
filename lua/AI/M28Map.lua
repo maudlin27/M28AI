@@ -476,32 +476,38 @@ function GetPositionFromPathingSegments(iSegmentX, iSegmentZ)
 end
 
 function GetPathingOverridePlateauAndLandZone(tPosition, bOptionalShouldBePathable, oOptionalPathingUnit)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetPathingOverridePlateauAndLandZone'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+
     local iX = math.floor(tPosition[1])
-    --if (oOptionalPathingUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oOptionalPathingUnit) or 'nil') == 'uel02031' then LOG('GetPathingOverridePlateauAndLandZone: iPlateau is nil or 0, tPosition='..repru(tPosition)..'; tPathingPlateauAndLZOverride[ix]='..repru(tPathingPlateauAndLZOverride[iX])..'; bOptionalShouldBePathable='..tostring(bOptionalShouldBePathable or false)..'; Is oOptionalPathingUnit valid='..tostring(M28UnitInfo.IsUnitValid(oOptionalPathingUnit))) end
-    --LOG('GetPathingOverridePlateauAndLandZone: iPlateau is nil or 0, tPosition='..repru(tPosition)..'; tPathingPlateauAndLZOverride[ix]='..repru(tPathingPlateauAndLZOverride[iX])..'; bOptionalShouldBePathable='..tostring(bOptionalShouldBePathable or false)..'; Is oOptionalPathingUnit valid='..tostring(M28UnitInfo.IsUnitValid(oOptionalPathingUnit)))
+    --if bDebugMessages == true then LOG(sFunctionRef..': iPlateau is nil or 0, tPosition='..repru(tPosition)..'; tPathingPlateauAndLZOverride[ix]='..repru(tPathingPlateauAndLZOverride[iX])..'; bOptionalShouldBePathable='..tostring(bOptionalShouldBePathable or false)..'; Is oOptionalPathingUnit valid='..tostring(M28UnitInfo.IsUnitValid(oOptionalPathingUnit))) end
     if tPathingPlateauAndLZOverride[iX] then
         local iZ = math.floor(tPosition[3])
         if tPathingPlateauAndLZOverride[iX][iZ] then
-            --if (oOptionalPathingUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oOptionalPathingUnit) or 'nil') == 'uel02031' then LOG('GetPathingOverridePlateauAndLandZone: Have a valid override so will return this, override='..repru(tPathingPlateauAndLZOverride[iX][iZ])) end
-            --LOG('GetPathingOverridePlateauAndLandZone: Have a valid override so will return this, override='..repru(tPathingPlateauAndLZOverride[iX][iZ]))
+            --if bDebugMessages == true then LOG(sFunctionRef..': Have a valid override so will return this, override='..repru(tPathingPlateauAndLZOverride[iX][iZ])) end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return tPathingPlateauAndLZOverride[iX][iZ][1], tPathingPlateauAndLZOverride[iX][iZ][2]
         end
     end
     --Dont have an override for here - if we think it shoudl be pathable then create an override
     if bOptionalShouldBePathable and oOptionalPathingUnit then
-        --if (oOptionalPathingUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oOptionalPathingUnit) or 'nil') == 'uel02031' then LOG('GetPathingOverridePlateauAndLandZone: No plateau for a unit that should be pathable, tPosition='..repru(tPosition)..'; bOptionalShouldBePathable='..tostring(bOptionalShouldBePathable)..'; oOptionalPathingUnit='..oOptionalPathingUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOptionalPathingUnit)..'; oOptionalPathingUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]='..repru(oOptionalPathingUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam])..'; Unit state='..M28UnitInfo.GetUnitState(oOptionalPathingUnit)..'; iMapWaterHeight='..iMapWaterHeight..'; about to run ConsiderAddingPlateauOverrideForUnit') end
-        --LOG('GetPathingOverridePlateauAndLandZone: No plateau for a unit that should be pathable, tPosition='..repru(tPosition)..'; bOptionalShouldBePathable='..tostring(bOptionalShouldBePathable)..'; oOptionalPathingUnit='..oOptionalPathingUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOptionalPathingUnit)..'; oOptionalPathingUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]='..repru(oOptionalPathingUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam])..'; Unit state='..M28UnitInfo.GetUnitState(oOptionalPathingUnit)..'; iMapWaterHeight='..iMapWaterHeight..'; about to run ConsiderAddingPlateauOverrideForUnit')
+        --if bDebugMessages == true then LOG(sFunctionRef..': No plateau for a unit that should be pathable, tPosition='..repru(tPosition)..'; bOptionalShouldBePathable='..tostring(bOptionalShouldBePathable)..'; oOptionalPathingUnit='..oOptionalPathingUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOptionalPathingUnit)..'; oOptionalPathingUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam]='..repru(oOptionalPathingUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam])..'; Unit state='..M28UnitInfo.GetUnitState(oOptionalPathingUnit)..'; iMapWaterHeight='..iMapWaterHeight..'; about to run ConsiderAddingPlateauOverrideForUnit')
         if M28Land.ConsiderAddingPlateauOverrideForUnit(oOptionalPathingUnit) then
             if tPathingPlateauAndLZOverride[iX] then
                 local iZ = math.floor(tPosition[3])
                 if tPathingPlateauAndLZOverride[iX][iZ] then
-                    --if (oOptionalPathingUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oOptionalPathingUnit) or 'nil') == 'uel02031' then LOG('GetPathingOverridePlateauAndLandZone: Have a valid override after considering plateau override for unit, override='..repru(tPathingPlateauAndLZOverride[iX][iZ])) end
-                    --LOG('GetPathingOverridePlateauAndLandZone: Have a valid override after considering plateau override for unit, override='..repru(tPathingPlateauAndLZOverride[iX][iZ]))
+                    --if bDebugMessages == true then LOG(sFunctionRef..': GetPathingOverridePlateauAndLandZone: Have a valid override after considering plateau override for unit, override='..repru(tPathingPlateauAndLZOverride[iX][iZ])) end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     return tPathingPlateauAndLZOverride[iX][iZ][1], tPathingPlateauAndLZOverride[iX][iZ][2]
                 end
             end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of function, will return nil') end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return nil, nil
 end
 
@@ -571,7 +577,7 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
                         --Do nothing - hopefully unit has orders that it will follow that will resolve this on its own; however update the plateau
                     else
                         M28Utilities.ErrorHandler('Unable to find valid land zone, iSegmentX='..(iSegmentX or 'nil')..'; iSegmentZ='..(iSegmentZ or 'nil')..'; Optional pathing unit ID='..(oOptionalPathingUnit.UnitId or 'nil'))
-                        --M28Utilities.DrawLocation(tPosition)
+                        M28Utilities.DrawLocation(tPosition)
                     end
                 else
                     if iAltPlateau then
@@ -2542,8 +2548,10 @@ function DrawSpecificWaterZone(iWaterZone, iOptionalColour, iOptionalTime)
         tLocation = GetPositionFromPathingSegments(tSegmentXZ[1], tSegmentXZ[2])
         M28Utilities.DrawLocation(tLocation, iOptionalColour, iOptionalTime, iLandZoneSegmentSize - 0.1)
     end
-    --Draw midpoint in red
-    M28Utilities.DrawLocation(tWZData[subrefMidpoint], 2, iOptionalTime, iLandZoneSegmentSize - 0.05)
+    --Draw midpoint in red if there is one
+    if M28Utilities.IsTableEmpty(tWZData[subrefMidpoint]) == false then
+        M28Utilities.DrawLocation(tWZData[subrefMidpoint], 2, iOptionalTime, iLandZoneSegmentSize - 0.05)
+    end
 end
 
 local function DrawLandZones()
@@ -5650,13 +5658,60 @@ function CreateWaterZones()
         end
     end
 
-
-
     if bDebugMessages == true then
         LOG(sFunctionRef..': End of code, finished recording segments in water zone, iTotalWaterZoneRecordedSegmentCount='..iTotalWaterZoneRecordedSegmentCount..'; iTotalSegmentsInPonds='..iTotalSegmentsInPonds..'; iTotalWaterZoneCount='..iTotalWaterZoneCount..'; will draw all water zones. Time taken to run water zone logic='..GetSystemTimeSecondsOnlyForProfileUse() - iSystemTimeStart)
     end
     if iTotalWaterZoneRecordedSegmentCount < iTotalSegmentsInPonds then
-        M28Utilities.ErrorHandler('May not have assigned every water segment a water zone - consider adding code to go through every pond water segment as backup')
+        --Cycle through every zone to see if have any recorded for pond but not WX
+        local iMaxAdjust = 3
+        local iNewWaterZone, iCurPond
+        for iBaseSegmentX = 1, iMaxLandSegmentX do
+            for iBaseSegmentZ = 1, iMaxLandSegmentZ do
+                if tPondBySegment[iBaseSegmentX][iBaseSegmentZ] and not(tWaterZoneBySegment[iBaseSegmentX][iBaseSegmentZ]) then
+                    --search for nearby zone to be a part of; if have none, then add to existing zone for the pond
+                    iNewWaterZone = nil
+                    iCurPond = tPondBySegment[iBaseSegmentX][iBaseSegmentZ]
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have segment inconsistency between ponds and water zones, iBaseSegmentX='..iBaseSegmentX..'; iBaseSegmentZ='..iBaseSegmentZ) end
+                    for iAdjustBase = 1, iMaxAdjust do
+                        for iCurSegmentX = iBaseSegmentX - iAdjustBase, iBaseSegmentX + iAdjustBase, 1 do
+                            for iCurSegmentZ = iBaseSegmentZ - iAdjustBase, iBaseSegmentZ + iAdjustBase, iAdjustBase * 2 do
+                                if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
+                                    if tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] and tPondBySegment[iCurSegmentX][iCurSegmentZ] == iCurPond then
+                                        iNewWaterZone = tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ]
+                                        break
+                                    end
+                                end
+                            end
+                            if iNewWaterZone then break end
+                        end
+                        if iNewWaterZone then break end
+                        --Then do the left and right row (excl corners which ahve already done per the above)
+                        for iCurSegmentX = iBaseSegmentX - iAdjustBase, iBaseSegmentX + iAdjustBase, iAdjustBase * 2 do
+                            for iCurSegmentZ = iBaseSegmentZ - iAdjustBase + 1, iBaseSegmentZ + iAdjustBase - 1, 1 do
+                                if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
+                                    if tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] and tPondBySegment[iCurSegmentX][iCurSegmentZ] == iCurPond then
+                                        iNewWaterZone = tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ]
+                                        break
+                                    end
+                                end
+                            end
+                            if iNewWaterZone then break end
+                        end
+                        if iNewWaterZone then break end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Finisihed searching for nearby water zones in the same pond, iNewWaterZone='..(iNewWaterZone or 'nil')) end
+                    if iNewWaterZone then
+                        AddSegmentToWaterZone(iCurPond, iNewWaterZone, iBaseSegmentX, iBaseSegmentZ)
+                    else
+                        RecordWaterZoneAtPosition(GetPositionFromPathingSegments(iBaseSegmentX, iBaseSegmentZ))
+                    end
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': After update, iTotalWaterZoneRecordedSegmentCount='..iTotalWaterZoneRecordedSegmentCount..'; iTotalSegmentsInPonds='..iTotalSegmentsInPonds) end
+        if iTotalWaterZoneRecordedSegmentCount < iTotalSegmentsInPonds then
+            M28Utilities.ErrorHandler('May not have assigned every water segment a water zone')
+        end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -5847,8 +5902,10 @@ function RecordWaterZoneMidpointAndMinMaxPositions()
                     end
                 end
 
-                --If still dont have a valid location, then just try any segment recorded in the land zone (this wont be in the middle of the land zone, but is better than having an unpathable midpoint)
+                --If still dont have a valid location, then just try any segment recorded in the water zone (this wont be in the middle of the water zone, but is better than having an unpathable midpoint)
                 if not (bHaveValidAltMidpoint) then
+                    local tMostUnderwaterBackupPosition, iCurUnderwaterHeightDif, iBackupPositionWZDataRef
+                    local iMostUnderwaterBackupPositionDif = 0
                     for iSegment, tSegmentXZ in tWZData[subrefWZSegments] do
                         if tWaterZoneBySegment[tSegmentXZ[1]][tSegmentXZ[2]] == iWaterZone then
                             tAltMidpoint = GetPositionFromPathingSegments(tSegmentXZ[1], tSegmentXZ[2])
@@ -5863,7 +5920,23 @@ function RecordWaterZoneMidpointAndMinMaxPositions()
                                     LOG(sFunctionRef .. ': Have valid alternative midpoint which will now record and use, tAverage after update=' .. repru(tAverage))
                                 end
                                 break
+                            else
+                                iCurUnderwaterHeightDif = GetSurfaceHeight(tAltMidpoint[1], tAltMidpoint[3]) - GetTerrainHeight(tAltMidpoint[1], tAltMidpoint[3])
+                                if iCurUnderwaterHeightDif > iMostUnderwaterBackupPositionDif then
+                                    iMostUnderwaterBackupPositionDif = iCurUnderwaterHeightDif
+                                    tMostUnderwaterBackupPosition = {tAltMidpoint[1], tAltMidpoint[2], tAltMidpoint[3]}
+                                    iBackupPositionWZDataRef = iSegment
+                                end
                             end
+                        end
+                    end
+                    if not (bHaveValidAltMidpoint) and M28Utilities.IsTableEmpty(tMostUnderwaterBackupPosition) == false then
+                        local tSegmentXZ = tWZData[subrefWZSegments][iBackupPositionWZDataRef]
+                        iAveragePond = tPondBySegment[tSegmentXZ[1]][tSegmentXZ[2]] or NavUtils.GetTerrainLabel(refPathingTypeNavy, tMostUnderwaterBackupPosition)
+                        if iAveragePond then
+                            bHaveValidAltMidpoint = true
+                            tAverage = {tMostUnderwaterBackupPosition[1], tMostUnderwaterBackupPosition[2], tMostUnderwaterBackupPosition[3]}
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will use backup position for midpoint, tMostUnderwaterBackupPosition='..repru(tMostUnderwaterBackupPosition)..'; iMostUnderwaterBackupPositionDif='..iMostUnderwaterBackupPositionDif..'; iAveragePond='..(iAveragePond or 'nil')) end
                         end
                     end
                     if not (bHaveValidAltMidpoint) then
@@ -5872,6 +5945,7 @@ function RecordWaterZoneMidpointAndMinMaxPositions()
                             LOG(sFunctionRef .. ': iWaterZone=' .. iWaterZone .. '; tWZData[subrefWZSegments]=' .. repru(tWZData[subrefWZSegments] or 'nil') .. '; First segment position=' .. repru(GetPositionFromPathingSegments(tWZData[subrefWZSegments][1][1], tWZData[subrefWZSegments][1][2])) .. '; playable area=' .. repru(rMapPotentialPlayableArea) .. '; GetTerrainLabel navy pathing result for the first segment position=' .. (NavUtils.GetTerrainLabel(refPathingTypeNavy, GetPositionFromPathingSegments(tWZData[subrefWZSegments][1][1], tWZData[subrefWZSegments][1][2])) or 'nil') .. '; water zone of this segment position=' .. (tWaterZoneBySegment[tWZData[subrefWZSegments][1][1]][tWZData[subrefWZSegments][1][2]] or 'nil') .. '; will draw the water zone')
                             DrawSpecificWaterZone(iWaterZone, math.random(1, 8))
                         end
+
                     end
                 end
             end

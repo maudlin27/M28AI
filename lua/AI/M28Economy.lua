@@ -160,6 +160,8 @@ function UpdateLandZoneM28AllMexByTech(aiBrain, iPlateau, iLandZone, oOptionalUn
     local sFunctionRef = 'UpdateLandZoneM28AllMexByTech'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team]
     if iOptionalWait then
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -172,7 +174,7 @@ function UpdateLandZoneM28AllMexByTech(aiBrain, iPlateau, iLandZone, oOptionalUn
     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
         local tAllMexes = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tLZTeamData[M28Map.subrefLZTAlliedUnits])
         --Update list of allied mex units in this LZ in case some of the mexes are dead now
-                --UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam,    iRecordedPlateau, iRecordedLandZone, bUseLastKnownPosition, bAreAirUnits, tLZTeamData, bUpdateTimeOfLastEnemyPositionCheck, bAreEnemyUnits)
+        --UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam,    iRecordedPlateau, iRecordedLandZone, bUseLastKnownPosition, bAreAirUnits, tLZTeamData, bUpdateTimeOfLastEnemyPositionCheck, bAreEnemyUnits)
         M28Land.UpdateUnitPositionsAndLandZone(aiBrain, tAllMexes, aiBrain.M28Team, iPlateau, iLandZone,            false)
 
         local tMexesByTech = {}
@@ -181,25 +183,30 @@ function UpdateLandZoneM28AllMexByTech(aiBrain, iPlateau, iLandZone, oOptionalUn
         tMexesByTech[2] = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex * categories.TECH2, tAllMexes)
         tMexesByTech[3] = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex * categories.TECH3, tAllMexes)
         if bDebugMessages == true then LOG(sFunctionRef..': oOptionalUnitThatDied='..(oOptionalUnitThatDied.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oOptionalUnitThatDied) or 'nil')..'; Is tAllMexes empty='..tostring(M28Utilities.IsTableEmpty(tAllMexes))) end
-
-        for iTech = 1, 3 do
+        local tiRecordedMexPositionsXZ = {} --Finding issues with an upgrading mex that completes having both the original mex and the upgraded mex for a period of time; if are upgrading multiple in a zone at the same time, this can lead to too many mexes being recorded for brief moment
+        for iTech = 3, 1 do
             if M28Utilities.IsTableEmpty(tMexesByTech[iTech]) == false then
                 for iMex, oCurMex in tMexesByTech[iTech] do
                     if bDebugMessages == true then LOG(sFunctionRef..': Plateau='..iPlateau..'; iLandZone='..iLandZone..'; oCurMex='..oCurMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oCurMex)..'; Unit state='..M28UnitInfo.GetUnitState(oCurMex)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oCurMex))..'; Position='..repru(oCurMex:GetPosition())..'; iTech='..iTech..'; iMexCount pre increase='..iMexCount..'; tLZTeamData[M28Map.subrefMexCountByTech] pre increase='..repru(tLZTeamData[M28Map.subrefMexCountByTech])) end
                     if oCurMex:GetAIBrain().M28AI and M28UnitInfo.IsUnitValid(oCurMex) and oCurMex:GetFractionComplete() == 1 and not(oOptionalUnitThatDied == oCurMex) then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Adding iMex '..iMex..'; oCurMex='..oCurMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oCurMex)..' to mex count. reprs of mex='..reprs(oCurMex)) end
-                        tLZTeamData[M28Map.subrefMexCountByTech][iTech] = tLZTeamData[M28Map.subrefMexCountByTech][iTech] + 1
-                        iMexCount = iMexCount + 1
+                        if iTech == 3 or not(tiRecordedMexPositionsXZ[oCurMex:GetPosition()[1]]) or not(tiRecordedMexPositionsXZ[oCurMex:GetPosition()[1]][oCurMex:GetPosition()[3]]) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Adding iMex '..iMex..'; oCurMex='..oCurMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oCurMex)..' to mex count, Unit state='..M28UnitInfo.GetUnitState(oCurMex)..'; Position='..repru(oCurMex:GetPosition())) end
+                            tLZTeamData[M28Map.subrefMexCountByTech][iTech] = tLZTeamData[M28Map.subrefMexCountByTech][iTech] + 1
+                            if not(tiRecordedMexPositionsXZ[oCurMex:GetPosition()[1]]) then tiRecordedMexPositionsXZ[oCurMex:GetPosition()[1]] = {} end
+                            tiRecordedMexPositionsXZ[oCurMex:GetPosition()[1]][oCurMex:GetPosition()[3]] = true
+                            iMexCount = iMexCount + 1
+                        end
                     end
                 end
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Finished updating mex count, tLZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; iMexCount='..iMexCount..'; Table size of mex locations for this LZ='..table.getn( M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations])) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished updating mex count, tLZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; iMexCount='..iMexCount..'; Table size of mex locations for this LZ='..table.getn( M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations])..'; iMexCount from this function='..iMexCount..'; iOptionalWait='..(iOptionalWait or 'nil')..'; tiRecordedMexPositionsXZ='..repru(tiRecordedMexPositionsXZ)) end
         --If have somehow ended up with more mexes than there are locations, then redo the check in 1 second
         if iMexCount > table.getn( M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]) then
             if (iOptionalWait or 0) >= 10 then
                 M28Utilities.ErrorHandler('Somehow we have more mexes than we should even after waiting '..iOptionalWait..' first, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iMexCount='..iMexCount..'; tLZTeamData[M28Map.subrefMexCountByTech]='..reprs(tLZTeamData[M28Map.subrefMexCountByTech]))
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': Have an inconsistent number of mexes so will call this function again with a wait, time='..GetGameTimeSeconds()) end
             ForkThread(UpdateLandZoneM28AllMexByTech, aiBrain, iPlateau, iLandZone, oOptionalUnitThatDied, 15)
         end
     end

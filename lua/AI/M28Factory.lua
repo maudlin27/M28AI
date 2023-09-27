@@ -3278,6 +3278,8 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     else
         if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoShieldBoatTargetsByPond][iPond] or -100) <= 5 and EntityCategoryContains(categories.UEF, oFactory.UnitId) then
             bConsiderBuildingShieldOrStealthBoats = false
+        elseif EntityCategoryContains(categories.CYBRAN, oFactory.UnitId) and (M28Team.tTeamData[iTeam][M28Team.refiLastTimeNoStealthBoatTargetsByPond][iPond] or -100) <= 30 then
+            bConsiderBuildingShieldOrStealthBoats = false
         else
             local iCurShieldAndStealthBoats = aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryShieldBoat + M28UnitInfo.refCategoryStealthBoat)
             local iEnergyMod = 1
