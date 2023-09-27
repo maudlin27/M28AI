@@ -143,6 +143,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     refiLastTimeNoShieldTargetsByPlateau = 'M28TeamLastTimeNoShieldTargets' --[x] is the plateau ref, returns gametime seconds
     refiLastTimeNoShieldBoatTargetsByPond = 'M28TeamLastTimeNoShieldBoatTargets' --[x] is the pond ref, returns gametimeseconds
     refiLastTimeNoStealthTargetsByPlateau = 'M28TeamLastTimeNoStealthTargets' --[x] is the plateau ref, returns gametime seconds
+    refiLastTimeNoStealthBoatTargetsByPond = 'M28TeamLastTimeNoStealthBoatTargets' --[x] is the pond ref, returns gametimeseconds
     refiLastTimeNoMAATargetsByIsland = 'M28TeamLastTimeNoMAATargets' --[x] is the plateau ref, returns gametimeseconds
     reftoUnitsWithDisabledWeapons = 'M28TeamUnitsDisabledWeap' --[x] = 1,2,...; returns unit with disabled weapon
     --Water related
@@ -517,6 +518,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][refiLastTimeNoShieldTargetsByPlateau] = {}
     tTeamData[iTotalTeamCount][refiLastTimeNoShieldBoatTargetsByPond] = {}
     tTeamData[iTotalTeamCount][refiLastTimeNoStealthTargetsByPlateau] = {}
+    tTeamData[iTotalTeamCount][refiLastTimeNoStealthBoatTargetsByPond] = {}
     tTeamData[iTotalTeamCount][refiLastTimeNoMAATargetsByIsland] = {}
     tTeamData[iTotalTeamCount][refiEnemyHighestMobileLandHealth] = 300
     tTeamData[iTotalTeamCount][reftEnemyFirebaseByPlateauAndLZ] = {}

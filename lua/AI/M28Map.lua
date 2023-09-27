@@ -476,14 +476,21 @@ function GetPositionFromPathingSegments(iSegmentX, iSegmentZ)
 end
 
 function GetPathingOverridePlateauAndLandZone(tPosition, bOptionalShouldBePathable, oOptionalPathingUnit)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetPathingOverridePlateauAndLandZone'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+
     local iX = math.floor(tPosition[1])
     --if (oOptionalPathingUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oOptionalPathingUnit) or 'nil') == 'uel02031' then LOG('GetPathingOverridePlateauAndLandZone: iPlateau is nil or 0, tPosition='..repru(tPosition)..'; tPathingPlateauAndLZOverride[ix]='..repru(tPathingPlateauAndLZOverride[iX])..'; bOptionalShouldBePathable='..tostring(bOptionalShouldBePathable or false)..'; Is oOptionalPathingUnit valid='..tostring(M28UnitInfo.IsUnitValid(oOptionalPathingUnit))) end
-    --LOG('GetPathingOverridePlateauAndLandZone: iPlateau is nil or 0, tPosition='..repru(tPosition)..'; tPathingPlateauAndLZOverride[ix]='..repru(tPathingPlateauAndLZOverride[iX])..'; bOptionalShouldBePathable='..tostring(bOptionalShouldBePathable or false)..'; Is oOptionalPathingUnit valid='..tostring(M28UnitInfo.IsUnitValid(oOptionalPathingUnit)))
+    if bDebugMessages == true then LOG('GetPathingOverridePlateauAndLandZone: iPlateau is nil or 0, tPosition='..repru(tPosition)..'; tPathingPlateauAndLZOverride[ix]='..repru(tPathingPlateauAndLZOverride[iX])..'; bOptionalShouldBePathable='..tostring(bOptionalShouldBePathable or false)..'; Is oOptionalPathingUnit valid='..tostring(M28UnitInfo.IsUnitValid(oOptionalPathingUnit))) end
     if tPathingPlateauAndLZOverride[iX] then
         local iZ = math.floor(tPosition[3])
         if tPathingPlateauAndLZOverride[iX][iZ] then
             --if (oOptionalPathingUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oOptionalPathingUnit) or 'nil') == 'uel02031' then LOG('GetPathingOverridePlateauAndLandZone: Have a valid override so will return this, override='..repru(tPathingPlateauAndLZOverride[iX][iZ])) end
-            --LOG('GetPathingOverridePlateauAndLandZone: Have a valid override so will return this, override='..repru(tPathingPlateauAndLZOverride[iX][iZ]))
+            if bDebugMessages == true then LOG('GetPathingOverridePlateauAndLandZone: Have a valid override so will return this, override='..repru(tPathingPlateauAndLZOverride[iX][iZ])) end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
             return tPathingPlateauAndLZOverride[iX][iZ][1], tPathingPlateauAndLZOverride[iX][iZ][2]
         end
     end
@@ -496,12 +503,15 @@ function GetPathingOverridePlateauAndLandZone(tPosition, bOptionalShouldBePathab
                 local iZ = math.floor(tPosition[3])
                 if tPathingPlateauAndLZOverride[iX][iZ] then
                     --if (oOptionalPathingUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oOptionalPathingUnit) or 'nil') == 'uel02031' then LOG('GetPathingOverridePlateauAndLandZone: Have a valid override after considering plateau override for unit, override='..repru(tPathingPlateauAndLZOverride[iX][iZ])) end
-                    --LOG('GetPathingOverridePlateauAndLandZone: Have a valid override after considering plateau override for unit, override='..repru(tPathingPlateauAndLZOverride[iX][iZ]))
+                    if bDebugMessages == true then LOG('GetPathingOverridePlateauAndLandZone: Have a valid override after considering plateau override for unit, override='..repru(tPathingPlateauAndLZOverride[iX][iZ])) end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     return tPathingPlateauAndLZOverride[iX][iZ][1], tPathingPlateauAndLZOverride[iX][iZ][2]
                 end
             end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of function, will return nil') end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return nil, nil
 end
 
@@ -571,7 +581,7 @@ function GetPlateauAndLandZoneReferenceFromPosition(tPosition, bOptionalShouldBe
                         --Do nothing - hopefully unit has orders that it will follow that will resolve this on its own; however update the plateau
                     else
                         M28Utilities.ErrorHandler('Unable to find valid land zone, iSegmentX='..(iSegmentX or 'nil')..'; iSegmentZ='..(iSegmentZ or 'nil')..'; Optional pathing unit ID='..(oOptionalPathingUnit.UnitId or 'nil'))
-                        --M28Utilities.DrawLocation(tPosition)
+                        M28Utilities.DrawLocation(tPosition)
                     end
                 else
                     if iAltPlateau then
