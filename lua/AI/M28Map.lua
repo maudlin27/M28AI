@@ -5661,12 +5661,62 @@ function CreateWaterZones()
     end
 
 
-
+    bDebugMessages = true
     if bDebugMessages == true then
         LOG(sFunctionRef..': End of code, finished recording segments in water zone, iTotalWaterZoneRecordedSegmentCount='..iTotalWaterZoneRecordedSegmentCount..'; iTotalSegmentsInPonds='..iTotalSegmentsInPonds..'; iTotalWaterZoneCount='..iTotalWaterZoneCount..'; will draw all water zones. Time taken to run water zone logic='..GetSystemTimeSecondsOnlyForProfileUse() - iSystemTimeStart)
     end
     if iTotalWaterZoneRecordedSegmentCount < iTotalSegmentsInPonds then
-        M28Utilities.ErrorHandler('May not have assigned every water segment a water zone - consider adding code to go through every pond water segment as backup')
+        --Cycle through every zone to see if have any recorded for pond but not WX
+        local iMaxAdjust = 3
+        local iNewWaterZone, iCurPond
+        for iBaseSegmentX = 1, iMaxLandSegmentX do
+            for iBaseSegmentZ = 1, iMaxLandSegmentZ do
+                if tPondBySegment[iBaseSegmentX][iBaseSegmentZ] and not(tWaterZoneBySegment[iBaseSegmentX][iBaseSegmentZ]) then
+                    --search for nearby zone to be a part of; if have none, then add to existing zone for the pond
+                    iNewWaterZone = nil
+                    iCurPond = tPondBySegment[iBaseSegmentX][iBaseSegmentZ]
+                    bDebugMessages = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have segment inconsistency between ponds and water zones, iBaseSegmentX='..iBaseSegmentX..'; iBaseSegmentZ='..iBaseSegmentZ) end
+                    for iAdjustBase = 1, iMaxAdjust do
+                        for iCurSegmentX = iBaseSegmentX - iAdjustBase, iBaseSegmentX + iAdjustBase, 1 do
+                            for iCurSegmentZ = iBaseSegmentZ - iAdjustBase, iBaseSegmentZ + iAdjustBase, iAdjustBase * 2 do
+                                if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
+                                    if tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] and tPondBySegment[iCurSegmentX][iCurSegmentZ] == iCurPond then
+                                        iNewWaterZone = tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ]
+                                        break
+                                    end
+                                end
+                            end
+                            if iNewWaterZone then break end
+                        end
+                        if iNewWaterZone then break end
+                        --Then do the left and right row (excl corners which ahve already done per the above)
+                        for iCurSegmentX = iBaseSegmentX - iAdjustBase, iBaseSegmentX + iAdjustBase, iAdjustBase * 2 do
+                            for iCurSegmentZ = iBaseSegmentZ - iAdjustBase + 1, iBaseSegmentZ + iAdjustBase - 1, 1 do
+                                if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
+                                    if tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] and tPondBySegment[iCurSegmentX][iCurSegmentZ] == iCurPond then
+                                        iNewWaterZone = tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ]
+                                        break
+                                    end
+                                end
+                            end
+                            if iNewWaterZone then break end
+                        end
+                        if iNewWaterZone then break end
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Finisihed searching for nearby water zones in the same pond, iNewWaterZone='..(iNewWaterZone or 'nil')) end
+                    if iNewWaterZone then
+                        AddSegmentToWaterZone(iCurPond, iNewWaterZone, iBaseSegmentX, iBaseSegmentZ)
+                    else
+                        RecordWaterZoneAtPosition(GetPositionFromPathingSegments(iBaseSegmentX, iBaseSegmentZ))
+                    end
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': After update, iTotalWaterZoneRecordedSegmentCount='..iTotalWaterZoneRecordedSegmentCount..'; iTotalSegmentsInPonds='..iTotalSegmentsInPonds) end
+        if iTotalWaterZoneRecordedSegmentCount < iTotalSegmentsInPonds then
+            M28Utilities.ErrorHandler('May not have assigned every water segment a water zone')
+        end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
