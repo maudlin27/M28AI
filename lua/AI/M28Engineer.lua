@@ -6954,7 +6954,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     end
 
     --High priority T1 radar if we have T2 arti but poor radar coverage
-    if GetGameTimeSeconds() >= 1650 then bDebugMessages = true end
     iCurPriority = iCurPriority + 1
     if bDebugMessages == true then LOG(sFunctionRef..': iCurPriority='..iCurPriority..'; Radar coverage='..tLZTeamData[M28Map.refiRadarCoverage]..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]) end
     if (not(bHaveLowPower) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 100) and (tLZTeamData[M28Map.refiRadarCoverage] <= 100 or (M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.refoBestRadar]) and tLZTeamData[M28Map.refoBestRadar]:GetFractionComplete() < 1)) then
@@ -6962,12 +6961,12 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         if bDebugMessages == true then LOG(sFunctionRef..': T3 mex count='..tLZTeamData[M28Map.subrefMexCountByTech][3]..'; Is table of T2 arti empty='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti, tLZTeamData[M28Map.subrefLZTAlliedUnits])))) end
         if tLZTeamData[M28Map.subrefMexCountByTech][3] > 0 or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti, tLZTeamData[M28Map.subrefLZTAlliedUnits])) == false or (tLZTeamData[M28Map.refiRadarCoverage] <= 50 and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryT2PlusPD, tLZTeamData[M28Map.subrefLZTAlliedUnits])) == false) then
             local bWantT1DueToRadarUnderConstruction = false
-            if tLZTeamData[M28Map.refoBestRadar]:GetFractionComplete() < 1 then
+            if M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.refoBestRadar]) and tLZTeamData[M28Map.refoBestRadar]:GetFractionComplete() < 1 then
                 local tRadarInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryRadar, tLZTeamData[M28Map.subrefLZTAlliedUnits])
                 bWantT1DueToRadarUnderConstruction = true
                 if M28Utilities.IsTableEmpty(tRadarInZone) == false then
                     for iUnit, oUnit in tRadarInZone do
-                        if oUnit:GetFractionComplete() == 1 or EntityCategoryContains(categories.TECH1, oUnit.UnitId) then
+                        if M28UnitInfo.IsUnitValid(oUnit) and (oUnit:GetFractionComplete() == 1 or EntityCategoryContains(categories.TECH1, oUnit.UnitId)) then
                             bWantT1DueToRadarUnderConstruction = false
                             break
                         end
@@ -7005,7 +7004,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
     --T2 arti if enemy has sniper bots or fatboy, or a firebase that threatens this zone
     iCurPriority = iCurPriority + 1
-    if GetGameTimeSeconds() >= 1500 then bDebugMessages = true end
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we want emergency T2 arti, iCurPriority='..iCurPriority..'; M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech]..'; Friendly tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]..'; Is table of pathing to other zones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]))..'; Is tLZTeamData[M28Map.subreftEnemyFirebasesInRange] empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]))) end
     if (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftEnemyFirebasesInRange]) == false or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoAllNearbyEnemyT2ArtiUnits]) == false or (M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= 5) and (not(M28Overseer.bNoRushActive) or M28Overseer.iNoRushTimer - GetGameTimeSeconds() <= 180 or (not(bHaveLowMass) and not(bHaveLowPower) and tLZTeamData[M28Map.subrefMexCountByTech][1] == 0 and tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] > 0)) then
         local iRangeThreshold = 65

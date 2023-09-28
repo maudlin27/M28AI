@@ -5153,7 +5153,7 @@ function UpdateRadarCoverageForDestroyedRadar(oRadar)
     local sFunctionRef = 'UpdateRadarCoverageForDestroyedRadar'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if EntityCategoryContains(categories.TECH2 + categories.TECH3, oRadar.UnitId) then bDebugMessages = true end
+
 
     --First update land zones
     if bDebugMessages == true then LOG(sFunctionRef..': oRadar has been destroyed, oRadar='..oRadar.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRadar)..'; Time='..GetGameTimeSeconds()..'; Is table of zones covered by team empty='..tostring(M28Utilities.IsTableEmpty(oRadar[reftiRadarPlateauAndLandZonesCoveredByTeam]))) end
@@ -5271,7 +5271,7 @@ function UpdateZoneIntelForRadar(oRadar)
     local sFunctionRef = 'UpdateZoneIntelForRadar'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if EntityCategoryContains(categories.TECH2 + categories.TECH3, oRadar.UnitId) then bDebugMessages = true end
+
 
     local iTeam = oRadar:GetAIBrain().M28Team
     if bDebugMessages == true then LOG(sFunctionRef..': Just built radar '..oRadar.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRadar)..' owned by '..oRadar:GetAIBrain().Nickname..' with M28Team '..iTeam..'; is the table of active m28 brains for this team empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))..'; Time='..GetGameTimeSeconds()) end
