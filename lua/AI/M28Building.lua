@@ -379,10 +379,8 @@ function RecordUnitsInRangeOfTMLAndAnyTMDProtection(oTML, tOptionalUnitsToConsid
                             end
                         end
                         if bNotAlreadyRecordedInTeamData then
-                            bDebugMessages = true
                             if bDebugMessages == true then LOG(sFunctionRef..': TML not already recorded in team data so will add for team '..iTMDTeam..', oTML='..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)) end
                             table.insert(M28Team.tTeamData[iTMDTeam][M28Team.reftEnemyTML], oTML)
-                            bDebugMessages = false
                         end
                         local tTeamUnitsToProtect = oTMDBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryProtectFromTML, oTML:GetPosition(), iTMLRange, 'Ally')
                         if bDebugMessages == true then LOG(sFunctionRef..': Is tTeamUnitsToProtect empty='..tostring(M28Utilities.IsTableEmpty(tTeamUnitsToProtect))..'; iTMLRange='..iTMLRange..'; TML position='..repru(oTML:GetPosition())) end
@@ -507,7 +505,6 @@ function TMDJustBuilt(oTMD)
                                 if M28UnitInfo.IsUnitValid(oUnit) then
                                     sCurUnitRef = GetUnitRef(oUnit)
                                     if not(tbUnitRefsConsidered[sCurUnitRef]) then
-                                        bDebugMessages = true
                                         if bDebugMessages == true then LOG(sFunctionRef..': Have unit in zone wanting TMD coverage that we havent considered with getunitsaroundpoint, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; Unit fraction complete='..oUnit:GetFractionComplete()) end
                                         RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, { oTMD })
                                     end
