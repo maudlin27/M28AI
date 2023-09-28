@@ -156,7 +156,7 @@ function GetBestUnitToUpgrade(toPotentialUnits, bPrioritiseFactoryHQ)
 end
 
 function UpdateLandZoneM28AllMexByTech(aiBrain, iPlateau, iLandZone, oOptionalUnitThatDied, iOptionalWait)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateLandZoneM28AllMexByTech'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -184,7 +184,8 @@ function UpdateLandZoneM28AllMexByTech(aiBrain, iPlateau, iLandZone, oOptionalUn
         tMexesByTech[3] = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex * categories.TECH3, tAllMexes)
         if bDebugMessages == true then LOG(sFunctionRef..': oOptionalUnitThatDied='..(oOptionalUnitThatDied.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oOptionalUnitThatDied) or 'nil')..'; Is tAllMexes empty='..tostring(M28Utilities.IsTableEmpty(tAllMexes))) end
         local tiRecordedMexPositionsXZ = {} --Finding issues with an upgrading mex that completes having both the original mex and the upgraded mex for a period of time; if are upgrading multiple in a zone at the same time, this can lead to too many mexes being recorded for brief moment
-        for iTech = 3, 1 do
+        for iTech = 3, 1, -1 do
+            if bDebugMessages == true then LOG(sFunctionRef..': Updating for iTech='..iTech..'; Is table of mexes by tech empty='..tostring(M28Utilities.IsTableEmpty(tMexesByTech[iTech]))) end
             if M28Utilities.IsTableEmpty(tMexesByTech[iTech]) == false then
                 for iMex, oCurMex in tMexesByTech[iTech] do
                     if bDebugMessages == true then LOG(sFunctionRef..': Plateau='..iPlateau..'; iLandZone='..iLandZone..'; oCurMex='..oCurMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oCurMex)..'; Unit state='..M28UnitInfo.GetUnitState(oCurMex)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oCurMex))..'; Position='..repru(oCurMex:GetPosition())..'; iTech='..iTech..'; iMexCount pre increase='..iMexCount..'; tLZTeamData[M28Map.subrefMexCountByTech] pre increase='..repru(tLZTeamData[M28Map.subrefMexCountByTech])) end
