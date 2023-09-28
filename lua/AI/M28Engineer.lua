@@ -1132,7 +1132,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
         --Target location adjustments
         local oClosestUnitToTML
         if EntityCategoryContains(M28UnitInfo.refCategoryTMD, sBlueprintToBuild) then
-            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]) == false and M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftEnemyTML]) == false then
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]) == false and M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[aiBrain.M28Team][M28Team.reftEnemyTML]) then
                 local iStartingPlateau, iStartingLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
                 local iCurDist
                 local iClosestDist = 100000
@@ -8713,12 +8713,13 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
             end
         end
         --Get the unit closest to the nearest enemy base to protect first
-        local oUnitWantingTMD = M28Building.GetUnitWantingTMD(tLZData, tLZTeamData, iTeam)
+        local oUnitWantingTMD = M28Building.GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iLandZone)
         if bDebugMessages == true then LOG(sFunctionRef..': Is oUnitWantingTMD valid='..tostring(M28UnitInfo.IsUnitValid(oUnitWantingTMD))..'; iBPWanted='..iBPWanted) end
         if oUnitWantingTMD then
             HaveActionToAssign(refActionBuildTMD, 2, iBPWanted,  oUnitWantingTMD)
         end
     end
+    bDebugMessages = false
 
     --Reclaim specific units
     iCurPriority = iCurPriority + 1

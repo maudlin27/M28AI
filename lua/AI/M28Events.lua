@@ -457,9 +457,11 @@ function OnEnhancementComplete(oUnit, sEnhancement)
             M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit)
             M28UnitInfo.RecordUnitRange(oUnit) --Refresh the range incase enhancement has increased anything
 
-            --Mobile TML logic (e.g. ACU and SACU, and billy nuke)
-            if (oUnit[M28UnitInfo.refiManualRange] or 0) > 0 then
+            --Mobile TML logic (e.g. ACU and SACU, and billy nuke) - note some manual ranges are e.g. for overcharge
+            if (oUnit[M28UnitInfo.refiManualRange] or 0) > 50 then
                 --Record this against every opposing M28 Team
+                bDebugMessages = true
+                if bDebugMessages == true then LOG(sFunctionRef..': have unit with tml upgrade, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                 ForkThread(M28Team.RecordMobileTMLThreatForAllEnemyTeams, oUnit)
             end
 

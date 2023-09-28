@@ -1235,6 +1235,12 @@ function RecordUnitRange(oUnit)
     --Updates unit range variables - sets to nil if it has nothing with that range, otherwise records it as the highest range it has.  Factors in enhancements. Also records if unit unpacks for T3 mobile arti
     --Also updates if unit can kite
     --Also records unit strike damage for certain air units
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RecordUnitRange'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+
     local oBP = oUnit:GetBlueprint()
     local bWeaponUnpacks = false
     local bWeaponIsFixed = false
@@ -1310,6 +1316,12 @@ function RecordUnitRange(oUnit)
             if oCurWeapon.WeaponUnpacks and oCurWeapon.WeaponUnpackLocksMotion then bWeaponUnpacks = true
             elseif oCurWeapon.SlavedToBody or oCurWeapon.SlavedToTurret then bWeaponIsFixed = true
             end
+            if bDebugMessages == true then
+                LOG(sFunctionRef..': just Considered weapon '..oCurWeapon.Label..'; oUnit[refiDFRange]='..(oUnit[refiDFRange] or 'nil')..'; Indirect='..(oUnit[refiIndirectRange] or 'nil')..'; Manual='..(oUnit[refiManualRange] or 'nil')..'; oCurWeapon.EnabledByEnhancement='..(oCurWeapon.EnabledByEnhancement or 'nil'))
+                if oCurWeapon.EnabledByEnhancement then
+                    LOG('Have enhancement='..tostring(oUnit:HasEnhancement(oCurWeapon.EnabledByEnhancement)))
+                end
+            end
         end
         if M28Utilities.IsTableEmpty(oBP.Enhancements) == false and (oUnit[refiDFRange] or 0) > 0 then
             --Check if we have a max range in an enhancement
@@ -1339,6 +1351,7 @@ function RecordUnitRange(oUnit)
     --Record unit best range
     oUnit[refiCombatRange] = math.max((oUnit[refiDFRange] or 0), (oUnit[refiIndirectRange] or 0), (oUnit[refiAntiNavyRange] or 0))
     oUnit[refiStrikeDamage] = GetUnitStrikeDamage(oUnit)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function ConvertTechLevelToCategory(iTechLevel)
