@@ -1073,7 +1073,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
 
             --If trying to build experimental, then just build any kind of experimental
             if M28Overseer.bUnitRestrictionsArePresent and M28Utilities.DoesCategoryContainCategory(iCategoryToBuild, M28UnitInfo.refCategoryExperimentalLevel) and aiBrain:GetEconomyStoredRatio('MASS') >= 0.35 then
-                sBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryExperimentalLevel -categories.TRANSPORTATION - categories.TRANSPORTFOCUS, oEngineer, false, false, nil, nil)
+                sBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryExperimentalLevel -categories.TRANSPORTATION - categories.TRANSPORTFOCUS - categories.NAVAL, oEngineer, false, false, nil, nil)
                 --If we have ended up with a game ender then only proceed if we have sufficient eco
                 if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, sBlueprintToBuild) and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] < 80 then
                     --If <= 350 mass per sec+45m in gametime, or < 70% mass stored, then dont build
