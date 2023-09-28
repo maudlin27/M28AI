@@ -5496,7 +5496,7 @@ function GetNovaxTarget(aiBrain, oNovax)
         local iCurShield, iMaxShield
         for iUnit, oUnit in tNearbyEnemyShields do
             iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, false)
-            if iCurShield >= iShieldHealthThreshold then table.insert(tNotLowHealthNearbyShields, oUnit) end
+            if iCurShield >= iShieldHealthThreshold and not(M28UnitInfo.IsUnitUnderwater(oUnit)) then table.insert(tNotLowHealthNearbyShields, oUnit) end
         end
     end
 
@@ -5549,7 +5549,7 @@ function GetNovaxTarget(aiBrain, oNovax)
                     local iCurDPSMod = 0
                     for iACU, oACU in tNearbyACUs do
                         iTimeToKillTarget = 10000
-                        if not(oACU:IsUnitState('Attached')) and not(M28MapInfo.IsUnderwater(oACU:GetPosition())) then --Even if ACU slightly above water watn to ignore since it could probably easily get underwater
+                        if not(oACU:IsUnitState('Attached')) and not(M28Map.IsUnderwater(oACU:GetPosition())) then --Even if ACU slightly above water watn to ignore since it could probably easily get underwater
                             local iACUCurShield, iACUMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oACU)
                             iCurDPSMod = -M28UnitInfo.GetACUShieldRegenRate(oACU) - M28UnitInfo.GetACUHealthRegenRate(oACU)
                             local iACUHealth = oACU:GetHealth() + iACUCurShield
@@ -5746,7 +5746,7 @@ function GetNovaxTarget(aiBrain, oNovax)
                 local iClosestTarget = 10000
                 local iCurDist
                 for iUnit, oUnit in tEnemyUnits do
-                    if oUnit:GetFractionComplete() == 1 and not (M28Logic.IsTargetUnderShield(aiBrain, oUnit, 0, false, false, true, false)) then
+                    if oUnit:GetFractionComplete() == 1 and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and not (M28Logic.IsTargetUnderShield(aiBrain, oUnit, 0, false, false, true, false)) then
                         iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNovax:GetPosition())
                         if iCurDist < iClosestTarget then
                             iClosestTarget = iCurDist
@@ -5761,7 +5761,16 @@ function GetNovaxTarget(aiBrain, oNovax)
                 tEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryNavalSurface, tPositionToSearchFrom, 1000, 'Enemy')
                 if bDebugMessages == true then LOG(sFunctionRef .. ': No high priority targets, will search for lower priority, first with surface naval units. Is table empty=' .. tostring(M28Utilities.IsTableEmpty(tEnemyUnits))) end
                 if M28Utilities.IsTableEmpty(tEnemyUnits) == false then
-                    oTarget = M28Utilities.GetNearestUnit(tEnemyUnits, tPositionToSearchFrom, false, M28Map.refPathingTypeAir)
+                    iClosestDist = 10000
+                    for iUnit, oUnit in tEnemyUnits do
+                        if not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tPositionToSearchFrom)
+                            if iCurDist < iClosestDist then
+                                iClosestDist = iCurDist
+                                oTarget = oUnit
+                            end
+                        end
+                    end
                 else
                     --Target nearest unshielded T3+ mobile land unit or T2 structure; if are none, then just get the nearest mobile land unit:
                     tEnemyUnits = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryStructure, tPositionToSearchFrom, 1000, 'Enemy')
@@ -5775,20 +5784,22 @@ function GetNovaxTarget(aiBrain, oNovax)
                         local iClosestHighValueUnit = 10000
                         local tNovaxPosition = oNovax:GetPosition()
                         for iUnit, oUnit in tEnemyUnits do
-                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tNovaxPosition)
-                            if iCurDist < math.max(iClosestUnshieldedDist, iClosestShieldedDist, iClosestHighValueUnit) then
-                                if iCurDist < iClosestShieldedDist then
-                                    oClosestShieldedUnit = oUnit
-                                    iClosestShieldedDist = iCurDist
-                                end
-                                if iCurDist < iClosestUnshieldedDist and iCurDist <= math.max(250, iClosestShieldedDist) then
-                                    if not (M28Logic.IsTargetUnderShield(aiBrain, oUnit, 10000, false, true, true, false)) then
-                                        oClosestUnshieldedUnit = oUnit
-                                        iClosestUnshieldedDist = iCurDist
+                            if not(M28UnitInfo.IsUnitUnderwater(oUnit)) then
+                                iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tNovaxPosition)
+                                if iCurDist < math.max(iClosestUnshieldedDist, iClosestShieldedDist, iClosestHighValueUnit) then
+                                    if iCurDist < iClosestShieldedDist then
+                                        oClosestShieldedUnit = oUnit
+                                        iClosestShieldedDist = iCurDist
                                     end
-                                end
-                                if iCurDist < iClosestHighValueUnit then
-                                    oClosestHighValueUnit = oUnit
+                                    if iCurDist < iClosestUnshieldedDist and iCurDist <= math.max(250, iClosestShieldedDist) then
+                                        if not (M28Logic.IsTargetUnderShield(aiBrain, oUnit, 10000, false, true, true, false)) then
+                                            oClosestUnshieldedUnit = oUnit
+                                            iClosestUnshieldedDist = iCurDist
+                                        end
+                                    end
+                                    if iCurDist < iClosestHighValueUnit then
+                                        oClosestHighValueUnit = oUnit
+                                    end
                                 end
                             end
                         end

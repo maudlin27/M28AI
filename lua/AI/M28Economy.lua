@@ -156,7 +156,7 @@ function GetBestUnitToUpgrade(toPotentialUnits, bPrioritiseFactoryHQ)
 end
 
 function UpdateLandZoneM28AllMexByTech(aiBrain, iPlateau, iLandZone, oOptionalUnitThatDied, iOptionalWait)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateLandZoneM28AllMexByTech'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

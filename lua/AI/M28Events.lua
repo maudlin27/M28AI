@@ -457,9 +457,10 @@ function OnEnhancementComplete(oUnit, sEnhancement)
             M28UnitInfo.UpdateUnitCombatMassRatingForUpgrades(oUnit)
             M28UnitInfo.RecordUnitRange(oUnit) --Refresh the range incase enhancement has increased anything
 
-            --Mobile TML logic (e.g. ACU and SACU, and billy nuke)
-            if (oUnit[M28UnitInfo.refiManualRange] or 0) > 0 then
+            --Mobile TML logic (e.g. ACU and SACU, and billy nuke) - note some manual ranges are e.g. for overcharge
+            if (oUnit[M28UnitInfo.refiManualRange] or 0) > 50 then
                 --Record this against every opposing M28 Team
+                if bDebugMessages == true then LOG(sFunctionRef..': have unit with tml upgrade, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                 ForkThread(M28Team.RecordMobileTMLThreatForAllEnemyTeams, oUnit)
             end
 
@@ -1007,6 +1008,12 @@ function OnConstructed(oEngineer, oJustBuilt)
             end
         else
             M28Orders.ClearAnyRepairingUnits(oJustBuilt)
+            if M28Utilities.IsTableEmpty(oJustBuilt[M28Land.reftoUnitsToKillOnCompletion]) == false then
+                for iUnit, oUnit in oJustBuilt[M28Land.reftoUnitsToKillOnCompletion] do
+                    M28Orders.IssueTrackedKillUnit(oUnit)
+                end
+                oJustBuilt[M28Land.reftoUnitsToKillOnCompletion] = nil
+            end
 
             if EntityCategoryContains(categories.STRUCTURE, oJustBuilt.UnitId) then
                 --If a building has just build a building, then make sure all M28 are aware of it (since a player would be)

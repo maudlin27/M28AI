@@ -554,7 +554,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
 
                             for iEntry, tHydro in tLZOrWZData[M28Map.subrefHydroLocations] do
                                 if bDebugMessages == true then LOG(sFunctionRef..': Travel dist to hydro='..M28Utilities.GetTravelDistanceBetweenPositions(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()], tHydro, M28Map.refPathingTypeLand)) end
-                                if M28Utilities.GetTravelDistanceBetweenPositions(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()], tHydro, M28Map.refPathingTypeLand) <= 80 then
+                                if M28Utilities.GetTravelDistanceBetweenPositions(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()], tHydro, M28Map.refPathingTypeLand) <= 90 then --Open palms is 85.65
                                     bHydroBuildOrder = true
                                     iCurHydroDist = M28Utilities.GetTravelDistanceBetweenPositions(tHydro, oACU:GetPosition(), M28Map.refPathingTypeLand)
                                     if iCurHydroDist < iClosestDistToACU then

@@ -34,6 +34,7 @@ reftiRadarPlateauAndLandZonesCoveredByTeam = 'M28LandRadarLZs' --Returns talbes 
 reftiRadarPlateauAndLandZonesCoveredByOmni = 'M28LandOmniLZs' --Returns talbes of {iPlateau, iLandZone} that the radar is providing some omni coverage of
 refoSREnemyTarget = 'M28LndSRTrg' --If we have a SR unit told to target an enemy, this tracks it so we dont switch to retreat logic when we move into a new zone in pursuit
 refiTimeOfSREnemyTarget = 'M28LndSRTTim' --Gametimeseconds
+reftoUnitsToKillOnCompletion = 'M28RadCtrlK' --Table of units to ctrlk when this unit finishes construction
 
 --See M28navy for sonar equivalent
 refoAssignedMobileShield = 'M28LandAssignedMobileShield' --Gives the mobile shield assigned ot this unit
@@ -5147,7 +5148,15 @@ function UpdateRecordedAllPlayerOmni(oRadar, bDestroyed)
 end
 
 function UpdateRadarCoverageForDestroyedRadar(oRadar)
+
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'UpdateRadarCoverageForDestroyedRadar'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+
     --First update land zones
+    if bDebugMessages == true then LOG(sFunctionRef..': oRadar has been destroyed, oRadar='..oRadar.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRadar)..'; Time='..GetGameTimeSeconds()..'; Is table of zones covered by team empty='..tostring(M28Utilities.IsTableEmpty(oRadar[reftiRadarPlateauAndLandZonesCoveredByTeam]))) end
     if M28Utilities.IsTableEmpty(oRadar[reftiRadarPlateauAndLandZonesCoveredByTeam]) == false then
         for iTeam, tRadarData in oRadar[reftiRadarPlateauAndLandZonesCoveredByTeam] do
             --local aiBrain = oRadar:GetAIBrain()
@@ -5184,6 +5193,7 @@ function UpdateRadarCoverageForDestroyedRadar(oRadar)
                                 end
                             end
                         end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering nearby radar units for P='..tiPlateauAndLZ[1]..'Z'..tiPlateauAndLZ[2]..'; Is table of nearby radar empty='..tostring(M28Utilities.IsTableEmpty(tNearbyRadar))..'; oBestRadar='..(oBestRadar.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oBestRadar) or 'nil')) end
                         if oBestRadar then
                             tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refoBestRadar] = oBestRadar
                             tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.refiRadarCoverage] = iBestIntelRange
@@ -5252,6 +5262,7 @@ function UpdateRadarCoverageForDestroyedRadar(oRadar)
     end
     --Then update enemy recorded omni range
     UpdateRecordedAllPlayerOmni(oRadar, true)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function UpdateZoneIntelForRadar(oRadar)
@@ -5260,8 +5271,10 @@ function UpdateZoneIntelForRadar(oRadar)
     local sFunctionRef = 'UpdateZoneIntelForRadar'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     local iTeam = oRadar:GetAIBrain().M28Team
-    if bDebugMessages == true then LOG(sFunctionRef..': Just built radar '..oRadar.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRadar)..' owned by '..oRadar:GetAIBrain().Nickname..' with M28Team '..iTeam..'; is the table of active m28 brains for this team empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Just built radar '..oRadar.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRadar)..' owned by '..oRadar:GetAIBrain().Nickname..' with M28Team '..iTeam..'; is the table of active m28 brains for this team empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]))..'; Time='..GetGameTimeSeconds()) end
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
         if not(oRadar['M28UpdatedIntel']) then
             oRadar['M28UpdatedIntel'] = true
@@ -5342,8 +5355,9 @@ function UpdateZoneIntelForRadar(oRadar)
                     end
                 end
 
-                --Filter to obsolete radar and ctrl-K these
+                --Filter to obsolete radar and ctrl-K these (or record against the best radar if the best radar isn't constructed yet)
                 if bDebugMessages == true then LOG(sFunctionRef..': Finished cycling through zones, is table of obsolete radar empty='..tostring(M28Utilities.IsTableEmpty(tPotentiallyObsoleteRadar))) end
+                oRadar[reftoUnitsToKillOnCompletion] = nil
                 if M28Utilities.IsTableEmpty(tPotentiallyObsoleteRadar) == false then
                     local tUniqueList = {}
                     local iUnitRef
@@ -5369,10 +5383,14 @@ function UpdateZoneIntelForRadar(oRadar)
                             end
                         end
                         if M28Utilities.IsTableEmpty(tUnitsToKill) == false then
-                            local iTotalCount = table.getn(tUnitsToKill)
-                            for iEntry = iTotalCount, 1, -1 do
-                                if bDebugMessages == true then LOG(sFunctionRef..': Radar '..tUnitsToKill[iEntry].UnitId..M28UnitInfo.GetUnitLifetimeCount(tUnitsToKill[iEntry])..' has radar range of '..(tUnitsToKill[iEntry]:GetBlueprint().Intel.RadarRadius or 0)..' and is obsolete by oRadar '..oRadar.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRadar)..'; with iIntelRange='..iIntelRange) end
-                                M28Orders.IssueTrackedKillUnit(tUnitsToKill[iEntry])
+                            if oRadar:GetFractionComplete() < 1 then
+                                oRadar[reftoUnitsToKillOnCompletion] = tUnitsToKill
+                            else
+                                local iTotalCount = table.getn(tUnitsToKill)
+                                for iEntry = iTotalCount, 1, -1 do
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Radar '..tUnitsToKill[iEntry].UnitId..M28UnitInfo.GetUnitLifetimeCount(tUnitsToKill[iEntry])..' has radar range of '..(tUnitsToKill[iEntry]:GetBlueprint().Intel.RadarRadius or 0)..' and is obsolete by oRadar '..oRadar.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRadar)..'; with iIntelRange='..iIntelRange) end
+                                    M28Orders.IssueTrackedKillUnit(tUnitsToKill[iEntry])
+                                end
                             end
                         end
                     end

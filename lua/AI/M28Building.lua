@@ -368,8 +368,20 @@ function RecordUnitsInRangeOfTMLAndAnyTMDProtection(oTML, tOptionalUnitsToConsid
                         end
                     end
                     if not(tOptionalUnitsToConsider) then
-                        --i.e. this is the first time we are considering the TML
-                        table.insert(M28Team.tTeamData[iTMDTeam][M28Team.reftEnemyTML], oTML)
+                        --i.e. this is the first time we are considering the TML; double-check we havent already recorded the TML
+                        local bNotAlreadyRecordedInTeamData = EntityCategoryContains(M28UnitInfo.refCategoryTML, oTML.UnitId)
+                        if bNotAlreadyRecordedInTeamData and M28Conditions.IsTableOfUnitsStillValid(M28Team.tTeamData[iTMDTeam][M28Team.reftEnemyTML]) then
+                            for iUnit, oUnit in M28Team.tTeamData[iTMDTeam][M28Team.reftEnemyTML] do
+                                if oUnit == oTML then
+                                    bNotAlreadyRecordedInTeamData = false
+                                    break
+                                end
+                            end
+                        end
+                        if bNotAlreadyRecordedInTeamData then
+                            if bDebugMessages == true then LOG(sFunctionRef..': TML not already recorded in team data so will add for team '..iTMDTeam..', oTML='..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)) end
+                            table.insert(M28Team.tTeamData[iTMDTeam][M28Team.reftEnemyTML], oTML)
+                        end
                         local tTeamUnitsToProtect = oTMDBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryProtectFromTML, oTML:GetPosition(), iTMLRange, 'Ally')
                         if bDebugMessages == true then LOG(sFunctionRef..': Is tTeamUnitsToProtect empty='..tostring(M28Utilities.IsTableEmpty(tTeamUnitsToProtect))..'; iTMLRange='..iTMLRange..'; TML position='..repru(oTML:GetPosition())) end
                         if M28Utilities.IsTableEmpty(tTeamUnitsToProtect) == false then
@@ -432,11 +444,36 @@ end
 
 function TMDJustBuilt(oTMD)
     --Searches for any enemy TML in range of the TMD, and any friendly units in range of the TMD
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'TMDJustBuilt'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+
     local oTMDBrain = oTMD:GetAIBrain()
     local iTMDTeam = oTMDBrain.M28Team
     if not(oTMD[M28UnitInfo.refiMissileDefenceRange]) then M28UnitInfo.RecordUnitRange(oTMD) end
     local iTMDRange = (oTMD[M28UnitInfo.refiMissileDefenceRange] or 12.5)
     local tNearbyTML = {}
+    local iTMDPlateauOrZero, iTMDZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oTMD:GetPosition())
+    local tTMDZoneData, tTMDZoneTeamData
+    if (iTMDZone or 0) > 0 then
+        if iTMDPlateauOrZero == 0 then
+            tTMDZoneData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iTMDZone]][M28Map.subrefPondWaterZones][iTMDZone]
+            tTMDZoneTeamData = tTMDZoneData[M28Map.subrefWZTeamData][iTMDTeam]
+        else
+            tTMDZoneData = M28Map.tAllPlateaus[iTMDPlateauOrZero][M28Map.subrefPlateauLandZones][iTMDZone]
+            tTMDZoneTeamData = tTMDZoneData[M28Map.subrefLZTeamData][iTMDTeam]
+        end
+    end
+    local bCheckForUnitsInZone = M28Utilities.IsTableEmpty(tTMDZoneTeamData[M28Map.reftUnitsWantingTMD]) == false
+    local tbUnitRefsConsidered
+    local sCurUnitRef
+
+    function GetUnitRef(oUnit)
+        return oUnit.UnitId..'L'..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'B'..oUnit:GetAIBrain():GetArmyIndex()
+    end
+
     for iTMLTeam = 1, M28Team.iTotalTeamCount do
         --Get all TML in range of this TMD
         if not(iTMDTeam == iTMLTeam) then
@@ -447,12 +484,31 @@ function TMDJustBuilt(oTMD)
                     break
                 end
                 local tTeamNearbyTML = oTMLBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryTML, oTMD:GetPosition(), iTMLMissileRange + iTMDRange - 3, 'Ally')
+                if bDebugMessages == true then LOG(sFunctionRef..': Dealing with oTMD='..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)..'; is table of nearby TML empty='..tostring(M28Utilities.IsTableEmpty(tTeamNearbyTML))..'; iTMLTeam='..iTMLTeam) end
                 if M28Utilities.IsTableEmpty(tTeamNearbyTML) == false then
                     for iTML, oTML in tTeamNearbyTML do
+                        tbUnitRefsConsidered = {}
                         local tFriendlyUnitsInRangeOfTML = oTMDBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryProtectFromTML, oTML:GetPosition(), iTMLMissileRange + 2, 'Ally')
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of TMD friendly units in range of TML empty='..tostring(M28Utilities.IsTableEmpty(tFriendlyUnitsInRangeOfTML))) end
                         if M28Utilities.IsTableEmpty(tFriendlyUnitsInRangeOfTML) == false then
                             for iUnit, oUnit in tFriendlyUnitsInRangeOfTML do
+                                sCurUnitRef = GetUnitRef(oUnit)
+
+                                tbUnitRefsConsidered[sCurUnitRef] = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will check if unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' is in range of TML '..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)) end
                                 RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, { oTMD }) --This will do a distance check from the unit to the TMD
+                            end
+                        end
+                        --Also check for any units wanting TMD coverage in the TMD zone (redundancy in case there are issues with getunitsaroundpoint not picking up upgrading units)
+                        if bCheckForUnitsInZone and M28Utilities.IsTableEmpty(tTMDZoneTeamData[M28Map.reftUnitsWantingTMD]) == false then
+                            for iUnit, oUnit in tTMDZoneTeamData[M28Map.reftUnitsWantingTMD] do
+                                if M28UnitInfo.IsUnitValid(oUnit) then
+                                    sCurUnitRef = GetUnitRef(oUnit)
+                                    if not(tbUnitRefsConsidered[sCurUnitRef]) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Have unit in zone wanting TMD coverage that we havent considered with getunitsaroundpoint, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; Unit fraction complete='..oUnit:GetFractionComplete()) end
+                                        RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, { oTMD })
+                                    end
+                                end
                             end
                         end
                     end
@@ -460,6 +516,7 @@ function TMDJustBuilt(oTMD)
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function RecordTMLAndTMDForUnitJustBuilt(oUnit)
@@ -533,6 +590,8 @@ function IsTMDProtectingUnitFromTML(oTMD, oUnit, oTML, iOptionalBuildingSize)
     local sFunctionRef = 'IsTMDProtectingUnitFromTML'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     local iBuildingSize = iOptionalBuildingSize
     if not(iBuildingSize) then iBuildingSize = M28UnitInfo.GetBuildingSize(oUnit.UnitId) end
     local iUnitToTMD = M28Utilities.GetDistanceBetweenPositions(oTMD:GetPosition(), oUnit:GetPosition())
@@ -548,7 +607,7 @@ function IsTMDProtectingUnitFromTML(oTMD, oUnit, oTML, iOptionalBuildingSize)
 
     local iAngleTMLToUnit = M28Utilities.GetAngleFromAToB(oTML:GetPosition(), oUnit:GetPosition())
     local iAngleTMLToTMD = M28Utilities.GetAngleFromAToB(oTML:GetPosition(), oTMD:GetPosition())
-    if bDebugMessages == true then LOG(sFunctionRef..': Checking if TMD '..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)..' is able to block the TML '..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)..' for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iUnitToTMD='..iUnitToTMD..'; iTMDRange reduced by building size='..iTMDRange..'; TMD recorded range='..(oUnit[M28UnitInfo.refiMissileDefenceRange] or 'nil')..'; iUnitToTML='..iUnitToTML..'; iTMDToTML='..iTMDToTML..'; iAngleTMLToUnit='..iAngleTMLToUnit..'; iAngleTMLToTMD='..iAngleTMLToTMD) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Checking if TMD '..oTMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTMD)..' is able to block the TML '..oTML.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTML)..' for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iUnitToTMD='..iUnitToTMD..'; iTMDRange reduced by building size='..iTMDRange..'; TMD recorded range='..(oUnit[M28UnitInfo.refiMissileDefenceRange] or 'nil')..'; iUnitToTML='..iUnitToTML..'; iTMDToTML='..iTMDToTML..'; iAngleTMLToUnit='..iAngleTMLToUnit..'; iAngleTMLToTMD='..iAngleTMLToTMD..'; Is line result='..tostring(M28Utilities.IsLineFromAToBInRangeOfCircleAtC(iUnitToTML, iTMDToTML, iUnitToTMD, iAngleTMLToUnit, iAngleTMLToTMD, iTMDRange))) end
     if M28Utilities.IsLineFromAToBInRangeOfCircleAtC(iUnitToTML, iTMDToTML, iUnitToTMD, iAngleTMLToUnit, iAngleTMLToTMD, iTMDRange) then
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         return true
@@ -569,6 +628,7 @@ function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange)
 
 
     local bTMLAlreadyRecordedAgainstUnit = false
+    local bUpdateZoneForUnitsWantingTMD = false
     if M28Utilities.IsTableEmpty(oUnit[reftTMLInRangeOfThisUnit]) == false then
         for iExistingTML, oExistingTML in oUnit[reftTMLInRangeOfThisUnit] do
             if oExistingTML == oTML then
@@ -668,6 +728,7 @@ function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange)
                 if oExistingUnit == oUnit then
                     if bDebugMessages == true then LOG(sFunctionRef..': This unit was previously recorded as an unprotected target, will remove') end
                     table.remove(oTML[reftUnprotectedUnitTargetsForThisTML], iExistingUnit)
+                    bUpdateZoneForUnitsWantingTMD = true
                     break
                 end
             end
@@ -689,6 +750,9 @@ function RecordIfUnitIsProtectedFromTMLByTMD(oUnit, oTML, tTMDInRange)
     if bDebugMessages == true then LOG(sFunctionRef..': Will record this unit against the TML as being in range, unless already included, bAlreadyIncluded='..tostring(bAlreadyIncluded)) end
     if not(bAlreadyIncluded) then
         table.insert(oTML[reftUnitsInRangeOfThisTML], oUnit)
+    end
+    if bUpdateZoneForUnitsWantingTMD and oUnit:GetAIBrain().M28AI then
+        RecordIfUnitsWantTMDCoverageAgainstLandZone(oUnit:GetAIBrain().M28Team, { oUnit })
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
@@ -915,6 +979,7 @@ function RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnits)
                 oUnit[refbUnitWantsMoreTMD] = true
             end
         else
+            if bDebugMessages == true then LOG(sFunctionRef..': Have enough TMD covering this unit, unit wants more TMD flag='..tostring(oUnit[refbUnitWantsMoreTMD] or false)) end
             if oUnit[refbUnitWantsMoreTMD] then --i.e. unit previously was flagged as needing more TMD (but now it doesnt)
                 --Remove this unit from the land zone list of units wanting TMD
                 iUnitPlateau, iUnitLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
@@ -924,8 +989,10 @@ function RecordIfUnitsWantTMDCoverageAgainstLandZone(iTeam, tUnits)
                     if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]) == false then
                         --Remove htis unit from the list of units wanting TMD
                         for iRecordedUnit, oRecordedUnit in tLZTeamData[M28Map.reftUnitsWantingTMD] do
+                            if bDebugMessages == true then LOG(sFunctionRef..': oRecordedUnit='..oRecordedUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRecordedUnit)) end
                             if oRecordedUnit == oUnit then
                                 table.remove(tLZTeamData[M28Map.reftUnitsWantingTMD], iRecordedUnit)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have removed from units wanting TMD in zone, is table of units wanting TMD empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftUnitsWantingTMD]))) end
                                 break
                             end
                         end
@@ -968,8 +1035,14 @@ function UpdateLZUnitsWantingTMDForUnitDeath(oUnit)
     oUnit[refbUnitWantsMoreTMD] = false --redundancy
 end
 
-function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam)
+function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone)
     --Gets the unit closest to the nearest enemy base that wants TMD; also refreshes the table for any dead units
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'GetUnitWantingTMD'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+
     local iUnitsWantingTMD = table.getn(tLZTeamData[M28Map.reftUnitsWantingTMD])
     local iClosestDist = 10000
     local iCurDist
@@ -980,6 +1053,7 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam)
             table.remove(tLZTeamData[M28Map.reftUnitsWantingTMD], iEntry)
         else
             iCurDist = M28Utilities.GetDistanceBetweenPositions(tEnemyBase, tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry]:GetPosition())
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering if unit '..tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry].UnitId..M28UnitInfo.GetUnitLifetimeCount(tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry])..' is the closest, iCurDist='..iCurDist..'; iCLosestDist='..iClosestDist..'; refbUnitWantsMoreTMD='..tostring(tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry][refbUnitWantsMoreTMD])) end
             if iCurDist < iClosestDist then
                 iClosestDist = iCurDist
                 oClosestUnit = tLZTeamData[M28Map.reftUnitsWantingTMD][iEntry]
@@ -988,1180 +1062,1217 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam)
     end
     --Cap on number of TMD to prvent massiveo verbuilding - dont have more than 10 in a LZ
     local tExistingTMD = EntityCategoryFilterDown(M28UnitInfo.refCategoryTMD, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+    if bDebugMessages == true then LOG(sFunctionRef..': Is table of existing TMD empty='..tostring(M28Utilities.IsTableEmpty(tExistingTMD))) end
     if M28Utilities.IsTableEmpty(tExistingTMD) == false then
         local iExistingValidTMD = table.getn(tExistingTMD)
 
         --Max TMD limit - no. of mexes in the zone * 0.5 if lower; also higher TMD if we have Aeon TMD
         local iTMDLimit = math.min(30, math.max(10, (tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3]) * 0.5, tLZTeamData[M28Map.subrefLZSValue] / 5000))
+        if not(tLZTeamData[M28Map.subrefLZbCoreBase]) then iTMDLimit = math.min(iTMDLimit, math.max(4, tLZTeamData[M28Map.subrefMexCountByTech][3] * 2 + tLZTeamData[M28Map.subrefMexCountByTech][2], tLZTeamData[M28Map.subrefLZSValue] / 5000)) end
+        if bDebugMessages == true then LOG(sFunctionRef..': iExistingValidTMD='..iExistingValidTMD..'; iTMDLimit='..iTMDLimit) end
         if iExistingValidTMD >= iTMDLimit then
             local iEnemyTotalTMLCount = 0
             if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyTML]) == false then
                 iEnemyTotalTMLCount = table.getn(M28Team.tTeamData[iTeam][M28Team.reftEnemyTML])
             end
-            if iExistingValidTMD > math.min(31, iTMDLimit + iEnemyTotalTMLCount * 2) then
-
-
-
-                M28Utilities.ErrorHandler('Have 10 TMD in land zone so wont build any more TMD, risk we may be overbuilding TMD, will clear entries', true)
+            if bDebugMessages == true then LOG(sFunctionRef..': iEnemyTotalTMLCount='..iEnemyTotalTMLCount) end
+            if iExistingValidTMD > math.min(31, iTMDLimit + (iEnemyTotalTMLCount - 1) * 2) then
+                --Too much TMD already, clear any units wanting TMD; send error message if we have loads of TMD
+                if iExistingValidTMD >= 10 then
+                    M28Utilities.ErrorHandler('Have at least TMD in land zone so wont build any more TMD, risk we may be overbuilding TMD, will clear entries', true)
+                end
                 tLZTeamData[M28Map.reftUnitsWantingTMD] = {}
                 return nil
             end
         end
     end
-
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return oClosestUnit
 end
 
 
-function RecordPriorityShields(iTeam, tLZTeamData)
-    --Records shields that want to ahve engineers assisting
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'RecordPriorityShields'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeOfLastShieldPriorityRefresh] or -100) >= 10 then
-        tLZTeamData[M28Map.refiTimeOfLastShieldPriorityRefresh] = GetGameTimeSeconds()
-        local tShieldsToAssist = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield, tLZTeamData[M28Map.subrefLZTAlliedUnits])
-        --First clear any engineers assigned to shields that arent listed as a priority shield from the last update
-        if bDebugMessages == true then LOG(sFunctionRef..': WIll refresh list of shields. Is table empty='..tostring(M28Utilities.IsTableEmpty(tShieldsToAssist))..'; do we already have any priority shields when when last ran this? is table empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]))) end
-        if M28Utilities.IsTableEmpty(tShieldsToAssist) == false then
-            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]) == false then
-                for iShield, oShield in tShieldsToAssist do
-                    if M28Utilities.IsTableEmpty(oShield[M28UnitInfo.reftoUnitsAssistingThis]) == false and not(oShield[refbPriorityShield]) then
-                        --Shield wasnt a priority shield in the last cycle but has engineers assigned to assist it - will clear these engineers
-                        local tEngineersToClear = {}
-                        for iEngi, oEngi in oShield[M28UnitInfo.reftoUnitsAssistingThis] do
-                            table.insert(tEngineersToClear, oEngi)
-                        end
-                        for iAssistingEngineer, oAssistingEngineer in tEngineersToClear do
-                            if M28UnitInfo.IsUnitValid(oAssistingEngineer) then M28Orders.IssueTrackedClearCommands(oAssistingEngineer) end
-                        end
-                        oShield[M28UnitInfo.reftoUnitsAssistingThis] = nil
-                    end
-                end
-            end
-
-            tLZTeamData[M28Map.reftPriorityShieldsToAssist] = {}
-            local iTotalUnitMassCoverage
-            local iCurMassValue
-            for iShield, oShield in tShieldsToAssist do
-                iTotalUnitMassCoverage = 0
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; size of table of units nearby='..table.getn(oShield[reftoUnitsCoveredByShield])) end
-                if M28Utilities.IsTableEmpty(oShield[reftoUnitsCoveredByShield]) == false then
-                    for iUnit, oUnit in oShield[reftoUnitsCoveredByShield] do
-                        if not(oUnit == oShield) then
-                            if EntityCategoryContains(M28UnitInfo.refCategorySMD, oUnit.UnitId) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false then
-                                iCurMassValue = 30000
-                            elseif EntityCategoryContains(M28UnitInfo.refCategorySML, oUnit.UnitId) then
-                                iCurMassValue = 27500
-                            else
-                                iCurMassValue = (oUnit:GetBlueprint().Economy.BuildCostMass or 0)
-                            end
-                            if not(oUnit[refoPriorityShieldProvidingCoverage] == oShield) and M28UnitInfo.IsUnitValid(oUnit[refoPriorityShieldProvidingCoverage]) then
-                                iCurMassValue = iCurMassValue * 0.1
-                                if bDebugMessages == true then LOG(sFunctionRef..': Already have a priority shield providing coverage='..oUnit[refoPriorityShieldProvidingCoverage].UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit[refoPriorityShieldProvidingCoverage])..' so will reduce mass value') end
-                            end
-                            iTotalUnitMassCoverage = iTotalUnitMassCoverage + iCurMassValue
-                            if bDebugMessages == true then LOG(sFunctionRef..': Getting shield protection mass value of oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' for oShield='..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; iCurMassValue='..iCurMassValue..'; iTotalUnitMassCoverage='..iTotalUnitMassCoverage..'; Is there already a valid shield protecting it='..tostring(M28UnitInfo.IsUnitValid(oUnit[refoPriorityShieldProvidingCoverage]))) end
-                        end
-                    end
-                    if bDebugMessages == true then LOG(sFunctionRef..': iTotalUnitMassCoverage='..iTotalUnitMassCoverage..'; refiAssignedFirebase='..(oShield[refiAssignedFirebase] or 'nil')) end
-                    if iTotalUnitMassCoverage >= 25000 then
-                        --Add as a priority shield
-                        table.insert(tLZTeamData[M28Map.reftPriorityShieldsToAssist], oShield)
-                        oShield[refbPriorityShield] = true
-                        for iUnit, oUnit in oShield[reftoUnitsCoveredByShield] do
-                            oUnit[refoPriorityShieldProvidingCoverage] = oShield --Deliberately overwrites existing value, means if 2 shields cover same area, and one can justify it even with the ot her, but the other cant, then we wont protect the other
-                        end
-                        if bDebugMessages == true then LOG(sFunctionRef..': Adding the shield as a priority shield') end
-                    end
-                end
-            end
-        end
-    end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-end
-
-function OnMexDeath(tUnitPosition, sUnitRef, sLifetimeCount, iOwnerArmyIndex)
-    --Call via fork thread due to the WaitSeconds() in it; however note that as this is forked, the unit (mex) may not exist anymore, so tUnitPosition needs to be a copy of the position table, and dont want to pass the unit object
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'OnMexDeath'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; tUnitPosition='..repru(tUnitPosition)) end
-
-
-
-    --local tUnitPosition = {oUnit:GetPosition()[1], oUnit:GetPosition()[2], oUnit:GetPosition()[3]}
-    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tUnitPosition)
-    local tMexLocations
-    local tLZOrWZData
-    local iWaterZone, iPond
-
-
-
-    if iPlateau and not(iLandZone) then
-        iWaterZone = M28Map.GetWaterZoneFromPosition(tUnitPosition)
-        if iWaterZone then
-            iPond = M28Map.tiPondByWaterZone[iWaterZone]
-            tLZOrWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone]
-            tMexLocations = tLZOrWZData[M28Map.subrefWZMexLocations]
-        end
-    else
-        tLZOrWZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
-        tMexLocations = tLZOrWZData[M28Map.subrefLZMexLocations]
-    end
-
-
-
-    if bDebugMessages == true then LOG(sFunctionRef..': is table of mex locations empty='..tostring( M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]))..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; tUnitPosition='..repru(tUnitPosition)..'; is tMexLocations empty='..tostring(M28Utilities.IsTableEmpty(tMexLocations))..'; iWaterZone='..(iWaterZone or 'nil')) end
-    if M28Utilities.IsTableEmpty(tMexLocations) == false then
-        --Record time of last mex death against LZ data to help with error messages
-        tLZOrWZData[M28Map.refiTimeOfLastMexDeath] = GetGameTimeSeconds()
-
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        WaitSeconds(1) --dont treat mex as available for a second (this is to help cover scenarios where if a mex has 'died' due to being upgraded, the new building will be here) - was a 2s delay, are trying 1s delay now to see if causes an issue
+    function RecordPriorityShields(iTeam, tLZTeamData)
+        --Records shields that want to ahve engineers assisting
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'RecordPriorityShields'
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        if GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeOfLastShieldPriorityRefresh] or -100) >= 10 then
+            tLZTeamData[M28Map.refiTimeOfLastShieldPriorityRefresh] = GetGameTimeSeconds()
+            local tShieldsToAssist = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+            --First clear any engineers assigned to shields that arent listed as a priority shield from the last update
+            if bDebugMessages == true then LOG(sFunctionRef..': WIll refresh list of shields. Is table empty='..tostring(M28Utilities.IsTableEmpty(tShieldsToAssist))..'; do we already have any priority shields when when last ran this? is table empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]))) end
+            if M28Utilities.IsTableEmpty(tShieldsToAssist) == false then
+                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]) == false then
+                    for iShield, oShield in tShieldsToAssist do
+                        if M28Utilities.IsTableEmpty(oShield[M28UnitInfo.reftoUnitsAssistingThis]) == false and not(oShield[refbPriorityShield]) then
+                            --Shield wasnt a priority shield in the last cycle but has engineers assigned to assist it - will clear these engineers
+                            local tEngineersToClear = {}
+                            for iEngi, oEngi in oShield[M28UnitInfo.reftoUnitsAssistingThis] do
+                                table.insert(tEngineersToClear, oEngi)
+                            end
+                            for iAssistingEngineer, oAssistingEngineer in tEngineersToClear do
+                                if M28UnitInfo.IsUnitValid(oAssistingEngineer) then M28Orders.IssueTrackedClearCommands(oAssistingEngineer) end
+                            end
+                            oShield[M28UnitInfo.reftoUnitsAssistingThis] = nil
+                        end
+                    end
+                end
 
-        local tClosestMexLocation
-        local iClosestMexLocation = 2.1 --no point considering mexes further away
-        local iCurAbsDif
-        for iEntry, tMex in tLZOrWZData[M28Map.subrefLZMexLocations] do --(WZ uses same ref ID definition)
-            iCurAbsDif = math.abs(tMex[1] - tUnitPosition[1]) + math.abs(tMex[3] - tUnitPosition[3])
-            if iCurAbsDif < iClosestMexLocation then
-                iClosestMexLocation = iCurAbsDif
-                tClosestMexLocation = {tMex[1], tMex[2], tMex[3]}
+                tLZTeamData[M28Map.reftPriorityShieldsToAssist] = {}
+                local iTotalUnitMassCoverage
+                local iCurMassValue
+                for iShield, oShield in tShieldsToAssist do
+                    iTotalUnitMassCoverage = 0
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering shield '..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; size of table of units nearby='..table.getn(oShield[reftoUnitsCoveredByShield])) end
+                    if M28Utilities.IsTableEmpty(oShield[reftoUnitsCoveredByShield]) == false then
+                        for iUnit, oUnit in oShield[reftoUnitsCoveredByShield] do
+                            if not(oUnit == oShield) then
+                                if EntityCategoryContains(M28UnitInfo.refCategorySMD, oUnit.UnitId) and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyNukeLaunchers]) == false then
+                                    iCurMassValue = 30000
+                                elseif EntityCategoryContains(M28UnitInfo.refCategorySML, oUnit.UnitId) then
+                                    iCurMassValue = 27500
+                                else
+                                    iCurMassValue = (oUnit:GetBlueprint().Economy.BuildCostMass or 0)
+                                end
+                                if not(oUnit[refoPriorityShieldProvidingCoverage] == oShield) and M28UnitInfo.IsUnitValid(oUnit[refoPriorityShieldProvidingCoverage]) then
+                                    iCurMassValue = iCurMassValue * 0.1
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Already have a priority shield providing coverage='..oUnit[refoPriorityShieldProvidingCoverage].UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit[refoPriorityShieldProvidingCoverage])..' so will reduce mass value') end
+                                end
+                                iTotalUnitMassCoverage = iTotalUnitMassCoverage + iCurMassValue
+                                if bDebugMessages == true then LOG(sFunctionRef..': Getting shield protection mass value of oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' for oShield='..oShield.UnitId..M28UnitInfo.GetUnitLifetimeCount(oShield)..'; iCurMassValue='..iCurMassValue..'; iTotalUnitMassCoverage='..iTotalUnitMassCoverage..'; Is there already a valid shield protecting it='..tostring(M28UnitInfo.IsUnitValid(oUnit[refoPriorityShieldProvidingCoverage]))) end
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iTotalUnitMassCoverage='..iTotalUnitMassCoverage..'; refiAssignedFirebase='..(oShield[refiAssignedFirebase] or 'nil')) end
+                        if iTotalUnitMassCoverage >= 25000 then
+                            --Add as a priority shield
+                            table.insert(tLZTeamData[M28Map.reftPriorityShieldsToAssist], oShield)
+                            oShield[refbPriorityShield] = true
+                            for iUnit, oUnit in oShield[reftoUnitsCoveredByShield] do
+                                oUnit[refoPriorityShieldProvidingCoverage] = oShield --Deliberately overwrites existing value, means if 2 shields cover same area, and one can justify it even with the ot her, but the other cant, then we wont protect the other
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Adding the shield as a priority shield') end
+                        end
+                    end
+                end
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting a period of time and then searching for closest mex location, tClosestMexLocation='..repru(tClosestMexLocation)..'; Time='..GetGameTimeSeconds()..'; iPlateau='..iPlateau..'; iLandZone='..(iLandZone or 'nil')) end
-        if not(tClosestMexLocation) then M28Utilities.ErrorHandler('Couldnt find a mex in this zone close enough to the unit position on death')
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    end
+
+    function OnMexDeath(tUnitPosition, sUnitRef, sLifetimeCount, iOwnerArmyIndex)
+        --Call via fork thread due to the WaitSeconds() in it; however note that as this is forked, the unit (mex) may not exist anymore, so tUnitPosition needs to be a copy of the position table, and dont want to pass the unit object
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'OnMexDeath'
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code, time='..GetGameTimeSeconds()..'; tUnitPosition='..repru(tUnitPosition)) end
+
+
+
+        --local tUnitPosition = {oUnit:GetPosition()[1], oUnit:GetPosition()[2], oUnit:GetPosition()[3]}
+        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tUnitPosition)
+        local tMexLocations
+        local tLZOrWZData
+        local iWaterZone, iPond
+
+
+
+        if iPlateau and not(iLandZone) then
+            iWaterZone = M28Map.GetWaterZoneFromPosition(tUnitPosition)
+            if iWaterZone then
+                iPond = M28Map.tiPondByWaterZone[iWaterZone]
+                tLZOrWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone]
+                tMexLocations = tLZOrWZData[M28Map.subrefWZMexLocations]
+            end
         else
-            --for iMexLocation, tMexLocation in tMexLocations do
+            tLZOrWZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+            tMexLocations = tLZOrWZData[M28Map.subrefLZMexLocations]
+        end
+
+
+
+        if bDebugMessages == true then LOG(sFunctionRef..': is table of mex locations empty='..tostring( M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]))..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; tUnitPosition='..repru(tUnitPosition)..'; is tMexLocations empty='..tostring(M28Utilities.IsTableEmpty(tMexLocations))..'; iWaterZone='..(iWaterZone or 'nil')) end
+        if M28Utilities.IsTableEmpty(tMexLocations) == false then
+            --Record time of last mex death against LZ data to help with error messages
+            tLZOrWZData[M28Map.refiTimeOfLastMexDeath] = GetGameTimeSeconds()
+
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitSeconds(1) --dont treat mex as available for a second (this is to help cover scenarios where if a mex has 'died' due to being upgraded, the new building will be here) - was a 2s delay, are trying 1s delay now to see if causes an issue
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+            local tClosestMexLocation
+            local iClosestMexLocation = 2.1 --no point considering mexes further away
+            local iCurAbsDif
+            for iEntry, tMex in tLZOrWZData[M28Map.subrefLZMexLocations] do --(WZ uses same ref ID definition)
+                iCurAbsDif = math.abs(tMex[1] - tUnitPosition[1]) + math.abs(tMex[3] - tUnitPosition[3])
+                if iCurAbsDif < iClosestMexLocation then
+                    iClosestMexLocation = iCurAbsDif
+                    tClosestMexLocation = {tMex[1], tMex[2], tMex[3]}
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting a period of time and then searching for closest mex location, tClosestMexLocation='..repru(tClosestMexLocation)..'; Time='..GetGameTimeSeconds()..'; iPlateau='..iPlateau..'; iLandZone='..(iLandZone or 'nil')) end
+            if not(tClosestMexLocation) then M28Utilities.ErrorHandler('Couldnt find a mex in this zone close enough to the unit position on death')
+            else
+                --for iMexLocation, tMexLocation in tMexLocations do
                 --Prev line - redid at same time as changing approach for removing an unbuilt location to try and be more accurate
                 --if M28Utilities.GetDistanceBetweenPositions(tMexLocation, oUnit:GetPosition()) <= 0.9 then
                 --Revised line:
                 --if tMexLocation[1] == tClosestMexLocation[1] and tMexLocation[3] == tClosestMexLocation[3] then
-                    --Do we have any mexes in this location?
-                    local rRect = M28Utilities.GetRectAroundLocation(tClosestMexLocation, 0.9)
-                    local tUnitsInRect = GetUnitsInRect(rRect)
-                    if bDebugMessages == true then
-                        LOG(sFunctionRef..': Is tUnitsInRect empty='..tostring(M28Utilities.IsTableEmpty(tUnitsInRect)))
-                        if M28Utilities.IsTableEmpty(tUnitsInRect) == false then
-                            LOG(sFunctionRef..': If filter to just mexes is the table empty='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tUnitsInRect))))
-                        end
-                    end
-                    local bNoMex = true
+                --Do we have any mexes in this location?
+                local rRect = M28Utilities.GetRectAroundLocation(tClosestMexLocation, 0.9)
+                local tUnitsInRect = GetUnitsInRect(rRect)
+                if bDebugMessages == true then
+                    LOG(sFunctionRef..': Is tUnitsInRect empty='..tostring(M28Utilities.IsTableEmpty(tUnitsInRect)))
                     if M28Utilities.IsTableEmpty(tUnitsInRect) == false then
-                        local tMexes = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tUnitsInRect)
-                        if M28Utilities.IsTableEmpty(tMexes) == false then
-                            for iMex, oMex in tMexes do
-                                if M28UnitInfo.IsUnitValid(oMex) and not(oMex.UnitId == sUnitRef and M28UnitInfo.GetUnitLifetimeCount(oMex) == sLifetimeCount and oMex:GetAIBrain():GetArmyIndex() == iOwnerArmyIndex) then
-                                    local tMexPosition = oMex:GetPosition()
-                                    --Get closest mex to this, in case there's another mex that's closer
-                                    local iCurMexClosestLocation = 2.1
-                                    local tCurMexClosestLocation
-                                    for iEntry, tMex in tLZOrWZData[M28Map.subrefLZMexLocations] do --(WZ uses same ref ID definition)
-                                        iCurAbsDif = math.abs(tMex[1] - tMexPosition[1]) + math.abs(tMex[3] - tMexPosition[3])
-                                        if iCurAbsDif < iCurMexClosestLocation then
-                                            iCurMexClosestLocation = iCurAbsDif
-                                            tCurMexClosestLocation = {tMex[1], tMex[2], tMex[3]}
-                                        end
-                                    end
-                                    if tCurMexClosestLocation[1] == tClosestMexLocation[1] and tCurMexClosestLocation[3] == tClosestMexLocation[3] then
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Have a valid mex in this location, oMex='..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)..'; Army Index='..oMex:GetAIBrain():GetArmyIndex()..'; sUnitRef='..sUnitRef..'; sLifetimeCount='..sLifetimeCount..'; iOwnerArmyIndex='..(iOwnerArmyIndex or 'nil')..'; tCurMexClosestLocation='..repru(tCurMexClosestLocation)..'; Mex position='..repru(oMex:GetPosition())..'; tUnitPosition='..repru(tUnitPosition)..'; tClosestMexLocation='..repru(tClosestMexLocation)) end
-                                        bNoMex = false
-                                        break
+                        LOG(sFunctionRef..': If filter to just mexes is the table empty='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tUnitsInRect))))
+                    end
+                end
+                local bNoMex = true
+                if M28Utilities.IsTableEmpty(tUnitsInRect) == false then
+                    local tMexes = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tUnitsInRect)
+                    if M28Utilities.IsTableEmpty(tMexes) == false then
+                        for iMex, oMex in tMexes do
+                            if M28UnitInfo.IsUnitValid(oMex) and not(oMex.UnitId == sUnitRef and M28UnitInfo.GetUnitLifetimeCount(oMex) == sLifetimeCount and oMex:GetAIBrain():GetArmyIndex() == iOwnerArmyIndex) then
+                                local tMexPosition = oMex:GetPosition()
+                                --Get closest mex to this, in case there's another mex that's closer
+                                local iCurMexClosestLocation = 2.1
+                                local tCurMexClosestLocation
+                                for iEntry, tMex in tLZOrWZData[M28Map.subrefLZMexLocations] do --(WZ uses same ref ID definition)
+                                    iCurAbsDif = math.abs(tMex[1] - tMexPosition[1]) + math.abs(tMex[3] - tMexPosition[3])
+                                    if iCurAbsDif < iCurMexClosestLocation then
+                                        iCurMexClosestLocation = iCurAbsDif
+                                        tCurMexClosestLocation = {tMex[1], tMex[2], tMex[3]}
                                     end
                                 end
-                            end
-                        end
-                    end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if we have a mex at this location anymore, bNoMex='..tostring(bNoMex)) end
-                    if bNoMex then
-                        local bAlreadyRecorded = false
-                        if not(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) then
-                            tLZOrWZData[M28Map.subrefMexUnbuiltLocations] = {}
-                        else
-                            for iEntry, tUnbuiltLocation in tLZOrWZData[M28Map.subrefMexUnbuiltLocations] do --redundancy in case this code triggers more than once, as were comign across unbuilt locations with the same entry listed more than once (although it wasnt showing up with a reprs/repru)
-                                if tUnbuiltLocation[1] == tClosestMexLocation[1] and tUnbuiltLocation[3] == tClosestMexLocation[3] then
-                                    bAlreadyRecorded = true
+                                if tCurMexClosestLocation[1] == tClosestMexLocation[1] and tCurMexClosestLocation[3] == tClosestMexLocation[3] then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Have a valid mex in this location, oMex='..oMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMex)..'; Army Index='..oMex:GetAIBrain():GetArmyIndex()..'; sUnitRef='..sUnitRef..'; sLifetimeCount='..sLifetimeCount..'; iOwnerArmyIndex='..(iOwnerArmyIndex or 'nil')..'; tCurMexClosestLocation='..repru(tCurMexClosestLocation)..'; Mex position='..repru(oMex:GetPosition())..'; tUnitPosition='..repru(tUnitPosition)..'; tClosestMexLocation='..repru(tClosestMexLocation)) end
+                                    bNoMex = false
                                     break
                                 end
                             end
                         end
-                        if not(bAlreadyRecorded) then
-                            table.insert(tLZOrWZData[M28Map.subrefMexUnbuiltLocations], tClosestMexLocation)
-                            if bDebugMessages == true then
-                                LOG(sFunctionRef..': Recording location as being unbuilt as mex is dead and no mexes visible there now')
-                                M28Utilities.DrawLocation(tMexLocation)
-                            end
-                        else
-                            if bDebugMessages == true then LOG(sFunctionRef..': Already recorded this location as unbuilt') end
-                        end
-                        --break
                     end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if we have a mex at this location anymore, bNoMex='..tostring(bNoMex)) end
+                if bNoMex then
+                    local bAlreadyRecorded = false
+                    if not(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) then
+                        tLZOrWZData[M28Map.subrefMexUnbuiltLocations] = {}
+                    else
+                        for iEntry, tUnbuiltLocation in tLZOrWZData[M28Map.subrefMexUnbuiltLocations] do --redundancy in case this code triggers more than once, as were comign across unbuilt locations with the same entry listed more than once (although it wasnt showing up with a reprs/repru)
+                            if tUnbuiltLocation[1] == tClosestMexLocation[1] and tUnbuiltLocation[3] == tClosestMexLocation[3] then
+                                bAlreadyRecorded = true
+                                break
+                            end
+                        end
+                    end
+                    if not(bAlreadyRecorded) then
+                        table.insert(tLZOrWZData[M28Map.subrefMexUnbuiltLocations], tClosestMexLocation)
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef..': Recording location as being unbuilt as mex is dead and no mexes visible there now')
+                            M28Utilities.DrawLocation(tMexLocation)
+                        end
+                    else
+                        if bDebugMessages == true then LOG(sFunctionRef..': Already recorded this location as unbuilt') end
+                    end
+                    --break
+                end
                 --end
-            --end
-        end
-        if bDebugMessages == true then
-            if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations] after update is empty')
-            else LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations] after update has a size '..table.getn(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..', table='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]))
+                --end
             end
+            if bDebugMessages == true then
+                if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations] after update is empty')
+                else LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations] after update has a size '..table.getn(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..', table='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]))
+                end
+            end
+        else
+            M28Utilities.ErrorHandler('Mex has died but not in a recognised land or water zone that has mexes')
         end
-    else
-        M28Utilities.ErrorHandler('Mex has died but not in a recognised land or water zone that has mexes')
-    end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-end
-
-function OnMexConstructionStarted(oUnit)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'OnMexConstructionStarted'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-    if not(M28Map.bMapLandSetupComplete) or GetGameTimeSeconds() <= 4 or not(M28Map.bWaterZoneInitialCreation) then
-        while (not(M28Map.bMapLandSetupComplete) or GetGameTimeSeconds() <= 4 or not(M28Map.bWaterZoneInitialCreation)) do
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-            WaitTicks(1)
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-            if GetGameTimeSeconds() >= 6 then break end
-        end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
 
-    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
-    local tMexLocations
-    local tLZOrWZData
-    local iWaterZone, iPond
+    function OnMexConstructionStarted(oUnit)
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'OnMexConstructionStarted'
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
-
-    if iPlateau and not(iLandZone) then
-        iWaterZone = M28Map.GetWaterZoneFromPosition(oUnit:GetPosition())
-        if iWaterZone then
-            iPond = M28Map.tiPondByWaterZone[iWaterZone]
-            tLZOrWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone]
-            tMexLocations = tLZOrWZData[M28Map.subrefWZMexLocations]
-        end
-    else
-        tLZOrWZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
-        tMexLocations = tLZOrWZData[M28Map.subrefLZMexLocations]
-    end
-
-    if bDebugMessages == true then LOG(sFunctionRef..': The time is '..GetGameTimeSeconds()..'; Have just started construction for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Is M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]))..'; Unit position='..repru(oUnit:GetPosition())) end
-    local bFoundMexLocation = false
-    if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false then
-        --Find the closest mex location in the zone
-        local tClosestMexLocation
-        local iClosestMexLocation = 2.1 --no point considering mexes further away
-        local iCurAbsDif
-        local tUnitPosition = oUnit:GetPosition()
-        for iEntry, tMex in tLZOrWZData[M28Map.subrefLZMexLocations] do --(WZ uses same ref ID definition)
-            iCurAbsDif = math.abs(tMex[1] - tUnitPosition[1]) + math.abs(tMex[3] - tUnitPosition[3])
-            if iCurAbsDif < iClosestMexLocation then
-                iClosestMexLocation = iCurAbsDif
-                tClosestMexLocation = {tMex[1], tMex[2], tMex[3]}
+        if not(M28Map.bMapLandSetupComplete) or GetGameTimeSeconds() <= 4 or not(M28Map.bWaterZoneInitialCreation) then
+            while (not(M28Map.bMapLandSetupComplete) or GetGameTimeSeconds() <= 4 or not(M28Map.bWaterZoneInitialCreation)) do
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitTicks(1)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                if GetGameTimeSeconds() >= 6 then break end
             end
         end
 
+        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
+        local tMexLocations
+        local tLZOrWZData
+        local iWaterZone, iPond
 
-        local iSizeBefore = table.getn(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])
-        if bDebugMessages == true then LOG('About to loop through Mex locations; iPlateau='..iPlateau..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; reprs='..reprs(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..'; iSizeBefore='..iSizeBefore..'; tClosestMexLocation='..repru(tClosestMexLocation)) end
-        --local iSizeAfter
-        --local iLocationToRemove
-        if bDebugMessages == true then
-            for iMexLocation, tMexLocation in tLZOrWZData[M28Map.subrefMexUnbuiltLocations] do
-                LOG(sFunctionRef..': iMexLocation='..iMexLocation..'; tMexLocation='..repru(tMexLocation))
+
+
+        if iPlateau and not(iLandZone) then
+            iWaterZone = M28Map.GetWaterZoneFromPosition(oUnit:GetPosition())
+            if iWaterZone then
+                iPond = M28Map.tiPondByWaterZone[iWaterZone]
+                tLZOrWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone]
+                tMexLocations = tLZOrWZData[M28Map.subrefWZMexLocations]
             end
+        else
+            tLZOrWZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+            tMexLocations = tLZOrWZData[M28Map.subrefLZMexLocations]
         end
-        if tClosestMexLocation then
-            for iEntry = iSizeBefore, 1, -1 do
-                local tMexLocation = tLZOrWZData[M28Map.subrefMexUnbuiltLocations][iEntry]
-                if bDebugMessages == true then LOG(sFunctionRef..': Comparing dist for iEntry '..iEntry..'; tMexLocation='..repru(tMexLocation)..'; tClosestMexLocation='..repru(tClosestMexLocation)) end
-                if tMexLocation[1] == tClosestMexLocation[1] and tMexLocation[3] == tClosestMexLocation[3] then
+
+        if bDebugMessages == true then LOG(sFunctionRef..': The time is '..GetGameTimeSeconds()..'; Have just started construction for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Is M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]))..'; Unit position='..repru(oUnit:GetPosition())) end
+        local bFoundMexLocation = false
+        if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) == false then
+            --Find the closest mex location in the zone
+            local tClosestMexLocation
+            local iClosestMexLocation = 2.1 --no point considering mexes further away
+            local iCurAbsDif
+            local tUnitPosition = oUnit:GetPosition()
+            for iEntry, tMex in tLZOrWZData[M28Map.subrefLZMexLocations] do --(WZ uses same ref ID definition)
+                iCurAbsDif = math.abs(tMex[1] - tUnitPosition[1]) + math.abs(tMex[3] - tUnitPosition[3])
+                if iCurAbsDif < iClosestMexLocation then
+                    iClosestMexLocation = iCurAbsDif
+                    tClosestMexLocation = {tMex[1], tMex[2], tMex[3]}
+                end
+            end
+
+
+            local iSizeBefore = table.getn(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])
+            if bDebugMessages == true then LOG('About to loop through Mex locations; iPlateau='..iPlateau..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; reprs='..reprs(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..'; iSizeBefore='..iSizeBefore..'; tClosestMexLocation='..repru(tClosestMexLocation)) end
+            --local iSizeAfter
+            --local iLocationToRemove
+            if bDebugMessages == true then
+                for iMexLocation, tMexLocation in tLZOrWZData[M28Map.subrefMexUnbuiltLocations] do
+                    LOG(sFunctionRef..': iMexLocation='..iMexLocation..'; tMexLocation='..repru(tMexLocation))
+                end
+            end
+            if tClosestMexLocation then
+                for iEntry = iSizeBefore, 1, -1 do
+                    local tMexLocation = tLZOrWZData[M28Map.subrefMexUnbuiltLocations][iEntry]
+                    if bDebugMessages == true then LOG(sFunctionRef..': Comparing dist for iEntry '..iEntry..'; tMexLocation='..repru(tMexLocation)..'; tClosestMexLocation='..repru(tClosestMexLocation)) end
+                    if tMexLocation[1] == tClosestMexLocation[1] and tMexLocation[3] == tClosestMexLocation[3] then
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef..': Have built a mex within 1 of a mex location so will treat this mex location as no longer available. iEntry='..iEntry)
+                            M28Utilities.DrawLocation(tMexLocation, 2)
+                        end
+                        bFoundMexLocation = true
+                        local vRemoved = table.remove(tLZOrWZData[M28Map.subrefMexUnbuiltLocations], iEntry)
+                        if bDebugMessages == true then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations] after removal='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..'; vRemoved='..reprs(vRemoved)..'; iSizeBefore='..iSizeBefore) end
+                        break
+                    end
+                end
+            else
+                M28Utilities.ErrorHandler('Couldnt find a mex location close enough')
+            end
+            --Old code - had issues with this sometimes where e.g. would have a table that with reprs showed as only having 1 entry, but it actually had 2 and were identical
+            --[[for iMexLocation, tMexLocation in tLZOrWZData[M28Map.subrefMexUnbuiltLocations] do
+                --Old code commented out below caused issues on maps like sludge:
+                --if M28Utilities.GetDistanceBetweenPositions(tMexLocation, oUnit:GetPosition()) <= 2 then
+                --Replaced with the following:
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering tMexLocation='..repru(tMexLocation)..'; compared with Unit position '..repru(oUnit:GetPosition())) end
+                if math.abs(tMexLocation[1] - oUnit:GetPosition()[1]) < 1 and math.abs(tMexLocation[3] - oUnit:GetPosition()[3]) < 1 then
                     if bDebugMessages == true then
-                        LOG(sFunctionRef..': Have built a mex within 1 of a mex location so will treat this mex location as no longer available. iEntry='..iEntry)
+                        LOG(sFunctionRef..': Have built a mex within 1 of a mex location so will treat this mex location as no longer available. iMexLocation='..iMexLocation)
                         M28Utilities.DrawLocation(tMexLocation, 2)
                     end
                     bFoundMexLocation = true
-                    local vRemoved = table.remove(tLZOrWZData[M28Map.subrefMexUnbuiltLocations], iEntry)
-                    if bDebugMessages == true then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations] after removal='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..'; vRemoved='..reprs(vRemoved)..'; iSizeBefore='..iSizeBefore) end
+                    iLocationToRemove = iMexLocation
                     break
                 end
             end
-        else
-            M28Utilities.ErrorHandler('Couldnt find a mex location close enough')
-        end
-        --Old code - had issues with this sometimes where e.g. would have a table that with reprs showed as only having 1 entry, but it actually had 2 and were identical
-        --[[for iMexLocation, tMexLocation in tLZOrWZData[M28Map.subrefMexUnbuiltLocations] do
-            --Old code commented out below caused issues on maps like sludge:
-            --if M28Utilities.GetDistanceBetweenPositions(tMexLocation, oUnit:GetPosition()) <= 2 then
-            --Replaced with the following:
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering tMexLocation='..repru(tMexLocation)..'; compared with Unit position '..repru(oUnit:GetPosition())) end
-            if math.abs(tMexLocation[1] - oUnit:GetPosition()[1]) < 1 and math.abs(tMexLocation[3] - oUnit:GetPosition()[3]) < 1 then
-                if bDebugMessages == true then
-                    LOG(sFunctionRef..': Have built a mex within 1 of a mex location so will treat this mex location as no longer available. iMexLocation='..iMexLocation)
-                    M28Utilities.DrawLocation(tMexLocation, 2)
+            if iLocationToRemove then
+                local vRemoved = table.remove(tLZOrWZData[M28Map.subrefMexUnbuiltLocations], iLocationToRemove)
+                local iSizeAfter
+                if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) then iSizeAfter = 0
+                else iSizeAfter = table.getn(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])
                 end
-                bFoundMexLocation = true
-                iLocationToRemove = iMexLocation
-                break
+                if bDebugMessages == true then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations] after removal='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..'; vRemoved='..reprs(vRemoved)..'; iSizeBefore='..iSizeBefore..'; iSizeAfter='..iSizeAfter) end
             end
-        end
-        if iLocationToRemove then
-            local vRemoved = table.remove(tLZOrWZData[M28Map.subrefMexUnbuiltLocations], iLocationToRemove)
-            local iSizeAfter
-            if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations]) then iSizeAfter = 0
-            else iSizeAfter = table.getn(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])
-            end
-            if bDebugMessages == true then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations] after removal='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..'; vRemoved='..reprs(vRemoved)..'; iSizeBefore='..iSizeBefore..'; iSizeAfter='..iSizeAfter) end
-        end
-        if iSizeAfter >= iSizeBefore then
-            --Backup for strange case where table.remove would remove a table but the table would still remain
+            if iSizeAfter >= iSizeBefore then
+                --Backup for strange case where table.remove would remove a table but the table would still remain
 
-        end--]]
-    end
-    if not(bFoundMexLocation) then
-        --Is the reason we cant find any unbuilt locations because a mex is being upgraded? Doing a reprs of a mex being upgraded, CanTakeDamage was false and IsUpgrade was true, so use these to check
-        if oUnit.CanTakeDamage and not(oUnit.IsUpgrade) and (GetGameTimeSeconds() - (tLZOrWZData[M28Map.refiTimeOfLastMexDeath] or 0)) > 2.1 then
-            --Ignore if early game and is owned by non-human brain, or campaign and owned by non-M28AI non-human brain
-            if oUnit:GetAIBrain().BrainType == 'Human' or oUnit:GetAIBrain().M28AI or (GetGameTimeSeconds() >= 10 and not(M28Map.bIsCampaignMap)) then
-                local tNearbyRect = M28Utilities.GetRectAroundLocation(oUnit:GetPosition(), 0.49)
-                local tUnitsWhereDied = GetUnitsInRect(tNearbyRect)
-                local bHaveMexHere = false
-                if M28Utilities.IsTableEmpty(tNearbyRect) == false then
-                    for iBuilding, oBuilding in tNearbyRect do
-                        if not(oBuilding == oUnit) and EntityCategoryContains(M28UnitInfo.refCategoryMex, oBuilding.UnitId) and M28UnitInfo.IsUnitValid(oBuilding) then
-                            bHaveMexHere = true
-                            break
+            end--]]
+        end
+        if not(bFoundMexLocation) then
+            --Is the reason we cant find any unbuilt locations because a mex is being upgraded? Doing a reprs of a mex being upgraded, CanTakeDamage was false and IsUpgrade was true, so use these to check
+            if oUnit.CanTakeDamage and not(oUnit.IsUpgrade) and (GetGameTimeSeconds() - (tLZOrWZData[M28Map.refiTimeOfLastMexDeath] or 0)) > 2.1 then
+                --Ignore if early game and is owned by non-human brain, or campaign and owned by non-M28AI non-human brain
+                if oUnit:GetAIBrain().BrainType == 'Human' or oUnit:GetAIBrain().M28AI or (GetGameTimeSeconds() >= 10 and not(M28Map.bIsCampaignMap)) then
+                    local tNearbyRect = M28Utilities.GetRectAroundLocation(oUnit:GetPosition(), 0.49)
+                    local tUnitsWhereDied = GetUnitsInRect(tNearbyRect)
+                    local bHaveMexHere = false
+                    if M28Utilities.IsTableEmpty(tNearbyRect) == false then
+                        for iBuilding, oBuilding in tNearbyRect do
+                            if not(oBuilding == oUnit) and EntityCategoryContains(M28UnitInfo.refCategoryMex, oBuilding.UnitId) and M28UnitInfo.IsUnitValid(oBuilding) then
+                                bHaveMexHere = true
+                                break
+                            end
                         end
                     end
-                end
-                if not(bHaveMexHere) then
-                    --we have a 1s delay on a mex dying before checking for available locations, so this could explain this
-                    if tLZOrWZData[M28Map.refiTimeOfLastMexDeath] and GetGameTimeSeconds() - tLZOrWZData[M28Map.refiTimeOfLastMexDeath] > 1.01 then
-                        M28Utilities.ErrorHandler('OnCreate triggered for a mex but no unbuilt locations near it, iPlateau='..iPlateau..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Map setup complete='..tostring(M28Map.bMapLandSetupComplete)..'; bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation or false), true)
+                    if not(bHaveMexHere) then
+                        --we have a 1s delay on a mex dying before checking for available locations, so this could explain this
+                        if tLZOrWZData[M28Map.refiTimeOfLastMexDeath] and GetGameTimeSeconds() - tLZOrWZData[M28Map.refiTimeOfLastMexDeath] > 1.01 then
+                            M28Utilities.ErrorHandler('OnCreate triggered for a mex but no unbuilt locations near it, iPlateau='..iPlateau..'; iLandZone='..(iLandZone or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Map setup complete='..tostring(M28Map.bMapLandSetupComplete)..'; bWaterZoneInitialCreation='..tostring(M28Map.bWaterZoneInitialCreation or false), true)
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations]='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit position='..repru(oUnit:GetPosition())) end
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': tLZOrWZData[M28Map.subrefMexUnbuiltLocations]='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit position='..repru(oUnit:GetPosition())) end
                 end
             end
         end
-    end
 
-    --Add mex to enemy unit table if underwater, due to flaw with current approach - i.e. to reduce overhead all AI regardless of team use the same table for if a mex has been built; engineers are meant to either build on unbuilt mexes, or try and reclaim if the enemy is there; however without this step they effectively end up thinking a teammate has the mex so they never tyr sending an engineer to build or capture.  For land it's not an issue as would expect land scouts or other land units to reveal the mexes anyway
-    if iWaterZone > 0 then
-        local tTeamsUpdated = {}
-        if M28Utilities.IsTableEmpty(M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.subreftoEnemyBrains]) == false then
-            for iBrain, oBrain in M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.subreftoEnemyBrains] do
-                if oBrain.M28AI and not(tTeamsUpdated[oBrain.M28Team]) then
-                    tTeamsUpdated[oBrain.M28Team] = true
-                    --(aiBrain, oUnit, bAlreadyUpdatedPosition, bAlreadyTriedReassignment, bIgnoreIfAssignedAlready)
-                    M28Team.AssignUnitToLandZoneOrPond(oBrain, oUnit, false,                    false,                      true)
-                end
-            end
-        else
-            --E.g. civilians that own mexes
-            local iMexBrainIndex = oUnit:GetAIBrain():GetArmyIndex()
-            for iBrain, oBrain in ArmyBrains do
-                if not(IsAlly(oBrain:GetArmyIndex(), iMexBrainIndex)) then
+        --Add mex to enemy unit table if underwater, due to flaw with current approach - i.e. to reduce overhead all AI regardless of team use the same table for if a mex has been built; engineers are meant to either build on unbuilt mexes, or try and reclaim if the enemy is there; however without this step they effectively end up thinking a teammate has the mex so they never tyr sending an engineer to build or capture.  For land it's not an issue as would expect land scouts or other land units to reveal the mexes anyway
+        if iWaterZone > 0 then
+            local tTeamsUpdated = {}
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.subreftoEnemyBrains]) == false then
+                for iBrain, oBrain in M28Team.tTeamData[oUnit:GetAIBrain().M28Team][M28Team.subreftoEnemyBrains] do
                     if oBrain.M28AI and not(tTeamsUpdated[oBrain.M28Team]) then
                         tTeamsUpdated[oBrain.M28Team] = true
                         --(aiBrain, oUnit, bAlreadyUpdatedPosition, bAlreadyTriedReassignment, bIgnoreIfAssignedAlready)
                         M28Team.AssignUnitToLandZoneOrPond(oBrain, oUnit, false,                    false,                      true)
                     end
                 end
-            end
-        end
-    end
-    if bDebugMessages == true then LOG(sFunctionRef..': End of code, tLZOrWZData[M28Map.subrefMexUnbuiltLocations]='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])) end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-end
-
-function DecideToLaunchNukeSMLOrTMLMissile()  end --Done only to make it easier to find considerlaunchingmissile
-function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
-    --Should be called via forkthread when missile created due to creating a loop
-    --oOptioanlWeapon - if specified then can get the missile speed
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'ConsiderLaunchingMissile'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-
-
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..' owned by brain '..oLauncher:GetAIBrain().Nickname..' at time='..GetGameTimeSeconds()..'; launcher position='..repru(oLauncher:GetPosition())) end
-    if M28UnitInfo.IsUnitValid(oLauncher) then
-        --oLauncher[refbActiveMissileChecker] = true
-
-
-        local tTarget
-        local tEnemyUnitsOfInterest
-        local iBestTargetValue
-        local iCurTargetValue
-        local tEnemyCategoriesOfInterest
-        local aiBrain = oLauncher:GetAIBrain()
-        local iMaxRange = 250 --basic default, should get overwritten
-        local iMinRange = 0
-        local iAOE, iDamage
-
-        local bTML = false
-        local bSML = false
-        local bCheckForSMD = false
-        local iTeam = aiBrain.M28Team
-        local iTotalWaitCount = 0 --Nukes will spread calculations over a number of ticks, this tracks the ticks waited
-        if EntityCategoryContains(M28UnitInfo.refCategoryTML, oLauncher.UnitId) then bTML = true
-        elseif EntityCategoryContains(M28UnitInfo.refCategorySML, oLauncher.UnitId) then
-
-            bSML = true
-            if not(EntityCategoryContains(categories.EXPERIMENTAL, oLauncher.UnitId)) then
-                bCheckForSMD = true --default
-                --If we have lots more nukes than enemy has SMD then consider overwhelming the SMD with nukes
-                local iNukeCount = 0
-                for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-                    iNukeCount = oBrain:GetCurrentUnits(M28UnitInfo.refCategorySML - categories.EXPERIMENTAL) + oBrain:GetCurrentUnits(M28UnitInfo.refCategorySML * categories.EXPERIMENTAL) * 6
-                end
-                --Only consider overwhelming if we have 6 nukes
-                if iNukeCount >= 4 then
-                    local iEnemySMD = 0
-                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemySMD]) == false then
-                        for iSMD, oSMD in M28Team.tTeamData[iTeam][M28Team.reftEnemySMD] do
-                            if oSMD:GetFractionComplete() == 1 then
-                                iEnemySMD = iEnemySMD + 1
-                            end
+            else
+                --E.g. civilians that own mexes
+                local iMexBrainIndex = oUnit:GetAIBrain():GetArmyIndex()
+                for iBrain, oBrain in ArmyBrains do
+                    if not(IsAlly(oBrain:GetArmyIndex(), iMexBrainIndex)) then
+                        if oBrain.M28AI and not(tTeamsUpdated[oBrain.M28Team]) then
+                            tTeamsUpdated[oBrain.M28Team] = true
+                            --(aiBrain, oUnit, bAlreadyUpdatedPosition, bAlreadyTriedReassignment, bIgnoreIfAssignedAlready)
+                            M28Team.AssignUnitToLandZoneOrPond(oBrain, oUnit, false,                    false,                      true)
                         end
                     end
-                    if iNukeCount > iEnemySMD * 1.5 then
-                        --Have enough nukes to overwhelm enemy
-                        bCheckForSMD = false
-                    end
                 end
-
-
             end
-        else M28Utilities.ErrorHandler('Unknown type of launcher, code to fire a missile wont work; oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher))
         end
+        if bDebugMessages == true then LOG(sFunctionRef..': End of code, tLZOrWZData[M28Map.subrefMexUnbuiltLocations]='..repru(tLZOrWZData[M28Map.subrefMexUnbuiltLocations])) end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    end
 
-        if bTML or bSML then
-            iAOE, iDamage, iMinRange, iMaxRange = M28UnitInfo.GetLauncherAOEStrikeDamageMinAndMaxRange(oLauncher)
+    function DecideToLaunchNukeSMLOrTMLMissile()  end --Done only to make it easier to find considerlaunchingmissile
+    function ConsiderLaunchingMissile(oLauncher, oOptionalWeapon)
+        --Should be called via forkthread when missile created due to creating a loop
+        --oOptioanlWeapon - if specified then can get the missile speed
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'ConsiderLaunchingMissile'
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-            if bTML then
-                --tEnemyCategoriesOfInterest = iTMLHighPriorityCategories
-            else --SML
-                tEnemyCategoriesOfInterest = {M28UnitInfo.refCategoryExperimentalStructure, M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategorySML + categories.COMMAND, M28UnitInfo.refCategoryT3Mex + M28UnitInfo.refCategoryT3Power, M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryStructure * categories.TECH3 + M28UnitInfo.refCategoryFixedT2Arti - M28UnitInfo.refCategoryExperimentalStructure - M28UnitInfo.refCategoryFixedT3Arti - M28UnitInfo.refCategorySML - M28UnitInfo.refCategoryT3Mex - M28UnitInfo.refCategorySMD - M28UnitInfo.refCategoryT3Power, M28UnitInfo.refCategoryNavalSurface * categories.TECH3 + M28UnitInfo.refCategoryNavalSurface * categories.EXPERIMENTAL}
+
+
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code for oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..' owned by brain '..oLauncher:GetAIBrain().Nickname..' at time='..GetGameTimeSeconds()..'; launcher position='..repru(oLauncher:GetPosition())) end
+        if M28UnitInfo.IsUnitValid(oLauncher) then
+            --oLauncher[refbActiveMissileChecker] = true
+
+
+            local tTarget
+            local tEnemyUnitsOfInterest
+            local iBestTargetValue
+            local iCurTargetValue
+            local tEnemyCategoriesOfInterest
+            local aiBrain = oLauncher:GetAIBrain()
+            local iMaxRange = 250 --basic default, should get overwritten
+            local iMinRange = 0
+            local iAOE, iDamage
+
+            local bTML = false
+            local bSML = false
+            local bCheckForSMD = false
+            local iTeam = aiBrain.M28Team
+            local iTotalWaitCount = 0 --Nukes will spread calculations over a number of ticks, this tracks the ticks waited
+            if EntityCategoryContains(M28UnitInfo.refCategoryTML, oLauncher.UnitId) then bTML = true
+            elseif EntityCategoryContains(M28UnitInfo.refCategorySML, oLauncher.UnitId) then
+
+                bSML = true
+                if not(EntityCategoryContains(categories.EXPERIMENTAL, oLauncher.UnitId)) then
+                    bCheckForSMD = true --default
+                    --If we have lots more nukes than enemy has SMD then consider overwhelming the SMD with nukes
+                    local iNukeCount = 0
+                    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                        iNukeCount = oBrain:GetCurrentUnits(M28UnitInfo.refCategorySML - categories.EXPERIMENTAL) + oBrain:GetCurrentUnits(M28UnitInfo.refCategorySML * categories.EXPERIMENTAL) * 6
+                    end
+                    --Only consider overwhelming if we have 6 nukes
+                    if iNukeCount >= 4 then
+                        local iEnemySMD = 0
+                        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemySMD]) == false then
+                            for iSMD, oSMD in M28Team.tTeamData[iTeam][M28Team.reftEnemySMD] do
+                                if oSMD:GetFractionComplete() == 1 then
+                                    iEnemySMD = iEnemySMD + 1
+                                end
+                            end
+                        end
+                        if iNukeCount > iEnemySMD * 1.5 then
+                            --Have enough nukes to overwhelm enemy
+                            bCheckForSMD = false
+                        end
+                    end
+
+
+                end
+            else M28Utilities.ErrorHandler('Unknown type of launcher, code to fire a missile wont work; oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher))
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Will consider missile target. iMinRange='..(iMinRange or 'nil')..'; iAOE='..(iAOE or 'nil')..'; iDamage='..(iDamage or 'nil')..'; bSML='..tostring((bSML or false))) end
 
-            if M28UnitInfo.IsUnitValid(oLauncher) then
+            if bTML or bSML then
+                iAOE, iDamage, iMinRange, iMaxRange = M28UnitInfo.GetLauncherAOEStrikeDamageMinAndMaxRange(oLauncher)
+
                 if bTML then
+                    --tEnemyCategoriesOfInterest = iTMLHighPriorityCategories
+                else --SML
+                    tEnemyCategoriesOfInterest = {M28UnitInfo.refCategoryExperimentalStructure, M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategorySML + categories.COMMAND, M28UnitInfo.refCategoryT3Mex + M28UnitInfo.refCategoryT3Power, M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryStructure * categories.TECH3 + M28UnitInfo.refCategoryFixedT2Arti - M28UnitInfo.refCategoryExperimentalStructure - M28UnitInfo.refCategoryFixedT3Arti - M28UnitInfo.refCategorySML - M28UnitInfo.refCategoryT3Mex - M28UnitInfo.refCategorySMD - M28UnitInfo.refCategoryT3Power, M28UnitInfo.refCategoryNavalSurface * categories.TECH3 + M28UnitInfo.refCategoryNavalSurface * categories.EXPERIMENTAL}
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Will consider missile target. iMinRange='..(iMinRange or 'nil')..'; iAOE='..(iAOE or 'nil')..'; iDamage='..(iDamage or 'nil')..'; bSML='..tostring((bSML or false))) end
 
-                    local tHighHealthTargets = {}
-                    local tStartPos = oLauncher:GetPosition()
-                    local tPotentialTargets = oLauncher[reftUnprotectedUnitTargetsForThisTML]
-                    local iValidTargets = 0
-                    local tValidTargets = {}
-                    local iTMLRange = (oLauncher[M28UnitInfo.refiManualRange] or iTMLMissileRange)
-                    local iTMLAOE = math.max(oLauncher[M28UnitInfo.refiIndirectAOE] or 0, 2)
-                    local iPotentialInRangeDistance = iTMLRange + iTMLAOE + 4 --unlikely to have larger buildings than this
-                    --First refresh list of untis in range for any that are dead
-                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of potential targets empty='..tostring(M28Utilities.IsTableEmpty(tPotentialTargets))) end
-                    if M28Utilities.IsTableEmpty(tPotentialTargets) == false then
-                        local iPotentialTargets = table.getn(tPotentialTargets)
-                        local iCurDist
-                        for iCurEntry = iPotentialTargets, 1, -1 do
-                            if not(M28UnitInfo.IsUnitValid(tPotentialTargets[iCurEntry])) then
-                                table.remove(oLauncher[reftUnprotectedUnitTargetsForThisTML], iCurEntry)
-                            else
-                                --Can we hit this unit factoring in AOE?
-                                iCurDist = M28Utilities.GetDistanceBetweenPositions(tPotentialTargets[iCurEntry]:GetPosition(), tStartPos)
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering entry '..iCurEntry..'; Unit='..tPotentialTargets[iCurEntry].UnitId..M28UnitInfo.GetUnitLifetimeCount(tPotentialTargets[iCurEntry])..'; iCurDist='..iCurDist..'; iPotentialInRangeDistance='..iPotentialInRangeDistance..'; iTMLRange='..iTMLRange..'; iTMLAOE='..iTMLAOE) end
-                                if iCurDist <= iPotentialInRangeDistance then
-                                    if iCurDist <= iTMLRange or iCurDist <= iTMLRange + math.max(iTMLAOE, 0.5 * math.min(tPotentialTargets[iCurEntry]:GetBlueprint().Physics.SkirtSizeX, tPotentialTargets[iCurEntry]:GetBlueprint().Physics.SkirtSizeZ)) then
-                                        table.insert(tValidTargets, tPotentialTargets[iCurEntry])
-                                        iValidTargets = iValidTargets + 1
+                if M28UnitInfo.IsUnitValid(oLauncher) then
+                    if bTML then
+
+                        local tHighHealthTargets = {}
+                        local tStartPos = oLauncher:GetPosition()
+                        local tPotentialTargets = oLauncher[reftUnprotectedUnitTargetsForThisTML]
+                        local iValidTargets = 0
+                        local tValidTargets = {}
+                        local iTMLRange = (oLauncher[M28UnitInfo.refiManualRange] or iTMLMissileRange)
+                        local iTMLAOE = math.max(oLauncher[M28UnitInfo.refiIndirectAOE] or 0, 2)
+                        local iPotentialInRangeDistance = iTMLRange + iTMLAOE + 4 --unlikely to have larger buildings than this
+                        --First refresh list of untis in range for any that are dead
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of potential targets empty='..tostring(M28Utilities.IsTableEmpty(tPotentialTargets))) end
+                        if M28Utilities.IsTableEmpty(tPotentialTargets) == false then
+                            local iPotentialTargets = table.getn(tPotentialTargets)
+                            local iCurDist
+                            for iCurEntry = iPotentialTargets, 1, -1 do
+                                if not(M28UnitInfo.IsUnitValid(tPotentialTargets[iCurEntry])) then
+                                    table.remove(oLauncher[reftUnprotectedUnitTargetsForThisTML], iCurEntry)
+                                else
+                                    --Can we hit this unit factoring in AOE?
+                                    iCurDist = M28Utilities.GetDistanceBetweenPositions(tPotentialTargets[iCurEntry]:GetPosition(), tStartPos)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering entry '..iCurEntry..'; Unit='..tPotentialTargets[iCurEntry].UnitId..M28UnitInfo.GetUnitLifetimeCount(tPotentialTargets[iCurEntry])..'; iCurDist='..iCurDist..'; iPotentialInRangeDistance='..iPotentialInRangeDistance..'; iTMLRange='..iTMLRange..'; iTMLAOE='..iTMLAOE) end
+                                    if iCurDist <= iPotentialInRangeDistance then
+                                        if iCurDist <= iTMLRange or iCurDist <= iTMLRange + math.max(iTMLAOE, 0.5 * math.min(tPotentialTargets[iCurEntry]:GetBlueprint().Physics.SkirtSizeX, tPotentialTargets[iCurEntry]:GetBlueprint().Physics.SkirtSizeZ)) then
+                                            table.insert(tValidTargets, tPotentialTargets[iCurEntry])
+                                            iValidTargets = iValidTargets + 1
+                                        end
                                     end
                                 end
                             end
                         end
-                    end
 
-                    local oBestTarget
-                    --Below was M27's appraoch to getting TML targets
-                    --[[aiBrain:GetUnitsAroundPoint(iTMLHighPriorityCategories, tStartPos, iMaxRange, 'Enemy')
-                    local tEnemyTMD = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryTMD, tStartPos, iMaxRange + 30, 'Enemy')
+                        local oBestTarget
+                        --Below was M27's appraoch to getting TML targets
+                        --[[aiBrain:GetUnitsAroundPoint(iTMLHighPriorityCategories, tStartPos, iMaxRange, 'Enemy')
+                        local tEnemyTMD = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryTMD, tStartPos, iMaxRange + 30, 'Enemy')
 
-                    if M28Utilities.IsTableEmpty(tPotentialTargets) == false then
-                        for iUnit, oUnit in tPotentialTargets do
-                            if M27EngineerOverseer.IsValidTMLTarget(aiBrain, tStartPos, oUnit, tEnemyTMD) then
-                               iValidTargets = iValidTargets + 1
-                                tValidTargets[iValidTargets] = oUnit
-                            end
-                        end
-                    end--]]
-                    --[[if iValidTargets == 0 then
-                        tPotentialTargets = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryStructure * categories.TECH2 + M28UnitInfo.refCategoryStructure * categories.TECH3 + M28UnitInfo.refCategoryFatboy - iTMLHighPriorityCategories -M28UnitInfo.refCategoryTMD, tStartPos, iMaxRange, 'Enemy')
                         if M28Utilities.IsTableEmpty(tPotentialTargets) == false then
                             for iUnit, oUnit in tPotentialTargets do
-                                if not(EntityCategoryContains(categories.MOBILE, oUnit.UnitId)) or not(oUnit:IsUnitState('Moving')) then
-                                    if oUnit:GetHealth() <= 6000 then
+                                if M27EngineerOverseer.IsValidTMLTarget(aiBrain, tStartPos, oUnit, tEnemyTMD) then
+                                   iValidTargets = iValidTargets + 1
+                                    tValidTargets[iValidTargets] = oUnit
+                                end
+                            end
+                        end--]]
+                        --[[if iValidTargets == 0 then
+                            tPotentialTargets = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryStructure * categories.TECH2 + M28UnitInfo.refCategoryStructure * categories.TECH3 + M28UnitInfo.refCategoryFatboy - iTMLHighPriorityCategories -M28UnitInfo.refCategoryTMD, tStartPos, iMaxRange, 'Enemy')
+                            if M28Utilities.IsTableEmpty(tPotentialTargets) == false then
+                                for iUnit, oUnit in tPotentialTargets do
+                                    if not(EntityCategoryContains(categories.MOBILE, oUnit.UnitId)) or not(oUnit:IsUnitState('Moving')) then
+                                        if oUnit:GetHealth() <= 6000 then
+                                            if M27EngineerOverseer.IsValidTMLTarget(aiBrain, tStartPos, oUnit, tEnemyTMD) then
+                                                iValidTargets = iValidTargets + 1
+                                                tValidTargets[iValidTargets] = oUnit
+                                            end
+                                        else
+                                            table.insert(tHighHealthTargets, oUnit)
+                                        end
+                                    end
+                                end
+                            end
+                            if iValidTargets == 0 then
+                                --Target valid high health targets
+                                if M28Utilities.IsTableEmpty(tHighHealthTargets) == false then
+                                    for iUnit, oUnit in tHighHealthTargets do
                                         if M27EngineerOverseer.IsValidTMLTarget(aiBrain, tStartPos, oUnit, tEnemyTMD) then
                                             iValidTargets = iValidTargets + 1
                                             tValidTargets[iValidTargets] = oUnit
                                         end
-                                    else
-                                        table.insert(tHighHealthTargets, oUnit)
                                     end
                                 end
                             end
-                        end
+                        end--]]
+
                         if iValidTargets == 0 then
-                            --Target valid high health targets
-                            if M28Utilities.IsTableEmpty(tHighHealthTargets) == false then
-                                for iUnit, oUnit in tHighHealthTargets do
-                                    if M27EngineerOverseer.IsValidTMLTarget(aiBrain, tStartPos, oUnit, tEnemyTMD) then
-                                        iValidTargets = iValidTargets + 1
-                                        tValidTargets[iValidTargets] = oUnit
-                                    end
-                                end
-                            end
-                        end
-                    end--]]
+                            --Disable autobuild and pause the TML since we have no targets - handled below to cover cases where for whatever reason we fail to find a valid target
+                        else
+                            --Have at least 1 valid target, so want to pick the best one
 
-                    if iValidTargets == 0 then
-                        --Disable autobuild and pause the TML since we have no targets - handled below to cover cases where for whatever reason we fail to find a valid target
-                    else
-                        --Have at least 1 valid target, so want to pick the best one
-
-                        iBestTargetValue = 120 --wont consider targets worth less than this
-                        local sLauncherLocationRef = M28Utilities.ConvertLocationToReference(oLauncher:GetPosition())
-                        for iUnit, oUnit in tValidTargets do
-                            if M28Utilities.IsTableEmpty(oUnit[reftoShieldsProvidingCoverage]) == false then
-                                iCurTargetValue = 0
-                                if bDebugMessages == true then LOG(sFunctionRef..': Shields are covering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
-                            else
-                                --GetDamageFromBomb(aiBrain, tBaseLocation,         iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory)
-                                iCurTargetValue = M28Logic.GetDamageFromBomb(aiBrain, oUnit:GetPosition(), iAOE, iDamage,       nil,                                nil,                true,                           nil,                nil,                            nil,                                        false,              nil,                            true)
-                                if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then iCurTargetValue = iCurTargetValue * 1.5 end
-                                --Adjust value if we think the missile will hit a cliff
-                                if oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef] == nil then
-                                    if not(oUnit[tbExpectMissileBlockedByCliff]) then oUnit[tbExpectMissileBlockedByCliff] = {} end
-                                    local tExpectedMissileVertical = M28Utilities.MoveInDirection(oLauncher:GetPosition(), M28Utilities.GetAngleFromAToB(oLauncher:GetPosition(), oUnit:GetPosition()), 31, true)
-                                    tExpectedMissileVertical[2] = tExpectedMissileVertical[2] + 60 --Doing testing, it actually only goes up by 50, but I think it travels in an arc from here to the target, as in a test scenario doing at less than +60 meant it thought it would hit a cliff when it didnt
-                                    -- {oLauncher:GetPosition()[1], oLauncher:GetPosition()[2] + 65, oLauncher:GetPosition()[3]}
-                                    oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef] = M28Logic.IsLineBlocked(aiBrain, tExpectedMissileVertical, oUnit:GetPosition(), iAOE, false)
-                                end
-                                if bDebugMessages == true then LOG(sFunctionRef..': Potential TML target '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurTargetValue before adj for blocked='..iCurTargetValue..'; oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef]='..tostring(oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef])..'; oUnit[refiTMLShotsFired]='..(oUnit[refiTMLShotsFired] or 0)..'; refiTimeOfLastLaunch='..(oUnit[refiTimeOfLastLaunch] or 'nil')..'; oUnit[refbProtectedByTerrain]='..tostring(oUnit[refbProtectedByTerrain] or false)..'; oLauncher[reftTerrainBlockedTargets]='..repru(oLauncher[reftTerrainBlockedTargets] or {'nil'})..'; iDamage='..iDamage..'; iAOE='..iAOE..'; Unit health='..oUnit:GetHealth()..'; Unit position='..repru(oUnit:GetPosition())..'; Is reftoShieldsProvidingCoverage empty='..tostring(M28Utilities.IsTableEmpty(oUnit[reftoShieldsProvidingCoverage]))) end
-                                if oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef] then iCurTargetValue = iCurTargetValue * 0.2 end
-                                --Check against actual terrain blocked blacklist
-                                if oUnit[refbProtectedByTerrain] then
+                            iBestTargetValue = 120 --wont consider targets worth less than this
+                            local sLauncherLocationRef = M28Utilities.ConvertLocationToReference(oLauncher:GetPosition())
+                            for iUnit, oUnit in tValidTargets do
+                                if M28Utilities.IsTableEmpty(oUnit[reftoShieldsProvidingCoverage]) == false then
                                     iCurTargetValue = 0
-                                elseif M28Utilities.IsTableEmpty(oLauncher[reftTerrainBlockedTargets]) == false then
-                                    for iEntry, tLocation in oLauncher[reftTerrainBlockedTargets] do
-                                        if M28Utilities.GetDistanceBetweenPositions(tLocation, oUnit:GetPosition()) <= 1.5 then
-                                            oUnit[refbProtectedByTerrain] = true
-                                            iCurTargetValue = 0
-                                            break
-                                        end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Shields are covering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                                else
+                                    --GetDamageFromBomb(aiBrain, tBaseLocation,         iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory)
+                                    iCurTargetValue = M28Logic.GetDamageFromBomb(aiBrain, oUnit:GetPosition(), iAOE, iDamage,       nil,                                nil,                true,                           nil,                nil,                            nil,                                        false,              nil,                            true)
+                                    if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then iCurTargetValue = iCurTargetValue * 1.5 end
+                                    --Adjust value if we think the missile will hit a cliff
+                                    if oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef] == nil then
+                                        if not(oUnit[tbExpectMissileBlockedByCliff]) then oUnit[tbExpectMissileBlockedByCliff] = {} end
+                                        local tExpectedMissileVertical = M28Utilities.MoveInDirection(oLauncher:GetPosition(), M28Utilities.GetAngleFromAToB(oLauncher:GetPosition(), oUnit:GetPosition()), 31, true)
+                                        tExpectedMissileVertical[2] = tExpectedMissileVertical[2] + 60 --Doing testing, it actually only goes up by 50, but I think it travels in an arc from here to the target, as in a test scenario doing at less than +60 meant it thought it would hit a cliff when it didnt
+                                        -- {oLauncher:GetPosition()[1], oLauncher:GetPosition()[2] + 65, oLauncher:GetPosition()[3]}
+                                        oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef] = M28Logic.IsLineBlocked(aiBrain, tExpectedMissileVertical, oUnit:GetPosition(), iAOE, false)
                                     end
-                                end
-                                if iCurTargetValue > 0 and (oUnit[refiTMLShotsFired] or 0) > 0 then
-                                    --Reduce shots fired if we dealt damage with our last missile (as may have e.g. hit mass storage blocking us from reaching the target mex)
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Last TML target='..(oLauncher[refoLastTMLTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oLauncher[refoLastTMLTarget]) or 'nil')..'; Launcher mass killed='..(oLauncher.VetExperience or oLauncher.Sync.totalMassKilled or 0)..'; TML mass kills='..(oLauncher[refiLastTMLMassKills] or 0)) end
-                                    if oLauncher[refoLastTMLTarget] == oUnit and (oLauncher.VetExperience or oLauncher.Sync.totalMassKilled or 0) > (oLauncher[refiLastTMLMassKills] or 0) then
-                                        oLauncher[refiLastTMLMassKills] = (oLauncher.VetExperience or oLauncher.Sync.totalMassKilled or 0)
-                                        oUnit[refiTMLShotsFired] = oUnit[refiTMLShotsFired] - 1
-                                    end
-                                    if oUnit[refiTMLShotsFired] > 0 or oUnit[refiTimeOfLastLaunch] then
-                                        local iUnitMaxHealth = oUnit:GetMaxHealth()
-                                        local iUnitCurShield, iUnitMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit)
-                                        if (iUnitMaxHealth + iUnitMaxShield <= iDamage and M28UnitInfo.IsUnitValid(oUnit[refoLastTMLLauncher])) and (not(oUnit[refoLastTMLLauncher] == oLauncher) or GetGameTimeSeconds() - (oUnit[refiTimeOfLastLaunch] or -100) <= 35) then
-                                            iCurTargetValue = 0
-                                        else
-
-                                            local iExpectedShots = math.ceil((iUnitMaxHealth + iUnitMaxShield) / iDamage)
-                                            if oUnit[refiTMLShotsFired] > iExpectedShots then
-                                                --Reduce by 50% for each time are over
-                                                iCurTargetValue = iCurTargetValue * 0.5^(oUnit[refiTMLShotsFired] - iExpectedShots)
-                                                if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) and oUnit[refiTMLShotsFired] - iExpectedShots >= 3 then
-                                                    iCurTargetValue = 0
-                                                end
-                                            end
-                                        end
-
-                                        if bDebugMessages == true then LOG(sFunctionRef..': iUnitMaxHealth='..iUnitMaxHealth..'; iUnitMaxShield='..iUnitMaxShield..'; oUnit[refiTMLShotsFired]='..oUnit[refiTMLShotsFired]..'; oUnit[refiTimeOfLastLaunch]='..(oUnit[refiTimeOfLastLaunch] or 'nil')..'; iCurTargetValue after adjusting for excess='..iCurTargetValue) end
-                                    end
-                                end
-                            end
-                            if iBestTargetValue < iCurTargetValue then
-                                iBestTargetValue = iCurTargetValue
-                                oBestTarget = oUnit
-                            end
-                        end
-                        if oBestTarget then
-                            tTarget = oBestTarget:GetPosition()
-                            if oLauncher:IsUnitState('Busy') and (GetGameTimeSeconds() - (oLauncher[refiTimeOfLastLaunch] or -100)) < 5 and M28UnitInfo.IsUnitValid(oLauncher[refoLastTMLTarget]) then
-                                oLauncher[refoLastTMLTarget][refiTMLShotsFired] = (oLauncher[refoLastTMLTarget][refiTMLShotsFired] or 0) - 1
-                            end
-                            oBestTarget[refiTMLShotsFired] = (oBestTarget[refiTMLShotsFired] or 0) + 1
-                            oLauncher[refoLastTMLTarget] = oBestTarget
-                            oLauncher[refiLastTMLMassKills] = (oLauncher.VetExperience or oLauncher.Sync.totalMassKilled or 0)
-                            oBestTarget[refoLastTMLLauncher] = oLauncher
-                            oBestTarget[refiTimeOfLastLaunch] = GetGameTimeSeconds()
-                            if bDebugMessages == true then LOG(sFunctionRef..': oBestTarget='..oBestTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBestTarget)..'; iBestTargetValue='..iBestTargetValue..'; SHots fired afteri ncluding this one='..oBestTarget[refiTMLShotsFired]..'; Mass killed prior to missile impacting='..oLauncher[refiLastTMLMassKills]) end
-                        end
-                    end
-                    if bDebugMessages == true then LOG(sFunctionRef..': iValidTargets='..iValidTargets..'; tTarget='..repru((tTarget or {'nil'}))..'; Is oBestTarget valid='..tostring(M28UnitInfo.IsUnitValid(oBestTarget))) end
-
-                else --SML - work out which location would deal the most damage - consider all high value structures and the enemy start position
-                    iBestTargetValue = 0
-                    --Shortlist of locations we have recently nuked
-                    local tRecentlyNuked = {}
-                    local iTimeSMDNeedsToHaveBeenBuiltFor = 240 --default, will adjust
-                    local iMissileSpeed
-                    if oOptionalWeapon then iMissileSpeed = (__blueprints[oOptionalWeapon.Blueprint.ProjectileId].Physics.MaxSpeed or 40)
-                    else iMissileSpeed = 40
-                    end
-                    if bDebugMessages == true then
-                        LOG(sFunctionRef..': oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..'; Breakdown of the weapon table='..reprs(oOptionalWeapon)..'; iMissileSpeed='..iMissileSpeed..'; missile speed per BP='..(__blueprints[oOptionalWeapon.Blueprint.ProjectileId].Physics.MaxSpeed or 'nil'))
-                    end
-
-                    local iNukeSegmentSize = 15
-                    local tiNukeSegmentsConsidered = {}
-                    local iCurNukeSegmentX, iCurNukeSegmentZ
-                    local bAlreadyConsideredBestAOETarget = true
-
-                    local iPositionsConsideredThisTick = 0
-                    local iAbortThreshold = 60000
-
-                    function GetNukeSegmentsFromPosition(tPosition)
-                        return math.ceil(tPosition[1] / iNukeSegmentSize), math.ceil(tPosition[3] / iNukeSegmentSize)
-                    end
-                    function RecordHaveConsideredNukeLocation(tPosition, bConsideredBestAOETarget)
-                        iCurNukeSegmentX, iCurNukeSegmentZ = GetNukeSegmentsFromPosition(tPosition)
-                        if not(tiNukeSegmentsConsidered[iCurNukeSegmentX]) then tiNukeSegmentsConsidered[iCurNukeSegmentX] = {} end
-                        tiNukeSegmentsConsidered[iCurNukeSegmentX][iCurNukeSegmentZ] = true
-                        if bConsideredBestAOETarget then
-                            iPositionsConsideredThisTick = iPositionsConsideredThisTick + 5 --approximation - will likely be more than this
-                        else
-                            iPositionsConsideredThisTick = iPositionsConsideredThisTick + 1
-                        end
-
-                    end
-
-                    if bDebugMessages == true then LOG(sFunctionRef..': Checking nuke launch locations, is table empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]))..'; Time of check='..GetGameTimeSeconds()) end
-                    function RefreshRecentlyNukedLocations()
-                        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]) == false then
-                            local iTimeSinceFired
-                            local iLoopCheck
-                            for iTime, tLocation in M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations] do
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering iTime='..iTime..'; tLocation='..repru(tLocation)..'; GameTime='..GetGameTimeSeconds()) end
-                                iTimeSinceFired = GetGameTimeSeconds() - iTime
-
-                                if iTimeSinceFired < 60 then --Testing with Aeon SML on setons it takes 60s to go from one corner to another roughly
-                                    iLoopCheck = 0
-                                    while tRecentlyNuked[iTimeSinceFired] do
-                                        iTimeSinceFired = iTimeSinceFired - 0.0001
-                                        iLoopCheck = iLoopCheck + 1
-                                        if iLoopCheck >= 20 then M28Utilities.ErrorHandler('Potential infinite loop with nuke location recording, will stop attempting to record extra recently nuked locations') break end
-                                    end
-                                    tRecentlyNuked[iTimeSinceFired] = {tLocation[1], tLocation[2], tLocation[3]}
-                                end
-                            end
-                        end
-                    end
-
-                    RefreshRecentlyNukedLocations()
-
-                    if bDebugMessages == true then LOG(sFunctionRef..': tRecentlyNuked='..repru((tRecentlyNuked or {'nil'}))) end
-
-                    function HaventRecentlyNukedLocation(tLocation, bIgnoreIfCoveredBySMD, iOptionalTicksWhereRecentlyNuked)
-                        --bIgnoreIfCoveredBySMD - set to true if want to ignore the fact that we have recenlty nuked the target if it is covered by SMD (i.e. if there is SMD then we likely want to overwhelm the target hence want to fire multiple nukes at the same location)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of recently nuked locations empty='..tostring(M28Utilities.IsTableEmpty(tRecentlyNuked))..'; tLocation='..repru(tLocation)..'; iOptionalTicksWhereRecentlyNuked='..(iOptionalTicksWhereRecentlyNuked or 'nil')) end
-                        if M28Utilities.IsTableEmpty(tRecentlyNuked) then return true
-                        else
-                            for iTimeSinceFired, tRecentLocation in tRecentlyNuked do
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering tLocation='..repru(tLocation)..'; Distance to tRecentLocation='..M28Utilities.GetDistanceBetweenPositions(tLocation, tRecentLocation)..'; is smd blocking targeet='..tostring(IsSMDBlockingTarget(aiBrain, tLocation, oLauncher:GetPosition(), 60, 0))..'; bIgnoreIfCoveredBySMD='..tostring(bIgnoreIfCoveredBySMD)..'; iTimeSinceFired='..iTimeSinceFired) end
-                                if not(iOptionalTicksWhereRecentlyNuked) or iTimeSinceFired <= iOptionalTicksWhereRecentlyNuked then
-                                    if M28Utilities.GetDistanceBetweenPositions(tLocation, tRecentLocation) <= 50 then
-                                        if bIgnoreIfCoveredBySMD then
-                                            if IsSMDBlockingTarget(aiBrain, tLocation, oLauncher:GetPosition(), 60, 0) then
-                                                return true --we have fired here recently but we want to fire multiple nukes to overwhelm smd
-                                            else
-                                                return false --we have fired here recently and there's no smd to overwhelm
-                                            end
-                                        else
-                                            return false --we have fired here recently and dont care about overwhelming smd
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                        return true --we havent fired here recently
-                    end
-
-                    --First get the best location if just target the start position or locations near here
-                    if HaventRecentlyNukedLocation(M28Map.GetPrimaryEnemyBaseLocation(aiBrain), not(bCheckForSMD)) then
-                        --GetBestAOETarget(aiBrain, tBaseLocation, iAOE, iDamage, bOptionalCheckForSMD, tSMLLocationForSMDCheck, iOptionalTimeSMDNeedsToHaveBeenBuiltFor, iSMDRangeAdjust, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, iOptionalMaxDistanceCheckOptions, iMobileValueOverrideFactorWithin75Percent, iOptionalShieldReductionFactor)
-                        iTimeSMDNeedsToHaveBeenBuiltFor = 200 --3m20
-                        tTarget, iBestTargetValue = M28Logic.GetBestAOETarget(aiBrain, M28Map.GetPrimaryEnemyBaseLocation(aiBrain), iAOE, iDamage, bCheckForSMD, oLauncher:GetPosition(), nil, nil, 2, 2.5)
-                        RecordHaveConsideredNukeLocation(M28Map.GetPrimaryEnemyBaseLocation(aiBrain), true)
-                    end
-
-                    --Cycle through other start positions to see if can get a better target, but reduce value of target if we havent scouted it in the last 5 minutes
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering best target for nuke.  If target enemy base then iBestTargetValue='..iBestTargetValue) end
-                    local iPlateauOrZero, iLandOrWaterZone
-                    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
-                        local tEnemyStartPosition =  M28Map.PlayerStartPoints[oBrain:GetArmyIndex()]
-                        if M28Utilities.GetDistanceBetweenPositions(tEnemyStartPosition, M28Map.GetPrimaryEnemyBaseLocation(aiBrain)) >= 30 then
-                            --Have we scouted this location recently or do we have radar coverage
-                            local tLZOrWZTeamData
-                            iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tEnemyStartPosition)
-                            if iPlateauOrZero > 0 then
-                                tLZOrWZTeamData  = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
-                            else
-                                --Water zone
-                                tLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone][M28Map.subrefWZTeamData][iTeam]
-                            end
-
-
-                            if bDebugMessages == true then LOG(sFunctionRef..': Cycling through start points, considering brain '..(oBrain.Nickname or 'nil')..' with start point '..repru(tEnemyStartPosition)) end
-                            if GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or -1000) <= 300 or tLZOrWZTeamData[M28Map.refiRadarCoverage] >= 20 then
-                                iCurNukeSegmentX, iCurNukeSegmentZ = GetNukeSegmentsFromPosition(tEnemyStartPosition)
-                                if not(tiNukeSegmentsConsidered[iCurNukeSegmentX][iCurNukeSegmentZ]) then
-                                    if HaventRecentlyNukedLocation(tEnemyStartPosition, not(bCheckForSMD)) then
-                                        RecordHaveConsideredNukeLocation(tEnemyStartPosition, false)
-                                        --GetDamageFromBomb(aiBrain, tBaseLocation,         iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory)
-                                        iCurTargetValue = M28Logic.GetDamageFromBomb(aiBrain, tEnemyStartPosition, iAOE, iDamage,   2,                                  2.5                     , nil,                          nil,                nil,                            nil,                                        false,                  nil,                            true)
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering the start position '..repru( tEnemyStartPosition)..'; value ignroign SMD='..iCurTargetValue) end
-                                        if iCurTargetValue > iBestTargetValue then
-                                            iTimeSMDNeedsToHaveBeenBuiltFor = 230 - (M28Utilities.GetDistanceBetweenPositions( tEnemyStartPosition, oLauncher:GetPosition()) / iMissileSpeed + 10)
-                                            if IsSMDBlockingTarget(aiBrain,  tEnemyStartPosition, oLauncher:GetPosition(), iTimeSMDNeedsToHaveBeenBuiltFor) then
-                                                iCurTargetValue = 4000
-                                                if bDebugMessages == true then LOG(sFunctionRef..': SMD is blocking target so reducing value to 4k. iTimeSMDNeedsToHaveBeenBuiltFor='..iTimeSMDNeedsToHaveBeenBuiltFor) end
-                                            end
-                                            if iCurTargetValue > iBestTargetValue then
-                                                bAlreadyConsideredBestAOETarget = false
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Have a better start position target, dealing damage of '..iCurTargetValue..' vs prev best value of '..iBestTargetValue..'; iTimeSMDNeedsToHaveBeenBuiltFor='..iTimeSMDNeedsToHaveBeenBuiltFor) end
-                                                iBestTargetValue = iCurTargetValue
-                                                tTarget = {tEnemyStartPosition[1], tEnemyStartPosition[2], tEnemyStartPosition[3]}
-                                            end
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                    end
-
-                    function ConsiderTableOfPotentialTargets(tEnemyUnitsOfInterest, bOverrideCheckForSMD, iOptionalMobileOverrideFactor)
-                        if M28Utilities.IsTableEmpty(tEnemyUnitsOfInterest) == false then
-                            for iUnit, oUnit in tEnemyUnitsOfInterest do
-                                if M28UnitInfo.IsUnitValid(oUnit) then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iPositionsConsideredThisTick='..iPositionsConsideredThisTick..'; Have we recently nuked this location='..tostring((HaventRecentlyNukedLocation(oUnit:GetPosition(), not(bOverrideCheckForSMD))) or false)) end
-                                    iCurNukeSegmentX, iCurNukeSegmentZ = GetNukeSegmentsFromPosition(oUnit:GetPosition())
-                                    if not(tiNukeSegmentsConsidered[iCurNukeSegmentX][iCurNukeSegmentZ]) then
-                                        if HaventRecentlyNukedLocation(oUnit:GetPosition(), not(bOverrideCheckForSMD)) then
-                                            RecordHaveConsideredNukeLocation(oUnit:GetPosition(), false)
-                                            --GetDamageFromBomb(aiBrain, tBaseLocation,         iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies)
-                                            iCurTargetValue = M28Logic.GetDamageFromBomb(aiBrain, oUnit:GetPosition(), iAOE, iDamage,   2,                                  2.5,                    nil,                            nil,                nil,                            iOptionalMobileOverrideFactor,                  false,              nil,                            true)
-                                            if bDebugMessages == true then LOG(sFunctionRef..': target oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurTargetValue='..iCurTargetValue..'; location='..repru(oUnit:GetPosition())..'; iPositionsConsideredThisTick='..iPositionsConsideredThisTick) end
-                                            --Stop looking if tried >=10 targets and have one that is at least 20k of value
-                                            if iCurTargetValue > iBestTargetValue then
-                                                iTimeSMDNeedsToHaveBeenBuiltFor = 230 - (M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oLauncher:GetPosition()) / iMissileSpeed + 10)
-                                                if bOverrideCheckForSMD and IsSMDBlockingTarget(aiBrain, oUnit:GetPosition(), oLauncher:GetPosition(), iTimeSMDNeedsToHaveBeenBuiltFor) then
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': SMD is blocking the unit target '..repru(oUnit:GetPosition())..'; will limit damage to 4k; iTimeSMDNeedsToHaveBeenBuiltFor='..iTimeSMDNeedsToHaveBeenBuiltFor) end
-                                                    iCurTargetValue = 4000 end
-                                                if iCurTargetValue > iBestTargetValue then
-                                                    bAlreadyConsideredBestAOETarget = false
-                                                    iBestTargetValue = iCurTargetValue
-                                                    tTarget = oUnit:GetPosition()
-                                                    if bDebugMessages == true then LOG(sFunctionRef..': New best target with value='..iBestTargetValue..'; iTimeSMDNeedsToHaveBeenBuiltFor='..iTimeSMDNeedsToHaveBeenBuiltFor) end
-                                                end
-                                            end
-                                            --Note: Mass value of mexes is doubled, so 3 T3 mexes would give a value of 27600
-                                            if iPositionsConsideredThisTick >= 8 and iBestTargetValue >= iAbortThreshold then
-                                                if bDebugMessages == true then LOG(sFunctionRef..': Have a target with a decent amount of value and have already tried quite a few units.  iBestTargetValue='..iBestTargetValue..'; iPositionsConsideredThisTick='..iPositionsConsideredThisTick) end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Potential TML target '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurTargetValue before adj for blocked='..iCurTargetValue..'; oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef]='..tostring(oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef])..'; oUnit[refiTMLShotsFired]='..(oUnit[refiTMLShotsFired] or 0)..'; refiTimeOfLastLaunch='..(oUnit[refiTimeOfLastLaunch] or 'nil')..'; oUnit[refbProtectedByTerrain]='..tostring(oUnit[refbProtectedByTerrain] or false)..'; oLauncher[reftTerrainBlockedTargets]='..repru(oLauncher[reftTerrainBlockedTargets] or {'nil'})..'; iDamage='..iDamage..'; iAOE='..iAOE..'; Unit health='..oUnit:GetHealth()..'; Unit position='..repru(oUnit:GetPosition())..'; Is reftoShieldsProvidingCoverage empty='..tostring(M28Utilities.IsTableEmpty(oUnit[reftoShieldsProvidingCoverage]))) end
+                                    if oUnit[tbExpectMissileBlockedByCliff][sLauncherLocationRef] then iCurTargetValue = iCurTargetValue * 0.2 end
+                                    --Check against actual terrain blocked blacklist
+                                    if oUnit[refbProtectedByTerrain] then
+                                        iCurTargetValue = 0
+                                    elseif M28Utilities.IsTableEmpty(oLauncher[reftTerrainBlockedTargets]) == false then
+                                        for iEntry, tLocation in oLauncher[reftTerrainBlockedTargets] do
+                                            if M28Utilities.GetDistanceBetweenPositions(tLocation, oUnit:GetPosition()) <= 1.5 then
+                                                oUnit[refbProtectedByTerrain] = true
+                                                iCurTargetValue = 0
                                                 break
                                             end
                                         end
                                     end
-                                    --Spread out calculations over a number of ticks due to their intesnity
-                                    if iPositionsConsideredThisTick >= 10 then
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Considered '..iPositionsConsideredThisTick..' targets, will wait 1 tick before considering more for performance reasons. iBestTargetValue='..iBestTargetValue) end
-                                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                                        WaitTicks(1)
-                                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-                                        RefreshRecentlyNukedLocations()
-                                        iPositionsConsideredThisTick = 0
-                                        iTotalWaitCount = iTotalWaitCount + 1
-                                        if not(M28UnitInfo.IsUnitValid(oLauncher)) then
-                                            tTarget = nil
-                                            break
+                                    if iCurTargetValue > 0 and (oUnit[refiTMLShotsFired] or 0) > 0 then
+                                        --Reduce shots fired if we dealt damage with our last missile (as may have e.g. hit mass storage blocking us from reaching the target mex)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Last TML target='..(oLauncher[refoLastTMLTarget].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oLauncher[refoLastTMLTarget]) or 'nil')..'; Launcher mass killed='..(oLauncher.VetExperience or oLauncher.Sync.totalMassKilled or 0)..'; TML mass kills='..(oLauncher[refiLastTMLMassKills] or 0)) end
+                                        if oLauncher[refoLastTMLTarget] == oUnit and (oLauncher.VetExperience or oLauncher.Sync.totalMassKilled or 0) > (oLauncher[refiLastTMLMassKills] or 0) then
+                                            oLauncher[refiLastTMLMassKills] = (oLauncher.VetExperience or oLauncher.Sync.totalMassKilled or 0)
+                                            oUnit[refiTMLShotsFired] = oUnit[refiTMLShotsFired] - 1
                                         end
-                                        --Lower requirements to stop searching over time
-                                        if iTotalWaitCount >= 20 then
-                                            iAbortThreshold = iAbortThreshold * 0.95
-                                            if iTotalWaitCount >= 100 then
-                                                iAbortThreshold = math.min(iAbortThreshold * 0.95, 1000)
-                                                if iTotalWaitCount >= 150 then break end
+                                        if oUnit[refiTMLShotsFired] > 0 or oUnit[refiTimeOfLastLaunch] then
+                                            local iUnitMaxHealth = oUnit:GetMaxHealth()
+                                            local iUnitCurShield, iUnitMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit)
+                                            if (iUnitMaxHealth + iUnitMaxShield <= iDamage and M28UnitInfo.IsUnitValid(oUnit[refoLastTMLLauncher])) and (not(oUnit[refoLastTMLLauncher] == oLauncher) or GetGameTimeSeconds() - (oUnit[refiTimeOfLastLaunch] or -100) <= 35) then
+                                                iCurTargetValue = 0
+                                            else
+
+                                                local iExpectedShots = math.ceil((iUnitMaxHealth + iUnitMaxShield) / iDamage)
+                                                if oUnit[refiTMLShotsFired] > iExpectedShots then
+                                                    --Reduce by 50% for each time are over
+                                                    iCurTargetValue = iCurTargetValue * 0.5^(oUnit[refiTMLShotsFired] - iExpectedShots)
+                                                    if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId) and oUnit[refiTMLShotsFired] - iExpectedShots >= 3 then
+                                                        iCurTargetValue = 0
+                                                    end
+                                                end
                                             end
-                                            if iBestTargetValue >= iAbortThreshold then break end
+
+                                            if bDebugMessages == true then LOG(sFunctionRef..': iUnitMaxHealth='..iUnitMaxHealth..'; iUnitMaxShield='..iUnitMaxShield..'; oUnit[refiTMLShotsFired]='..oUnit[refiTMLShotsFired]..'; oUnit[refiTimeOfLastLaunch]='..(oUnit[refiTimeOfLastLaunch] or 'nil')..'; iCurTargetValue after adjusting for excess='..iCurTargetValue) end
+                                        end
+                                    end
+                                end
+                                if iBestTargetValue < iCurTargetValue then
+                                    iBestTargetValue = iCurTargetValue
+                                    oBestTarget = oUnit
+                                end
+                            end
+                            if oBestTarget then
+                                tTarget = oBestTarget:GetPosition()
+                                if oLauncher:IsUnitState('Busy') and (GetGameTimeSeconds() - (oLauncher[refiTimeOfLastLaunch] or -100)) < 5 and M28UnitInfo.IsUnitValid(oLauncher[refoLastTMLTarget]) then
+                                    oLauncher[refoLastTMLTarget][refiTMLShotsFired] = (oLauncher[refoLastTMLTarget][refiTMLShotsFired] or 0) - 1
+                                end
+                                oBestTarget[refiTMLShotsFired] = (oBestTarget[refiTMLShotsFired] or 0) + 1
+                                oLauncher[refoLastTMLTarget] = oBestTarget
+                                oLauncher[refiLastTMLMassKills] = (oLauncher.VetExperience or oLauncher.Sync.totalMassKilled or 0)
+                                oBestTarget[refoLastTMLLauncher] = oLauncher
+                                oBestTarget[refiTimeOfLastLaunch] = GetGameTimeSeconds()
+                                if bDebugMessages == true then LOG(sFunctionRef..': oBestTarget='..oBestTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oBestTarget)..'; iBestTargetValue='..iBestTargetValue..'; SHots fired afteri ncluding this one='..oBestTarget[refiTMLShotsFired]..'; Mass killed prior to missile impacting='..oLauncher[refiLastTMLMassKills]) end
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iValidTargets='..iValidTargets..'; tTarget='..repru((tTarget or {'nil'}))..'; Is oBestTarget valid='..tostring(M28UnitInfo.IsUnitValid(oBestTarget))) end
+
+                    else --SML - work out which location would deal the most damage - consider all high value structures and the enemy start position
+                        iBestTargetValue = 0
+                        --Shortlist of locations we have recently nuked
+                        local tRecentlyNuked = {}
+                        local iTimeSMDNeedsToHaveBeenBuiltFor = 240 --default, will adjust
+                        local iMissileSpeed
+                        if oOptionalWeapon then iMissileSpeed = (__blueprints[oOptionalWeapon.Blueprint.ProjectileId].Physics.MaxSpeed or 40)
+                        else iMissileSpeed = 40
+                        end
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef..': oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..'; Breakdown of the weapon table='..reprs(oOptionalWeapon)..'; iMissileSpeed='..iMissileSpeed..'; missile speed per BP='..(__blueprints[oOptionalWeapon.Blueprint.ProjectileId].Physics.MaxSpeed or 'nil'))
+                        end
+
+                        local iNukeSegmentSize = 15
+                        local tiNukeSegmentsConsidered = {}
+                        local iCurNukeSegmentX, iCurNukeSegmentZ
+                        local bAlreadyConsideredBestAOETarget = true
+
+                        local iPositionsConsideredThisTick = 0
+                        local iAbortThreshold = 60000
+
+                        function GetNukeSegmentsFromPosition(tPosition)
+                            return math.ceil(tPosition[1] / iNukeSegmentSize), math.ceil(tPosition[3] / iNukeSegmentSize)
+                        end
+                        function RecordHaveConsideredNukeLocation(tPosition, bConsideredBestAOETarget)
+                            iCurNukeSegmentX, iCurNukeSegmentZ = GetNukeSegmentsFromPosition(tPosition)
+                            if not(tiNukeSegmentsConsidered[iCurNukeSegmentX]) then tiNukeSegmentsConsidered[iCurNukeSegmentX] = {} end
+                            tiNukeSegmentsConsidered[iCurNukeSegmentX][iCurNukeSegmentZ] = true
+                            if bConsideredBestAOETarget then
+                                iPositionsConsideredThisTick = iPositionsConsideredThisTick + 5 --approximation - will likely be more than this
+                            else
+                                iPositionsConsideredThisTick = iPositionsConsideredThisTick + 1
+                            end
+
+                        end
+
+                        if bDebugMessages == true then LOG(sFunctionRef..': Checking nuke launch locations, is table empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]))..'; Time of check='..GetGameTimeSeconds()) end
+                        function RefreshRecentlyNukedLocations()
+                            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]) == false then
+                                local iTimeSinceFired
+                                local iLoopCheck
+                                for iTime, tLocation in M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations] do
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iTime='..iTime..'; tLocation='..repru(tLocation)..'; GameTime='..GetGameTimeSeconds()) end
+                                    iTimeSinceFired = GetGameTimeSeconds() - iTime
+
+                                    if iTimeSinceFired < 60 then --Testing with Aeon SML on setons it takes 60s to go from one corner to another roughly
+                                        iLoopCheck = 0
+                                        while tRecentlyNuked[iTimeSinceFired] do
+                                            iTimeSinceFired = iTimeSinceFired - 0.0001
+                                            iLoopCheck = iLoopCheck + 1
+                                            if iLoopCheck >= 20 then M28Utilities.ErrorHandler('Potential infinite loop with nuke location recording, will stop attempting to record extra recently nuked locations') break end
+                                        end
+                                        tRecentlyNuked[iTimeSinceFired] = {tLocation[1], tLocation[2], tLocation[3]}
+                                    end
+                                end
+                            end
+                        end
+
+                        RefreshRecentlyNukedLocations()
+
+                        if bDebugMessages == true then LOG(sFunctionRef..': tRecentlyNuked='..repru((tRecentlyNuked or {'nil'}))) end
+
+                        function HaventRecentlyNukedLocation(tLocation, bIgnoreIfCoveredBySMD, iOptionalTicksWhereRecentlyNuked)
+                            --bIgnoreIfCoveredBySMD - set to true if want to ignore the fact that we have recenlty nuked the target if it is covered by SMD (i.e. if there is SMD then we likely want to overwhelm the target hence want to fire multiple nukes at the same location)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is table of recently nuked locations empty='..tostring(M28Utilities.IsTableEmpty(tRecentlyNuked))..'; tLocation='..repru(tLocation)..'; iOptionalTicksWhereRecentlyNuked='..(iOptionalTicksWhereRecentlyNuked or 'nil')) end
+                            if M28Utilities.IsTableEmpty(tRecentlyNuked) then return true
+                            else
+                                for iTimeSinceFired, tRecentLocation in tRecentlyNuked do
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering tLocation='..repru(tLocation)..'; Distance to tRecentLocation='..M28Utilities.GetDistanceBetweenPositions(tLocation, tRecentLocation)..'; is smd blocking targeet='..tostring(IsSMDBlockingTarget(aiBrain, tLocation, oLauncher:GetPosition(), 60, 0))..'; bIgnoreIfCoveredBySMD='..tostring(bIgnoreIfCoveredBySMD)..'; iTimeSinceFired='..iTimeSinceFired) end
+                                    if not(iOptionalTicksWhereRecentlyNuked) or iTimeSinceFired <= iOptionalTicksWhereRecentlyNuked then
+                                        if M28Utilities.GetDistanceBetweenPositions(tLocation, tRecentLocation) <= 50 then
+                                            if bIgnoreIfCoveredBySMD then
+                                                if IsSMDBlockingTarget(aiBrain, tLocation, oLauncher:GetPosition(), 60, 0) then
+                                                    return true --we have fired here recently but we want to fire multiple nukes to overwhelm smd
+                                                else
+                                                    return false --we have fired here recently and there's no smd to overwhelm
+                                                end
+                                            else
+                                                return false --we have fired here recently and dont care about overwhelming smd
+                                            end
                                         end
                                     end
                                 end
                             end
+                            return true --we havent fired here recently
                         end
-                    end
 
-                    --Consider a defensive nuke as well if enemy has land experimentals or battleships that are relatively near a friendly base - treat as higher value than normal where not covered by SMD (e.g. if have yolona then only want defensive nukes if expect the nuke to land)
-                    local tEnemyClosestLandAndNavalThreats = {}
-                    local iDefensiveThreshold = 350
-                    local iBestValueOfDefensiveNuke = 0
-                    local iDefensiveNukePlateauAndZone = {}
-                    if M28Map.iMapSize <= 512 then iDefensiveThreshold = 225 end
-                    local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oLauncher:GetPosition(), true, iTeam)
-                    if tLZTeamData then
-                        iDefensiveThreshold = math.max(125, math.min(iDefensiveThreshold, M28Utilities.GetDistanceBetweenPositions(oLauncher:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase])) * 0.45)
-                    end
-                    local iCurUnitPlateauOrZero, iCurUnitZone
-                    local toClosestEnemyUntisByPlateauAndZone = {}
-
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering priority enemy land threats near our base, is table of enemy land experimenatls empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]))) end
-                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false then
-                        for iUnit, oUnit in  M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals] do
-                            if M28UnitInfo.IsUnitValid(oUnit) then
-                                iCurUnitPlateauOrZero, iCurUnitZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
-                                if (iCurUnitZone or 0) > 0 and (iCurUnitPlateauOrZero or -1) >= 0 then
-                                    local tUnitLZOrWZData, tUnitLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' that is '..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tUnitLZOrWZTeamData[M28Map.reftClosestFriendlyBase])..' dist to the closest friendly base; iDefensiveThreshold='..iDefensiveThreshold) end
-                                    if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tUnitLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) <= iDefensiveThreshold then
-                                        table.insert(tEnemyClosestLandAndNavalThreats, oUnit)
-                                        if not(toClosestEnemyUntisByPlateauAndZone[iCurUnitPlateauOrZero]) then toClosestEnemyUntisByPlateauAndZone[iCurUnitPlateauOrZero] = {} end
-                                        if not(toClosestEnemyUntisByPlateauAndZone[iCurUnitPlateauOrZero][iCurUnitZone]) then toClosestEnemyUntisByPlateauAndZone[iCurUnitPlateauOrZero][iCurUnitZone] = {} end
-                                        table.insert(toClosestEnemyUntisByPlateauAndZone[iCurUnitPlateauOrZero][iCurUnitZone], oUnit)
-                                    end
-                                end
-                            end
+                        --First get the best location if just target the start position or locations near here
+                        if HaventRecentlyNukedLocation(M28Map.GetPrimaryEnemyBaseLocation(aiBrain), not(bCheckForSMD)) then
+                            --GetBestAOETarget(aiBrain, tBaseLocation, iAOE, iDamage, bOptionalCheckForSMD, tSMLLocationForSMDCheck, iOptionalTimeSMDNeedsToHaveBeenBuiltFor, iSMDRangeAdjust, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, iOptionalMaxDistanceCheckOptions, iMobileValueOverrideFactorWithin75Percent, iOptionalShieldReductionFactor)
+                            iTimeSMDNeedsToHaveBeenBuiltFor = 200 --3m20
+                            tTarget, iBestTargetValue = M28Logic.GetBestAOETarget(aiBrain, M28Map.GetPrimaryEnemyBaseLocation(aiBrain), iAOE, iDamage, bCheckForSMD, oLauncher:GetPosition(), nil, nil, 2, 2.5)
+                            RecordHaveConsideredNukeLocation(M28Map.GetPrimaryEnemyBaseLocation(aiBrain), true)
                         end
-                    end
-                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyBattleships]) == false then
-                        for iUnit, oUnit in  M28Team.tTeamData[iTeam][M28Team.reftEnemyBattleships] do
-                            if M28UnitInfo.IsUnitValid(oUnit) then
-                                iCurUnitPlateauOrZero, iCurUnitZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
-                                if (iCurUnitZone or 0) > 0 and (iCurUnitPlateauOrZero or -1) >= 0 then
-                                    local tUnitLZOrWZData, tUnitLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
-                                    if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tUnitLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) <= iDefensiveThreshold then
-                                        table.insert(tEnemyClosestLandAndNavalThreats, oUnit)
-                                        if not(toClosestEnemyUntisByPlateauAndZone[iCurUnitPlateauOrZero]) then toClosestEnemyUntisByPlateauAndZone[iCurUnitPlateauOrZero] = {} end
-                                        if not(toClosestEnemyUntisByPlateauAndZone[iCurUnitPlateauOrZero][iCurUnitZone]) then toClosestEnemyUntisByPlateauAndZone[iCurUnitPlateauOrZero][iCurUnitZone] = {} end
-                                        table.insert(toClosestEnemyUntisByPlateauAndZone[iCurUnitPlateauOrZero][iCurUnitZone], oUnit)
-                                    end
-                                end
-                            end
-                        end
-                    end
-                    if M28Utilities.IsTableEmpty(tEnemyClosestLandAndNavalThreats) == false then
-                        local iMassValueOfThreats = M28UnitInfo.GetCombatThreatRating(tEnemyClosestLandAndNavalThreats, true, true)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Mass value of nearby threats='..iMassValueOfThreats) end
-                        if iMassValueOfThreats * 2 > iBestTargetValue and iMassValueOfThreats > 24000 then
-                            --Go through the actual zones and consider targeting units in here, but always checking for SMD even with yolona
-                            for iPlateauOrZero, tSubtable in toClosestEnemyUntisByPlateauAndZone do
-                                for iZone, tUnits in tSubtable do
-                                    if M28UnitInfo.GetCombatThreatRating(tUnits, true, true) >= 24000 then
-                                        local iBestValuePreCheck = iBestTargetValue
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Best target value pre check for experimental land untis in P'..iPlateauOrZero..'Z'..iZone..'='..iBestTargetValue) end
-                                        ConsiderTableOfPotentialTargets(tUnits, true, 0.8)
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Best target value post check for experimental land untis in P'..iPlateauOrZero..'Z'..iZone..'='..iBestTargetValue) end
-                                        if iBestTargetValue > iBestValuePreCheck then
-                                            iBestValueOfDefensiveNuke = iBestTargetValue
-                                            iDefensiveNukePlateauAndZone = {iPlateauOrZero, iZone}
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                    end
 
-
-
-
-                    if bDebugMessages == true then LOG(sFunctionRef..': iBestTargetValue for enemy base='..iBestTargetValue..'; if <20k then will consider other targets') end
-                    if iBestTargetValue < 80000 then --If have high value location for nearest enemy start then just go with this
-                        for iRef, iCategory in tEnemyCategoriesOfInterest do
-                            ConsiderTableOfPotentialTargets(aiBrain:GetUnitsAroundPoint(iCategory, oLauncher:GetPosition(), iMaxRange, 'Enemy'), bCheckForSMD)
-
-                        end
-                        if iBestTargetValue > iBestValueOfDefensiveNuke then
-                            if tTarget then tTarget, iBestTargetValue = M28Logic.GetBestAOETarget(aiBrain, tTarget, iAOE, iDamage, bCheckForSMD, oLauncher:GetPosition(), nil, nil, 2, 2.5) end
-                        end
-                        if bDebugMessages == true then LOG(sFunctionRef..': iBestTargetValue after getting best location='..iBestTargetValue..'; Best location for this target='..repru(tTarget)) end
-                    end
-                    if bDebugMessages == true then LOG(sFunctionRef..': If value is <14k then will clear target unless have yolona; iBestTargetValue='..iBestTargetValue..'; tTarget='..repru(tTarget or {'nil'})) end
-                    if iBestTargetValue < 14000 then
-                        if iBestTargetValue < 4000 or not(EntityCategoryContains(categories.EXPERIMENTAL, oLauncher.UnitId)) then
-                            tTarget = nil
-                        end
-                    end --Increased vs M27 as will only apuse if no target
-
-
-                    function ChangeTargetToClosestUnitToLauncher(tUnitsToConsider, iOptionalLeadingDistanceBaseAdjust)
-                        local iClosestEnemyDist = 100000
-                        local oClosestEnemyUnit
-                        local iCurEnemyDist
-                        local iBaseLeadingDistance = iOptionalLeadingDistanceBaseAdjust or iAOE * 0.7
-                        for iUnit, oUnit in tUnitsToConsider do
-                            iCurEnemyDist = M28Utilities.GetDistanceBetweenPositions(oLauncher:GetPosition(), oUnit:GetPosition())
-                            if iCurEnemyDist < iClosestEnemyDist then
-                                iClosestEnemyDist = iCurEnemyDist
-                                oClosestEnemyUnit = oUnit
-                            end
-                        end
-                        if oClosestEnemyUnit then
-                            --Base target is this unit
-                            local tPotentialAltTarget = oClosestEnemyUnit:GetPosition()
-                            --Ajdust for unit facing direction if it is moving
-                            local iUnitFacingAngle = M28UnitInfo.GetUnitFacingAngle(oClosestEnemyUnit)
-                            if oClosestEnemyUnit:IsUnitState('Moving') then
-                                tPotentialAltTarget = M28Utilities.MoveInDirection(oClosestEnemyUnit:GetPosition(), M28UnitInfo.GetUnitFacingAngle(oClosestEnemyUnit), iBaseLeadingDistance, true, false, true)
-                            end
-                            --Check the value of this isn't negative (due to friendly fire)
-                            --GetDamageFromBomb(aiBrain, tBaseLocation,     iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory)
-                            if M28Logic.GetDamageFromBomb(aiBrain, tPotentialAltTarget, iAOE, iDamage,   2,                                  2.5,                    nil,                            nil,                nil,                            0.6,                                       nil,                    nil,                            true) > 0 then
-                                tTarget = tPotentialAltTarget
-                                --Adjust the target further if it is far away
-                                local iCurDist = M28Utilities.GetDistanceBetweenPositions(tTarget, oLauncher:GetPosition())
-                                if iCurDist >= 300 then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Target is far away so will adjust further, tTarget pre adjust='..repru(tTarget)) end
-                                    tTarget = M28Utilities.MoveInDirection(tTarget, iUnitFacingAngle, math.min(iBaseLeadingDistance, (iCurDist - 300) / 30), true, false, true)
-                                    if bDebugMessages == true then LOG(sFunctionRef..': tTarget post adjust='..repru(tTarget)) end
-                                end
-                            end
-
-                            if bDebugMessages == true then LOG(sFunctionRef..': tPotentialAltTarget='..repru(tPotentialAltTarget)..'; tTarget after update='..repru(tTarget)..' based on oClosestEnemyUnit='..oClosestEnemyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemyUnit)..' at position '..repru(oClosestEnemyUnit:GetPosition())..' with unit state='..M28UnitInfo.GetUnitState(oClosestEnemyUnit)..' and facing angle='..M28UnitInfo.GetUnitFacingAngle(oClosestEnemyUnit)..'; iAOE='..iAOE..'; Damage of bomb at potential target='..M28Logic.GetDamageFromBomb(aiBrain, tPotentialAltTarget, iAOE, iDamage,   2,                                  2.5,                    nil,                            nil,                nil,                            0.6)) end
-                        end
-                    end
-
-                    if tTarget and iBestTargetValue <= iBestValueOfDefensiveNuke and M28Utilities.IsTableEmpty(toClosestEnemyUntisByPlateauAndZone) == false and M28Utilities.IsTableEmpty(toClosestEnemyUntisByPlateauAndZone[toClosestEnemyUntisByPlateauAndZone[1]][toClosestEnemyUntisByPlateauAndZone[2]]) == false then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will launch a defensive nuke, positio before adjust='..repru(tTarget)) end
-                        --Doing a defensive nuke so target the enemy unit nearest us, and adjust slightly for its facing direction
-                        ChangeTargetToClosestUnitToLauncher(toClosestEnemyUntisByPlateauAndZone[toClosestEnemyUntisByPlateauAndZone[1]][toClosestEnemyUntisByPlateauAndZone[2]])
-                    elseif M28Utilities.IsTableEmpty(tTarget) == false then
-                        --Still check if significant threat is made of mobile units
-
-                        local tTargetZoneData, tTargetZoneTeamData = M28Map.GetLandOrWaterZoneData(tTarget, true, iTeam)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Arent firing as a defensvie unit, checking structure value in zone, tTargetZoneTeamData[M28Map.subrefThreatEnemyStructureTotalMass]='..(tTargetZoneTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 'nil')) end
-                        if (tTargetZoneTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) <  iBestTargetValue * 0.5 then
-                            --Are there enemy experimentals or battleships in this zone?
-                            local tEnemyExperimentalsAndBattleships = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryNavalSurface * categories.BATTLESHIP,tTargetZoneTeamData[M28Map.subrefTEnemyUnits])
-                            if M28Utilities.IsTableEmpty(tEnemyExperimentalsAndBattleships) then
-                                tEnemyExperimentalsAndBattleships = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryNavalSurface * categories.BATTLESHIP, tTarget, iAOE, 'Enemy')
-                                if bDebugMessages == true then LOG(sFunctionRef..': No enemy experimentals in the zone being targeting, is units around point empty='..tostring(M28Utilities.IsTableEmpty(tEnemyExperimentalsAndBattleships))) end
-                            end
-                            if M28Utilities.IsTableEmpty( tEnemyExperimentalsAndBattleships) == false then
-                                local bHaveMobileUnitsAndNoUnderConstruction = false
-                                local bHaveAttackingOrPatrollingUnits = false
-
-                                for iUnit, oUnit in tEnemyExperimentalsAndBattleships do
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Checking enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fraction complete='..oUnit:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)) end
-                                    if oUnit:GetFractionComplete() < 1 and oUnit:GetFractionComplete() >= 0.05 then
-                                        bHaveMobileUnitsAndNoUnderConstruction = false
-                                        break
-                                    else
-                                        if oUnit:IsUnitState('Moving') then
-                                            bHaveMobileUnitsAndNoUnderConstruction = true
-                                        elseif oUnit:IsUnitState('Attacking') or oUnit:IsUnitState('Patrolling') then
-                                            bHaveAttackingOrPatrollingUnits = true
-                                        end
-                                    end
-                                end
-                                local iDistanceAdjust
-                                if bHaveMobileUnitsAndNoUnderConstruction then iDistanceAdjust = iAOE * 0.75
-                                elseif bHaveAttackingOrPatrollingUnits then iDistanceAdjust = iAOE * 0.45
-                                end
-                                if iDistanceAdjust then
-                                    if bDebugMessages == true then LOG(sFunctionRef..': tTarget before updating to nearest experimental or battleship='..repru(tTarget)) end
-                                    ChangeTargetToClosestUnitToLauncher(tEnemyExperimentalsAndBattleships)
-                                    if bDebugMessages == true then LOG(sFunctionRef..': tTarget after updating to nearest experimental or battleship='..repru(tTarget)) end
-                                end
-                            end
-                        end
-                    end
-                end
-
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to launch at time '..GetGameTimeSeconds()..', tTarget='..repru(tTarget)) end
-                if tTarget then
-                    --Launch missile
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will launch missile at tTarget='..repru(tTarget)..'; Cur time='..GetGameTimeSeconds()) end
-                    if bTML then
-                        --Adjust target it outside our range but inside our AOE
-                        if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oLauncher.UnitId) then --redundancy to make sure not dealing with mobile unit
-                            local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(tTarget, oLauncher:GetPosition())
-                            if iDistToTarget > oLauncher[M28UnitInfo.refiManualRange] then
-                                if iDistToTarget - oLauncher[M28UnitInfo.refiManualRange] > oLauncher[M28UnitInfo.refiIndirectAOE] then
-                                    M28Utilities.ErrorHandler('Have a TML launcher with a target outside its range+manual range')
+                        --Cycle through other start positions to see if can get a better target, but reduce value of target if we havent scouted it in the last 5 minutes
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering best target for nuke.  If target enemy base then iBestTargetValue='..iBestTargetValue) end
+                        local iPlateauOrZero, iLandOrWaterZone
+                        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoEnemyBrains] do
+                            local tEnemyStartPosition =  M28Map.PlayerStartPoints[oBrain:GetArmyIndex()]
+                            if M28Utilities.GetDistanceBetweenPositions(tEnemyStartPosition, M28Map.GetPrimaryEnemyBaseLocation(aiBrain)) >= 30 then
+                                --Have we scouted this location recently or do we have radar coverage
+                                local tLZOrWZTeamData
+                                iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tEnemyStartPosition)
+                                if iPlateauOrZero > 0 then
+                                    tLZOrWZTeamData  = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
                                 else
-                                    tTarget = M28Utilities.MoveInDirection(oLauncher:GetPosition(), M28Utilities.GetAngleFromAToB(oLauncher:GetPosition(), tTarget), oLauncher[M28UnitInfo.refiManualRange] - 0.01)
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Updating target so we can hit the actual target with our aoe, tTarget='..repru(tTarget)..'; iDistToTarget pre this adjust='..iDistToTarget) end
+                                    --Water zone
+                                    tLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone][M28Map.subrefWZTeamData][iTeam]
+                                end
+
+
+                                if bDebugMessages == true then LOG(sFunctionRef..': Cycling through start points, considering brain '..(oBrain.Nickname or 'nil')..' with start point '..repru(tEnemyStartPosition)) end
+                                if GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastHadVisual] or -1000) <= 300 or tLZOrWZTeamData[M28Map.refiRadarCoverage] >= 20 then
+                                    iCurNukeSegmentX, iCurNukeSegmentZ = GetNukeSegmentsFromPosition(tEnemyStartPosition)
+                                    if not(tiNukeSegmentsConsidered[iCurNukeSegmentX][iCurNukeSegmentZ]) then
+                                        if HaventRecentlyNukedLocation(tEnemyStartPosition, not(bCheckForSMD)) then
+                                            RecordHaveConsideredNukeLocation(tEnemyStartPosition, false)
+                                            --GetDamageFromBomb(aiBrain, tBaseLocation,         iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory)
+                                            iCurTargetValue = M28Logic.GetDamageFromBomb(aiBrain, tEnemyStartPosition, iAOE, iDamage,   2,                                  2.5                     , nil,                          nil,                nil,                            nil,                                        false,                  nil,                            true)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Considering the start position '..repru( tEnemyStartPosition)..'; value ignroign SMD='..iCurTargetValue) end
+                                            if iCurTargetValue > iBestTargetValue then
+                                                iTimeSMDNeedsToHaveBeenBuiltFor = 230 - (M28Utilities.GetDistanceBetweenPositions( tEnemyStartPosition, oLauncher:GetPosition()) / iMissileSpeed + 10)
+                                                if IsSMDBlockingTarget(aiBrain,  tEnemyStartPosition, oLauncher:GetPosition(), iTimeSMDNeedsToHaveBeenBuiltFor) then
+                                                    iCurTargetValue = 4000
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': SMD is blocking target so reducing value to 4k. iTimeSMDNeedsToHaveBeenBuiltFor='..iTimeSMDNeedsToHaveBeenBuiltFor) end
+                                                end
+                                                if iCurTargetValue > iBestTargetValue then
+                                                    bAlreadyConsideredBestAOETarget = false
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Have a better start position target, dealing damage of '..iCurTargetValue..' vs prev best value of '..iBestTargetValue..'; iTimeSMDNeedsToHaveBeenBuiltFor='..iTimeSMDNeedsToHaveBeenBuiltFor) end
+                                                    iBestTargetValue = iCurTargetValue
+                                                    tTarget = {tEnemyStartPosition[1], tEnemyStartPosition[2], tEnemyStartPosition[3]}
+                                                end
+                                            end
+                                        end
+                                    end
                                 end
                             end
                         end
-                        M28Orders.IssueTrackedTMLMissileLaunch(oLauncher, tTarget, 0.25, false, 'TMLFire', true)
-                        if M28UnitInfo.GetMissileCount(oLauncher) <= 1 then
-                            oLauncher:SetAutoMode(true)
-                        end
-                        oLauncher:SetPaused(false)
-                        if bDebugMessages == true then
-                            local tExpectedMissileVertical = M28Utilities.MoveInDirection(oLauncher:GetPosition(), M28Utilities.GetAngleFromAToB(oLauncher:GetPosition(), tTarget), 31, true)
-                            tExpectedMissileVertical[2] = tExpectedMissileVertical[2] + 60 --Doing testing, it actually only goes up by 50, but I think it travels in an arc from here to the target, as in a test scenario doing at less than +60 meant it thought it would hit a cliff when it didnt
-                            local bShotBlocked = M28Logic.IsLineBlocked(aiBrain, tExpectedMissileVertical, tTarget, iAOE, false)
-                            LOG(sFunctionRef..': Just launched tactical missile at tTarget='..repru(tTarget)..'; oLauncher position='..repru(oLauncher:GetPosition())..'; will draw in blue if think shot will hit, red if think shot blocked. dist to target='..M28Utilities.GetDistanceBetweenPositions(oLauncher:GetPosition(), tTarget)..'; launcher range='..oLauncher[M28UnitInfo.refiManualRange]..'; bShotBlocked='..tostring(bShotBlocked))
-                            local iColour = 1
-                            if bShotBlocked then iColour = 2 end
-                            M28Utilities.DrawLocation(tTarget, nil, iColour)
-                        end
-                    else
-                        if bDebugMessages == true then LOG(sFunctionRef..': Have a nuke target, tTarget='..repru(tTarget)..'; have we not recently nuked this location='..tostring(HaventRecentlyNukedLocation(tTarget, true))..'; iTotalWaitCount='..iTotalWaitCount) end
-                        if iTotalWaitCount >= 1 and not(HaventRecentlyNukedLocation(tTarget, true, iTotalWaitCount * 0.1 + 2)) then
-                            --Presumably the target we chose as the best target is no longer appropriate because another nuke has just nuked it
-                            if bDebugMessages == true then LOG(sFunctionRef..': Will wait 1 second then try getting a target again since we are about to nuke a location that we just nuked') end
-                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                            WaitSeconds(1)
-                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-                            ForkThread(ConsiderLaunchingMissile, oLauncher, oOptionalWeapon)
+
+                        function ConsiderTableOfPotentialTargets(tEnemyUnitsOfInterest, bOverrideCheckForSMD, iOptionalMobileOverrideFactor)
+                            if M28Utilities.IsTableEmpty(tEnemyUnitsOfInterest) == false then
+                                for iUnit, oUnit in tEnemyUnitsOfInterest do
+                                    if M28UnitInfo.IsUnitValid(oUnit) then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iPositionsConsideredThisTick='..iPositionsConsideredThisTick..'; Have we recently nuked this location='..tostring((HaventRecentlyNukedLocation(oUnit:GetPosition(), not(bOverrideCheckForSMD))) or false)) end
+                                        iCurNukeSegmentX, iCurNukeSegmentZ = GetNukeSegmentsFromPosition(oUnit:GetPosition())
+                                        if not(tiNukeSegmentsConsidered[iCurNukeSegmentX][iCurNukeSegmentZ]) then
+                                            if HaventRecentlyNukedLocation(oUnit:GetPosition(), not(bOverrideCheckForSMD)) then
+                                                RecordHaveConsideredNukeLocation(oUnit:GetPosition(), false)
+                                                --GetDamageFromBomb(aiBrain, tBaseLocation,         iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies)
+                                                iCurTargetValue = M28Logic.GetDamageFromBomb(aiBrain, oUnit:GetPosition(), iAOE, iDamage,   2,                                  2.5,                    nil,                            nil,                nil,                            iOptionalMobileOverrideFactor,                  false,              nil,                            true)
+                                                if bDebugMessages == true then LOG(sFunctionRef..': target oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurTargetValue='..iCurTargetValue..'; location='..repru(oUnit:GetPosition())..'; iPositionsConsideredThisTick='..iPositionsConsideredThisTick) end
+                                                --Stop looking if tried >=10 targets and have one that is at least 20k of value
+                                                if iCurTargetValue > iBestTargetValue then
+                                                    iTimeSMDNeedsToHaveBeenBuiltFor = 230 - (M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oLauncher:GetPosition()) / iMissileSpeed + 10)
+                                                    if bOverrideCheckForSMD and IsSMDBlockingTarget(aiBrain, oUnit:GetPosition(), oLauncher:GetPosition(), iTimeSMDNeedsToHaveBeenBuiltFor) then
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': SMD is blocking the unit target '..repru(oUnit:GetPosition())..'; will limit damage to 4k; iTimeSMDNeedsToHaveBeenBuiltFor='..iTimeSMDNeedsToHaveBeenBuiltFor) end
+                                                        iCurTargetValue = 4000 end
+                                                    if iCurTargetValue > iBestTargetValue then
+                                                        bAlreadyConsideredBestAOETarget = false
+                                                        iBestTargetValue = iCurTargetValue
+                                                        tTarget = oUnit:GetPosition()
+                                                        if bDebugMessages == true then LOG(sFunctionRef..': New best target with value='..iBestTargetValue..'; iTimeSMDNeedsToHaveBeenBuiltFor='..iTimeSMDNeedsToHaveBeenBuiltFor) end
+                                                    end
+                                                end
+                                                --Note: Mass value of mexes is doubled, so 3 T3 mexes would give a value of 27600
+                                                if iPositionsConsideredThisTick >= 8 and iBestTargetValue >= iAbortThreshold then
+                                                    if bDebugMessages == true then LOG(sFunctionRef..': Have a target with a decent amount of value and have already tried quite a few units.  iBestTargetValue='..iBestTargetValue..'; iPositionsConsideredThisTick='..iPositionsConsideredThisTick) end
+                                                    break
+                                                end
+                                            end
+                                        end
+                                        --Spread out calculations over a number of ticks due to their intesnity
+                                        if iPositionsConsideredThisTick >= 10 then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Considered '..iPositionsConsideredThisTick..' targets, will wait 1 tick before considering more for performance reasons. iBestTargetValue='..iBestTargetValue) end
+                                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                            WaitTicks(1)
+                                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                                            RefreshRecentlyNukedLocations()
+                                            iPositionsConsideredThisTick = 0
+                                            iTotalWaitCount = iTotalWaitCount + 1
+                                            if not(M28UnitInfo.IsUnitValid(oLauncher)) then
+                                                tTarget = nil
+                                                break
+                                            end
+                                            --Lower requirements to stop searching over time
+                                            if iTotalWaitCount >= 20 then
+                                                iAbortThreshold = iAbortThreshold * 0.95
+                                                if iTotalWaitCount >= 100 then
+                                                    iAbortThreshold = math.min(iAbortThreshold * 0.95, 1000)
+                                                    if iTotalWaitCount >= 150 then break end
+                                                end
+                                                if iBestTargetValue >= iAbortThreshold then break end
+                                            end
+                                        end
+                                    end
+                                end
+                            end
                         end
 
-                        if bDebugMessages == true then
-                            M28Utilities.DrawCircleAtTarget({ tTarget[1], tTarget[2], tTarget[3] }, 2, 200, iAOE)
+                        --Consider a defensive nuke as well if enemy has land experimentals or battleships that are relatively near a friendly base - treat as higher value than normal where not covered by SMD (e.g. if have yolona then only want defensive nukes if expect the nuke to land)
+                        local tEnemyClosestLandAndNavalThreats = {}
+                        local iDefensiveThreshold = 350
+                        local iBestValueOfDefensiveNuke = 0
+                        local iDefensiveNukePlateauAndZone = {}
+                        if M28Map.iMapSize <= 512 then iDefensiveThreshold = 225 end
+                        local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oLauncher:GetPosition(), true, iTeam)
+                        if tLZTeamData then
+                            iDefensiveThreshold = math.max(125, math.min(iDefensiveThreshold, M28Utilities.GetDistanceBetweenPositions(oLauncher:GetPosition(), tLZTeamData[M28Map.reftClosestEnemyBase])) * 0.45)
                         end
-                        IssueNuke({oLauncher}, tTarget)
-                        oLauncher[reftActiveNukeTarget] = {tTarget[1], tTarget[2], tTarget[3]}
-                        --Unpause incase we paused previously
-                        if oLauncher[refbPausedAsNoTargets] then
-                            oLauncher[refbPausedAsNoTargets] = false
+                        local iCurUnitPlateauOrZero, iCurUnitZone
+                        local toClosestEnemyUntisByPlateauAndZone = {}
+
+                        if bDebugMessages == true then LOG(sFunctionRef..': Considering priority enemy land threats near our base, is table of enemy land experimenatls empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]))) end
+                        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals]) == false then
+                            for iUnit, oUnit in  M28Team.tTeamData[iTeam][M28Team.reftEnemyLandExperimentals] do
+                                if M28UnitInfo.IsUnitValid(oUnit) then
+                                    iCurUnitPlateauOrZero, iCurUnitZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                                    if (iCurUnitZone or 0) > 0 and (iCurUnitPlateauOrZero or -1) >= 0 then
+                                        local tUnitLZOrWZData, tUnitLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Considering enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' that is '..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tUnitLZOrWZTeamData[M28Map.reftClosestFriendlyBase])..' dist to the closest friendly base; iDefensiveThreshold='..iDefensiveThreshold) end
+                                        if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tUnitLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) <= iDefensiveThreshold then
+                                            table.insert(tEnemyClosestLandAndNavalThreats, oUnit)
+                                            if not(toClosestEnemyUntisByPlateauAndZone[iCurUnitPlateauOrZero]) then toClosestEnemyUntisByPlateauAndZone[iCurUnitPlateauOrZero] = {} end
+                                            if not(toClosestEnemyUntisByPlateauAndZone[iCurUnitPlateauOrZero][iCurUnitZone]) then toClosestEnemyUntisByPlateauAndZone[iCurUnitPlateauOrZero][iCurUnitZone] = {} end
+                                            table.insert(toClosestEnemyUntisByPlateauAndZone[iCurUnitPlateauOrZero][iCurUnitZone], oUnit)
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyBattleships]) == false then
+                            for iUnit, oUnit in  M28Team.tTeamData[iTeam][M28Team.reftEnemyBattleships] do
+                                if M28UnitInfo.IsUnitValid(oUnit) then
+                                    iCurUnitPlateauOrZero, iCurUnitZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
+                                    if (iCurUnitZone or 0) > 0 and (iCurUnitPlateauOrZero or -1) >= 0 then
+                                        local tUnitLZOrWZData, tUnitLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+                                        if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tUnitLZOrWZTeamData[M28Map.reftClosestFriendlyBase]) <= iDefensiveThreshold then
+                                            table.insert(tEnemyClosestLandAndNavalThreats, oUnit)
+                                            if not(toClosestEnemyUntisByPlateauAndZone[iCurUnitPlateauOrZero]) then toClosestEnemyUntisByPlateauAndZone[iCurUnitPlateauOrZero] = {} end
+                                            if not(toClosestEnemyUntisByPlateauAndZone[iCurUnitPlateauOrZero][iCurUnitZone]) then toClosestEnemyUntisByPlateauAndZone[iCurUnitPlateauOrZero][iCurUnitZone] = {} end
+                                            table.insert(toClosestEnemyUntisByPlateauAndZone[iCurUnitPlateauOrZero][iCurUnitZone], oUnit)
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                        if M28Utilities.IsTableEmpty(tEnemyClosestLandAndNavalThreats) == false then
+                            local iMassValueOfThreats = M28UnitInfo.GetCombatThreatRating(tEnemyClosestLandAndNavalThreats, true, true)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Mass value of nearby threats='..iMassValueOfThreats) end
+                            if iMassValueOfThreats * 2 > iBestTargetValue and iMassValueOfThreats > 24000 then
+                                --Go through the actual zones and consider targeting units in here, but always checking for SMD even with yolona
+                                for iPlateauOrZero, tSubtable in toClosestEnemyUntisByPlateauAndZone do
+                                    for iZone, tUnits in tSubtable do
+                                        if M28UnitInfo.GetCombatThreatRating(tUnits, true, true) >= 24000 then
+                                            local iBestValuePreCheck = iBestTargetValue
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Best target value pre check for experimental land untis in P'..iPlateauOrZero..'Z'..iZone..'='..iBestTargetValue) end
+                                            ConsiderTableOfPotentialTargets(tUnits, true, 0.8)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Best target value post check for experimental land untis in P'..iPlateauOrZero..'Z'..iZone..'='..iBestTargetValue) end
+                                            if iBestTargetValue > iBestValuePreCheck then
+                                                iBestValueOfDefensiveNuke = iBestTargetValue
+                                                iDefensiveNukePlateauAndZone = {iPlateauOrZero, iZone}
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+
+
+
+
+                        if bDebugMessages == true then LOG(sFunctionRef..': iBestTargetValue for enemy base='..iBestTargetValue..'; if <20k then will consider other targets') end
+                        if iBestTargetValue < 80000 then --If have high value location for nearest enemy start then just go with this
+                            for iRef, iCategory in tEnemyCategoriesOfInterest do
+                                ConsiderTableOfPotentialTargets(aiBrain:GetUnitsAroundPoint(iCategory, oLauncher:GetPosition(), iMaxRange, 'Enemy'), bCheckForSMD)
+
+                            end
+                            if iBestTargetValue > iBestValueOfDefensiveNuke then
+                                if tTarget then tTarget, iBestTargetValue = M28Logic.GetBestAOETarget(aiBrain, tTarget, iAOE, iDamage, bCheckForSMD, oLauncher:GetPosition(), nil, nil, 2, 2.5) end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': iBestTargetValue after getting best location='..iBestTargetValue..'; Best location for this target='..repru(tTarget)) end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': If value is <14k then will clear target unless have yolona; iBestTargetValue='..iBestTargetValue..'; tTarget='..repru(tTarget or {'nil'})) end
+                        if iBestTargetValue < 14000 then
+                            if iBestTargetValue < 4000 or not(EntityCategoryContains(categories.EXPERIMENTAL, oLauncher.UnitId)) then
+                                tTarget = nil
+                            end
+                        end --Increased vs M27 as will only apuse if no target
+
+
+                        function ChangeTargetToClosestUnitToLauncher(tUnitsToConsider, iOptionalLeadingDistanceBaseAdjust)
+                            local iClosestEnemyDist = 100000
+                            local oClosestEnemyUnit
+                            local iCurEnemyDist
+                            local iBaseLeadingDistance = iOptionalLeadingDistanceBaseAdjust or iAOE * 0.7
+                            for iUnit, oUnit in tUnitsToConsider do
+                                iCurEnemyDist = M28Utilities.GetDistanceBetweenPositions(oLauncher:GetPosition(), oUnit:GetPosition())
+                                if iCurEnemyDist < iClosestEnemyDist then
+                                    iClosestEnemyDist = iCurEnemyDist
+                                    oClosestEnemyUnit = oUnit
+                                end
+                            end
+                            if oClosestEnemyUnit then
+                                --Base target is this unit
+                                local tPotentialAltTarget = oClosestEnemyUnit:GetPosition()
+                                --Ajdust for unit facing direction if it is moving
+                                local iUnitFacingAngle = M28UnitInfo.GetUnitFacingAngle(oClosestEnemyUnit)
+                                if oClosestEnemyUnit:IsUnitState('Moving') then
+                                    tPotentialAltTarget = M28Utilities.MoveInDirection(oClosestEnemyUnit:GetPosition(), M28UnitInfo.GetUnitFacingAngle(oClosestEnemyUnit), iBaseLeadingDistance, true, false, true)
+                                end
+                                --Check the value of this isn't negative (due to friendly fire)
+                                --GetDamageFromBomb(aiBrain, tBaseLocation,     iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory)
+                                if M28Logic.GetDamageFromBomb(aiBrain, tPotentialAltTarget, iAOE, iDamage,   2,                                  2.5,                    nil,                            nil,                nil,                            0.6,                                       nil,                    nil,                            true) > 0 then
+                                    tTarget = tPotentialAltTarget
+                                    --Adjust the target further if it is far away
+                                    local iCurDist = M28Utilities.GetDistanceBetweenPositions(tTarget, oLauncher:GetPosition())
+                                    if iCurDist >= 300 then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Target is far away so will adjust further, tTarget pre adjust='..repru(tTarget)) end
+                                        tTarget = M28Utilities.MoveInDirection(tTarget, iUnitFacingAngle, math.min(iBaseLeadingDistance, (iCurDist - 300) / 30), true, false, true)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': tTarget post adjust='..repru(tTarget)) end
+                                    end
+                                end
+
+                                if bDebugMessages == true then LOG(sFunctionRef..': tPotentialAltTarget='..repru(tPotentialAltTarget)..'; tTarget after update='..repru(tTarget)..' based on oClosestEnemyUnit='..oClosestEnemyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemyUnit)..' at position '..repru(oClosestEnemyUnit:GetPosition())..' with unit state='..M28UnitInfo.GetUnitState(oClosestEnemyUnit)..' and facing angle='..M28UnitInfo.GetUnitFacingAngle(oClosestEnemyUnit)..'; iAOE='..iAOE..'; Damage of bomb at potential target='..M28Logic.GetDamageFromBomb(aiBrain, tPotentialAltTarget, iAOE, iDamage,   2,                                  2.5,                    nil,                            nil,                nil,                            0.6)) end
+                            end
+                        end
+
+                        if tTarget and iBestTargetValue <= iBestValueOfDefensiveNuke and M28Utilities.IsTableEmpty(toClosestEnemyUntisByPlateauAndZone) == false and M28Utilities.IsTableEmpty(toClosestEnemyUntisByPlateauAndZone[toClosestEnemyUntisByPlateauAndZone[1]][toClosestEnemyUntisByPlateauAndZone[2]]) == false then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will launch a defensive nuke, positio before adjust='..repru(tTarget)) end
+                            --Doing a defensive nuke so target the enemy unit nearest us, and adjust slightly for its facing direction
+                            ChangeTargetToClosestUnitToLauncher(toClosestEnemyUntisByPlateauAndZone[toClosestEnemyUntisByPlateauAndZone[1]][toClosestEnemyUntisByPlateauAndZone[2]])
+                        elseif M28Utilities.IsTableEmpty(tTarget) == false then
+                            --Still check if significant threat is made of mobile units
+
+                            local tTargetZoneData, tTargetZoneTeamData = M28Map.GetLandOrWaterZoneData(tTarget, true, iTeam)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Arent firing as a defensvie unit, checking structure value in zone, tTargetZoneTeamData[M28Map.subrefThreatEnemyStructureTotalMass]='..(tTargetZoneTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 'nil')) end
+                            if (tTargetZoneTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) <  iBestTargetValue * 0.5 then
+                                --Are there enemy experimentals or battleships in this zone?
+                                local tEnemyExperimentalsAndBattleships = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryNavalSurface * categories.BATTLESHIP,tTargetZoneTeamData[M28Map.subrefTEnemyUnits])
+                                if M28Utilities.IsTableEmpty(tEnemyExperimentalsAndBattleships) then
+                                    tEnemyExperimentalsAndBattleships = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryLandExperimental + M28UnitInfo.refCategoryNavalSurface * categories.BATTLESHIP, tTarget, iAOE, 'Enemy')
+                                    if bDebugMessages == true then LOG(sFunctionRef..': No enemy experimentals in the zone being targeting, is units around point empty='..tostring(M28Utilities.IsTableEmpty(tEnemyExperimentalsAndBattleships))) end
+                                end
+                                if M28Utilities.IsTableEmpty( tEnemyExperimentalsAndBattleships) == false then
+                                    local bHaveMobileUnitsAndNoUnderConstruction = false
+                                    local bHaveAttackingOrPatrollingUnits = false
+
+                                    for iUnit, oUnit in tEnemyExperimentalsAndBattleships do
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Checking enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fraction complete='..oUnit:GetFractionComplete()..'; Unit state='..M28UnitInfo.GetUnitState(oUnit)) end
+                                        if oUnit:GetFractionComplete() < 1 and oUnit:GetFractionComplete() >= 0.05 then
+                                            bHaveMobileUnitsAndNoUnderConstruction = false
+                                            break
+                                        else
+                                            if oUnit:IsUnitState('Moving') then
+                                                bHaveMobileUnitsAndNoUnderConstruction = true
+                                            elseif oUnit:IsUnitState('Attacking') or oUnit:IsUnitState('Patrolling') then
+                                                bHaveAttackingOrPatrollingUnits = true
+                                            end
+                                        end
+                                    end
+                                    local iDistanceAdjust
+                                    if bHaveMobileUnitsAndNoUnderConstruction then iDistanceAdjust = iAOE * 0.75
+                                    elseif bHaveAttackingOrPatrollingUnits then iDistanceAdjust = iAOE * 0.45
+                                    end
+                                    if iDistanceAdjust then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': tTarget before updating to nearest experimental or battleship='..repru(tTarget)) end
+                                        ChangeTargetToClosestUnitToLauncher(tEnemyExperimentalsAndBattleships)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': tTarget after updating to nearest experimental or battleship='..repru(tTarget)) end
+                                    end
+                                end
+                            end
+                        end
+                    end
+
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to launch at time '..GetGameTimeSeconds()..', tTarget='..repru(tTarget)) end
+                    if tTarget then
+                        --Launch missile
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will launch missile at tTarget='..repru(tTarget)..'; Cur time='..GetGameTimeSeconds()) end
+                        if bTML then
+                            --Adjust target it outside our range but inside our AOE
+                            if EntityCategoryContains(M28UnitInfo.refCategoryStructure, oLauncher.UnitId) then --redundancy to make sure not dealing with mobile unit
+                                local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(tTarget, oLauncher:GetPosition())
+                                if iDistToTarget > oLauncher[M28UnitInfo.refiManualRange] then
+                                    if iDistToTarget - oLauncher[M28UnitInfo.refiManualRange] > oLauncher[M28UnitInfo.refiIndirectAOE] then
+                                        M28Utilities.ErrorHandler('Have a TML launcher with a target outside its range+manual range')
+                                    else
+                                        tTarget = M28Utilities.MoveInDirection(oLauncher:GetPosition(), M28Utilities.GetAngleFromAToB(oLauncher:GetPosition(), tTarget), oLauncher[M28UnitInfo.refiManualRange] - 0.01)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Updating target so we can hit the actual target with our aoe, tTarget='..repru(tTarget)..'; iDistToTarget pre this adjust='..iDistToTarget) end
+                                    end
+                                end
+                            end
+                            M28Orders.IssueTrackedTMLMissileLaunch(oLauncher, tTarget, 0.25, false, 'TMLFire', true)
                             if M28UnitInfo.GetMissileCount(oLauncher) <= 1 then
                                 oLauncher:SetAutoMode(true)
                             end
                             oLauncher:SetPaused(false)
+                            if bDebugMessages == true then
+                                local tExpectedMissileVertical = M28Utilities.MoveInDirection(oLauncher:GetPosition(), M28Utilities.GetAngleFromAToB(oLauncher:GetPosition(), tTarget), 31, true)
+                                tExpectedMissileVertical[2] = tExpectedMissileVertical[2] + 60 --Doing testing, it actually only goes up by 50, but I think it travels in an arc from here to the target, as in a test scenario doing at less than +60 meant it thought it would hit a cliff when it didnt
+                                local bShotBlocked = M28Logic.IsLineBlocked(aiBrain, tExpectedMissileVertical, tTarget, iAOE, false)
+                                LOG(sFunctionRef..': Just launched tactical missile at tTarget='..repru(tTarget)..'; oLauncher position='..repru(oLauncher:GetPosition())..'; will draw in blue if think shot will hit, red if think shot blocked. dist to target='..M28Utilities.GetDistanceBetweenPositions(oLauncher:GetPosition(), tTarget)..'; launcher range='..oLauncher[M28UnitInfo.refiManualRange]..'; bShotBlocked='..tostring(bShotBlocked))
+                                local iColour = 1
+                                if bShotBlocked then iColour = 2 end
+                                M28Utilities.DrawLocation(tTarget, nil, iColour)
+                            end
+                        else
+                            if bDebugMessages == true then LOG(sFunctionRef..': Have a nuke target, tTarget='..repru(tTarget)..'; have we not recently nuked this location='..tostring(HaventRecentlyNukedLocation(tTarget, true))..'; iTotalWaitCount='..iTotalWaitCount) end
+                            if iTotalWaitCount >= 1 and not(HaventRecentlyNukedLocation(tTarget, true, iTotalWaitCount * 0.1 + 2)) then
+                                --Presumably the target we chose as the best target is no longer appropriate because another nuke has just nuked it
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will wait 1 second then try getting a target again since we are about to nuke a location that we just nuked') end
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                WaitSeconds(1)
+                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                                ForkThread(ConsiderLaunchingMissile, oLauncher, oOptionalWeapon)
+                            end
+
+                            if bDebugMessages == true then
+                                M28Utilities.DrawCircleAtTarget({ tTarget[1], tTarget[2], tTarget[3] }, 2, 200, iAOE)
+                            end
+                            IssueNuke({oLauncher}, tTarget)
+                            oLauncher[reftActiveNukeTarget] = {tTarget[1], tTarget[2], tTarget[3]}
+                            --Unpause incase we paused previously
+                            if oLauncher[refbPausedAsNoTargets] then
+                                oLauncher[refbPausedAsNoTargets] = false
+                                if M28UnitInfo.GetMissileCount(oLauncher) <= 1 then
+                                    oLauncher:SetAutoMode(true)
+                                end
+                                oLauncher:SetPaused(false)
+                            end
+                            if not(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]) then M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations] = {} end
+                            M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][math.floor(GetGameTimeSeconds())] = tTarget
+                            if bDebugMessages == true then LOG(sFunctionRef..': Launching nuke at tTarget='..repru(tTarget)..'; M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]='..repru(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations])..'; Time of game='..GetGameTimeSeconds()) end
+                            --Send a voice taunt if havent in last 10m and we expect to do significant damage
+                            if iBestTargetValue >= 25000 then
+                                ForkThread(M28Chat.SendGloatingMessage, aiBrain, 20, 600)
+                            end
                         end
-                        if not(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]) then M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations] = {} end
-                        M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations][math.floor(GetGameTimeSeconds())] = tTarget
-                        if bDebugMessages == true then LOG(sFunctionRef..': Launching nuke at tTarget='..repru(tTarget)..'; M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations]='..repru(M28Team.tTeamData[iTeam][M28Team.subrefNukeLaunchLocations])..'; Time of game='..GetGameTimeSeconds()) end
-                        --Send a voice taunt if havent in last 10m and we expect to do significant damage
-                        if iBestTargetValue >= 25000 then
-                            ForkThread(M28Chat.SendGloatingMessage, aiBrain, 20, 600)
+                    else
+                        --Disable autobuild and pause
+                        if not(oLauncher[refbPausedAsNoTargets]) and not(EntityCategoryContains(categories.EXPERIMENTAL, oLauncher.UnitId)) then
+                            --Dont pause if we have loads of resources
+                            if M28Conditions.HaveLowPower(iTeam) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 400 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] < 0.8 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 25 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.99))) then
+                                oLauncher[refbPausedAsNoTargets] = true
+                                oLauncher:SetAutoMode(false)
+                                oLauncher:SetPaused(true)
+                                if oLauncher.UnitId == 'xsb2401' then M28Utilities.ErrorHandler('Pausing Yolona') end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Pausing unit '..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..' as have no targets') end
+                            end
                         end
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                        WaitSeconds(10)
+                        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have waited 10s, will now reconsider launching the missile, time='..GetGameTimeSeconds()) end
+                        ForkThread(ConsiderLaunchingMissile, oLauncher, oOptionalWeapon)
                     end
-                else
-                    --Disable autobuild and pause
-                    if not(oLauncher[refbPausedAsNoTargets]) and not(EntityCategoryContains(categories.EXPERIMENTAL, oLauncher.UnitId)) then
-                        --Dont pause if we have loads of resources
-                        if M28Conditions.HaveLowPower(iTeam) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 400 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] < 0.8 or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 30 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] <= 25 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] <= 0.99))) then
-                            oLauncher[refbPausedAsNoTargets] = true
-                            oLauncher:SetAutoMode(false)
-                            oLauncher:SetPaused(true)
-                            if oLauncher.UnitId == 'xsb2401' then M28Utilities.ErrorHandler('Pausing Yolona') end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Pausing unit '..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..' as have no targets') end
-                        end
-                    end
-                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                    WaitSeconds(10)
-                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Have waited 10s, will now reconsider launching the missile, time='..GetGameTimeSeconds()) end
-                    ForkThread(ConsiderLaunchingMissile, oLauncher, oOptionalWeapon)
                 end
             end
+            --oLauncher[refbActiveMissileChecker] = false
         end
-        --oLauncher[refbActiveMissileChecker] = false
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-end
 
-function IsSMDBlockingTarget(aiBrain, tTarget, tSMLPosition, iIgnoreSMDCreatedThisManySecondsAgo, iSMDRangeAdjust)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'IsSMDBlockingTarget'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    function IsSMDBlockingTarget(aiBrain, tTarget, tSMLPosition, iIgnoreSMDCreatedThisManySecondsAgo, iSMDRangeAdjust)
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'IsSMDBlockingTarget'
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    local bEnemySMDInRange = false
-    local iSMLToTarget = M28Utilities.GetDistanceBetweenPositions(tTarget, tSMLPosition)
-    local iAngleSMLToTarget = M28Utilities.GetAngleFromAToB(tSMLPosition, tTarget)
-    local iTargetToSMD
+        local bEnemySMDInRange = false
+        local iSMLToTarget = M28Utilities.GetDistanceBetweenPositions(tTarget, tSMLPosition)
+        local iAngleSMLToTarget = M28Utilities.GetAngleFromAToB(tSMLPosition, tTarget)
+        local iTargetToSMD
 
-    local iSMLToSMD
-    local iSMDRange
-    local iAngleToSMD
-    local bSMDInRangeOfMissile
+        local iSMLToSMD
+        local iSMDRange
+        local iAngleToSMD
+        local bSMDInRangeOfMissile
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Considering tTarget='..repru(tTarget)..'; iIgnoreSMDCreatedThisManySecondsAgo='..(iIgnoreSMDCreatedThisManySecondsAgo or 1)..'; Current game time='..GetGameTimeSeconds()) end
-    local iTeam = aiBrain.M28Team
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering tTarget='..repru(tTarget)..'; iIgnoreSMDCreatedThisManySecondsAgo='..(iIgnoreSMDCreatedThisManySecondsAgo or 1)..'; Current game time='..GetGameTimeSeconds()) end
+        local iTeam = aiBrain.M28Team
 
-    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemySMD]) == false then
-        for iSMD, oSMD in M28Team.tTeamData[iTeam][M28Team.reftEnemySMD] do
-            if M28UnitInfo.IsUnitValid(oSMD) then
-                if GetGameTimeSeconds() - (oSMD[M28UnitInfo.refiTimeOfLastCheck] or (GetGameTimeSeconds() - 10)) > (iIgnoreSMDCreatedThisManySecondsAgo or 0) then
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemySMD]) == false then
+            for iSMD, oSMD in M28Team.tTeamData[iTeam][M28Team.reftEnemySMD] do
+                if M28UnitInfo.IsUnitValid(oSMD) then
+                    if GetGameTimeSeconds() - (oSMD[M28UnitInfo.refiTimeOfLastCheck] or (GetGameTimeSeconds() - 10)) > (iIgnoreSMDCreatedThisManySecondsAgo or 0) then
 
-                    bSMDInRangeOfMissile = false
-                    iSMDRange = (oSMD:GetBlueprint().Weapon[1].MaxRadius or 90) + 1 + (iSMDRangeAdjust or 0)
-                    iTargetToSMD = M28Utilities.GetDistanceBetweenPositions(tTarget, oSMD:GetPosition())
+                        bSMDInRangeOfMissile = false
+                        iSMDRange = (oSMD:GetBlueprint().Weapon[1].MaxRadius or 90) + 1 + (iSMDRangeAdjust or 0)
+                        iTargetToSMD = M28Utilities.GetDistanceBetweenPositions(tTarget, oSMD:GetPosition())
 
-                    iSMLToSMD = M28Utilities.GetDistanceBetweenPositions(oSMD:GetPosition(), tSMLPosition)
-                    iAngleToSMD = M28Utilities.GetAngleFromAToB(tSMLPosition, oSMD:GetPosition())
-                    if bDebugMessages == true then LOG(sFunctionRef..': oSMD='..oSMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSMD)..'; iTargetToSMD='..iTargetToSMD..'; iSMLToSMD='..iSMLToSMD..'; iSMLToTarget='..iSMLToTarget..'; iSMDRange='..iSMDRange..'; oSMD[M27UnitInfo.refiTimeOfLastCheck]='..(oSMD[M28UnitInfo.refiTimeOfLastCheck] or 'nil')..'; Distance from target to oSMD='..M28Utilities.GetDistanceBetweenPositions(tTarget, oSMD:GetPosition())..'; iSMDRange='..iSMDRange..'; iAngleToSMD='..iAngleToSMD..'; iAngleSMLToTarget='..iAngleSMLToTarget..'; SMD position='..repru(oSMD:GetPosition())..'; tSMLPosition='..repru(tSMLPosition)..'; TargetPos='..repru(tTarget)..'; iAngleFromAToB - iAngleFromAToC='..(iAngleSMLToTarget - iAngleToSMD)..'; ConvertAngleToRadians(iAngleFromAToB - iAngleFromAToC)='..M28Utilities.ConvertAngleToRadians(iAngleSMLToTarget - iAngleToSMD)..'; math.tan(math.abs(ConvertAngleToRadians(iAngleFromAToB - iAngleFromAToC)))='..math.tan(math.abs(M28Utilities.ConvertAngleToRadians(iAngleSMLToTarget - iAngleToSMD)))..'; iDistFromAToC='..iSMLToSMD..'; Tan result times this distance='..iSMLToSMD*math.tan(math.abs(M28Utilities.ConvertAngleToRadians(iAngleSMLToTarget - iAngleToSMD)))) end
+                        iSMLToSMD = M28Utilities.GetDistanceBetweenPositions(oSMD:GetPosition(), tSMLPosition)
+                        iAngleToSMD = M28Utilities.GetAngleFromAToB(tSMLPosition, oSMD:GetPosition())
+                        if bDebugMessages == true then LOG(sFunctionRef..': oSMD='..oSMD.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSMD)..'; iTargetToSMD='..iTargetToSMD..'; iSMLToSMD='..iSMLToSMD..'; iSMLToTarget='..iSMLToTarget..'; iSMDRange='..iSMDRange..'; oSMD[M27UnitInfo.refiTimeOfLastCheck]='..(oSMD[M28UnitInfo.refiTimeOfLastCheck] or 'nil')..'; Distance from target to oSMD='..M28Utilities.GetDistanceBetweenPositions(tTarget, oSMD:GetPosition())..'; iSMDRange='..iSMDRange..'; iAngleToSMD='..iAngleToSMD..'; iAngleSMLToTarget='..iAngleSMLToTarget..'; SMD position='..repru(oSMD:GetPosition())..'; tSMLPosition='..repru(tSMLPosition)..'; TargetPos='..repru(tTarget)..'; iAngleFromAToB - iAngleFromAToC='..(iAngleSMLToTarget - iAngleToSMD)..'; ConvertAngleToRadians(iAngleFromAToB - iAngleFromAToC)='..M28Utilities.ConvertAngleToRadians(iAngleSMLToTarget - iAngleToSMD)..'; math.tan(math.abs(ConvertAngleToRadians(iAngleFromAToB - iAngleFromAToC)))='..math.tan(math.abs(M28Utilities.ConvertAngleToRadians(iAngleSMLToTarget - iAngleToSMD)))..'; iDistFromAToC='..iSMLToSMD..'; Tan result times this distance='..iSMLToSMD*math.tan(math.abs(M28Utilities.ConvertAngleToRadians(iAngleSMLToTarget - iAngleToSMD)))) end
 
-                    bSMDInRangeOfMissile = M28Utilities.IsLineFromAToBInRangeOfCircleAtC(iSMLToTarget, iSMLToSMD, iTargetToSMD, iAngleSMLToTarget, iAngleToSMD, iSMDRange)
+                        bSMDInRangeOfMissile = M28Utilities.IsLineFromAToBInRangeOfCircleAtC(iSMLToTarget, iSMLToSMD, iTargetToSMD, iAngleSMLToTarget, iAngleToSMD, iSMDRange)
 
-                    if bSMDInRangeOfMissile then
-                        if bDebugMessages == true then LOG(sFunctionRef..': SMD is in range and was built a while ago') end
-                        bEnemySMDInRange = true
-                        break
+                        if bSMDInRangeOfMissile then
+                            if bDebugMessages == true then LOG(sFunctionRef..': SMD is in range and was built a while ago') end
+                            bEnemySMDInRange = true
+                            break
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': SMD is not blocking the target') end
+                    elseif bDebugMessages == true then LOG(sFunctionRef..': SMD was only recently built, time we think the SMD was active='..GetGameTimeSeconds() - (oSMD[M28UnitInfo.refiTimeOfLastCheck] or (GetGameTimeSeconds() - 10)))
                     end
-                    if bDebugMessages == true then LOG(sFunctionRef..': SMD is not blocking the target') end
-                elseif bDebugMessages == true then LOG(sFunctionRef..': SMD was only recently built, time we think the SMD was active='..GetGameTimeSeconds() - (oSMD[M28UnitInfo.refiTimeOfLastCheck] or (GetGameTimeSeconds() - 10)))
                 end
             end
+        elseif bDebugMessages == true then LOG(sFunctionRef..': No enemy SMD detected')
         end
-    elseif bDebugMessages == true then LOG(sFunctionRef..': No enemy SMD detected')
+        if bDebugMessages == true then LOG(sFunctionRef..': bEnemySMDInRange='..tostring(bEnemySMDInRange)) end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return bEnemySMDInRange
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': bEnemySMDInRange='..tostring(bEnemySMDInRange)) end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    return bEnemySMDInRange
-end
 
-function GetHighestNukeTargetValue(tLZOrWZData, tLZOrWZTeamData, iTeam)
-    --Refresh list if havent calcualted before or SMD has been refreshed; returns highest value target
-    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
-        local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
-        if aiBrain then
-            local iBestValue = 0
-            local iCurValue
+    function GetHighestNukeTargetValue(tLZOrWZData, tLZOrWZTeamData, iTeam)
+        --Refresh list if havent calcualted before or SMD has been refreshed; returns highest value target
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+            local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
+            if aiBrain then
+                local iBestValue = 0
+                local iCurValue
 
-            function GetZoneValue(iEnemyStructureMass, iEnemyCombatThreat)
-                return iEnemyStructureMass + iEnemyCombatThreat * 0.25
-            end
-            local tSMLPosition = tLZOrWZData[M28Map.subrefMidpoint]
-            if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftiPotentialNukeTargetZones]) or M28Team.tTeamData[iTeam][M28Team.refbEnemySMDDiedSinceLastNukeCheck] then
-                --Do full calculation
-                tLZOrWZTeamData[M28Map.subreftiPotentialNukeTargetZones] = {}
-                --Make sure we have recorded pathing in a straight line for this zone (will only run if table is empty)
-                M28Air.RecordOtherLandAndWaterZonesByDistance(tLZOrWZData, tLZOrWZData[M28Map.subrefMidpoint])
-                if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) then
-                    M28Utilities.ErrorHandler('No other zones found')
-                else
-                    for iEntry, tSubtable in tLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+                function GetZoneValue(iEnemyStructureMass, iEnemyCombatThreat)
+                    return iEnemyStructureMass + iEnemyCombatThreat * 0.25
+                end
+                local tSMLPosition = tLZOrWZData[M28Map.subrefMidpoint]
+                if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftiPotentialNukeTargetZones]) or M28Team.tTeamData[iTeam][M28Team.refbEnemySMDDiedSinceLastNukeCheck] then
+                    --Do full calculation
+                    tLZOrWZTeamData[M28Map.subreftiPotentialNukeTargetZones] = {}
+                    --Make sure we have recorded pathing in a straight line for this zone (will only run if table is empty)
+                    M28Air.RecordOtherLandAndWaterZonesByDistance(tLZOrWZData, tLZOrWZData[M28Map.subrefMidpoint])
+                    if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) then
+                        M28Utilities.ErrorHandler('No other zones found')
+                    else
+                        for iEntry, tSubtable in tLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+                            local tAltLZOrWZData
+                            local tAltLZOrWZTeamData
+                            local sMidpointRef
+                            local sCombatThreatRef
+                            local iCurPlateauOrPond
+                            local iCurLZOrWZRef = tSubtable[M28Map.subrefiLandOrWaterZoneRef]
+                            if tSubtable[M28Map.subrefbIsWaterZone] then
+                                sMidpointRef = M28Map.subrefMidpoint
+                                sCombatThreatRef = M28Map.subrefTThreatEnemyCombatTotal
+                                tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iCurLZOrWZRef]][M28Map.subrefPondWaterZones][iCurLZOrWZRef]
+                                iCurPlateauOrPond = 0
+                                tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                            else
+                                sMidpointRef = M28Map.subrefMidpoint
+                                sCombatThreatRef = M28Map.subrefTThreatEnemyCombatTotal
+                                iCurPlateauOrPond = tSubtable[M28Map.subrefiPlateauOrPond]
+                                tAltLZOrWZData = M28Map.tAllPlateaus[iCurPlateauOrPond][M28Map.subrefPlateauLandZones][iCurLZOrWZRef]
+                                tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                            end
+                            if not(IsSMDBlockingTarget(aiBrain, tAltLZOrWZData[sMidpointRef], tSMLPosition, 0, 0)) then
+                                --Have a valid target
+                                table.insert(tLZOrWZTeamData[M28Map.subreftiPotentialNukeTargetZones], {iCurPlateauOrPond, iCurLZOrWZRef })
+                                iCurValue = GetZoneValue(tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass], tAltLZOrWZTeamData[sCombatThreatRef])
+                                if iCurValue > iBestValue then
+                                    iBestValue = iCurValue
+                                end
+                            end
+                        end
+                    end
+                elseif M28Team.tTeamData[iTeam][M28Team.refbEnemySMDBuiltSinceLastNukeCheck] then
+                    --Check existing values for if still valid
+                    local iExistingEntries = table.getn(tLZOrWZTeamData[M28Map.subreftiPotentialNukeTargetZones])
+                    for iEntry = iExistingEntries, 1, -1 do
                         local tAltLZOrWZData
                         local tAltLZOrWZTeamData
                         local sMidpointRef
                         local sCombatThreatRef
-                        local iCurPlateauOrPond
-                        local iCurLZOrWZRef = tSubtable[M28Map.subrefiLandOrWaterZoneRef]
-                        if tSubtable[M28Map.subrefbIsWaterZone] then
+                        local iCurPlateauOrPond = tLZOrWZTeamData[M28Map.subreftiPotentialNukeTargetZones][iEntry][1]
+                        local iCurLZOrWZRef = tLZOrWZTeamData[M28Map.subreftiPotentialNukeTargetZones][iEntry][2]
+
+                        if iCurPlateauOrPond == 0 then
                             sMidpointRef = M28Map.subrefMidpoint
                             sCombatThreatRef = M28Map.subrefTThreatEnemyCombatTotal
                             tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iCurLZOrWZRef]][M28Map.subrefPondWaterZones][iCurLZOrWZRef]
-                            iCurPlateauOrPond = 0
                             tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
                         else
                             sMidpointRef = M28Map.subrefMidpoint
                             sCombatThreatRef = M28Map.subrefTThreatEnemyCombatTotal
-                            iCurPlateauOrPond = tSubtable[M28Map.subrefiPlateauOrPond]
                             tAltLZOrWZData = M28Map.tAllPlateaus[iCurPlateauOrPond][M28Map.subrefPlateauLandZones][iCurLZOrWZRef]
                             tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
                         end
-                        if not(IsSMDBlockingTarget(aiBrain, tAltLZOrWZData[sMidpointRef], tSMLPosition, 0, 0)) then
-                            --Have a valid target
-                            table.insert(tLZOrWZTeamData[M28Map.subreftiPotentialNukeTargetZones], {iCurPlateauOrPond, iCurLZOrWZRef })
+                        if IsSMDBlockingTarget(aiBrain, tAltLZOrWZData[sMidpointRef], tSMLPosition, 0, 0) then
+                            --No longer have a valid target
+                            table.remove(tLZOrWZTeamData[M28Map.subreftiPotentialNukeTargetZones], iEntry)
+                        else
                             iCurValue = GetZoneValue(tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass], tAltLZOrWZTeamData[sCombatThreatRef])
                             if iCurValue > iBestValue then
                                 iBestValue = iCurValue
@@ -2169,471 +2280,412 @@ function GetHighestNukeTargetValue(tLZOrWZData, tLZOrWZTeamData, iTeam)
                         end
                     end
                 end
-            elseif M28Team.tTeamData[iTeam][M28Team.refbEnemySMDBuiltSinceLastNukeCheck] then
-                --Check existing values for if still valid
-                local iExistingEntries = table.getn(tLZOrWZTeamData[M28Map.subreftiPotentialNukeTargetZones])
-                for iEntry = iExistingEntries, 1, -1 do
-                    local tAltLZOrWZData
-                    local tAltLZOrWZTeamData
-                    local sMidpointRef
-                    local sCombatThreatRef
-                    local iCurPlateauOrPond = tLZOrWZTeamData[M28Map.subreftiPotentialNukeTargetZones][iEntry][1]
-                    local iCurLZOrWZRef = tLZOrWZTeamData[M28Map.subreftiPotentialNukeTargetZones][iEntry][2]
-
-                    if iCurPlateauOrPond == 0 then
-                        sMidpointRef = M28Map.subrefMidpoint
-                        sCombatThreatRef = M28Map.subrefTThreatEnemyCombatTotal
-                        tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iCurLZOrWZRef]][M28Map.subrefPondWaterZones][iCurLZOrWZRef]
-                        tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
-                    else
-                        sMidpointRef = M28Map.subrefMidpoint
-                        sCombatThreatRef = M28Map.subrefTThreatEnemyCombatTotal
-                        tAltLZOrWZData = M28Map.tAllPlateaus[iCurPlateauOrPond][M28Map.subrefPlateauLandZones][iCurLZOrWZRef]
-                        tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
-                    end
-                    if IsSMDBlockingTarget(aiBrain, tAltLZOrWZData[sMidpointRef], tSMLPosition, 0, 0) then
-                        --No longer have a valid target
-                        table.remove(tLZOrWZTeamData[M28Map.subreftiPotentialNukeTargetZones], iEntry)
-                    else
-                        iCurValue = GetZoneValue(tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass], tAltLZOrWZTeamData[sCombatThreatRef])
-                        if iCurValue > iBestValue then
-                            iBestValue = iCurValue
-                        end
-                    end
-                end
+                return iBestValue
+            else
+                M28Utilities.ErrorHandler('No alive M28 brain')
+                return 0
             end
-            return iBestValue
         else
-            M28Utilities.ErrorHandler('No alive M28 brain')
+            M28Utilities.ErrorHandler('No active M28 brains')
             return 0
         end
-    else
-        M28Utilities.ErrorHandler('No active M28 brains')
-        return 0
     end
-end
 
-function RecheckForArtiTargetSoon(oArti)
-    WaitSeconds(10)
-    if M28UnitInfo.IsUnitValid(oArti) then
-        M28UnitInfo.EnableUnitWeapon(oArti)
-        GetT3ArtiTarget(oArti, false)
+    function RecheckForArtiTargetSoon(oArti)
+        WaitSeconds(10)
+        if M28UnitInfo.IsUnitValid(oArti) then
+            M28UnitInfo.EnableUnitWeapon(oArti)
+            GetT3ArtiTarget(oArti, false)
+        end
     end
-end
 
-function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
-    --Gets oArti to fire an attack on the ground for where it thinks it will deal the most damage, works for t3 and experimental arti
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'GetT3ArtiTarget'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+    function GetT3ArtiTarget(oArti, bCalledFromSalvoSize)
+        --Gets oArti to fire an attack on the ground for where it thinks it will deal the most damage, works for t3 and experimental arti
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'GetT3ArtiTarget'
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
-    if bCalledFromSalvoSize then oArti[refbSalvoDelayActive] = false end
-    if not(oArti[refbSalvoDelayActive]) then
-        local iPlateau, iLandZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oArti:GetPosition())
-        local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
-        local aiBrain = oArti:GetAIBrain()
-        local iTeam = aiBrain.M28Team
-        local iArtiFacingAngle = M28UnitInfo.GetUnitFacingAngle(oArti)
 
-        local iAOE, iDamage, iMinRange, iMaxRange, iSalvoSize, iSalvoIndividualDelay = M28UnitInfo.GetLauncherAOEStrikeDamageMinAndMaxRange(oArti)
-        --Wait if salvo size >1
-        local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
-        if iSalvoSize > 1 and not(bCalledFromSalvoSize) and oArti[M28UnitInfo.refiLastWeaponEvent] then
-            --E.g. scathis - dont want to change targets after firing a single shot - we have fired the scathis before, and this has presumably been called from the onweaponevent trigger
+        if bCalledFromSalvoSize then oArti[refbSalvoDelayActive] = false end
+        if not(oArti[refbSalvoDelayActive]) then
+            local iPlateau, iLandZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oArti:GetPosition())
+            local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+            local aiBrain = oArti:GetAIBrain()
+            local iTeam = aiBrain.M28Team
+            local iArtiFacingAngle = M28UnitInfo.GetUnitFacingAngle(oArti)
 
-            local iTimeToWait = 4
-            if (iSalvoIndividualDelay or 0) > 0 then iTimeToWait = iSalvoSize * iSalvoIndividualDelay + 0.1 end
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-            WaitSeconds(iTimeToWait)
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-            if M28UnitInfo.IsUnitValid(oArti) then
-                oArti[refbSalvoDelayActive] = true
-                ForkThread(GetT3ArtiTarget, oArti, true)
-            end
-        else
-            if (iMaxRange or 0) == 0 or (iAOE or 0) == 0 then M28Utilities.ErrorHandler('Arti '..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti)..' has no range or no aoe')
-            end
+            local iAOE, iDamage, iMinRange, iMaxRange, iSalvoSize, iSalvoIndividualDelay = M28UnitInfo.GetLauncherAOEStrikeDamageMinAndMaxRange(oArti)
+            --Wait if salvo size >1
+            local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
+            if iSalvoSize > 1 and not(bCalledFromSalvoSize) and oArti[M28UnitInfo.refiLastWeaponEvent] then
+                --E.g. scathis - dont want to change targets after firing a single shot - we have fired the scathis before, and this has presumably been called from the onweaponevent trigger
 
-            --First make sure pathing is setup
-            if M28Utilities.IsTableEmpty(oArti[reftiPlateauAndZonesInRange]) then
-                oArti[reftiPlateauAndZonesInRange] = {}
-                M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefMidpoint])
-                if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) then
-                    M28Utilities.ErrorHandler('No other zones located for oArti='..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti))
-                else
-                    local iPlateauOrZero
-                    if bDebugMessages == true then LOG(sFunctionRef..': About to search through all zones for targets for oArti='..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti)..'; iMinRange='..(iMinRange or 'nil')..'; iMaxRange='..(iMaxRange or 'nil')) end
-                    for iEntry, tSubtable in tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
-                        --Stop searching once got past arti max range
-                        if tSubtable[M28Map.subrefiDistance] > iMaxRange then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Are outside the max range so wil stop searching') end
-                            break
-                        end
-                        --If outside min range then include
-                        if tSubtable[M28Map.subrefiDistance] > iMinRange then
-                            --Add to potential zone table
-                            local tAltLZOrWZData
-                            local tAltLZOrWZTeamData
-                            if tSubtable[M28Map.subrefbIsWaterZone] then
-                                iPlateauOrZero = 0
+                local iTimeToWait = 4
+                if (iSalvoIndividualDelay or 0) > 0 then iTimeToWait = iSalvoSize * iSalvoIndividualDelay + 0.1 end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitSeconds(iTimeToWait)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                if M28UnitInfo.IsUnitValid(oArti) then
+                    oArti[refbSalvoDelayActive] = true
+                    ForkThread(GetT3ArtiTarget, oArti, true)
+                end
+            else
+                if (iMaxRange or 0) == 0 or (iAOE or 0) == 0 then M28Utilities.ErrorHandler('Arti '..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti)..' has no range or no aoe')
+                end
 
-                                tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[tSubtable[M28Map.subrefiLandOrWaterZoneRef]]][M28Map.subrefPondWaterZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
-                                tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
-                            else
-                                iPlateauOrZero = tSubtable[M28Map.subrefiPlateauOrPond]
-                                tAltLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
-                                tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                --First make sure pathing is setup
+                if M28Utilities.IsTableEmpty(oArti[reftiPlateauAndZonesInRange]) then
+                    oArti[reftiPlateauAndZonesInRange] = {}
+                    M28Air.RecordOtherLandAndWaterZonesByDistance(tLZData, tLZData[M28Map.subrefMidpoint])
+                    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) then
+                        M28Utilities.ErrorHandler('No other zones located for oArti='..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti))
+                    else
+                        local iPlateauOrZero
+                        if bDebugMessages == true then LOG(sFunctionRef..': About to search through all zones for targets for oArti='..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti)..'; iMinRange='..(iMinRange or 'nil')..'; iMaxRange='..(iMaxRange or 'nil')) end
+                        for iEntry, tSubtable in tLZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+                            --Stop searching once got past arti max range
+                            if tSubtable[M28Map.subrefiDistance] > iMaxRange then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Are outside the max range so wil stop searching') end
+                                break
                             end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Recording plateau '..iPlateauOrZero..' zone '..tSubtable[M28Map.subrefiLandOrWaterZoneRef]..' as being within max range') end
-                            table.insert(oArti[reftiPlateauAndZonesInRange], {iPlateauOrZero, tSubtable[M28Map.subrefiLandOrWaterZoneRef], M28Utilities.GetDistanceBetweenPositions(tAltLZOrWZData[M28Map.subrefMidpoint], tAltLZOrWZTeamData[M28Map.reftClosestFriendlyBase]), M28Utilities.GetAngleFromAToB(oArti:GetPosition(), tAltLZOrWZData[M28Map.subrefMidpoint])})
-                        end
-                    end
-                end
-            end
+                            --If outside min range then include
+                            if tSubtable[M28Map.subrefiDistance] > iMinRange then
+                                --Add to potential zone table
+                                local tAltLZOrWZData
+                                local tAltLZOrWZTeamData
+                                if tSubtable[M28Map.subrefbIsWaterZone] then
+                                    iPlateauOrZero = 0
 
-            --Cycle through each zone that may be in range and pick the best one
-            local iCurValue
-            local iBestValue = 0
-            local iSecondBestValue = 0
-            local iBestPlateauOrZero, iBestLZOrWZ, iSecondBestPlateauOrZero, iSecondBestLZOrWZ, iBestAngleFactor, iSecondBestAngleFactor
-            local iCurMobileThreat
-            local iCurAAThreat
-            local iShotMissFactor
-            local iArtiAngleFactor
-            for iEntry, tPlateauZoneAndDist in oArti[reftiPlateauAndZonesInRange] do
-                local tAltLZOrWZData
-                local tAltLZOrWZTeamData
-                if tPlateauZoneAndDist[1] == 0 then
-                    tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[tPlateauZoneAndDist[2]]][M28Map.subrefPondWaterZones][tPlateauZoneAndDist[2]]
-                    tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
-                else
-                    tAltLZOrWZData = M28Map.tAllPlateaus[tPlateauZoneAndDist[1]][M28Map.subrefPlateauLandZones][tPlateauZoneAndDist[2]]
-                    tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
-                end
-                iCurMobileThreat = ((tAltLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) + (tAltLZOrWZTeamData[M28Map.subrefWZThreatEnemySurface] or 0))
-                --Get more precise calculation - i.e. the threat calculation above reduces threat for health, meaning if we attack say a fatboy, its threat decreases as its shield decreases, making it likely we switch targets when its shield is about to be destroyed; however dont bother with low threat values
-                if iCurMobileThreat >= 1000 then
-                    iCurMobileThreat = M28UnitInfo.GetCombatThreatRating(EntityCategoryFilterDown(categories.MOBILE, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits]), true, true)
-                end
-                iCurValue = tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] + iCurMobileThreat * 0.2
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering plateau and zone '..tPlateauZoneAndDist[1]..'Z'..tPlateauZoneAndDist[2]..'; tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass]='..(tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 'nil')..'; iCurMobileThreat='..iCurMobileThreat) end
-                --Add extra mobile threat if enemy has long ranged units and is close to our nearest base
-                if iCurMobileThreat >= 4000 and tPlateauZoneAndDist[3] <= 300 and M28Utilities.IsTableEmpty(tAltLZOrWZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]) == false then
-                    local iLongRangeThreat = 0
-                    for iRange, iThreat in tAltLZOrWZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange] do
-                        if iRange >= 65 then --i.e. just above a megaliths range
-                            iLongRangeThreat = iLongRangeThreat + iThreat
+                                    tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[tSubtable[M28Map.subrefiLandOrWaterZoneRef]]][M28Map.subrefPondWaterZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
+                                    tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                                else
+                                    iPlateauOrZero = tSubtable[M28Map.subrefiPlateauOrPond]
+                                    tAltLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][tSubtable[M28Map.subrefiLandOrWaterZoneRef]]
+                                    tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Recording plateau '..iPlateauOrZero..' zone '..tSubtable[M28Map.subrefiLandOrWaterZoneRef]..' as being within max range') end
+                                table.insert(oArti[reftiPlateauAndZonesInRange], {iPlateauOrZero, tSubtable[M28Map.subrefiLandOrWaterZoneRef], M28Utilities.GetDistanceBetweenPositions(tAltLZOrWZData[M28Map.subrefMidpoint], tAltLZOrWZTeamData[M28Map.reftClosestFriendlyBase]), M28Utilities.GetAngleFromAToB(oArti:GetPosition(), tAltLZOrWZData[M28Map.subrefMidpoint])})
+                            end
                         end
                     end
-                    if iLongRangeThreat >= 1500 then
-                        iCurValue = iCurValue + iCurMobileThreat * 0.8 --want based on mobile threat so less likely to run into issue for units like fatboy where threat decreases as shield decreases
-                    end
                 end
-                --Add extra mobile threat if enemy has large mobile MAA
-                iCurAAThreat = (tAltLZOrWZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) + (tAltLZOrWZTeamData[M28Map.subrefWZThreatEnemyAA] or 0)
-                if iCurAAThreat >= 3000 then
-                    local tEnemyMobileAA = EntityCategoryFilterDown(categories.MOBILE, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits])
-                    if M28Utilities.IsTableEmpty( tEnemyMobileAA) == false then
-                        iCurValue = iCurValue + iCurAAThreat * 0.2 + M28UnitInfo.GetCombatThreatRating(tEnemyMobileAA, true, true) * 0.8
+
+                --Cycle through each zone that may be in range and pick the best one
+                local iCurValue
+                local iBestValue = 0
+                local iSecondBestValue = 0
+                local iBestPlateauOrZero, iBestLZOrWZ, iSecondBestPlateauOrZero, iSecondBestLZOrWZ, iBestAngleFactor, iSecondBestAngleFactor
+                local iCurMobileThreat
+                local iCurAAThreat
+                local iShotMissFactor
+                local iArtiAngleFactor
+                for iEntry, tPlateauZoneAndDist in oArti[reftiPlateauAndZonesInRange] do
+                    local tAltLZOrWZData
+                    local tAltLZOrWZTeamData
+                    if tPlateauZoneAndDist[1] == 0 then
+                        tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[tPlateauZoneAndDist[2]]][M28Map.subrefPondWaterZones][tPlateauZoneAndDist[2]]
+                        tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                    else
+                        tAltLZOrWZData = M28Map.tAllPlateaus[tPlateauZoneAndDist[1]][M28Map.subrefPlateauLandZones][tPlateauZoneAndDist[2]]
+                        tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                    end
+                    iCurMobileThreat = ((tAltLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) + (tAltLZOrWZTeamData[M28Map.subrefWZThreatEnemySurface] or 0))
+                    --Get more precise calculation - i.e. the threat calculation above reduces threat for health, meaning if we attack say a fatboy, its threat decreases as its shield decreases, making it likely we switch targets when its shield is about to be destroyed; however dont bother with low threat values
+                    if iCurMobileThreat >= 1000 then
+                        iCurMobileThreat = M28UnitInfo.GetCombatThreatRating(EntityCategoryFilterDown(categories.MOBILE, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits]), true, true)
+                    end
+                    iCurValue = tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] + iCurMobileThreat * 0.2
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering plateau and zone '..tPlateauZoneAndDist[1]..'Z'..tPlateauZoneAndDist[2]..'; tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass]='..(tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 'nil')..'; iCurMobileThreat='..iCurMobileThreat) end
+                    --Add extra mobile threat if enemy has long ranged units and is close to our nearest base
+                    if iCurMobileThreat >= 4000 and tPlateauZoneAndDist[3] <= 300 and M28Utilities.IsTableEmpty(tAltLZOrWZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange]) == false then
+                        local iLongRangeThreat = 0
+                        for iRange, iThreat in tAltLZOrWZTeamData[M28Map.subrefLZThreatEnemyMobileDFByRange] do
+                            if iRange >= 65 then --i.e. just above a megaliths range
+                                iLongRangeThreat = iLongRangeThreat + iThreat
+                            end
+                        end
+                        if iLongRangeThreat >= 1500 then
+                            iCurValue = iCurValue + iCurMobileThreat * 0.8 --want based on mobile threat so less likely to run into issue for units like fatboy where threat decreases as shield decreases
+                        end
+                    end
+                    --Add extra mobile threat if enemy has large mobile MAA
+                    iCurAAThreat = (tAltLZOrWZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) + (tAltLZOrWZTeamData[M28Map.subrefWZThreatEnemyAA] or 0)
+                    if iCurAAThreat >= 3000 then
+                        local tEnemyMobileAA = EntityCategoryFilterDown(categories.MOBILE, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits])
+                        if M28Utilities.IsTableEmpty( tEnemyMobileAA) == false then
+                            iCurValue = iCurValue + iCurAAThreat * 0.2 + M28UnitInfo.GetCombatThreatRating(tEnemyMobileAA, true, true) * 0.8
+                        else
+                            iCurValue = iCurValue + iCurAAThreat * 0.2
+                        end
                     else
                         iCurValue = iCurValue + iCurAAThreat * 0.2
                     end
-                else
-                    iCurValue = iCurValue + iCurAAThreat * 0.2
-                end
 
-                --Add extra threat if enemy has t2 arti near the nearest friendly base (relevant for team games, since 1v1 this hsould be inside the minimum rnage)
-                if tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] >= 4000 and tPlateauZoneAndDist[3] <= 200 then
-                    local tEnemyT2ArtiAndMissileShips = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryTML + M28UnitInfo.refCategoryMissileShip + M28UnitInfo.refCategoryCruiser * categories.SILO, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits])
-                    if M28Utilities.IsTableEmpty(tEnemyT2ArtiAndMissileShips) == false then
-                        iCurValue = iCurValue + tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass]
-                    end
-                end
-
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering plateau '..tPlateauZoneAndDist[1]..' and zone '..tPlateauZoneAndDist[2]..'; Dist='..tPlateauZoneAndDist[3]..'; iCurValue before factoring in ineffective shot count='..iCurValue..'; tLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount]='..(tAltLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] or 'nil')..'; iCurAAThreat='..iCurAAThreat..'; iCurMobileThreat='..iCurMobileThreat..'; tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass]='..tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass]..'; iSecondBestValue='..iSecondBestValue) end
-
-                --Adjust value for number of times shots have hit
-                if iCurValue > iSecondBestValue then
-                    --Adjust cur value for shot missed percentage
-                    iShotMissFactor = GetArtiValueFactorForShotFailures((tAltLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] or 0))
-                    --Adjust cur value for angle to target
-                    iArtiAngleFactor = GetArtiValueFactorForFacingDifference(iArtiFacingAngle, tPlateauZoneAndDist[4])
-
-                    iCurValue = iCurValue * iShotMissFactor * iArtiAngleFactor
-
-                    --Record as best/second best
-                    if iCurValue > iBestValue then
-                        iSecondBestValue = iBestValue
-                        iSecondBestPlateauOrZero = iBestPlateauOrZero
-                        iSecondBestLZOrWZ = iBestLZOrWZ
-                        iSecondBestAngleFactor = iBestAngleFactor
-                        iBestValue = iCurValue
-                        iBestPlateauOrZero = tPlateauZoneAndDist[1]
-                        iBestLZOrWZ = tPlateauZoneAndDist[2]
-                        iBestAngleFactor = iArtiAngleFactor
-                    elseif iCurValue > iSecondBestValue then
-                        iSecondBestValue = iCurValue
-                        iSecondBestPlateauOrZero = tPlateauZoneAndDist[1]
-                        iSecondBestLZOrWZ = tPlateauZoneAndDist[2]
-                        iSecondBestAngleFactor = iArtiAngleFactor
-                    end
-                    if bDebugMessages == true then LOG(sFunctionRef..': iCurValue after adj='..iCurValue..'; iShotMissFactor='..iShotMissFactor..'; iArtiAngleFactor='..iArtiAngleFactor) end
-                end
-            end
-
-            --Now have the best 2 zones on an aggregate basis, get the best location for the arti target within these zones
-            local iFriendlyUnitReductionFactor = 2
-            local iFriendlyUnitAOEFactor = 2
-            local iSizeAdjust = 0.25
-            local iMultipleShotMod = 1
-            local iMobileValueFactorInner = 0.4
-            local iShieldReductionFactor = 0.25 --i.e. amount by which value of target will be reduced if it is under shielding
-            --Reduce value of shields against high damage and aoe targets
-            if iDamage >= 7500 and iAOE >= 6 then iShieldReductionFactor = math.min(math.max(iShieldReductionFactor, 0.8), iShieldReductionFactor * 1.5) end
-
-            function GetBestUnitTargetAndValueInZone(iPlateauOrZero, iLZOrWZ, iAngleFactor)
-                local tAltLZOrWZData
-                local tAltLZOrWZTeamData
-                local iCurValue
-                local iBestValue = 0
-                local oBestUnitTarget
-                if iPlateauOrZero == 0 then
-                    tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLZOrWZ]][M28Map.subrefPondWaterZones][iLZOrWZ]
-                    tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
-                else
-                    tAltLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLZOrWZ]
-                    tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
-                end
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering best target in plateau '..iPlateauOrZero..'; Zone '..iLZOrWZ..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits]))) end
-                if M28Utilities.IsTableEmpty(tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false then
-                    local tPriorityUnits = EntityCategoryFilterDown(categories.EXPERIMENTAL + categories.TECH3 + M28UnitInfo.refCategoryStructure * categories.TECH2 + M28UnitInfo.refCategoryCruiser * categories.TECH2, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits])
-                    local iCurDist
-                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of priority units empty='..tostring(M28Utilities.IsTableEmpty(tPriorityUnits))) end
-                    if M28Utilities.IsTableEmpty(tPriorityUnits) then tPriorityUnits = tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits] end
-                    for iUnit, oUnit in tPriorityUnits do
-                        --Double check are in range
-                        iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oArti:GetPosition())
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering targeting oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurDist='..iCurDist..'; iMaxRange='..iMaxRange..'; iMinRange='..iMinRange..'; iAOE='..(iAOE or 'nil')..'; iDamage='..(iDamage or 'nil')..'; iFriendlyUnitReductionFactor='..(iFriendlyUnitReductionFactor or 'nil')..'; iFriendlyUnitAOEFactor='..(iFriendlyUnitAOEFactor or 'nil')..'; iSizeAdjust='..(iSizeAdjust or 'nil')..'; iMultipleShotMod='..(iMultipleShotMod or 'nil')..'; iMobileValueFactorInner='..(iMobileValueFactorInner or 'nil')..'; iShieldReductionFactor='..(iShieldReductionFactor or 'nil')) end
-                        if iCurDist <= iMaxRange and iCurDist >= iMinRange then
-                                                --GetDamageFromBomb(aiBrain, tBaseLocation,     iAOE,   iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies)
-                            iCurValue = M28Logic.GetDamageFromBomb(aiBrain, oUnit:GetPosition(), iAOE, iDamage, iFriendlyUnitReductionFactor,       iFriendlyUnitAOEFactor,     false,                      iSizeAdjust,        iMultipleShotMod,                   iMobileValueFactorInner,                true,                   iShieldReductionFactor,         true)
-                            if bDebugMessages == true then LOG(sFunctionRef..': Damage from bomb if we target it at unit='..iCurValue..'; iBestValue='..(iBestValue or 'nil')) end
-                            local iMinValue = 0
-                            --Only set the min value if we dont have a negative value from the target (e.g. happens if targeting our own base or capture target)
-                            if (iCurValue or 0) >= 0 and M28UnitInfo.IsUnitValid(oUnit) and oUnit.GetFractionComplete and (oUnit:GetFractionComplete() < 1 or EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId)) then
-                                --redundancy for buildings and under construction units
-                                iMinValue = (M28UnitInfo.GetCombatThreatRating({ oUnit }, true, true) or 0) * oUnit:GetFractionComplete()
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering increasing cur value to min basic value based on the unit target, iCurValue='..(iCurValue or 'nil')..'; iBestValue='..(iBestValue or 'nil')..'; iMinValue='..(iMinValue or 'nil')) end
-                                iCurValue = math.max((iCurValue or 0), iMinValue)
-                            end
-                            if iCurValue > iBestValue then
-                                iBestValue = iCurValue
-                                oBestUnitTarget = oUnit
-                                if bDebugMessages == true then LOG(sFunctionRef..': Setting the best unit target to '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iBestValue='..iBestValue) end
-                            end
+                    --Add extra threat if enemy has t2 arti near the nearest friendly base (relevant for team games, since 1v1 this hsould be inside the minimum rnage)
+                    if tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] >= 4000 and tPlateauZoneAndDist[3] <= 200 then
+                        local tEnemyT2ArtiAndMissileShips = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedT2Arti + M28UnitInfo.refCategoryTML + M28UnitInfo.refCategoryMissileShip + M28UnitInfo.refCategoryCruiser * categories.SILO, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits])
+                        if M28Utilities.IsTableEmpty(tEnemyT2ArtiAndMissileShips) == false then
+                            iCurValue = iCurValue + tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass]
                         end
                     end
-                end
-                return oBestUnitTarget, iBestValue
-            end
 
-            local oBestTarget, iBestTargetValue = GetBestUnitTargetAndValueInZone(iBestPlateauOrZero, iBestLZOrWZ)
-            if not(iBestAngleFactor) then iBestAngleFactor = GetArtiValueFactorForFacingDifference(0,180) end
-            if not(iBestTargetValue) then iBestTargetValue = 0 end
-            iBestTargetValue = iBestAngleFactor * iBestTargetValue
-            if bDebugMessages == true then LOG(sFunctionRef..': iBestPlateauOrZero='..(iBestPlateauOrZero or 'nil')..'; iBestLZOrWZ='..(iBestLZOrWZ or 'nil')..'; iBestTargetValue='..(iBestTargetValue or 'nil')..'; oBestTarget='..(oBestTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oBestTarget) or 'nil')..'; iBestAngleFactor='..(iBestAngleFactor or 'nil')) end
-            if iSecondBestLZOrWZ then
-                local oAltTarget, iAltTargetValue = GetBestUnitTargetAndValueInZone(iSecondBestPlateauOrZero, iSecondBestLZOrWZ)
-                if bDebugMessages == true then LOG(sFunctionRef..': iSecondBestPlateauOrZero='..(iSecondBestPlateauOrZero or 'nil')..'; iSecondBestLZOrWZ='..(iSecondBestLZOrWZ or 'nil')..'; iAltTargetValue='..(iAltTargetValue or 'nil')..'; oAltTarget='..(oAltTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oAltTarget) or 'nil')..'; iBestTargetValue before considering this='..(iBestTargetValue or 'nil')..'; iSecondBestAngleFactor='..(iSecondBestAngleFactor or 'nil')) end
-                if not(iSecondBestAngleFactor) then iSecondBestAngleFactor = GetArtiValueFactorForFacingDifference(0,180) end
-                if not(iAltTargetValue) then iAltTargetValue = 0
-                elseif oAltTarget.GetPosition then
-                    --Get value from targeting the best target in this alt zone
-                                            --GetDamageFromBomb(aiBrain, tBaseLocation,             iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory)
-                    iAltTargetValue  = M28Logic.GetDamageFromBomb(aiBrain, oAltTarget:GetPosition(), iAOE, iDamage, iFriendlyUnitReductionFactor,       iFriendlyUnitAOEFactor,     false,                      iSizeAdjust,        iMultipleShotMod,                   iMobileValueFactorInner,                true,                   iShieldReductionFactor,         true)
-                end
-                iAltTargetValue = iAltTargetValue * iSecondBestAngleFactor
-                if bDebugMessages == true then LOG(sFunctionRef..': iAltTargetValue='..iAltTargetValue..'; iBestTargetValue before reflecting this='..iBestTargetValue) end
-                if iAltTargetValue > iBestTargetValue then
-                    oBestTarget = oAltTarget
-                    iBestTargetValue = iAltTargetValue
-                end
-            end
-            if not(oBestTarget) then
-                M28Utilities.ErrorHandler('No target found for T3 arti, will fire at closest enemy base instead if we can hit it', true)
-                local bGivenAltTarget = false
-                local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
-                local iDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], oArti:GetPosition())
-                if iDistToEnemyBase <= iMaxRange and iDistToEnemyBase >= iMinRange then
-                                            --GetDamageFromBomb(aiBrain, tBaseLocation,                             iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory)
-                    local iDamage = M28Logic.GetDamageFromBomb(aiBrain, tLZTeamData[M28Map.reftClosestEnemyBase], iAOE, iDamage, iFriendlyUnitReductionFactor, iFriendlyUnitAOEFactor,          false,                          iSizeAdjust,        iMultipleShotMod,               iMobileValueFactorInner,                    true,               iShieldReductionFactor,         true)
-                    if iDamage >= 0 then --should mean dont have much in way of friendly forces there
-                        iBestTargetValue = iDamage
-                        M28Orders.IssueTrackedGroundAttack(oArti, tLZTeamData[M28Map.reftClosestEnemyBase], 1, false, 'ArtiEB'..'ALZ'..iLandZone, false)
-                        bGivenAltTarget = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering plateau '..tPlateauZoneAndDist[1]..' and zone '..tPlateauZoneAndDist[2]..'; Dist='..tPlateauZoneAndDist[3]..'; iCurValue before factoring in ineffective shot count='..iCurValue..'; tLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount]='..(tAltLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] or 'nil')..'; iCurAAThreat='..iCurAAThreat..'; iCurMobileThreat='..iCurMobileThreat..'; tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass]='..tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass]..'; iSecondBestValue='..iSecondBestValue) end
+
+                    --Adjust value for number of times shots have hit
+                    if iCurValue > iSecondBestValue then
+                        --Adjust cur value for shot missed percentage
+                        iShotMissFactor = GetArtiValueFactorForShotFailures((tAltLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] or 0))
+                        --Adjust cur value for angle to target
+                        iArtiAngleFactor = GetArtiValueFactorForFacingDifference(iArtiFacingAngle, tPlateauZoneAndDist[4])
+
+                        iCurValue = iCurValue * iShotMissFactor * iArtiAngleFactor
+
+                        --Record as best/second best
+                        if iCurValue > iBestValue then
+                            iSecondBestValue = iBestValue
+                            iSecondBestPlateauOrZero = iBestPlateauOrZero
+                            iSecondBestLZOrWZ = iBestLZOrWZ
+                            iSecondBestAngleFactor = iBestAngleFactor
+                            iBestValue = iCurValue
+                            iBestPlateauOrZero = tPlateauZoneAndDist[1]
+                            iBestLZOrWZ = tPlateauZoneAndDist[2]
+                            iBestAngleFactor = iArtiAngleFactor
+                        elseif iCurValue > iSecondBestValue then
+                            iSecondBestValue = iCurValue
+                            iSecondBestPlateauOrZero = tPlateauZoneAndDist[1]
+                            iSecondBestLZOrWZ = tPlateauZoneAndDist[2]
+                            iSecondBestAngleFactor = iArtiAngleFactor
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iCurValue after adj='..iCurValue..'; iShotMissFactor='..iShotMissFactor..'; iArtiAngleFactor='..iArtiAngleFactor) end
                     end
                 end
-                if not(bGivenAltTarget) then M28Orders.IssueTrackedClearCommands(oArti) end
-            else
-                local tActualTarget = M28Logic.GetBestAOETarget(aiBrain, oBestTarget:GetPosition(), iAOE, iDamage, false, nil, nil, nil, iFriendlyUnitReductionFactor, iFriendlyUnitAOEFactor, nil, iMobileValueFactorInner, iShieldReductionFactor)
-                --Double check are still in range
-                local iTargetDist = M28Utilities.GetDistanceBetweenPositions(tActualTarget, oArti:GetPosition())
-                if bDebugMessages == true then LOG(sFunctionRef..': tActualTarget='..repru(tActualTarget)..'; iTargetDist='..iTargetDist..'; iBestTargetValue='..(iBestTargetValue or 'nil')) end
-                if iTargetDist > iMaxRange or iTargetDist < iMinRange then
-                    tActualTarget = oBestTarget:GetPosition()
-                end
 
-                if M28Map.bIsCampaignMap and (iBestTargetValue or 0) < 0 then
-                    --Disable weapon
-                    M28UnitInfo.DisableUnitWeapon(oArti)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Disabling Arti weapon, oArti='..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti)) end
-                    ForkThread(RecheckForArtiTargetSoon, oArti)
-                else
+                --Now have the best 2 zones on an aggregate basis, get the best location for the arti target within these zones
+                local iFriendlyUnitReductionFactor = 2
+                local iFriendlyUnitAOEFactor = 2
+                local iSizeAdjust = 0.25
+                local iMultipleShotMod = 1
+                local iMobileValueFactorInner = 0.4
+                local iShieldReductionFactor = 0.25 --i.e. amount by which value of target will be reduced if it is under shielding
+                --Reduce value of shields against high damage and aoe targets
+                if iDamage >= 7500 and iAOE >= 6 then iShieldReductionFactor = math.min(math.max(iShieldReductionFactor, 0.8), iShieldReductionFactor * 1.5) end
 
-                    --Issue attack order
-                    M28Orders.IssueTrackedGroundAttack(oArti, tActualTarget, 1, false, 'ArtiGF'..'ALZ'..iLandZone, false)
-
-                    --Increase shot count
-                    local iAltPlateauOrZero, iAltLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tActualTarget)
+                function GetBestUnitTargetAndValueInZone(iPlateauOrZero, iLZOrWZ, iAngleFactor)
+                    local tAltLZOrWZData
                     local tAltLZOrWZTeamData
-                    if iAltPlateauOrZero == 0 then
-                        tAltLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAltLZOrWZ]][M28Map.subrefPondWaterZones][iAltLZOrWZ][M28Map.subrefWZTeamData][iTeam]
+                    local iCurValue
+                    local iBestValue = 0
+                    local oBestUnitTarget
+                    if iPlateauOrZero == 0 then
+                        tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLZOrWZ]][M28Map.subrefPondWaterZones][iLZOrWZ]
+                        tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefWZTeamData][iTeam]
                     else
-                        tAltLZOrWZTeamData = M28Map.tAllPlateaus[iAltPlateauOrZero][M28Map.subrefPlateauLandZones][iAltLZOrWZ][M28Map.subrefLZTeamData][iTeam]
+                        tAltLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLZOrWZ]
+                        tAltLZOrWZTeamData = tAltLZOrWZData[M28Map.subrefLZTeamData][iTeam]
                     end
-
-                    tAltLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] = (tAltLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] or 0) + 1
-                end
-            end
-
-        end
-    end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-end
-
-function GetArtiValueFactorForShotFailures(iShotFailedCount)
-    --iShotFailedCount: Should be (tLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] or 0)
-    local iFactor
-    local iInterval = 13
-    if iShotFailedCount >= iInterval then
-        iFactor = math.max(0.03, 1 - math.floor(iShotFailedCount / iInterval) * iInterval * 0.03)
-    else
-        --Have failed fewer than 15 shots
-        iFactor = 1
-    end
-    return iFactor
-end
-function GetArtiValueFactorForFacingDifference(iArtiFacingAngle, iAngleToTarget)
-    local iAngleDif = M28Utilities.GetAngleDifference(iArtiFacingAngle, iAngleToTarget)
-    if iAngleDif <= 10 then
-        return 1
-    else
-        return 1 - 0.4 * iAngleDif / 180
-    end
-end
-
-function JustFiredMissile(oLauncher)
-    --Wait 1 tick then check if sitll have missile loaded and if so then consider firing another missile
-    if EntityCategoryContains(M28UnitInfo.refCategoryTML + M28UnitInfo.refCategorySML, oLauncher.UnitId) then
-        WaitTicks(1)
-        if M28UnitInfo.IsUnitValid(oLauncher) then
-            local iMissiles = 0 --For some reason the count is off by 1, presumably a slight delay between the event being called and the below ammo counts working
-            if oLauncher.GetTacticalSiloAmmoCount then iMissiles = iMissiles + oLauncher:GetTacticalSiloAmmoCount() end
-            if oLauncher.GetNukeSiloAmmoCount then iMissiles = iMissiles + oLauncher:GetNukeSiloAmmoCount() end
-            if iMissiles > 0 then
-                ConsiderLaunchingMissile(oLauncher)
-            end
-            --Track SML launchers who have recently fired
-            if M28UnitInfo.IsUnitValid(oLauncher) and oLauncher:GetAIBrain().M28AI then
-                if EntityCategoryContains(M28UnitInfo.refCategorySML, oLauncher.UnitId) then
-                    local iTeam = oLauncher:GetAIBrain().M28Team
-                    local bAddToTable = true
-                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoRecentlyFiredAlliedNukeLaunchers]) then M28Team.tTeamData[iTeam][M28Team.reftoRecentlyFiredAlliedNukeLaunchers] = {}
-                    else
-                        for iRecordedLauncher, oRecordedLauncher in M28Team.tTeamData[iTeam][M28Team.reftoRecentlyFiredAlliedNukeLaunchers] do
-                            if oRecordedLauncher == oLauncher then
-                                bAddToTable = false
-                                break
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering best target in plateau '..iPlateauOrZero..'; Zone '..iLZOrWZ..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits]))) end
+                    if M28Utilities.IsTableEmpty(tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                        local tPriorityUnits = EntityCategoryFilterDown(categories.EXPERIMENTAL + categories.TECH3 + M28UnitInfo.refCategoryStructure * categories.TECH2 + M28UnitInfo.refCategoryCruiser * categories.TECH2, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits])
+                        local iCurDist
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of priority units empty='..tostring(M28Utilities.IsTableEmpty(tPriorityUnits))) end
+                        if M28Utilities.IsTableEmpty(tPriorityUnits) then tPriorityUnits = tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits] end
+                        for iUnit, oUnit in tPriorityUnits do
+                            --Double check are in range
+                            iCurDist = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oArti:GetPosition())
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering targeting oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurDist='..iCurDist..'; iMaxRange='..iMaxRange..'; iMinRange='..iMinRange..'; iAOE='..(iAOE or 'nil')..'; iDamage='..(iDamage or 'nil')..'; iFriendlyUnitReductionFactor='..(iFriendlyUnitReductionFactor or 'nil')..'; iFriendlyUnitAOEFactor='..(iFriendlyUnitAOEFactor or 'nil')..'; iSizeAdjust='..(iSizeAdjust or 'nil')..'; iMultipleShotMod='..(iMultipleShotMod or 'nil')..'; iMobileValueFactorInner='..(iMobileValueFactorInner or 'nil')..'; iShieldReductionFactor='..(iShieldReductionFactor or 'nil')) end
+                            if iCurDist <= iMaxRange and iCurDist >= iMinRange then
+                                --GetDamageFromBomb(aiBrain, tBaseLocation,     iAOE,   iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies)
+                                iCurValue = M28Logic.GetDamageFromBomb(aiBrain, oUnit:GetPosition(), iAOE, iDamage, iFriendlyUnitReductionFactor,       iFriendlyUnitAOEFactor,     false,                      iSizeAdjust,        iMultipleShotMod,                   iMobileValueFactorInner,                true,                   iShieldReductionFactor,         true)
+                                if bDebugMessages == true then LOG(sFunctionRef..': Damage from bomb if we target it at unit='..iCurValue..'; iBestValue='..(iBestValue or 'nil')) end
+                                local iMinValue = 0
+                                --Only set the min value if we dont have a negative value from the target (e.g. happens if targeting our own base or capture target)
+                                if (iCurValue or 0) >= 0 and M28UnitInfo.IsUnitValid(oUnit) and oUnit.GetFractionComplete and (oUnit:GetFractionComplete() < 1 or EntityCategoryContains(M28UnitInfo.refCategoryStructure, oUnit.UnitId)) then
+                                    --redundancy for buildings and under construction units
+                                    iMinValue = (M28UnitInfo.GetCombatThreatRating({ oUnit }, true, true) or 0) * oUnit:GetFractionComplete()
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering increasing cur value to min basic value based on the unit target, iCurValue='..(iCurValue or 'nil')..'; iBestValue='..(iBestValue or 'nil')..'; iMinValue='..(iMinValue or 'nil')) end
+                                    iCurValue = math.max((iCurValue or 0), iMinValue)
+                                end
+                                if iCurValue > iBestValue then
+                                    iBestValue = iCurValue
+                                    oBestUnitTarget = oUnit
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Setting the best unit target to '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iBestValue='..iBestValue) end
+                                end
                             end
                         end
                     end
-                    if bAddToTable then
-                        table.insert(M28Team.tTeamData[iTeam][M28Team.reftoRecentlyFiredAlliedNukeLaunchers], oLauncher)
+                    return oBestUnitTarget, iBestValue
+                end
+
+                local oBestTarget, iBestTargetValue = GetBestUnitTargetAndValueInZone(iBestPlateauOrZero, iBestLZOrWZ)
+                if not(iBestAngleFactor) then iBestAngleFactor = GetArtiValueFactorForFacingDifference(0,180) end
+                if not(iBestTargetValue) then iBestTargetValue = 0 end
+                iBestTargetValue = iBestAngleFactor * iBestTargetValue
+                if bDebugMessages == true then LOG(sFunctionRef..': iBestPlateauOrZero='..(iBestPlateauOrZero or 'nil')..'; iBestLZOrWZ='..(iBestLZOrWZ or 'nil')..'; iBestTargetValue='..(iBestTargetValue or 'nil')..'; oBestTarget='..(oBestTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oBestTarget) or 'nil')..'; iBestAngleFactor='..(iBestAngleFactor or 'nil')) end
+                if iSecondBestLZOrWZ then
+                    local oAltTarget, iAltTargetValue = GetBestUnitTargetAndValueInZone(iSecondBestPlateauOrZero, iSecondBestLZOrWZ)
+                    if bDebugMessages == true then LOG(sFunctionRef..': iSecondBestPlateauOrZero='..(iSecondBestPlateauOrZero or 'nil')..'; iSecondBestLZOrWZ='..(iSecondBestLZOrWZ or 'nil')..'; iAltTargetValue='..(iAltTargetValue or 'nil')..'; oAltTarget='..(oAltTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oAltTarget) or 'nil')..'; iBestTargetValue before considering this='..(iBestTargetValue or 'nil')..'; iSecondBestAngleFactor='..(iSecondBestAngleFactor or 'nil')) end
+                    if not(iSecondBestAngleFactor) then iSecondBestAngleFactor = GetArtiValueFactorForFacingDifference(0,180) end
+                    if not(iAltTargetValue) then iAltTargetValue = 0
+                    elseif oAltTarget.GetPosition then
+                        --Get value from targeting the best target in this alt zone
+                        --GetDamageFromBomb(aiBrain, tBaseLocation,             iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory)
+                        iAltTargetValue  = M28Logic.GetDamageFromBomb(aiBrain, oAltTarget:GetPosition(), iAOE, iDamage, iFriendlyUnitReductionFactor,       iFriendlyUnitAOEFactor,     false,                      iSizeAdjust,        iMultipleShotMod,                   iMobileValueFactorInner,                true,                   iShieldReductionFactor,         true)
+                    end
+                    iAltTargetValue = iAltTargetValue * iSecondBestAngleFactor
+                    if bDebugMessages == true then LOG(sFunctionRef..': iAltTargetValue='..iAltTargetValue..'; iBestTargetValue before reflecting this='..iBestTargetValue) end
+                    if iAltTargetValue > iBestTargetValue then
+                        oBestTarget = oAltTarget
+                        iBestTargetValue = iAltTargetValue
                     end
                 end
-            end
+                if not(oBestTarget) then
+                    M28Utilities.ErrorHandler('No target found for T3 arti, will fire at closest enemy base instead if we can hit it', true)
+                    local bGivenAltTarget = false
+                    local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+                    local iDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(tLZTeamData[M28Map.reftClosestEnemyBase], oArti:GetPosition())
+                    if iDistToEnemyBase <= iMaxRange and iDistToEnemyBase >= iMinRange then
+                        --GetDamageFromBomb(aiBrain, tBaseLocation,                             iAOE, iDamage, iFriendlyUnitDamageReductionFactor, iFriendlyUnitAOEFactor, bCumulativeShieldHealthCheck, iOptionalSizeAdjust, iOptionalModIfNeedMultipleShots, iMobileValueOverrideFactorWithin75Percent, bT3ArtiShotReduction, iOptionalShieldReductionFactor, bIncludePreviouslySeenEnemies, iOptionalSpecialCategoryDamageFactor, iOptionalSpecialCategory)
+                        local iDamage = M28Logic.GetDamageFromBomb(aiBrain, tLZTeamData[M28Map.reftClosestEnemyBase], iAOE, iDamage, iFriendlyUnitReductionFactor, iFriendlyUnitAOEFactor,          false,                          iSizeAdjust,        iMultipleShotMod,               iMobileValueFactorInner,                    true,               iShieldReductionFactor,         true)
+                        if iDamage >= 0 then --should mean dont have much in way of friendly forces there
+                            iBestTargetValue = iDamage
+                            M28Orders.IssueTrackedGroundAttack(oArti, tLZTeamData[M28Map.reftClosestEnemyBase], 1, false, 'ArtiEB'..'ALZ'..iLandZone, false)
+                            bGivenAltTarget = true
+                        end
+                    end
+                    if not(bGivenAltTarget) then M28Orders.IssueTrackedClearCommands(oArti) end
+                else
+                    local tActualTarget = M28Logic.GetBestAOETarget(aiBrain, oBestTarget:GetPosition(), iAOE, iDamage, false, nil, nil, nil, iFriendlyUnitReductionFactor, iFriendlyUnitAOEFactor, nil, iMobileValueFactorInner, iShieldReductionFactor)
+                    --Double check are still in range
+                    local iTargetDist = M28Utilities.GetDistanceBetweenPositions(tActualTarget, oArti:GetPosition())
+                    if bDebugMessages == true then LOG(sFunctionRef..': tActualTarget='..repru(tActualTarget)..'; iTargetDist='..iTargetDist..'; iBestTargetValue='..(iBestTargetValue or 'nil')) end
+                    if iTargetDist > iMaxRange or iTargetDist < iMinRange then
+                        tActualTarget = oBestTarget:GetPosition()
+                    end
 
+                    if M28Map.bIsCampaignMap and (iBestTargetValue or 0) < 0 then
+                        --Disable weapon
+                        M28UnitInfo.DisableUnitWeapon(oArti)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Disabling Arti weapon, oArti='..oArti.UnitId..M28UnitInfo.GetUnitLifetimeCount(oArti)) end
+                        ForkThread(RecheckForArtiTargetSoon, oArti)
+                    else
+
+                        --Issue attack order
+                        M28Orders.IssueTrackedGroundAttack(oArti, tActualTarget, 1, false, 'ArtiGF'..'ALZ'..iLandZone, false)
+
+                        --Increase shot count
+                        local iAltPlateauOrZero, iAltLZOrWZ = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tActualTarget)
+                        local tAltLZOrWZTeamData
+                        if iAltPlateauOrZero == 0 then
+                            tAltLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iAltLZOrWZ]][M28Map.subrefPondWaterZones][iAltLZOrWZ][M28Map.subrefWZTeamData][iTeam]
+                        else
+                            tAltLZOrWZTeamData = M28Map.tAllPlateaus[iAltPlateauOrZero][M28Map.subrefPlateauLandZones][iAltLZOrWZ][M28Map.subrefLZTeamData][iTeam]
+                        end
+
+                        tAltLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] = (tAltLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] or 0) + 1
+                    end
+                end
+
+            end
+        end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    end
+
+    function GetArtiValueFactorForShotFailures(iShotFailedCount)
+        --iShotFailedCount: Should be (tLZOrWZTeamData[M28Map.subrefiIneffectiveArtiShotCount] or 0)
+        local iFactor
+        local iInterval = 13
+        if iShotFailedCount >= iInterval then
+            iFactor = math.max(0.03, 1 - math.floor(iShotFailedCount / iInterval) * iInterval * 0.03)
+        else
+            --Have failed fewer than 15 shots
+            iFactor = 1
+        end
+        return iFactor
+    end
+    function GetArtiValueFactorForFacingDifference(iArtiFacingAngle, iAngleToTarget)
+        local iAngleDif = M28Utilities.GetAngleDifference(iArtiFacingAngle, iAngleToTarget)
+        if iAngleDif <= 10 then
+            return 1
+        else
+            return 1 - 0.4 * iAngleDif / 180
         end
     end
-end
 
-function ReserveLocationsForGameEnder(oUnit)
-    --Reserve locations to provide shield coverage for oUnit
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'ReserveLocationsForGameEnder'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-
-
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, gametimeseconds is '..GetGameTimeSeconds()..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; owned by '..oUnit:GetAIBrain().Nickname..' on team '..oUnit:GetAIBrain().M28Team) end
-
-    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
-    if iLandZone > 0 then
-        local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
-        local tiShieldBuildLocationOptions = {}
-        local tiShieldLocationCountByOption = {}
-        local sBlueprintToBuild = 'xsb4202'
-        local iNewBuildingDiameter = M28UnitInfo.GetBuildingSize(sBlueprintToBuild)
-        local iNewBuildingRadius = iNewBuildingDiameter * 0.5
-        local iAdjacencyBuildingRadius = M28UnitInfo.GetBuildingSize(oUnit.UnitId) * 0.5
-        local tAdjacencyBuildingPosition = oUnit:GetPosition()
-
-        local iCurZ, iCurX
-        local iCornerAdjust = math.min(iNewBuildingDiameter, iAdjacencyBuildingRadius * 2)
-
-        local iCurOptionCount = 0
-
-        if bDebugMessages == true then LOG(sFunctionRef..': tAdjacencyBuildingPosition='..repru(tAdjacencyBuildingPosition)..'; iAdjacencyBuildingRadius='..iAdjacencyBuildingRadius..'; iNewBuildingRadius='..iNewBuildingRadius..'; iCornerAdjust='..iCornerAdjust) end
-        local aiBrain = oUnit:GetAIBrain()
-
-        --First go along top and bottom:
-        local iCurMod = 0
-        local iMostBuildLocations = 0
-        local iBestOptionCountRef
-        for iZFactor = -1, 1, 2 do
-            iCurOptionCount = iCurOptionCount + 1
-            tiShieldBuildLocationOptions[iCurOptionCount] = {}
-            iCurZ = tAdjacencyBuildingPosition[3] + (iAdjacencyBuildingRadius + iNewBuildingRadius) * iZFactor
-            --Include corner positions even though not adjacent
-            for iCurX = tAdjacencyBuildingPosition[1] - iCornerAdjust, tAdjacencyBuildingPosition[1] + iCornerAdjust, 1 do
-                if iCurMod > 0 then
-                    iCurMod = iCurMod - 1
-                elseif M28Engineer.CanBuildAtLocation(aiBrain, sBlueprintToBuild, { iCurX, 0, iCurZ}, iPlateau, iLandZone, nil, false, true, false, true) then
-                    tiShieldLocationCountByOption[iCurOptionCount] = (tiShieldLocationCountByOption[iCurOptionCount] or 0) + 1
-                    tiShieldBuildLocationOptions[iCurOptionCount][tiShieldLocationCountByOption[iCurOptionCount]] = {iCurX, GetSurfaceHeight(iCurX, iCurZ), iCurZ}
-                    iCurMod = iCurMod + iNewBuildingDiameter - 1
-                    if tiShieldLocationCountByOption[iCurOptionCount] > iMostBuildLocations then
-                        iMostBuildLocations = tiShieldLocationCountByOption[iCurOptionCount]
-                        iBestOptionCountRef = iCurOptionCount
-                        if iMostBuildLocations >= 3 then break end
+    function JustFiredMissile(oLauncher)
+        --Wait 1 tick then check if sitll have missile loaded and if so then consider firing another missile
+        if EntityCategoryContains(M28UnitInfo.refCategoryTML + M28UnitInfo.refCategorySML, oLauncher.UnitId) then
+            WaitTicks(1)
+            if M28UnitInfo.IsUnitValid(oLauncher) then
+                local iMissiles = 0 --For some reason the count is off by 1, presumably a slight delay between the event being called and the below ammo counts working
+                if oLauncher.GetTacticalSiloAmmoCount then iMissiles = iMissiles + oLauncher:GetTacticalSiloAmmoCount() end
+                if oLauncher.GetNukeSiloAmmoCount then iMissiles = iMissiles + oLauncher:GetNukeSiloAmmoCount() end
+                if iMissiles > 0 then
+                    ConsiderLaunchingMissile(oLauncher)
+                end
+                --Track SML launchers who have recently fired
+                if M28UnitInfo.IsUnitValid(oLauncher) and oLauncher:GetAIBrain().M28AI then
+                    if EntityCategoryContains(M28UnitInfo.refCategorySML, oLauncher.UnitId) then
+                        local iTeam = oLauncher:GetAIBrain().M28Team
+                        local bAddToTable = true
+                        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftoRecentlyFiredAlliedNukeLaunchers]) then M28Team.tTeamData[iTeam][M28Team.reftoRecentlyFiredAlliedNukeLaunchers] = {}
+                        else
+                            for iRecordedLauncher, oRecordedLauncher in M28Team.tTeamData[iTeam][M28Team.reftoRecentlyFiredAlliedNukeLaunchers] do
+                                if oRecordedLauncher == oLauncher then
+                                    bAddToTable = false
+                                    break
+                                end
+                            end
+                        end
+                        if bAddToTable then
+                            table.insert(M28Team.tTeamData[iTeam][M28Team.reftoRecentlyFiredAlliedNukeLaunchers], oLauncher)
+                        end
                     end
                 end
+
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Finished considering top or bottom, iZFactor='..(iZFactor or 'nil')..'; iCurOptionCount='..(iCurOptionCount or 'nil')..'; tiShieldBuildLocationOptions[iCurOptionCount]='..repru(tiShieldBuildLocationOptions[iCurOptionCount])..'; tiShieldLocationCountByOption[iCurOptionCount]='..(tiShieldLocationCountByOption[iCurOptionCount] or 'nil')..'; iMostBuildLocations='..iMostBuildLocations) end
-            if iMostBuildLocations >= 3 then break end
-            iCurMod = 0
         end
-        if iMostBuildLocations < 3 then
-            --Next go along the sides:
-            for iXFactor = -1, 1, 2 do
-                iCurMod = 0
+    end
+
+    function ReserveLocationsForGameEnder(oUnit)
+        --Reserve locations to provide shield coverage for oUnit
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'ReserveLocationsForGameEnder'
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code, gametimeseconds is '..GetGameTimeSeconds()..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; owned by '..oUnit:GetAIBrain().Nickname..' on team '..oUnit:GetAIBrain().M28Team) end
+
+        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+        if iLandZone > 0 then
+            local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+            local tiShieldBuildLocationOptions = {}
+            local tiShieldLocationCountByOption = {}
+            local sBlueprintToBuild = 'xsb4202'
+            local iNewBuildingDiameter = M28UnitInfo.GetBuildingSize(sBlueprintToBuild)
+            local iNewBuildingRadius = iNewBuildingDiameter * 0.5
+            local iAdjacencyBuildingRadius = M28UnitInfo.GetBuildingSize(oUnit.UnitId) * 0.5
+            local tAdjacencyBuildingPosition = oUnit:GetPosition()
+
+            local iCurZ, iCurX
+            local iCornerAdjust = math.min(iNewBuildingDiameter, iAdjacencyBuildingRadius * 2)
+
+            local iCurOptionCount = 0
+
+            if bDebugMessages == true then LOG(sFunctionRef..': tAdjacencyBuildingPosition='..repru(tAdjacencyBuildingPosition)..'; iAdjacencyBuildingRadius='..iAdjacencyBuildingRadius..'; iNewBuildingRadius='..iNewBuildingRadius..'; iCornerAdjust='..iCornerAdjust) end
+            local aiBrain = oUnit:GetAIBrain()
+
+            --First go along top and bottom:
+            local iCurMod = 0
+            local iMostBuildLocations = 0
+            local iBestOptionCountRef
+            for iZFactor = -1, 1, 2 do
                 iCurOptionCount = iCurOptionCount + 1
                 tiShieldBuildLocationOptions[iCurOptionCount] = {}
-
-                iCurX = tAdjacencyBuildingPosition[1] + (iAdjacencyBuildingRadius + iNewBuildingRadius) * iXFactor
-                for iCurZ = tAdjacencyBuildingPosition[3] - iCornerAdjust, tAdjacencyBuildingPosition[3] + iCornerAdjust, 1 do
+                iCurZ = tAdjacencyBuildingPosition[3] + (iAdjacencyBuildingRadius + iNewBuildingRadius) * iZFactor
+                --Include corner positions even though not adjacent
+                for iCurX = tAdjacencyBuildingPosition[1] - iCornerAdjust, tAdjacencyBuildingPosition[1] + iCornerAdjust, 1 do
                     if iCurMod > 0 then
                         iCurMod = iCurMod - 1
                     elseif M28Engineer.CanBuildAtLocation(aiBrain, sBlueprintToBuild, { iCurX, 0, iCurZ}, iPlateau, iLandZone, nil, false, true, false, true) then
@@ -2647,383 +2699,409 @@ function ReserveLocationsForGameEnder(oUnit)
                         end
                     end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Finished considering left or right side, iXFactor='..(iXFactor or 'nil')..'; iCurOptionCount='..(iCurOptionCount or 'nil')..'; tiShieldBuildLocationOptions[iCurOptionCount]='..repru(tiShieldBuildLocationOptions[iCurOptionCount])..'; tiShieldLocationCountByOption[iCurOptionCount]='..(tiShieldLocationCountByOption[iCurOptionCount] or 'nil')..'; iMostBuildLocations='..iMostBuildLocations) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished considering top or bottom, iZFactor='..(iZFactor or 'nil')..'; iCurOptionCount='..(iCurOptionCount or 'nil')..'; tiShieldBuildLocationOptions[iCurOptionCount]='..repru(tiShieldBuildLocationOptions[iCurOptionCount])..'; tiShieldLocationCountByOption[iCurOptionCount]='..(tiShieldLocationCountByOption[iCurOptionCount] or 'nil')..'; iMostBuildLocations='..iMostBuildLocations) end
                 if iMostBuildLocations >= 3 then break end
+                iCurMod = 0
             end
-        end
-        if bDebugMessages == true then LOG(sFunctionRef..': iMostBuildLocations='..iMostBuildLocations) end
+            if iMostBuildLocations < 3 then
+                --Next go along the sides:
+                for iXFactor = -1, 1, 2 do
+                    iCurMod = 0
+                    iCurOptionCount = iCurOptionCount + 1
+                    tiShieldBuildLocationOptions[iCurOptionCount] = {}
 
-        if iMostBuildLocations >= 1 then
-            --Figure out the best faction engineer that could realistically build the shield by locating the closest factory of each faction type
-            local tLZTeamData = tLZData[M28Map.subrefLZTeamData][aiBrain.M28Team]
-            local iRecordedCount = 0
-            if not(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection]) then tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection] = {} end
-            table.insert(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection], oUnit)
-            RecordNearbyFactoryForShieldEngineers(oUnit)
-
-            if bDebugMessages == true then LOG(sFunctionRef..': Can build at least 2 shields close to each other and the gameender, will now pick the best set of shield options, unit position='..repru(oUnit:GetPosition())..'; iBestOptionCountRef='..(iBestOptionCountRef or 'nil')..'; tiShieldBuildLocationOptions for this='..repru(tiShieldBuildLocationOptions[iBestOptionCountRef])) end
-            if iBestOptionCountRef then
-                oUnit[reftLocationsForPriorityShield] = {}
-                if bDebugMessages == true then LOG(sFunctionRef..': Recording priority shield locations, tLocations='..repru(tiShieldBuildLocationOptions[iBestOptionCountRef])) end
-                for iLocation, tLocation in tiShieldBuildLocationOptions[iBestOptionCountRef] do
-                    iRecordedCount = iRecordedCount + 1
-                    table.insert(oUnit[reftLocationsForPriorityShield], {tLocation[1], tLocation[2], tLocation[3]})
-                    --Blacklist the location
-                    M28Engineer.RecordBlacklistLocation(tLocation, iNewBuildingRadius, 600, oUnit)
-                    if bDebugMessages == true then
-                        LOG(sFunctionRef..': Added shild build location '..repru(tLocation)..' against the game ender and will record blacklist, Will draw shield locations in black')
-                        M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(tLocation, iNewBuildingRadius), 3, 100)
-                    end
-                end
-                --Add other shield locations if there are any and we want more to get to 3
-                if iRecordedCount < 3 then
-                    for iShieldOption, tShieldLocations in tiShieldBuildLocationOptions do
-                        if not(iShieldOption == iBestOptionCountRef) then
-                            for iLocation, tLocation in tShieldLocations do
-                                if M28Engineer.CanBuildAtLocation(aiBrain, sBlueprintToBuild, tLocation, iPlateau, iLandZone, nil, false, true, true, true) then
-                                    iRecordedCount = iRecordedCount + 1
-                                    table.insert(oUnit[reftLocationsForPriorityShield], {tLocation[1], tLocation[2], tLocation[3]})
-                                    --Blacklist the location
-                                    M28Engineer.RecordBlacklistLocation(tLocation, iNewBuildingRadius, 600, oUnit)
-                                    if bDebugMessages == true then
-                                        LOG(sFunctionRef..': Added further shild build location '..repru(tLocation)..' against the game ender and will record blacklist, Will draw shield location')
-                                        M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(tLocation, iNewBuildingRadius), 4, 100)
-                                    end
-                                end
+                    iCurX = tAdjacencyBuildingPosition[1] + (iAdjacencyBuildingRadius + iNewBuildingRadius) * iXFactor
+                    for iCurZ = tAdjacencyBuildingPosition[3] - iCornerAdjust, tAdjacencyBuildingPosition[3] + iCornerAdjust, 1 do
+                        if iCurMod > 0 then
+                            iCurMod = iCurMod - 1
+                        elseif M28Engineer.CanBuildAtLocation(aiBrain, sBlueprintToBuild, { iCurX, 0, iCurZ}, iPlateau, iLandZone, nil, false, true, false, true) then
+                            tiShieldLocationCountByOption[iCurOptionCount] = (tiShieldLocationCountByOption[iCurOptionCount] or 0) + 1
+                            tiShieldBuildLocationOptions[iCurOptionCount][tiShieldLocationCountByOption[iCurOptionCount]] = {iCurX, GetSurfaceHeight(iCurX, iCurZ), iCurZ}
+                            iCurMod = iCurMod + iNewBuildingDiameter - 1
+                            if tiShieldLocationCountByOption[iCurOptionCount] > iMostBuildLocations then
+                                iMostBuildLocations = tiShieldLocationCountByOption[iCurOptionCount]
+                                iBestOptionCountRef = iCurOptionCount
+                                if iMostBuildLocations >= 3 then break end
                             end
                         end
                     end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Finished considering left or right side, iXFactor='..(iXFactor or 'nil')..'; iCurOptionCount='..(iCurOptionCount or 'nil')..'; tiShieldBuildLocationOptions[iCurOptionCount]='..repru(tiShieldBuildLocationOptions[iCurOptionCount])..'; tiShieldLocationCountByOption[iCurOptionCount]='..(tiShieldLocationCountByOption[iCurOptionCount] or 'nil')..'; iMostBuildLocations='..iMostBuildLocations) end
+                    if iMostBuildLocations >= 3 then break end
                 end
-
-                --Update any buildable locaitons around here
-                if iRecordedCount > 0 then
-                    for iLocation, tLocation in oUnit[reftLocationsForPriorityShield] do
-                        M28Engineer.CheckIfBuildableLocationsNearPositionStillValid(aiBrain, tLocation, true, 5)
-                    end
-                end
-
-
-                --CLear any engineers with queued orders that will conflict with a shield location
-                local tEngineersInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subrefLZTAlliedUnits])
-                if M28Utilities.IsTableEmpty(tEngineersInZone) == false then
-                    local bClearEngineer
-                    local tEngineersToClear = {}
-                    for iEngineer, oEngineer in tEngineersInZone do
-                        bClearEngineer = false
-                        if M28Utilities.IsTableEmpty(oEngineer[M28Engineer.reftQueuedBuildings]) == false then
-                            for iQueueRef, tQueueDetails in oEngineer[M28Engineer.reftQueuedBuildings] do
-                                if tQueueDetails[M28Engineer.subrefBuildingLocation] then
-                                    for iReservedLocation, tReservedLocation in oUnit[reftLocationsForPriorityShield] do
-                                        if M28Utilities.GetDistanceBetweenPositions(tReservedLocation, tQueueDetails[M28Engineer.subrefBuildingLocation]) - tQueueDetails[M28Engineer.subrefBuildingRadius] < 0 then
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Have queued building '..tQueueDetails[M28Engineer.subrefBuildingID]..' at location that is within '..M28Utilities.GetDistanceBetweenPositions(tReservedLocation, tQueueDetails[M28Engineer.subrefBuildingLocation])..' of a shield reserved location, with building radius of '..tQueueDetails[M28Engineer.subrefBuildingRadius]..' so will clear the engineer') end
-                                            bClearEngineer = true
-                                            table.insert(tEngineersToClear, oEngineer)
-                                            break
-                                        end
-                                    end
-                                    if bClearEngineer then break end
-                                end
-                            end
-                        end
-                    end
-                    if bDebugMessages == true then LOG(sFunctionRef..': Is table of engineers to clear empty='..tostring(M28Utilities.IsTableEmpty(tEngineersToClear))) end
-                    if M28Utilities.IsTableEmpty(tEngineersToClear) == false then
-                        for iEngineer, oEngineer in tEngineersToClear do
-                            M28Orders.IssueTrackedClearCommands(oEngineer)
-                        end
-                    end
-                end
-
-
             end
-            --[[for iOption, tLocations in tiShieldBuildLocationOptions do
-                if (tiShieldBuildLocationOptions[iOption] or 0) >= iMostBuildLocations then
+            if bDebugMessages == true then LOG(sFunctionRef..': iMostBuildLocations='..iMostBuildLocations) end
+
+            if iMostBuildLocations >= 1 then
+                --Figure out the best faction engineer that could realistically build the shield by locating the closest factory of each faction type
+                local tLZTeamData = tLZData[M28Map.subrefLZTeamData][aiBrain.M28Team]
+                local iRecordedCount = 0
+                if not(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection]) then tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection] = {} end
+                table.insert(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection], oUnit)
+                RecordNearbyFactoryForShieldEngineers(oUnit)
+
+                if bDebugMessages == true then LOG(sFunctionRef..': Can build at least 2 shields close to each other and the gameender, will now pick the best set of shield options, unit position='..repru(oUnit:GetPosition())..'; iBestOptionCountRef='..(iBestOptionCountRef or 'nil')..'; tiShieldBuildLocationOptions for this='..repru(tiShieldBuildLocationOptions[iBestOptionCountRef])) end
+                if iBestOptionCountRef then
                     oUnit[reftLocationsForPriorityShield] = {}
-                    if bDebugMessages == true then LOG(sFunctionRef..': Recording priority shield locations, tLocations='..repru(tLocations)..'; tiShieldBuildLocationOptions[iOption]='..repru(tiShieldBuildLocationOptions[iOption])..'; iOption='..(iOption or 'nil')) end
-                    for iLocation, tLocation in tLocations do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Recording priority shield locations, tLocations='..repru(tiShieldBuildLocationOptions[iBestOptionCountRef])) end
+                    for iLocation, tLocation in tiShieldBuildLocationOptions[iBestOptionCountRef] do
+                        iRecordedCount = iRecordedCount + 1
                         table.insert(oUnit[reftLocationsForPriorityShield], {tLocation[1], tLocation[2], tLocation[3]})
                         --Blacklist the location
                         M28Engineer.RecordBlacklistLocation(tLocation, iNewBuildingRadius, 600, oUnit)
                         if bDebugMessages == true then
-                            LOG(sFunctionRef..': Will draw shield locations in black')
+                            LOG(sFunctionRef..': Added shild build location '..repru(tLocation)..' against the game ender and will record blacklist, Will draw shield locations in black')
                             M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(tLocation, iNewBuildingRadius), 3, 100)
                         end
                     end
-                    break
+                    --Add other shield locations if there are any and we want more to get to 3
+                    if iRecordedCount < 3 then
+                        for iShieldOption, tShieldLocations in tiShieldBuildLocationOptions do
+                            if not(iShieldOption == iBestOptionCountRef) then
+                                for iLocation, tLocation in tShieldLocations do
+                                    if M28Engineer.CanBuildAtLocation(aiBrain, sBlueprintToBuild, tLocation, iPlateau, iLandZone, nil, false, true, true, true) then
+                                        iRecordedCount = iRecordedCount + 1
+                                        table.insert(oUnit[reftLocationsForPriorityShield], {tLocation[1], tLocation[2], tLocation[3]})
+                                        --Blacklist the location
+                                        M28Engineer.RecordBlacklistLocation(tLocation, iNewBuildingRadius, 600, oUnit)
+                                        if bDebugMessages == true then
+                                            LOG(sFunctionRef..': Added further shild build location '..repru(tLocation)..' against the game ender and will record blacklist, Will draw shield location')
+                                            M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(tLocation, iNewBuildingRadius), 4, 100)
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+
+                    --Update any buildable locaitons around here
+                    if iRecordedCount > 0 then
+                        for iLocation, tLocation in oUnit[reftLocationsForPriorityShield] do
+                            M28Engineer.CheckIfBuildableLocationsNearPositionStillValid(aiBrain, tLocation, true, 5)
+                        end
+                    end
+
+
+                    --CLear any engineers with queued orders that will conflict with a shield location
+                    local tEngineersInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                    if M28Utilities.IsTableEmpty(tEngineersInZone) == false then
+                        local bClearEngineer
+                        local tEngineersToClear = {}
+                        for iEngineer, oEngineer in tEngineersInZone do
+                            bClearEngineer = false
+                            if M28Utilities.IsTableEmpty(oEngineer[M28Engineer.reftQueuedBuildings]) == false then
+                                for iQueueRef, tQueueDetails in oEngineer[M28Engineer.reftQueuedBuildings] do
+                                    if tQueueDetails[M28Engineer.subrefBuildingLocation] then
+                                        for iReservedLocation, tReservedLocation in oUnit[reftLocationsForPriorityShield] do
+                                            if M28Utilities.GetDistanceBetweenPositions(tReservedLocation, tQueueDetails[M28Engineer.subrefBuildingLocation]) - tQueueDetails[M28Engineer.subrefBuildingRadius] < 0 then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Have queued building '..tQueueDetails[M28Engineer.subrefBuildingID]..' at location that is within '..M28Utilities.GetDistanceBetweenPositions(tReservedLocation, tQueueDetails[M28Engineer.subrefBuildingLocation])..' of a shield reserved location, with building radius of '..tQueueDetails[M28Engineer.subrefBuildingRadius]..' so will clear the engineer') end
+                                                bClearEngineer = true
+                                                table.insert(tEngineersToClear, oEngineer)
+                                                break
+                                            end
+                                        end
+                                        if bClearEngineer then break end
+                                    end
+                                end
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is table of engineers to clear empty='..tostring(M28Utilities.IsTableEmpty(tEngineersToClear))) end
+                        if M28Utilities.IsTableEmpty(tEngineersToClear) == false then
+                            for iEngineer, oEngineer in tEngineersToClear do
+                                M28Orders.IssueTrackedClearCommands(oEngineer)
+                            end
+                        end
+                    end
+
+
                 end
-            end--]]
-            M28Team.tTeamData[aiBrain.M28Team][M28Team.refbStartedOnUnitWantingSpecialShielding] = true
+                --[[for iOption, tLocations in tiShieldBuildLocationOptions do
+                    if (tiShieldBuildLocationOptions[iOption] or 0) >= iMostBuildLocations then
+                        oUnit[reftLocationsForPriorityShield] = {}
+                        if bDebugMessages == true then LOG(sFunctionRef..': Recording priority shield locations, tLocations='..repru(tLocations)..'; tiShieldBuildLocationOptions[iOption]='..repru(tiShieldBuildLocationOptions[iOption])..'; iOption='..(iOption or 'nil')) end
+                        for iLocation, tLocation in tLocations do
+                            table.insert(oUnit[reftLocationsForPriorityShield], {tLocation[1], tLocation[2], tLocation[3]})
+                            --Blacklist the location
+                            M28Engineer.RecordBlacklistLocation(tLocation, iNewBuildingRadius, 600, oUnit)
+                            if bDebugMessages == true then
+                                LOG(sFunctionRef..': Will draw shield locations in black')
+                                M28Utilities.DrawRectangle(M28Utilities.GetRectAroundLocation(tLocation, iNewBuildingRadius), 3, 100)
+                            end
+                        end
+                        break
+                    end
+                end--]]
+                M28Team.tTeamData[aiBrain.M28Team][M28Team.refbStartedOnUnitWantingSpecialShielding] = true
+            end
         end
+
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
 
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-end
+    function GetBestFactionFactoryOfCategory(iCategory, iDistanceCap, iLandSubteam, iUnitPlateau, tLZData)
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'GetBestFactionFactoryOfCategory'
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-function GetBestFactionFactoryOfCategory(iCategory, iDistanceCap, iLandSubteam, iUnitPlateau, tLZData)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'GetBestFactionFactoryOfCategory'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-    local iClosestFactory = iDistanceCap
-    local iCurDist, iCurPlateau, iCurLandZone
-    local oBestFactory
-    for iBrain, oBrain in M28Team.tLandSubteamData[iLandSubteam][M28Team.subreftoFriendlyM28Brains] do
-        local tFactoriesOfCategory = oBrain:GetListOfUnits(iCategory, false, true)
-        if bDebugMessages == true then LOG(sFunctionRef..': Is table of factories of catory empty for brain '..oBrain.Nickname..'='..tostring(M28Utilities.IsTableEmpty(tFactoriesOfCategory))) end
-        if M28Utilities.IsTableEmpty(tFactoriesOfCategory) == false then
-            for iFactory, oFactory in tFactoriesOfCategory do
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Fraction complete='..oFactory:GetFractionComplete()..'; Is factory valid='..tostring(M28UnitInfo.IsUnitValid(oFactory))) end
-                if oFactory:GetFractionComplete() == 1 and M28UnitInfo.IsUnitValid(oFactory) then
-                    --Is this in the same plateau?
-                    iCurPlateau, iCurLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oFactory:GetPosition())
-                    if bDebugMessages == true then LOG(sFunctionRef..': iCurPlateau='..(iCurPlateau or 'nil')..'; iUnitPlateau='..(iUnitPlateau or 'nil')) end
-                    if iCurPlateau == iUnitPlateau then
-                        --Get the travel distance
-                        iCurDist = tLZData[M28Map.subrefLZTravelDistToOtherLandZones][iCurPlateau][iCurLandZone]
-                        if iCurDist then
-                            if iCurDist < iClosestFactory then
-                                iClosestFactory = iCurDist
-                                oBestFactory = oFactory
+        local iClosestFactory = iDistanceCap
+        local iCurDist, iCurPlateau, iCurLandZone
+        local oBestFactory
+        for iBrain, oBrain in M28Team.tLandSubteamData[iLandSubteam][M28Team.subreftoFriendlyM28Brains] do
+            local tFactoriesOfCategory = oBrain:GetListOfUnits(iCategory, false, true)
+            if bDebugMessages == true then LOG(sFunctionRef..': Is table of factories of catory empty for brain '..oBrain.Nickname..'='..tostring(M28Utilities.IsTableEmpty(tFactoriesOfCategory))) end
+            if M28Utilities.IsTableEmpty(tFactoriesOfCategory) == false then
+                for iFactory, oFactory in tFactoriesOfCategory do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Fraction complete='..oFactory:GetFractionComplete()..'; Is factory valid='..tostring(M28UnitInfo.IsUnitValid(oFactory))) end
+                    if oFactory:GetFractionComplete() == 1 and M28UnitInfo.IsUnitValid(oFactory) then
+                        --Is this in the same plateau?
+                        iCurPlateau, iCurLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oFactory:GetPosition())
+                        if bDebugMessages == true then LOG(sFunctionRef..': iCurPlateau='..(iCurPlateau or 'nil')..'; iUnitPlateau='..(iUnitPlateau or 'nil')) end
+                        if iCurPlateau == iUnitPlateau then
+                            --Get the travel distance
+                            iCurDist = tLZData[M28Map.subrefLZTravelDistToOtherLandZones][iCurPlateau][iCurLandZone]
+                            if iCurDist then
+                                if iCurDist < iClosestFactory then
+                                    iClosestFactory = iCurDist
+                                    oBestFactory = oFactory
+                                end
                             end
                         end
                     end
                 end
             end
         end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return oBestFactory
     end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    return oBestFactory
-end
 
-function RecordNearbyFactoryForShieldEngineers(oUnit)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'RecordNearbyFactoryForShieldEngineers'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    function RecordNearbyFactoryForShieldEngineers(oUnit)
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'RecordNearbyFactoryForShieldEngineers'
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    local iDistanceCap = 300 --Wont try and get engineers from factories further away than this.
-    local aiBrain = oUnit:GetAIBrain()
-    local iLandSubteam = aiBrain.M28LandSubteam
-    local oBestFactory
+        local iDistanceCap = 300 --Wont try and get engineers from factories further away than this.
+        local aiBrain = oUnit:GetAIBrain()
+        local iLandSubteam = aiBrain.M28LandSubteam
+        local oBestFactory
 
-    local iUnitPlateau, iUnitLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
-    if (iUnitLandZone or 0) > 0 then
-        local tLZData = M28Map.tAllPlateaus[iUnitPlateau][M28Map.subrefPlateauLandZones][iUnitLandZone]
-        --Seraphim factories
-        if (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionSeraphim][3] or 0) > 0 then
-            oBestFactory = GetBestFactionFactoryOfCategory(M28UnitInfo.refCategoryLandFactory * categories.TECH3 * categories.SERAPHIM, iDistanceCap, iLandSubteam, iUnitPlateau, tLZData)
-        end
-        if not(oBestFactory) then
-            --Aeon
-
-            if (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionAeon][3] or 0) > 0 then
-                if bDebugMessages == true then LOG(sFunctionRef..': About to try and get the best factory at time '..GetGameTimeSeconds()..'; iDistanceCap='..(iDistanceCap or 'nil')..'; iLandSubteam='..(iLandSubteam or 'nil')..'; iUnitPlateau='..(iUnitPlateau or 'nil')..'; is tLZData empty='..tostring(M28Utilities.IsTableEmpty(tLZData))) end
-                oBestFactory = GetBestFactionFactoryOfCategory(M28UnitInfo.refCategoryLandFactory * categories.TECH3 * categories.AEON, iDistanceCap, iLandSubteam, iUnitPlateau, tLZData)
+        local iUnitPlateau, iUnitLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+        if (iUnitLandZone or 0) > 0 then
+            local tLZData = M28Map.tAllPlateaus[iUnitPlateau][M28Map.subrefPlateauLandZones][iUnitLandZone]
+            --Seraphim factories
+            if (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionSeraphim][3] or 0) > 0 then
+                oBestFactory = GetBestFactionFactoryOfCategory(M28UnitInfo.refCategoryLandFactory * categories.TECH3 * categories.SERAPHIM, iDistanceCap, iLandSubteam, iUnitPlateau, tLZData)
             end
             if not(oBestFactory) then
-                --UEF
-                if (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionUEF][3] or 0) > 0 then
-                    oBestFactory = GetBestFactionFactoryOfCategory(M28UnitInfo.refCategoryLandFactory * categories.TECH3 * categories.UEF, iDistanceCap, iLandSubteam, iUnitPlateau, tLZData)
+                --Aeon
+
+                if (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionAeon][3] or 0) > 0 then
+                    if bDebugMessages == true then LOG(sFunctionRef..': About to try and get the best factory at time '..GetGameTimeSeconds()..'; iDistanceCap='..(iDistanceCap or 'nil')..'; iLandSubteam='..(iLandSubteam or 'nil')..'; iUnitPlateau='..(iUnitPlateau or 'nil')..'; is tLZData empty='..tostring(M28Utilities.IsTableEmpty(tLZData))) end
+                    oBestFactory = GetBestFactionFactoryOfCategory(M28UnitInfo.refCategoryLandFactory * categories.TECH3 * categories.AEON, iDistanceCap, iLandSubteam, iUnitPlateau, tLZData)
                 end
-                --If dont have any of these factions then dont worry about getting a faction specific shield
+                if not(oBestFactory) then
+                    --UEF
+                    if (M28Team.tLandSubteamData[iLandSubteam][M28Team.subrefFactoriesByTypeFactionAndTech][M28Factory.refiFactoryTypeLand][M28UnitInfo.refFactionUEF][3] or 0) > 0 then
+                        oBestFactory = GetBestFactionFactoryOfCategory(M28UnitInfo.refCategoryLandFactory * categories.TECH3 * categories.UEF, iDistanceCap, iLandSubteam, iUnitPlateau, tLZData)
+                    end
+                    --If dont have any of these factions then dont worry about getting a faction specific shield
+                end
+            end
+            --If have a best factory then record against the game ender
+            oUnit[refoNearbyFactoryOfFaction] = oBestFactory
+            if oBestFactory then
+                if not(oBestFactory[reftoUnitsWantingFactoryEngineers]) then
+                    oBestFactory[reftoUnitsWantingFactoryEngineers] = {}
+                end
+
+                table.insert(oBestFactory[reftoUnitsWantingFactoryEngineers], oUnit)
+                local iFactoryPlateau, iFactoryLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oBestFactory:GetPosition())
+                local tFactoryLZTeamData = M28Map.tAllPlateaus[iFactoryPlateau][M28Map.subrefPlateauLandZones][iFactoryLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team]
+                local bRecordedInZoneAlready = false
+                if not(tFactoryLZTeamData[M28Map.reftFactoriesWantedForEngineers]) then tFactoryLZTeamData[M28Map.reftFactoriesWantedForEngineers] = {}
+                else
+                    for iExistingFactory, oExistingFactory in tFactoryLZTeamData[M28Map.reftFactoriesWantedForEngineers] do
+                        if oExistingFactory == oBestFactory then
+                            bRecordedInZoneAlready = true
+                        end
+                    end
+                end
+                if not(bRecordedInZoneAlready) then
+                    table.insert(tFactoryLZTeamData[M28Map.reftFactoriesWantedForEngineers], oBestFactory)
+                end
             end
         end
-        --If have a best factory then record against the game ender
-        oUnit[refoNearbyFactoryOfFaction] = oBestFactory
-        if oBestFactory then
-            if not(oBestFactory[reftoUnitsWantingFactoryEngineers]) then
-                oBestFactory[reftoUnitsWantingFactoryEngineers] = {}
-            end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    end
 
-            table.insert(oBestFactory[reftoUnitsWantingFactoryEngineers], oUnit)
-            local iFactoryPlateau, iFactoryLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oBestFactory:GetPosition())
-            local tFactoryLZTeamData = M28Map.tAllPlateaus[iFactoryPlateau][M28Map.subrefPlateauLandZones][iFactoryLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team]
-            local bRecordedInZoneAlready = false
-            if not(tFactoryLZTeamData[M28Map.reftFactoriesWantedForEngineers]) then tFactoryLZTeamData[M28Map.reftFactoriesWantedForEngineers] = {}
-            else
-                for iExistingFactory, oExistingFactory in tFactoryLZTeamData[M28Map.reftFactoriesWantedForEngineers] do
-                    if oExistingFactory == oBestFactory then
-                        bRecordedInZoneAlready = true
+    function RemoveFactoryFromZoneList(oFactory)
+        --If a factory was assigned as providing engineers to a unit such as a gameender for shielding, it'd be recorded in the zone it was in - this removes it (e.g. intended where the factory ahs no units to assist, or the factory is dead)
+        local iFactoryPlateau, iFactoryLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oFactory:GetPosition())
+        if iFactoryLandZone > 0 then
+            local tLZTeamData = M28Map.tAllPlateaus[iFactoryPlateau][M28Map.subrefPlateauLandZones][iFactoryLandZone][M28Map.subrefLZTeamData][oFactory:GetAIBrain().M28Team]
+            if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftFactoriesWantedForEngineers]) == false then
+                local iExistingEntries = table.getn(tLZTeamData[M28Map.reftFactoriesWantedForEngineers])
+                for iCurEntry = iExistingEntries, 1, -1 do
+                    if tLZTeamData[M28Map.reftFactoriesWantedForEngineers][iCurEntry] == oFactory or not(M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.reftFactoriesWantedForEngineers][iCurEntry])) then
+                        table.remove(tLZTeamData[M28Map.reftFactoriesWantedForEngineers], iCurEntry)
                     end
                 end
             end
-            if not(bRecordedInZoneAlready) then
-                table.insert(tFactoryLZTeamData[M28Map.reftFactoriesWantedForEngineers], oBestFactory)
-            end
         end
     end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-end
 
-function RemoveFactoryFromZoneList(oFactory)
-    --If a factory was assigned as providing engineers to a unit such as a gameender for shielding, it'd be recorded in the zone it was in - this removes it (e.g. intended where the factory ahs no units to assist, or the factory is dead)
-    local iFactoryPlateau, iFactoryLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oFactory:GetPosition())
-    if iFactoryLandZone > 0 then
-        local tLZTeamData = M28Map.tAllPlateaus[iFactoryPlateau][M28Map.subrefPlateauLandZones][iFactoryLandZone][M28Map.subrefLZTeamData][oFactory:GetAIBrain().M28Team]
-        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftFactoriesWantedForEngineers]) == false then
-            local iExistingEntries = table.getn(tLZTeamData[M28Map.reftFactoriesWantedForEngineers])
+    function ClearTrackingOfDeadUnitWantingFactoryEngineers(oUnit)
+        --If a gameender had a factory assigned as providing engineers e.g. for shielding, and the gameender is dead, then this clears related tracking
+        if M28Utilities.IsTableEmpty(oUnit[refoNearbyFactoryOfFaction][reftoUnitsWantingFactoryEngineers]) == false then
+            local oFactory = oUnit[refoNearbyFactoryOfFaction]
+            local iExistingEntries = table.getn(oFactory[reftoUnitsWantingFactoryEngineers])
             for iCurEntry = iExistingEntries, 1, -1 do
-                if tLZTeamData[M28Map.reftFactoriesWantedForEngineers][iCurEntry] == oFactory or not(M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.reftFactoriesWantedForEngineers][iCurEntry])) then
-                    table.remove(tLZTeamData[M28Map.reftFactoriesWantedForEngineers], iCurEntry)
+                if oFactory[reftoUnitsWantingFactoryEngineers][iCurEntry] == oUnit or not(M28UnitInfo.IsUnitValid(oFactory[reftoUnitsWantingFactoryEngineers][iCurEntry])) then
+                    table.remove(oFactory[reftoUnitsWantingFactoryEngineers], iCurEntry)
+                end
+            end
+            if M28Utilities.IsTableEmpty(  oFactory[reftoUnitsWantingFactoryEngineers]) then
+                RemoveFactoryFromZoneList(oFactory)
+            end
+        end
+        --Remove this unit from the zone
+        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
+        local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team]
+        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection]) == false then
+            local iTotalEntries = table.getn(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection])
+            for iCurEntry = iTotalEntries, 1, -1 do
+                if tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection][iCurEntry] == oUnit or not(M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection][iCurEntry])) then
+                    table.remove(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection], iCurEntry)
                 end
             end
         end
     end
-end
 
-function ClearTrackingOfDeadUnitWantingFactoryEngineers(oUnit)
-    --If a gameender had a factory assigned as providing engineers e.g. for shielding, and the gameender is dead, then this clears related tracking
-    if M28Utilities.IsTableEmpty(oUnit[refoNearbyFactoryOfFaction][reftoUnitsWantingFactoryEngineers]) == false then
-        local oFactory = oUnit[refoNearbyFactoryOfFaction]
-        local iExistingEntries = table.getn(oFactory[reftoUnitsWantingFactoryEngineers])
+    function UpdateTrackingOfDeadFactoryProvidingEngineers(oUnit)
+        --If a factory that was providing engineers e.g. to a gameender for shielding dies, this updates the tracking variables and looks for a new factory to provide engineers
+        local iExistingEntries = table.getn(oUnit[reftoUnitsWantingFactoryEngineers])
         for iCurEntry = iExistingEntries, 1, -1 do
-            if oFactory[reftoUnitsWantingFactoryEngineers][iCurEntry] == oUnit or not(M28UnitInfo.IsUnitValid(oFactory[reftoUnitsWantingFactoryEngineers][iCurEntry])) then
-                table.remove(oFactory[reftoUnitsWantingFactoryEngineers], iCurEntry)
+            if oUnit[reftoUnitsWantingFactoryEngineers][iCurEntry][refoNearbyFactoryOfFaction] == oUnit then
+                oUnit[reftoUnitsWantingFactoryEngineers][iCurEntry][refoNearbyFactoryOfFaction] = nil
+                if M28UnitInfo.IsUnitValid(oUnit[reftoUnitsWantingFactoryEngineers][iCurEntry]) then
+                    --Get a new 'best factory to provide engineers' for the game ender
+                    RecordNearbyFactoryForShieldEngineers(oUnit[reftoUnitsWantingFactoryEngineers][iCurEntry])
+                end
             end
         end
-        if M28Utilities.IsTableEmpty(  oFactory[reftoUnitsWantingFactoryEngineers]) then
-            RemoveFactoryFromZoneList(oFactory)
-        end
+        --Remove this factory from the list of factories in the zone
+        oUnit[reftoUnitsWantingFactoryEngineers] = nil
+        RemoveFactoryFromZoneList(oUnit)
     end
-    --Remove this unit from the zone
-    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
-    local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team]
-    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection]) == false then
-        local iTotalEntries = table.getn(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection])
-        for iCurEntry = iTotalEntries, 1, -1 do
-            if tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection][iCurEntry] == oUnit or not(M28UnitInfo.IsUnitValid(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection][iCurEntry])) then
-                table.remove(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection], iCurEntry)
+
+    function AssignShieldToGameEnder(oConstruction, oEngineer, oOptionalBackupGameEnderToAssignTo)
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'AssignShieldToGameEnder'
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+        local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oConstruction:GetPosition())
+
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code at game time '..GetGameTimeSeconds()..'; oConstruction='..(oConstruction.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oConstruction) or 'nil')..'; oEngineer='..(oEngineer.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineer) or 'nil')..'; oConstruction iPlateau='..(iPlateau or 'nil')..'; Zone='..(iLandZone or 'nil')..'; oConstruction position='..repru(oConstruction:GetPosition())) end
+        if (iLandZone or 0) > 0 then
+            local oGameEnder
+            local aiBrain = oEngineer:GetAIBrain()
+            local iTeam = aiBrain.M28Team
+            local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
+            if not(oEngineer[M28Engineer.refoUnitActivelyShielding]) then
+                oGameEnder = oOptionalBackupGameEnderToAssignTo
+                if not(oGameEnder) then
+                    M28Utilities.ErrorHandler('Dont have a unit recorded that the engineer is actively shielding, will just get the first gameender in the zone')
+                    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection]) == false then
+                        for iUnit, oUnit in tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection] do
+                            oGameEnder = oUnit
+                            break
+                        end
+                    end
+                end
+            else
+                oGameEnder = oEngineer[M28Engineer.refoUnitActivelyShielding]
+                if bDebugMessages == true then LOG(sFunctionRef..': Engineer is actively shielding oGameEnder='..(oGameEnder.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oGameEnder) or 'nil')) end
             end
-        end
-    end
-end
-
-function UpdateTrackingOfDeadFactoryProvidingEngineers(oUnit)
-    --If a factory that was providing engineers e.g. to a gameender for shielding dies, this updates the tracking variables and looks for a new factory to provide engineers
-    local iExistingEntries = table.getn(oUnit[reftoUnitsWantingFactoryEngineers])
-    for iCurEntry = iExistingEntries, 1, -1 do
-        if oUnit[reftoUnitsWantingFactoryEngineers][iCurEntry][refoNearbyFactoryOfFaction] == oUnit then
-            oUnit[reftoUnitsWantingFactoryEngineers][iCurEntry][refoNearbyFactoryOfFaction] = nil
-            if M28UnitInfo.IsUnitValid(oUnit[reftoUnitsWantingFactoryEngineers][iCurEntry]) then
-                --Get a new 'best factory to provide engineers' for the game ender
-                RecordNearbyFactoryForShieldEngineers(oUnit[reftoUnitsWantingFactoryEngineers][iCurEntry])
+            if M28UnitInfo.IsUnitValid(oGameEnder) then
+                if not(oGameEnder[reftoSpecialAssignedShields]) then
+                    oGameEnder[reftoSpecialAssignedShields] = {}
+                end
+                table.insert(oGameEnder[reftoSpecialAssignedShields], oConstruction)
+                oConstruction[refoGameEnderBeingShielded] = oGameEnder
+                if bDebugMessages == true then LOG(sFunctionRef..': Added oConstruction to the table of assigned shields for gameender') end
+            else
+                if oGameEnder then
+                    M28Utilities.ErrorHandler('Dont have a valid unit')
+                end
             end
+        else
+            M28Utilities.ErrorHandler('Dont have valid land zone for construction')
         end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
-    --Remove this factory from the list of factories in the zone
-    oUnit[reftoUnitsWantingFactoryEngineers] = nil
-    RemoveFactoryFromZoneList(oUnit)
-end
 
-function AssignShieldToGameEnder(oConstruction, oEngineer, oOptionalBackupGameEnderToAssignTo)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'AssignShieldToGameEnder'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    function UpdateForNukeMissileDeath(oLauncher, tOptionalLikelyTarget)
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'UpdateForNukeMissileDeath'
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        if bDebugMessages == true then LOG(sFunctionRef..': Start at time ='..GetGameTimeSeconds()..'; oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..'; oLauncher[reftActiveNukeTarget] before reset='..repru(oLauncher[reftActiveNukeTarget])) end
+        oLauncher[reftActiveNukeTarget] = nil
 
-    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oConstruction:GetPosition())
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    end
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at game time '..GetGameTimeSeconds()..'; oConstruction='..(oConstruction.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oConstruction) or 'nil')..'; oEngineer='..(oEngineer.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineer) or 'nil')..'; oConstruction iPlateau='..(iPlateau or 'nil')..'; Zone='..(iLandZone or 'nil')..'; oConstruction position='..repru(oConstruction:GetPosition())) end
-    if (iLandZone or 0) > 0 then
-        local oGameEnder
-        local aiBrain = oEngineer:GetAIBrain()
-        local iTeam = aiBrain.M28Team
-        local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][iTeam]
-        if not(oEngineer[M28Engineer.refoUnitActivelyShielding]) then
-            oGameEnder = oOptionalBackupGameEnderToAssignTo
-            if not(oGameEnder) then
-                M28Utilities.ErrorHandler('Dont have a unit recorded that the engineer is actively shielding, will just get the first gameender in the zone')
-                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection]) == false then
-                    for iUnit, oUnit in tLZTeamData[M28Map.reftoUnitsForSpecialShieldProtection] do
-                        oGameEnder = oUnit
-                        break
+
+    function DetermineBuildingExpectedValues()
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'DetermineBuildingExpectedValues'
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        local tsT1EnergyStorageBlueprints = EntityCategoryGetUnitList(M28UnitInfo.refCategoryEnergyStorage)
+        local iLowestTechTier = 5
+        local iHighestEnergyStored = 0
+        local iCurTechLevel
+        if M28Utilities.IsTableEmpty(tsT1EnergyStorageBlueprints) == false then
+            for _, sBlueprint in tsT1EnergyStorageBlueprints do
+                local oBP = __blueprints[sBlueprint]
+                if (oBP.Economy.StorageEnergy or 0) > 0 then
+                    iCurTechLevel = M28UnitInfo.GetBlueprintTechLevel(sBlueprint)
+                    if iCurTechLevel < iLowestTechTier then
+                        iLowestTechTier = iCurTechLevel
+                        iHighestEnergyStored = oBP.Economy.StorageEnergy
+                    elseif iCurTechLevel == iLowestTechTier and iHighestEnergyStored < oBP.Economy.StorageEnergy then
+                        iHighestEnergyStored = oBP.Economy.StorageEnergy
                     end
                 end
             end
-        else
-            oGameEnder = oEngineer[M28Engineer.refoUnitActivelyShielding]
-            if bDebugMessages == true then LOG(sFunctionRef..': Engineer is actively shielding oGameEnder='..(oGameEnder.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oGameEnder) or 'nil')) end
         end
-        if M28UnitInfo.IsUnitValid(oGameEnder) then
-            if not(oGameEnder[reftoSpecialAssignedShields]) then
-                oGameEnder[reftoSpecialAssignedShields] = {}
-            end
-            table.insert(oGameEnder[reftoSpecialAssignedShields], oConstruction)
-            oConstruction[refoGameEnderBeingShielded] = oGameEnder
-            if bDebugMessages == true then LOG(sFunctionRef..': Added oConstruction to the table of assigned shields for gameender') end
-        else
-            if oGameEnder then
-                M28Utilities.ErrorHandler('Dont have a valid unit')
-            end
-        end
-    else
-        M28Utilities.ErrorHandler('Dont have valid land zone for construction')
+        iEnergyStorageExpectedCapacity = (iHighestEnergyStored or 5000)
+        if bDebugMessages == true then LOG(sFunctionRef..': end of code, iHighestEnergyStored='..iHighestEnergyStored..'; iLowestTechTier='..iLowestTechTier) end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-end
 
-function UpdateForNukeMissileDeath(oLauncher, tOptionalLikelyTarget)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'UpdateForNukeMissileDeath'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if bDebugMessages == true then LOG(sFunctionRef..': Start at time ='..GetGameTimeSeconds()..'; oLauncher='..oLauncher.UnitId..M28UnitInfo.GetUnitLifetimeCount(oLauncher)..'; oLauncher[reftActiveNukeTarget] before reset='..repru(oLauncher[reftActiveNukeTarget])) end
-    oLauncher[reftActiveNukeTarget] = nil
-
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-end
-
-
-function DetermineBuildingExpectedValues()
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'DetermineBuildingExpectedValues'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    local tsT1EnergyStorageBlueprints = EntityCategoryGetUnitList(M28UnitInfo.refCategoryEnergyStorage)
-    local iLowestTechTier = 5
-    local iHighestEnergyStored = 0
-    local iCurTechLevel
-    if M28Utilities.IsTableEmpty(tsT1EnergyStorageBlueprints) == false then
-        for _, sBlueprint in tsT1EnergyStorageBlueprints do
-            local oBP = __blueprints[sBlueprint]
-            if (oBP.Economy.StorageEnergy or 0) > 0 then
-                iCurTechLevel = M28UnitInfo.GetBlueprintTechLevel(sBlueprint)
-                if iCurTechLevel < iLowestTechTier then
-                    iLowestTechTier = iCurTechLevel
-                    iHighestEnergyStored = oBP.Economy.StorageEnergy
-                elseif iCurTechLevel == iLowestTechTier and iHighestEnergyStored < oBP.Economy.StorageEnergy then
-                    iHighestEnergyStored = oBP.Economy.StorageEnergy
-                end
-            end
+    function DelayedConsiderLaunchingMissile(oLauncher, iSecondsToWait)
+        --Call via forkthread
+        WaitSeconds(iSecondsToWait)
+        if M28UnitInfo.IsUnitValid(oLauncher) then
+            ConsiderLaunchingMissile(oLauncher)
         end
     end
-    iEnergyStorageExpectedCapacity = (iHighestEnergyStored or 5000)
-    if bDebugMessages == true then LOG(sFunctionRef..': end of code, iHighestEnergyStored='..iHighestEnergyStored..'; iLowestTechTier='..iLowestTechTier) end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-end
 
-function DelayedConsiderLaunchingMissile(oLauncher, iSecondsToWait)
-    --Call via forkthread
-    WaitSeconds(iSecondsToWait)
-    if M28UnitInfo.IsUnitValid(oLauncher) then
-        ConsiderLaunchingMissile(oLauncher)
-    end
-end
+    function AreUnitsAdjacent(oFirstUnit, oSecondUnit)
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'AreUnitsAdjacent'
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-function AreUnitsAdjacent(oFirstUnit, oSecondUnit)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'AreUnitsAdjacent'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        local iFirstUnitSize = M28UnitInfo.GetBuildingSize(oFirstUnit.UnitId) * 0.5
+        local iSecondUnitSize = M28UnitInfo.GetBuildingSize(oSecondUnit.UnitId) * 0.5
+        local iMaxDif = iFirstUnitSize + iSecondUnitSize + 0.749 --assumed margin of error after where got to with mexes (where would go with 2.749 distance)
+        local iMinDif = iFirstUnitSize + iSecondUnitSize - 0.749
 
-    local iFirstUnitSize = M28UnitInfo.GetBuildingSize(oFirstUnit.UnitId) * 0.5
-    local iSecondUnitSize = M28UnitInfo.GetBuildingSize(oSecondUnit.UnitId) * 0.5
-    local iMaxDif = iFirstUnitSize + iSecondUnitSize + 0.749 --assumed margin of error after where got to with mexes (where would go with 2.749 distance)
-    local iMinDif = iFirstUnitSize + iSecondUnitSize - 0.749
-
-    local iXDif = math.abs(oFirstUnit:GetPosition()[1] - oSecondUnit:GetPosition()[1])
-    local iZDif = math.abs(oFirstUnit:GetPosition()[3] - oSecondUnit:GetPosition()[3])
-    if bDebugMessages == true then LOG(sFunctionRef..': Considering oFirstUnit='..oFirstUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFirstUnit)..'; Position='..repru(oFirstUnit:GetPosition())..'; Size='..iFirstUnitSize..'; Second unit='..oSecondUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSecondUnit)..'; oSecondUnit position='..repru(oSecondUnit:GetPosition())..'; iSecondUnitSize='..iSecondUnitSize..'; iXDif='..iXDif..'; iZDif='..iZDif) end
-    if (iXDif <= iMaxDif and iXDif >= iMinDif) or (iZDif <= iMaxDif and iZDif >= iMinDif) then
-        --Are we in a corner position?
-        --[[local iCornerDif = iFirstUnitSize + iSecondUnitSize - 0.1
-        if bDebugMessages == true then LOG(sFunctionRef..': Units are close to each other, iXDif='..iXDif..'; iZDif='..iZDif..'; iCornerDif='..iCornerDif) end
-        if iXDif < iCornerDif or iZDif < iCornerDif then--]]
+        local iXDif = math.abs(oFirstUnit:GetPosition()[1] - oSecondUnit:GetPosition()[1])
+        local iZDif = math.abs(oFirstUnit:GetPosition()[3] - oSecondUnit:GetPosition()[3])
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering oFirstUnit='..oFirstUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFirstUnit)..'; Position='..repru(oFirstUnit:GetPosition())..'; Size='..iFirstUnitSize..'; Second unit='..oSecondUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oSecondUnit)..'; oSecondUnit position='..repru(oSecondUnit:GetPosition())..'; iSecondUnitSize='..iSecondUnitSize..'; iXDif='..iXDif..'; iZDif='..iZDif) end
+        if (iXDif <= iMaxDif and iXDif >= iMinDif) or (iZDif <= iMaxDif and iZDif >= iMinDif) then
+            --Are we in a corner position?
+            --[[local iCornerDif = iFirstUnitSize + iSecondUnitSize - 0.1
+            if bDebugMessages == true then LOG(sFunctionRef..': Units are close to each other, iXDif='..iXDif..'; iZDif='..iZDif..'; iCornerDif='..iCornerDif) end
+            if iXDif < iCornerDif or iZDif < iCornerDif then--]]
             --Max smallest dif due to size dif
             local iMaxSmallestDif = math.abs(iFirstUnitSize - iSecondUnitSize) + 0.749
             if iXDif < iMaxSmallestDif or iZDif < iMaxSmallestDif then
@@ -3033,152 +3111,152 @@ function AreUnitsAdjacent(oFirstUnit, oSecondUnit)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 return true
             end
-        --end
+            --end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Units are adjacent') end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return false
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Units are adjacent') end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    return false
-end
 
-function ConsiderGiftingPowerToTeammateForAdjacency(oUnit)
-    --Call when a t3 power has been constructed by an M28 brain
-    --WARNING: Not tested fully, so only gives a rough approximation.  do further testing if more accuracy needed
+    function ConsiderGiftingPowerToTeammateForAdjacency(oUnit)
+        --Call when a t3 power has been constructed by an M28 brain
+        --WARNING: Not tested fully, so only gives a rough approximation.  do further testing if more accuracy needed
 
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'ConsiderGiftingPowerToTeammateForAdjacency'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'ConsiderGiftingPowerToTeammateForAdjacency'
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    local aiBrain = oUnit:GetAIBrain()
-    local iTeam = aiBrain.M28Team
-    if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
-        local iPotentialAdjacencyCategories = M28UnitInfo.refCategoryExperimentalLevel + M28UnitInfo.refCategoryAirFactory + M28UnitInfo.refCategoryStructure * categories.TECH3
+        local aiBrain = oUnit:GetAIBrain()
+        local iTeam = aiBrain.M28Team
+        if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
+            local iPotentialAdjacencyCategories = M28UnitInfo.refCategoryExperimentalLevel + M28UnitInfo.refCategoryAirFactory + M28UnitInfo.refCategoryStructure * categories.TECH3
 
-        if EntityCategoryContains(M28UnitInfo.refCategoryT3Power, oUnit.UnitId) then
-            --Are we adjacent to any air factories, omni, nuke launchers, t3 arti, owned by another teammate, and have no adjacency of such units on our own?
+            if EntityCategoryContains(M28UnitInfo.refCategoryT3Power, oUnit.UnitId) then
+                --Are we adjacent to any air factories, omni, nuke launchers, t3 arti, owned by another teammate, and have no adjacency of such units on our own?
 
-            if bDebugMessages == true then LOG(sFunctionRef..': is table of adjacent units empty='..tostring(M28Utilities.IsTableEmpty(oUnit.AdjacentUnits))) end
-            if M28Utilities.IsTableEmpty(oUnit.AdjacentUnits) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(iPotentialAdjacencyCategories, oUnit.AdjacentUnits)) then
-                --We have no existing adjacency
-                local tNearbyUnitsOfInterest = aiBrain:GetUnitsAroundPoint(iPotentialAdjacencyCategories, oUnit:GetPosition(), M28UnitInfo.GetBuildingSize(oUnit.UnitId) + 1, 'Ally')
-                if M28Utilities.IsTableEmpty(tNearbyUnitsOfInterest) == false then
-                    for iNearbyUnit, oNearbyUnit in tNearbyUnitsOfInterest do
-                        if not(oNearbyUnit:GetAIBrain() == aiBrain) and oNearbyUnit:GetAIBrain().M28Team == iTeam then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oNearbyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearbyUnit)..'; Position='..repru(oNearbyUnit:GetPosition())..'; oUnit position='..repru(oUnit:GetPosition())) end
-                            if AreUnitsAdjacent(oUnit, oNearbyUnit) then
-                                --Gift to other brain
-                                M28Team.TransferUnitsToPlayer({oUnit}, oNearbyUnit:GetAIBrain():GetArmyIndex(), false)
-                                break
-                            end
-                        end
-                    end
-                end
-            end
-        else
-            local iSpecificAdjacencyCategories = M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE + M28UnitInfo.refCategorySML * categories.TECH3 + M28UnitInfo.refCategoryAirFactory * categories.TECH3 + M28UnitInfo.refCategoryMassFab * categories.TECH3 + M28UnitInfo.refCategoryT3Radar
-            if EntityCategoryContains(iSpecificAdjacencyCategories, oUnit.UnitId) then
                 if bDebugMessages == true then LOG(sFunctionRef..': is table of adjacent units empty='..tostring(M28Utilities.IsTableEmpty(oUnit.AdjacentUnits))) end
-                if M28Utilities.IsTableEmpty(oUnit.AdjacentUnits) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryT3Power, oUnit.AdjacentUnits)) then
+                if M28Utilities.IsTableEmpty(oUnit.AdjacentUnits) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(iPotentialAdjacencyCategories, oUnit.AdjacentUnits)) then
                     --We have no existing adjacency
-                    local tNearbyUnitsOfInterest = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryT3Power, oUnit:GetPosition(), M28UnitInfo.GetBuildingSize(oUnit.UnitId) + 1, 'Ally')
+                    local tNearbyUnitsOfInterest = aiBrain:GetUnitsAroundPoint(iPotentialAdjacencyCategories, oUnit:GetPosition(), M28UnitInfo.GetBuildingSize(oUnit.UnitId) + 1, 'Ally')
                     if M28Utilities.IsTableEmpty(tNearbyUnitsOfInterest) == false then
                         for iNearbyUnit, oNearbyUnit in tNearbyUnitsOfInterest do
                             if not(oNearbyUnit:GetAIBrain() == aiBrain) and oNearbyUnit:GetAIBrain().M28Team == iTeam then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oNearbyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearbyUnit)..'; Position='..repru(oNearbyUnit:GetPosition())..'; oUnit position='..repru(oUnit:GetPosition())) end
                                 if AreUnitsAdjacent(oUnit, oNearbyUnit) then
-                                    --Gift nearby t3 power to this unit's brain owner
-                                    M28Team.TransferUnitsToPlayer({oNearbyUnit}, oUnit:GetAIBrain():GetArmyIndex(), false)
+                                    --Gift to other brain
+                                    M28Team.TransferUnitsToPlayer({oUnit}, oNearbyUnit:GetAIBrain():GetArmyIndex(), false)
                                     break
                                 end
                             end
                         end
                     end
                 end
-            end
-        end
-    end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-end
-
-function JustBuiltParagon(oParagon)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'JustBuiltParagon'
-
-    WaitTicks(1)
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if M28UnitInfo.IsUnitValid(oParagon) then
-        if bDebugMessages == true then LOG(sFunctionRef..': oParagon owner='..oParagon:GetAIBrain().Nickname..'; Unit='..oParagon.UnitId..M28UnitInfo.GetUnitLifetimeCount(oParagon)..'; GameTime='..GetGameTimeSeconds()..'; Fraction complete='..oParagon:GetFractionComplete()..'; oParagon(M28BuiltParagon)='..tostring(oParagon['M28BuiltParagon'] or false)) end
-        if not(oParagon['M28BuiltParagon']) then
-            oParagon['M28BuiltParagon'] = true
-            local aiBrain = oParagon:GetAIBrain()
-            local iTeam = aiBrain.M28Team
-            if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
-                --Gift mexes, mass storage, RAS SACUs, and half of our pgens to another teammate
-                local oOtherBrain
-                local iMaxEngineersToGift = math.min(aiBrain[M28Overseer.refiExpectedRemainingCap] * 0.5, 30)
-                local iEngineersGifted = 0
-                for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-                    if not(oBrain == aiBrain) and not(aiBrain.M28IsDefeated) then
-                        if oBrain[M28Economy.refiGrossMassBaseIncome] <= 500 then
-                            oOtherBrain = oBrain
-                            --Gift all non-land factories (retain land so we still build some units)
-                            local tFactoriesToGift = oBrain:GetListOfUnits(M28UnitInfo.refCategoryNavalFactory + M28UnitInfo.refCategoryAirFactory + M28UnitInfo.refCategoryQuantumGateway, false, true)
-                            if M28Utilities.IsTableEmpty(tFactoriesToGift) == false then
-                                M28Team.TransferUnitsToPlayer(tFactoriesToGift, aiBrain:GetArmyIndex(), false)
-                            end
-                            if iEngineersGifted < iMaxEngineersToGift then
-                                local tEngineersAvailable = oBrain:GetListOfUnits(M28UnitInfo.refCategoryEngineer, false, true)
-                                if M28Utilities.IsTableEmpty(tEngineersAvailable) == false then
-                                    local tEngineersToGift = {}
-                                    local iCurCount = 0
-
-
-                                    for iUnit, oUnit in tEngineersAvailable do
-                                        iCurCount = iCurCount + 1
-                                        if iCurCount >= 2 then
-                                            if not(oUnit:IsUnitState('Attached')) and not(oUnit[M28Engineer.refbPrimaryBuilder]) then
-                                                table.insert(tEngineersToGift, oUnit)
-                                                iEngineersGifted = iEngineersGifted + 1
-                                                if iEngineersGifted >= iMaxEngineersToGift then break end
-                                            end
-                                            iCurCount = 0
-                                        end
-
-                                    end
-                                    if M28Utilities.IsTableEmpty(tEngineersToGift) == false then
-                                        M28Team.TransferUnitsToPlayer(tEngineersToGift, aiBrain:GetArmyIndex(), false)
+            else
+                local iSpecificAdjacencyCategories = M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalArti - categories.MOBILE + M28UnitInfo.refCategorySML * categories.TECH3 + M28UnitInfo.refCategoryAirFactory * categories.TECH3 + M28UnitInfo.refCategoryMassFab * categories.TECH3 + M28UnitInfo.refCategoryT3Radar
+                if EntityCategoryContains(iSpecificAdjacencyCategories, oUnit.UnitId) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': is table of adjacent units empty='..tostring(M28Utilities.IsTableEmpty(oUnit.AdjacentUnits))) end
+                    if M28Utilities.IsTableEmpty(oUnit.AdjacentUnits) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryT3Power, oUnit.AdjacentUnits)) then
+                        --We have no existing adjacency
+                        local tNearbyUnitsOfInterest = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryT3Power, oUnit:GetPosition(), M28UnitInfo.GetBuildingSize(oUnit.UnitId) + 1, 'Ally')
+                        if M28Utilities.IsTableEmpty(tNearbyUnitsOfInterest) == false then
+                            for iNearbyUnit, oNearbyUnit in tNearbyUnitsOfInterest do
+                                if not(oNearbyUnit:GetAIBrain() == aiBrain) and oNearbyUnit:GetAIBrain().M28Team == iTeam then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oNearbyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearbyUnit)..'; Position='..repru(oNearbyUnit:GetPosition())..'; oUnit position='..repru(oUnit:GetPosition())) end
+                                    if AreUnitsAdjacent(oUnit, oNearbyUnit) then
+                                        --Gift nearby t3 power to this unit's brain owner
+                                        M28Team.TransferUnitsToPlayer({oNearbyUnit}, oUnit:GetAIBrain():GetArmyIndex(), false)
+                                        break
                                     end
                                 end
                             end
                         end
                     end
                 end
-                if oOtherBrain then
-                    local tUnitsToGift = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryT1Power + M28UnitInfo.refCategoryT2Power + M28UnitInfo.refCategoryMassStorage + M28UnitInfo.refCategoryRASSACU, false, true)
-                    if M28Utilities.IsTableEmpty(tUnitsToGift) then
-                        tUnitsToGift = {}
-                    end
-                    local tT3Power = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryT3Power, false, true)
-                    if M28Utilities.IsTableEmpty(tT3Power) == false then
-                        local iCurCount = -1
-                        local iGiftThreshold = 1
-                        for iUnit, oUnit in tT3Power do
-                            iCurCount = iCurCount + 1
-                            if iCurCount >= iGiftThreshold then
-                                iCurCount = 0
-                                table.insert(tUnitsToGift, oUnit)
+            end
+        end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    end
+
+    function JustBuiltParagon(oParagon)
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'JustBuiltParagon'
+
+        WaitTicks(1)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        if M28UnitInfo.IsUnitValid(oParagon) then
+            if bDebugMessages == true then LOG(sFunctionRef..': oParagon owner='..oParagon:GetAIBrain().Nickname..'; Unit='..oParagon.UnitId..M28UnitInfo.GetUnitLifetimeCount(oParagon)..'; GameTime='..GetGameTimeSeconds()..'; Fraction complete='..oParagon:GetFractionComplete()..'; oParagon(M28BuiltParagon)='..tostring(oParagon['M28BuiltParagon'] or false)) end
+            if not(oParagon['M28BuiltParagon']) then
+                oParagon['M28BuiltParagon'] = true
+                local aiBrain = oParagon:GetAIBrain()
+                local iTeam = aiBrain.M28Team
+                if M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
+                    --Gift mexes, mass storage, RAS SACUs, and half of our pgens to another teammate
+                    local oOtherBrain
+                    local iMaxEngineersToGift = math.min(aiBrain[M28Overseer.refiExpectedRemainingCap] * 0.5, 30)
+                    local iEngineersGifted = 0
+                    for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                        if not(oBrain == aiBrain) and not(aiBrain.M28IsDefeated) then
+                            if oBrain[M28Economy.refiGrossMassBaseIncome] <= 500 then
+                                oOtherBrain = oBrain
+                                --Gift all non-land factories (retain land so we still build some units)
+                                local tFactoriesToGift = oBrain:GetListOfUnits(M28UnitInfo.refCategoryNavalFactory + M28UnitInfo.refCategoryAirFactory + M28UnitInfo.refCategoryQuantumGateway, false, true)
+                                if M28Utilities.IsTableEmpty(tFactoriesToGift) == false then
+                                    M28Team.TransferUnitsToPlayer(tFactoriesToGift, aiBrain:GetArmyIndex(), false)
+                                end
+                                if iEngineersGifted < iMaxEngineersToGift then
+                                    local tEngineersAvailable = oBrain:GetListOfUnits(M28UnitInfo.refCategoryEngineer, false, true)
+                                    if M28Utilities.IsTableEmpty(tEngineersAvailable) == false then
+                                        local tEngineersToGift = {}
+                                        local iCurCount = 0
+
+
+                                        for iUnit, oUnit in tEngineersAvailable do
+                                            iCurCount = iCurCount + 1
+                                            if iCurCount >= 2 then
+                                                if not(oUnit:IsUnitState('Attached')) and not(oUnit[M28Engineer.refbPrimaryBuilder]) then
+                                                    table.insert(tEngineersToGift, oUnit)
+                                                    iEngineersGifted = iEngineersGifted + 1
+                                                    if iEngineersGifted >= iMaxEngineersToGift then break end
+                                                end
+                                                iCurCount = 0
+                                            end
+
+                                        end
+                                        if M28Utilities.IsTableEmpty(tEngineersToGift) == false then
+                                            M28Team.TransferUnitsToPlayer(tEngineersToGift, aiBrain:GetArmyIndex(), false)
+                                        end
+                                    end
+                                end
                             end
                         end
                     end
-                    if M28Utilities.IsTableEmpty(tUnitsToGift) == false then
+                    if oOtherBrain then
+                        local tUnitsToGift = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryT1Power + M28UnitInfo.refCategoryT2Power + M28UnitInfo.refCategoryMassStorage + M28UnitInfo.refCategoryRASSACU, false, true)
+                        if M28Utilities.IsTableEmpty(tUnitsToGift) then
+                            tUnitsToGift = {}
+                        end
+                        local tT3Power = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryT3Power, false, true)
+                        if M28Utilities.IsTableEmpty(tT3Power) == false then
+                            local iCurCount = -1
+                            local iGiftThreshold = 1
+                            for iUnit, oUnit in tT3Power do
+                                iCurCount = iCurCount + 1
+                                if iCurCount >= iGiftThreshold then
+                                    iCurCount = 0
+                                    table.insert(tUnitsToGift, oUnit)
+                                end
+                            end
+                        end
+                        if M28Utilities.IsTableEmpty(tUnitsToGift) == false then
 
-                        M28Team.TransferUnitsToPlayer(tUnitsToGift, oOtherBrain:GetArmyIndex(), false)
+                            M28Team.TransferUnitsToPlayer(tUnitsToGift, oOtherBrain:GetArmyIndex(), false)
 
+                        end
                     end
-                end
 
+                end
             end
         end
-    end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 
-end
+    end
