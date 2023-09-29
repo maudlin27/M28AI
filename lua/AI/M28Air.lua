@@ -4684,7 +4684,7 @@ function UpdateTransportShortlistForPondDrops(iTeam, tbPlateausWithPlayerStartOr
                 end
                 if iClosestMexRef then
                     --Record the zone for this mex
-                    local iCurSegmentX, iCurSegmentZ = M28Map.GetPathingSegmentFromPosition(tAllMexes[iClosestMextRef])
+                    local iCurSegmentX, iCurSegmentZ = M28Map.GetPathingSegmentFromPosition(tAllMexes[iClosestMexRef])
                     local iCurWZ = M28Map.tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ]
                     if iCurWZ then
                         AddZoneToPotentailDropZonesSameIslandOrDifPond(iTeam, 0, iCurWZ)

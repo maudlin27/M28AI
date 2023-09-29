@@ -1045,8 +1045,8 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
     local bDontCheckForNoRush = not(M28Overseer.bNoRushActive)
 
     --Get the blueprint to build
-    --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, iOptionalCategoryThatMustBeAbleToBuild, bGetCheapest)
-    local sBlueprintToBuild = sBlueprintOverride or M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oEngineer, false, false, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure)
+                                                            --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
+    local sBlueprintToBuild = sBlueprintOverride or M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oEngineer, false,          false,      bBuildCheapestStructure, iOptionalCategoryForStructureToBuild)
 
 
     if sBlueprintToBuild == nil then
@@ -1060,7 +1060,8 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
             elseif M28Utilities.DoesCategoryContainCategory(M28UnitInfo.refCategoryNavalFactory, iCategoryToBuild) then
                 iCategoryToBuild = M28UnitInfo.refCategoryNavalFactory
             end
-            sBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oEngineer, false, false, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure)
+                                        --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
+            sBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oEngineer, false,          false, bBuildCheapestStructure, iOptionalCategoryForStructureToBuild)
         end
         if not(sBlueprintToBuild) then
             if not(aiBrain[M28Overseer.refbCloseToUnitCap]) and not(M28Map.bIsCampaignMap) and not(M28Overseer.bUnitRestrictionsArePresent) then
@@ -1073,7 +1074,8 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
 
             --If trying to build experimental, then just build any kind of experimental
             if M28Overseer.bUnitRestrictionsArePresent and M28Utilities.DoesCategoryContainCategory(iCategoryToBuild, M28UnitInfo.refCategoryExperimentalLevel) and aiBrain:GetEconomyStoredRatio('MASS') >= 0.35 then
-                sBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryExperimentalLevel -categories.TRANSPORTATION - categories.TRANSPORTFOCUS - categories.NAVAL, oEngineer, false, false, nil, nil)
+                                            --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition,                                                                                                   oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
+                sBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryExperimentalLevel -categories.TRANSPORTATION - categories.TRANSPORTFOCUS - categories.NAVAL, oEngineer, false,        false,          nil,        nil)
                 --If we have ended up with a game ender then only proceed if we have sufficient eco
                 if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder, sBlueprintToBuild) and M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] < 80 then
                     --If <= 350 mass per sec+45m in gametime, or < 70% mass stored, then dont build
@@ -1806,8 +1808,8 @@ function BuildStructureNearLocation(aiBrain, oEngineer, iCategoryToBuild, iMaxAr
     local bAbortConstruction = false
 
     --Get the blueprint to build
-    --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, iOptionalCategoryThatMustBeAbleToBuild, bGetCheapest)
-    local sBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oEngineer, false, false, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure)
+                                    --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
+    local sBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oEngineer, false,        false,  bBuildCheapestStructure, iOptionalCategoryForStructureToBuild)
     local tTargetLocation
     if sBlueprintToBuild == nil then
         if not(aiBrain[M28Overseer.refbCloseToUnitCap]) then
@@ -1885,8 +1887,6 @@ function BuildStructureNearLocation(aiBrain, oEngineer, iCategoryToBuild, iMaxAr
                     local tBuildingPosition
 
                     if iCatToBuildBy then
-                        --sBlueprintBuildBy = M28FactoryOverseer.GetBlueprintThatCanBuildOfCategory(aiBrain, iCatToBuildBy, oEngineer)--, false, false)
-
                         toPossibleBuildingsToBuildBy = aiBrain:GetUnitsAroundPoint(iCatToBuildBy, tTargetLocation, iMaxAreaToSearch, 'Ally')
                         local iCurDist
                         local iClosestDist = 100000
@@ -4288,7 +4288,8 @@ function ActiveShieldMonitor(oUnitToProtect, tLZTeamData, iTeam)
                             if bDebugMessages == true then LOG(sFunctionRef..': Considering engineer '..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; Does this contain the required faction='..tostring(EntityCategoryContains(iEngineerFactionRequired, oEngineer.UnitId))) end
                             if EntityCategoryContains(iEngineerFactionRequired, oEngineer.UnitId) then
                                 iEngineerBuildOrderCount = iEngineerBuildOrderCount + 1
-                                local sBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iShieldCategoryToBuild, oEngineer, false, false, false, nil, false)
+                                                                    --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
+                                local sBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, iShieldCategoryToBuild, oEngineer, false,  false,          false,          nil,                                false)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Checking what shields engineer '..(oEngineer.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineer) or 'nil')..' can build; iOptionalFactionRequired='..(iOptionalFactionRequired or 'nil')..'; Will try and build unit '..sBlueprintToBuild..' at position '..repru(tPositionToBuild)) end
                                 --Have the 4th engineer try to build in the alt location, so if the main location is blocked we may still get construction started
                                 if iEngineerBuildOrderCount == 4 and tAltPositionToBuild then
@@ -4318,7 +4319,8 @@ function ActiveShieldMonitor(oUnitToProtect, tLZTeamData, iTeam)
                                     if bBuildAnyShield then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Have so many engineers of the wrong faction that will just try and get them to build a shield') end
                                         for iEngineer, oEngineer in toEngineersOfWrongFaction do
-                                            local sBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryFixedShield * categories.TECH3, oEngineer, false, false, false, nil, false)
+                                                                                --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition,                                   oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
+                                            local sBlueprintToBuild = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryFixedShield * categories.TECH3, oEngineer, false,       false,          false,      nil,                                 false)
                                             if bDebugMessages == true then LOG(sFunctionRef..': Checking what shields engineer '..(oEngineer.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oEngineer) or 'nil')..' can build as backup as dont have right faction; iOptionalFactionRequired='..(iOptionalFactionRequired or 'nil')..'; Will try and build unit '..(sBlueprintToBuild or 'nil')..' at position '..repru(tPositionToBuild)) end
                                             if sBlueprintToBuild then
                                                 M28Orders.IssueTrackedBuild(oEngineer, tPositionToBuild, sBlueprintToBuild, false, 'SBkEBS')
@@ -10558,7 +10560,7 @@ function GetMaxShieldSearchRangeForEngineer(oFirstEngineer, iCategoryWanted)
     if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetMaxShieldSearchRangeForEngineer'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
+                                            --GetBlueprintThatCanBuildOfCategory(aiBrain,               iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
     local tsAvailableBlueprints = M28Factory.GetBlueprintThatCanBuildOfCategory(oFirstEngineer:GetAIBrain(), iCategoryWanted, oFirstEngineer)
     local iMaxSearchRange = 10 --Default in case something goes wrong
     if M28Utilities.IsTableEmpty(tsAvailableBlueprints) == false then

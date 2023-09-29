@@ -825,6 +825,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                                 if bDebugMessages == true then LOG(sFunctionRef..': Redundancy - Attempted to build naval factory, is table of last orders empty='..tostring(M28Utilities.IsTableEmpty(oACU[M28Orders.reftiLastOrders]))..'; DoesACUHaveValidOrder(oACU)='..tostring(M28Conditions.DoesACUHaveValidOrder(oACU))) end
                                                 if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
                                                     --Are we capable of building a naval factory yet?
+                                                                                --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition,               oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
                                                     local sNavalFacBP = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryNavalFactory, oACU)
                                                     if sNavalFacBP then
 

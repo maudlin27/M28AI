@@ -1188,6 +1188,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                             ForkThread(M28Building.GetT3ArtiTarget, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryPD * categories.TECH1 + M28UnitInfo.refCategoryWall, oJustBuilt.UnitId) then
                             --Build T1 walls around T1 PD
+                                                    --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition,                                           oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
                             local sWallBP = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28Engineer.tiActionCategory[M28Engineer.refActionBuildWall], oEngineer)
                             if sWallBP then
                                 local tWallBuildLocation = M28Engineer.GetLocationToBuildWall(oEngineer, oJustBuilt, sWallBP)

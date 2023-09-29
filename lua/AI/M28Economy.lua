@@ -94,7 +94,7 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
 
                     if not(oUnitToUpgrade[refbQueuedTransport]) then
                         --Havent built any transports yet so build a T1 transport before we upgrade to T2 air
-
+                                                        --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition,           oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
                         local sTransportID = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryTransport, oUnitToUpgrade)
                         if sTransportID then
                             oUnitToUpgrade[refbQueuedTransport] = true
@@ -105,6 +105,7 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
                 end
             elseif EntityCategoryContains(M28UnitInfo.refCategoryLandFactory * categories.TECH2 + M28UnitInfo.refCategoryAirFactory * categories.TECH2, oUnitToUpgrade.UnitId) and aiBrain[refiOurHighestFactoryTechLevel] <= 2 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryEngineer - categories.TECH1) <= 5 then
                 --About to go for T3 factory but have hardl yany engineers so queue up an extra one
+                                        --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition,                oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
                 local sEngiID = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryEngineer, oUnitToUpgrade)
                 if sEngiID then
                     M28Orders.IssueTrackedFactoryBuild(oUnitToUpgrade, sEngiID, false, 'PreUp')
