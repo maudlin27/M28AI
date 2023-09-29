@@ -357,6 +357,10 @@ function OnUnitDeath(oUnit)
                                 end
                                 M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][iTargetIsland][oUnit[M28Air.refiTargetZoneForDrop]] = GetGameTimeSeconds()
                             end
+                        elseif oUnit[M28Air.refiTargetZoneForDrop] then --presumably a water zone if it has no island ref
+                            local iTeam = oUnit:GetAIBrain().M28Team
+                            if not(M28Team.tTeamData[iTeam][M28Team.refiLastFailedWaterZoneDropTime]) then M28Team.tTeamData[iTeam][M28Team.refiLastFailedWaterZoneDropTime] = {} end
+                            M28Team.tTeamData[iTeam][M28Team.refiLastFailedWaterZoneDropTime][oUnit[M28Air.refiTargetZoneForDrop]] = GetGameTimeSeconds()
                         end
 
                         --Logic that doesnt require the unit to ahve finished construction:
@@ -1950,7 +1954,7 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                                 if not(bAdjacentToCoreBase) then
                                     --Add to locations for priority transport drop
                                     M28Air.UpdateTransportLocationShortlist(iTeam) --incase not already run
-                                    M28Air.AddZoneToPotentialSameIslandDropZones(iTeam, iPlateauOrZero, iLandOrWaterZone)
+                                    M28Air.AddZoneToPotentailDropZonesSameIslandOrDifPond(iTeam, iPlateauOrZero, iLandOrWaterZone)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Have tried toa dd to same island drop list, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; iTeam='..iTeam) end
                                 end
                             end

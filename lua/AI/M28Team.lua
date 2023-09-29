@@ -173,8 +173,10 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist = 'M28TeamAirTransCurIslShortlist' --key is 1,2,...x, returns {iPlateau, iLandZone}, being locations on the same island as a base that want a drop due to how far away they are
     reftiPotentialDropIslandsByPlateau = 'M28TeamAirPotentialDropIslands' --List of islands by plateau that have mexes in them and no enemy start position
     reftiPotentialDropZonesByPlateau = 'M28TeamAirPotDropZones' --[x] is plateau, [y] = 1,2,...x, returns land zone ref for that plateau that we are happy to try and drop with a transport
+    reftiPotentialPondDropZones = 'M28TeamAirPotPondDrop' --[x] = 1,2,...x, returns the water zone
     refiLastFailedIslandDropTime = 'M28TeamAirLastFailedDrop' --Gametimeseconds where we last had a transport die while trying to drop this plateau
     refiLastFailedIslandAndZoneDropTime = 'M28TeamTrLstFailDByIZ' --[x] is the island, [y] is the land zone, returns gametimeseconds where we last had a transport die while tryign to drop
+    refiLastFailedWaterZoneDropTime = 'M28TeamTrLstFailWZ' --[x] is the water zone, returns gametimeseconds where we last had a transport die while traveling here
 
     --Misc details
     reftiTeamMessages = 'M28TeamMessages' --against tTeamData[aiBrain.M28Team], [x] is the message type string, returns the gametime that last sent a message of this type to the team
