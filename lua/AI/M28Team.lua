@@ -1049,17 +1049,30 @@ function LongRangeThreatMonitor(iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function AddUnitToLongRangeThreatTable(oUnit, iTeam)
+function AddUnitToLongRangeThreatTable(oUnit, iTeam, bCheckifAlreadyInTable)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AddUnitToLongRangeThreatTable'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    local bNotInTable = not(bCheckifAlreadyInTable)
     if not(tTeamData[iTeam][reftLongRangeEnemyMobileUnits]) then
         tTeamData[iTeam][reftLongRangeEnemyMobileUnits] = {}
+        bNotInTable = true
         ForkThread(LongRangeThreatMonitor, iTeam)
     end
-    table.insert(tTeamData[iTeam][reftLongRangeEnemyMobileUnits], oUnit)
-    if bDebugMessages == true then LOG(sFunctionRef..': End of code at time '..GetGameTimeSeconds()..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Added to table of long range units and started a monitor if one wasnt already started') end
+    if not(bNotInTable) then
+        bNotInTable = true
+        for iEntry, oExistingUnit in tTeamData[iTeam][reftLongRangeEnemyMobileUnits] do
+            if oUnit == oExistingUnit then
+                bNotInTable = false
+                break
+            end
+        end
+    end
+    if bNotInTable then
+        table.insert(tTeamData[iTeam][reftLongRangeEnemyMobileUnits], oUnit)
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code at time '..GetGameTimeSeconds()..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Added to table of long range units and started a monitor if one wasnt already started. Unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -1269,11 +1282,14 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                 tTeamData[aiBrain.M28Team][subrefbEnemyBuiltOmni] = true
                             end
 
+
                             --Track enemy big threats
-                            if bDebugMessages == true then LOG(sFunctionRef..': Is unit a big threat category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryBigThreatCategories, oUnit.UnitId))) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is unit a big threat category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryBigThreatCategories, oUnit.UnitId))..'; Unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; Unit indirect range='..(oUnit[M28UnitInfo.refiIndirectRange] or 'nil')..'; Is unit PD or land combat='..tostring(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryPD)..'; Unit build cost mass='..(oUnit:GetBlueprint().Economy.BuildCostMass or 0)) end
                             if EntityCategoryContains(M28UnitInfo.refCategoryBigThreatCategories, oUnit.UnitId) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will try and add unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to big threat table, aiBrain='..(aiBrain.Nickname or 'nil')..' team='..(aiBrain.M28Team or 'nil')) end
                                 AddUnitToBigThreatTable(aiBrain.M28Team, oUnit)
+                            elseif (oUnit[M28UnitInfo.refiDFRange] or 0) > 50 and ((oUnit[M28UnitInfo.refiDFRange] or 0) > 80 or EntityCategoryContains(M28UnitInfo.refCategoryPD, oUnit.UnitId)) and EntityCategoryContains(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryPD, oUnit.UnitId) and (oUnit:GetBlueprint().Economy.BuildCostMass or 0) >= 600 then
+                                AddUnitToLongRangeThreatTable(oUnit, aiBrain.M28Team, true)
                             end
 
                             --Add long range enemy T2 arti
