@@ -799,7 +799,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                 --Adjust threat for health
                 if iBaseThreat > 0 then
                     --Increase for cargo of transports
-                    if bIncludeAirToGround and EntityCategoryContains(categories.TRANSPORTATION, oUnit.UnitId) and oUnit.GetCargo then
+                    if bIncludeAirToGround and EntityCategoryContains(refCategoryTransport, oUnit.UnitId) and oUnit.GetCargo then --Use refcategoryTransport as Brewlan gives torp bombers the transportation category, and checking .GetCargo first doesnt prevent an error
                         if bDebugMessages == true then LOG(sFunctionRef..': Have an enemy transport, will get its cargo and see if it contains LABs') end
                         --Include threat of cargo if cargo are LABs
                         local tCargo = oUnit:GetCargo()
