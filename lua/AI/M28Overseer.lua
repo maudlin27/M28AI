@@ -185,6 +185,7 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
     local tFriendlyACU = aiBrain:GetListOfUnits(categories.COMMAND, false, true)
     if bDebugMessages == true then LOG(sFunctionRef..': Is table of friendly ACU empty='..tostring(M28Utilities.IsTableEmpty(tFriendlyACU))) end
     if M28Utilities.IsTableEmpty(tFriendlyACU) == false then
+                                    --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition,               oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
         local sBlueprint = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryAirFactory, tFriendlyACU[1])
         if bDebugMessages == true then LOG(sFunctionRef..': If ACU '..tFriendlyACU[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(tFriendlyACU[1])..' tries to build an air factory, sBLueprint is '..(sBlueprint or 'nil')) end
         if not(sBlueprint) then
@@ -464,12 +465,18 @@ function NoRushMonitor()
 end
 
 function TestCustom(aiBrain)
+    --Spawn in a novax for testing:
+    --[[local oACU = aiBrain:GetListOfUnits(categories.COMMAND)[1]
+    local tPos = oACU:GetPosition()
+    tPos[1] = tPos[1] + 10
+    tPos[3] = tPos[3] + 10
+    CreateUnit('xeb2402', oACU.Army, tPos[1], tPos[2], tPos[3], 0, 0, 0, 0, 'Air')--]]
     --LOG('Is novax restricted='..tostring(import("/lua/game.lua").IsRestricted('xeb2402', aiBrain:GetArmyIndex())))
 
     --M28Map.DrawLandZonePath(88, 21, 34)
 
 
-    M28Map.DrawSpecificLandZone(89, 28, 4)
+    --M28Map.DrawSpecificLandZone(89, 28, 4)
     --[[
     M28Map.DrawSpecificLandZone(88, 34, 5)--]]
     --local tCivilianMexes = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryMex, M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()], 10000, 'Neutral')

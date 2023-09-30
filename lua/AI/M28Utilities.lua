@@ -60,7 +60,7 @@ function ErrorHandler(sErrorMessage, bWarningNotError, bIgnoreCount, iIntervalOv
 end
 
 
-function IsTableEmpty(tTable, bEmptyIfNonTableWithValue)
+function IsTableEmpty(tTable, bEmptyIfNonTableWithValue, iOptionalCycleCount)
     --bEmptyIfNonTableWithValue - Optional, defaults to true
     --E.g. if passed oUnit to a function that was expecting a table, then setting bEmptyIfNonTableWithValue = false means it will register the table isn't nil
 
@@ -68,7 +68,8 @@ function IsTableEmpty(tTable, bEmptyIfNonTableWithValue)
         if next (tTable) == nil then return true
         else
             for i1, v1 in pairs(tTable) do
-                if IsTableEmpty(v1, false) == false then return false end
+                if iOptionalCycleCount and iOptionalCycleCount >= 3 then return true
+                elseif IsTableEmpty(v1, false, (iOptionalCycleCount or 0) + 1) == false then return false end
             end
             return true
         end

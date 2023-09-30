@@ -1358,22 +1358,36 @@ function RecordResourcePoint(sResourceType,x,y,z,size)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': sResourceType='..sResourceType..'; x='..x..'; y='..y..'; z='..z..'; size='..repru(size)..'; Mass count pre update='..table.getn(tMassPoints)..'; Hydro points pre update='..table.getn(tHydroPoints)) end
 
+    local bAlreadyRecorded = false
+    local tResourceTableRef
     if sResourceType == 'Mass' then
-        table.insert(tMassPoints, {x,y,z})
+        tResourceTableRef = tMassPoints
     elseif sResourceType == 'Hydrocarbon' then
-        table.insert(tHydroPoints, {x,y,z})
+        tResourceTableRef = tHydroPoints
     end
-    if bMapLandSetupComplete and GetGameTimeSeconds() >= 3 then
-        --E.g. crazyrush type map
-        local iPlateauOrZero, iLandOrWaterZone = GetClosestPlateauOrZeroAndZoneToPosition({ x,y,z })
-        if bDebugMessages == true then LOG(sFunctionRef..': Map setup is already complete, assumed crazyrsuh scenario, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; xyz='..x..'-'..y..'-'..z) end
-        if iLandOrWaterZone > 0 then
-            if iPlateauOrZero == 0 then
-                AddMexToWaterZone(tiPondByWaterZone[iLandOrWaterZone], iLandOrWaterZone, { x,y,z})
-            else
-                AddMexToLandZone(iPlateauOrZero, iLandOrWaterZone, nil, nil, {x,y,z})
+    if M28Utilities.IsTableEmpty(tResourceTableRef) == false then
+        for iEntry, tResource in tResourceTableRef do
+            if tResource[1] == x and tResource[3] == z then bAlreadyRecorded = true break end
+        end
+    end
+    if not(bAlreadyRecorded) then
+        table.insert(tResourceTableRef, {x,y,z})
+
+        if bMapLandSetupComplete and GetGameTimeSeconds() >= 3 then
+            --E.g. crazyrush type map
+            local iPlateauOrZero, iLandOrWaterZone = GetClosestPlateauOrZeroAndZoneToPosition({ x,y,z })
+            if bDebugMessages == true then LOG(sFunctionRef..': Map setup is already complete, assumed crazyrsuh scenario, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; xyz='..x..'-'..y..'-'..z) end
+            if iLandOrWaterZone > 0 then
+                if iPlateauOrZero == 0 then
+                    AddMexToWaterZone(tiPondByWaterZone[iLandOrWaterZone], iLandOrWaterZone, { x,y,z})
+                else
+                    AddMexToLandZone(iPlateauOrZero, iLandOrWaterZone, nil, nil, {x,y,z})
+                end
             end
         end
+    else
+        M28Utilities.ErrorHandler('Tried to record a mex but a resource point was already recorded at this position - presumed an error with the map', true)
+        LOG(sFunctionRef..': Mex position=X'..x..'Z'..z)
     end
     if bDebugMessages == true then LOG(sFunctionRef..': End of hook; Mass points post update='..table.getn(tMassPoints)..'; Hydro poitns post update='..table.getn(tHydroPoints)) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -2146,7 +2160,7 @@ local function AssignMexesALandZone()
                         if M28Utilities.GetDistanceBetweenPositions(tAltMex, tMex) <= iMaxRange and M28Utilities.GetTravelDistanceBetweenPositions(tAltMex, tMex) <= iMaxRange then
                             AddMexToLandZone(iPlateau, iCurLandZone, iAltMex, tiPlateauLandZoneByMexRef)
                             if bDebugMessages == true then
-                                LOG(sFunctionRef..': Added mex '..iAltMex..' with position '..repru(tAltMex)..' to land zone, tiPlateauLandZoneByMexRef='..(tiPlateauLandZoneByMexRef[iAltMex] or 'nil')..'; Distance in straight line='..M28Utilities.GetDistanceBetweenPositions(tAltMex, tMex)..'; Travel distance='..M28Utilities.GetTravelDistanceBetweenPositions(tAltMex, tMex)..'; tMex='..repru(tMex)..'; tAltMex='..repru(tAltMex)..'; Land label for tMex='..(NavUtils.GetLabel(refPathingTypeLand, tMex) or 'nil')..'; land label for tAltMex='..(NavUtils.GetLabel(refPathingTypeLand, tAltMex) or 'nil'))
+                                LOG(sFunctionRef..': Added mex '..repru(iAltMex)..' with position '..repru(tAltMex)..' to land zone, tiPlateauLandZoneByMexRef='..repru((tiPlateauLandZoneByMexRef[iPlateau] or {'nil'}))..'; Distance in straight line='..M28Utilities.GetDistanceBetweenPositions(tAltMex, tMex)..'; Travel distance='..M28Utilities.GetTravelDistanceBetweenPositions(tAltMex, tMex)..'; tMex='..repru(tMex)..'; tAltMex='..repru(tAltMex)..'; Land label for tMex='..(NavUtils.GetLabel(refPathingTypeLand, tMex) or 'nil')..'; land label for tAltMex='..(NavUtils.GetLabel(refPathingTypeLand, tAltMex) or 'nil'))
                                 M28Utilities.DrawLocation(tAltMex, 2)
                                 M28Utilities.DrawLocation(tMex, 1)
                             end
@@ -2229,7 +2243,6 @@ local function AssignMexesALandZone()
     local iClosestStraightLineTravelDist
     
     local tbStartingMexesRecordedByPlateau = {} --Tracks if we have already recorded a mex as near a brain start so we dont try and re-record it
-
     for iPlateau, tPlateauSubtable in tAllPlateaus do        
         if M28Utilities.IsTableEmpty(tPlateauSubtable[subrefPlateauMexes]) == false then
             tbStartingMexesRecordedByPlateau[iPlateau] = {}
@@ -2264,6 +2277,7 @@ local function AssignMexesALandZone()
                             end
                         end
                     end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iMex='..iMex..'; tMex='..repru(tMex)..' for iPlateau='..iPlateau..'; will look for the closest brain start position and assign the mex to the same zone if it is close enough. iClosestStraightLineIndex='..(iClosestStraightLineIndex or 'nil')) end
                     if iClosestStraightLineIndex then
                         iClosestDistTravel = M28Utilities.GetTravelDistanceBetweenPositions(tMex, tRelevantStartPointsByIndex[iClosestStraightLineIndex], refPathingTypeLand)
                         iClosestBrainIndex = iClosestStraightLineIndex
@@ -7386,7 +7400,6 @@ function RecordBrainStartPoint(oBrain)
     end
 
     if not(NavUtils.GetTerrainLabel(refPathingTypeHover, tStartPoint)) then
-        if not(bIsCampaignMap) then M28Utilities.ErrorHandler('Brain '..(oBrain.Nickname or 'nil')..' with index '..oBrain:GetArmyIndex()..' has a start position that doesnt have a plateau reference and this isnt a campaign map') end
         local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tStartPoint)
         local bHaveValidStartPoint = false
         local tAltStartPoint
@@ -7424,6 +7437,8 @@ function RecordBrainStartPoint(oBrain)
             end
             if bHaveValidStartPoint then break end
         end
+
+        if not(bIsCampaignMap) and not(M28Conditions.IsCivilianBrain(oBrain)) then M28Utilities.ErrorHandler('Non-civilian brain '..(oBrain.Nickname or 'nil')..' with index '..oBrain:GetArmyIndex()..' has a start position that doesnt have a plateau reference and this isnt a campaign map') end
 
         if not(bHaveValidStartPoint) then M28Utilities.ErrorHandler('Have been through 50 adjacent segments and not found a valid start point for brain '..(oBrain.Nickname or 'nil')..' with start position '..repru(tStartPoint))
         else

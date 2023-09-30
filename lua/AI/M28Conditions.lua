@@ -1200,7 +1200,7 @@ function HaveEnoughThreatToAttack(tLZTeamData, iOurCombatThreat, iEnemyCombatThr
         --Wnat to be more aggressive if we have friendly buildings in the zone or engineers and we have a chance of beating the enemy
     elseif iOurCombatThreat >= iEnemyCombatThreat and iFirebaseThreatAdjust == 0 and ((tLZTeamData[M28Map.subrefLZSValue] or 0) > 0 or (iEnemyCombatThreat <= 200 and (tLZTeamData[M28Map.subrefLZTValue] >= iOurCombatThreat or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subrefLZTAlliedUnits])) == false))) then
         return true
-    elseif iOurCombatThreat >= 15000 and iOurCombatThreat > (iEnemyCombatThreat + iFirebaseThreatAdjust) * 0.9 and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]) == false then
+    elseif iOurCombatThreat >= 15000 and iOurCombatThreat > (iEnemyCombatThreat + iFirebaseThreatAdjust) * 0.9 and (M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]) == false) then
         --Does enemy have gameender or lots of T3 arti? in which case want to lower threshold
         local iEnemyArtiCount = 0
         for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure] do
@@ -1214,6 +1214,14 @@ function HaveEnoughThreatToAttack(tLZTeamData, iOurCombatThreat, iEnemyCombatThr
                     if iEnemyArtiCount >= 3 then return true end
                 end
             end
+        end
+        if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyMobileSatellites]) == false then
+            local iNovaxCount = 0
+            for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyMobileSatellites] do
+                iNovaxCount = iNovaxCount + 1
+            end
+            iEnemyArtiCount = math.max(iEnemyArtiCount, iNovaxCount * 0.5)
+            if iEnemyArtiCount >= 3 then return true end
         end
     end
         return false
@@ -1871,13 +1879,17 @@ function GetEnemyOmniCoverageOfZone(iPlateauOrZero, iLandOrWaterZone, iTeam)
     local iEnemyOmniCoverage = 0
     if (tLZOrWZData[M28Map.refiAllOmniCoverage] or 0) > 0 then
         local iCurOmniCoverage = 0
-        for iUnit, oUnit in tLZOrWZData[M28Map.reftoAllOmniRadar] do
-            if not(oUnit:GetAIBrain().M28Team == iTeam) then
-                iCurOmniCoverage = (oUnit:GetBlueprint().Intel.OmniRadius or 0) - M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint])
-                if iCurOmniCoverage > iEnemyOmniCoverage then
-                    iEnemyOmniCoverage = iCurOmniCoverage
+        if IsTableOfUnitsStillValid(tLZOrWZData[M28Map.reftoAllOmniRadar]) then
+            for iUnit, oUnit in tLZOrWZData[M28Map.reftoAllOmniRadar] do
+                if not(oUnit:GetAIBrain().M28Team == iTeam) then
+                    iCurOmniCoverage = (oUnit:GetBlueprint().Intel.OmniRadius or 0) - M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint])
+                    if iCurOmniCoverage > iEnemyOmniCoverage then
+                        iEnemyOmniCoverage = iCurOmniCoverage
+                    end
                 end
             end
+        else
+            tLZOrWZData[M28Map.refiAllOmniCoverage] = 0
         end
     end
     return iEnemyOmniCoverage
@@ -1908,6 +1920,13 @@ function GetT3ArtiEquivalent(iTeam, iNovaxFactor, iNonArtiGameEnderFactor, bAppl
                 end
             end
         end
+    end
+    if IsTableOfUnitsStillValid(M28Team.tTeamData[iTeam][M28Team.reftEnemyMobileSatellites]) then
+        local iNovaxCount = 0
+        for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyMobileSatellites] do
+            iNovaxCount = iNovaxCount + 1
+        end
+        iT3ArtiEquivalent = math.max(iT3ArtiEquivalent, iNovaxCount * iNovaxFactor)
     end
     return iT3ArtiEquivalent
 end

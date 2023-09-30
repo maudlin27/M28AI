@@ -124,7 +124,7 @@ refCategoryAirStaging = categories.STRUCTURE * categories.AIRSTAGINGPLATFORM
 refCategoryRadar = categories.STRUCTURE * categories.RADAR + categories.STRUCTURE * categories.OMNI
 refCategoryT1Radar = refCategoryRadar * categories.TECH1
 refCategoryT2Radar = refCategoryRadar * categories.TECH2
-refCategoryT3Radar = refCategoryRadar * categories.TECH3 --+ categories.OMNI * categories.TECH3 (dont need this as refcategoryradar already includes omni)
+refCategoryT3Radar = categories.TECH3 * categories.STRUCTURE * categories.OMNI -categories.FACTORY --+ categories.OMNI * categories.TECH3 (dont need this as refcategoryradar already includes omni)
 refCategorySonar = categories.STRUCTURE * categories.SONAR + categories.MOBILESONAR
 refCategoryT1Sonar = refCategorySonar * categories.TECH1
 refCategoryT2Sonar = refCategorySonar * categories.TECH2
@@ -142,6 +142,7 @@ refCategoryAirHQ = refCategoryAirFactory - categories.SUPPORTFACTORY
 refCategoryNavalFactory = categories.NAVAL * categories.FACTORY * categories.STRUCTURE - categories.EXTERNALFACTORYUNIT
 refCategoryNavalHQ = refCategoryNavalFactory - categories.SUPPORTFACTORY
 refCategoryMobileLandFactory = categories.LAND * categories.FACTORY * categories.STRUCTURE * categories.EXTERNALFACTORYUNIT
+refCategorySpecialFactory = categories.FACTORY * categories.EXPERIMENTAL * categories.STRUCTURE - categories.EXTERNALFACTORYUNIT --e.g. novax centre (that can build novax)
 refCategoryFactory = refCategoryLandFactory + refCategoryAirFactory + refCategoryNavalFactory
 refCategoryAllHQFactories = refCategoryFactory - categories.SUPPORTFACTORY
 refCategoryQuantumGateway = categories.STRUCTURE * categories.GATE * categories.TECH3 * categories.FACTORY - categories.EXTERNALFACTORYUNIT
@@ -159,7 +160,7 @@ refCategorySML = categories.NUKE * categories.SILO
 refCategorySMD = categories.ANTIMISSILE * categories.SILO * categories.TECH3 * categories.STRUCTURE
 refCategoryTML = categories.SILO * categories.STRUCTURE * categories.TECH2 - categories.ANTIMISSILE
 refCategoryUnitsWithTMLUpgrade = categories.COMMAND * categories.UEF + categories.COMMAND * categories.SERAPHIM + categories.SUBCOMMANDER * categories.SERAPHIM
-refCategoryNovaxCentre = categories.EXPERIMENTAL * categories.STRUCTURE * categories.ORBITALSYSTEM
+refCategoryNovaxCentre = categories.EXPERIMENTAL * categories.STRUCTURE * categories.ORBITALSYSTEM - categories.OPTICS --OPTICS is contained in a 'spy plane novax' building in brewlan
 refCategorySatellite = categories.EXPERIMENTAL * categories.SATELLITE
 --refCategorySAM = categories.ANTIAIR * categories.STRUCTURE * categories.TECH3
 refCategoryQuantumOptics = categories.INTELLIGENCE * categories.OPTICS * categories.AEON * categories.STRUCTURE * categories.TECH3 - refCategoryRadar
@@ -168,7 +169,7 @@ refCategoryUpgraded = refCategoryT2Radar + refCategoryT3Radar + refCategoryT2Son
 
 --Land units
 refCategoryScathis = categories.CYBRAN * categories.ARTILLERY * categories.EXPERIMENTAL
-refCategoryExperimentalStructure = refCategoryScathis + categories.STRUCTURE * categories.EXPERIMENTAL
+refCategoryExperimentalStructure = refCategoryScathis + categories.STRUCTURE * categories.EXPERIMENTAL -categories.OPTICS
 refCategoryLandExperimental = categories.EXPERIMENTAL * categories.MOBILE * categories.LAND - categories.CYBRAN * categories.ARTILLERY - categories.UNSELECTABLE - categories.UNTARGETABLE
 refCategoryMonkeylord = refCategoryLandExperimental * categories.BOT * categories.DIRECTFIRE - categories.SNIPER
 refCategoryMegalith = refCategoryLandExperimental * categories.BOT * categories.DIRECTFIRE * categories.SNIPER
@@ -214,12 +215,12 @@ refCategoryAirAA = categories.AIR * categories.ANTIAIR - categories.BOMBER - cat
 refCategoryBomber = categories.AIR * categories.BOMBER - categories.ANTINAVY - categories.CANNOTUSEAIRSTAGING --excludes mercies
 refCategoryFighterBomber = categories.AIR * categories.ANTIAIR * categories.BOMBER - categories.EXPERIMENTAL
 refCategoryGunship = categories.AIR * categories.GROUNDATTACK
-refCategoryTorpBomber = categories.AIR * categories.BOMBER * categories.ANTINAVY
+refCategoryTorpBomber = categories.AIR * categories.BOMBER * categories.ANTINAVY + (categories.AIR * categories.ANTINAVY - categories.EXPERIMENTAL)
 refCategoryAllAir = categories.MOBILE * categories.AIR - categories.UNTARGETABLE --Excludes novax
 refCategoryAllNonExpAir = categories.MOBILE * categories.AIR * categories.TECH1 + categories.MOBILE * categories.AIR * categories.TECH2 + categories.MOBILE * categories.AIR * categories.TECH3
 refCategoryAirNonScout = refCategoryAllAir - categories.SCOUT
 refCategoryMercy = categories.HIGHPRIAIR * categories.AEON * categories.BOMBER * categories.TECH2
-refCategoryTransport = categories.AIR * categories.TRANSPORTATION - categories.UEF * categories.GROUNDATTACK
+refCategoryTransport = categories.AIR * categories.TRANSPORTATION - categories.UEF * categories.GROUNDATTACK - refCategoryTorpBomber
 refCategoryRestorer = refCategoryGunship * categories.ANTIAIR
 refCategoryCzar = categories.AIR * categories.EXPERIMENTAL * categories.ANTIAIR * categories.AEON
 refCategoryAirToGround = refCategoryBomber + refCategoryGunship + refCategoryCzar + refCategoryMercy --i.e. excludes torp bombers
@@ -259,7 +260,7 @@ refCategoryAllNonAirScoutUnits = categories.MOBILE + refCategoryStructure + refC
 refCategoryStealthGenerator = categories.STEALTHFIELD
 refCategoryStealthAndCloakPersonal = categories.STEALTH
 refCategoryProtectFromTML = refCategoryStructure * categories.TECH2 + refCategoryStructure * categories.TECH3 + refCategoryExperimentalStructure - categories.FACTORY --Previously was: refCategoryT2Mex + refCategoryT3Mex + refCategoryT2Power + refCategoryT3Power + refCategoryFixedT2Arti
-refCategoryExperimentalLevel = categories.EXPERIMENTAL + refCategoryFixedT3Arti + refCategorySML
+refCategoryExperimentalLevel = categories.EXPERIMENTAL + refCategoryFixedT3Arti + refCategorySML - categories.OPTICS
 refCategoryGameEnder = refCategoryExperimentalArti + categories.EXPERIMENTAL * categories.STRUCTURE * categories.SILO + refCategoryParagon
 refCategoryBigThreatCategories = refCategoryExperimentalLevel + refCategoryMissileShip + refCategorySMD + refCategoryNavalSurface * categories.BATTLESHIP --Note - this is different to M27 which only considers land experimentals as big threat categories
 refCategoryFirebaseSuitable = refCategoryPD + refCategoryT1Radar + refCategoryT2Radar + refCategorySMD + refCategoryTMD + refCategoryFixedShield + refCategoryFixedT2Arti + refCategoryStructureAA
@@ -799,7 +800,7 @@ function GetAirThreatLevel(tUnits, bEnemyUnits, bIncludeAirToAir, bIncludeGround
                 --Adjust threat for health
                 if iBaseThreat > 0 then
                     --Increase for cargo of transports
-                    if bIncludeAirToGround and EntityCategoryContains(categories.TRANSPORTATION, oUnit.UnitId) and oUnit.GetCargo then
+                    if bIncludeAirToGround and EntityCategoryContains(refCategoryTransport, oUnit.UnitId) and oUnit.GetCargo then --Use refcategoryTransport as Brewlan gives torp bombers the transportation category, and checking .GetCargo first doesnt prevent an error
                         if bDebugMessages == true then LOG(sFunctionRef..': Have an enemy transport, will get its cargo and see if it contains LABs') end
                         --Include threat of cargo if cargo are LABs
                         local tCargo = oUnit:GetCargo()
@@ -1304,6 +1305,8 @@ function RecordUnitRange(oUnit)
                         --Ignore
                     elseif oUnit.UnitId == 'uab4201' then
                         --Aeon TMD - ignore as it has a rangecategory for the weapon that uses the correct range so want to ignore the other waepon anyway
+                    elseif oCurWeapon.WeaponCategory == 'Death' then
+                        --Do nothing - e.g. units like energy storage
                     else
                         M28Utilities.ErrorHandler('Unrecognised range category for unit '..oUnit.UnitId)
                         --If this triggers do a reprs of the weapon to figure out why (i.e. uncomment out the below)

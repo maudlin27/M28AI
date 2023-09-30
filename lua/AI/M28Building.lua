@@ -143,7 +143,7 @@ function CheckIfUnitWantsFixedShield(oUnit, bCheckForNearbyShields, iOptionalShi
             if iPlateau > 0 and iLandZone > 0 then
                 oUnit[refbUnitWantsShielding] = true
                 table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.reftoLZUnitWantingFixedShield], oUnit)
-                if bDebugMessages == true then LOG(sFunctionRef..': Have added unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to table of units wanting shielding') end
+                if bDebugMessages == true then LOG(sFunctionRef..': Have added unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to table of units wanting shielding to iPlateau='..iPlateau..'; iLandZOne='..iLandZone) end
             end
         end
     else

@@ -357,6 +357,10 @@ function OnUnitDeath(oUnit)
                                 end
                                 M28Team.tTeamData[iTeam][M28Team.refiLastFailedIslandAndZoneDropTime][iTargetIsland][oUnit[M28Air.refiTargetZoneForDrop]] = GetGameTimeSeconds()
                             end
+                        elseif oUnit[M28Air.refiTargetZoneForDrop] then --presumably a water zone if it has no island ref
+                            local iTeam = oUnit:GetAIBrain().M28Team
+                            if not(M28Team.tTeamData[iTeam][M28Team.refiLastFailedWaterZoneDropTime]) then M28Team.tTeamData[iTeam][M28Team.refiLastFailedWaterZoneDropTime] = {} end
+                            M28Team.tTeamData[iTeam][M28Team.refiLastFailedWaterZoneDropTime][oUnit[M28Air.refiTargetZoneForDrop]] = GetGameTimeSeconds()
                         end
 
                         --Logic that doesnt require the unit to ahve finished construction:
@@ -1010,7 +1014,9 @@ function OnConstructed(oEngineer, oJustBuilt)
             M28Orders.ClearAnyRepairingUnits(oJustBuilt)
             if M28Utilities.IsTableEmpty(oJustBuilt[M28Land.reftoUnitsToKillOnCompletion]) == false then
                 for iUnit, oUnit in oJustBuilt[M28Land.reftoUnitsToKillOnCompletion] do
-                    M28Orders.IssueTrackedKillUnit(oUnit)
+                    if M28UnitInfo.IsUnitValid(oUnit) then
+                        M28Orders.IssueTrackedKillUnit(oUnit)
+                    end
                 end
                 oJustBuilt[M28Land.reftoUnitsToKillOnCompletion] = nil
             end
@@ -1184,6 +1190,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                             ForkThread(M28Building.GetT3ArtiTarget, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryPD * categories.TECH1 + M28UnitInfo.refCategoryWall, oJustBuilt.UnitId) then
                             --Build T1 walls around T1 PD
+                                                    --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition,                                           oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
                             local sWallBP = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28Engineer.tiActionCategory[M28Engineer.refActionBuildWall], oEngineer)
                             if sWallBP then
                                 local tWallBuildLocation = M28Engineer.GetLocationToBuildWall(oEngineer, oJustBuilt, sWallBP)
@@ -1259,7 +1266,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                     --Logic based on the engineer
                     if EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
                         M28ACU.GetACUOrder(oEngineer:GetAIBrain(), oEngineer)
-                    elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategoryMobileLandFactory, oEngineer.UnitId) then
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategoryMobileLandFactory + M28UnitInfo.refCategorySpecialFactory, oEngineer.UnitId) then
                         if bDebugMessages == true then LOG(sFunctionRef..': A factory has just built a unit so will get the next order for the factory') end
                         ForkThread(M28Factory.DecideAndBuildUnitForFactory, oEngineer:GetAIBrain(), oEngineer)
                         --Treat the unit just built as having micro active so it doesn't receive orders for a couple of seconds (so it can clear the factory)
@@ -1288,7 +1295,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                     end
 
                     --Logic based on the type of unit built
-                    if EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategoryMobileLandFactory, oJustBuilt.UnitId) then
+                    if EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategoryMobileLandFactory + M28UnitInfo.refCategorySpecialFactory, oJustBuilt.UnitId) then
                         if bDebugMessages == true then LOG(sFunctionRef..': A factory has just been built so will get the next order for the factory') end
                         ForkThread(M28Factory.DecideAndBuildUnitForFactory, aiBrain, oJustBuilt)
                         if EntityCategoryContains(M28UnitInfo.refCategoryAllHQFactories, oJustBuilt.UnitId) then
@@ -1648,7 +1655,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                     M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityMissileShip, true)
                 elseif EntityCategoryContains(M28UnitInfo.refCategoryBattleship, oUnit.UnitId) then
                     M28UnitInfo.SetUnitWeaponTargetPriorities(oUnit, M28UnitInfo.refWeaponPriorityBattleShip, true)
-                elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategoryMobileLandFactory, oUnit.UnitId) then
+                elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategoryMobileLandFactory + M28UnitInfo.refCategorySpecialFactory, oUnit.UnitId) then
                     --If have been gifted factory or created via cheat then want to start building something
                     oUnit[M28Factory.refiTotalBuildCount] = 0
                     if oUnit:GetFractionComplete() >= 1 then
@@ -1950,7 +1957,7 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                                 if not(bAdjacentToCoreBase) then
                                     --Add to locations for priority transport drop
                                     M28Air.UpdateTransportLocationShortlist(iTeam) --incase not already run
-                                    M28Air.AddZoneToPotentialSameIslandDropZones(iTeam, iPlateauOrZero, iLandOrWaterZone)
+                                    M28Air.AddZoneToPotentialDropZonesSameIslandOrDifPond(iTeam, iPlateauOrZero, iLandOrWaterZone)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Have tried toa dd to same island drop list, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; iTeam='..iTeam) end
                                 end
                             end

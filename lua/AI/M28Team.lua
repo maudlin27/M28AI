@@ -112,6 +112,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     reftEnemyNukeLaunchers = 'M28TeamENuke'
     reftEnemySMD = 'M28TeamESMD'
     reftEnemyBattleships = 'M28TeamEBS' --table of enemy battleships
+    reftEnemyMobileSatellites = 'M28TeamESat' --table of novax satellites; done to avoid double-counting threat if include in reftEnemyArtiAndExpStructure (which has the centre)
     refbEnemySMDBuiltSinceLastNukeCheck = 'M28TeamESMDBuilt' --True when enemy SMD is detected, used to decide to rerun logic for identifying nuke land zone targets for deciding whether to build nuke
     refbEnemySMDDiedSinceLastNukeCheck = 'M28TeamESMDDied' --True when enemy SMD is dies, used to decide to rerun logic for identifying nuke land zone targets for deciding whether to build nuke
     refbEnemyHasSub = 'M28EnemyHasSub' --true if enemy has sub - used to be more cautious with ACU
@@ -173,8 +174,10 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist = 'M28TeamAirTransCurIslShortlist' --key is 1,2,...x, returns {iPlateau, iLandZone}, being locations on the same island as a base that want a drop due to how far away they are
     reftiPotentialDropIslandsByPlateau = 'M28TeamAirPotentialDropIslands' --List of islands by plateau that have mexes in them and no enemy start position
     reftiPotentialDropZonesByPlateau = 'M28TeamAirPotDropZones' --[x] is plateau, [y] = 1,2,...x, returns land zone ref for that plateau that we are happy to try and drop with a transport
+    reftiPotentialPondDropZones = 'M28TeamAirPotPondDrop' --[x] = 1,2,...x, returns the water zone
     refiLastFailedIslandDropTime = 'M28TeamAirLastFailedDrop' --Gametimeseconds where we last had a transport die while trying to drop this plateau
     refiLastFailedIslandAndZoneDropTime = 'M28TeamTrLstFailDByIZ' --[x] is the island, [y] is the land zone, returns gametimeseconds where we last had a transport die while tryign to drop
+    refiLastFailedWaterZoneDropTime = 'M28TeamTrLstFailWZ' --[x] is the water zone, returns gametimeseconds where we last had a transport die while traveling here
 
     --Misc details
     reftiTeamMessages = 'M28TeamMessages' --against tTeamData[aiBrain.M28Team], [x] is the message type string, returns the gametime that last sent a message of this type to the team
@@ -231,7 +234,7 @@ tLandSubteamData = {} --tLandSubteamData[oBrain.M28LandSubteam] results in the b
 
 
 --Other variables dependent on above:
-tEnemyBigThreatCategories = { [reftEnemyLandExperimentals] = M28UnitInfo.refCategoryLandExperimental, [reftEnemyArtiAndExpStructure] = M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalStructure, [reftEnemyNukeLaunchers] = M28UnitInfo.refCategorySML, [reftEnemySMD] = M28UnitInfo.refCategorySMD, [reftEnemyBattleships] = M28UnitInfo.refCategoryNavalSurface * categories.BATTLESHIP }
+tEnemyBigThreatCategories = { [reftEnemyLandExperimentals] = M28UnitInfo.refCategoryLandExperimental, [reftEnemyArtiAndExpStructure] = M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryExperimentalStructure, [reftEnemyNukeLaunchers] = M28UnitInfo.refCategorySML, [reftEnemySMD] = M28UnitInfo.refCategorySMD, [reftEnemyBattleships] = M28UnitInfo.refCategoryNavalSurface * categories.BATTLESHIP, [reftEnemyMobileSatellites] = M28UnitInfo.refCategorySatellite }
 
 
 
@@ -527,6 +530,7 @@ function CreateNewTeam(aiBrain)
     tTeamData[iTotalTeamCount][reftEnemyArtiAndExpStructure] = {}
     tTeamData[iTotalTeamCount][reftEnemyNukeLaunchers] = {}
     tTeamData[iTotalTeamCount][reftEnemySMD] = {}
+    tTeamData[iTotalTeamCount][reftEnemyMobileSatellites] = {}
     tTeamData[iTotalTeamCount][subreftTeamEngineersBuildingExperimentals] = {}
     tTeamData[iTotalTeamCount][refiLastFailedIslandDropTime] = {}
     tTeamData[iTotalTeamCount][refiLastFailedIslandAndZoneDropTime] = {}
@@ -714,8 +718,28 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
                     end
                 end
             elseif IsAlly(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
-                table.insert(M28Map.tAllPlateaus[iPlateauRef][M28Map.subrefPlateauLandZones][iLandZoneRef][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTAlliedUnits], oUnit)
+                local tLZData = M28Map.tAllPlateaus[iPlateauRef][M28Map.subrefPlateauLandZones][iLandZoneRef]
+                table.insert(tLZData[M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTAlliedUnits], oUnit)
                 if M28Config.M28ShowUnitNames then oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'New P'..iPlateauRef..'LZ'..iLandZoneRef) end
+                --Reset assigned value (if it has one) if the zone it last had orders from is no longer adjacent
+                if oUnit[M28Land.refiCurrentAssignmentValue] then
+                    local iLastOrderZone = oUnit[M28Land.refiCurrentAssignmentPlateauAndLZ][2]
+                    local bOrderZoneAdjacent = false
+                    if iLastOrderZone == iLandZoneRef then
+                        bOrderZoneAdjacent = true
+                    elseif M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                        for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                            if iAdjLZ == iLastOrderZone then
+                                bOrderZoneAdjacent = true
+                                break
+                            end
+                        end
+                    end
+                    if not(bOrderZoneAdjacent) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Units assigned zone isnt adjacent to its current zone, so will reset its assignment value, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                        oUnit[M28Land.refiCurrentAssignmentValue] = 0 --reset so unit should get new orders from the current zone or an adjacent zone
+                    end
+                end
                 if EntityCategoryContains(M28UnitInfo.refCategoryTMD, oUnit.UnitId) then
                     M28Building.AlliedTMDFirstRecorded(aiBrain.M28Team, oUnit)
                 end
@@ -778,7 +802,8 @@ function AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone, bIsEnemyAirUnit)
         if not(oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam]) then oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam] = {} end
         oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][aiBrain.M28Team] = iWaterZone
         local iPond = M28Map.tiPondByWaterZone[iWaterZone]
-        local tWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][aiBrain.M28Team]
+        local tWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone]
+        local tWZTeamData = tWZData[M28Map.subrefWZTeamData][aiBrain.M28Team]
         --NOTE: If run into same issue that had with land zones (of not having valid plateau/land zone combination), DO NOT call the 'addunittolandzone' function from here, or else will create an infinite loop
         if bDebugMessages == true then LOG(sFunctionRef..': iPond='..(iPond or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Team='..(aiBrain.M28Team or 'nil')..'; IsEnemy='..tostring(IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()))..'; Is tWZTeamData empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData))) end
         if IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
@@ -796,6 +821,27 @@ function AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone, bIsEnemyAirUnit)
             oUnit[M28Navy.refiCurrentWZAssignmentValue] = 0 --dont want to retain orders in case it was from an adjacent zone
             table.insert(tWZTeamData[M28Map.subrefWZTAlliedUnits], oUnit)
             if M28Config.M28ShowUnitNames then oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'New WZ'..iWaterZone) end
+
+
+
+            if oUnit[M28Navy.refiCurrentWZAssignmentValue] then
+                local iLastOrderZone = oUnit[M28Navy.refiCurrentAssignmentWaterZone]
+                local bOrderZoneAdjacent = false
+                if iLastOrderZone == iWaterZone then
+                    bOrderZoneAdjacent = true
+                elseif M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
+                    for _, iAdjWZ in tWZData[M28Map.subrefWZAdjacentWaterZones] do
+                        if iAdjWZ == iLastOrderZone then
+                            bOrderZoneAdjacent = true
+                            break
+                        end
+                    end
+                end
+                if not(bOrderZoneAdjacent) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Units assigned water zone isnt adjacent to its current zone, so will reset its assignment value, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                    oUnit[M28Navy.refiCurrentWZAssignmentValue] = 0 --reset so unit should get new orders from the current zone or an adjacent zone
+                end
+            end
 
             if EntityCategoryContains(M28UnitInfo.refCategoryTMD, oUnit.UnitId) then
                 M28Building.AlliedTMDFirstRecorded(aiBrain.M28Team, oUnit)
@@ -1005,17 +1051,30 @@ function LongRangeThreatMonitor(iTeam)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function AddUnitToLongRangeThreatTable(oUnit, iTeam)
+function AddUnitToLongRangeThreatTable(oUnit, iTeam, bCheckifAlreadyInTable)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AddUnitToLongRangeThreatTable'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    local bNotInTable = not(bCheckifAlreadyInTable)
     if not(tTeamData[iTeam][reftLongRangeEnemyMobileUnits]) then
         tTeamData[iTeam][reftLongRangeEnemyMobileUnits] = {}
+        bNotInTable = true
         ForkThread(LongRangeThreatMonitor, iTeam)
     end
-    table.insert(tTeamData[iTeam][reftLongRangeEnemyMobileUnits], oUnit)
-    if bDebugMessages == true then LOG(sFunctionRef..': End of code at time '..GetGameTimeSeconds()..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Added to table of long range units and started a monitor if one wasnt already started') end
+    if not(bNotInTable) then
+        bNotInTable = true
+        for iEntry, oExistingUnit in tTeamData[iTeam][reftLongRangeEnemyMobileUnits] do
+            if oUnit == oExistingUnit then
+                bNotInTable = false
+                break
+            end
+        end
+    end
+    if bNotInTable then
+        table.insert(tTeamData[iTeam][reftLongRangeEnemyMobileUnits], oUnit)
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code at time '..GetGameTimeSeconds()..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Added to table of long range units and started a monitor if one wasnt already started. Unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -1077,7 +1136,7 @@ function AddUnitToBigThreatTable(iTeam, oUnit)
                     end
 
                     --Track T3 arti
-                    if not(tTeamData[iTeam][refbDefendAgainstArti]) and EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre + M28UnitInfo.refCategoryExperimentalArti, oUnit.UnitId) then
+                    if not(tTeamData[iTeam][refbDefendAgainstArti]) and EntityCategoryContains(M28UnitInfo.refCategoryFixedT3Arti + M28UnitInfo.refCategoryNovaxCentre + M28UnitInfo.refCategoryExperimentalArti + M28UnitInfo.refCategorySatellite, oUnit.UnitId) then
                         tTeamData[iTeam][refbDefendAgainstArti] = true
                         if bDebugMessages == true then LOG(sFunctionRef..': have set flag to defend against T3 arti to true for team '..iTeam..'; tTeamData[iTeam][refbDefendAgainstArti]='..tostring(tTeamData[iTeam][refbDefendAgainstArti])) end
                         --Refresh shielding wanted on existing units
@@ -1225,11 +1284,14 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                 tTeamData[aiBrain.M28Team][subrefbEnemyBuiltOmni] = true
                             end
 
+
                             --Track enemy big threats
-                            if bDebugMessages == true then LOG(sFunctionRef..': Is unit a big threat category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryBigThreatCategories, oUnit.UnitId))) end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Is unit a big threat category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryBigThreatCategories, oUnit.UnitId))..'; Unit DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; Unit indirect range='..(oUnit[M28UnitInfo.refiIndirectRange] or 'nil')..'; Is unit PD or land combat='..tostring(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryPD)..'; Unit build cost mass='..(oUnit:GetBlueprint().Economy.BuildCostMass or 0)) end
                             if EntityCategoryContains(M28UnitInfo.refCategoryBigThreatCategories, oUnit.UnitId) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will try and add unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to big threat table, aiBrain='..(aiBrain.Nickname or 'nil')..' team='..(aiBrain.M28Team or 'nil')) end
                                 AddUnitToBigThreatTable(aiBrain.M28Team, oUnit)
+                            elseif (oUnit[M28UnitInfo.refiDFRange] or 0) > 50 and ((oUnit[M28UnitInfo.refiDFRange] or 0) > 80 or EntityCategoryContains(M28UnitInfo.refCategoryPD, oUnit.UnitId)) and EntityCategoryContains(M28UnitInfo.refCategoryLandCombat + M28UnitInfo.refCategoryPD, oUnit.UnitId) and (oUnit:GetBlueprint().Economy.BuildCostMass or 0) >= 600 then
+                                AddUnitToLongRangeThreatTable(oUnit, aiBrain.M28Team, true)
                             end
 
                             --Add long range enemy T2 arti
