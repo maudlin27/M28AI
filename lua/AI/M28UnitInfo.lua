@@ -1304,6 +1304,8 @@ function RecordUnitRange(oUnit)
                         --Ignore
                     elseif oUnit.UnitId == 'uab4201' then
                         --Aeon TMD - ignore as it has a rangecategory for the weapon that uses the correct range so want to ignore the other waepon anyway
+                    elseif oCurWeapon.WeaponCategory == 'Death' then
+                        --Do nothing - e.g. units like energy storage
                     else
                         M28Utilities.ErrorHandler('Unrecognised range category for unit '..oUnit.UnitId)
                         --If this triggers do a reprs of the weapon to figure out why (i.e. uncomment out the below)
