@@ -4653,7 +4653,7 @@ end
 function UpdateTransportShortlistForPondDrops(iTeam, tbPlateausWithPlayerStartOrIslandDrop)
     --See if we have any underwater mexes on a plateau that doesnt have an island drop planned or a player start position
     --This is only called once each game per team; must be called after the 'far away land zone' logic or else far away land zone logic wont run at all due to check if below table is nil
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'UpdateTransportShortlistForPondDrops'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -4994,7 +4994,7 @@ end
 
 function GetWaterZoneForTransportToTravelTo(iTeam, oUnit)
     --Returns island, plateau and land zone that we want to drop at (or nil if there are none)
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetWaterZoneForTransportToTravelTo'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -5007,14 +5007,14 @@ function GetWaterZoneForTransportToTravelTo(iTeam, oUnit)
 
         --Unit cur plateau and land/water zone
         local iCurPlateauOrZero, iCurLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oUnit:GetPosition())
-        if bDebugMessages == true then LOG(sFunctionRef..': Closest plateau and land or water zone to unit position: Unit position='..repru(oUnit:GetPosition())..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurLandOrWaterZone='..(iCurLandOrWaterZone or 'nil')) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Closest plateau and land or water zone to unit position: Unit position='..repru(oUnit:GetPosition())..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurPlateauOrZero='..(iCurPlateauOrZero or 'nil')..'; iCurLandOrWaterZone='..(iCurLandOrWaterZone or 'nil')..'; tShortlist='..repru(tShortlist)) end
 
         local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
         local bDontHaveLocationInPlayableArea
 
         for iEntry, iWaterZone in tShortlist do
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering entry '..iEntry..'; iWaterZone='..iWaterZone..'; Time last failed to drop here='..(M28Team.tTeamData[iTeam][M28Team.refiLastFailedWaterZoneDropTime] or 'nil')) end
-            if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastFailedWaterZoneDropTime] or -300) >= 300 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering entry '..iEntry..'; iWaterZone='..iWaterZone..'; Time last failed to drop here='..(M28Team.tTeamData[iTeam][M28Team.refiLastFailedWaterZoneDropTime][iWaterZone] or 'nil')) end
+            if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiLastFailedWaterZoneDropTime][iWaterZone] or -300) >= 300 then
                 bDontHaveLocationInPlayableArea = not(bDontCheckPlayableArea)
                 local tWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone]
                 if bDontHaveLocationInPlayableArea then bDontHaveLocationInPlayableArea = not(M28Conditions.IsLocationInPlayableArea(tWZData[M28Map.subrefMidpoint])) end
