@@ -85,9 +85,10 @@ function ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearchForAdjace
         end
         if bDebugMessages == true then LOG(sFunctionRef..': tLastOrder='..reprs(tLastOrder)..'; bAlreadyHaveOrder='..tostring(bAlreadyHaveOrder)) end
         if not(bAlreadyHaveOrder) then
-            --GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerActionForDebug, iCategoryToBuild, iMaxAreaToSearch,                                   iCatToBuildBy,              tAlternativePositionToLookFrom, bLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZTeamData)
-            local sBlueprint, tBuildLocation = M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oACU,        nil,                            iCategoryToBuild, iMaxAreaToSearchForAdjacencyAndUnderConstruction, iOptionalAdjacencyCategory, nil,                            false,                      nil,         iOptionalCategoryBuiltUnitCanBuild,    nil)
-            if not(tBuildLocation) then sBlueprint, tBuildLocation = M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oACU, nil, iCategoryToBuild, iMaxAreaToSearchForBuildLocation, nil, nil,                           false,                      nil,         iOptionalCategoryBuiltUnitCanBuild, nil) end
+            local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oACU:GetPosition(), true, oACU:GetAIBrain().M28Team)
+                                                                                --GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerActionForDebug, iCategoryToBuild, iMaxAreaToSearch,                                   iCatToBuildBy,              tAlternativePositionToLookFrom, bLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZData, tLZTeamData)
+            local sBlueprint, tBuildLocation =                       M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oACU,        nil,                            iCategoryToBuild, iMaxAreaToSearchForAdjacencyAndUnderConstruction, iOptionalAdjacencyCategory, nil,                            false,                      nil,         iOptionalCategoryBuiltUnitCanBuild,    nil,                        tLZData, tLZTeamData)
+            if not(tBuildLocation) then sBlueprint, tBuildLocation = M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oACU,          nil,                        iCategoryToBuild,    iMaxAreaToSearchForBuildLocation,                  nil,                         nil,                           false,                      nil,         iOptionalCategoryBuiltUnitCanBuild, nil,                           tLZData, tLZTeamData) end
             if bDebugMessages == true then
                 local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oACU:GetPosition(), true, oACU)
                 LOG(sFunctionRef..': Blueprint to build='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation)..'; ACU plateau and land zone based on cur position='..iPlateau..'; iLandZone='..(iLandZone or 'nil')..'; iMaxAreaToSearchForBuildLocation='..(iMaxAreaToSearchForBuildLocation or 'nil')..'; was iOptionalAdjacencyCategory nil='..tostring(iOptionalAdjacencyCategory == nil))
@@ -2799,7 +2800,7 @@ function HaveTelesnipeAction(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
                         iArtiValue = 3
                     elseif EntityCategoryContains(M28UnitInfo.refCategorySML * categories.EXPERIMENTAL, oUnit.UnitId) then
                         iArtiValue = 2
-                    elseif EntityCategoryContains(M28UnitInfo.refCategoryNovaxCentre, oUnit.UnitId) then
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryNovaxCentre + M28UnitInfo.refCategorySatellite, oUnit.UnitId) then
                         iArtiValue = 0.6
                     else
                         iArtiValue = 1
@@ -2814,6 +2815,13 @@ function HaveTelesnipeAction(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
                         end
                     end
                 end
+                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyMobileSatellites]) == false then
+                    local iNovaxCount = 0
+                    for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyMobileSatellites] do
+                        iNovaxCount = iNovaxCount + GetArtiEquivValue(oUnit)
+                    end
+                    iEnemyArtiCount = math.max(iEnemyArtiCount, iNovaxCount)
+                end
 
                 if not(ScenarioInfo.Options.Victory == "demoralization") and (iEnemyArtiCount >= 2 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 2250) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Arent in assassination mode so will consider sniping') end
@@ -2822,21 +2830,18 @@ function HaveTelesnipeAction(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
                     bConsiderSniping = true
                 else
                     --Assassination, and down to last ACU, only go for telesnipe as a last resort
-                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]) == false then
-
-                        if iEnemyArtiCount >= 3 then
-                            local iFriendlyArtiCount = 0
-                            for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
-                                local tFriendlyExperimentals = oBrain:GetListOfUnits(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryNovaxCentre + M28UnitInfo.refCategoryFixedT3Arti, false, false)
-                                for iUnit, oUnit in tFriendlyExperimentals do
-                                    if oUnit:GetFractionComplete() >= 0.4 then
-                                        iFriendlyArtiCount = iFriendlyArtiCount + GetArtiEquivValue(oUnit)
-                                    end
+                    if iEnemyArtiCount >= 3 then
+                        local iFriendlyArtiCount = 0
+                        for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
+                            local tFriendlyExperimentals = oBrain:GetListOfUnits(M28UnitInfo.refCategoryGameEnder + M28UnitInfo.refCategoryNovaxCentre + M28UnitInfo.refCategoryFixedT3Arti, false, false)
+                            for iUnit, oUnit in tFriendlyExperimentals do
+                                if oUnit:GetFractionComplete() >= 0.4 then
+                                    iFriendlyArtiCount = iFriendlyArtiCount + GetArtiEquivValue(oUnit)
                                 end
                             end
-                            if iFriendlyArtiCount < 2 and iEnemyArtiCount - iFriendlyArtiCount >= 3 then
-                                bConsiderSniping = true
-                            end
+                        end
+                        if iFriendlyArtiCount < 2 and iEnemyArtiCount - iFriendlyArtiCount >= 3 then
+                            bConsiderSniping = true
                         end
                     end
                 end

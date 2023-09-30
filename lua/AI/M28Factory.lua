@@ -2183,6 +2183,8 @@ function DetermineWhatToBuild(aiBrain, oFactory)
         sBPIDToBuild = GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
     elseif EntityCategoryContains(M28UnitInfo.refCategoryMobileLandFactory, oFactory.UnitId) then
         sBPIDToBuild = GetBlueprintToBuildForMobileLandFactory(aiBrain, oFactory)
+    elseif EntityCategoryContains(M28UnitInfo.refCategorySpecialFactory, oFactory.UnitId) then
+        sBPIDToBuild = GetBlueprintToBuildForExperimentalFactoryBuilding(aiBrain, oFactory)
     else
         M28Utilities.ErrorHandler('Need to add code - unexpected factory type')
     end
@@ -2529,7 +2531,7 @@ function IdleFactoryMonitor(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     while not (aiBrain.M28IsDefeated) do
-        local tOurFactories = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategoryMobileLandFactory, false, true)
+        local tOurFactories = aiBrain:GetListOfUnits(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategoryMobileLandFactory + M28UnitInfo.refCategorySpecialFactory, false, true)
         local tCommandQueue
         local sBPToBuild
         local iTeam
@@ -2564,7 +2566,7 @@ end
 
 function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
     local sFunctionRef = 'GetBlueprintToBuildForAirFactory'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     local iCategoryToBuild
@@ -3824,16 +3826,21 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
     local iTeam = aiBrain.M28Team
     local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
     local bHaveLowPower = M28Conditions.HaveLowPower(iTeam)
+
+
     local bCanPathToEnemyWithLand = false
     if tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) then
         bCanPathToEnemyWithLand = true
     end
     local sBPIDToBuild
     if bDebugMessages == true then
-        LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; bHvaeLowPower=' .. tostring(bHaveLowPower))
+        LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory))
     end
     local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory) --to be safe given we include it in adjustblueprintforoverrides
     local iCurrentConditionToTry = 0
+
+
+
 
     function ConsiderBuildingCategory(iCategoryToBuild, bOptionalGetCheapest)
                     --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
@@ -3846,11 +3853,7 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
         end
     end
 
-    local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
-    local tLZTeamData = tLZData[M28Map.subrefLZTeamData][aiBrain.M28Team]
-    local iTeam = aiBrain.M28Team
-    local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
-    local bHaveLowPower = M28Conditions.HaveLowPower(iTeam)
+
 
     local sBPIDToBuild
     if bDebugMessages == true then
@@ -3890,6 +3893,83 @@ function GetBlueprintToBuildForQuantumGateway(aiBrain, oFactory)
             end
             return sBPIDToBuild
         end
+    end
+
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function GetBlueprintToBuildForExperimentalFactoryBuilding(aiBrain, oFactory)
+    --Likeliy to just be novax for now
+
+    local sFunctionRef = 'GetBlueprintToBuildForQuantumGateway'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local iCategoryToBuild
+    local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oFactory:GetPosition(), true, oFactory)
+    local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+    local iTeam = aiBrain.M28Team
+    local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+    local bHaveLowMass = M28Conditions.TeamHasLowMass(iTeam)
+    local bHaveLowPower = M28Conditions.HaveLowPower(iTeam)
+
+    local bCanPathToEnemyWithLand = false
+    if tLZData[M28Map.subrefLZIslandRef] == NavUtils.GetLabel(M28Map.refPathingTypeLand, tLZTeamData[M28Map.reftClosestEnemyBase]) then
+        bCanPathToEnemyWithLand = true
+    end
+    local sBPIDToBuild
+    if bDebugMessages == true then
+        LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; bHvaeLowPower=' .. tostring(bHaveLowPower))
+    end
+    local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory) --to be safe given we include it in adjustblueprintforoverrides
+    local iCurrentConditionToTry = 0
+
+    function ConsiderBuildingCategory(iCategoryToBuild, bOptionalGetCheapest)
+        --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
+        sBPIDToBuild = GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oFactory,  nil,            nil,        bOptionalGetCheapest, nil,                          false)
+        if bDebugMessages == true then LOG(sFunctionRef .. ': Time=' .. GetGameTimeSeconds() .. ' Factory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; LZ=' .. iLandZone .. '; iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; sBPIDToBuild before adjusting for override=' .. (sBPIDToBuild or 'nil')) end
+        if sBPIDToBuild then sBPIDToBuild = AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamData, iFactoryTechLevel) end
+        if sBPIDToBuild then
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) --Assumes we will end code if we get to this point
+            return sBPIDToBuild
+        end
+    end
+
+
+
+    local sBPIDToBuild
+    if bDebugMessages == true then
+        LOG(sFunctionRef .. ': Near start of code, time=' .. GetGameTimeSeconds() .. '; oFactory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; bHvaeLowPower=' .. tostring(bHaveLowPower))
+    end
+    local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory) --to be safe given we include it in adjustblueprintforoverrides
+    local iCurrentConditionToTry = 0
+
+    function ConsiderBuildingCategory(iCategoryToBuild, bOptionalGetCheapest)
+        --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
+        sBPIDToBuild = GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oFactory, nil,             nil,        bOptionalGetCheapest, nil,                          false)
+        if bDebugMessages == true then
+            LOG(sFunctionRef .. ': Time=' .. GetGameTimeSeconds() .. ' Factory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; LZ=' .. iLandZone .. '; iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; sBPIDToBuild before adjusting for override=' .. (sBPIDToBuild or 'nil'))
+        end
+        if sBPIDToBuild then
+            sBPIDToBuild = AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamData, iFactoryTechLevel)
+        end
+        if sBPIDToBuild then
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd) --Assumes we will end code if we get to this point
+            return sBPIDToBuild
+        end
+    end
+
+    --If dont have low power then build something; if dont have low mass and arent close to unit cap then build anything
+
+
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if not (bHaveLowPower) and not(bHaveLowMass) and not(M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap]) then
+        if ConsiderBuildingCategory(categories.ALLUNITS) then return sBPIDToBuild end
+    end
+
+    iCurrentConditionToTry = iCurrentConditionToTry + 1
+    if not(bHaveLowPower) then
+        if ConsiderBuildingCategory(M28UnitInfo.refCategoryExperimentalLevel) then return sBPIDToBuild end
     end
 
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

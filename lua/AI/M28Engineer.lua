@@ -1029,7 +1029,7 @@ function DrawBuildableLocations(tLZOrWZData, iSize)
     end
 end
 
-function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAction, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy, tAlternativePositionToLookFrom, bNotYetUsedLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZTeamData, bCalledFromGetBestLocation, sBlueprintOverride)
+function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAction, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy, tAlternativePositionToLookFrom, bNotYetUsedLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZData, tLZTeamData, bCalledFromGetBestLocation, sBlueprintOverride)
     --Returns blueprint and location for oEngineer to build at and returns these or nil if no suitable locations can be found
     --iCatToBuildBy: Optional, specify if want to look for adjacency locations; Note to factor in 50% of the builder's size and 50% of the likely adjacency building size
     --iOptionalEngineerAction - ideally should populate this, will both help with debug and more importantly is used to track building sizes by action so can switch off parts of engineer logic when run out of build space
@@ -1040,7 +1040,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
     local sFunctionRef = 'GetBlueprintAndLocationToBuild'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if M28Team.tTeamData[aiBrain.M28Team][M28Team.refbDefendAgainstArti] and iOptionalEngineerAction == refActionBuildShield then bDebugMessages = true end
+
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code for action (if specified) '..(iOptionalEngineerAction or 'nil')..', Engineer UC='..GetEngineerUniqueCount(oEngineer)..'; Engineer ID and LC='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer)..'; Techlevel='..M28UnitInfo.GetUnitTechLevel(oEngineer)..'; tAlternativePositionToLookFrom='..repru(tAlternativePositionToLookFrom or {'nil'})..'; bBuildCheapestStructure='..tostring((bBuildCheapestStructure or false))..'; All blueprints that meet the category='..repru(EntityCategoryGetUnitList(iCategoryToBuild))..'; iMaxAreaToSearch='..(iMaxAreaToSearch or 'nil')..'; Time='..GetGameTimeSeconds()..'; Engineer brain='..oEngineer:GetAIBrain().Nickname) end
     local bDontCheckForNoRush = not(M28Overseer.bNoRushActive)
@@ -1258,9 +1258,8 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
                         if bDebugMessages == true then LOG(sFunctionRef..': Trying to build a shield so dont want to search further afaield, will do detailed check around target instead, iSizeWanted='..iSizeWanted..'; iBaseSegmentX='..iBaseSegmentX..'; iBaseSegmentZ='..iBaseSegmentZ) end
                         for iCurSegmentX = math.max(1, iBaseSegmentX - iMaxSegmentAdjust), iBaseSegmentX + iMaxSegmentAdjust, 1 do
                             for iCurSegmentZ = math.max(1, iBaseSegmentZ - iMaxSegmentAdjust), iBaseSegmentZ + iMaxSegmentAdjust, 1 do
-                                if bDebugMessages == true then LOG(sFunctionRef..': Max size for Cur SegmentX'..iCurSegmentX..'Z'..iCurSegmentZ..'='.. (tLZTeamData[M28Map.subrefBuildableSizeBySegment][iCurSegmentX][iCurSegmentZ] or 0)) end
-                                if (tLZTeamData[M28Map.subrefBuildableSizeBySegment][iCurSegmentX][iCurSegmentZ] or 0) >= iSizeWanted then
-                                    bDebugMessages = true
+                                if bDebugMessages == true then LOG(sFunctionRef..': Max size for Cur SegmentX'..iCurSegmentX..'Z'..iCurSegmentZ..'='.. (tLZData[M28Map.subrefBuildableSizeBySegment][iCurSegmentX][iCurSegmentZ] or 0)) end
+                                if (tLZData[M28Map.subrefBuildableSizeBySegment][iCurSegmentX][iCurSegmentZ] or 0) >= iSizeWanted then
                                     table.insert(tPotentialBuildLocations, M28Map.GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ))
                                     if bDebugMessages == true then LOG(sFunctionRef..': Found a segment where the highest size should be enough for a shield, will add to potential build locations') end
                                 end
@@ -1641,14 +1640,15 @@ function GetBestBuildLocationForTarget(oEngineer, sBlueprintToBuild, tTargetLoca
     end
     if bDebugMessages == true then LOG(sFunctionRef..': bBestLocationBuildableImmediately='..tostring(bBestLocationBuildableImmediately)..'; bTryOtherLocationsIfNoneBuildableImmediately='..tostring(bTryOtherLocationsIfNoneBuildableImmediately or false)) end
     if not(bBestLocationBuildableImmediately) and bTryOtherLocationsIfNoneBuildableImmediately then
-        local tLZTeamData
+        local tLZTeamData, tLZData
         local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
         if (iLandZone or 0) > 0 and iPlateau > 0 then
-            local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
+            tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
             local iTeam = oEngineer:GetAIBrain().M28Team
             tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
         end
-        local sRedundantBlueprint, tAltBestLocation = GetBlueprintAndLocationToBuild(aiBrain, oEngineer, nil, nil, iOptionalMaxDistanceFromTargetLocation, nil, tTargetLocation, true, nil, nil, nil, tLZTeamData, true, sBlueprintToBuild)
+                                                     --GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAction, iCategoryToBuild, iMaxAreaToSearch,                  iCatToBuildBy, tAlternativePositionToLookFrom, bNotYetUsedLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZData, tLZTeamData, bCalledFromGetBestLocation, sBlueprintOverride)
+        local sRedundantBlueprint, tAltBestLocation = GetBlueprintAndLocationToBuild(aiBrain, oEngineer, nil,                        nil,           iOptionalMaxDistanceFromTargetLocation, nil,        tTargetLocation,                true,                               nil,            nil,                                nil,                    tLZData, tLZTeamData,   true,                   sBlueprintToBuild)
         if bDebugMessages == true then LOG(sFunctionRef..': tAltBestLocation='..repru(tAltBestLocation)..'; oEngineer:GetPosition='..repru(oEngineer:GetPosition())) end
         if tAltBestLocation and M28Utilities.GetDistanceBetweenPositions(tAltBestLocation, oEngineer:GetPosition()) <= iMaxRange then
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -4592,7 +4592,7 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
     local sFunctionRef = 'ConsiderActionToAssign'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and iActionToAssign == refActionBuildShield then bDebugMessages = true end
+
 
     --Dont try getting any mroe BP for htis action if have run out of buildable locations
     local iExpectedBuildingSize = tiLastBuildingSizeFromActionForTeam[iTeam][iActionToAssign]
@@ -4980,7 +4980,8 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                 if bDebugMessages == true then LOG(sFunctionRef..': About to get the blueprint and build location, oFirstEngineer='..oFirstEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFirstEngineer)) end
                                 if iActionToAssign == refActionBuildShield or iActionToAssign == refActionBuildSecondShield then
                                     GetMaxShieldSearchRangeForEngineer(oFirstEngineer, iCategoryWanted)
-                                    sBlueprint, tBuildLocation = GetBlueprintAndLocationToBuild(aiBrain, oFirstEngineer, iActionToAssign, iCategoryWanted, iMaxSearchRange, tiActionAdjacentCategory[iActionToAssign], vOptionalVariable:GetPosition(), false, nil, nil, false, tLZOrWZTeamData)
+                                                               --GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAction, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy,                         tAlternativePositionToLookFrom, bNotYetUsedLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZData, tLZTeamData, bCalledFromGetBestLocation, sBlueprintOverride)
+                                    sBlueprint, tBuildLocation = GetBlueprintAndLocationToBuild(aiBrain, oFirstEngineer, iActionToAssign, iCategoryWanted, iMaxSearchRange, tiActionAdjacentCategory[iActionToAssign], vOptionalVariable:GetPosition(), false,                              nil,                nil,                                false,                  tLZOrWZData, tLZOrWZTeamData)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Finished getting blueprint and build location for shield, sBlueprint='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation)..'; vOptionalVariable='..(vOptionalVariable.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(vOptionalVariable) or 'nil')..'; iMaxSearchRange='..iMaxSearchRange..'; vOptionalVariable position='..repru(vOptionalVariable:GetPosition())) end
                                     if M28Utilities.IsTableEmpty(tBuildLocation) and vOptionalVariable.UnitId then
                                         vOptionalVariable[refiFailedShieldConstructionCount] = (vOptionalVariable[refiFailedShieldConstructionCount] or 0) + 1
@@ -4990,24 +4991,25 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                         end
                                     end
                                 elseif vOptionalVariable and (iActionToAssign == refActionBuildEmergencyPD or iActionToAssign == refActionBuildEmergencyArti) then
-                                    --GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAction, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy,                tAlternativePositionToLookFrom, bNotYetUsedLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZTeamData, bCalledFromGetBestLocation, sBlueprintOverride)
-                                    sBlueprint, tBuildLocation = GetBlueprintAndLocationToBuild(aiBrain, oFirstEngineer, iActionToAssign, iCategoryWanted, iMaxSearchRange, tiActionAdjacentCategory[iActionToAssign], vOptionalVariable,       false,                              nil,             nil,                                   bGetCheapest,                   tLZOrWZTeamData)
+                                    --GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAction, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy,                tAlternativePositionToLookFrom, bNotYetUsedLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZData, tLZTeamData, bCalledFromGetBestLocation, sBlueprintOverride)
+                                    sBlueprint, tBuildLocation = GetBlueprintAndLocationToBuild(aiBrain, oFirstEngineer, iActionToAssign, iCategoryWanted, iMaxSearchRange, tiActionAdjacentCategory[iActionToAssign], vOptionalVariable,       false,                              nil,             nil,                                   bGetCheapest,                   tLZOrWZData, tLZOrWZTeamData)
                                     if bDebugMessages == true then LOG(sFunctionRef..': Have just tried to get location for PD, vOptionalVariable='..repru(vOptionalVariable)..'; sBlueprint='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation))
                                         M28Utilities.DrawLocation(tBuildLocation)
                                     end
                                 elseif vOptionalVariable and iActionToAssign == refActionBuildTMD then
                                     --Build near the unit we want to protect (get blueprint will also factor in maxsearchrange based on the TMD range)
                                     if vOptionalVariable.UnitId then
-                                        --GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAction, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy,                tAlternativePositionToLookFrom, bNotYetUsedLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZTeamData, bCalledFromGetBestLocation, sBlueprintOverride)
-                                        sBlueprint, tBuildLocation = GetBlueprintAndLocationToBuild(aiBrain, oFirstEngineer, iActionToAssign, iCategoryWanted, iMaxSearchRange, tiActionAdjacentCategory[iActionToAssign], vOptionalVariable:GetPosition(), false,                      nil,                nil,                                bGetCheapest, tLZOrWZTeamData)
+                                        --GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAction, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy,                tAlternativePositionToLookFrom, bNotYetUsedLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZData, tLZTeamData, bCalledFromGetBestLocation, sBlueprintOverride)
+                                        sBlueprint, tBuildLocation = GetBlueprintAndLocationToBuild(aiBrain, oFirstEngineer, iActionToAssign, iCategoryWanted, iMaxSearchRange, tiActionAdjacentCategory[iActionToAssign], vOptionalVariable:GetPosition(), false,                      nil,                nil,                                bGetCheapest, tLZOrWZData, tLZOrWZTeamData)
                                     elseif M28Utilities.IsTableEmpty(vOptionalVariable) == false then
-                                        sBlueprint, tBuildLocation = GetBlueprintAndLocationToBuild(aiBrain, oFirstEngineer, iActionToAssign, iCategoryWanted, iMaxSearchRange, tiActionAdjacentCategory[iActionToAssign], vOptionalVariable,               false,                      nil,                nil,                                bGetCheapest, tLZOrWZTeamData)
+                                        sBlueprint, tBuildLocation = GetBlueprintAndLocationToBuild(aiBrain, oFirstEngineer, iActionToAssign, iCategoryWanted, iMaxSearchRange, tiActionAdjacentCategory[iActionToAssign], vOptionalVariable,               false,                      nil,                nil,                                bGetCheapest, tLZOrWZData, tLZOrWZTeamData)
                                     else
                                         M28Utilities.ErrorHandler('Trying to build TMD without a unit or location')
                                     end
                                 elseif iActionToAssign == refActionBuildAirStaging and (bGetCheapest or not(M28Team.tTeamData[aiBrain.M28Team][M28Team.refiTimeLastNearUnitCap])) then
                                     --Mod support for mods that introduce t3 air staging which is very expensive - want to avoid unless close to unit cap
-                                    sBlueprint, tBuildLocation = GetBlueprintAndLocationToBuild(aiBrain, oFirstEngineer, iActionToAssign, iCategoryWanted - categories.TECH3 - categories.EXPERIMENTAL, iMaxSearchRange, iAdjacencyCategory, nil, false, nil, nil, bGetCheapest, tLZOrWZTeamData)
+                                                                --GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAction, iCategoryToBuild,                                         iMaxAreaToSearch, iCatToBuildBy, tAlternativePositionToLookFrom, bNotYetUsedLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZData, tLZTeamData, bCalledFromGetBestLocation, sBlueprintOverride)
+                                    sBlueprint, tBuildLocation = GetBlueprintAndLocationToBuild(aiBrain, oFirstEngineer, iActionToAssign, iCategoryWanted - categories.TECH3 - categories.EXPERIMENTAL, iMaxSearchRange, iAdjacencyCategory, nil,                           false,                          nil,                nil,                                bGetCheapest,           tLZOrWZData,  tLZOrWZTeamData)
                                 else
                                     iAdjacencyCategory = tiActionAdjacentCategory[iActionToAssign]
                                     if not(iAdjacencyCategory) and (iActionToAssign == refActionBuildExperimental or iActionToAssign == refActionBuildSecondExperimental) then
@@ -5015,7 +5017,8 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                             iAdjacencyCategory = M28UnitInfo.refCategoryT3Power
                                         end
                                     end
-                                    sBlueprint, tBuildLocation = GetBlueprintAndLocationToBuild(aiBrain, oFirstEngineer, iActionToAssign, iCategoryWanted, iMaxSearchRange, iAdjacencyCategory, nil, false, nil, nil, bGetCheapest, tLZOrWZTeamData)
+                                                                --GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAction, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy, tAlternativePositionToLookFrom, bNotYetUsedLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZData, tLZTeamData, bCalledFromGetBestLocation, sBlueprintOverride)
+                                    sBlueprint, tBuildLocation = GetBlueprintAndLocationToBuild(aiBrain, oFirstEngineer, iActionToAssign, iCategoryWanted, iMaxSearchRange, iAdjacencyCategory, nil,                                false,                          nil,                nil,                                bGetCheapest, tLZOrWZData, tLZOrWZTeamData)
                                 end
                                 if bDebugMessages == true then LOG(sFunctionRef..': Just got blueprint and location to build for oFirstEngineer='..oFirstEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFirstEngineer)..'; iActionTOAssign='..iActionToAssign..'; sBlueprint='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation)..'; Is tiActionAdjacentCategory[iActionToAssign] nil='..tostring(tiActionAdjacentCategory[iActionToAssign] == nil)) end
                                 if M28Utilities.IsTableEmpty(tBuildLocation) then
@@ -5042,7 +5045,8 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                                 --Mex specific - build a separate unit
                                                 if iActionToAssign == refActionBuildMex and iTotalBuildPowerWanted > 0 and iEngiCount > 0 then
                                                     if bDebugMessages == true then LOG(sFunctionRef..': Were building a mex at tBuildLocation='..repru(tBuildLocation)..'; however have already assigned an engineer and have more to assign, so will build at a different mex now') end
-                                                    sBlueprint, tBuildLocation = GetBlueprintAndLocationToBuild(aiBrain, oFirstEngineer, iActionToAssign, iCategoryWanted, iMaxSearchRange, iAdjacencyCategory, nil, false, nil, nil, false, tLZOrWZTeamData)
+                                                                                --GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAction, iCategoryToBuild, iMaxAreaToSearch, iCatToBuildBy, tAlternativePositionToLookFrom, bNotYetUsedLookForQueuedBuildings, oUnitToBuildBy, iOptionalCategoryForStructureToBuild, bBuildCheapestStructure, tLZData, tLZTeamData, bCalledFromGetBestLocation, sBlueprintOverride)
+                                                    sBlueprint, tBuildLocation = GetBlueprintAndLocationToBuild(aiBrain, oFirstEngineer, iActionToAssign, iCategoryWanted, iMaxSearchRange, iAdjacencyCategory, nil,                                false,                          nil,             nil,                                   false,                  tLZOrWZData,    tLZOrWZTeamData)
                                                     if M28Utilities.IsTableEmpty(tBuildLocation) then break end
                                                     if bDebugMessages == true then LOG(sFunctionRef..': New mex build location='..repru(tBuildLocation)) end
                                                 end
@@ -5536,6 +5540,13 @@ function GetBPForShieldAssistance(tLZTeamData, iTeam)
                     end
                 end
             end
+            if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyMobileSatellites]) == false then
+                local iNovaxCount = 0
+                for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyMobileSatellites] do
+                    iNovaxCount = iNovaxCount + 1
+                end
+                iEnemyT3ArtiValue = math.max(iEnemyT3ArtiValue, iNovaxCount * 0.5)
+            end
             if bDebugMessages == true then LOG(sFunctionRef..': Is the table of enemy arti empty='..tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]))..'; iEnemyT3ArtiValue='..iEnemyT3ArtiValue..'; number of priority shields for thie LZ='..table.getn(tLZTeamData[M28Map.reftPriorityShieldsToAssist])) end
             local iShieldsWantingAssistance = 0
             local iShieldsRecentlyDamaged = 0
@@ -5586,7 +5597,7 @@ function GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, bCoreZone, bHave
     local sFunctionRef = 'GetBPMinTechAndUnitForFixedShields'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] then bDebugMessages = true end
+
 
     local iBPWanted = 0
     local iTechLevelWanted = 2
@@ -5642,7 +5653,7 @@ function GetBPMinTechAndUnitForFixedShields(tLZTeamData, iTeam, bCoreZone, bHave
                         end
                     end
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurMass='..iCurMass..'; iHighestMassValue='..iHighestMassValue..'; Failed shield build distance='..(oUnit[refiFailedShieldBuildDistance] or 0)) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iCurMass='..(iCurMass or 'nil')..'; iHighestMassValue='..(iHighestMassValue or 'nil')..'; Failed shield build distance='..(oUnit[refiFailedShieldBuildDistance] or 0)) end
             end
             if oUnitToShield then
                 if iHighestMassValue >= iHighMassThreshold or M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] or M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 12000 then
@@ -6593,13 +6604,15 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     local tExperimentalsUnderConstruction = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandExperimental, tLZTeamData[M28Map.subrefLZTAlliedUnits])
                     if M28Utilities.IsTableEmpty(tExperimentalsUnderConstruction) == false then
                         for iUnit, oUnit in tExperimentalsUnderConstruction do
-                            iHighestCompleteExperimentalInZone = math.max(iHighestCompleteExperimentalInZone, oUnit:GetFractionComplete())
+                            if M28UnitInfo.IsUnitValid(oUnit) then
+                                iHighestCompleteExperimentalInZone = math.max(iHighestCompleteExperimentalInZone, oUnit:GetFractionComplete())
+                            end
                         end
                     end
 
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': iHighestCompleteExperimentalInZone='..iHighestCompleteExperimentalInZone) end
-                if iHighestCompleteExperimentalInZone + 0.2 >= iEnemyHighestPercentComplete then
+                if iHighestCompleteExperimentalInZone > 0 and iHighestCompleteExperimentalInZone + 0.2 >= iEnemyHighestPercentComplete then
                     --Assist the experimental
                     HaveActionToAssign(refActionBuildExperimental, 1, 240)
                 else
@@ -8549,7 +8562,6 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': Want to build emergency PD, iMinTechLevelWanted='..iMinTechLevelWanted) end
                         HaveActionToAssign(refActionBuildEmergencyPD, iMinTechLevelWanted, 40, tPDStartPoint)
-                        bDebugMessages = false
                     end
                 end
             end

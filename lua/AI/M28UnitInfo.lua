@@ -142,6 +142,7 @@ refCategoryAirHQ = refCategoryAirFactory - categories.SUPPORTFACTORY
 refCategoryNavalFactory = categories.NAVAL * categories.FACTORY * categories.STRUCTURE - categories.EXTERNALFACTORYUNIT
 refCategoryNavalHQ = refCategoryNavalFactory - categories.SUPPORTFACTORY
 refCategoryMobileLandFactory = categories.LAND * categories.FACTORY * categories.STRUCTURE * categories.EXTERNALFACTORYUNIT
+refCategorySpecialFactory = categories.FACTORY * categories.EXPERIMENTAL * categories.STRUCTURE - categories.EXTERNALFACTORYUNIT --e.g. novax centre (that can build novax)
 refCategoryFactory = refCategoryLandFactory + refCategoryAirFactory + refCategoryNavalFactory
 refCategoryAllHQFactories = refCategoryFactory - categories.SUPPORTFACTORY
 refCategoryQuantumGateway = categories.STRUCTURE * categories.GATE * categories.TECH3 * categories.FACTORY - categories.EXTERNALFACTORYUNIT

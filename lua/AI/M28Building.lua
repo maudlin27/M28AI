@@ -75,7 +75,7 @@ function CheckIfUnitWantsFixedShield(oUnit, bCheckForNearbyShields, iOptionalShi
     --A shield covering oUnit has construction started (done via UpdateShieldCoverageOfUnits)
     --bCheckForNearbyShields - if true, then will check for any already constructed shields; i.e. this should be true if this function is called from oUnit's construction being started
 
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'CheckIfUnitWantsFixedShield'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -143,7 +143,7 @@ function CheckIfUnitWantsFixedShield(oUnit, bCheckForNearbyShields, iOptionalShi
             if iPlateau > 0 and iLandZone > 0 then
                 oUnit[refbUnitWantsShielding] = true
                 table.insert(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.reftoLZUnitWantingFixedShield], oUnit)
-                if bDebugMessages == true then LOG(sFunctionRef..': Have added unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to table of units wanting shielding') end
+                if bDebugMessages == true then LOG(sFunctionRef..': Have added unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to table of units wanting shielding to iPlateau='..iPlateau..'; iLandZOne='..iLandZone) end
             end
         end
     else
