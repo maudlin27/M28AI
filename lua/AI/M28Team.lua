@@ -716,8 +716,28 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
                     end
                 end
             elseif IsAlly(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
-                table.insert(M28Map.tAllPlateaus[iPlateauRef][M28Map.subrefPlateauLandZones][iLandZoneRef][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTAlliedUnits], oUnit)
+                local tLZData = M28Map.tAllPlateaus[iPlateauRef][M28Map.subrefPlateauLandZones][iLandZoneRef]
+                table.insert(tLZData[M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTAlliedUnits], oUnit)
                 if M28Config.M28ShowUnitNames then oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'New P'..iPlateauRef..'LZ'..iLandZoneRef) end
+                --Reset assigned value (if it has one) if the zone it last had orders from is no longer adjacent
+                if oUnit[M28Land.refiCurrentAssignmentValue] then
+                    local iLastOrderZone = oUnit[M28Land.refiCurrentAssignmentPlateauAndLZ][2]
+                    local bOrderZoneAdjacent = false
+                    if iLastOrderZone == iLandZoneRef then
+                        bOrderZoneAdjacent = true
+                    elseif M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
+                        for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
+                            if iAdjLZ == iLastOrderZone then
+                                bOrderZoneAdjacent = true
+                                break
+                            end
+                        end
+                    end
+                    if not(bOrderZoneAdjacent) then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Units assigned zone isnt adjacent to its current zone, so will reset its assignment value, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                        oUnit[M28Land.refiCurrentAssignmentValue] = 0 --reset so unit should get new orders from the current zone or an adjacent zone
+                    end
+                end
                 if EntityCategoryContains(M28UnitInfo.refCategoryTMD, oUnit.UnitId) then
                     M28Building.AlliedTMDFirstRecorded(aiBrain.M28Team, oUnit)
                 end
@@ -780,7 +800,8 @@ function AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone, bIsEnemyAirUnit)
         if not(oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam]) then oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam] = {} end
         oUnit[M28UnitInfo.reftAssignedWaterZoneByTeam][aiBrain.M28Team] = iWaterZone
         local iPond = M28Map.tiPondByWaterZone[iWaterZone]
-        local tWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefWZTeamData][aiBrain.M28Team]
+        local tWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone]
+        local tWZTeamData = tWZData[M28Map.subrefWZTeamData][aiBrain.M28Team]
         --NOTE: If run into same issue that had with land zones (of not having valid plateau/land zone combination), DO NOT call the 'addunittolandzone' function from here, or else will create an infinite loop
         if bDebugMessages == true then LOG(sFunctionRef..': iPond='..(iPond or 'nil')..'; iWaterZone='..(iWaterZone or 'nil')..'; Team='..(aiBrain.M28Team or 'nil')..'; IsEnemy='..tostring(IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()))..'; Is tWZTeamData empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData))) end
         if IsEnemy(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
@@ -798,6 +819,27 @@ function AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone, bIsEnemyAirUnit)
             oUnit[M28Navy.refiCurrentWZAssignmentValue] = 0 --dont want to retain orders in case it was from an adjacent zone
             table.insert(tWZTeamData[M28Map.subrefWZTAlliedUnits], oUnit)
             if M28Config.M28ShowUnitNames then oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'New WZ'..iWaterZone) end
+
+
+
+            if oUnit[M28Navy.refiCurrentWZAssignmentValue] then
+                local iLastOrderZone = oUnit[M28Navy.refiCurrentAssignmentWaterZone]
+                local bOrderZoneAdjacent = false
+                if iLastOrderZone == iWaterZone then
+                    bOrderZoneAdjacent = true
+                elseif M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZAdjacentWaterZones]) == false then
+                    for _, iAdjWZ in tWZData[M28Map.subrefWZAdjacentWaterZones] do
+                        if iAdjWZ == iLastOrderZone then
+                            bOrderZoneAdjacent = true
+                            break
+                        end
+                    end
+                end
+                if not(bOrderZoneAdjacent) then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Units assigned water zone isnt adjacent to its current zone, so will reset its assignment value, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                    oUnit[M28Navy.refiCurrentWZAssignmentValue] = 0 --reset so unit should get new orders from the current zone or an adjacent zone
+                end
+            end
 
             if EntityCategoryContains(M28UnitInfo.refCategoryTMD, oUnit.UnitId) then
                 M28Building.AlliedTMDFirstRecorded(aiBrain.M28Team, oUnit)
