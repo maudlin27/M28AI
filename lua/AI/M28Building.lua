@@ -75,7 +75,7 @@ function CheckIfUnitWantsFixedShield(oUnit, bCheckForNearbyShields, iOptionalShi
     --A shield covering oUnit has construction started (done via UpdateShieldCoverageOfUnits)
     --bCheckForNearbyShields - if true, then will check for any already constructed shields; i.e. this should be true if this function is called from oUnit's construction being started
 
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'CheckIfUnitWantsFixedShield'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 

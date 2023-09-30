@@ -1014,7 +1014,9 @@ function OnConstructed(oEngineer, oJustBuilt)
             M28Orders.ClearAnyRepairingUnits(oJustBuilt)
             if M28Utilities.IsTableEmpty(oJustBuilt[M28Land.reftoUnitsToKillOnCompletion]) == false then
                 for iUnit, oUnit in oJustBuilt[M28Land.reftoUnitsToKillOnCompletion] do
-                    M28Orders.IssueTrackedKillUnit(oUnit)
+                    if M28UnitInfo.IsUnitValid(oUnit) then
+                        M28Orders.IssueTrackedKillUnit(oUnit)
+                    end
                 end
                 oJustBuilt[M28Land.reftoUnitsToKillOnCompletion] = nil
             end
