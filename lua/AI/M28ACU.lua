@@ -2793,33 +2793,37 @@ function HaveTelesnipeAction(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
         if not(oACU[refbACUHasTeleport]) and EntityCategoryContains(categories.CYBRAN + categories.SERAPHIM, oACU.UnitId) then
             if M28Team.tTeamData[iTeam][M28Team.refbDefendAgainstArti] and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 600 + 450 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] then
                 local bConsiderSniping = false
-                if not(ScenarioInfo.Options.Victory == "demoralization") then
+                function GetArtiEquivValue(oUnit)
+                    local iArtiValue = 0
+                    if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder - M28UnitInfo.refCategorySML, oUnit.UnitId) then
+                        iArtiValue = 3
+                    elseif EntityCategoryContains(M28UnitInfo.refCategorySML * categories.EXPERIMENTAL, oUnit.UnitId) then
+                        iArtiValue = 2
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryNovaxCentre, oUnit.UnitId) then
+                        iArtiValue = 0.6
+                    else
+                        iArtiValue = 1
+                    end
+                    return iArtiValue
+                end
+                local iEnemyArtiCount = 0
+                if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]) == false then
+                    for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure] do
+                        if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() >= 0.85 then
+                            iEnemyArtiCount = iEnemyArtiCount + GetArtiEquivValue(oUnit)
+                        end
+                    end
+                end
+
+                if not(ScenarioInfo.Options.Victory == "demoralization") and (iEnemyArtiCount >= 2 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 2250) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Arent in assassination mode so will consider sniping') end
                     bConsiderSniping = true
-                elseif M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 then
+                elseif M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 and (iEnemyArtiCount >= 2 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= 2250) then
                     bConsiderSniping = true
                 else
                     --Assassination, and down to last ACU, only go for telesnipe as a last resort
                     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure]) == false then
-                        local iEnemyArtiCount = 0
-                        function GetArtiEquivValue(oUnit)
-                            local iArtiValue = 0
-                            if EntityCategoryContains(M28UnitInfo.refCategoryGameEnder - M28UnitInfo.refCategorySML, oUnit.UnitId) then
-                                iArtiValue = 3
-                            elseif EntityCategoryContains(M28UnitInfo.refCategorySML * categories.EXPERIMENTAL, oUnit.UnitId) then
-                                iArtiValue = 2
-                            elseif EntityCategoryContains(M28UnitInfo.refCategoryNovaxCentre, oUnit.UnitId) then
-                                iArtiValue = 0.6
-                            else
-                                iArtiValue = 1
-                            end
-                            return iArtiValue
-                        end
-                        for iUnit, oUnit in M28Team.tTeamData[iTeam][M28Team.reftEnemyArtiAndExpStructure] do
-                            if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() >= 0.85 then
-                                iEnemyArtiCount = iEnemyArtiCount + GetArtiEquivValue(oUnit)
-                            end
-                        end
+
                         if iEnemyArtiCount >= 3 then
                             local iFriendlyArtiCount = 0
                             for iBrain, oBrain in M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains] do
