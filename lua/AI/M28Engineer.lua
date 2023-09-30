@@ -1174,6 +1174,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
         --Mex or hydro or mass storage - consider the resource/storage locations
         if EntityCategoryContains(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryHydro + M28UnitInfo.refCategoryMassStorage, sBlueprintToBuild) then
             local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tTargetLocation)
+            if iLandZone == 5 and iPlateau == 42 and GetGameTimeSeconds() >= 314 then bDebugMessages = true end
             local iWaterZone, iPond
             local iPlateauOrZero, iLandOrWaterZone
             local tLZOrWZData
