@@ -979,6 +979,11 @@ function OnConstructionStarted(oEngineer, oConstruction, sOrder)
                         --Both structures and experimentals - clear any engineers trying to build something else that will be blocked by this
                         ForkThread(M28Engineer.ClearEngineersWhoseTargetIsNowBlockedByUnitConstructionStarted, oEngineer, oConstruction)
                     end
+                else
+                    --Mobile unit - special logic for navla factories for mini bombardment (raid) target
+                    if EntityCategoryContains(M28UnitInfo.refCategoryBombardment, oConstruction.UnitId) and EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oEngineer.UnitId) then
+                        M28Navy.ConsiderAssigningRaidingNavalUnit(oConstruction, oEngineer)
+                    end
                 end
 
 

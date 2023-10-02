@@ -233,7 +233,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZThreatEnemyShield = 'EShTot' --Fixed and mobile shields
             subrefLZThreatEnemyGroundAA = 'EAATotal'
             subrefLZThreatAllyGroundAA = 'AAATotal'
-            subrefLZThreatAllyMAA = 'MAATotal' --only MAA, excludes structure
+            subrefLZThreatAllyMAA = 'MAATotal' --only MAA, excludes structure, wz uses same ref deinition ('MAATotal')
             subrefbEnemiesInThisOrAdjacentLZ = 'NearbyEnemies' --true if this LZ or adjacent LZ have nearby enemies
             subrefbDangerousEnemiesInThisLZ = 'HasDangEnemy' --true if combat units in this LZ
             subrefbDangerousEnemiesInAdjacentWZ = 'WZNearEnemies' --true if there is an adjacent water zone that has dangerous enemies
@@ -364,6 +364,7 @@ tPondDetails = {}
         subrefWZOtherWaterZones = 'WZOthWZ' --table of details for water zones adjacent and further away, ordered by distance
             subrefWZAWZRef = 1 --the water zone reference
             subrefWZAWZDistance = 2 --Travel distance between the midpoints of the water zones
+        subrefWZManualNavalPathToOtherPlateauOrZeroAndZone = 'WZPathOtherZ' --Use the function GetWaterZonePathToWaterOrAdjacentLandZone to get this; Intended for land zones adjacent to a water zone in the same pond as this one; [x] is the target plateau or zero, [y] is the target land or water zone, returns a table, with {iEntry (1,2,....x), iPlateauOrZero, iLandOrWaterZone}
         --Reclaim related - uses same values as water zone
         --subrefReclaimSegments
         --subrefTotalMassReclaim
@@ -410,10 +411,16 @@ tPondDetails = {}
             subrefWZThreatAlliedSubmersible = 'AlSub'
             subrefWZThreatAlliedSurface = 'AlSurf'
             subrefWZThreatAlliedAA = 'AlAA'
+            subrefWZThreatAlliedMAA = 'MAATotal'
             subrefWZBestAlliedDFRange = 'AlDFRnge'
             subrefWZBestAlliedSubmersibleRange = 'AlANavRng'
             refiLastBombardmentSearchRange = 'WZBmbRng' --Last range used for searching for bmobardment targets
             refbLastBombardmentSearchRangeSuccess = 'WZBmbSuc' --true if last time searched for enemies aroudn a location it found results
+            refiClosestRaidingPlateauAndLandZone = 'WZClRLZ' --returns {Plateau, LandZone} if htere is a land zone we want to consider as a raiding target
+            refiMinRangeRaidingZone = 'WZClRng' --returns the min range we want raiding naval units to have to join the raid on the land zone
+            reftoWZRaiders = 'WZRaidr' --table of units assigned to raid; recorded against the base (factory) zone
+            refbActiveRaiderLogic = 'WZActR' --true if are monitoring raider orders
+            refoLastRaidTarget = 'WZRaidT' --Raid target building (used as backup for bombardment logic)
 
             subrefWZCombatThreatWanted = 'CombWant'
             subrefWZMAAThreatWanted = 'MAAWant'
@@ -4800,6 +4807,7 @@ function RecordPondDetails()
                                                 local iMaxDistAdjust = math.max(5, math.min(100, math.floor((150 - iCurMexDist) / 5) * 5))
                                                 tPossibleWaterPosition = M28Utilities.MoveInDirection(tMex, iAngleAdjust, iDist + iMaxDistAdjust, true, true, false)
                                                 if IsUnderwater(tPossibleWaterPosition, false, iMinWaterDepth) then
+
                                                     tShotStartPosition = { tPossibleWaterPosition[1], GetSurfaceHeight(tPossibleWaterPosition[1], tPossibleWaterPosition[3]) + 1, tPossibleWaterPosition[3] }
                                                     if M28Logic.IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, 1) then
                                                         --Assume wont find any match

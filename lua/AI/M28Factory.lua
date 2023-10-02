@@ -3284,6 +3284,8 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    if aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryNavalAA) >= 30 then bDebugMessages = true end
+
     local iCategoryToBuild
     local iWaterZone = M28Map.GetWaterZoneFromPosition(oFactory:GetPosition())
     local iPond = M28Map.tiPondByWaterZone[iWaterZone]
@@ -3345,7 +3347,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
 
     --subfunctions to mean we can do away with the 'current condition == 1, == 2.....==999 type approach making it much easier to add to
     function ConsiderBuildingCategory(iCategoryToBuild)
-                    --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
+        --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition, oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
         sBPIDToBuild = GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryToBuild, oFactory, nil,          nil,           nil,            nil,                                false)
         if bDebugMessages == true then
             LOG(sFunctionRef .. ': Time=' .. GetGameTimeSeconds() .. ' Factory=' .. oFactory.UnitId .. M28UnitInfo.GetUnitLifetimeCount(oFactory) .. '; WZ=' .. iWaterZone .. '; iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; sBPIDToBuild before adjusting for override=' .. (sBPIDToBuild or 'nil'))
@@ -3433,7 +3435,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
 
     --First consider zone we are in
     if bDebugMessages == true then
-        LOG(sFunctionRef .. ': Considering immediate needs for cur WZ that are in, tWZTeamData[M28Map.subrefWZThreatEnemySubmersible]=' .. tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] .. '; tWZTeamData[M28Map.subrefWZThreatEnemySurface]=' .. tWZTeamData[M28Map.subrefWZThreatEnemySurface] .. '; tWZTeamData[M28Map.refiEnemyAirToGroundThreat]=' .. tWZTeamData[M28Map.refiEnemyAirToGroundThreat] .. '; tWZTeamData[M28Map.refbWZWantsMobileShield]=' .. tostring(tWZTeamData[M28Map.refbWZWantsMobileShield]) .. '; tWZTeamData[M28Map.refbWZWantsMobileStealth]=' .. tostring(tWZTeamData[M28Map.refbWZWantsMobileStealth]))
+        LOG(sFunctionRef .. ': Considering immediate needs for cur WZ that are in, tWZTeamData[M28Map.subrefWZThreatEnemySubmersible]=' .. tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] .. '; tWZTeamData[M28Map.subrefWZThreatEnemySurface]=' .. tWZTeamData[M28Map.subrefWZThreatEnemySurface] .. '; tWZTeamData[M28Map.refiEnemyAirToGroundThreat]=' .. tWZTeamData[M28Map.refiEnemyAirToGroundThreat] .. '; tWZTeamData[M28Map.refbWZWantsMobileShield]=' .. tostring(tWZTeamData[M28Map.refbWZWantsMobileShield]) .. '; tWZTeamData[M28Map.refbWZWantsMobileStealth]=' .. tostring(tWZTeamData[M28Map.refbWZWantsMobileStealth])..'; tWZTeamData[M28Map.subrefLZThreatAllyMAA]='..tWZTeamData[M28Map.subrefLZThreatAllyMAA])
     end
     iCurrentConditionToTry = iCurrentConditionToTry + 1
     if tWZTeamData[M28Map.subrefWZThreatEnemySubmersible] > 0 then
@@ -3456,7 +3458,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
     end
 
     iCurrentConditionToTry = iCurrentConditionToTry + 1
-    if tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 then
+    if tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 and tWZTeamData[M28Map.refiEnemyAirToGroundThreat] >= math.min(2500, tWZTeamData[M28Map.subrefLZThreatAllyMAA] * 0.35) then
         if EntityCategoryContains(categories.AEON, oFactory.UnitId) or tWZTeamData[M28Map.refiEnemyAirToGroundThreat] >= math.max(100, (tWZTeamData[M28Map.subrefWZThreatAlliedAA] or 0) * 0.5) then
             if bDebugMessages == true then LOG(sFunctionRef .. ': Immediate threat - want AA') end
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryNavalAA) then return sBPIDToBuild end

@@ -249,6 +249,7 @@ refCategoryShieldBoat = categories.NAVAL * categories.SHIELD + categories.HOVER 
 refCategoryStealthBoat = categories.NAVAL * categories.STEALTHFIELD
 refCategoryBattlecruiser = categories.BATTLESHIP * categories.PRODUCTFA * categories.UEF
 refCategoryBattleship = categories.BATTLESHIP - refCategoryBattlecruiser - refCategoryMissileShip
+refCategoryBombardment = refCategoryFrigate + refCategoryMissileShip + refCategoryCruiserCarrier * categories.SILO + refCategoryDestroyer + refCategoryBattlecruiser + refCategoryBattleship
 
 
 --Multi-category:

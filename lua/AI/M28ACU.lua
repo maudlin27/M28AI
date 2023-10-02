@@ -64,7 +64,7 @@ function ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearchForAdjace
             end
         end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; brain='..aiBrain.Nickname..'; ACU='..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..'; Is tNearbyUnitsOfCategoryToBuild empty='..tostring(M28Utilities.IsTableEmpty(tNearbyUnitsOfCategoryToBuild))..'; Is oNearestPartComplete valid='..tostring(M28UnitInfo.IsUnitValid(oNearestPartComplete))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; brain='..aiBrain.Nickname..'; ACU='..oACU.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACU)..'; Is tNearbyUnitsOfCategoryToBuild empty='..tostring(M28Utilities.IsTableEmpty(tNearbyUnitsOfCategoryToBuild))..'; Is oNearestPartComplete valid='..tostring(M28UnitInfo.IsUnitValid(oNearestPartComplete))..'; ACU position='..repru(oACU:GetPosition())) end
     if M28UnitInfo.IsUnitValid(oNearestPartComplete) then
         if bDebugMessages == true then LOG(sFunctionRef..': Will assist part complete building='..oNearestPartComplete.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNearestPartComplete)) end
         local tLastOrder = oACU[M28Orders.reftiLastOrders][oACU[M28Orders.refiOrderCount]]
@@ -90,8 +90,8 @@ function ACUBuildUnit(aiBrain, oACU, iCategoryToBuild, iMaxAreaToSearchForAdjace
             local sBlueprint, tBuildLocation =                       M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oACU,        nil,                            iCategoryToBuild, iMaxAreaToSearchForAdjacencyAndUnderConstruction, iOptionalAdjacencyCategory, nil,                            false,                      nil,         iOptionalCategoryBuiltUnitCanBuild,    nil,                        tLZData, tLZTeamData)
             if not(tBuildLocation) then sBlueprint, tBuildLocation = M28Engineer.GetBlueprintAndLocationToBuild(aiBrain, oACU,          nil,                        iCategoryToBuild,    iMaxAreaToSearchForBuildLocation,                  nil,                         nil,                           false,                      nil,         iOptionalCategoryBuiltUnitCanBuild, nil,                           tLZData, tLZTeamData) end
             if bDebugMessages == true then
-                local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oACU:GetPosition(), true, oACU)
-                LOG(sFunctionRef..': Blueprint to build='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation)..'; ACU plateau and land zone based on cur position='..iPlateau..'; iLandZone='..(iLandZone or 'nil')..'; iMaxAreaToSearchForBuildLocation='..(iMaxAreaToSearchForBuildLocation or 'nil')..'; was iOptionalAdjacencyCategory nil='..tostring(iOptionalAdjacencyCategory == nil))
+                local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
+                LOG(sFunctionRef..': Blueprint to build='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation)..'; ACU plateau and land zone based on cur position='..iPlateauOrZero..'; Land or water zone='..(iLandOrWaterZone or 'nil')..'; iMaxAreaToSearchForBuildLocation='..(iMaxAreaToSearchForBuildLocation or 'nil')..'; was iOptionalAdjacencyCategory nil='..tostring(iOptionalAdjacencyCategory == nil)..'; tLZData midpoint='..repru(tLZData[M28Map.subrefMidpoint])..'; Is team data empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData)))
                 if sBlueprint and tBuildLocation then
                     LOG(sFunctionRef..': Can build structure at target='..tostring(aiBrain:CanBuildStructureAt(sBlueprint, tBuildLocation)))
                 end
@@ -131,7 +131,7 @@ function ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLandOrWaterZone, 
     local iMaxAreaToSearch = 35
     local iCategoryToBuild
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code for aiBrain '..aiBrain.Nickname..' at time '..GetGameTimeSeconds()) end
-    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) and GetGameTimeSeconds() >= 10 then M28Utilities.ErrorHandler('Empty allied units table, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; Is LZTeamData empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData))) end
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) and GetGameTimeSeconds() >= 60 and iPlateauOrZero > 0 and tLZTeamData[M28Map.subrefLZbCoreBase] then M28Utilities.ErrorHandler('Empty allied units table, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; Is LZTeamData empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData))) end
     if iFactoryCategoryOverride then iCategoryToBuild = iFactoryCategoryOverride
     else
         local iTeam = oACU:GetAIBrain().M28Team
@@ -838,7 +838,10 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                                                             M28Utilities.ErrorHandler('Unable to get any action for ACU owned by brain '..aiBrain.Nickname)
                                                         end
                                                     else
-                                                        M28Utilities.ErrorHandler('Unable to get early game action for ACU')
+                                                        --Campaign specific - might have strange restrictions early game, so hide this message initially
+                                                        if not(M28Map.bIsCampaignMap) or GetGameTimeSeconds() >= 300 then
+                                                            M28Utilities.ErrorHandler('Unable to get early game action for ACU')
+                                                        end
                                                     end
                                                 end
                                             end

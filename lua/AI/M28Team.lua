@@ -151,6 +151,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefiRallyPointWaterZonesByPond = 'M28TeamWZRallyPoint' --[x] is the pond ref, then returns a table orderd 1, 2... of water zones that are rally points
     refiTimeLastNoSurfaceCombatTargetByPond = 'M28TeamLastTimeNoSurfTarget' --[x] is the pond ref, returns gametimeseconds that had surface bomat units with no target
     refiTimeLastNoSubCombatTargetByPond = 'M28TeamLastTimeNoSubTarget' --[x] is the pond ref, returns gametimeseconds that had submersible combat units with no target
+    refiTimeLastHadBombardmentModeByPond = 'M28TeamLastTimeBombardment' --[x] is the pond ref, returns gametimeseconds that had a bombardment target activate (that wasnt for raiders)
 
     --Air related
     reftoAllEnemyAir = 'M28TeamEnemyAirAll'
@@ -2853,6 +2854,7 @@ function WaterZoneTeamInitialisation(iTeam)
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatAlliedSubmersible] = 0
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatAlliedSurface] = 0
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatAlliedAA] = 0
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatAlliedMAA] = 0
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZBestAlliedDFRange] = 0
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZBestAlliedSubmersibleRange] = 0
 
