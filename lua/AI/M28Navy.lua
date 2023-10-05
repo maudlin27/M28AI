@@ -1299,7 +1299,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
     local sFunctionRef = 'ManageSpecificWaterZone'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if iWaterZone == 5 and GetGameTimeSeconds() >= 55*60 + 50 then bDebugMessages = true end
 
     --Record enemy threat
     local tWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone]
@@ -1350,99 +1350,107 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
         local iLZIslandGivingOrder, iLZIslandTravelingTo
         if M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] > 600 and (M28Team.tTeamData[iTeam][M28Team.refiEnemyAirToGroundThreat] >= 2000 or tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0) then iMobileShieldHigherMAAMassThreshold = iMobileShieldMassThreshold end
 
+        function RecordIfUnitWantsShieldOrStealth(oUnit)
+            iUnitMassCost = oUnit:GetBlueprint().Economy.BuildCostMass
+            if iUnitMassCost >= iMobileShieldMassThreshold and (iUnitMassCost >= iMobileShieldHigherMAAMassThreshold or iMobileShieldHigherMAAMassThreshold == iMobileShieldMassThreshold or not(EntityCategoryContains(M28UnitInfo.refCategoryMAA, oUnit.UnitId))) then
+                table.insert(tWZTeamData[M28Map.reftoWZUnitsWantingMobileShield], oUnit)
+            end
+            if iEnemyOmniCoverage <= 20 then
+                if iUnitMassCost >= iMobileStealthHigherMassThreshold then
+                    table.insert(tWZTeamData[M28Map.reftoWZUnitsWantingMobileStealth], oUnit)
+                elseif iUnitMassCost >= iMobileStealthMassThreshold and EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryIndirect - categories.TECH1, oUnit.UnitId) then
+                    --Only say we want a mobile shield if the unit doesnt have one assigned
+                    iMobileStealthLowerThresholdCount = iMobileStealthLowerThresholdCount + 1
+
+                    if iMobileStealthLowerThresholdCount >= 3 or oUnit[M28Land.refoAssignedMobileStealth] then
+                        iMobileStealthLowerThresholdCount = 0
+                        table.insert(tWZTeamData[M28Map.reftoWZUnitsWantingMobileStealth], oUnit)
+                    end
+                end
+            end
+        end
 
         for iUnit, oUnit in tWZTeamData[M28Map.subrefWZTAlliedUnits] do
             if oUnit:GetFractionComplete() == 1 then
-                if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
-                    table.insert(tEngineers, oUnit)
-                    bWaterZoneOrAdjHasUnitsWantingScout = true
-                elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) or oUnit[M28ACU.refbTreatingAsACU] then
-                    --ACU logic - handled via M28ACU file, as amy not want to kite with it
-                    bWaterZoneOrAdjHasUnitsWantingScout = true
-                elseif EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy * categories.MOBILE, oUnit.UnitId) then
-                    if EntityCategoryContains(M28UnitInfo.refCategoryLandScout, oUnit.UnitId) or (bUseFrigatesAsScouts and EntityCategoryContains(M28UnitInfo.refCategoryFrigate, oUnit.UnitId)) then
-                        table.insert(tScouts, oUnit)
-                    elseif EntityCategoryContains(M28UnitInfo.refCategoryShieldBoat, oUnit.UnitId) then
-                        table.insert(tMobileShields, oUnit)
-                    elseif EntityCategoryContains(M28UnitInfo.refCategoryStealthBoat, oUnit.UnitId) then
-                        table.insert(tMobileStealths, oUnit)
-                    elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryNavalAA + M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryNavalSurface + M28UnitInfo.refCategorySubmarine - categories.COMMAND - M28UnitInfo.refCategoryRASSACU, oUnit.UnitId) then
-                        bIncludeUnit = false
+                if oUnit[refbActiveRaider] then
+                    --Consider if want shielding or stealth
+                    RecordIfUnitWantsShieldOrStealth(oUnit)
+                else
+                    if EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit.UnitId) then
+                        table.insert(tEngineers, oUnit)
                         bWaterZoneOrAdjHasUnitsWantingScout = true
-                        --Is the unit available for use by this water zone?
-                        --Is the unit's priority lower than this?
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering if have available combat or MAA unit, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oUnit[refiCurrentWZAssignmentValue]='..(oUnit[refiCurrentWZAssignmentValue] or 'nil')..'; oUnit[refiCurrentAssignmentWaterZone]='..(oUnit[refiCurrentAssignmentWaterZone] or 'nil')..'; LZ assignment='..repru(oUnit[M28Land.refiCurrentAssignmentPlateauAndLZ])..'; Time since last WZ assignment='..(GetGameTimeSeconds() - (oUnit[refiTimeOfLastWZAssignment] or 0))..'; Does unit contain MAA category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryNavalAA, oUnit.UnitId))) end
-                        if (oUnit[refiCurrentWZAssignmentValue] or 0) < iCurWZValue or (oUnit[refiCurrentAssignmentWaterZone] == iWaterZone or (GetGameTimeSeconds() - (oUnit[refiTimeOfLastWZAssignment] or 0) >= 10 and not(oUnit[M28Land.refiCurrentAssignmentPlateauAndLZ]))) then
-                            --Is it a unit with a shield that wants to retreat so its shield can regen?
-                            iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, true)
-                            if iMaxShield > 0 and iCurShield < iMaxShield * 0.35 and iMaxShield > oUnit:GetMaxHealth() * 0.8 then --primarily fatboy, but in theory could affect SACUs
-                                table.insert(tOtherUnitsToRetreat, oUnit)
-                                oUnit[refiCurrentWZAssignmentValue] = 100000
-                            else
-                                bIncludeUnit = true
-                                if EntityCategoryContains(M28UnitInfo.refCategorySubmarine - M28UnitInfo.refCategorySeraphimDestroyer, oUnit.UnitId) then
-                                    table.insert(tAvailableSubmarines, oUnit)
-                                elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryNavalAA, oUnit.UnitId) then
-                                    table.insert(tAvailableMAA, oUnit)
-                                elseif ((oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) > 0) and EntityCategoryContains(M28UnitInfo.refCategoryNavalSurface + categories.HOVER - M28UnitInfo.refCategoryLandExperimental * categories.AMPHIBIOUS - M28UnitInfo.refCategoryLandCombat * categories.AMPHIBIOUS + M28UnitInfo.refCategorySeraphimDestroyer, oUnit.UnitId) then
-                                    table.insert(tAvailableCombatUnits, oUnit)
-                                    table.insert(tWZTeamData[M28Map.subrefWZTAlliedCombatUnits], oUnit)
+                    elseif EntityCategoryContains(categories.COMMAND, oUnit.UnitId) or oUnit[M28ACU.refbTreatingAsACU] then
+                        --ACU logic - handled via M28ACU file, as amy not want to kite with it
+                        bWaterZoneOrAdjHasUnitsWantingScout = true
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy * categories.MOBILE, oUnit.UnitId) then
+                        if EntityCategoryContains(M28UnitInfo.refCategoryLandScout, oUnit.UnitId) or (bUseFrigatesAsScouts and EntityCategoryContains(M28UnitInfo.refCategoryFrigate, oUnit.UnitId)) then
+                            table.insert(tScouts, oUnit)
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryShieldBoat, oUnit.UnitId) then
+                            table.insert(tMobileShields, oUnit)
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryStealthBoat, oUnit.UnitId) then
+                            table.insert(tMobileStealths, oUnit)
+                        elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryNavalAA + M28UnitInfo.refCategoryMobileLand + M28UnitInfo.refCategoryNavalSurface + M28UnitInfo.refCategorySubmarine - categories.COMMAND - M28UnitInfo.refCategoryRASSACU, oUnit.UnitId) then
+                            bIncludeUnit = false
+                            bWaterZoneOrAdjHasUnitsWantingScout = true
+                            --Is the unit available for use by this water zone?
+                            --Is the unit's priority lower than this?
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if have available combat or MAA unit, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oUnit[refiCurrentWZAssignmentValue]='..(oUnit[refiCurrentWZAssignmentValue] or 'nil')..'; oUnit[refiCurrentAssignmentWaterZone]='..(oUnit[refiCurrentAssignmentWaterZone] or 'nil')..'; LZ assignment='..repru(oUnit[M28Land.refiCurrentAssignmentPlateauAndLZ])..'; Time since last WZ assignment='..(GetGameTimeSeconds() - (oUnit[refiTimeOfLastWZAssignment] or 0))..'; Does unit contain MAA category='..tostring(EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryNavalAA, oUnit.UnitId))) end
+                            if (oUnit[refiCurrentWZAssignmentValue] or 0) < iCurWZValue or (oUnit[refiCurrentAssignmentWaterZone] == iWaterZone or (GetGameTimeSeconds() - (oUnit[refiTimeOfLastWZAssignment] or 0) >= 10 and not(oUnit[M28Land.refiCurrentAssignmentPlateauAndLZ]))) then
+                                --Is it a unit with a shield that wants to retreat so its shield can regen?
+                                iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, true)
+                                if iMaxShield > 0 and iCurShield < iMaxShield * 0.35 and iMaxShield > oUnit:GetMaxHealth() * 0.8 then --primarily fatboy, but in theory could affect SACUs
+                                    table.insert(tOtherUnitsToRetreat, oUnit)
+                                    oUnit[refiCurrentWZAssignmentValue] = 100000
                                 else
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Have an amphibious unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; AntiNavyRange='..(oUnit[M28UnitInfo.refiAntiNavyRange] or 0)) end
-                                    table.insert(tAmphibiousUnits, oUnit)
-                                end
-                                if bIncludeUnit then
-                                    RecordUnitAsReceivingWaterZoneAssignment(oUnit, iWaterZone, iCurWZValue)
-                                end
-                            end
-                            --Is this a land unit traveling from 1 island to another island? In which case also want to consider
-                        elseif oUnit[refiCurrentAssignmentWaterZone] == nil and oUnit[M28Land.refiCurrentAssignmentPlateauAndLZ][2] then
-                            local tLastOrder = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
-                            if tLastOrder and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove then
-                                local tAssignmentLZData = M28Map.tAllPlateaus[oUnit[M28Land.refiCurrentAssignmentPlateauAndLZ][1]][M28Map.subrefPlateauLandZones][oUnit[M28Land.refiCurrentAssignmentPlateauAndLZ][2]]
-
-                                iLZIslandGivingOrder = NavUtils.GetLabel(M28Map.refPathingTypeLand, tAssignmentLZData[M28Map.subrefMidpoint])
-                                iLZIslandTravelingTo = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLastOrder[M28Orders.subreftOrderPosition])
-                                if iLZIslandTravelingTo and not(iLZIslandGivingOrder == iLZIslandTravelingTo) then
                                     bIncludeUnit = true
+                                    if EntityCategoryContains(M28UnitInfo.refCategorySubmarine - M28UnitInfo.refCategorySeraphimDestroyer, oUnit.UnitId) then
+                                        table.insert(tAvailableSubmarines, oUnit)
+                                    elseif EntityCategoryContains(M28UnitInfo.refCategoryMAA + M28UnitInfo.refCategoryNavalAA, oUnit.UnitId) then
+                                        table.insert(tAvailableMAA, oUnit)
+                                    elseif ((oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or (oUnit[M28UnitInfo.refiAntiNavyRange] or 0) > 0) and EntityCategoryContains(M28UnitInfo.refCategoryNavalSurface + categories.HOVER - M28UnitInfo.refCategoryLandExperimental * categories.AMPHIBIOUS - M28UnitInfo.refCategoryLandCombat * categories.AMPHIBIOUS + M28UnitInfo.refCategorySeraphimDestroyer, oUnit.UnitId) then
+                                        table.insert(tAvailableCombatUnits, oUnit)
+                                        table.insert(tWZTeamData[M28Map.subrefWZTAlliedCombatUnits], oUnit)
+                                    else
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Have an amphibious unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; DF range='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; AntiNavyRange='..(oUnit[M28UnitInfo.refiAntiNavyRange] or 0)) end
+                                        table.insert(tAmphibiousUnits, oUnit)
+                                    end
+                                    if bIncludeUnit then
+                                        RecordUnitAsReceivingWaterZoneAssignment(oUnit, iWaterZone, iCurWZValue)
+                                    end
                                 end
-                                if bDebugMessages == true then LOG(sFunctionRef..': Have a unit that was given a plateau and LZ assignment and has no WZ assignment, Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iLZIslandGivingOrder='..(iLZIslandGivingOrder or 'nil')..'; iLZIslandTravelingTo='..(iLZIslandTravelingTo or 'nil')..'; bIncludeUnit='..tostring(bIncludeUnit)) end
+                                --Is this a land unit traveling from 1 island to another island? In which case also want to consider
+                            elseif oUnit[refiCurrentAssignmentWaterZone] == nil and oUnit[M28Land.refiCurrentAssignmentPlateauAndLZ][2] then
+                                local tLastOrder = oUnit[M28Orders.reftiLastOrders][oUnit[M28Orders.refiOrderCount]]
+                                if tLastOrder and tLastOrder[M28Orders.subrefiOrderType] == M28Orders.refiOrderIssueMove then
+                                    local tAssignmentLZData = M28Map.tAllPlateaus[oUnit[M28Land.refiCurrentAssignmentPlateauAndLZ][1]][M28Map.subrefPlateauLandZones][oUnit[M28Land.refiCurrentAssignmentPlateauAndLZ][2]]
 
-                            end
-                            if bIncludeUnit then
+                                    iLZIslandGivingOrder = NavUtils.GetLabel(M28Map.refPathingTypeLand, tAssignmentLZData[M28Map.subrefMidpoint])
+                                    iLZIslandTravelingTo = NavUtils.GetLabel(M28Map.refPathingTypeLand, tLastOrder[M28Orders.subreftOrderPosition])
+                                    if iLZIslandTravelingTo and not(iLZIslandGivingOrder == iLZIslandTravelingTo) then
+                                        bIncludeUnit = true
+                                    end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Have a unit that was given a plateau and LZ assignment and has no WZ assignment, Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; iLZIslandGivingOrder='..(iLZIslandGivingOrder or 'nil')..'; iLZIslandTravelingTo='..(iLZIslandTravelingTo or 'nil')..'; bIncludeUnit='..tostring(bIncludeUnit)) end
+
+                                end
                                 if bIncludeUnit then
-                                    RecordUnitAsReceivingWaterZoneAssignment(oUnit, iWaterZone, iCurWZValue)
+                                    if bIncludeUnit then
+                                        RecordUnitAsReceivingWaterZoneAssignment(oUnit, iWaterZone, iCurWZValue)
 
+                                    end
+                                else
+                                    table.insert(tUnavailableUnitsInThisWZ, oUnit)
                                 end
                             else
                                 table.insert(tUnavailableUnitsInThisWZ, oUnit)
                             end
-                        else
-                            table.insert(tUnavailableUnitsInThisWZ, oUnit)
+                            RecordIfUnitWantsShieldOrStealth(oUnit)
                         end
-                        iUnitMassCost = oUnit:GetBlueprint().Economy.BuildCostMass
-                        if iUnitMassCost >= iMobileShieldMassThreshold and (iUnitMassCost >= iMobileShieldHigherMAAMassThreshold or iMobileShieldHigherMAAMassThreshold == iMobileShieldMassThreshold or not(EntityCategoryContains(M28UnitInfo.refCategoryMAA, oUnit.UnitId))) then
-                            table.insert(tWZTeamData[M28Map.reftoWZUnitsWantingMobileShield], oUnit)
-                        end
-                        if iEnemyOmniCoverage <= 20 then
-                            if iUnitMassCost >= iMobileStealthHigherMassThreshold then
-                                table.insert(tWZTeamData[M28Map.reftoWZUnitsWantingMobileStealth], oUnit)
-                            elseif iUnitMassCost >= iMobileStealthMassThreshold and EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryIndirect - categories.TECH1, oUnit.UnitId) then
-                                --Only say we want a mobile shield if the unit doesnt have one assigned
-                                iMobileStealthLowerThresholdCount = iMobileStealthLowerThresholdCount + 1
-
-                                if iMobileStealthLowerThresholdCount >= 3 or oUnit[M28Land.refoAssignedMobileStealth] then
-                                    iMobileStealthLowerThresholdCount = 0
-                                    table.insert(tWZTeamData[M28Map.reftoWZUnitsWantingMobileStealth], oUnit)
-                                end
-                            end
-                        end
+                    elseif EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) then
+                        --Structure logic - handled separately e.g. via M28Factory for factories
+                    else
+                        table.insert(tTempOtherUnits, oUnit)
+                        LOG('Adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to table of temp other units - need to add logic to handle such a unit - likely just a pathfinding error')
                     end
-                elseif EntityCategoryContains(categories.STRUCTURE, oUnit.UnitId) then
-                    --Structure logic - handled separately e.g. via M28Factory for factories
-                else
-                    table.insert(tTempOtherUnits, oUnit)
-                    LOG('Adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to table of temp other units - need to add logic to handle such a unit - likely just a pathfinding error')
                 end
             end
         end
@@ -1513,7 +1521,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                 if tAltWZTeam[M28Map.subrefWZTValue] < iCurWZValue and tAltWZTeam[M28Map.subrefTThreatEnemyCombatTotal] <= 50 and M28Utilities.IsTableEmpty(tAltWZTeam[M28Map.subrefWZTAlliedCombatUnits]) == false then
                     for iUnit, oUnit in tAltWZTeam[M28Map.subrefWZTAlliedCombatUnits] do
                         if bDebugMessages == true then LOG(sFunctionRef..': Deciding if we want to add adjacent oUnit '..(oUnit.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit) or 'nil')..' with cur assignment value '..(oUnit[refiCurrentWZAssignmentValue] or 0)..' and cur assignemnt WZ='..(oUnit[refiCurrentAssignmentWaterZone] or 'nil')) end
-                        if not(oUnit.Dead) and not(oUnit[M28UnitInfo.refbActiveRaider]) and ((oUnit[refiCurrentWZAssignmentValue] or 0) < iCurWZValue or (oUnit[refiCurrentAssignmentWaterZone] == iAdjWZ)) then
+                        if not(oUnit.Dead) and not(oUnit[refbActiveRaider]) and ((oUnit[refiCurrentWZAssignmentValue] or 0) < iCurWZValue or (oUnit[refiCurrentAssignmentWaterZone] == iAdjWZ)) then
                             --Combat unit related
                             if bConsiderAdjacentCombat and (oUnit[M28UnitInfo.refiDFRange] > 0 or oUnit[M28UnitInfo.refiAntiNavyRange] > 0) and not(EntityCategoryContains(M28UnitInfo.refCategoryCruiser, oUnit.UnitId)) then
                                 table.insert(tAvailableCombatUnits, oUnit)
@@ -4385,10 +4393,29 @@ function RefreshRaidingNavalLocations(iFactoryWaterZone, iTeam)
                                                     --No significant water threat, consider the closest enemy building to the last water zone path entry, and the max range required to attack.  To keep things simple, for now will only consider the closest unit and if shot is blocked for it (rather than every unit)
                                                     local tEnemyStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tCurLZTeamData[M28Map.subrefTEnemyUnits])
                                                     if M28Conditions.IsTableOfUnitsStillValid(tEnemyStructures) then
-                                                        local oClosestEnemyStructure = M28Utilities.GetNearestUnit(tEnemyStructures, tCurWZData[M28Map.subrefMidpoint])
+                                                        --Want both the closest and furthest unti since on some islands units might be at the rear of the island so furthest from our water zone, yet close to water, hence still worth considering as a target
+                                                        local oClosestEnemyStructure -- = M28Utilities.GetNearestUnit(tEnemyStructures, tCurWZData[M28Map.subrefMidpoint])
+                                                        local oFurthestEnemyStructure, iCurDist
+                                                        local iClosestDist = 10000
+                                                        local iFurthestDist = 0
+                                                        for iUnit, oUnit in tEnemyStructures do
+                                                            iCurDist = M28Utilities.GetDistanceBetweenPositions(tCurWZData[M28Map.subrefMidpoint], oUnit:GetPosition())
+                                                            if iCurDist < iClosestDist then
+                                                                oClosestEnemyStructure = oUnit
+                                                                iClosestDist = iCurDist
+                                                            end
+                                                            if iCurDist > iFurthestDist then
+                                                                iFurthestDist = iCurDist
+                                                                oFurthestEnemyStructure = oUnit
+                                                            end
+                                                        end
                                                         if M28UnitInfo.IsUnitValid(oClosestEnemyStructure) then
-                                                            iShortestRangeRequired = math.max(iShortestRangeRequired, GetMinDFDistanceForShotFromWaterToHitUnit(aiBrain, tCurWZData[M28Map.subrefMidpoint], iStartPond, oClosestEnemyStructure, iHighestAcceptableRange))
-                                                            if bDebugMessages == true then LOG(sFunctionRef..': oClosestEnemyStructure='..oClosestEnemyStructure.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemyStructure)..'; iShortestRangeRequired='..iShortestRangeRequired..'; iHighestAcceptableRange='..iHighestAcceptableRange) end
+                                                            if oClosestEnemyStructure == oFurthestEnemyStructure then
+                                                                iShortestRangeRequired = math.max(iShortestRangeRequired, GetMinDFDistanceForShotFromWaterToHitUnit(aiBrain, tCurWZData[M28Map.subrefMidpoint], iStartPond, oClosestEnemyStructure, iHighestAcceptableRange))
+                                                            else
+                                                                iShortestRangeRequired = math.max(iShortestRangeRequired, math.min(GetMinDFDistanceForShotFromWaterToHitUnit(aiBrain, tCurWZData[M28Map.subrefMidpoint], iStartPond, oClosestEnemyStructure, iHighestAcceptableRange), GetMinDFDistanceForShotFromWaterToHitUnit(aiBrain, tCurWZData[M28Map.subrefMidpoint], iStartPond, oFurthestEnemyStructure, iHighestAcceptableRange)))
+                                                            end
+                                                            if bDebugMessages == true then LOG(sFunctionRef..': oClosestEnemyStructure='..oClosestEnemyStructure.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemyStructure)..'; iShortestRangeRequired='..iShortestRangeRequired..'; iHighestAcceptableRange='..iHighestAcceptableRange..'; oFurthestEnemyStructure='..oFurthestEnemyStructure.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFurthestEnemyStructure)) end
                                                             if iShortestRangeRequired <= iHighestAcceptableRange then
                                                                 tStartWZTeamData[M28Map.refoLastRaidTarget] = oClosestEnemyStructure
                                                                 if bDebugMessages == true then LOG(sFunctionRef..': Have a valid target for raiding') end
@@ -4587,7 +4614,7 @@ function ManageWaterZoneRaiders(iFactoryWaterZone, iTeam, tFactoryWZData, tFacto
             if tWZRaidingPath then
                 --Next check the total enemy naval threat from the base WZ to the raid destination or if we have enemies in the base WZ; if it is too much, then free up these units temporarily to help with normal combat duties
                 local bAttackRaidTarget = false
-                if bDebugMessages == true then LOG(sFUnctionRef..': is table of raiders empty='..tostring(M28Utilities.IsTableEmpty(tFactoryWZTeamData[M28Map.reftoWZRaiders]))) end
+                if bDebugMessages == true then LOG(sFunctionRef..': is table of raiders empty='..tostring(M28Utilities.IsTableEmpty(tFactoryWZTeamData[M28Map.reftoWZRaiders]))) end
                 if M28Utilities.IsTableEmpty(tFactoryWZTeamData[M28Map.reftoWZRaiders]) == false then
                     --Record every water zone along the path; then for any unit not in one of these zones, figure out the closest such water zone (with a bonus for those closer to the destination) and travel there
                     local tbWaterZonesInPath = {[iFactoryWaterZone] = true}
@@ -4616,6 +4643,7 @@ function ManageWaterZoneRaiders(iFactoryWaterZone, iTeam, tFactoryWZData, tFacto
                                 --Are at the target, can try to attack the enemy
                                 table.insert(toUnitsToAttack, oUnit)
                             else
+                                if bDebugMessages == true then LOG(sFunctionRef..': Have unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' who is currently in water zone '..iCurWZ..' and wants to get to WZ '..iLastZone..' so will have it move to that midpoint. oRaider[refbActiveRaider]='..tostring(oUnit[refbActiveRaider] or false)) end
                                 --Move towards the last zone, attack-move if shot not blocked
                                 if oUnit[M28UnitInfo.refbLastShotBlocked] and (GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or -100)) >= 10 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastCheck] or -100) < 6 then
                                     M28Orders.IssueTrackedAttackMove(oUnit, tTargetWZData[M28Map.subrefMidpoint], 10, false, 'RaidMT'..iLastZone, false)
@@ -4626,7 +4654,10 @@ function ManageWaterZoneRaiders(iFactoryWaterZone, iTeam, tFactoryWZData, tFacto
                         end
                     end
                     if M28Utilities.IsTableEmpty(toUnitsToAttack) == false then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have '..table.getn(toUnitsToAttack)..' units which will assign bombardment actions for the water zone '..iLastZone..'; oRaider[refbActiveRaider]='..tostring(oRaider[refbActiveRaider] or false)) end
                         AssignBombardmentActions(tTargetWZData, iLastZone, iTargetWZPond, iTeam, toUnitsToAttack)
+                    else
+                        if bDebugMessages == true then LOG(sFunctionRef..': have no units that are in the final zone to attack with') end
                     end
                 end
             end

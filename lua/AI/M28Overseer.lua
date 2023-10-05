@@ -1082,7 +1082,7 @@ function OverseerManager(aiBrain)
          end--]]
 
         --if GetGameTimeSeconds() >= 2700 then import('/mods/M28AI/lua/M28Config.lua').M28ShowUnitNames = true end
-        if GetGameTimeSeconds() >= 40*60 and GetGameTimeSeconds() <= 41*60 then TestCustom(aiBrain) end
+        --if GetGameTimeSeconds() >= 40*60 and GetGameTimeSeconds() <= 41*60 then TestCustom(aiBrain) end
         --Enable below to help figure out infinite loops
         --[[if GetGameTimeSeconds() >= 173 and not(bSetHook) then
             bSetHook = true
