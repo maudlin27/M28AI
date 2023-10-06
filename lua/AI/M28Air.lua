@@ -668,6 +668,7 @@ function GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, iCategory, bRecordInTo
     local tAvailableUnits = {}
     local tUnitsForRefueling = {}
     local tInUseUnits = {}
+    local tSpecialLogicUnits = {}
     for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
         if oBrain.M28AI then
             local tCurUnits = oBrain:GetListOfUnits(iCategory, false, true)
@@ -748,8 +749,12 @@ function GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, iCategory, bRecordInTo
                                     table.insert(tUnitsForRefueling, oUnit)
                                 else
                                     --Unit is available
-                                    if bDebugMessages == true then LOG(sFunctionRef..' Unit will be made available') end
-                                    table.insert(tAvailableUnits, oUnit)
+                                    if M28UnitInfo.GetUnitLifetimeCount(oUnit) == 1 and EntityCategoryContains(M28UnitInfo.refCategoryBomber * categories.TECH1, oUnit.UnitId) then
+                                        table.insert(tSpecialLogicUnits, oUnit)
+                                    else
+                                        if bDebugMessages == true then LOG(sFunctionRef..' Unit will be made available') end
+                                        table.insert(tAvailableUnits, oUnit)
+                                    end
                                 end
                             end
                         end
@@ -767,7 +772,7 @@ function GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, iCategory, bRecordInTo
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    return tAvailableUnits, tUnitsForRefueling, tInUseUnits
+    return tAvailableUnits, tUnitsForRefueling, tInUseUnits, tSpecialLogicUnits
 end
 
 function GetRallyPointValueOfLandZone(iTeam, tLZData, tLZTeamData, iPlateau)
@@ -2762,8 +2767,23 @@ function ManageBombers(iTeam, iAirSubteam)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ManageBombers'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    local tAvailableBombers, tBombersForRefueling, tUnavailableUnits = GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, M28UnitInfo.refCategoryBomber - categories.EXPERIMENTAL)
+    local tAvailableBombers, tBombersForRefueling, tUnavailableUnits, tSpecialLogicAvailableBombers = GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, M28UnitInfo.refCategoryBomber - categories.EXPERIMENTAL)
     local iOurBomberThreat = 0
+
+    local tEnemyTargets = {}
+
+    function FilterToAvailableTargets(tPotentialTargets, iOptionalCategory)
+        if M28Utilities.IsTableEmpty(tPotentialTargets) == false then
+            local bDontConsiderPlayableArea = not(M28Map.bIsCampaignMap)
+            for iUnit, oUnit in tPotentialTargets do
+                if M28UnitInfo.IsUnitValid(oUnit) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and (bDontConsiderPlayableArea or M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition())) then
+                    if not(iOptionalCategory) or EntityCategoryContains(iOptionalCategory, oUnit.UnitId) then
+                        table.insert(tEnemyTargets, oUnit)
+                    end
+                end
+            end
+        end
+    end
 
     if M28Utilities.IsTableEmpty(tAvailableBombers) == false then
 
@@ -2789,18 +2809,7 @@ function ManageBombers(iTeam, iAirSubteam)
             iSearchSize = iSearchSize * 2
         end
 
-        local tEnemyTargets = {}
 
-        function FilterToAvailableTargets(tPotentialTargets)
-            if M28Utilities.IsTableEmpty(tPotentialTargets) == false then
-                local bDontConsiderPlayableArea = not(M28Map.bIsCampaignMap)
-                for iUnit, oUnit in tPotentialTargets do
-                    if M28UnitInfo.IsUnitValid(oUnit) and not(M28UnitInfo.IsUnitUnderwater(oUnit)) and (bDontConsiderPlayableArea or M28Conditions.IsLocationInPlayableArea(oUnit:GetPosition())) then
-                        table.insert(tEnemyTargets, oUnit)
-                    end
-                end
-            end
-        end
         local bConsiderHigherTechUnitsFirst = false
         if iOurBomberThreat >= 1500 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(categories.TECH3 + categories.EXPERIMENTAL, tAvailableBombers)) == false then
             bConsiderHigherTechUnitsFirst = true
@@ -2901,7 +2910,7 @@ function ManageBombers(iTeam, iAirSubteam)
                                             tOtherLZOrWZData = M28Map.tPondDetails[tPathingDetails[M28Map.subrefiPlateauOrPond]][M28Map.subrefPondWaterZones][iOtherLZOrWZ]
                                             tOtherLZOrWZTeamData = tOtherLZOrWZData[M28Map.subrefWZTeamData][iTeam]
                                         else
-                                            tOtherLZOrWZData = M28Map.tAllPlateaus[iRallyPlateauOrZero][M28Map.subrefPlateauLandZones][iOtherLZOrWZ]
+                                            tOtherLZOrWZData = M28Map.tAllPlateaus[iOtherPlateauOrZero][M28Map.subrefPlateauLandZones][iOtherLZOrWZ]
                                             tOtherLZOrWZTeamData = tOtherLZOrWZData[M28Map.subrefLZTeamData][iTeam]
                                         end
                                         if (tOtherLZOrWZData[M28Map.subrefLZTravelDist] or 0) > iSearchSize then break end
@@ -2938,6 +2947,58 @@ function ManageBombers(iTeam, iAirSubteam)
                 end
             end
         end
+    end
+
+    if M28Utilities.IsTableEmpty(tSpecialLogicAvailableBombers) == false then
+        for iUnit, oUnit in tSpecialLogicAvailableBombers do
+            local tBomberTable = {oUnit}
+            tEnemyTargets = {}
+            if EntityCategoryContains(categories.TECH1, oUnit.UnitId) then
+                --Engi hunter logic - search outwards from the bomber for the closest engineer that doesnt have groundAA protecting it
+                local tStartLZOrWZData, tStartLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+
+                if tStartLZOrWZData then
+                    local bDontCheckForPacifism = not(M28Overseer.bPacifistModeActive)
+                    local iEngiHunterCategories = M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryRadar
+                    if bDontCheckForPacifism or not(tStartLZOrWZTeamData[M28Map.subrefbPacifistArea]) then FilterToAvailableTargets(tStartLZOrWZTeamData[M28Map.subrefTEnemyUnits], iEngiHunterCategories) end
+                    RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartLZOrWZData[M28Map.subrefMidpoint])
+                    if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false and M28Utilities.IsTableEmpty(tEnemyTargets) then
+                        local iSearchSize = 500
+                        for iEntry, tPathingDetails in tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+                            local iOtherPlateauOrZero = tPathingDetails[M28Map.subrefiPlateauOrPond]
+                            local iOtherLZOrWZ = tPathingDetails[M28Map.subrefiLandOrWaterZoneRef]
+                            if tPathingDetails[M28Map.subrefbIsWaterZone] then iOtherPlateauOrZero = 0 end
+                            if iOtherLZOrWZ then
+                                local tOtherLZOrWZData
+                                local tOtherLZOrWZTeamData
+                                if iOtherPlateauOrZero == 0 then
+                                    tOtherLZOrWZData = M28Map.tPondDetails[tPathingDetails[M28Map.subrefiPlateauOrPond]][M28Map.subrefPondWaterZones][iOtherLZOrWZ]
+                                    tOtherLZOrWZTeamData = tOtherLZOrWZData[M28Map.subrefWZTeamData][iTeam]
+                                else
+                                    tOtherLZOrWZData = M28Map.tAllPlateaus[iOtherPlateauOrZero][M28Map.subrefPlateauLandZones][iOtherLZOrWZ]
+                                    tOtherLZOrWZTeamData = tOtherLZOrWZData[M28Map.subrefLZTeamData][iTeam]
+                                end
+                                if (tOtherLZOrWZData[M28Map.subrefLZTravelDist] or 0) > iSearchSize then break end
+                                if bDontCheckForPacifism or not(tOtherLZOrWZData[M28Map.subrefbPacifistArea]) then
+                                    FilterToAvailableTargets(tOtherLZOrWZTeamData[M28Map.subrefTEnemyUnits], iEngiHunterCategories)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering iOtherPlateauOrZero='..(iOtherPlateauOrZero or 'nil')..'; iOtherLZOrWZ='..(iOtherLZOrWZ or 'nil')..'; dist='..(tOtherLZOrWZData[M28Map.subrefiDistance] or 'nil')..'; iSearchSize='..(iSearchSize or 'nil')..'; Does it have enemy units='..tostring(M28Utilities.IsTableEmpty(tOtherLZOrWZTeamData[M28Map.subrefTEnemyUnits]))..'; Is table of targets empty='..tostring(M28Utilities.IsTableEmpty( tEnemyTargets))) end
+                                    if M28Utilities.IsTableEmpty( tEnemyTargets) == false then
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Assigning bomber targets for iOtherLZOrWZ='..iOtherLZOrWZ) end
+                                        AssignTorpOrBomberTargets(tBomberTable, tEnemyTargets, iAirSubteam, false, true)
+                                        tEnemyTargets = {}
+                                        if M28Utilities.IsTableEmpty(tBomberTable) then break end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+
+            else
+                M28Utilities.ErrorHandler('Special bomber logic not implemented other htan for t1 bombers')
+            end
+        end
+
     end
 
     --Send units for refueling

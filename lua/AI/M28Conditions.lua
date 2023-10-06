@@ -45,6 +45,16 @@ function AreMobileLandUnitsInRect(rRectangleToSearch)
     return false
 end
 
+function GetAirSubteamLifetimeBuildCount(iAirSubteam, category)
+    local iTotalBuild = 0
+    if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
+        for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyActiveM28Brains] do
+            iTotalBuild = iTotalBuild + GetLifetimeBuildCount(oBrain, category)
+        end
+    end
+    return iTotalBuild
+end
+
 function GetTeamLifetimeBuildCount(iTeam, category)
     --Intended for use for M28 teams only
     local iTotalBuild = 0
