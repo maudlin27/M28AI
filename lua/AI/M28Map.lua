@@ -417,10 +417,12 @@ tPondDetails = {}
             refiLastBombardmentSearchRange = 'WZBmbRng' --Last range used for searching for bmobardment targets
             refbLastBombardmentSearchRangeSuccess = 'WZBmbSuc' --true if last time searched for enemies aroudn a location it found results
             refiClosestRaidingPlateauAndLandZone = 'WZClRLZ' --returns {Plateau, LandZone} if htere is a land zone we want to consider as a raiding target
+            refiRaidWZForBombardment = 'WZRdBmWZ' --water zone where we expect to be able to attack enemy structures
             refiMinRangeRaidingZone = 'WZClRng' --returns the min range we want raiding naval units to have to join the raid on the land zone
             reftoWZRaiders = 'WZRaidr' --table of units assigned to raid; recorded against the base (factory) zone
             refbActiveRaiderLogic = 'WZActR' --true if are monitoring raider orders
             refoLastRaidTarget = 'WZRaidT' --Raid target building (used as backup for bombardment logic)
+            refiRaidTechLevel = 'WZRadTL' --Tech level to use for raiding logic to estimate permissible ranges and enemy threat values
 
             subrefWZCombatThreatWanted = 'CombWant'
             subrefWZMAAThreatWanted = 'MAAWant'
