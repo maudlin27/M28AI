@@ -2360,7 +2360,7 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
                             end
                         end
                         if not(tbAdjacentPlateauAndLandZonesConsidered[iAdjacentAASearchType][iPlateau]) then
-                            if not(tbAdjacentPlateauAndLandZonesConsidered[iAdjacentAASearchType]) then tbAdjacentPlateauAndLandZonesConsidered[refiAASearchType] = {} end
+                            if not(tbAdjacentPlateauAndLandZonesConsidered[iAdjacentAASearchType]) then tbAdjacentPlateauAndLandZonesConsidered[iAdjacentAASearchType] = {} end
                             tbAdjacentPlateauAndLandZonesConsidered[iAdjacentAASearchType][iPlateau] = {}
                         end
                         tbAdjacentPlateauAndLandZonesConsidered[iAdjacentAASearchType][iPlateau][iLandZone] = true
