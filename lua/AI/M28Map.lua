@@ -263,6 +263,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
                 subrefBuildingRadius = 4 --Size (radius) of the building
                 subrefPrimaryBuilder = 5 --Engineer given the build order
             subreftiPotentialNukeTargetZones = 'NkTrgtZ' --contains subtables, ordered 1,2,...x returning {iPlateauOrZero, iLandOrWaterZone} for each zone that can probably be hit by a nuke from this zone
+            refbAdjZonesWantEngiForUnbuiltMex = 'AZwEMx' --true if have adj zones wanting engineer for unbuilt mex
             --subrefLZTAdjacentBPByTechWanted = 'AdjBPByTechW' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power wanted wanted
             --Economy related values
             subrefActiveUpgrades = 'ActiveUpgrades' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam]

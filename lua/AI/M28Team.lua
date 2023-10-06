@@ -2149,24 +2149,27 @@ function AddPotentialUnitsToShortlist(toUnitShortlist, tPotentialUnits, bDontChe
     if M28Utilities.IsTableEmpty(tPotentialUnits) == false then
         for iUnit, oUnit in tPotentialUnits do
             if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit:IsUnitState('Upgrading')) and oUnit:GetFractionComplete() == 1 then
-                local bUnitIsHighestTechFactoryForOptionalCount = false
-                if not(iOptionalHighestTechBuildCountRequirement) then bUnitIsHighestTechFactoryForOptionalCount = true
-                else
-                    local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnit)
-                    if iUnitTechLevel >= 3 then bUnitIsHighestTechFactoryForOptionalCount = true
+                --Extra check for factories
+                if not(M28Conditions.CheckIfNeedMoreEngineersBeforeUpgrading(oUnit)) then
+                    local bUnitIsHighestTechFactoryForOptionalCount = false
+                    if not(iOptionalHighestTechBuildCountRequirement) then bUnitIsHighestTechFactoryForOptionalCount = true
                     else
-                        if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) then
-                            if iUnitTechLevel >= oUnit:GetAIBrain()[M28Economy.refiOurHighestLandFactoryTech] then bUnitIsHighestTechFactoryForOptionalCount = true end
+                        local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnit)
+                        if iUnitTechLevel >= 3 then bUnitIsHighestTechFactoryForOptionalCount = true
+                        else
+                            if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) then
+                                if iUnitTechLevel >= oUnit:GetAIBrain()[M28Economy.refiOurHighestLandFactoryTech] then bUnitIsHighestTechFactoryForOptionalCount = true end
 
-                        elseif EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oUnit.UnitId) then
-                            if iUnitTechLevel >= oUnit:GetAIBrain()[M28Economy.refiOurHighestAirFactoryTech] then bUnitIsHighestTechFactoryForOptionalCount = true end
-                        elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oUnit.UnitId) then
-                            if iUnitTechLevel >= oUnit:GetAIBrain()[M28Economy.refiOurHighestNavalFactoryTech] then bUnitIsHighestTechFactoryForOptionalCount = true end
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oUnit.UnitId) then
+                                if iUnitTechLevel >= oUnit:GetAIBrain()[M28Economy.refiOurHighestAirFactoryTech] then bUnitIsHighestTechFactoryForOptionalCount = true end
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oUnit.UnitId) then
+                                if iUnitTechLevel >= oUnit:GetAIBrain()[M28Economy.refiOurHighestNavalFactoryTech] then bUnitIsHighestTechFactoryForOptionalCount = true end
+                            end
                         end
                     end
-                end
-                if (not(bUnitIsHighestTechFactoryForOptionalCount) or iOptionalHighestTechBuildCountRequirement <= (oUnit[M28Factory.refiTotalBuildCount] or 0)) and (bDontCheckIfSafe or M28Conditions.SafeToUpgradeUnit(oUnit)) then
-                    table.insert(toUnitShortlist, oUnit)
+                    if (not(bUnitIsHighestTechFactoryForOptionalCount) or iOptionalHighestTechBuildCountRequirement <= (oUnit[M28Factory.refiTotalBuildCount] or 0)) and (bDontCheckIfSafe or M28Conditions.SafeToUpgradeUnit(oUnit)) then
+                        table.insert(toUnitShortlist, oUnit)
+                    end
                 end
             end
         end

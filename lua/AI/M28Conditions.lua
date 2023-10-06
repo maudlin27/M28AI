@@ -1960,3 +1960,51 @@ function GetMexesNotNearPlayerStartingZone()
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     return iMexesNotInStartZone
 end
+
+function CheckIfNeedMoreEngineersBeforeUpgrading(oFactory)
+    --Returns true if we want more engineers (e.g. for more power or nearby unclaimed mexes) before upgrading
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'CheckIfNeedMoreEngineersBeforeUpgrading'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if EntityCategoryContains(M28UnitInfo.refCategoryFactory,oFactory.UnitId) then
+        if EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oFactory.UnitId) then bDebugMessages = true end
+        local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Total build count='..(oFactory[M28Factory.refiTotalBuildCount] or 0)..'; iFactoryTechLevel='..iFactoryTechLevel..'; Time='..GetGameTimeSeconds()) end
+        if (oFactory[M28Factory.refiTotalBuildCount] or 0) <= 20 - iFactoryTechLevel * 5 then
+            local aiBrain = oFactory:GetAIBrain()
+            local iTeam = aiBrain.M28Team
+            local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oFactory:GetPosition(), true, iTeam)
+            if bDebugMessages == true then LOG(sFunctionRef..': iTeam='..iTeam..'; Brain='..aiBrain.Nickname..'; Want BP='..tostring(tLZOrWZTeamData[M28Map.subrefTbWantBP] or false)..'; Engineer lifetime build count for brain='..GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer)..'; Mexes in zone='..(tLZOrWZData[M28Map.subrefLZMexCount] or 0)) end
+            if tLZOrWZTeamData[M28Map.subrefTbWantBP] then
+                --Do we have enough energy?
+                local tiMinEnergyByTech = {[0]=20,[1]=20,[2]=60,[3]=60}
+                local iMinEnergyWanted = tiMinEnergyByTech[iFactoryTechLevel]
+
+                if not(EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oFactory.UnitId)) then iMinEnergyWanted = iMinEnergyWanted * 2 end
+                iMinEnergyWanted = iMinEnergyWanted * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] *  (aiBrain[M28Economy.refiBrainBuildRateMultiplier] or 1)
+                if bDebugMessages == true then LOG(sFunctionRef..': iMinEnergyWanted='..iMinEnergyWanted..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or false)..'; tLZOrWZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex]='..tostring(tLZOrWZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] or false)) end
+                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < iMinEnergyWanted or M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] then
+                    M28Team.tTeamData[iTeam][M28Team.subrefbTooLittleEnergyForUpgrade] = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Dont have enough power to upgrade') end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    return true
+                end
+
+                if tLZOrWZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] then
+                    if bDebugMessages == true then LOG(sFunctionRef..': Have adj zones wanting engineer for mex') end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    return true
+                end
+
+                if (oFactory[M28Factory.refiTotalBuildCount] or 0) <= 10 and GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer) <= ((tLZOrWZData[M28Map.subrefLZMexCount] or 0) + 1) * 1.5 then
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    return true
+                end
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': End of code, clear to upgrade factory') end --here since lower down means not a factory
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return false
+end

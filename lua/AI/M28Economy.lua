@@ -54,7 +54,7 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
     local sFunctionRef = 'UpgradeUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oUnitToUpgrade.UnitId) then bDebugMessages = true M28Utilities.ErrorHandler('Audit trail') bDebugMessages = false end
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, reprs of oUnitToUpgrade='..reprs(oUnitToUpgrade)..'; GetUnitUpgradeBlueprint='..reprs((M28UnitInfo.GetUnitUpgradeBlueprint(oUnitToUpgrade, true) or 'nil'))..'; bUpdateUpgradeTracker='..tostring((bUpdateUpgradeTracker or false))) end
 
@@ -254,7 +254,7 @@ function UpdateLandZoneM28MexByTechCount(oMexJustBuiltOrDied, bJustDied, iOption
 end
 
 function FindAndUpgradeUnitOfCategory(aiBrain, iCategoryWanted, iOptionalMinUnitsToHaveBuilt)
-    --e.g. intended for upgrading factory HQs
+    --e.g. intended for upgrading factory HQs, subject to CheckIfNeedMoreEngineersBeforeUpgrading
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'FindAndUpgradeUnitOfCategory'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
@@ -266,15 +266,17 @@ function FindAndUpgradeUnitOfCategory(aiBrain, iCategoryWanted, iOptionalMinUnit
         local tUnsafeUnitsOfCategory = {}
         local iCurPlateau, iCurLZ
         for iUnit, oUnit in tUnitsOfCategory do
-            if oUnit:GetFractionComplete() == 1 and not(oUnit:IsUnitState('Upgrading')) and not(oUnit.Dead) then
-                if not(iOptionalMinUnitsToHaveBuilt) or oUnit[M28Factory.refiTotalBuildCount] >= iOptionalMinUnitsToHaveBuilt then
-                    --Are we in a safe land zone?
-                    iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
-                    local tLZTeamData = M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLZ][M28Map.subrefLZTeamData][aiBrain.M28Team]
-                    if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] then
-                        table.insert(tUnsafeUnitsOfCategory, oUnit)
-                    else
-                        table.insert(tUnitsToSearch, oUnit)
+            if not(M28Conditions.CheckIfNeedMoreEngineersBeforeUpgrading(oUnit)) then
+                if oUnit:GetFractionComplete() == 1 and not(oUnit:IsUnitState('Upgrading')) and not(oUnit.Dead) then
+                    if not(iOptionalMinUnitsToHaveBuilt) or oUnit[M28Factory.refiTotalBuildCount] >= iOptionalMinUnitsToHaveBuilt then
+                        --Are we in a safe land zone?
+                        iCurPlateau, iCurLZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition(), true, oUnit)
+                        local tLZTeamData = M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLZ][M28Map.subrefLZTeamData][aiBrain.M28Team]
+                        if tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or tLZTeamData[M28Map.subrefbDangerousEnemiesInAdjacentWZ] then
+                            table.insert(tUnsafeUnitsOfCategory, oUnit)
+                        else
+                            table.insert(tUnitsToSearch, oUnit)
+                        end
                     end
                 end
             end
