@@ -18,6 +18,7 @@ local M28Logic = import('/mods/M28AI/lua/AI/M28Logic.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 local M28Chat = import('/mods/M28AI/lua/AI/M28Chat.lua')
 local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
+local M28Economy = import('/mods/M28AI/lua/AI/M28Economy.lua')
 
 --Global
 tAirZonePathingFromZoneToZone = {} --[x]: 1 if land zone start, 0 if water; [y]: Plateau (if land) or 0 if water; [z]: Land/Water zone; [a]: 1 if land zone end, 0 if water; [b]: Plateau (if land) end, 0 if water; [c]: Land/water zone; returns table that contains subreftPlateauAndLandZonesInPath and subreftWaterZonesInPath, each of which will list out in no order the land and water zones that will come across or near
@@ -5230,14 +5231,16 @@ function ManageTransports(iTeam, iAirSubteam)
                         iExtraEngisWanted = 0
                     else
                         --First calculate how many we want (ignoring ones we already have):
+                        local iBuildRate = math.max(1, (oUnit:GetAIBrain()[M28Economy.refiBrainBuildRateMultiplier] or 1))
                         if iWaterZoneToTravelTo then iExtraEngisWanted = 1
                         else
-                            iExtraEngisWanted = M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauIslandMexCount][iIslandToTravelTo]
+                            iExtraEngisWanted = math.max(1, M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauIslandMexCount][iIslandToTravelTo] / iBuildRate)
+                            if M28Map.tAllPlateaus[iPlateauToTravelTo][M28Map.subrefPlateauIslandMexCount][iIslandToTravelTo] <= 2 then iExtraEngisWanted = 1 end
                         end
 
                         if iExtraEngisWanted == 2 then iExtraEngisWanted = 1 end --Only want 1 engi for 1-2 mex plateaus (as wont be building land fac)
                         --Cap engis at 4 (fewer if likely T2 or T3 engis), and also reduce for the number of engineers we already have
-                        iExtraEngisWanted = math.min(5 - iTechLevel, 4 - iEngisHave, math.max(0, iExtraEngisWanted - iEngisHave), iEngiRemainingCapacity)
+                        iExtraEngisWanted = math.min(5 - iTechLevel, math.max(1, 4 / iBuildRate) - iEngisHave, math.max(0, iExtraEngisWanted - iEngisHave), iEngiRemainingCapacity)
                         --Reduce extra engis wanted if we have been waiting a while
                         if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have been waiting a while, in which case do we want to reduce engineers wnated, time spent waiting='..(oUnit[refiTransportTimeSpentWaiting] or 'nil')..'; iEngisHave='..iEngisHave..'; iExtraEngisWanted pre adjust='..iExtraEngisWanted..'; Dist to zone midpoint='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint])) end
                         if (oUnit[refiTransportTimeSpentWaiting] or 0) >= 30 and iEngisHave >= 1 and iEngisHave >= iExtraEngisWanted then
@@ -5245,12 +5248,12 @@ function ManageTransports(iTeam, iAirSubteam)
                             iExtraEngisWanted = 0
                         elseif iEngisHave >= 2 then
                             local iDistToTarget = M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint])
-                            if iDistToTarget <= 250 and iEngisHave >= 3 and ((oUnit[refiTransportTimeSpentWaiting] or 0) >= 2 and not(M28UnitInfo.IsUnitValid(oUnit[refoTransportUnitTryingToLoad]))) then
+                            if iDistToTarget <= 250 and iEngisHave >= 3 / iBuildRate and ((oUnit[refiTransportTimeSpentWaiting] or 0) >= 2 and not(M28UnitInfo.IsUnitValid(oUnit[refoTransportUnitTryingToLoad]))) then
                                 if bDebugMessages == true then LOG(sFunctionRef..': Have been waiting for at least 2 seconds and no engineers trying to load so dont want more engineers') end
                                 iExtraEngisWanted = 0
                             elseif (oUnit[refiTransportTimeSpentWaiting] or 0) >= 10 then
                                 if iDistToTarget <= 350 then
-                                    if iEngisHave >= 3 then
+                                    if iEngisHave >= 3 / iBuildRate then
                                         iExtraEngisWanted = 0
                                     elseif iDistToTarget <= 240 then
                                         iExtraEngisWanted = 0
