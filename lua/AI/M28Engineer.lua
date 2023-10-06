@@ -10577,11 +10577,31 @@ function GetBPToAssignToBuildingTML(tLZData, tLZTeamData, iPlateau, iLandZone, i
                                     end
                                 end
                                 if M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets]) == false then
-                                    iBPWanted = 40
-                                    if not (bHaveLowMass) then
-                                        iBPWanted = 80
+                                    --Do we have >=50% complete T2+ mex, or 100% of a high value alt unit?
+                                    bDebugMessages = true
+                                    local iDecentTargetCount = 0
+                                    local bDontDoDistanceCheck = false
+                                    if table.getn(tAltLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets]) >= 5 then bDontDoDistanceCheck = true end
+                                    for iUnit, oUnit in tAltLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets] do
+                                        if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fraction complete='..oUnit:GetFractionComplete()..'; Distance to midpoint='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])) end
+                                        if oUnit:GetFractionComplete() >= 0.75 then
+                                            if bDontDoDistanceCheck or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= M28Building.iTMLMissileRange - 10 then
+                                                if EntityCategoryContains(M28UnitInfo.refCategoryMex - categories.TECH1, oUnit.UnitId) then
+                                                    iDecentTargetCount = iDecentTargetCount + 1
+                                                else iDecentTargetCount = iDecentTargetCount + oUnit:GetFractionComplete() *  (oUnit:GetBlueprint().BuildCostMass or 0) / 1200
+                                                end
+                                                if iDecentTargetCount >= 1 then break end
+                                            end
+                                        end
                                     end
-                                    break
+                                    if bDebugMessages == true then LOG(sFunctionRef..': iDecentTargetCount='..iDecentTargetCount) end
+                                    if iDecentTargetCount >= 1 then
+                                        iBPWanted = 40
+                                        if not (bHaveLowMass) then
+                                            iBPWanted = 80
+                                        end
+                                        break
+                                    end
                                 end
                             end
                         end
