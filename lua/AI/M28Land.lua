@@ -3651,121 +3651,152 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
 
                     local sRetreatMessage = 'GenRetr'
 
-                    if bConsolidateAtMidpoint then
-                        if oClosestFriendlyUnitToAnEnemyFirebase then
-                            tRallyPoint = M28Utilities.MoveInDirection(oClosestFriendlyUnitToAnEnemyFirebase:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestFriendlyUnitToAnEnemyFirebase:GetPosition(), tLZData[M28Map.subrefMidpoint]), math.min(M28Utilities.GetDistanceBetweenPositions(oClosestFriendlyUnitToAnEnemyFirebase:GetPosition(), tRallyPoint), 15), true, false, true)
-                            local iAltPlateau, iAltLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tRallyPoint)
-                            if not(iAltPlateau == iPlateau) then
-                                tRallyPoint = M28Map.GetPositionAtOrNearTargetInPathingGroup(oClosestFriendlyUnitToAnEnemyFirebase:GetPosition(), tRallyPoint, 0, 0, oClosestFriendlyUnitToAnEnemyFirebase, false, false, nil)
+                    --Rescue ACU - move slightly infront of ACU relative to our closest base instead of retreating
+                    if tLZTeamData[M28Map.refbACUInTrouble] and oNearestEnemyToMidpoint and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefAlliedACU]) == false then
+                        local oACUToProtect
+                        local iLowestHealthACU = 100000
+                        for iACU, oACU in tLZTeamData[M28Map.subrefAlliedACU] do
+                            if oACU:GetHealth() < iLowestHealthACU then
+                                iLowestHealthACU = oACU:GetHealth()
+                                oACUToProtect = oACU
                             end
-                            if bDebugMessages == true then LOG(sFunctionRef..': Will try and consolidate based on the closest unit to enemy firebase, tRallyPoint adjusted for this='..repru(tRallyPoint)) end
-                        else
-                            tRallyPoint = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
                         end
-                        sRetreatMessage = 'ConsRP'
-                    end
-                    if bDebugMessages == true then LOG(sFunctionRef..': We are outranged by enemy and dont have enough threat to press the attack, will either retreat to prev LZ, or this LZ midpoint; bConsolidateAtMidpoint='..tostring(bConsolidateAtMidpoint)..'; bConsiderAttackingExperimental='..tostring(bConsiderAttackingExperimental)) end
+                        local iDistInfrontOfACUWanted = math.min(20, 5 + table.getn(tAvailableCombatUnits) * 0.25)
+                        local tProtectiveMovePoint = M28Utilities.MoveInDirection(oACUToProtect:GetPosition(), M28Utilities.GetAngleFromAToB(tLZTeamData[M28Map.reftClosestFriendlyBase], oACUToProtect:GetPosition()), iDistInfrontOfACUWanted, true, false, M28Map.bIsCampaignMap)
+                        local iAltPlateau, iAltLandZone
+                        if tProtectiveMovePoint then iAltPlateau, iAltLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tProtectiveMovePoint) end
+                        if not(iAltPlateau == iPlateau) then
+                            --GetPositionAtOrNearTargetInPathingGroup(tStartPos,                 tTargetPos,            iDistanceFromTargetToStart, iAngleAdjust, oPathingUnit, bMoveCloserBeforeFurtherIfBlocked, bCheckIfExistingTargetIsBetter, iMinDistanceFromExistingCommandTarget)
+                            tProtectiveMovePoint = M28Map.GetPositionAtOrNearTargetInPathingGroup(tProtectiveMovePoint,         oACUToProtect:GetPosition(),        iDistInfrontOfACUWanted,  0,    oACUToProtect,       true,                              false,                           nil)
+                            if not(tProtectiveMovePoint) then tProtectiveMovePoint = oACUToProtect:GetPosition() end
+                        end
+                        local iACUDistToAlliedBase = M28Utilities.GetDistanceBetweenPositions(oACUToProtect:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase])
+                        if bDebugMessages == true then LOG(sFunctionRef..': Want to try and protect ACU, iACUDistToAlliedBase='..iACUDistToAlliedBase..'; tProtectiveMovePoint='..repru(tProtectiveMovePoint)..'; ACU position='..repru(oACUToProtect:GetPosition())) end
+                        for iUnit, oUnit in tAvailableCombatUnits do
+                            --If further from allied base than ACU then move to the move point, otherwise attack-move
+                            if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase]) > iACUDistToAlliedBase then
+                                M28Orders.IssueTrackedMove(oUnit, tProtectiveMovePoint, 3, false, 'RetPrACUM', false)
+                            else
+                                M28Orders.IssueTrackedAttackMove(oUnit, tProtectiveMovePoint, 3, false, 'RetPrACUA', false)
+                            end
+                        end
+                    else
+                        if bConsolidateAtMidpoint then
+                            if oClosestFriendlyUnitToAnEnemyFirebase then
+                                tRallyPoint = M28Utilities.MoveInDirection(oClosestFriendlyUnitToAnEnemyFirebase:GetPosition(), M28Utilities.GetAngleFromAToB(oClosestFriendlyUnitToAnEnemyFirebase:GetPosition(), tLZData[M28Map.subrefMidpoint]), math.min(M28Utilities.GetDistanceBetweenPositions(oClosestFriendlyUnitToAnEnemyFirebase:GetPosition(), tRallyPoint), 15), true, false, true)
+                                local iAltPlateau, iAltLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tRallyPoint)
+                                if not(iAltPlateau == iPlateau) then
+                                    tRallyPoint = M28Map.GetPositionAtOrNearTargetInPathingGroup(oClosestFriendlyUnitToAnEnemyFirebase:GetPosition(), tRallyPoint, 0, 0, oClosestFriendlyUnitToAnEnemyFirebase, false, false, nil)
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will try and consolidate based on the closest unit to enemy firebase, tRallyPoint adjusted for this='..repru(tRallyPoint)) end
+                            else
+                                tRallyPoint = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
+                            end
+                            sRetreatMessage = 'ConsRP'
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': We are outranged by enemy and dont have enough threat to press the attack, will either retreat to prev LZ, or this LZ midpoint; bConsolidateAtMidpoint='..tostring(bConsolidateAtMidpoint)..'; bConsiderAttackingExperimental='..tostring(bConsiderAttackingExperimental)) end
 
-                    for iUnit, oUnit in tAvailableCombatUnits do
-                        --If we are close to the last known position such that we will be able to see there is no longer a unit there, then update this unit's position for next cycle
-                        if bCheckIfNearestUnitVisible and not(bUpdateNearestUnit) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) <= 18 then bUpdateNearestUnit = true end
+                        for iUnit, oUnit in tAvailableCombatUnits do
+                            --If we are close to the last known position such that we will be able to see there is no longer a unit there, then update this unit's position for next cycle
+                            if bCheckIfNearestUnitVisible and not(bUpdateNearestUnit) and M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam]) <= 18 then bUpdateNearestUnit = true end
 
-                        --Only retreat units from this LZ
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; will only retreat with unit if it is from this LZ, iLandZone='..iLandZone..'; Unit assigned zone='..(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] or 'nil')) end
-                        if oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone then
-                            --Shot not blocked - consider attackign ACU with experimentals
-                            if bConsiderAttackingACU and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategorySkirmisher - M28UnitInfo.refCategoryFatboy, oUnit.UnitId) and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), toEnemyACUsInZone, 6 + oUnit[M28UnitInfo.refiDFRange], iTeam, false, nil, nil, nil, nil, nil) then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Experimental - attack nearest ACU') end
-                                GetUnitToAttackNearestACU(oUnit)
+                            --Only retreat units from this LZ
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; will only retreat with unit if it is from this LZ, iLandZone='..iLandZone..'; Unit assigned zone='..(oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] or 'nil')) end
+                            if oUnit[M28UnitInfo.reftAssignedPlateauAndLandZoneByTeam][iTeam][2] == iLandZone then
+                                --Shot not blocked - consider attackign ACU with experimentals
+                                if bConsiderAttackingACU and EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental - M28UnitInfo.refCategorySkirmisher - M28UnitInfo.refCategoryFatboy, oUnit.UnitId) and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), toEnemyACUsInZone, 6 + oUnit[M28UnitInfo.refiDFRange], iTeam, false, nil, nil, nil, nil, nil) then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Experimental - attack nearest ACU') end
+                                    GetUnitToAttackNearestACU(oUnit)
 
-                            elseif bConsiderAttackingExperimental and oUnit[M28UnitInfo.refiDFRange] > 0 and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tNearbyEnemyExperimentals, 10, iTeam, true) then
-                                --move to nearest enemy experimental if we arent in range of it yet but a friendly unit is, and we are an experimental level unit or it is a fatboy
-                                local bMoveTowardsExperimental = false
-                                --Want to move instead of attackmove if we are an experimental (or up against a fatboy) and aren't already in range (by a reasonable margin if against a fatboy)
-                                if EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oUnit.UnitId) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFatboy, tNearbyEnemyExperimentals)) == false then
-                                    local oNearestEnemyExp
-                                    local iClosestEnemyExpDist = 100000
-                                    local iCurExpDist
-                                    for iExperimental, oExperimental in tNearbyEnemyExperimentals do
-                                        iCurExpDist = M28Utilities.GetDistanceBetweenPositions(oExperimental:GetPosition(), oUnit:GetPosition())
-                                        if iCurExpDist < iClosestEnemyExpDist then
-                                            iClosestEnemyExpDist = iCurExpDist
-                                            oNearestEnemyExp = oExperimental
+                                elseif bConsiderAttackingExperimental and oUnit[M28UnitInfo.refiDFRange] > 0 and M28Conditions.CloseToEnemyUnit(oUnit:GetPosition(), tNearbyEnemyExperimentals, 10, iTeam, true) then
+                                    --move to nearest enemy experimental if we arent in range of it yet but a friendly unit is, and we are an experimental level unit or it is a fatboy
+                                    local bMoveTowardsExperimental = false
+                                    --Want to move instead of attackmove if we are an experimental (or up against a fatboy) and aren't already in range (by a reasonable margin if against a fatboy)
+                                    if EntityCategoryContains(M28UnitInfo.refCategoryLandExperimental, oUnit.UnitId) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFatboy, tNearbyEnemyExperimentals)) == false then
+                                        local oNearestEnemyExp
+                                        local iClosestEnemyExpDist = 100000
+                                        local iCurExpDist
+                                        for iExperimental, oExperimental in tNearbyEnemyExperimentals do
+                                            iCurExpDist = M28Utilities.GetDistanceBetweenPositions(oExperimental:GetPosition(), oUnit:GetPosition())
+                                            if iCurExpDist < iClosestEnemyExpDist then
+                                                iClosestEnemyExpDist = iCurExpDist
+                                                oNearestEnemyExp = oExperimental
+                                            end
+                                        end
+                                        if iClosestEnemyExpDist > oUnit[M28UnitInfo.refiDFRange] - 3 then
+                                            bMoveTowardsExperimental = true
                                         end
                                     end
-                                    if iClosestEnemyExpDist > oUnit[M28UnitInfo.refiDFRange] - 3 then
-                                        bMoveTowardsExperimental = true
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Want to advance to enemy experimental, bMoveTowardsExperimental='..tostring(bMoveTowardsExperimental)) end
+                                    if bMoveTowardsExperimental then
+                                        M28Orders.IssueTrackedMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'ExpM'..iLandZone)
+                                    else
+                                        --Attackmove towards the experimental
+                                        M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'ExpA'..iLandZone)
                                     end
-                                end
-                                if bDebugMessages == true then LOG(sFunctionRef..': Want to advance to enemy experimental, bMoveTowardsExperimental='..tostring(bMoveTowardsExperimental)) end
-                                if bMoveTowardsExperimental then
-                                    M28Orders.IssueTrackedMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'ExpM'..iLandZone)
                                 else
-                                    --Attackmove towards the experimental
-                                    M28Orders.IssueTrackedAggressiveMove(oUnit, oNearestEnemyToMidpoint[M28UnitInfo.reftLastKnownPositionByTeam][iTeam], 6, false, 'ExpA'..iLandZone)
+                                    if not(bConsolidateAtMidpoint) and EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnit.UnitId) then
+                                        --If moving to the rally point would take us closer to the enemy than moving towards our base then move towards base instead
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Amphibious unit and we dont want to consolidate at midpoint, CanKite='..tostring(oUnit[M28UnitInfo.refbCanKite] or false)) end
+                                        if not(oUnit[M28UnitInfo.refbCanKite]) and EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then
+                                            M28Orders.IssueTrackedAggressiveMove(oUnit, tAmphibiousRallyPoint, 6, false, 'ExKA'..sRetreatMessage..iLandZone)
+                                        else
+                                            local bMoveTowardsBaseInstead = false
+                                            local iAngleToBase
+                                            if tMoveTowardsBaseRetreatPoint then --If this is not nil then it means the rally point will take us a different angle to the nearest friendly base, which might cause us to move closer/within range of enemy units
+                                                local iAngleToNearestEnemy = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oNearestEnemyToMidpoint:GetPosition())
+                                                iAngleToBase = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase])
+
+                                                if 180 - M28Utilities.GetAngleDifference(iAngleToNearestEnemy, iAngleToBase) <= 45 then
+                                                    bMoveTowardsBaseInstead = true
+                                                end
+                                            end
+                                            if bMoveTowardsBaseInstead then --see below for similar code if making changes here
+                                                if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tMoveTowardsBaseRetreatPoint) <= 12 or M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tMoveTowardsBaseRetreatPoint), iAngleToBase) >= 45 then
+                                                    M28Orders.IssueTrackedMove(oUnit, tLZTeamData[M28Map.reftClosestFriendlyBase], 6, false, 'MTBBA'..sRetreatMessage..iLandZone)
+                                                else
+                                                    M28Orders.IssueTrackedMove(oUnit, tMoveTowardsBaseRetreatPoint, 6, false, 'MTBNA'..sRetreatMessage..iLandZone)
+                                                end
+                                            else
+                                                M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'A'..sRetreatMessage..iLandZone)
+                                            end
+
+                                        end
+                                    else
+                                        if not(oUnit[M28UnitInfo.refbCanKite]) and EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then
+                                            M28Orders.IssueTrackedAggressiveMove(oUnit, tRallyPoint, 6, false, 'ExKG'..sRetreatMessage..iLandZone)
+                                        else
+                                            local bMoveTowardsBaseInstead = false
+                                            local iAngleToBase
+                                            if tMoveTowardsBaseRetreatPoint then --If this is not nil then it means the rally point will take us a different angle to the nearest friendly base, which might cause us to move closer/within range of enemy units
+                                                local iAngleToNearestEnemy = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oNearestEnemyToMidpoint:GetPosition())
+                                                iAngleToBase = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase])
+                                                if 180 - M28Utilities.GetAngleDifference(iAngleToNearestEnemy, iAngleToBase) <= 45 then
+                                                    bMoveTowardsBaseInstead = true
+                                                end
+                                                if bDebugMessages == true then LOG(sFunctionRef..': iAngleToNearestEnemy='..iAngleToNearestEnemy..'; iAngleToBase='..iAngleToBase..'; Angle dif between angle to nearest enemy and angle to base='..M28Utilities.GetAngleDifference(iAngleToNearestEnemy, iAngleToBase)..'; bMoveTowardsBaseInstead='..tostring(bMoveTowardsBaseInstead)) end
+                                            end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': bMoveTowardsBaseInstead='..tostring(bMoveTowardsBaseInstead)) end
+                                            if bMoveTowardsBaseInstead then --see above for similar code if making changes here
+                                                if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tMoveTowardsBaseRetreatPoint) <= 12 or M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tMoveTowardsBaseRetreatPoint), iAngleToBase) >= 45 then
+                                                    M28Orders.IssueTrackedMove(oUnit, tLZTeamData[M28Map.reftClosestFriendlyBase], 6, false, 'MTBB'..sRetreatMessage..iLandZone)
+                                                else
+                                                    M28Orders.IssueTrackedMove(oUnit, tMoveTowardsBaseRetreatPoint, 6, false, 'MTBN'..sRetreatMessage..iLandZone)
+                                                end
+                                            else
+                                                if bDebugMessages == true then
+                                                    LOG(sFunctionRef..': Will retreat towards rally point, tRallyPoint='..repru(tRallyPoint)..'; Unit position='..repru(oUnit:GetPosition())..'; Unit special micro='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; last order position='..repru(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]))
+                                                    M28Utilities.DrawLocation(tRallyPoint)
+                                                end
+                                                M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, sRetreatMessage..iLandZone)
+                                            end
+                                        end
+                                    end
                                 end
                             else
-                                if not(bConsolidateAtMidpoint) and EntityCategoryContains(M28UnitInfo.refCategoryAllAmphibiousAndNavy, oUnit.UnitId) then
-                                    --If moving to the rally point would take us closer to the enemy than moving towards our base then move towards base instead
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Amphibious unit and we dont want to consolidate at midpoint, CanKite='..tostring(oUnit[M28UnitInfo.refbCanKite] or false)) end
-                                    if not(oUnit[M28UnitInfo.refbCanKite]) and EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then
-                                        M28Orders.IssueTrackedAggressiveMove(oUnit, tAmphibiousRallyPoint, 6, false, 'ExKA'..sRetreatMessage..iLandZone)
-                                    else
-                                        local bMoveTowardsBaseInstead = false
-                                        local iAngleToBase
-                                        if tMoveTowardsBaseRetreatPoint then --If this is not nil then it means the rally point will take us a different angle to the nearest friendly base, which might cause us to move closer/within range of enemy units
-                                            local iAngleToNearestEnemy = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oNearestEnemyToMidpoint:GetPosition())
-                                            iAngleToBase = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase])
-
-                                            if 180 - M28Utilities.GetAngleDifference(iAngleToNearestEnemy, iAngleToBase) <= 45 then
-                                                bMoveTowardsBaseInstead = true
-                                            end
-                                        end
-                                        if bMoveTowardsBaseInstead then --see below for similar code if making changes here
-                                            if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tMoveTowardsBaseRetreatPoint) <= 12 or M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tMoveTowardsBaseRetreatPoint), iAngleToBase) >= 45 then
-                                                M28Orders.IssueTrackedMove(oUnit, tLZTeamData[M28Map.reftClosestFriendlyBase], 6, false, 'MTBBA'..sRetreatMessage..iLandZone)
-                                            else
-                                                M28Orders.IssueTrackedMove(oUnit, tMoveTowardsBaseRetreatPoint, 6, false, 'MTBNA'..sRetreatMessage..iLandZone)
-                                            end
-                                        else
-                                            M28Orders.IssueTrackedMove(oUnit, tAmphibiousRallyPoint, 6, false, 'A'..sRetreatMessage..iLandZone)
-                                        end
-
-                                    end
-                                else
-                                    if not(oUnit[M28UnitInfo.refbCanKite]) and EntityCategoryContains(categories.EXPERIMENTAL, oUnit.UnitId) then
-                                        M28Orders.IssueTrackedAggressiveMove(oUnit, tRallyPoint, 6, false, 'ExKG'..sRetreatMessage..iLandZone)
-                                    else
-                                        local bMoveTowardsBaseInstead = false
-                                        local iAngleToBase
-                                        if tMoveTowardsBaseRetreatPoint then --If this is not nil then it means the rally point will take us a different angle to the nearest friendly base, which might cause us to move closer/within range of enemy units
-                                            local iAngleToNearestEnemy = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), oNearestEnemyToMidpoint:GetPosition())
-                                            iAngleToBase = M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tLZTeamData[M28Map.reftClosestFriendlyBase])
-                                            if 180 - M28Utilities.GetAngleDifference(iAngleToNearestEnemy, iAngleToBase) <= 45 then
-                                                bMoveTowardsBaseInstead = true
-                                            end
-                                            if bDebugMessages == true then LOG(sFunctionRef..': iAngleToNearestEnemy='..iAngleToNearestEnemy..'; iAngleToBase='..iAngleToBase..'; Angle dif between angle to nearest enemy and angle to base='..M28Utilities.GetAngleDifference(iAngleToNearestEnemy, iAngleToBase)..'; bMoveTowardsBaseInstead='..tostring(bMoveTowardsBaseInstead)) end
-                                        end
-                                        if bDebugMessages == true then LOG(sFunctionRef..': bMoveTowardsBaseInstead='..tostring(bMoveTowardsBaseInstead)) end
-                                        if bMoveTowardsBaseInstead then --see above for similar code if making changes here
-                                            if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tMoveTowardsBaseRetreatPoint) <= 12 or M28Utilities.GetAngleDifference(M28Utilities.GetAngleFromAToB(oUnit:GetPosition(), tMoveTowardsBaseRetreatPoint), iAngleToBase) >= 45 then
-                                                M28Orders.IssueTrackedMove(oUnit, tLZTeamData[M28Map.reftClosestFriendlyBase], 6, false, 'MTBB'..sRetreatMessage..iLandZone)
-                                            else
-                                                M28Orders.IssueTrackedMove(oUnit, tMoveTowardsBaseRetreatPoint, 6, false, 'MTBN'..sRetreatMessage..iLandZone)
-                                            end
-                                        else
-                                            if bDebugMessages == true then
-                                                LOG(sFunctionRef..': Will retreat towards rally point, tRallyPoint='..repru(tRallyPoint)..'; Unit position='..repru(oUnit:GetPosition())..'; Unit special micro='..tostring(oUnit[M28UnitInfo.refbSpecialMicroActive] or false)..'; last order position='..repru(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subreftOrderPosition]))
-                                                M28Utilities.DrawLocation(tRallyPoint)
-                                            end
-                                            M28Orders.IssueTrackedMove(oUnit, tRallyPoint, 6, false, sRetreatMessage..iLandZone)
-                                        end
-                                    end
-                                end
+                                --Unit is from a different zone - need to change the value of its assignment so it is considered for orders by the zone that it is part of
+                                oUnit[refiCurrentAssignmentValue] = 0
                             end
-                        else
-                            --Unit is from a different zone - need to change the value of its assignment so it is considered for orders by the zone that it is part of
-                            oUnit[refiCurrentAssignmentValue] = 0
                         end
                     end
                 end
@@ -4710,6 +4741,12 @@ function AssignValuesToLandZones(iTeam)
         local bAdjacentToCoreFactory
         local iFriendlyBuildingValue
         local iCurCycleCount = 0
+        local iZonesSinceWait = 0
+        local iTotalLandZones = 0
+        for iPlateau, tPlateauData in M28Map.tAllPlateaus do
+            iTotalLandZones = iTotalLandZones + (tPlateauData[M28Map.subrefLandZoneCount] or 0)
+        end
+        local iZonesPerTick = math.max(1, math.floor(iTotalLandZones / 20))
         while M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftoFriendlyActiveM28Brains]) == false do
             iCurCycleCount = iCurCycleCount + 1 --used so we dont wait the first time, so we have recorded which zones are core zones
             local tiPlateauAndLZWithFriendlyStartPosition = {}
@@ -4731,33 +4768,39 @@ function AssignValuesToLandZones(iTeam)
 
             for iPlateau, tPlateauData in M28Map.tAllPlateaus do
                 if M28Utilities.IsTableEmpty(tPlateauData[M28Map.subrefPlateauLandZones]) == false then
+
                     --tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
                     for iLandZone, tLandZoneData in tPlateauData[M28Map.subrefPlateauLandZones] do
-
+                        iZonesSinceWait = iZonesSinceWait + 1
+                        local tLZTeamData = tLandZoneData[M28Map.subrefLZTeamData][iTeam]
                         if bDebugMessages == true then LOG(sFunctionRef..': About to refresh value of iPlateau='..iPlateau..'; iLandZone='..iLandZone..' for team '..iTeam) end
                         --Decide on value of the land zone ignoring distance:
                         --Treat each mex position as being worth 250 mass, value reclaim at 25% of the total value, and reflect the value of all non-PD in the area
                         iCurValue = tLandZoneData[M28Map.subrefLZMexCount] * 250 + (tLandZoneData[M28Map.subrefTotalMassReclaim] or 0) * 0.25
-                        if M28Utilities.IsTableEmpty(tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedUnits]) == false then
-                            tFriendlyNonPDBuildings = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure - M28UnitInfo.refCategoryPD, tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedUnits])
+                        if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
+                            tFriendlyNonPDBuildings = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure - M28UnitInfo.refCategoryPD, tLZTeamData[M28Map.subrefLZTAlliedUnits])
                             iFriendlyBuildingValue = M28UnitInfo.GetCombatThreatRating(tFriendlyNonPDBuildings, false, true)
                             iCurValue = iCurValue + iFriendlyBuildingValue
                         else
                             iFriendlyBuildingValue = 0
                         end
 
+                        if tLZTeamData[M28Map.refbACUInTrouble] then
+                            iCurValue = iCurValue + M28ACU.GetValueIncreaseForACUInTrouble(iTeam)
+                        end
+
                         --Record the value
-                        tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTValue] = iCurValue
-                        tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZSValue] = iFriendlyBuildingValue
-                        tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] = nil
+                        tLZTeamData[M28Map.subrefLZTValue] = iCurValue
+                        tLZTeamData[M28Map.subrefLZSValue] = iFriendlyBuildingValue
+                        tLZTeamData[M28Map.subrefLZbCoreBase] = nil
 
                         --Is this a core base land zone?
-                        if bDebugMessages == true then LOG(sFunctionRef..': iCurValue based on this zone='..iCurValue..'; iFriendlyBuildingValue='..iFriendlyBuildingValue..'; Checking if we are a friendly land zone - tiPlateauAndLZWithFriendlyStartPosition='..repru(tiPlateauAndLZWithFriendlyStartPosition)..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedUnits]))) end
-                        if tiPlateauAndLZWithFriendlyStartPosition[iPlateau][iLandZone] or tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbCoreBaseOverride] then
-                            tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] = true
-                            if bDebugMessages == true then LOG(sFunctionRef..': Core LZ='..iLandZone..' for plateau '..iPlateau..'; All adjacent zones='..repru(tLandZoneData[M28Map.subrefLZAdjacentLandZones])..'; tiPlateauAndLZWithFriendlyStartPosition[iPlateau][iLandZone]=nil='..tostring(tiPlateauAndLZWithFriendlyStartPosition[iPlateau][iLandZone] == nil)..'; tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbCoreBaseOverride]='..tostring(tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefbCoreBaseOverride] or false)..'; Island ref='..(tLandZoneData[M28Map.subrefLZIslandRef] or 'nil')) end
+                        if bDebugMessages == true then LOG(sFunctionRef..': iCurValue based on this zone='..iCurValue..'; iFriendlyBuildingValue='..iFriendlyBuildingValue..'; Checking if we are a friendly land zone - tiPlateauAndLZWithFriendlyStartPosition='..repru(tiPlateauAndLZWithFriendlyStartPosition)..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]))) end
+                        if tiPlateauAndLZWithFriendlyStartPosition[iPlateau][iLandZone] or tLZTeamData[M28Map.subrefbCoreBaseOverride] then
+                            tLZTeamData[M28Map.subrefLZbCoreBase] = true
+                            if bDebugMessages == true then LOG(sFunctionRef..': Core LZ='..iLandZone..' for plateau '..iPlateau..'; All adjacent zones='..repru(tLandZoneData[M28Map.subrefLZAdjacentLandZones])..'; tiPlateauAndLZWithFriendlyStartPosition[iPlateau][iLandZone]=nil='..tostring(tiPlateauAndLZWithFriendlyStartPosition[iPlateau][iLandZone] == nil)..'; tLZTeamData[M28Map.subrefbCoreBaseOverride]='..tostring(tLZTeamData[M28Map.subrefbCoreBaseOverride] or false)..'; Island ref='..(tLandZoneData[M28Map.subrefLZIslandRef] or 'nil')) end
                             --adjacent zones iwth lots of mexes in them and high mex count - consider treating as a core base
-                        elseif tLandZoneData[M28Map.subrefLZMexCount] >= 4 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 and M28Utilities.IsTableEmpty(tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedUnits]) == false then
+                        elseif tLandZoneData[M28Map.subrefLZMexCount] >= 4 and M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
                             --Are we adjacent to a core zone and we contain a factory or high value unit? If so then treat us as a core LZ
                             bAdjacentToCoreFactory = false
                             if M28Utilities.IsTableEmpty(tLandZoneData[M28Map.subrefLZAdjacentLandZones]) == false then
@@ -4768,18 +4811,20 @@ function AssignValuesToLandZones(iTeam)
                                         break
                                     end
                                 end
-                                if bDebugMessages == true then LOG(sFunctionRef..': bAdjacentToCoreFactory='..tostring(bAdjacentToCoreFactory)..'; Is table of factory HQs empty='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(iBaseCategory, tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedUnits])))) end
-                                if bAdjacentToCoreFactory and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(iBaseCategory, tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedUnits])) == false then
+                                if bDebugMessages == true then LOG(sFunctionRef..': bAdjacentToCoreFactory='..tostring(bAdjacentToCoreFactory)..'; Is table of factory HQs empty='..tostring(M28Utilities.IsTableEmpty(EntityCategoryFilterDown(iBaseCategory, tLZTeamData[M28Map.subrefLZTAlliedUnits])))) end
+                                if bAdjacentToCoreFactory and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(iBaseCategory, tLZTeamData[M28Map.subrefLZTAlliedUnits])) == false then
                                     if bDebugMessages == true then LOG(sFunctionRef..': Are adjacent to a core factory, and have iBaseCategory units in this zone, iLandZone='..iLandZone..'; iPlateau='..iPlateau) end
-                                    tLandZoneData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZbCoreBase] = true
+                                    tLZTeamData[M28Map.subrefLZbCoreBase] = true
                                 end
                             end
 
                         end
-                        if iCurCycleCount > 1 then --dont want to wait the first time, as on large maps can mean a delay in the ACU building
+
+                        if iZonesSinceWait >= iZonesPerTick and iCurCycleCount > 1 then --dont want to wait the first time, as on large maps can mean a delay in the ACU building
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                             WaitTicks(1)
                             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                            iZonesSinceWait = 0
                         end
                     end
                 end

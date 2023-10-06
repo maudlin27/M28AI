@@ -1968,7 +1968,6 @@ function CheckIfNeedMoreEngineersBeforeUpgrading(oFactory)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if EntityCategoryContains(M28UnitInfo.refCategoryFactory,oFactory.UnitId) then
-        if EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oFactory.UnitId) then bDebugMessages = true end
         local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)
         if bDebugMessages == true then LOG(sFunctionRef..': Considering factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Total build count='..(oFactory[M28Factory.refiTotalBuildCount] or 0)..'; iFactoryTechLevel='..iFactoryTechLevel..'; Time='..GetGameTimeSeconds()) end
         if (oFactory[M28Factory.refiTotalBuildCount] or 0) <= 20 - iFactoryTechLevel * 5 then

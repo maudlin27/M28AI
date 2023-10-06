@@ -2178,46 +2178,44 @@ function UpdateACULandOrWaterZoneAssignment(oACU, iPlateauOrZero, iLandOrWaterZo
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     --Update ACU tracking
-    if oACU[reftiCurAssignedPlateauAndZone] then
-        --Is the actual LZ and plateau the same? If not, then need to update tracking
-        if oACU[reftiCurAssignedPlateauAndZone][1] == iPlateauOrZero and oACU[reftiCurAssignedPlateauAndZone][iLandOrWaterZone] == iLandOrWaterZone then
-            --Do nothing
-        else
-            local iTeam = oACU:GetAIBrain().M28Team
-            if iLandZone > 0 then --No point updating if we dont have a valid land zone
-                oACU[reftiLastAssignedPlateauAndZone] = {oACU[reftiCurAssignedPlateauAndZone][1], oACU[reftiCurAssignedPlateauAndZone][2]}
-                oACU[reftiCurAssignedPlateauAndZone] = {iPlateauOrZero, iLandOrWaterZone}
-                if (oACU[reftiLastAssignedPlateauAndZone][2] or 0) > 0 then
-                    local tPrevLZOrWZTeamData
-                    if oACU[reftiLastAssignedPlateauAndZone][1] > 0 then
-                        tPrevLZOrWZTeamData = M28Map.tAllPlateaus[oACU[reftiLastAssignedPlateauAndZone][1]][M28Map.subrefPlateauLandZones][oACU[reftiLastAssignedPlateauAndZone][2]][M28Map.subrefLZTeamData][iTeam]
-                    else
-                        tPrevLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[oACU[reftiLastAssignedPlateauAndZone][2]]][M28Map.subrefPondWaterZones][oACU[reftiLastAssignedPlateauAndZone][2]][M28Map.subrefWZTeamData][iTeam]
-                    end
-
-                    --Check we are in the table
-                    if M28Utilities.IsTableEmpty(tPrevLZOrWZTeamData[M28Map.subrefAlliedACU]) == false then
-                        for iRecordedACU, oRecordedACU in tPrevLZOrWZTeamData[M28Map.subrefAlliedACU] do
-                            if oRecordedACU == oACU then
-                                table.remove(tPrevLZOrWZTeamData[M28Map.subrefAlliedACU], iRecordedACU)
-                                break
-                            end
-                        end
-                    end
+    --Is the actual LZ and plateau the same? If not, then need to update tracking
+    if oACU[reftiCurAssignedPlateauAndZone][1] == iPlateauOrZero and oACU[reftiCurAssignedPlateauAndZone][iLandOrWaterZone] == iLandOrWaterZone then
+        --Do nothing
+    else
+        local iTeam = oACU:GetAIBrain().M28Team
+        if iLandOrWaterZone > 0 then --No point updating if we dont have a valid land zone
+            oACU[reftiLastAssignedPlateauAndZone] = {oACU[reftiCurAssignedPlateauAndZone][1], oACU[reftiCurAssignedPlateauAndZone][2]}
+            oACU[reftiCurAssignedPlateauAndZone] = {iPlateauOrZero, iLandOrWaterZone}
+            if (oACU[reftiLastAssignedPlateauAndZone][2] or 0) > 0 then
+                local tPrevLZOrWZTeamData
+                if oACU[reftiLastAssignedPlateauAndZone][1] > 0 then
+                    tPrevLZOrWZTeamData = M28Map.tAllPlateaus[oACU[reftiLastAssignedPlateauAndZone][1]][M28Map.subrefPlateauLandZones][oACU[reftiLastAssignedPlateauAndZone][2]][M28Map.subrefLZTeamData][iTeam]
+                else
+                    tPrevLZOrWZTeamData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[oACU[reftiLastAssignedPlateauAndZone][2]]][M28Map.subrefPondWaterZones][oACU[reftiLastAssignedPlateauAndZone][2]][M28Map.subrefWZTeamData][iTeam]
                 end
-                local bAlreadyRecorded = false --Redundancy - we shouldnt have scenario where we are already recorded
-                if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefAlliedACU]) == false then
-                    for iRecordedACU, oRecordedACU in tLZOrWZTeamData[M28Map.subrefAlliedACU] do
+
+                --Check we are in the table
+                if M28Utilities.IsTableEmpty(tPrevLZOrWZTeamData[M28Map.subrefAlliedACU]) == false then
+                    for iRecordedACU, oRecordedACU in tPrevLZOrWZTeamData[M28Map.subrefAlliedACU] do
                         if oRecordedACU == oACU then
-                            bAlreadyRecorded = true
+                            table.remove(tPrevLZOrWZTeamData[M28Map.subrefAlliedACU], iRecordedACU)
                             break
                         end
                     end
                 end
-                if not(bAlreadyRecorded) then
-                    if not(tLZOrWZTeamData[M28Map.subrefAlliedACU]) then tLZOrWZTeamData[M28Map.subrefAlliedACU] = {} end
-                    table.insert(tLZOrWZTeamData[M28Map.subrefAlliedACU], oACU)
+            end
+            local bAlreadyRecorded = false --Redundancy - we shouldnt have scenario where we are already recorded
+            if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefAlliedACU]) == false then
+                for iRecordedACU, oRecordedACU in tLZOrWZTeamData[M28Map.subrefAlliedACU] do
+                    if oRecordedACU == oACU then
+                        bAlreadyRecorded = true
+                        break
+                    end
                 end
+            end
+            if not(bAlreadyRecorded) then
+                if not(tLZOrWZTeamData[M28Map.subrefAlliedACU]) then tLZOrWZTeamData[M28Map.subrefAlliedACU] = {} end
+                table.insert(tLZOrWZTeamData[M28Map.subrefAlliedACU], oACU)
             end
         end
     end
@@ -2361,7 +2359,7 @@ function ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    oACU[refiTimeLastWantedToRun] = GetGameTimeSeconds()
 
     --Go to core base
     local tRallyPoint
@@ -2951,7 +2949,7 @@ function GetACUOrder(aiBrain, oACU)
         tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
         tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
     end
-
+    tLZOrWZTeamData[M28Map.refbACUInTrouble] = false --will set to true later (if want ACU to run)
 
     --local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oACU:GetPosition(), true, oACU)
     --local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
@@ -2971,6 +2969,7 @@ function GetACUOrder(aiBrain, oACU)
         if not(oACU[refbDoingInitialBuildOrder]) then
             if bDebugMessages == true then LOG(sFunctionRef..': ACU is upgrading') end
             if DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
+                ConsiderIfACUNeedsEmergencySupport(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU)
                 --Are we in a different LZ to core base, and have enemy threat or are on <60% health with less health than our upgrade progress?
                 if not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and not(tLZOrWZTeamData[M28Map.subrefWZbContainsUnderwaterStart]) then
                     local iACUHealthPercent = M28UnitInfo.GetUnitHealthPercent(oACU)
@@ -3005,6 +3004,7 @@ function GetACUOrder(aiBrain, oACU)
         local bProceedWithLogic = true
         if oACU[refbDoingInitialBuildOrder] then
             if not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) and GetGameTimeSeconds() >= 20 and DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) then
+                ConsiderIfACUNeedsEmergencySupport(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU)
                 ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam, iPlateauOrZero, iLandOrWaterZone)
                 bProceedWithLogic = false
                 if bDebugMessages == true then LOG(sFunctionRef..': Want to return to core base') end
@@ -3156,9 +3156,11 @@ function GetACUOrder(aiBrain, oACU)
 
                     if bDebugMessages == true then LOG(sFunctionRef..': Checking if ACU wants to run, Does it want to return to core base='..tostring(DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) or false)..'; ACU unit state='..M28UnitInfo.GetUnitState(oACU)..'; Is this core base='..tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or false)..'; Dist to midpoint='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint])..'; Does ACU want to run='..tostring(DoesACUWantToRun(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) or false)) end
                     if not(oACU:IsUnitState('Building')) and DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) and not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint]) <= 10) then
+                        ConsiderIfACUNeedsEmergencySupport(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU)
                         if bDebugMessages == true then LOG(sFunctionRef..': ACU more than 10 from core base midpoint so will retreat there, ACU dist to this midpoint='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint])..'; Is this core base='..tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase])) end
                         ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam, iPlateauOrZero, iLandOrWaterZone)
                     elseif DoesACUWantToRun(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU) and not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), tLZOrWZData[M28Map.subrefMidpoint]) <= 10) then
+                        ConsiderIfACUNeedsEmergencySupport(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU)
                         oACU[refiTimeLastWantedToRun] = GetGameTimeSeconds()
                         --Retreat to nearest rally (unless we arent in a land zone in which case head towards core base)
                         local bConsiderMexesAndReclaim = false
@@ -3574,3 +3576,63 @@ function ManageACU(aiBrain, oACUOverride)
     end
 end
 
+
+function ConsiderIfACUNeedsEmergencySupport(iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tLZOrWZTeamData, oACU)
+    --Updates flag on the zone ACU is in to indicate it needs help from tanks (i.e. it's facing a ground based threat)
+    local sFunctionRef = 'ConsiderIfACUNeedsEmergencySupport'
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; Health percent='..M28UnitInfo.GetUnitHealthPercent(oACU)..'; Enemies in this or adjacent LZ='..tostring(tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] or false)..'; Core bse='..tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or false)) end
+    if iPlateauOrZero > 0 and tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] and M28UnitInfo.GetUnitHealthPercent(oACU) < 0.98 and not(tLZOrWZTeamData[M28Map.subrefLZbCoreBase]) then
+        --ACU is damaged to some extent, outside core zone, and there are enemy ground units nearby
+        local iEnemyCombatThreat = (tLZOrWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
+        local iTeam = oACU:GetAIBrain().M28Team
+        if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefLZAdjacentLandZones]) == false then
+            --Include enemy combat units in adjacent zones if they are close to the ACU
+            local tEnemyUnitsNearby = {}
+            local iDistThreshold = 30 --This much dist until the unit will be in range of ACU for it to be included
+            for iEntry, iAdjLZ in tLZOrWZData[M28Map.subrefLZAdjacentLandZones] do
+                local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
+                if (tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0) > 50 and M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.reftoNearestCombatEnemies]) == false then
+                    for iUnit, oUnit in tAdjLZTeamData[M28Map.reftoNearestCombatEnemies] do
+                        if M28UnitInfo.IsUnitValid(oUnit) then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if enemy unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oUnit[M28UnitInfo.refiDFRange]='..(oUnit[M28UnitInfo.refiDFRange] or 'nil')..'; Dist to ACU='..M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oUnit:GetPosition())) end
+                            if (oUnit[M28UnitInfo.refiDFRange] or 0) > 0 and EntityCategoryContains(categories.MOBILE, oUnit.UnitId) then
+                                if M28Utilities.GetDistanceBetweenPositions(oACU:GetPosition(), oUnit:GetPosition()) - oUnit[M28UnitInfo.refiDFRange] <= iDistThreshold then
+                                    table.insert(tEnemyUnitsNearby, oUnit)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+
+            if M28Utilities.IsTableEmpty(tEnemyUnitsNearby) == false then
+                iEnemyCombatThreat = iEnemyCombatThreat + M28UnitInfo.GetCombatThreatRating(tEnemyUnitsNearby, true, false, false, false, false, false, false)
+            end
+        end
+        local iThreatRatio = 0.8
+        if oACU[refbUseACUAggressively] then iThreatRatio = 1.1 end
+        if M28UnitInfo.GetUnitHealthPercent(oACU) >= 0.75 then iThreatRatio = iThreatRatio * 1.26 end --i.e. if just us vs enemy ACU with similar stats shouldnt trigger unless our healt his getting low
+        if bDebugMessages == true then LOG(sFunctionRef..': ACU threat='..M28UnitInfo.GetCombatThreatRating({oACU}, false, false)..'; iThreatRatio='..iThreatRatio..'; iEnemyCombatThreat='..iEnemyCombatThreat..'; Is table of ACUs in the LZ empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefAlliedACU]))) end
+        if M28UnitInfo.GetCombatThreatRating({oACU}, false, false) * iThreatRatio < iEnemyCombatThreat then
+            tLZOrWZTeamData[M28Map.refbACUInTrouble] = true
+            local iACUValueIncrease = GetValueIncreaseForACUInTrouble(iTeam)
+            tLZOrWZTeamData[M28Map.subrefLZTValue] = math.max((tLZOrWZTeamData[M28Map.subrefLZTValue] or 0), iACUValueIncrease)
+            if bDebugMessages == true then LOG(sFunctionRef..': Flagging that ACU is in trouble, tLZTeamData[M28Map.subrefLZTValue]='..(tLZOrWZTeamData[M28Map.subrefLZTValue] or 'nil')) end
+            if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefAlliedACU]) then M28Utilities.ErrorHandler('ACU in trouble but not recorded against this LZ') end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function GetValueIncreaseForACUInTrouble(iTeam)
+    local iCurValue = 1000
+    --Increase by more if in noshare or assassination
+    if ScenarioInfo.Options.Victory == "demoralization" then
+        if not(ScenarioInfo.Options.Share == 'FullShare') or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] == 1 then
+            iCurValue = iCurValue + 20000
+        end
+    end
+    return iCurValue
+end
