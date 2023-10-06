@@ -6382,49 +6382,51 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                     iAdjLZ = tPathingDetails[M28Map.subrefLZNumber]
                     local tAdjLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
                     local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
-                    iEngineersTravelingHere = 0
-                    iEngineersPresentHere = 0
-                    if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEngineersTravelingHere]) == false then
-                        iEngineersTravelingHere = table.getn(tAdjLZTeamData[M28Map.subrefTEngineersTravelingHere])
-                    end
-                    if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
-                        local tEngineersInAdjZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tAdjLZTeamData[M28Map.subrefLZTAlliedUnits])
-                        if M28Utilities.IsTableEmpty(tEngineersInAdjZone) == false then
-                            iEngineersPresentHere = table.getn(tEngineersInAdjZone)
+                    if tAdjLZTeamData[M28Map.subrefTbWantBP] and not(tAdjLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or (tAdjLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > 0) then
+                        iEngineersTravelingHere = 0
+                        iEngineersPresentHere = 0
+                        if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEngineersTravelingHere]) == false then
+                            iEngineersTravelingHere = table.getn(tAdjLZTeamData[M28Map.subrefTEngineersTravelingHere])
                         end
-                    end
-                    iMaxEngineersWanted = 1
-                    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 then iMaxEngineersWanted = 2 end
-                    if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefMexUnbuiltLocations]) == false then
-                        iMaxEngineersWanted = math.max(iMaxEngineersWanted, math.ceil(table.gent(tAdjLZTeamData[M28Map.subrefMexUnbuiltLocations]) * 0.5))
-                    end
-                    if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefHydroUnbuiltLocations]) == false then
-                        iMaxEngineersWanted = iMaxEngineersWanted + 1
-                    end
-                    if iEngineersTravelingHere + iEngineersPresentHere >= iMaxEngineersWanted then
-                        tiAdjacentLandZonesWantingEngineersThatAlreadyHaveSome[iPathingRef] = iAdjLZ
-                    else
-                        tLZWantingBPConsidered[iAdjLZ] = true
-                        local tiBPByTechWanted = GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ, iPathingRef, iHighestTechEngiAvailable, true, false, true)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjLZ='..iAdjLZ..'; tiBPByTechWanted='..repru(tiBPByTechWanted)) end
-                        if tiBPByTechWanted then
-                            for iTech = 1, iHighestTechEngiAvailable, 1 do
-                                if tiBPByTechWanted[iTech] > 0 then
-                                    iPrevEngisAvailable = table.getn(toAvailableEngineersByTech[iTech])
-                                    iBPWanted = iNearbyZonesWantingEngineers * 5 + tiBPByTechWanted[iTech]
-                                    HaveActionToAssign(refActionMoveToLandZone, iTech, iBPWanted, iAdjLZ, true)
-                                    if (tLZTeamData[M28Map.subreftiBPWantedByAction][refActionMoveToLandZone] or 0) > 0 then tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] = true end
-                                    if table.getn(toAvailableEngineersByTech[iTech]) < iPrevEngisAvailable then
-                                        iNearbyZonesWantingEngineers = iNearbyZonesWantingEngineers + 1
-                                    end
-
-                                    iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
-                                    if bDebugMessages == true then LOG(sFunctionRef..': Want iBPWanted='..iBPWanted..' to go to iAdjLZ='..iAdjLZ..'; iNearbyZonesWantingEngineers='..iNearbyZonesWantingEngineers..'; iHighestTechEngiAvailable='..iHighestTechEngiAvailable) end
-                                    if iHighestTechEngiAvailable == 0 then break end
-                                end
+                        if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
+                            local tEngineersInAdjZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tAdjLZTeamData[M28Map.subrefLZTAlliedUnits])
+                            if M28Utilities.IsTableEmpty(tEngineersInAdjZone) == false then
+                                iEngineersPresentHere = table.getn(tEngineersInAdjZone)
                             end
                         end
-                        if iHighestTechEngiAvailable == 0 then break end
+                        iMaxEngineersWanted = 1
+                        if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 3 then iMaxEngineersWanted = 2 end
+                        if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefMexUnbuiltLocations]) == false then
+                            iMaxEngineersWanted = math.max(iMaxEngineersWanted, math.ceil(table.gent(tAdjLZTeamData[M28Map.subrefMexUnbuiltLocations]) * 0.5))
+                        end
+                        if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefHydroUnbuiltLocations]) == false then
+                            iMaxEngineersWanted = iMaxEngineersWanted + 1
+                        end
+                        if iEngineersTravelingHere + iEngineersPresentHere >= iMaxEngineersWanted then
+                            tiAdjacentLandZonesWantingEngineersThatAlreadyHaveSome[iPathingRef] = iAdjLZ
+                        else
+                            tLZWantingBPConsidered[iAdjLZ] = true
+                            local tiBPByTechWanted = GetBPByTechWantedForAlternativeLandZone(iPlateau, iTeam, tLZData, iAdjLZ, iPathingRef, iHighestTechEngiAvailable, true, false, true)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering iAdjLZ='..iAdjLZ..'; tiBPByTechWanted='..repru(tiBPByTechWanted)) end
+                            if tiBPByTechWanted then
+                                for iTech = 1, iHighestTechEngiAvailable, 1 do
+                                    if tiBPByTechWanted[iTech] > 0 then
+                                        iPrevEngisAvailable = table.getn(toAvailableEngineersByTech[iTech])
+                                        iBPWanted = iNearbyZonesWantingEngineers * 5 + tiBPByTechWanted[iTech]
+                                        HaveActionToAssign(refActionMoveToLandZone, iTech, iBPWanted, iAdjLZ, true)
+                                        if (tLZTeamData[M28Map.subreftiBPWantedByAction][refActionMoveToLandZone] or 0) > 0 then tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] = true end
+                                        if table.getn(toAvailableEngineersByTech[iTech]) < iPrevEngisAvailable then
+                                            iNearbyZonesWantingEngineers = iNearbyZonesWantingEngineers + 1
+                                        end
+
+                                        iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Want iBPWanted='..iBPWanted..' to go to iAdjLZ='..iAdjLZ..'; iNearbyZonesWantingEngineers='..iNearbyZonesWantingEngineers..'; iHighestTechEngiAvailable='..iHighestTechEngiAvailable) end
+                                        if iHighestTechEngiAvailable == 0 then break end
+                                    end
+                                end
+                            end
+                            if iHighestTechEngiAvailable == 0 then break end
+                        end
                     end
                 else
                     break --Table shoudl be sorted closest first so if we are too far away now the later entries should be ignored
