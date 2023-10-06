@@ -214,7 +214,8 @@ refCategoryAirScout = categories.AIR * categories.SCOUT
 refCategoryAirAA = categories.AIR * categories.ANTIAIR - categories.BOMBER - categories.GROUNDATTACK - categories.EXPERIMENTAL
 refCategoryBomber = categories.AIR * categories.BOMBER - categories.ANTINAVY - categories.CANNOTUSEAIRSTAGING --excludes mercies
 refCategoryFighterBomber = categories.AIR * categories.ANTIAIR * categories.BOMBER - categories.EXPERIMENTAL
-refCategoryGunship = categories.AIR * categories.GROUNDATTACK
+refCategoryCzar = categories.AIR * categories.EXPERIMENTAL * categories.ANTIAIR * categories.AEON
+refCategoryGunship = categories.AIR * categories.GROUNDATTACK + categories.TARGETCHASER - refCategoryCzar --Targetchaser only used by czar, but some unit mods have it for units that dont have groundattack catgory (e.g. extreme wars)
 refCategoryTorpBomber = categories.AIR * categories.BOMBER * categories.ANTINAVY + (categories.AIR * categories.ANTINAVY - categories.EXPERIMENTAL)
 refCategoryAllAir = categories.MOBILE * categories.AIR - categories.UNTARGETABLE --Excludes novax
 refCategoryAllNonExpAir = categories.MOBILE * categories.AIR * categories.TECH1 + categories.MOBILE * categories.AIR * categories.TECH2 + categories.MOBILE * categories.AIR * categories.TECH3
@@ -222,7 +223,6 @@ refCategoryAirNonScout = refCategoryAllAir - categories.SCOUT
 refCategoryMercy = categories.HIGHPRIAIR * categories.AEON * categories.BOMBER * categories.TECH2
 refCategoryTransport = categories.AIR * categories.TRANSPORTATION - categories.UEF * categories.GROUNDATTACK - refCategoryTorpBomber
 refCategoryRestorer = refCategoryGunship * categories.ANTIAIR
-refCategoryCzar = categories.AIR * categories.EXPERIMENTAL * categories.ANTIAIR * categories.AEON
 refCategoryAirToGround = refCategoryBomber + refCategoryGunship + refCategoryCzar + refCategoryMercy --i.e. excludes torp bombers
 
 --Naval units
@@ -1308,8 +1308,17 @@ function RecordUnitRange(oUnit)
                         --Aeon TMD - ignore as it has a rangecategory for the weapon that uses the correct range so want to ignore the other waepon anyway
                     elseif oCurWeapon.WeaponCategory == 'Death' then
                         --Do nothing - e.g. units like energy storage
+                    elseif oCurWeapon.WeaponCategory == 'Bomb' then
+                        --experimental wars - experimental spaceships have a 'bomb' weapon category
+                        if oCurWeapon.FireTargetLayerCapsTable and oCurWeapon.FireTargetLayerCapsTable['Land'] == 'Land|Water|Seabed' and not(oCurWeapon.ManualFire) and not(oCurWeapon.NeedToComputeBombDrop) then
+                            oUnit[refiDFRange] = math.max((oUnit[refiDFRange] or 0), oCurWeapon.MaxRadius)
+                        elseif EntityCategoryContains(categories.AIR * categories.MOBILE, oUnit.UnitId) then
+
+                        else
+                            M28Utilities.ErrorHandler('Unrecognised bomb weapon for unit '..oUnit.UnitId)
+                        end
                     else
-                        M28Utilities.ErrorHandler('Unrecognised range category for unit '..oUnit.UnitId)
+                        M28Utilities.ErrorHandler('Unrecognised range category for unit '..oUnit.UnitId..'='..(oCurWeapon.WeaponCategory or 'nil'))
                         --If this triggers do a reprs of the weapon to figure out why (i.e. uncomment out the below)
                         --LOG('reprs of oCurWeapon='..reprs(oCurWeapon))
                     end
