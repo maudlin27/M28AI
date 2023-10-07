@@ -6056,6 +6056,8 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     local iBPWanted
     local iActiveMexUpgrades = M28Conditions.GetActiveMexUpgrades(tLZTeamData)
     local iNearbyEnemyAirToGroundThreat = tLZTeamData[M28Map.refiEnemyAirToGroundThreat]
+    local iHighestTechInZone = M28Conditions.GetHighestTechInZone(iTeam, tLZTeamData) --Highest completed factory HQ or engineer in the zone (or 1 if none)
+
     --For now only do land zone not water zone given water zone includes torp bombers
     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
         for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
@@ -6077,7 +6079,12 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 then
         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 22 then iMinTechLevelForPower = 1
         elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 110 then iMinTechLevelForPower = 2
-        else iMinTechLevelForPower = M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]
+        else
+            if bHaveLowPower and not(bHaveLowMass) then
+                iMinTechLevelForPower = iHighestTechInZone
+            else
+                iMinTechLevelForPower = M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]
+            end
         end
     end
 
@@ -6176,7 +6183,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             if bDebugMessages == true then LOG(sFunctionRef..': CHecking if hydro prevented by norush, M28Overseer.bNoRushActive='..tostring(M28Overseer.bNoRushActive or false)..'; M28Conditions.NoRushPreventingHydro(tLZTeamData)='..tostring(M28Conditions.NoRushPreventingHydro(tLZTeamData) or false)) end
             if M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydro(tLZTeamData) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Norush is preventing b uilding a hydro at core zone so will just build a pgen, iLandZone='..iLandZone) end
-                HaveActionToAssign(refActionBuildPower, 1, 10)
+                HaveActionToAssign(refActionBuildPower, iMinTechLevelForPower, 10)
             else
 
                 if bDebugMessages == true then LOG(sFunctionRef..': iCurPriority='..iCurPriority..':  Will try and build a hydro, unless we have no unbuilt locations and have no part complete hydro in which case will build power') end
@@ -6191,22 +6198,25 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                         end
                     end
                 end
-                if bCanBuildOrAssistHydro then
+                --Issue on some maps if lots of hydro locations spread out
+                if bDebugMessages == true then LOG(sFunctionRef..': bCanBuildOrAssistHydro='..tostring(bCanBuildOrAssistHydro)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; bHaveLowMass='..tostring(bHaveLowMass)..'; bHaveLowPower='..tostring(bHaveLowPower)..'; Hydros in zone='..table.getn(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroLocations])..'; Higheest friendly factory tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Get power instead of hydro='..tostring(M28Conditions.GetPowerInsteadOfHydroEvenIfHydroAvailable(iTeam, tLZData, tLZTeamData, iPlateau, iLandZone, bHaveLowMass, bHaveLowPower))) end
+                if bCanBuildOrAssistHydro and not(M28Conditions.GetPowerInsteadOfHydroEvenIfHydroAvailable(iTeam, tLZData, tLZTeamData, iPlateau, iLandZone, bHaveLowMass, bHaveLowPower)) then
                     HaveActionToAssign(refActionBuildHydro, 1, 10)
                 else
-                    HaveActionToAssign(refActionBuildPower, 1, 5)
+                    HaveActionToAssign(refActionBuildPower, iMinTechLevelForPower, 5)
                 end
             end
         elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 0 then
             if bDebugMessages == true then LOG(sFunctionRef..': iCurPriority='..iCurPriority..': Will try and build PGens') end
-            HaveActionToAssign(refActionBuildPower, 1, 5)
+            HaveActionToAssign(refActionBuildPower, iMinTechLevelForPower, 5)
         end
     else
         if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroUnbuiltLocations]) == false and (bHaveLowPower or not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 20 >=  M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]) then
-            if bDebugMessages == true then LOG(sFunctionRef..': Have at least 10 energy income on the team, cHecking if hydro prevented by norush, M28Overseer.bNoRushActive='..tostring(M28Overseer.bNoRushActive or false)..'; M28Conditions.NoRushPreventingHydro(tLZTeamData)='..tostring(M28Conditions.NoRushPreventingHydro(tLZTeamData) or false)) end
-            if M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydro(tLZTeamData) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Have at least 10 energy income on the team, cHecking if hydro prevented by norush, M28Overseer.bNoRushActive='..tostring(M28Overseer.bNoRushActive or false)..'; M28Conditions.NoRushPreventingHydro(tLZTeamData)='..tostring(M28Conditions.NoRushPreventingHydro(tLZTeamData) or false)..'; Want power instad of hydro='..tostring(M28Conditions.GetPowerInsteadOfHydroEvenIfHydroAvailable(iTeam, tLZData, tLZTeamData, iPlateau, iLandZone, bHaveLowMass, bHaveLowPower))) end
+            if (M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydro(tLZTeamData)) or M28Conditions.GetPowerInsteadOfHydroEvenIfHydroAvailable(iTeam, tLZData, tLZTeamData, iPlateau, iLandZone, bHaveLowMass, bHaveLowPower) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Norush is preventing b uilding a hydro so will just build a pgen, iLandZone='..iLandZone) end
-                HaveActionToAssign(refActionBuildPower, 1, 10)
+
+                HaveActionToAssign(refActionBuildPower, iMinTechLevelForPower, 10)
             else
                 if bDebugMessages == true then LOG(sFunctionRef..': WIll try to build hydro') end
                 HaveActionToAssign(refActionBuildHydro, 1, 10)
@@ -6433,7 +6443,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     end
 
     iCurPriority = iCurPriority + 1
-    bDebugMessages = true
     local iCoreWZWantingSupportAsLowerPriority
     --If have adjacent waterzone that has unbuilt mexes and has no engineers (incl traveling engineers) then also send engineer here
     if bDebugMessages == true then LOG(sFunctionRef..': High priority Considering if we have adjacent WZ that wants engineer for unbuilt mexes or core WZ, iHighestTechEngiAvailable='..iHighestTechEngiAvailable..'; Is table of adjacent water zones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]))) end
@@ -6482,7 +6491,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             end
         end
     end
-    bDebugMessages = false
 
     --Very High priority factory if we have fewer than 4 (or if lwoer thre number of mexes in the LZ or small map and signif mass stored) and is a smaller map - takes priority over mex expansion
     iCurPriority = iCurPriority + 1
@@ -6764,7 +6772,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
 
     iCurPriority = iCurPriority + 1
-    bDebugMessages = true
     local iCoreWZWantingSupportAsLowerPriority
     --If have adjacent waterzone that has unbuilt mexes or is a core WZ, wants engineers and has no combat threat then assign engi
     if bDebugMessages == true then LOG(sFunctionRef..': Considering if we have adjacent WZ that wants engineer for unbuilt mexes or core WZ, iHighestTechEngiAvailable='..iHighestTechEngiAvailable..'; Is table of adjacent water zones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]))) end
@@ -6824,7 +6831,6 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
 
         end
     end
-    bDebugMessages = false
 
     --High priority reclaim if are low on mass or energy
     iCurPriority = iCurPriority + 1
@@ -8926,6 +8932,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     --Unclaimed hydro in the zone (and we have less than 4k power in our team)
     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 400 and M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroUnbuiltLocations]) == false then
         if bDebugMessages == true then LOG(sFunctionRef..': We have unbuilt hydro locations for this land zone, locations='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroUnbuiltLocations])) end
+
         HaveActionToAssign(refActionBuildHydro, 1, 10)
     end
 

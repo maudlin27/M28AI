@@ -1978,11 +1978,12 @@ function CheckIfNeedMoreEngineersBeforeUpgrading(oFactory)
     local sFunctionRef = 'CheckIfNeedMoreEngineersBeforeUpgrading'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    local bWantMoreEngineers = false
+
     if EntityCategoryContains(M28UnitInfo.refCategoryFactory,oFactory.UnitId) then
-        bDebugMessages = true
         local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)
         if bDebugMessages == true then LOG(sFunctionRef..': Considering factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Total build count='..(oFactory[M28Factory.refiTotalBuildCount] or 0)..'; iFactoryTechLevel='..iFactoryTechLevel..'; Time='..GetGameTimeSeconds()) end
-        if (oFactory[M28Factory.refiTotalBuildCount] or 0) <= 20 - iFactoryTechLevel * 5 or ((oFactory[M28Factory.refiTotalBuildCount] or 0) <= 30 and iFactoryTechLevel == 1 and GetLifetimeBuildCount(oFactory:GetAIBrain(), M28UnitInfo.refCategoryEngineer) <= 5) then
+        if (oFactory[M28Factory.refiTotalBuildCount] or 0) <= 25 - iFactoryTechLevel * 5 or ((oFactory[M28Factory.refiTotalBuildCount] or 0) <= 30 and GetLifetimeBuildCount(oFactory:GetAIBrain(), M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) <= math.max(5, aiBrain[M28Economy.refiGrossMassBaseIncome] * 3 / iFactoryTechLevel)) then
             local aiBrain = oFactory:GetAIBrain()
             local iTeam = aiBrain.M28Team
             local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oFactory:GetPosition(), true, iTeam)
@@ -1991,31 +1992,54 @@ function CheckIfNeedMoreEngineersBeforeUpgrading(oFactory)
                 --Do we have enough energy?
                 local tiMinEnergyByTech = {[0]=20,[1]=20,[2]=60,[3]=60}
                 local iMinEnergyWanted = tiMinEnergyByTech[iFactoryTechLevel]
+                local bHaveLowPower = HaveLowPower(iTeam)
+                local bHaveLowMass = HaveLowMass(aiBrain)
 
                 if not(EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oFactory.UnitId)) then iMinEnergyWanted = iMinEnergyWanted * 2 end
                 iMinEnergyWanted = iMinEnergyWanted * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] *  (aiBrain[M28Economy.refiBrainBuildRateMultiplier] or 1)
-                if bDebugMessages == true then LOG(sFunctionRef..': iMinEnergyWanted='..iMinEnergyWanted..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or false)..'; tLZOrWZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex]='..tostring(tLZOrWZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] or false)) end
-                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < iMinEnergyWanted or M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] then
+                if bHaveLowPower and not(bHaveLowMass) and aiBrain:GetEconomyStoredRatio('MASS') >= 0.3 then
+                    iMinEnergyWanted = iMinEnergyWanted * 1.5
+                    if aiBrain:GetEconomyStoredRatio('MASS') >= 0.6 then iMinEnergyWanted = iMinEnergyWanted * 1.5 end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': iMinEnergyWanted='..iMinEnergyWanted..'; Gross energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy]='..tostring(M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or false)..'; tLZOrWZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex]='..tostring(tLZOrWZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] or false)..'; T2 engi lifetime count='..GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer * categories.TECH2)..'; Mass gross income='..aiBrain[M28Economy.refiGrossMassBaseIncome]) end
+                if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < iMinEnergyWanted or M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] or (iFactoryTechLevel == 2 and aiBrain[M28Economy.refiGrossEnergyBaseIncome] <= 150 and aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryT2Power + M28UnitInfo.refCategoryT3Power) == 0) or (bHaveLowPower and not(bHaveLowMass) and aiBrain:GetEconomyStoredRatio('MASS') >= 0.3 and GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel) + M28UnitInfo.refCategoryEngineer*categories.TECH3) < math.min(12, math.max(4, aiBrain[M28Economy.refiGrossMassBaseIncome] * 1.5))) then
                     M28Team.tTeamData[iTeam][M28Team.subrefbTooLittleEnergyForUpgrade] = true
                     if bDebugMessages == true then LOG(sFunctionRef..': Dont have enough power to upgrade') end
-                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                    return true
-                end
-
-                if tLZOrWZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] then
+                    bWantMoreEngineers = true
+                elseif tLZOrWZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] then
                     if bDebugMessages == true then LOG(sFunctionRef..': Have adj zones wanting engineer for mex') end
-                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                    return true
-                end
-
-                if (oFactory[M28Factory.refiTotalBuildCount] or 0) <= 10 and GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer) <= ((tLZOrWZData[M28Map.subrefLZMexCount] or 0) + 1) * 1.5 then
-                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                    return true
+                    bWantMoreEngineers = true
+                elseif (oFactory[M28Factory.refiTotalBuildCount] or 0) <= 10 and GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer) <= ((tLZOrWZData[M28Map.subrefLZMexCount] or 0) + 1) * 1.5 then
+                    bWantMoreEngineers = true
                 end
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': End of code, clear to upgrade factory') end --here since lower down means not a factory
+        if bDebugMessages == true then LOG(sFunctionRef..': End of code, bWantMoreEngineers='..tostring(bWantMoreEngineers or false)) end --here since lower down means not a factory
     end
+    oFactory[M28Factory.refbWantMoreEngineersBeforeUpgrading] = bWantMoreEngineers
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    return false
+    return bWantMoreEngineers
+end
+
+function GetPowerInsteadOfHydroEvenIfHydroAvailable(iTeam, tLZData, tLZTeamData, iPlateau, iLandZone, bHaveLowMass, bHaveLowPower)
+    if not(tLZTeamData[M28Map.subrefLZbCoreBase]) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 7 * M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] or bHaveLowMass or not(bHaveLowPower) or table.getn(tLZData[M28Map.subrefHydroLocations]) <= 2 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] == 1 then
+        return false
+    end
+    return true
+end
+
+function GetHighestTechInZone(iTeam, tLZTeamData)
+    local iHighestTech = 1
+    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] > 1 then
+        local tFactoriesAndEngineersInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryAllHQFactories + M28UnitInfo.refCategoryEngineer - categories.TECH1, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+        if M28Utilities.IsTableEmpty(tFactoriesAndEngineersInZone) == false then
+            for iUnit, oUnit in tFactoriesAndEngineersInZone do
+                if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() == 1 then
+                    iHighestTech = math.max(iHighestTech, M28UnitInfo.GetUnitTechLevel(oUnit))
+                    if iHighestTech >= 3 then break end
+                end
+            end
+        end
+    end
+    return iHighestTech
 end

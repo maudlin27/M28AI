@@ -5816,7 +5816,6 @@ function RecordWaterZoneMidpointAndMinMaxPositions()
     local iAveragePlateau
     for iPond, tPondSubtable in tPondDetails do
         --Go through any mexes near a pond, and record against a waterzone if they're in water
-        bDebugMessages = true
         if bDebugMessages == true then LOG(sFunctionRef..': considering iPond='..iPond..'; Is table of mexes empty='..tostring(M28Utilities.IsTableEmpty(tPondSubtable[subrefPondMexInfo]))) end
         if M28Utilities.IsTableEmpty(tPondSubtable[subrefPondMexInfo]) == false then
             local iMexWaterZone, iMexPond
@@ -5830,7 +5829,6 @@ function RecordWaterZoneMidpointAndMinMaxPositions()
                 end
             end
         end
-        bDebugMessages = false
 
         for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
             --Record min and max values

@@ -3084,7 +3084,6 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 GetUnitToAttackNearestACU(oUnit)
                                 bUseNormalLogic = false
                             elseif bMoveTowardsEngineers and oUnit[M28UnitInfo.refiDFRange] > 0 and not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher, oUnit.UnitId)) then
-                                bDebugMessages = true
                                 local oNearestEngineerToUnit = M28Utilities.GetNearestUnit(tEnemyEngineers, oUnit:GetPosition())
                                 if oNearestEngineerToUnit then
                                     --Use normal logic if are almost in reclaim range of the engineer
@@ -3661,7 +3660,6 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                                 else
                                     local bUseNormalLogic = true
                                     if bMoveTowardsEngineers and oUnit[M28UnitInfo.refiDFRange] > 0 and not(EntityCategoryContains(M28UnitInfo.refCategorySkirmisher, oUnit.UnitId)) then
-                                        bDebugMessages = true
                                         local oNearestEngineerToUnit = M28Utilities.GetNearestUnit(tEnemyEngineers, oUnit:GetPosition())
                                         if oNearestEngineerToUnit then
                                             --Use normal logic if are almost in reclaim range of the engineer

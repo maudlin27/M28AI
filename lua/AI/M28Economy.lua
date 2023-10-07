@@ -54,7 +54,7 @@ function UpgradeUnit(oUnitToUpgrade, bUpdateUpgradeTracker)
     local sFunctionRef = 'UpgradeUnit'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnitToUpgrade.UnitId) then bDebugMessages = true M28Utilities.ErrorHandler('Audit trail') end
+
 
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code, reprs of oUnitToUpgrade='..reprs(oUnitToUpgrade)..'; GetUnitUpgradeBlueprint='..reprs((M28UnitInfo.GetUnitUpgradeBlueprint(oUnitToUpgrade, true) or 'nil'))..'; bUpdateUpgradeTracker='..tostring((bUpdateUpgradeTracker or false))) end
 
@@ -1532,7 +1532,8 @@ function ManageEnergyStalls(iTeam)
 
             if bChangeRequired then
                 if bPauseNotUnpause then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Change is required and we want to pause units') end
+                    bDebugMessages = true
+                    if bDebugMessages == true then LOG(sFunctionRef..': Change is required and we want to pause units, time='..GetGameTimeSeconds()) end
                     M28Team.tTeamData[iTeam][M28Team.subrefbTeamIsStallingEnergy] = true
                     if not(M28Team.tTeamData[iTeam][M28Team.refbJustBuiltLotsOfPower]) then M28Team.tTeamData[iTeam][M28Team.subrefiGrossEnergyWhenStalled] = M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] end
                 end --redundancy
@@ -1732,24 +1733,34 @@ function ManageEnergyStalls(iTeam)
                                         end
                                     elseif iCategoryRef == M28UnitInfo.refCategoryAirFactory or iCategoryRef == M28UnitInfo.refCategoryLandFactory then
                                         --Dont want to pause an HQ upgrade since it will give us better power
-                                        if bPauseNotUnpause and not (bConsideringHQ) and oUnit:IsUnitState('Upgrading') and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) == false and EntityCategoryContains(categories.FACTORY, oUnit) then
-                                            for iFactory, oFactory in M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs] do
-                                                if oUnit == oFactory then
-                                                    bApplyActionToUnit = false
-                                                    break
-                                                end
-                                            end
-                                        elseif not (bPauseNotUnpause) and bConsideringHQ then
-                                            --Only unpause HQs
-                                            bApplyActionToUnit = false
-                                            if oUnit:IsUnitState('Upgrading') and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) == false then
+                                        if bPauseNotUnpause then
+                                            bDebugMessages = true
+                                            if not (bConsideringHQ) and oUnit:IsUnitState('Upgrading') and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) == false and EntityCategoryContains(categories.FACTORY, oUnit) then
                                                 for iFactory, oFactory in M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs] do
                                                     if oUnit == oFactory then
-                                                        bApplyActionToUnit = true
+                                                        bApplyActionToUnit = false
                                                         break
                                                     end
                                                 end
                                             end
+                                            if bApplyActionToUnit and oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint] and EntityCategoryContains(M28UnitInfo.refCategoryEngineer, oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint]) then
+                                                bApplyActionToUnit = false
+                                            end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Deciding whether to pause unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Cur blueprint building='..(oUnit[M28Orders.reftiLastOrders][1][M28Orders.subrefsOrderBlueprint] or 'nil')..'; bConsideringHQ='..tostring(bConsideringHQ)..'; bApplyActionToUnit='..tostring(bApplyActionToUnit)..'; Time='..GetGameTimeSeconds()) end
+                                        elseif not (bPauseNotUnpause) then
+                                            if bConsideringHQ then
+                                                --Only unpause HQs
+                                                bApplyActionToUnit = false
+                                                if oUnit:IsUnitState('Upgrading') and M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs]) == false then
+                                                    for iFactory, oFactory in M28Team.tTeamData[iTeam][M28Team.subreftTeamUpgradingHQs] do
+                                                        if oUnit == oFactory then
+                                                            bApplyActionToUnit = true
+                                                            break
+                                                        end
+                                                    end
+                                                end
+                                            end
+
                                         end
                                         if bApplyActionToUnit and bPauseNotUnpause then
                                             --Dont pause factory that is building an engineer or is an air factory that isnt building an air unit, if its our highest tech level and we dont have at least 5 engis of that tech level
