@@ -1983,8 +1983,8 @@ function CheckIfNeedMoreEngineersBeforeUpgrading(oFactory)
     if EntityCategoryContains(M28UnitInfo.refCategoryFactory,oFactory.UnitId) then
         local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)
         if bDebugMessages == true then LOG(sFunctionRef..': Considering factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Total build count='..(oFactory[M28Factory.refiTotalBuildCount] or 0)..'; iFactoryTechLevel='..iFactoryTechLevel..'; Time='..GetGameTimeSeconds()) end
+        local aiBrain = oFactory:GetAIBrain()
         if (oFactory[M28Factory.refiTotalBuildCount] or 0) <= 25 - iFactoryTechLevel * 5 or ((oFactory[M28Factory.refiTotalBuildCount] or 0) <= 30 and GetLifetimeBuildCount(oFactory:GetAIBrain(), M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel)) <= math.max(5, aiBrain[M28Economy.refiGrossMassBaseIncome] * 3 / iFactoryTechLevel)) then
-            local aiBrain = oFactory:GetAIBrain()
             local iTeam = aiBrain.M28Team
             local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oFactory:GetPosition(), true, iTeam)
             if bDebugMessages == true then LOG(sFunctionRef..': iTeam='..iTeam..'; Brain='..aiBrain.Nickname..'; Want BP='..tostring(tLZOrWZTeamData[M28Map.subrefTbWantBP] or false)..'; Engineer lifetime build count for brain='..GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryEngineer)..'; Mexes in zone='..(tLZOrWZData[M28Map.subrefLZMexCount] or 0)) end
