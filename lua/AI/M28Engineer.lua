@@ -10578,7 +10578,6 @@ function GetBPToAssignToBuildingTML(tLZData, tLZTeamData, iPlateau, iLandZone, i
                                 end
                                 if M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets]) == false then
                                     --Do we have >=50% complete T2+ mex, or 100% of a high value alt unit?
-                                    bDebugMessages = true
                                     local iDecentTargetCount = 0
                                     local bDontDoDistanceCheck = false
                                     if table.getn(tAltLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets]) >= 5 then bDontDoDistanceCheck = true end

@@ -47,8 +47,9 @@ end
 
 function GetAirSubteamLifetimeBuildCount(iAirSubteam, category)
     local iTotalBuild = 0
-    if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyActiveM28Brains]) == false then
-        for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyActiveM28Brains] do
+    if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains]) == false then
+        for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
+            LOG('Lifetime build count for brain '..oBrain.Nickname..'='..GetLifetimeBuildCount(oBrain, category))
             iTotalBuild = iTotalBuild + GetLifetimeBuildCount(oBrain, category)
         end
     end
