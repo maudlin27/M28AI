@@ -320,7 +320,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
 
 --Pond and naval variables
     --General
-iMinPondSize = 1000 --1000 is a small pond that probably barely fits a couple of naval factories
+iMinPondSize = 250 --1000 is a small pond that probably barely fits a couple of naval factories; c.320 on larger maps can fit things though so go with 250
 iMinWaterDepth = 1.5 --Ships cant move right up to shore, this is a guess at how much clearance is needed (testing on Africa, depth of 2 leads to some pathable areas being considered unpathable)
 bHaveConsideredPreferredPondForM28AI = false --Used to make sure we dont try and create water zones until we have setup the factory build locations for each M28AI
 bHaveRecordedPonds = false --set to true once finished the RecordPonds logic
@@ -1382,13 +1382,14 @@ function RecordResourcePoint(sResourceType,x,y,z,size)
             if tResource[1] == x and tResource[3] == z then bAlreadyRecorded = true break end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': bAlreadyRecorded='..tostring(bAlreadyRecorded)..'; GameTime='..GetGameTimeSeconds()..'; bMapLandSetupComplete='..tostring(bMapLandSetupComplete or false)) end
     if not(bAlreadyRecorded) then
         table.insert(tResourceTableRef, {x,y,z})
 
         if bMapLandSetupComplete and GetGameTimeSeconds() >= 3 then
             --E.g. crazyrush type map
             local iPlateauOrZero, iLandOrWaterZone = GetClosestPlateauOrZeroAndZoneToPosition({ x,y,z })
-            if bDebugMessages == true then LOG(sFunctionRef..': Map setup is already complete, assumed crazyrsuh scenario, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; xyz='..x..'-'..y..'-'..z) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Map setup is already complete, assumed crazyrsuh scenario, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; xyz='..x..'-'..y..'-'..z..'; Water position on map='..iMapWaterHeight) end
             if iLandOrWaterZone > 0 then
                 if iPlateauOrZero == 0 then
                     AddMexToWaterZone(tiPondByWaterZone[iLandOrWaterZone], iLandOrWaterZone, { x,y,z})
@@ -4749,20 +4750,36 @@ function RecordPondDetails()
             end
         end
 
+        --Record every pond that has mexes (as an override for pond size)
+        local tiMexesByPond = {}
+        if M28Utilities.IsTableEmpty(tMassPoints) == false then
+            local iCurPond
+            for iMex, tMex in tMassPoints do
+                if tMex[2] < iMapWaterHeight then
+                    iCurPond = NavUtils.GetTerrainLabel(refPathingTypeNavy, tMex)
+                    if iCurPond then
+                        tiMexesByPond[iCurPond] = (tiMexesByPond[iCurPond] or 0) + 1
+                    end
+                end
+
+            end
+        end
+
         for iPond, tPondSubtable in tPondDetails do
             if bDebugMessages == true then
-                LOG(sFunctionRef .. ': Considering pond group ' .. iPond .. '; Pond size=' .. (tPondSubtable[subrefiSegmentCount] or 'nil'))
+                LOG(sFunctionRef .. ': Considering pond group ' .. iPond .. '; Pond size=' .. (tPondSubtable[subrefiSegmentCount] or 'nil')..'; iMinPondSize='..(iMinPondSize or 'nil')..'; tiMexesByPond='..repru(tiMexesByPond))
             end
 
             tPondSubtable[subrefPondMidpoint] = { (tPondDetails[iPond][subrefPondMinX] + tPondDetails[iPond][subrefPondMaxX]) * 0.5, iMapWaterHeight, (tPondDetails[iPond][subrefPondMinZ] + tPondDetails[iPond][subrefPondMaxZ]) * 0.5 }
-            if (tPondSubtable[subrefiSegmentCount] or 0) >= iMinPondSize then
-                    --Pond is large enough for us to consider tracking; record information of interest for the pond:
-                    iPondMexCount = 0
+            if (tPondSubtable[subrefiSegmentCount] or 0) >= iMinPondSize or (tiMexesByPond[iPond] or 0) > 0 then
+                --Pond is large enough for us to consider tracking; record information of interest for the pond:
+                iPondMexCount = 0
                 if bDebugMessages == true then LOG(sFunctionRef .. ': Recording pond, will check how many mexes are nearby. Pond midpoint=' .. repru(tPondSubtable[subrefPondMidpoint]) .. '; Pond min X-Z=' .. tPondDetails[iPond][subrefPondMinX] .. '-' .. tPondDetails[iPond][subrefPondMinZ] .. '; Max X-Z=' .. tPondDetails[iPond][subrefPondMaxX] .. '-' .. tPondDetails[iPond][subrefPondMaxZ]) end
 
                 --Details of all mexes near enough to the pond to be of interest
                 for iMex, tMex in tMassPoints do
                     bInRange = false
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if tMex '..repru(tMex)..' is close enough to Pond='..iPond..'; Pond minX='..tPondSubtable[subrefPondMinX]..'; MaxX='..tPondSubtable[subrefPondMaxX]..'; Pond minZ='..tPondSubtable[subrefPondMinZ]..'; Mond max Z='..tPondSubtable[subrefPondMaxZ]) end
 
                     if tMex[1] >= tPondSubtable[subrefPondMinX] - iMaxMexDist and tMex[1] <= tPondSubtable[subrefPondMaxX] + iMaxMexDist and tMex[3] >= tPondSubtable[subrefPondMinZ] - iMaxMexDist and tMex[3] <= tPondSubtable[subrefPondMaxZ] + iMaxMexDist then
                         --See how far away the water is
@@ -5799,6 +5816,8 @@ function RecordWaterZoneMidpointAndMinMaxPositions()
     local iAveragePlateau
     for iPond, tPondSubtable in tPondDetails do
         --Go through any mexes near a pond, and record against a waterzone if they're in water
+        bDebugMessages = true
+        if bDebugMessages == true then LOG(sFunctionRef..': considering iPond='..iPond..'; Is table of mexes empty='..tostring(M28Utilities.IsTableEmpty(tPondSubtable[subrefPondMexInfo]))) end
         if M28Utilities.IsTableEmpty(tPondSubtable[subrefPondMexInfo]) == false then
             local iMexWaterZone, iMexPond
             for iMex, tSubtable in  tPondSubtable[subrefPondMexInfo] do
@@ -5811,6 +5830,7 @@ function RecordWaterZoneMidpointAndMinMaxPositions()
                 end
             end
         end
+        bDebugMessages = false
 
         for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
             --Record min and max values
@@ -5937,7 +5957,7 @@ function RecordWaterZoneMidpointAndMinMaxPositions()
                         if tWaterZoneBySegment[tSegmentXZ[1]][tSegmentXZ[2]] == iWaterZone then
                             tAltMidpoint = GetPositionFromPathingSegments(tSegmentXZ[1], tSegmentXZ[2])
                             if bDebugMessages == true then
-                                LOG(sFunctionRef .. ': Cycling through recorded segments for this LZ, and considering segment X-Z=' .. tSegmentXZ[1] .. '-' .. tSegmentXZ[2] .. '; with land zone ' .. tLandZoneBySegment[tSegmentXZ[1]][tSegmentXZ[2]] .. '; tAltMidpoint=' .. repru(tAltMidpoint) .. '; Plateau from navutils=' .. (NavUtils.GetTerrainLabel(refPathingTypeHover, tAltMidpoint) or 'nil') .. '; Island from navutils=' .. (NavUtils.GetTerrainLabel(refPathingTypeLand, tAltMidpoint) or 'nil'))
+                                LOG(sFunctionRef .. ': Cycling through recorded segments for this LZ, and considering segment X-Z=' .. (tSegmentXZ[1] or 'nil') .. '-' .. (tSegmentXZ[2] or 'nil') .. '; with land zone ' .. (tLandZoneBySegment[tSegmentXZ[1]][tSegmentXZ[2]] or 'nil') .. '; tAltMidpoint=' .. repru(tAltMidpoint) .. '; Plateau from navutils=' .. (NavUtils.GetTerrainLabel(refPathingTypeHover, tAltMidpoint) or 'nil') .. '; Island from navutils=' .. (NavUtils.GetTerrainLabel(refPathingTypeLand, tAltMidpoint) or 'nil'))
                             end
                             if NavUtils.GetTerrainLabel(refPathingTypeNavy, tAltMidpoint) == iPond then
                                 bHaveValidAltMidpoint = true
@@ -6114,7 +6134,6 @@ function RecordWaterZoneAdjacentLandZones()
                 --Cycle through every land zone on the map, and check if it is near this
                 if not(tiAdditionalWaterZonesAdjacentToPlateauLandZone[iPlateau]) then tiAdditionalWaterZonesAdjacentToPlateauLandZone[iPlateau] = {} end
                 for iLandZone, tLZData in tAllPlateaus[iPlateau][subrefPlateauLandZones] do
-                    if iLandZone == 2 and iPlateau == 3572 and M28Utilities.GetDistanceBetweenPositions(tLZData[subrefMidpoint], tWZData[subrefMidpoint]) <= 300 then bDebugMessages = true else bDebugMessages = false end
                     if not(tiAdditionalWaterZonesAdjacentToPlateauLandZone[iPlateau][iLandZone]) then tiAdditionalWaterZonesAdjacentToPlateauLandZone[iPlateau][iLandZone] = {} end
                     --Is this land zone adjacent? Might be adjacent the following are both the case:
                     --LZMinX is >= WZMinX and <=WZMaxX; or LZMaxX is >= WZMinX and <=WZMaxX

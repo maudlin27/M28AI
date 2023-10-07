@@ -840,6 +840,9 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                         end
                     end
                 end
+            else
+                if bDebugMessages == true then LOG(sFunctionRef..': Want to get more engineers before we upgrade') end
+                bConsiderUpgrading = false
             end
         end
         if bDebugMessages == true then LOG(sFunctionRef..': bConsiderUpgrading='..tostring(bConsiderUpgrading)) end

@@ -1979,9 +1979,10 @@ function CheckIfNeedMoreEngineersBeforeUpgrading(oFactory)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if EntityCategoryContains(M28UnitInfo.refCategoryFactory,oFactory.UnitId) then
+        bDebugMessages = true
         local iFactoryTechLevel = M28UnitInfo.GetUnitTechLevel(oFactory)
         if bDebugMessages == true then LOG(sFunctionRef..': Considering factory '..oFactory.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFactory)..'; Total build count='..(oFactory[M28Factory.refiTotalBuildCount] or 0)..'; iFactoryTechLevel='..iFactoryTechLevel..'; Time='..GetGameTimeSeconds()) end
-        if (oFactory[M28Factory.refiTotalBuildCount] or 0) <= 20 - iFactoryTechLevel * 5 then
+        if (oFactory[M28Factory.refiTotalBuildCount] or 0) <= 20 - iFactoryTechLevel * 5 or ((oFactory[M28Factory.refiTotalBuildCount] or 0) <= 30 and iFactoryTechLevel == 1 and GetLifetimeBuildCount(oFactory:GetAIBrain(), M28UnitInfo.refCategoryEngineer) <= 5) then
             local aiBrain = oFactory:GetAIBrain()
             local iTeam = aiBrain.M28Team
             local tLZOrWZData, tLZOrWZTeamData = M28Map.GetLandOrWaterZoneData(oFactory:GetPosition(), true, iTeam)
