@@ -6114,14 +6114,27 @@ function RecordWaterZoneAdjacentLandZones()
                 --Cycle through every land zone on the map, and check if it is near this
                 if not(tiAdditionalWaterZonesAdjacentToPlateauLandZone[iPlateau]) then tiAdditionalWaterZonesAdjacentToPlateauLandZone[iPlateau] = {} end
                 for iLandZone, tLZData in tAllPlateaus[iPlateau][subrefPlateauLandZones] do
+                    if iLandZone == 2 and iPlateau == 3572 and M28Utilities.GetDistanceBetweenPositions(tLZData[subrefMidpoint], tWZData[subrefMidpoint]) <= 300 then bDebugMessages = true else bDebugMessages = false end
                     if not(tiAdditionalWaterZonesAdjacentToPlateauLandZone[iPlateau][iLandZone]) then tiAdditionalWaterZonesAdjacentToPlateauLandZone[iPlateau][iLandZone] = {} end
                     --Is this land zone adjacent? Might be adjacent the following are both the case:
                     --LZMinX is >= WZMinX and <=WZMaxX; or LZMaxX is >= WZMinX and <=WZMaxX
                     --As above but for Z
                     --Hover want to have a small tolerance for cliffs etc
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if land zone '..iLandZone..' is near the water zone '..iWaterZone..'; iSegmentGapAllowed='..iSegmentGapAllowed..'; tLZData[subrefLZMinSegX]='..tLZData[subrefLZMinSegX]..'; tWZData[subrefWZMinSegX]='..tWZData[subrefWZMinSegX]..'; tWZData[subrefWZMaxSegX]='..tWZData[subrefWZMaxSegX]..'; tLZData[subrefLZMaxSegX]='..tLZData[subrefLZMaxSegX]..'; tLZData[subrefLZMinSegZ]='..tLZData[subrefLZMinSegZ]..'; tWZData[subrefWZMinSegZ]='..tWZData[subrefWZMinSegZ]..'; tWZData[subrefWZMaxSegZ]='..tWZData[subrefWZMaxSegZ]..'; tLZData[subrefLZMaxSegZ]='..tLZData[subrefLZMaxSegZ]) end
-                    if (tLZData[subrefLZMinSegX] + iSegmentGapAllowed >= tWZData[subrefWZMinSegX] and tLZData[subrefLZMinSegX] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegX]) or (tLZData[subrefLZMaxSegX] + iSegmentGapAllowed >= tWZData[subrefWZMinSegX] and tLZData[subrefLZMaxSegX] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegX])
-                            and (tLZData[subrefLZMinSegZ] + iSegmentGapAllowed >= tWZData[subrefWZMinSegZ] and tLZData[subrefLZMinSegZ] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegZ]) or (tLZData[subrefLZMaxSegZ] + iSegmentGapAllowed >= tWZData[subrefWZMinSegZ] and tLZData[subrefLZMaxSegZ] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegZ]) then
+                    if bDebugMessages == true then
+                        LOG(sFunctionRef..': Considering if land zone '..iLandZone..' is near the water zone '..iWaterZone..'; iSegmentGapAllowed='..iSegmentGapAllowed..'; tLZData[subrefLZMinSegX]='..tLZData[subrefLZMinSegX]..'; tWZData[subrefWZMinSegX]='..tWZData[subrefWZMinSegX]..'; tLZData[subrefLZMaxSegX]='..tLZData[subrefLZMaxSegX]..'; tWZData[subrefWZMaxSegX]='..tWZData[subrefWZMaxSegX]..'; tLZData[subrefLZMinSegZ]='..tLZData[subrefLZMinSegZ]..'; tWZData[subrefWZMinSegZ]='..tWZData[subrefWZMinSegZ]..'; tWZData[subrefWZMaxSegZ]='..tWZData[subrefWZMaxSegZ]..'; tLZData[subrefLZMaxSegZ]='..tLZData[subrefLZMaxSegZ]..'; Test1A='..tostring(tLZData[subrefLZMinSegX] + iSegmentGapAllowed >= tWZData[subrefWZMinSegX])..'; Test1B='..tostring(tLZData[subrefLZMinSegX] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegX])..'; Test 2A='..tostring(tLZData[subrefLZMaxSegX] + iSegmentGapAllowed >= tWZData[subrefWZMinSegX])..'; Test 2B='..tostring(tLZData[subrefLZMaxSegX] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegX])..'; Test 5A='..tostring(tLZData[subrefLZMinSegZ] + iSegmentGapAllowed >= tWZData[subrefWZMinSegZ])..'; Test 5B='..tostring(tLZData[subrefLZMinSegZ] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegZ])..'; Test 6A='..tostring(tLZData[subrefLZMaxSegZ] + iSegmentGapAllowed >= tWZData[subrefWZMinSegZ])..'; Test 6B='..tostring(tLZData[subrefLZMaxSegZ] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegZ])..'; Tests 3-4 and 7-8 relate to where the X or Z is inside the other')
+                    end
+                    if ((tLZData[subrefLZMinSegX] + iSegmentGapAllowed >= tWZData[subrefWZMinSegX] and tLZData[subrefLZMinSegX] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegX])
+                        or (tLZData[subrefLZMaxSegX] + iSegmentGapAllowed >= tWZData[subrefWZMinSegX] and tLZData[subrefLZMaxSegX] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegX])
+                        --Cover where water zone is inside land zone:
+                        or (tWZData[subrefWZMinSegX] >= tLZData[subrefLZMinSegX] and tWZData[subrefWZMaxSegX] <= tLZData[subrefLZMaxSegX])
+                        --or land zone is inside water zone:
+                        or (tLZData[subrefLZMinSegX] >= tWZData[subrefWZMinSegX] and tLZData[subrefLZMaxSegX] <= tWZData[subrefWZMaxSegX]))
+                    and ((tLZData[subrefLZMinSegZ] + iSegmentGapAllowed >= tWZData[subrefWZMinSegZ] and tLZData[subrefLZMinSegZ] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegZ])
+                         or ((tLZData[subrefLZMaxSegZ] + iSegmentGapAllowed >= tWZData[subrefWZMinSegZ]) and (tLZData[subrefLZMaxSegZ] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegZ]))
+                            --Cover where water zone is inside land zone:
+                        or (tWZData[subrefWZMinSegZ] >= tLZData[subrefLZMinSegZ] and tWZData[subrefWZMaxSegZ] <= tLZData[subrefLZMaxSegZ])
+                        --or land zone is inside water zone:
+                        or (tLZData[subrefLZMinSegZ] >= tWZData[subrefWZMinSegZ] and tLZData[subrefLZMaxSegZ] <= tWZData[subrefWZMaxSegZ])) then
                         --It looks like we might overlap, do a more precise calculation drawing a line from the two midpoints to see if we come across other land zones
                         bIsAdjacent = false
                         iDistBetweenMidpoints = M28Utilities.GetDistanceBetweenPositions(tWZData[subrefMidpoint], tLZData[subrefMidpoint])
