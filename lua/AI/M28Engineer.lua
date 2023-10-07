@@ -782,7 +782,7 @@ function GetPotentialBuildLocationsNearLocation(aiBrain, tLZOrWZData, iPlateauOr
 
     local bDontCheckForNoRush = not(M28Overseer.bNoRushActive)
 
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, iLandOrWaterZone='..iLandOrWaterZone..'; Time='..GetGameTimeSeconds()..'; iPlateauOrZero='..iPlateauOrZero..'; iSize='..iSize..'; tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize]='..(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] or 0)..'; Midpoint in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tLZOrWZData[M28Map.subrefMidpoint]))) end
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; Time='..GetGameTimeSeconds()..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iSize='..iSize..'; tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize]='..(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] or 0)..'; Midpoint in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tLZOrWZData[M28Map.subrefMidpoint]))) end
     if (tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize] or 0) < 10 or (M28Map.bIsCampaignMap and iSize >= 14) or (iOptionalMaxCycleSize or 100) <= 20 then
         --SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, iOptionalMaxSegmentsToConsider)
         SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, iLandOrWaterZone, nil)
@@ -1273,9 +1273,17 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
                     local tLZOrWZData
                     if (iLandOrWaterZone or 0) == 0 then
                         iLandOrWaterZone = M28Map.GetWaterZoneFromPosition(tTargetLocation)
-                        iPond = M28Map.tiPondByWaterZone[iLandOrWaterZone]
-                        tLZOrWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iLandOrWaterZone]
-                        iPlateauOrZero = 0
+                        if iLandOrWaterZone then
+                            iPond = M28Map.tiPondByWaterZone[iLandOrWaterZone]
+                            tLZOrWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+                            iPlateauOrZero = 0
+                        else
+                            iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tTargetLocation)
+                            if iPlateauOrZero == 0 and (iLandOrWaterZone or 0) > 0 then
+                                iPond = M28Map.tiPondByWaterZone[iLandOrWaterZone]
+                                tLZOrWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+                            end
+                        end
                     else
                         tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
                     end
@@ -1299,7 +1307,6 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
                             if bDebugMessages == true then LOG(sFunctionRef..': Dont have any naval fac in this WZ, is tAlliedUnits empty='..tostring(M28Utilities.IsTableEmpty(tAlliedUnits))..'; iSize='..iSize..'; aiBrain='..aiBrain.Nickname..'; Highest naval fac='..(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestFriendlyNavalFactoryTech] or 'nil')) end
                         end
                     end
-
                     if bDebugMessages == true then LOG(sFunctionRef..': Checking if we have searched all segments in the land zone before, tLocation='..repru(tTargetLocation)..'; sBlueprintToBuild='..sBlueprintToBuild..'; iSize='..iSize..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize]='..repru(tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize])..'; Segments considered for build locations='..repru(tLZOrWZData[M28Map.subrefBuildLocationSegmentCountBySize][iSize])..'; Total segments in LZ (nil if wZ)='..(tLZOrWZData[M28Map.subrefLZTotalSegmentCount] or 'nil')..'; Is table of build locations empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefBuildLocationsBySizeAndSegment][iSize]))) end
                     local iCycleSizeLimit
                     if EntityCategoryContains(M28UnitInfo.refCategoryFixedShield * categories.TECH3, sBlueprintToBuild) and (M28Map.bIsCampaignMap or not(M28Overseer.refbCloseToUnitCap)) then iCycleSizeLimit = 4 end
@@ -5023,7 +5030,11 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                 if bDebugMessages == true then LOG(sFunctionRef..': Just got blueprint and location to build for oFirstEngineer='..oFirstEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFirstEngineer)..'; iActionTOAssign='..iActionToAssign..'; sBlueprint='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation)..'; Is tiActionAdjacentCategory[iActionToAssign] nil='..tostring(tiActionAdjacentCategory[iActionToAssign] == nil)) end
                                 if M28Utilities.IsTableEmpty(tBuildLocation) then
                                     if not(iActionToAssign == refActionBuildShield or iActionToAssign == refActionBuildSecondShield) then
-                                        M28Utilities.ErrorHandler('Unable to find build location, sBlueprint='..(sBlueprint or 'nil')..'; iActionToAssign='..(iActionToAssign or 'nil')..'; P'..(iPlateauOrPond or 'nil')..'Z'..(iLandOrWaterZone or 'nil'))
+                                        if GetGameTimeSeconds() <= 300 or GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastShowedBuildLocationFailure] or -300) >= 300 then
+                                            --Couldnt find a build locaiton, but might be valid particularly later in the game or on small island maps, so only show as a warning message every 5m
+                                            M28Utilities.ErrorHandler('Unable to find build location, iActionToAssign='..(iActionToAssign or 'nil')..'; P'..(iPlateauOrPond or 'nil')..'Z'..(iLandOrWaterZone or 'nil'), true)
+                                            tLZOrWZTeamData[M28Map.refiTimeLastShowedBuildLocationFailure] = GetGameTimeSeconds()
+                                        end
                                     end
                                 elseif sBlueprint then
                                     local tMoveLocation
@@ -6045,6 +6056,8 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     local iBPWanted
     local iActiveMexUpgrades = M28Conditions.GetActiveMexUpgrades(tLZTeamData)
     local iNearbyEnemyAirToGroundThreat = tLZTeamData[M28Map.refiEnemyAirToGroundThreat]
+    local iHighestTechInZone = M28Conditions.GetHighestTechInZone(iTeam, tLZTeamData) --Highest completed factory HQ or engineer in the zone (or 1 if none)
+
     --For now only do land zone not water zone given water zone includes torp bombers
     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
         for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
@@ -6066,7 +6079,12 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] >= 2 then
         if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 22 then iMinTechLevelForPower = 1
         elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] < 110 then iMinTechLevelForPower = 2
-        else iMinTechLevelForPower = M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]
+        else
+            if bHaveLowPower and not(bHaveLowMass) then
+                iMinTechLevelForPower = iHighestTechInZone
+            else
+                iMinTechLevelForPower = M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]
+            end
         end
     end
 
@@ -6165,7 +6183,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
             if bDebugMessages == true then LOG(sFunctionRef..': CHecking if hydro prevented by norush, M28Overseer.bNoRushActive='..tostring(M28Overseer.bNoRushActive or false)..'; M28Conditions.NoRushPreventingHydro(tLZTeamData)='..tostring(M28Conditions.NoRushPreventingHydro(tLZTeamData) or false)) end
             if M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydro(tLZTeamData) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Norush is preventing b uilding a hydro at core zone so will just build a pgen, iLandZone='..iLandZone) end
-                HaveActionToAssign(refActionBuildPower, 1, 10)
+                HaveActionToAssign(refActionBuildPower, iMinTechLevelForPower, 10)
             else
 
                 if bDebugMessages == true then LOG(sFunctionRef..': iCurPriority='..iCurPriority..':  Will try and build a hydro, unless we have no unbuilt locations and have no part complete hydro in which case will build power') end
@@ -6180,22 +6198,25 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                         end
                     end
                 end
-                if bCanBuildOrAssistHydro then
+                --Issue on some maps if lots of hydro locations spread out
+                if bDebugMessages == true then LOG(sFunctionRef..': bCanBuildOrAssistHydro='..tostring(bCanBuildOrAssistHydro)..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; bHaveLowMass='..tostring(bHaveLowMass)..'; bHaveLowPower='..tostring(bHaveLowPower)..'; Hydros in zone='..table.getn(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroLocations])..'; Higheest friendly factory tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]..'; Get power instead of hydro='..tostring(M28Conditions.GetPowerInsteadOfHydroEvenIfHydroAvailable(iTeam, tLZData, tLZTeamData, iPlateau, iLandZone, bHaveLowMass, bHaveLowPower))) end
+                if bCanBuildOrAssistHydro and not(M28Conditions.GetPowerInsteadOfHydroEvenIfHydroAvailable(iTeam, tLZData, tLZTeamData, iPlateau, iLandZone, bHaveLowMass, bHaveLowPower)) then
                     HaveActionToAssign(refActionBuildHydro, 1, 10)
                 else
-                    HaveActionToAssign(refActionBuildPower, 1, 5)
+                    HaveActionToAssign(refActionBuildPower, iMinTechLevelForPower, 5)
                 end
             end
         elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] < 0 then
             if bDebugMessages == true then LOG(sFunctionRef..': iCurPriority='..iCurPriority..': Will try and build PGens') end
-            HaveActionToAssign(refActionBuildPower, 1, 5)
+            HaveActionToAssign(refActionBuildPower, iMinTechLevelForPower, 5)
         end
     else
-        if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroUnbuiltLocations]) == false then
-            if bDebugMessages == true then LOG(sFunctionRef..': Have at least 10 energy income on the team, cHecking if hydro prevented by norush, M28Overseer.bNoRushActive='..tostring(M28Overseer.bNoRushActive or false)..'; M28Conditions.NoRushPreventingHydro(tLZTeamData)='..tostring(M28Conditions.NoRushPreventingHydro(tLZTeamData) or false)) end
-            if M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydro(tLZTeamData) then
+        if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroUnbuiltLocations]) == false and (bHaveLowPower or not(bHaveLowMass) or M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] * 20 >=  M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Have at least 10 energy income on the team, cHecking if hydro prevented by norush, M28Overseer.bNoRushActive='..tostring(M28Overseer.bNoRushActive or false)..'; M28Conditions.NoRushPreventingHydro(tLZTeamData)='..tostring(M28Conditions.NoRushPreventingHydro(tLZTeamData) or false)..'; Want power instad of hydro='..tostring(M28Conditions.GetPowerInsteadOfHydroEvenIfHydroAvailable(iTeam, tLZData, tLZTeamData, iPlateau, iLandZone, bHaveLowMass, bHaveLowPower))) end
+            if (M28Overseer.bNoRushActive and M28Conditions.NoRushPreventingHydro(tLZTeamData)) or M28Conditions.GetPowerInsteadOfHydroEvenIfHydroAvailable(iTeam, tLZData, tLZTeamData, iPlateau, iLandZone, bHaveLowMass, bHaveLowPower) then
                 if bDebugMessages == true then LOG(sFunctionRef..': Norush is preventing b uilding a hydro so will just build a pgen, iLandZone='..iLandZone) end
-                HaveActionToAssign(refActionBuildPower, 1, 10)
+
+                HaveActionToAssign(refActionBuildPower, iMinTechLevelForPower, 10)
             else
                 if bDebugMessages == true then LOG(sFunctionRef..': WIll try to build hydro') end
                 HaveActionToAssign(refActionBuildHydro, 1, 10)
@@ -6296,6 +6317,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
         end
         if bDebugMessages == true then LOG(sFunctionRef..': High priority mex builder, Have a total of '..table.getn(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations])..' unbuilt mex locations in this zone, iBPWanted='..iBPWanted..'; Highest friendly tech='..M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech]) end
         HaveActionToAssign(refActionBuildMex, 1, iBPWanted)
+        if (tLZTeamData[M28Map.subreftiBPWantedByAction][refActionBuildMex] or 0) > 0 then tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] = true end
     elseif M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoPartBuiltMexes]) == false then
         --Do we have no engineers assigned to building a mex?
         local bHaveEngisBuilding = false
@@ -6359,17 +6381,16 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
     local iPrevEngisAvailable
     local tLZWantingBPConsidered = {}
     local iAdjLZ
-    if iHighestTechEngiAvailable > 0 then
-        if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
-            local bWantEngineersAsHighPriority = false
-            local iEngineersTravelingHere
-            local iEngineersPresentHere
-            local iMaxEngineersWanted
-            for iPathingRef, tPathingDetails in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
-                if tPathingDetails[M28Map.subrefLZTravelDist] <= tLZData[M28Map.subrefLZFurthestAdjacentLandZoneTravelDist] then
-                    iAdjLZ = tPathingDetails[M28Map.subrefLZNumber]
-                    local tAdjLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
-                    local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
+    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZPathingToOtherLandZones]) == false then
+        local iEngineersTravelingHere
+        local iEngineersPresentHere
+        local iMaxEngineersWanted
+        for iPathingRef, tPathingDetails in tLZData[M28Map.subrefLZPathingToOtherLandZones] do
+            if tPathingDetails[M28Map.subrefLZTravelDist] <= tLZData[M28Map.subrefLZFurthestAdjacentLandZoneTravelDist] then
+                iAdjLZ = tPathingDetails[M28Map.subrefLZNumber]
+                local tAdjLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
+                local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
+                if tAdjLZTeamData[M28Map.subrefTbWantBP] and not(tAdjLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] or (tAdjLZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > 0) then
                     iEngineersTravelingHere = 0
                     iEngineersPresentHere = 0
                     if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEngineersTravelingHere]) == false then
@@ -6401,6 +6422,7 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                                     iPrevEngisAvailable = table.getn(toAvailableEngineersByTech[iTech])
                                     iBPWanted = iNearbyZonesWantingEngineers * 5 + tiBPByTechWanted[iTech]
                                     HaveActionToAssign(refActionMoveToLandZone, iTech, iBPWanted, iAdjLZ, true)
+                                    if (tLZTeamData[M28Map.subreftiBPWantedByAction][refActionMoveToLandZone] or 0) > 0 then tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] = true end
                                     if table.getn(toAvailableEngineersByTech[iTech]) < iPrevEngisAvailable then
                                         iNearbyZonesWantingEngineers = iNearbyZonesWantingEngineers + 1
                                     end
@@ -6413,8 +6435,58 @@ function ConsiderCoreBaseLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau
                         end
                         if iHighestTechEngiAvailable == 0 then break end
                     end
-                else
-                    break --Table shoudl be sorted closest first so if we are too far away now the later entries should be ignored
+                end
+            else
+                break --Table shoudl be sorted closest first so if we are too far away now the later entries should be ignored
+            end
+        end
+    end
+
+    iCurPriority = iCurPriority + 1
+    local iCoreWZWantingSupportAsLowerPriority
+    --If have adjacent waterzone that has unbuilt mexes and has no engineers (incl traveling engineers) then also send engineer here
+    if bDebugMessages == true then LOG(sFunctionRef..': High priority Considering if we have adjacent WZ that wants engineer for unbuilt mexes or core WZ, iHighestTechEngiAvailable='..iHighestTechEngiAvailable..'; Is table of adjacent water zones empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]))) end
+    if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefAdjacentWaterZones]) == false then
+        local iCurWZ, iCurPond
+        local iBPAlreadyAssigned = 0
+        for iEntry, tSubtable in tLZData[M28Map.subrefAdjacentWaterZones] do
+            iCurWZ = tSubtable[M28Map.subrefAWZRef]
+            iCurPond = M28Map.tiPondByWaterZone[iCurWZ]
+            local tWZData = M28Map.tPondDetails[iCurPond][M28Map.subrefPondWaterZones][iCurWZ]
+            if bDebugMessages == true then LOG(sFunctionRef..': iCurWZ='..iCurWZ..'; Is table of unbuilt mexes empty='..tostring(M28Utilities.IsTableEmpty(tWZData[M28Map.subrefMexUnbuiltLocations]))) end
+            if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefMexUnbuiltLocations]) == false then
+                local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
+
+                local iEngineersTravelingHere
+                local iEngineersPresentHere
+                local iMaxEngineersWanted
+                if bDebugMessages == true then LOG(sFunctionRef..': does zone want bp='..tostring(tWZTeamData[M28Map.subrefTbWantBP])..'; subrefbEnemiesInThisOrAdjacentWZ='..tostring(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ])..'; enemy air to ground='..(tWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0)) end
+                if tWZTeamData[M28Map.subrefTbWantBP] and not(tWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentWZ] or (tWZTeamData[M28Map.refiEnemyAirToGroundThreat] or 0) > 0) then
+                    iEngineersTravelingHere = 0
+                    iEngineersPresentHere = 0
+                    if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefTEngineersTravelingHere]) == false then
+                        iEngineersTravelingHere = table.getn(tWZTeamData[M28Map.subrefTEngineersTravelingHere])
+                    end
+                    if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefWZTAlliedUnits]) == false then
+                        local tEngineersInAdjZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tWZTeamData[M28Map.subrefWZTAlliedUnits])
+                        if M28Utilities.IsTableEmpty(tEngineersInAdjZone) == false then
+                            iEngineersPresentHere = table.getn(tEngineersInAdjZone)
+                        end
+                    end
+                    iMaxEngineersWanted = 1
+                    if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefMexUnbuiltLocations]) == false then
+                        iMaxEngineersWanted = math.max(iMaxEngineersWanted, math.ceil(table.gent(tWZTeamData[M28Map.subrefMexUnbuiltLocations]) * 0.5))
+                    end
+                    if M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefHydroUnbuiltLocations]) == false then
+                        iMaxEngineersWanted = iMaxEngineersWanted + 1
+                    end
+                    iBPWanted = iMaxEngineersWanted * 5
+                    HaveActionToAssign(refActionMoveToWaterZone, 1, iBPWanted + iBPAlreadyAssigned, iCurWZ, true)
+                    iBPAlreadyAssigned = iBPAlreadyAssigned + iBPWanted
+                    if (tLZTeamData[M28Map.subreftiBPWantedByAction][refActionMoveToWaterZone] or 0) > 0 then tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] = true end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Tried to send engineers to iCurWZ '..iCurWZ..'; iBPWanted='..iBPWanted..'; iBPAlreadyAssigned='..iBPAlreadyAssigned) end
+                    iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
+                    if iHighestTechEngiAvailable == 0 or iBPAlreadyAssigned >= iBPWanted * 3 then break end
                 end
             end
         end
@@ -8596,6 +8668,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]) == false then
         if bDebugMessages == true then LOG(sFunctionRef..': We have unbuilt mex locations for this land zone, locations='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations])) end
         HaveActionToAssign(refActionBuildMex, 1, 5)
+        if (tLZTeamData[M28Map.subreftiBPWantedByAction][refActionBuildMex] or 0) > 0 then tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] = true end
     end
 
     --Reclaim enemy building if have available engineers, and enemy has buildings but no combat threat
@@ -8740,6 +8813,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
         iBPWanted = math.max(5, table.getn(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations]) * 2.5)
         if bDebugMessages == true then LOG(sFunctionRef..': We have unbuilt mex locations for this land zone, iBPWanted='..iBPWanted..', locations='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefMexUnbuiltLocations])) end
         HaveActionToAssign(refActionBuildMex, 1, iBPWanted)
+        if (tLZTeamData[M28Map.subreftiBPWantedByAction][refActionBuildMex] or 0) > 0 then tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] = true end
     elseif M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoPartBuiltMexes]) == false then
         --Do we have no engineers assigned to building a mex?
         local bHaveEngisBuilding = false
@@ -8791,6 +8865,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
                         HaveActionToAssign(refActionMoveToLandZone, 1, iNearbyZonesWantingEngineers * 5 + 5, iAdjLZ, true)
                         iNearbyZonesWantingEngineers = iNearbyZonesWantingEngineers + 1
                         iHighestTechEngiAvailable = GetHighestTechEngiAvailable(toAvailableEngineersByTech)
+                        if (tLZTeamData[M28Map.subreftiBPWantedByAction][refActionMoveToLandZone] or 0) > 0 then tLZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] = true end
                         if iHighestTechEngiAvailable == 0 then break end
                     end
                 else
@@ -8857,6 +8932,7 @@ function ConsiderMinorLandZoneEngineerAssignment(tLZTeamData, iTeam, iPlateau, i
     --Unclaimed hydro in the zone (and we have less than 4k power in our team)
     if M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] <= 400 and M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroUnbuiltLocations]) == false then
         if bDebugMessages == true then LOG(sFunctionRef..': We have unbuilt hydro locations for this land zone, locations='..repru(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefHydroUnbuiltLocations])) end
+
         HaveActionToAssign(refActionBuildHydro, 1, 10)
     end
 
@@ -10259,6 +10335,7 @@ function ConsiderLandOrWaterZoneEngineerAssignment(tLZOrWZTeamData, iTeam, iPlat
     end
     --Clear tracking of engineers wanted by action
     tLZOrWZTeamData[M28Map.subreftiBPWantedByAction] = {}
+    tLZOrWZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] = false
 
     if bIsWaterZone then
         ConsiderWaterZoneEngineerAssignment(tLZOrWZTeamData, iTeam, iPlateauOrPond, iLandOrWaterZone, tEngineers, bIsWaterZone)
@@ -10558,11 +10635,30 @@ function GetBPToAssignToBuildingTML(tLZData, tLZTeamData, iPlateau, iLandZone, i
                                     end
                                 end
                                 if M28Utilities.IsTableEmpty(tAltLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets]) == false then
-                                    iBPWanted = 40
-                                    if not (bHaveLowMass) then
-                                        iBPWanted = 80
+                                    --Do we have >=50% complete T2+ mex, or 100% of a high value alt unit?
+                                    local iDecentTargetCount = 0
+                                    local bDontDoDistanceCheck = false
+                                    if table.getn(tAltLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets]) >= 5 then bDontDoDistanceCheck = true end
+                                    for iUnit, oUnit in tAltLZTeamData[M28Map.subreftoEnemyPotentialTMLTargets] do
+                                        if bDebugMessages == true then LOG(sFunctionRef..': oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Fraction complete='..oUnit:GetFractionComplete()..'; Distance to midpoint='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint])) end
+                                        if oUnit:GetFractionComplete() >= 0.75 then
+                                            if bDontDoDistanceCheck or M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tLZData[M28Map.subrefMidpoint]) <= M28Building.iTMLMissileRange - 10 then
+                                                if EntityCategoryContains(M28UnitInfo.refCategoryMex - categories.TECH1, oUnit.UnitId) then
+                                                    iDecentTargetCount = iDecentTargetCount + 1
+                                                else iDecentTargetCount = iDecentTargetCount + oUnit:GetFractionComplete() *  (oUnit:GetBlueprint().BuildCostMass or 0) / 1200
+                                                end
+                                                if iDecentTargetCount >= 1 then break end
+                                            end
+                                        end
                                     end
-                                    break
+                                    if bDebugMessages == true then LOG(sFunctionRef..': iDecentTargetCount='..iDecentTargetCount) end
+                                    if iDecentTargetCount >= 1 then
+                                        iBPWanted = 40
+                                        if not (bHaveLowMass) then
+                                            iBPWanted = 80
+                                        end
+                                        break
+                                    end
                                 end
                             end
                         end

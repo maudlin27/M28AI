@@ -465,6 +465,9 @@ function NoRushMonitor()
 end
 
 function TestCustom(aiBrain)
+    --Rerun adj zones so can see what is happening
+    M28Map.RecordWaterZoneAdjacentLandZones()
+
     --Spawn in a novax for testing:
     --[[local oACU = aiBrain:GetListOfUnits(categories.COMMAND)[1]
     local tPos = oACU:GetPosition()
@@ -1079,7 +1082,7 @@ function OverseerManager(aiBrain)
          end--]]
 
         --if GetGameTimeSeconds() >= 2700 then import('/mods/M28AI/lua/M28Config.lua').M28ShowUnitNames = true end
-        --if GetGameTimeSeconds() >= 3 and GetGameTimeSeconds() <= 15 then TestCustom(aiBrain) end
+        --if GetGameTimeSeconds() >= 40*60 and GetGameTimeSeconds() <= 41*60 then TestCustom(aiBrain) end
         --Enable below to help figure out infinite loops
         --[[if GetGameTimeSeconds() >= 173 and not(bSetHook) then
             bSetHook = true
@@ -1379,24 +1382,26 @@ function M1AeonEndMissionBackupMonitor()
             WaitSeconds(15)
             M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         end --Wait another 15s to give the main mission a chance to end properly
-        ScenarioInfo.M7P4:ManualResult(true)
-        if bDebugMessages == true then LOG(sFunctionRef..': Will end operation safely, and then wait 10s and end operation') end
-        local ScenarioFramework = import('/lua/ScenarioFramework.lua')
-        local OpStrings   = import('/maps/scca_coop_a01.v0016/SCCA_Coop_A01_Strings.lua')
-        local Objectives = import('/lua/ScenarioFramework.lua').Objectives
-        ScenarioFramework.EndOperationSafety()
-        ScenarioFramework.Dialogue(OpStrings.A01_M07_116, false, true) -- Rhiza: "Glorious!"
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        WaitSeconds(5)
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-        ScenarioInfo.OpComplete = true
-        local secondary = Objectives.IsComplete(ScenarioInfo.M7S1) and Objectives.IsComplete(ScenarioInfo.M7S2)
-        local bonus = Objectives.IsComplete(ScenarioInfo.M1B1) and Objectives.IsComplete(ScenarioInfo.M1B2) and Objectives.IsComplete(ScenarioInfo.M1B3) and Objectives.IsComplete(ScenarioInfo.M6B1)
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        WaitSeconds(5.0)
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-        if bDebugMessages == true then LOG(sFunctionRef..': Will now end operation at time '..GetGameTimeSeconds()) end
-        ScenarioFramework.EndOperation(ScenarioInfo.OpComplete, ScenarioInfo.OpComplete, secondary, bonus)
+        if ScenarioInfo.M7P4.ManualResult then
+            ScenarioInfo.M7P4.ManualResult(true)
+            if bDebugMessages == true then LOG(sFunctionRef..': Will end operation safely, and then wait 10s and end operation') end
+            local ScenarioFramework = import('/lua/ScenarioFramework.lua')
+            local OpStrings   = import('/maps/scca_coop_a01.v0016/SCCA_Coop_A01_Strings.lua')
+            local Objectives = import('/lua/ScenarioFramework.lua').Objectives
+            ScenarioFramework.EndOperationSafety()
+            ScenarioFramework.Dialogue(OpStrings.A01_M07_116, false, true) -- Rhiza: "Glorious!"
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitSeconds(5)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            ScenarioInfo.OpComplete = true
+            local secondary = Objectives.IsComplete(ScenarioInfo.M7S1) and Objectives.IsComplete(ScenarioInfo.M7S2)
+            local bonus = Objectives.IsComplete(ScenarioInfo.M1B1) and Objectives.IsComplete(ScenarioInfo.M1B2) and Objectives.IsComplete(ScenarioInfo.M1B3) and Objectives.IsComplete(ScenarioInfo.M6B1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitSeconds(5.0)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            if bDebugMessages == true then LOG(sFunctionRef..': Will now end operation at time '..GetGameTimeSeconds()) end
+            ScenarioFramework.EndOperation(ScenarioInfo.OpComplete, ScenarioInfo.OpComplete, secondary, bonus)
+        end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

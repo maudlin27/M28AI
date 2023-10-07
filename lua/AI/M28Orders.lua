@@ -244,6 +244,7 @@ end
 function IssueTrackedAggressiveMove(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
     UpdateRecordedOrders(oUnit)
     --If we are close enough then issue the order again
+    --if oUnit.UnitId == 'uaa0103' then M28Utilities.ErrorHandler('Tracked attack move audit trail targeting position X'..tOrderPosition[1]..'Z'..tOrderPosition[3], true, true) end
     local tLastOrder
     if oUnit[reftiLastOrders] then
         if bAddToExistingQueue then
@@ -324,6 +325,7 @@ function IssueTrackedAttackMove(oUnit, tOrderPosition, iDistanceToReissueOrder, 
 end
 
 function IssueTrackedAttack(oUnit, oOrderTarget, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder)
+    --if oUnit.UnitId == 'uaa0103' then M28Utilities.ErrorHandler('Tracked attack audit trail targeting unit '..oOrderTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oOrderTarget), true, true) end
     UpdateRecordedOrders(oUnit)
     --Issue order if we arent already trying to attack them
     local tLastOrder
@@ -494,6 +496,7 @@ function IssueTrackedReclaim(oUnit, oOrderTarget, bAddToExistingQueue, sOptional
 end
 
 function IssueTrackedGroundAttack(oUnit, tOrderPosition, iDistanceToReissueOrder, bAddToExistingQueue, sOptionalOrderDesc, bOverrideMicroOrder, oOptionalLinkedUnitTarget)
+    --if oUnit.UnitId == 'uaa0103' then M28Utilities.ErrorHandler('Tracked attack ground audit trail targeting unit '..(oOptionalLinkedUnitTarget.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oOptionalLinkedUnitTarget) or 'nil')..'; tOrderPosition X'..tOrderPosition[1]..'Z'..tOrderPosition[3], true, true) end
     UpdateRecordedOrders(oUnit)
     --If we are close enough then issue the order again
     local tLastOrder

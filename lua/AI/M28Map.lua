@@ -195,6 +195,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZExpansionOverride = 'ZExpO' --true if want to make this location a core expansion even if doesnt meet normal criteria (e.g. if we use transport to drop somewhere on same island but far away, then building land facs there may be of use)
             subrefLZFortify = 'ZFor' --True if we want to fortify this firebase, e.g. for scenarios like M2 UEF
             subrefAlliedACU = 'AACU' --table of ACU units for the land zone (so can factor into decisions on support and attack)
+            refbACUInTrouble = 'AACTr' --true if we have acu in this zone that we are worreid might be about to die to tanks
             subrefLZTAlliedUnits = 'Allies' --USE SAME REF AS FOR WATER ZONES - table of all allied units in the land zone, tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam][subrefLZTAlliedUnits]
             subrefLZTAlliedCombatUnits = 'AllComb' --table of allied units that are to be considered for combat orders
             subrefiTimeOfLastEnemyUnitPosUpdate = 'EnPosTim' --Gametimeseconds that we updated the last known position of enemy units in this zone
@@ -233,7 +234,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZThreatEnemyShield = 'EShTot' --Fixed and mobile shields
             subrefLZThreatEnemyGroundAA = 'EAATotal'
             subrefLZThreatAllyGroundAA = 'AAATotal'
-            subrefLZThreatAllyMAA = 'MAATotal' --only MAA, excludes structure
+            subrefLZThreatAllyMAA = 'MAATotal' --only MAA, excludes structure, wz uses same ref deinition ('MAATotal')
             subrefbEnemiesInThisOrAdjacentLZ = 'NearbyEnemies' --true if this LZ or adjacent LZ have nearby enemies
             subrefbDangerousEnemiesInThisLZ = 'HasDangEnemy' --true if combat units in this LZ
             subrefbDangerousEnemiesInAdjacentWZ = 'WZNearEnemies' --true if there is an adjacent water zone that has dangerous enemies
@@ -263,6 +264,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
                 subrefBuildingRadius = 4 --Size (radius) of the building
                 subrefPrimaryBuilder = 5 --Engineer given the build order
             subreftiPotentialNukeTargetZones = 'NkTrgtZ' --contains subtables, ordered 1,2,...x returning {iPlateauOrZero, iLandOrWaterZone} for each zone that can probably be hit by a nuke from this zone
+            refbAdjZonesWantEngiForUnbuiltMex = 'AZwEMx' --true if have adj zones wanting engineer for unbuilt mex
             --subrefLZTAdjacentBPByTechWanted = 'AdjBPByTechW' --{[1]=a, [2]=b, [3]=c} where a,b,c are the build power wanted wanted
             --Economy related values
             subrefActiveUpgrades = 'ActiveUpgrades' --against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam]
@@ -314,10 +316,11 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             refiTimeLastBuiltAtFactory = 'TLstBFac' --Gametimeseconds that a factory last tried ot build (used to make sure we spread things out by several ticks)
             reftoGroundFireFriendlyTarget = 'TGFTrg' --Location of a ground fire target that we wont be trying to target via normal means, e..g intended for Cybran mission 2 where need to ground fire temples that dont show as enemies and cant be reclaimed
             reftObjectiveSMDLocation = 'TSMDOL' --For campaign maps - locaiton of SMD to complete objective
+            refiTimeLastShowedBuildLocationFailure = 'TLFBL' --Gametimeseconds we last showed a warning that we had nowhere to build
 
 --Pond and naval variables
     --General
-iMinPondSize = 1000 --1000 is a small pond that probably barely fits a couple of naval factories
+iMinPondSize = 250 --1000 is a small pond that probably barely fits a couple of naval factories; c.320 on larger maps can fit things though so go with 250
 iMinWaterDepth = 1.5 --Ships cant move right up to shore, this is a guess at how much clearance is needed (testing on Africa, depth of 2 leads to some pathable areas being considered unpathable)
 bHaveConsideredPreferredPondForM28AI = false --Used to make sure we dont try and create water zones until we have setup the factory build locations for each M28AI
 bHaveRecordedPonds = false --set to true once finished the RecordPonds logic
@@ -356,13 +359,14 @@ tPondDetails = {}
         subrefWZMinSegZ = 'PWZMinSZ'
         subrefWZMaxSegX = 'PWZMaxSX'
         subrefWZMaxSegZ = 'PWZMaxSZ'
-        subrefAdjacentLandZones = 'WZAdjLZ' --table of details for land zones adjacent to the land zone
+        subrefAdjacentLandZones = 'WZAdjLZ' --table of details for land zones adjacent to the water zone
             subrefWPlatAndLZNumber = 1 --returns {Plateau, LandZone}
             subrefALZDistance = 2 --Distance between midpoint from LZ to the WZ
         subrefWZAdjacentWaterZones = 'WZAdjWZ' --table of water zones that are adjacent, i.e. returns {x,y,z,...} where x y z are the water zone references for adjacent water zones
         subrefWZOtherWaterZones = 'WZOthWZ' --table of details for water zones adjacent and further away, ordered by distance
             subrefWZAWZRef = 1 --the water zone reference
             subrefWZAWZDistance = 2 --Travel distance between the midpoints of the water zones
+        subrefWZManualNavalPathToOtherPlateauOrZeroAndZone = 'WZPathOtherZ' --Use the function GetWaterZonePathToWaterOrAdjacentLandZone to get this; Intended for land zones adjacent to a water zone in the same pond as this one; [x] is the target plateau or zero, [y] is the target land or water zone, returns a table, with {iEntry (1,2,....x), iPlateauOrZero, iLandOrWaterZone}
         --Reclaim related - uses same values as water zone
         --subrefReclaimSegments
         --subrefTotalMassReclaim
@@ -409,10 +413,18 @@ tPondDetails = {}
             subrefWZThreatAlliedSubmersible = 'AlSub'
             subrefWZThreatAlliedSurface = 'AlSurf'
             subrefWZThreatAlliedAA = 'AlAA'
+            subrefWZThreatAlliedMAA = 'MAATotal'
             subrefWZBestAlliedDFRange = 'AlDFRnge'
             subrefWZBestAlliedSubmersibleRange = 'AlANavRng'
             refiLastBombardmentSearchRange = 'WZBmbRng' --Last range used for searching for bmobardment targets
             refbLastBombardmentSearchRangeSuccess = 'WZBmbSuc' --true if last time searched for enemies aroudn a location it found results
+            refiClosestRaidingPlateauAndLandZone = 'WZClRLZ' --returns {Plateau, LandZone} if htere is a land zone we want to consider as a raiding target
+            refiRaidWZForBombardment = 'WZRdBmWZ' --water zone where we expect to be able to attack enemy structures
+            refiMinRangeRaidingZone = 'WZClRng' --returns the min range we want raiding naval units to have to join the raid on the land zone
+            reftoWZRaiders = 'WZRaidr' --table of units assigned to raid; recorded against the base (factory) zone
+            refbActiveRaiderLogic = 'WZActR' --true if are monitoring raider orders
+            refoLastRaidTarget = 'WZRaidT' --Raid target building (used as backup for bombardment logic)
+            refiRaidTechLevel = 'WZRadTL' --Tech level to use for raiding logic to estimate permissible ranges and enemy threat values
 
             subrefWZCombatThreatWanted = 'CombWant'
             subrefWZMAAThreatWanted = 'MAAWant'
@@ -1370,13 +1382,14 @@ function RecordResourcePoint(sResourceType,x,y,z,size)
             if tResource[1] == x and tResource[3] == z then bAlreadyRecorded = true break end
         end
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': bAlreadyRecorded='..tostring(bAlreadyRecorded)..'; GameTime='..GetGameTimeSeconds()..'; bMapLandSetupComplete='..tostring(bMapLandSetupComplete or false)) end
     if not(bAlreadyRecorded) then
         table.insert(tResourceTableRef, {x,y,z})
 
         if bMapLandSetupComplete and GetGameTimeSeconds() >= 3 then
             --E.g. crazyrush type map
             local iPlateauOrZero, iLandOrWaterZone = GetClosestPlateauOrZeroAndZoneToPosition({ x,y,z })
-            if bDebugMessages == true then LOG(sFunctionRef..': Map setup is already complete, assumed crazyrsuh scenario, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; xyz='..x..'-'..y..'-'..z) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Map setup is already complete, assumed crazyrsuh scenario, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; xyz='..x..'-'..y..'-'..z..'; Water position on map='..iMapWaterHeight) end
             if iLandOrWaterZone > 0 then
                 if iPlateauOrZero == 0 then
                     AddMexToWaterZone(tiPondByWaterZone[iLandOrWaterZone], iLandOrWaterZone, { x,y,z})
@@ -4737,20 +4750,36 @@ function RecordPondDetails()
             end
         end
 
+        --Record every pond that has mexes (as an override for pond size)
+        local tiMexesByPond = {}
+        if M28Utilities.IsTableEmpty(tMassPoints) == false then
+            local iCurPond
+            for iMex, tMex in tMassPoints do
+                if tMex[2] < iMapWaterHeight then
+                    iCurPond = NavUtils.GetTerrainLabel(refPathingTypeNavy, tMex)
+                    if iCurPond then
+                        tiMexesByPond[iCurPond] = (tiMexesByPond[iCurPond] or 0) + 1
+                    end
+                end
+
+            end
+        end
+
         for iPond, tPondSubtable in tPondDetails do
             if bDebugMessages == true then
-                LOG(sFunctionRef .. ': Considering pond group ' .. iPond .. '; Pond size=' .. (tPondSubtable[subrefiSegmentCount] or 'nil'))
+                LOG(sFunctionRef .. ': Considering pond group ' .. iPond .. '; Pond size=' .. (tPondSubtable[subrefiSegmentCount] or 'nil')..'; iMinPondSize='..(iMinPondSize or 'nil')..'; tiMexesByPond='..repru(tiMexesByPond))
             end
 
             tPondSubtable[subrefPondMidpoint] = { (tPondDetails[iPond][subrefPondMinX] + tPondDetails[iPond][subrefPondMaxX]) * 0.5, iMapWaterHeight, (tPondDetails[iPond][subrefPondMinZ] + tPondDetails[iPond][subrefPondMaxZ]) * 0.5 }
-            if (tPondSubtable[subrefiSegmentCount] or 0) >= iMinPondSize then
-                    --Pond is large enough for us to consider tracking; record information of interest for the pond:
-                    iPondMexCount = 0
+            if (tPondSubtable[subrefiSegmentCount] or 0) >= iMinPondSize or (tiMexesByPond[iPond] or 0) > 0 then
+                --Pond is large enough for us to consider tracking; record information of interest for the pond:
+                iPondMexCount = 0
                 if bDebugMessages == true then LOG(sFunctionRef .. ': Recording pond, will check how many mexes are nearby. Pond midpoint=' .. repru(tPondSubtable[subrefPondMidpoint]) .. '; Pond min X-Z=' .. tPondDetails[iPond][subrefPondMinX] .. '-' .. tPondDetails[iPond][subrefPondMinZ] .. '; Max X-Z=' .. tPondDetails[iPond][subrefPondMaxX] .. '-' .. tPondDetails[iPond][subrefPondMaxZ]) end
 
                 --Details of all mexes near enough to the pond to be of interest
                 for iMex, tMex in tMassPoints do
                     bInRange = false
+                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if tMex '..repru(tMex)..' is close enough to Pond='..iPond..'; Pond minX='..tPondSubtable[subrefPondMinX]..'; MaxX='..tPondSubtable[subrefPondMaxX]..'; Pond minZ='..tPondSubtable[subrefPondMinZ]..'; Mond max Z='..tPondSubtable[subrefPondMaxZ]) end
 
                     if tMex[1] >= tPondSubtable[subrefPondMinX] - iMaxMexDist and tMex[1] <= tPondSubtable[subrefPondMaxX] + iMaxMexDist and tMex[3] >= tPondSubtable[subrefPondMinZ] - iMaxMexDist and tMex[3] <= tPondSubtable[subrefPondMaxZ] + iMaxMexDist then
                         --See how far away the water is
@@ -4799,6 +4828,7 @@ function RecordPondDetails()
                                                 local iMaxDistAdjust = math.max(5, math.min(100, math.floor((150 - iCurMexDist) / 5) * 5))
                                                 tPossibleWaterPosition = M28Utilities.MoveInDirection(tMex, iAngleAdjust, iDist + iMaxDistAdjust, true, true, false)
                                                 if IsUnderwater(tPossibleWaterPosition, false, iMinWaterDepth) then
+
                                                     tShotStartPosition = { tPossibleWaterPosition[1], GetSurfaceHeight(tPossibleWaterPosition[1], tPossibleWaterPosition[3]) + 1, tPossibleWaterPosition[3] }
                                                     if M28Logic.IsLineBlocked(aiBrain, tShotStartPosition, tShotEndPosition, 1) then
                                                         --Assume wont find any match
@@ -5786,6 +5816,7 @@ function RecordWaterZoneMidpointAndMinMaxPositions()
     local iAveragePlateau
     for iPond, tPondSubtable in tPondDetails do
         --Go through any mexes near a pond, and record against a waterzone if they're in water
+        if bDebugMessages == true then LOG(sFunctionRef..': considering iPond='..iPond..'; Is table of mexes empty='..tostring(M28Utilities.IsTableEmpty(tPondSubtable[subrefPondMexInfo]))) end
         if M28Utilities.IsTableEmpty(tPondSubtable[subrefPondMexInfo]) == false then
             local iMexWaterZone, iMexPond
             for iMex, tSubtable in  tPondSubtable[subrefPondMexInfo] do
@@ -5924,7 +5955,7 @@ function RecordWaterZoneMidpointAndMinMaxPositions()
                         if tWaterZoneBySegment[tSegmentXZ[1]][tSegmentXZ[2]] == iWaterZone then
                             tAltMidpoint = GetPositionFromPathingSegments(tSegmentXZ[1], tSegmentXZ[2])
                             if bDebugMessages == true then
-                                LOG(sFunctionRef .. ': Cycling through recorded segments for this LZ, and considering segment X-Z=' .. tSegmentXZ[1] .. '-' .. tSegmentXZ[2] .. '; with land zone ' .. tLandZoneBySegment[tSegmentXZ[1]][tSegmentXZ[2]] .. '; tAltMidpoint=' .. repru(tAltMidpoint) .. '; Plateau from navutils=' .. (NavUtils.GetTerrainLabel(refPathingTypeHover, tAltMidpoint) or 'nil') .. '; Island from navutils=' .. (NavUtils.GetTerrainLabel(refPathingTypeLand, tAltMidpoint) or 'nil'))
+                                LOG(sFunctionRef .. ': Cycling through recorded segments for this LZ, and considering segment X-Z=' .. (tSegmentXZ[1] or 'nil') .. '-' .. (tSegmentXZ[2] or 'nil') .. '; with land zone ' .. (tLandZoneBySegment[tSegmentXZ[1]][tSegmentXZ[2]] or 'nil') .. '; tAltMidpoint=' .. repru(tAltMidpoint) .. '; Plateau from navutils=' .. (NavUtils.GetTerrainLabel(refPathingTypeHover, tAltMidpoint) or 'nil') .. '; Island from navutils=' .. (NavUtils.GetTerrainLabel(refPathingTypeLand, tAltMidpoint) or 'nil'))
                             end
                             if NavUtils.GetTerrainLabel(refPathingTypeNavy, tAltMidpoint) == iPond then
                                 bHaveValidAltMidpoint = true
@@ -6036,26 +6067,91 @@ function RecordWaterZoneAdjacentLandZones()
     local tLinePosition
     local bIsAdjacent
     local iAdjacencyTablePosition
-    local iBaseIntervalIgnoreThreshold = 3
-    local iCloseIntervalIgnoreThreshold = 6
+    local iBaseIntervalIgnoreThreshold = 4
+    local iCloseIntervalIgnoreThreshold = 10
+    if iLandZoneSegmentSize >= 2 then
+        if iCloseIntervalIgnoreThreshold > 2 then iBaseIntervalIgnoreThreshold = 2 iCloseIntervalIgnoreThreshold = 5
+        else iBaseIntervalIgnoreThreshold = 3 iCloseIntervalIgnoreThreshold = 7
+        end
+    end
     local iActualIntervalIgnoreThreshold
     local iCurIntervalIgnoreCount --i.e. if we are moving from one midpoint to another, and come across a different land or water zone, it increases the ignorecount by 1 if the midpoints aren't too far apart
+    local tiAdditionalWaterZonesAdjacentToPlateauLandZone = {} --[x]=plateau, [y]=LZ; [z] = WZ; returns a count of how many times it appeared
+
+    function RecordLandZoneAsAdjacentToWaterZone(tWZData, iWaterZone, tLZData, iPlateau, iLandZone, bCheckNotAlreadyRecorded)
+        --Record water zone as adjacent to land zone
+        local bNotRecorded = true
+        if bCheckNotAlreadyRecorded then
+            if M28Utilities.IsTableEmpty(tLZData[subrefAdjacentWaterZones]) == false then
+                for iEntry, tAdjacencySubtable in tLZData[subrefAdjacentWaterZones] do
+                    if tAdjacencySubtable[subrefAWZRef] == iWaterZone then bNotRecorded = false break end
+                end
+            end
+        end
+        if bNotRecorded then
+            iAdjacencyTablePosition = 1
+            if M28Utilities.IsTableEmpty(tLZData[subrefAdjacentWaterZones]) then
+                tLZData[subrefAdjacentWaterZones] = {}
+            else
+                for iEntry, tAdjacencySubtable in tLZData[subrefAdjacentWaterZones] do
+                    if tAdjacencySubtable[subrefAWZDistance] < iDistBetweenMidpoints then
+                        iAdjacencyTablePosition = iEntry + 1
+                    else
+                        --Since table is ordered by distance later entries should be furhter away
+                        break
+                    end
+                end
+            end
+            table.insert(tLZData[subrefAdjacentWaterZones], iAdjacencyTablePosition, {[subrefAWZRef] = iWaterZone, [subrefAWZDistance] = iDistBetweenMidpoints})
+            if bDebugMessages == true then LOG(sFunctionRef..': Added iWaterZone='..iWaterZone..' as being adjacent to iLandZone='..iLandZone..'; tLZData[subrefAdjacentWaterZones]='..repru(tLZData[subrefAdjacentWaterZones])) end
+
+            --Record land zone as adjacent to water zone
+            iAdjacencyTablePosition = 1
+            if M28Utilities.IsTableEmpty(tWZData[subrefAdjacentLandZones]) then
+                tWZData[subrefAdjacentLandZones] = {}
+            else
+                for iEntry, tAdjacencySubtable in tWZData[subrefAdjacentLandZones] do
+                    if tAdjacencySubtable[subrefALZDistance] < iDistBetweenMidpoints then
+                        iAdjacencyTablePosition = iEntry + 1
+                    else
+                        --Since table is ordered by distance later entries should be furhter away
+                        break
+                    end
+                end
+            end
+            if not(iPlateau) then M28Utilities.ErrorHandler('Have a nil plateau for iLandZone='..(iLandZone or 'nil')) end
+            table.insert(tWZData[subrefAdjacentLandZones], iAdjacencyTablePosition, {[subrefWPlatAndLZNumber] = {iPlateau, iLandZone}, [subrefALZDistance] = iDistBetweenMidpoints})
+        end
+    end
 
     for iPond, tPondSubtable in tPondDetails do
         for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
-
             iPlateau = NavUtils.GetTerrainLabel(refPathingTypeHover, tWZData[subrefMidpoint])
             if bDebugMessages == true then LOG(sFunctionRef..': Considering iWaterZone='..iWaterZone..'; iPlateau='..(iPlateau or 'nil')..'; Is plateau data empty='..tostring(M28Utilities.IsTableEmpty(tAllPlateaus[(iPlateau or -1)]))) end
             if (iPlateau or 0) > 0 and M28Utilities.IsTableEmpty(tAllPlateaus[iPlateau]) == false then
                 --Cycle through every land zone on the map, and check if it is near this
+                if not(tiAdditionalWaterZonesAdjacentToPlateauLandZone[iPlateau]) then tiAdditionalWaterZonesAdjacentToPlateauLandZone[iPlateau] = {} end
                 for iLandZone, tLZData in tAllPlateaus[iPlateau][subrefPlateauLandZones] do
+                    if not(tiAdditionalWaterZonesAdjacentToPlateauLandZone[iPlateau][iLandZone]) then tiAdditionalWaterZonesAdjacentToPlateauLandZone[iPlateau][iLandZone] = {} end
                     --Is this land zone adjacent? Might be adjacent the following are both the case:
                     --LZMinX is >= WZMinX and <=WZMaxX; or LZMaxX is >= WZMinX and <=WZMaxX
                     --As above but for Z
                     --Hover want to have a small tolerance for cliffs etc
-                    if bDebugMessages == true then LOG(sFunctionRef..': Considering if land zone '..iLandZone..' is near the water zone; iSegmentGapAllowed='..iSegmentGapAllowed..'; tLZData[subrefLZMinSegX]='..tLZData[subrefLZMinSegX]..'; tWZData[subrefWZMinSegX]='..tWZData[subrefWZMinSegX]..'; tWZData[subrefWZMaxSegX]='..tWZData[subrefWZMaxSegX]..'; tLZData[subrefLZMaxSegX]='..tLZData[subrefLZMaxSegX]..'; tLZData[subrefLZMinSegZ]='..tLZData[subrefLZMinSegZ]..'; tWZData[subrefWZMinSegZ]='..tWZData[subrefWZMinSegZ]..'; tWZData[subrefWZMaxSegZ]='..tWZData[subrefWZMaxSegZ]..'; tLZData[subrefLZMaxSegZ]='..tLZData[subrefLZMaxSegZ]) end
-                    if (tLZData[subrefLZMinSegX] + iSegmentGapAllowed >= tWZData[subrefWZMinSegX] and tLZData[subrefLZMinSegX] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegX]) or (tLZData[subrefLZMaxSegX] + iSegmentGapAllowed >= tWZData[subrefWZMinSegX] and tLZData[subrefLZMaxSegX] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegX])
-                            and (tLZData[subrefLZMinSegZ] + iSegmentGapAllowed >= tWZData[subrefWZMinSegZ] and tLZData[subrefLZMinSegZ] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegZ]) or (tLZData[subrefLZMaxSegZ] + iSegmentGapAllowed >= tWZData[subrefWZMinSegZ] and tLZData[subrefLZMaxSegZ] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegZ]) then
+                    if bDebugMessages == true then
+                        LOG(sFunctionRef..': Considering if land zone '..iLandZone..' is near the water zone '..iWaterZone..'; iSegmentGapAllowed='..iSegmentGapAllowed..'; tLZData[subrefLZMinSegX]='..tLZData[subrefLZMinSegX]..'; tWZData[subrefWZMinSegX]='..tWZData[subrefWZMinSegX]..'; tLZData[subrefLZMaxSegX]='..tLZData[subrefLZMaxSegX]..'; tWZData[subrefWZMaxSegX]='..tWZData[subrefWZMaxSegX]..'; tLZData[subrefLZMinSegZ]='..tLZData[subrefLZMinSegZ]..'; tWZData[subrefWZMinSegZ]='..tWZData[subrefWZMinSegZ]..'; tWZData[subrefWZMaxSegZ]='..tWZData[subrefWZMaxSegZ]..'; tLZData[subrefLZMaxSegZ]='..tLZData[subrefLZMaxSegZ]..'; Test1A='..tostring(tLZData[subrefLZMinSegX] + iSegmentGapAllowed >= tWZData[subrefWZMinSegX])..'; Test1B='..tostring(tLZData[subrefLZMinSegX] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegX])..'; Test 2A='..tostring(tLZData[subrefLZMaxSegX] + iSegmentGapAllowed >= tWZData[subrefWZMinSegX])..'; Test 2B='..tostring(tLZData[subrefLZMaxSegX] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegX])..'; Test 5A='..tostring(tLZData[subrefLZMinSegZ] + iSegmentGapAllowed >= tWZData[subrefWZMinSegZ])..'; Test 5B='..tostring(tLZData[subrefLZMinSegZ] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegZ])..'; Test 6A='..tostring(tLZData[subrefLZMaxSegZ] + iSegmentGapAllowed >= tWZData[subrefWZMinSegZ])..'; Test 6B='..tostring(tLZData[subrefLZMaxSegZ] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegZ])..'; Tests 3-4 and 7-8 relate to where the X or Z is inside the other')
+                    end
+                    if ((tLZData[subrefLZMinSegX] + iSegmentGapAllowed >= tWZData[subrefWZMinSegX] and tLZData[subrefLZMinSegX] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegX])
+                        or (tLZData[subrefLZMaxSegX] + iSegmentGapAllowed >= tWZData[subrefWZMinSegX] and tLZData[subrefLZMaxSegX] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegX])
+                        --Cover where water zone is inside land zone:
+                        or (tWZData[subrefWZMinSegX] >= tLZData[subrefLZMinSegX] and tWZData[subrefWZMaxSegX] <= tLZData[subrefLZMaxSegX])
+                        --or land zone is inside water zone:
+                        or (tLZData[subrefLZMinSegX] >= tWZData[subrefWZMinSegX] and tLZData[subrefLZMaxSegX] <= tWZData[subrefWZMaxSegX]))
+                    and ((tLZData[subrefLZMinSegZ] + iSegmentGapAllowed >= tWZData[subrefWZMinSegZ] and tLZData[subrefLZMinSegZ] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegZ])
+                         or ((tLZData[subrefLZMaxSegZ] + iSegmentGapAllowed >= tWZData[subrefWZMinSegZ]) and (tLZData[subrefLZMaxSegZ] - iSegmentGapAllowed <= tWZData[subrefWZMaxSegZ]))
+                            --Cover where water zone is inside land zone:
+                        or (tWZData[subrefWZMinSegZ] >= tLZData[subrefLZMinSegZ] and tWZData[subrefWZMaxSegZ] <= tLZData[subrefLZMaxSegZ])
+                        --or land zone is inside water zone:
+                        or (tLZData[subrefLZMinSegZ] >= tWZData[subrefWZMinSegZ] and tLZData[subrefLZMaxSegZ] <= tWZData[subrefWZMaxSegZ])) then
                         --It looks like we might overlap, do a more precise calculation drawing a line from the two midpoints to see if we come across other land zones
                         bIsAdjacent = false
                         iDistBetweenMidpoints = M28Utilities.GetDistanceBetweenPositions(tWZData[subrefMidpoint], tLZData[subrefMidpoint])
@@ -6069,7 +6165,11 @@ function RecordWaterZoneAdjacentLandZones()
                             iActualIntervalIgnoreThreshold = 0
                         end
                         iCurIntervalIgnoreCount = 0
-                        if bDebugMessages == true then LOG(sFunctionRef..': Have land zone that is close to a ater zone, checking if we cross other land zones when going from one to the other, iDistBetweenMidpoints='..iDistBetweenMidpoints..'; iMaxLineInterval='..iMaxLineInterval..'; iLineAngle='..iLineAngle) end
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef..': Have land zone that is close to a ater zone, checking if we cross other land zones when going from one to the other, iDistBetweenMidpoints='..iDistBetweenMidpoints..'; iMaxLineInterval='..iMaxLineInterval..'; iLineAngle='..iLineAngle..'; tWZData[subrefMidpoint]='..repru(tWZData[subrefMidpoint])..'; LZ midpoint='..repru(tLZData[subrefMidpoint])..'; will draw zone midpoints')
+                            M28Utilities.DrawLocation(tWZData[subrefMidpoint], 4, 200) --gold for WZ midpoint
+                            M28Utilities.DrawLocation(tLZData[subrefMidpoint], 6, 200) --cyan for LZ midpoint
+                        end
                         for iDistAlongLine = iLineInterval, iMaxLineInterval, iLineInterval do
                             tLinePosition = M28Utilities.MoveInDirection(tWZData[subrefMidpoint], iLineAngle, iDistAlongLine, false, false, false)
                             iCurLineSegmentX, iCurLineSegmentZ = GetPathingSegmentFromPosition(tLinePosition)
@@ -6090,8 +6190,9 @@ function RecordWaterZoneAdjacentLandZones()
                                 end
                             elseif tWaterZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ] then
                                 if not(tWaterZoneBySegment[iCurLineSegmentX][iCurLineSegmentZ] == iWaterZone) then
-                                    --not adjacent as is another water zone inbetween
+                                    --not adjacent as is another water zone inbetween; record the inbetween waterzone as adjacent though
                                     iCurIntervalIgnoreCount = iCurIntervalIgnoreCount + 1
+                                    tiAdditionalWaterZonesAdjacentToPlateauLandZone[iPlateau][iLandZone][iWaterZone] = (tiAdditionalWaterZonesAdjacentToPlateauLandZone[iPlateau][iLandZone][iWaterZone] or 0) + 1
                                     if iCurIntervalIgnoreCount > iActualIntervalIgnoreThreshold then
                                         break
                                     end
@@ -6100,39 +6201,7 @@ function RecordWaterZoneAdjacentLandZones()
                         end
                         if bDebugMessages == true then LOG(sFunctionRef..': bIsAdjacent='..tostring(bIsAdjacent)) end
                         if bIsAdjacent then
-                            --Record water zone as adjacent to land zone
-                            iAdjacencyTablePosition = 1
-                            if M28Utilities.IsTableEmpty(tLZData[subrefAdjacentWaterZones]) then
-                                tLZData[subrefAdjacentWaterZones] = {}
-                            else
-                                for iEntry, tAdjacencySubtable in tLZData[subrefAdjacentWaterZones] do
-                                    if tAdjacencySubtable[subrefAWZDistance] < iDistBetweenMidpoints then
-                                        iAdjacencyTablePosition = iEntry + 1
-                                    else
-                                        --Since table is ordered by distance later entries should be furhter away
-                                        break
-                                    end
-                                end
-                            end
-                            table.insert(tLZData[subrefAdjacentWaterZones], iAdjacencyTablePosition, {[subrefAWZRef] = iWaterZone, [subrefAWZDistance] = iDistBetweenMidpoints})
-                            if bDebugMessages == true then LOG(sFunctionRef..': Added iWaterZone='..iWaterZone..' as being adjacent to iLandZone='..iLandZone..'; tLZData[subrefAdjacentWaterZones]='..repru(tLZData[subrefAdjacentWaterZones])) end
-
-                            --Record land zone as adjacent to water zone
-                            iAdjacencyTablePosition = 1
-                            if M28Utilities.IsTableEmpty(tWZData[subrefAdjacentLandZones]) then
-                                tWZData[subrefAdjacentLandZones] = {}
-                            else
-                                for iEntry, tAdjacencySubtable in tWZData[subrefAdjacentLandZones] do
-                                    if tAdjacencySubtable[subrefALZDistance] < iDistBetweenMidpoints then
-                                        iAdjacencyTablePosition = iEntry + 1
-                                    else
-                                        --Since table is ordered by distance later entries should be furhter away
-                                        break
-                                    end
-                                end
-                            end
-                            if not(iPlateau) then M28Utilities.ErrorHandler('Have a nil plateau for iLandZone='..(iLandZone or 'nil')) end
-                            table.insert(tWZData[subrefAdjacentLandZones], iAdjacencyTablePosition, {[subrefWPlatAndLZNumber] = {iPlateau, iLandZone}, [subrefALZDistance] = iDistBetweenMidpoints})
+                            RecordLandZoneAsAdjacentToWaterZone(tWZData, iWaterZone, tLZData, iPlateau, iLandZone)
                         end
                     end
 
@@ -6141,1445 +6210,1459 @@ function RecordWaterZoneAdjacentLandZones()
             if bDebugMessages == true then LOG(sFunctionRef..': Finished recording adjacent water zones for iWaterZone='..iWaterZone..'; tWZData[subrefAdjacentLandZones]='..repru(tWZData[subrefAdjacentLandZones])) end
         end
     end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-end
-
-function RecordLandZonePathingToOtherLandZonesInSamePlateau()
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'RecordLandZonePathingToOtherLandZonesInSamePlateau'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-    local tbTempConsideredLandPathingForLZ = {}
-    local iLowestLZ, iHighestLZ
-    local iLandTravelDistance, iPathSize
-    local iStartLZAdjacencyTablePosition
-    local iEndLZAdjacencyTablePosition
-    local bUseAdjacentApproach
-    local iBaseDetailedAdjacencyLevel = 2 --after this will use approx approach
-
-    if iMapSize < 1024 then
-        iBaseDetailedAdjacencyLevel = 3
-    end
-    local iDetailedAdjacencyLevel = iBaseDetailedAdjacencyLevel
-    if bDebugMessages == true then LOG(sFunctionRef..': Near code start, iDetailedAdjacencyLevel='..iDetailedAdjacencyLevel) end
-
-    local tiTempLandPathingDistanceForLZ = {}
-
-    function CalculateLandZoneTravelDistance(iPlateau, iStartLandZone, tLZData, iTargetLandZone, tOtherLZData, iOptionalLandTravelDistance, tOptionalLandZoneTravelPath)
-
-
-        if iStartLandZone < iTargetLandZone then
-            iLowestLZ = iStartLandZone
-            iHighestLZ = iTargetLandZone
-        else
-            iLowestLZ = iTargetLandZone
-            iHighestLZ = iStartLandZone
-        end
-        if bDebugMessages == true then
-            LOG(sFunctionRef..': Checking if already recorded for iPlateau '..iPlateau..'; iLowestLZ='..iLowestLZ..'; iHighestLZ='..iHighestLZ..'; tiTempLandPathingDistanceForLZ[iPlateau][iLowestLZ][iHighestLZ]='..(tiTempLandPathingDistanceForLZ[iPlateau][iLowestLZ][iHighestLZ] or 'nil'))
-        end
-        if not(tiTempLandPathingDistanceForLZ[iPlateau][iLowestLZ][iHighestLZ]) then
-            if tOptionalLandZoneTravelPath then
-                M28Profiler.FunctionProfiler(sFunctionRef..': Adj Method', M28Profiler.refProfilerStart)
-                if bDebugMessages == true then LOG(sFunctionRef..': Doing adj method, iPlateau='..iPlateau..'; iStartLandZone='..iStartLandZone..'; iOptionalLandTravelDistance='..(iOptionalLandTravelDistance or 'nil')..'; tOptionalLandZoneTravelPath='..repru(tOptionalLandZoneTravelPath)) end
-            else M28Profiler.FunctionProfiler(sFunctionRef..': Detailed Method', M28Profiler.refProfilerStart)
-            end
-            if not(tiTempLandPathingDistanceForLZ[iPlateau][iLowestLZ]) then tiTempLandPathingDistanceForLZ[iPlateau][iLowestLZ] = {} end
-            local tPathingLZFromStartToTarget, tFullPath, iInitialTravelDistance
-            if iOptionalLandTravelDistance and tOptionalLandZoneTravelPath then
-                tPathingLZFromStartToTarget = tOptionalLandZoneTravelPath
-                iLandTravelDistance = iOptionalLandTravelDistance
-            else
-                tFullPath, iPathSize, iLandTravelDistance = NavUtils.PathTo(refPathingTypeLand, tLZData[subrefMidpoint], tOtherLZData[subrefMidpoint], nil)
-                tPathingLZFromStartToTarget = {}
-                --Reduce tFullPath to a table of land zones
-                if tFullPath then
-                    local iPathingPlateau, iPathingLandZone
-                    local tPathingLZConsidered = {}
-                    local tStart = {tLZData[subrefMidpoint][1], tLZData[subrefMidpoint][2], tLZData[subrefMidpoint][3]}
-                    local tEnd = {tOtherLZData[subrefMidpoint][1], tOtherLZData[subrefMidpoint][2], tOtherLZData[subrefMidpoint][3]}
-
-                    local iExtraStraightLineDist = 0
-                    tFullPath[0] = tStart
-                    tFullPath[iPathSize + 1] = tEnd
-                    for iPath = 1, iPathSize + 1 do
-                        if iPath == 1 or iPath > iPathSize then iExtraStraightLineDist = iExtraStraightLineDist + VDist2(tFullPath[iPath - 1][1], tFullPath[iPath - 1][3], tFullPath[iPath][1], tFullPath[iPath][3]) end
-                        iPathingPlateau, iPathingLandZone = GetPlateauAndLandZoneReferenceFromPosition(tFullPath[iPath])
-                        if iPathingLandZone > 0 then
-                            if not(tPathingLZConsidered[iPathingLandZone]) and not(iStartLandZone == iPathingLandZone) then
-                                tPathingLZConsidered[iPathingLandZone] = true
-                                table.insert(tPathingLZFromStartToTarget, iPathingLandZone)
-                            end
-                        end
-                    end
-                    iLandTravelDistance = iLandTravelDistance + iExtraStraightLineDist
-                end
-                if bDebugMessages == true then LOG(sFunctionRef..': Is full path empty='..tostring(M28Utilities.IsTableEmpty(tFullPath))..'; iLandTravelDistance='..(iLandTravelDistance or 'nil')) end
-            end
-            if iLandTravelDistance then
-                tiTempLandPathingDistanceForLZ[iPlateau][iLowestLZ][iHighestLZ] = iLandTravelDistance
-                if not(tiTempLandPathingDistanceForLZ[iPlateau][iHighestLZ]) then tiTempLandPathingDistanceForLZ[iPlateau][iHighestLZ] = {} end
-                tiTempLandPathingDistanceForLZ[iPlateau][iHighestLZ][iLowestLZ] = iLandTravelDistance
-
-                --Record the travel distance
-                if not(tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZTravelDistToOtherLandZones][iPlateau]) then tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZTravelDistToOtherLandZones][iPlateau] = {} end
-                tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZTravelDistToOtherLandZones][iPlateau][iStartLandZone] = iLandTravelDistance
-                if not(tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZTravelDistToOtherLandZones][iPlateau]) then tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZTravelDistToOtherLandZones][iPlateau] = {} end
-                tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZTravelDistToOtherLandZones][iPlateau][iTargetLandZone] = iLandTravelDistance
-
-                if bDebugMessages == true then
-                    --[[LOG(sFunctionRef..': Travel distance to iTargetLandZone '..iTargetLandZone..' from '..iStartLandZone..' = '..iLandTravelDistance..'; tiTempLandPathingDistanceForLZ[iPlateau]='..repru(tiTempLandPathingDistanceForLZ[iPlateau])..'; will draw path between LZs')
-                    if tFullPath and not(tOptionalLandZoneTravelPath) then M28Utilities.DrawPath(tFullPath, 1) end--]]
-                    LOG(sFunctionRef..': Travel distance to iTargetLandZone '..iTargetLandZone..' from '..iStartLandZone..' = '..iLandTravelDistance)
-                end
-
-                --Get position in new table
-                local iPosition = 1
-                if not(tLZData[subrefLZPathingToOtherLandZones]) then
-                    tLZData[subrefLZPathingToOtherLandZones] = {}
-                    tLZData[subrefLZPathingToOtherLZEntryRef] = {}
-                    iPosition = 1
-                else
-                    for iExistingLandZone, tExistingSubtable in tLZData[subrefLZPathingToOtherLandZones] do
-                        if tExistingSubtable[subrefLZTravelDist] <  iLandTravelDistance then
-                            iPosition = iPosition + 1
-                        else
-                            break
-                        end
+    if M28Utilities.IsTableEmpty(tiAdditionalWaterZonesAdjacentToPlateauLandZone) == false then
+        for iPlateau, tLandSubtable in tiAdditionalWaterZonesAdjacentToPlateauLandZone do
+            for iLandZone, tWaterSubtable in tLandSubtable do
+                local tLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
+                for iWaterZone, iEntryCount in tWaterSubtable do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Cycling through tiAdditionalWaterZonesAdjacentToPlateauLandZone, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iWaterZone='..iWaterZone..'; iEntryCount='..iEntryCount) end
+                    if iEntryCount >= iBaseIntervalIgnoreThreshold then
+                        local tWZData = tPondDetails[tiPondByWaterZone[iWaterZone]][subrefPondWaterZones][iWaterZone]
+                        RecordLandZoneAsAdjacentToWaterZone(tWZData, iWaterZone, tLZData, iPlateau, iLandZone, true)
                     end
                 end
-
-                local iOppositePosition = 1
-                if not(tOtherLZData[subrefLZPathingToOtherLandZones]) then
-                    tOtherLZData[subrefLZPathingToOtherLandZones] = {}
-                    tOtherLZData[subrefLZPathingToOtherLZEntryRef] = {}
-                    iOppositePosition = 1
-                else
-                    for iExistingLandZone, tExistingSubtable in tOtherLZData[subrefLZPathingToOtherLandZones] do
-                        if tExistingSubtable[subrefLZTravelDist] <  iLandTravelDistance then
-                            iOppositePosition = iOppositePosition + 1
-                        else
-                            break
-                        end
-                    end
-                end
-
-                --If this isn't the last position then need to shift subrefLZPathingToOtherLZEntryRef entries
-                local iStartTableSize = table.getn(tLZData[subrefLZPathingToOtherLandZones])
-                local iEndTableSize = table.getn(tOtherLZData[subrefLZPathingToOtherLandZones])
-
-                if iStartTableSize < iPosition then
-                    for iLZRef, iTableRef in tLZData[subrefLZPathingToOtherLZEntryRef] do
-                        if iTableRef >= iPosition then
-                            tLZData[subrefLZPathingToOtherLZEntryRef][iLZRef] = iTableRef + 1
-                        end
-                    end
-                end
-                if iEndTableSize < iOppositePosition then
-                    for iLZRef, iTableRef in tOtherLZData[subrefLZPathingToOtherLZEntryRef] do
-                        if iTableRef >= iOppositePosition then
-                            tOtherLZData[subrefLZPathingToOtherLZEntryRef][iLZRef] = iTableRef + 1
-                        end
-                    end
-                end
-
-                table.insert(tLZData[subrefLZPathingToOtherLandZones], iPosition, {[subrefLZNumber] = iTargetLandZone, [subrefLZPath] = {}, [subrefLZTravelDist] = iLandTravelDistance})
-                table.insert(tOtherLZData[subrefLZPathingToOtherLandZones], iOppositePosition, {[subrefLZNumber] = iStartLandZone, [subrefLZPath] = {}, [subrefLZTravelDist] = iLandTravelDistance})
-
-                tLZData[subrefLZPathingToOtherLZEntryRef][iTargetLandZone] = iPosition
-                tOtherLZData[subrefLZPathingToOtherLZEntryRef][iStartLandZone] = iOppositePosition
-
-                --Will update subrefLZPathingToOtherLZEntryRef in UpdateLZPathingEntryReferences as a redundancy (previously was the main logic)
-
-                --Record the land zone path from start to target
-                for iEntry, iLZ in tPathingLZFromStartToTarget do
-                    table.insert(tLZData[subrefLZPathingToOtherLandZones][iPosition][subrefLZPath], iLZ)
-                end
-                --Record the land zone path from target to start (adding in the start as the final point)
-                local iTotalEntries = table.getn(tPathingLZFromStartToTarget)
-                for iEntry = iTotalEntries, 1, -1 do
-                    if not(tPathingLZFromStartToTarget[iEntry] == iTargetLandZone) then
-                        table.insert(tOtherLZData[subrefLZPathingToOtherLandZones][iOppositePosition][subrefLZPath], tPathingLZFromStartToTarget[iEntry])
-                    end
-                end
-                if not(tPathingLZFromStartToTarget[1] == iStartLandZone) then
-                    table.insert(tOtherLZData[subrefLZPathingToOtherLandZones][iOppositePosition][subrefLZPath], iStartLandZone)
-                end
-                if bDebugMessages == true then LOG(sFunctionRef..': Finishrd subfunction, tLZData[subrefLZPathingToOtherLandZones][iPosition][subrefLZPath]='..repru(tLZData[subrefLZPathingToOtherLandZones][iPosition][subrefLZPath])..'; iPosition='..iPosition) end
-
-            end
-            if tOptionalLandZoneTravelPath then M28Profiler.FunctionProfiler(sFunctionRef..': Adj Method', M28Profiler.refProfilerEnd)
-            else M28Profiler.FunctionProfiler(sFunctionRef..': Detailed Method', M28Profiler.refProfilerEnd)
             end
         end
-    end
-
-    for iPlateau, tPlateauSubtable in tAllPlateaus do
-        if tPlateauSubtable[subrefLandZoneCount] >= 5 then M28Profiler.FunctionProfiler(sFunctionRef..': iPlateau '..iPlateau, M28Profiler.refProfilerStart) end
-
-        tiTempLandPathingDistanceForLZ[iPlateau] = {}
-        tAdjacencyEntriesByZoneAndLevel = {}
-        tiZoneAdjacencyLevelByStartZone = {}
-        iDetailedAdjacencyLevel = iBaseDetailedAdjacencyLevel
-
-        if iMapSize >= 512 and tPlateauSubtable[subrefLandZoneCount] >= 14 then --i.e. calculations being done is effectively this number squared
-            bUseAdjacentApproach = true --I.e. will use a less accurate method of approximating land travel distance based on adjacent zones
-            if iDetailedAdjacencyLevel > 2 and tPlateauSubtable[subrefLandZoneCount] >= 50 then iDetailedAdjacencyLevel = 2 end
-        else bUseAdjacentApproach = false
-        end
-
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering iPlateau '..iPlateau..', LZ count='..tPlateauSubtable[subrefLandZoneCount]..'; bUseAdjacentApproach='..tostring(bUseAdjacentApproach)..'; iMapSize='..(iMapSize or 'nil')) end
-        if bUseAdjacentApproach then
-            --First record adjacncies for each zone
-            tAdjacencyEntriesByZoneAndLevel[1] = {}
-            for iStartLandZone, tLZData in tPlateauSubtable[subrefPlateauLandZones] do
-                tAdjacencyEntriesByZoneAndLevel[iStartLandZone] = {}
-                tAdjacencyEntriesByZoneAndLevel[iStartLandZone][1] = {}
-                tiZoneAdjacencyLevelByStartZone[iStartLandZone] = {}
-                for _, iTargetLandZone in tLZData[subrefLZAdjacentLandZones] do
-                    table.insert(tAdjacencyEntriesByZoneAndLevel[iStartLandZone][1], iTargetLandZone)
-                    local tOtherLZData = tPlateauSubtable[subrefPlateauLandZones][iTargetLandZone]
-                    tiZoneAdjacencyLevelByStartZone[iStartLandZone][iTargetLandZone] = 1
-                    CalculateLandZoneTravelDistance(iPlateau, iStartLandZone, tLZData, iTargetLandZone, tOtherLZData) --Detailed method
-                end
-            end
-
-            local bNoNewEntries
-
-            for iCurAdjacencyLevel = 2, 100 do --redundancy, shouldnt need 100 adjacency levels
-                bNoNewEntries = true
-                tAdjacencyEntriesByZoneAndLevel[iCurAdjacencyLevel] = {}
-                for iStartLandZone, tLZData in tPlateauSubtable[subrefPlateauLandZones] do
-                    tAdjacencyEntriesByZoneAndLevel[iStartLandZone][iCurAdjacencyLevel] = {}
-                    local tPrevAdjacencyZonesByTargetZone = {}
-                    for _, iPrevAdjacentZone in tAdjacencyEntriesByZoneAndLevel[iCurAdjacencyLevel - 1] do
-                        --Cycle through each zone adjacent to the previous adjacent zone, and consider if we haven't already calculated the pathing from startlandzone to this
-                        local tCurLZData = tPlateauSubtable[subrefPlateauLandZones][iPrevAdjacentZone]
-                        if M28Utilities.IsTableEmpty(tCurLZData[subrefLZAdjacentLandZones]) == false then
-                            for _, iTargetLandZone in tCurLZData[subrefLZAdjacentLandZones] do
-                                if not(tiZoneAdjacencyLevelByStartZone[iStartLandZone][iTargetLandZone]) then
-                                    bNoNewEntries = false
-
-                                    if iCurAdjacencyLevel <= iDetailedAdjacencyLevel then
-                                        --Do detailed calculation instead (this has a check to make sure we dont do more than once)
-                                        CalculateLandZoneTravelDistance(iPlateau, iStartLandZone, tLZData, iTargetLandZone, tPlateauSubtable[subrefPlateauLandZones][iTargetLandZone])
-                                        tiZoneAdjacencyLevelByStartZone[iStartLandZone][iTargetLandZone] = iCurAdjacencyLevel
-                                        table.insert(tAdjacencyEntriesByZoneAndLevel[iStartLandZone][iCurAdjacencyLevel], iTargetLandZone)
-                                    else
-                                        --Do adjacency method
-                                        table.insert(tPrevAdjacencyZonesByTargetZone[iTargetLandZone], iPrevAdjacentZone)
-                                    end
-                                end
-                            end
-                        end
-
-                    end
-
-                    --Determine any zones under the adjacency method
-                    if M28Utilities.IsTableEmpty(tPrevAdjacencyZonesByTargetZone) == false then
-                        for iTargetLandZone, tPrevZones in tPrevAdjacencyZonesByTargetZone do
-                            local iClosestPrevAdjacentZone
-
-                            local iCurDistance
-                            local iClosestDistance = 100000
-                            for iEntry, iPrevAdjacentZone in tPrevZones do
-                                iCurDistance =  tiTempLandPathingDistanceForLZ[iPlateau][iStartLandZone][iPrevAdjacentZone] + tiTempLandPathingDistanceForLZ[iPlateau][iPrevAdjacentZone][iTargetLandZone]
-                                if iCurDistance < iClosestDistance then
-                                    iClosestDistance = iCurDistance
-                                    iClosestPrevAdjacentZone = iPrevAdjacentZone
-                                end
-                            end
-
-                            --Now work out the path based on iClosestPrevAdjacentZone
-                            local tiLZPath = {}
-                            tiPathFromStartToNextAdjZone[iClosestNextAdjacencyZone] = {}
-                            local iAdjacentRef = tLZData[subrefLZPathingToOtherLZEntryRef][iAdjacentLandZone]
-                            if bDebugMessages == true then LOG(sFunctionRef..': iStartLandZone='..iStartLandZone..'; iAdjacentLandZone='..iAdjacentLandZone..'; iClosestNextAdjacencyZone='..iClosestNextAdjacencyZone..'; Refs for start LZ to other LZs='..repru(tLZData[subrefLZPathingToOtherLZEntryRef])..'; iCurAdjacencyLevel='..iCurAdjacencyLevel..'; iAdjacentRef='..iAdjacentRef..'; tLZData[subrefLZPathingToOtherLandZones][iAdjacentRef][subrefLZPath]='..repru(tLZData[subrefLZPathingToOtherLandZones][iAdjacentRef][subrefLZPath])) end
-                            for iEntry, iPathingLandZone in tLZData[subrefLZPathingToOtherLandZones][iAdjacentRef][subrefLZPath] do
-                                table.insert(tiLZPath, iPathingLandZone)
-                            end
-                            --Add the final destination
-                            table.insert(tiLZPath, iTargetLandZone)
-
-                            CalculateLandZoneTravelDistance(iPlateau, iStartLandZone, tLZData, iTargetLandZone, tPlateauSubtable[subrefPlateauLandZones][iTargetLandZone], iClosestDistance, tiLZPath)
-                        end
-                    end
-                end
-                if bNoNewEntries then break end
-            end
-        end
-        --Want to do this even if we have done the adjacency approach, to make sure we have got pathing in place for eveyr zone
-        for iStartLandZone, tLZData in tPlateauSubtable[subrefPlateauLandZones] do
-            --Cycle through each other Land zone in this plateau and determine pathing
-            if bDebugMessages == true then LOG(sFunctionRef..': Detailed pathing appraoch for plateaus with fewer Land zones - About to calculate pathing to each other Land zone for iStartLandZone='..iStartLandZone..'; in iPlateau='..iPlateau..'; subrefLZSegments size='..table.getn(tLZData[subrefLZSegments])) end
-            for iTargetLandZone, tOtherLZData in tPlateauSubtable[subrefPlateauLandZones] do
-                if not(iStartLandZone == iTargetLandZone) then
-                    CalculateLandZoneTravelDistance(iPlateau, iStartLandZone, tLZData, iTargetLandZone, tOtherLZData)
-                end
-            end
-            if bDebugMessages == true then LOG(sFunctionRef..': Finished considering all pathing for iStartLandZone='..iStartLandZone..'; tiTempLandPathingDistanceForLZ[iPlateau]='..repru(tiTempLandPathingDistanceForLZ[iPlateau])) end
-        end
-
-        if tPlateauSubtable[subrefLandZoneCount] >= 5 then M28Profiler.FunctionProfiler(sFunctionRef..': iPlateau '..iPlateau, M28Profiler.refProfilerEnd) end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function RecordWaterZonePathingToOtherWaterZones()
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'RecordWaterZonePathingToOtherWaterZones'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    function RecordLandZonePathingToOtherLandZonesInSamePlateau()
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'RecordLandZonePathingToOtherLandZonesInSamePlateau'
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    local tiWaterZonePairsConsideredByLowestWZ = {}
-    local iLowestWZ, iHighestWZ
-    local iNavalTravelDistance
-    local iStartWZAdjacencyTablePosition
-    local iEndWZAdjacencyTablePosition
-    local bUseAdjacentApproach
-    local bUseFastestApproach --even faster/more simplified than adjacent approach, done because on e.g. frostmill it was taking 15m and still not finishing with doing 415 water zones
+        local tbTempConsideredLandPathingForLZ = {}
+        local iLowestLZ, iHighestLZ
+        local iLandTravelDistance, iPathSize
+        local iStartLZAdjacencyTablePosition
+        local iEndLZAdjacencyTablePosition
+        local bUseAdjacentApproach
+        local iBaseDetailedAdjacencyLevel = 2 --after this will use approx approach
 
-    function CalculateWaterZoneTravelDistance(iWaterZone, tWZData, iOtherWaterZone, tOtherWZData, iOptionalNavalTravelDistance)
-        if iWaterZone < iOtherWaterZone then
-            iLowestWZ = iWaterZone
-            iHighestWZ = iOtherWaterZone
-        else
-            iLowestWZ = iOtherWaterZone
-            iHighestWZ = iWaterZone
+        if iMapSize < 1024 then
+            iBaseDetailedAdjacencyLevel = 3
         end
-        if not(tiWaterZonePairsConsideredByLowestWZ[iLowestWZ][iHighestWZ]) then
-            if not(tiWaterZonePairsConsideredByLowestWZ[iLowestWZ]) then tiWaterZonePairsConsideredByLowestWZ[iLowestWZ] = {} end
-            iNavalTravelDistance = iOptionalNavalTravelDistance or M28Utilities.GetTravelDistanceBetweenPositions(tWZData[subrefMidpoint], tOtherWZData[subrefMidpoint], refPathingTypeNavy)
-            if iNavalTravelDistance then
-                iStartWZAdjacencyTablePosition = 1
-                if M28Utilities.IsTableEmpty(tWZData[subrefWZOtherWaterZones]) then
-                    tWZData[subrefWZOtherWaterZones] = {}
-                else
-                    for iEntry, tAdjacencySubtable in tWZData[subrefWZOtherWaterZones] do
-                        if tAdjacencySubtable[subrefWZAWZDistance] < iNavalTravelDistance then
-                            iStartWZAdjacencyTablePosition = iEntry + 1
-                        else
-                            --Since table is ordered by distance later entries should be furhter away
-                            break
-                        end
-                    end
-                end
-                table.insert(tWZData[subrefWZOtherWaterZones], iStartWZAdjacencyTablePosition, {[subrefWZAWZRef] = iOtherWaterZone, [subrefWZAWZDistance] = iNavalTravelDistance})
+        local iDetailedAdjacencyLevel = iBaseDetailedAdjacencyLevel
+        if bDebugMessages == true then LOG(sFunctionRef..': Near code start, iDetailedAdjacencyLevel='..iDetailedAdjacencyLevel) end
 
-                iEndWZAdjacencyTablePosition = 1
-                if M28Utilities.IsTableEmpty(tOtherWZData[subrefWZOtherWaterZones]) then
-                    tOtherWZData[subrefWZOtherWaterZones] = {}
-                else
-                    for iEntry, tAdjacencySubtable in tOtherWZData[subrefWZOtherWaterZones] do
-                        if tAdjacencySubtable[subrefWZAWZDistance] < iNavalTravelDistance then
-                            iEndWZAdjacencyTablePosition = iEntry + 1
-                        else
-                            --Since table is ordered by distance later entries should be furhter away
-                            break
-                        end
-                    end
-                end
-                table.insert(tOtherWZData[subrefWZOtherWaterZones], iEndWZAdjacencyTablePosition, {[subrefWZAWZRef] = iWaterZone, [subrefWZAWZDistance] = iNavalTravelDistance})
+        local tiTempLandPathingDistanceForLZ = {}
 
-                tiWaterZonePairsConsideredByLowestWZ[iLowestWZ][iHighestWZ] = iNavalTravelDistance
-            end
-        end
-    end
+        function CalculateLandZoneTravelDistance(iPlateau, iStartLandZone, tLZData, iTargetLandZone, tOtherLZData, iOptionalLandTravelDistance, tOptionalLandZoneTravelPath)
 
-    for iPond, tPondSubtable in tPondDetails do
-        M28Profiler.FunctionProfiler(sFunctionRef..': Pond '..iPond, M28Profiler.refProfilerStart)
-        bUseFastestApproach = false
-        bUseAdjacentApproach = false
-        if tPondSubtable[subrefPondWZCount] >= 21 then --Would take c.70s on a 56 size water zone pond, which is 3.1k squared, so reducing to 21 which is 441 squraed (i.e. hopefully means if would take >10s for this pond under default approach will use less accurate but faster method)
-            if tPondSubtable[subrefPondWZCount] >= 50 and (iMapSize > 1024 or (tPondSubtable[subrefPondWZCount] >= 100 and iMapSize == 1024)) then
-                bUseFastestApproach = true
+
+            if iStartLandZone < iTargetLandZone then
+                iLowestLZ = iStartLandZone
+                iHighestLZ = iTargetLandZone
             else
-                bUseAdjacentApproach = true
+                iLowestLZ = iTargetLandZone
+                iHighestLZ = iStartLandZone
             end
-        end
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering pond '..iPond..', WZ count='..tPondSubtable[subrefPondWZCount]..'; bUseAdjacentApproach='..tostring(bUseAdjacentApproach)..'; System time='..GetSystemTimeSecondsOnlyForProfileUse()..'; bUseFastestApproach='..tostring(bUseFastestApproach)) end
-        if bUseAdjacentApproach then
-            --First calculate detailed pathing for each adjacent water zone
-            for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
-                for _, iOtherWaterZone in tWZData[subrefWZAdjacentWaterZones] do
-                    local tOtherWZData = tPondSubtable[subrefPondWaterZones][iOtherWaterZone]
-                    CalculateWaterZoneTravelDistance(iWaterZone, tWZData, iOtherWaterZone, tOtherWZData)
-                    if bDebugMessages == true then LOG(sFunctionRef..': Finished calculating adjacency for iWaterZone='..iWaterZone..'; iOtherWaterZone='..iOtherWaterZone) end
-                end
+            if bDebugMessages == true then
+                LOG(sFunctionRef..': Checking if already recorded for iPlateau '..iPlateau..'; iLowestLZ='..iLowestLZ..'; iHighestLZ='..iHighestLZ..'; tiTempLandPathingDistanceForLZ[iPlateau][iLowestLZ][iHighestLZ]='..(tiTempLandPathingDistanceForLZ[iPlateau][iLowestLZ][iHighestLZ] or 'nil'))
             end
-
-            local bKeepSearching
-            local iCurAdjacencyLevel
-            local tAdjacencyEntriesByLevel = {}
-            local iPrevAdjacencyLevel
-            local tiShortestTravelToTargetZone
-            local iCurEntryApproxTravelDist
-            local tbZoneConsideredForThisZone
-            local bNotAlreadyRecordedTravelDistance
-
-            for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
-                bKeepSearching = true
-
-                if bDebugMessages == true then LOG(sFunctionRef..': About to record all travel distances using adjacency method for iWaterZone='..iWaterZone) end
-                iCurAdjacencyLevel = 1
-
-                tAdjacencyEntriesByLevel = {}
-                tAdjacencyEntriesByLevel[1] = {}
-                tbZoneConsideredForThisZone = {}
-                for _, iOtherWaterZone in tWZData[subrefWZAdjacentWaterZones] do
-                    table.insert(tAdjacencyEntriesByLevel[iCurAdjacencyLevel], iOtherWaterZone)
+            if not(tiTempLandPathingDistanceForLZ[iPlateau][iLowestLZ][iHighestLZ]) then
+                if tOptionalLandZoneTravelPath then
+                    M28Profiler.FunctionProfiler(sFunctionRef..': Adj Method', M28Profiler.refProfilerStart)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Doing adj method, iPlateau='..iPlateau..'; iStartLandZone='..iStartLandZone..'; iOptionalLandTravelDistance='..(iOptionalLandTravelDistance or 'nil')..'; tOptionalLandZoneTravelPath='..repru(tOptionalLandZoneTravelPath)) end
+                else M28Profiler.FunctionProfiler(sFunctionRef..': Detailed Method', M28Profiler.refProfilerStart)
                 end
-                while bKeepSearching do
-                    bKeepSearching = false
-                    iPrevAdjacencyLevel = iCurAdjacencyLevel
-                    iCurAdjacencyLevel = iCurAdjacencyLevel + 1
-                    tAdjacencyEntriesByLevel[iCurAdjacencyLevel] = {}
-                    tiShortestTravelToTargetZone = {}
+                if not(tiTempLandPathingDistanceForLZ[iPlateau][iLowestLZ]) then tiTempLandPathingDistanceForLZ[iPlateau][iLowestLZ] = {} end
+                local tPathingLZFromStartToTarget, tFullPath, iInitialTravelDistance
+                if iOptionalLandTravelDistance and tOptionalLandZoneTravelPath then
+                    tPathingLZFromStartToTarget = tOptionalLandZoneTravelPath
+                    iLandTravelDistance = iOptionalLandTravelDistance
+                else
+                    tFullPath, iPathSize, iLandTravelDistance = NavUtils.PathTo(refPathingTypeLand, tLZData[subrefMidpoint], tOtherLZData[subrefMidpoint], nil)
+                    tPathingLZFromStartToTarget = {}
+                    --Reduce tFullPath to a table of land zones
+                    if tFullPath then
+                        local iPathingPlateau, iPathingLandZone
+                        local tPathingLZConsidered = {}
+                        local tStart = {tLZData[subrefMidpoint][1], tLZData[subrefMidpoint][2], tLZData[subrefMidpoint][3]}
+                        local tEnd = {tOtherLZData[subrefMidpoint][1], tOtherLZData[subrefMidpoint][2], tOtherLZData[subrefMidpoint][3]}
 
-                    for iEntry, iOtherWaterZone in tAdjacencyEntriesByLevel[iPrevAdjacencyLevel] do
-                        for _, iNextAdjacencyZone in tPondSubtable[subrefPondWaterZones][iOtherWaterZone][subrefWZAdjacentWaterZones] do
-                            --E.g. zone travel from zzone 1 to zone 5 - when we record 1 to 5, that means we also ahve travel from 5 to 1; however since we are using an adjacency search approach, we still want zone 5 to keep searching even if every adjacent zone has been recorded, in case there are further out zone sthat havent been recorded, hence the use of both tbZoneConsideredForThisZone and bNotAlreadyRecordedTravelDistance
-                            bNotAlreadyRecordedTravelDistance = (not(tiWaterZonePairsConsideredByLowestWZ[iWaterZone][iNextAdjacencyZone]) and not(tiWaterZonePairsConsideredByLowestWZ[iNextAdjacencyZone][iWaterZone]))
-                            --if bDebugMessages == true then LOG(sFunctionRef..': iOtherWaterZone='..iOtherWaterZone..'; iNextAdjacencyZone='..iNextAdjacencyZone..'; iPrevAdjacencyLevel='..iPrevAdjacencyLevel..'; iCurAdjacencyLevel='..iCurAdjacencyLevel..'; Is tbZoneConsideredForThisZone[iNextAdjacencyZone] nil='..tostring(tbZoneConsideredForThisZone[iNextAdjacencyZone] == nil)..'; bNotAlreadyRecordedTravelDistance='..tostring(bNotAlreadyRecordedTravelDistance)) end
-                            if not(tbZoneConsideredForThisZone[iNextAdjacencyZone]) or bNotAlreadyRecordedTravelDistance then
-                                bKeepSearching = true
-                                tbZoneConsideredForThisZone[iNextAdjacencyZone] = true
-                                if bDebugMessages == true then LOG(sFunctionRef..': iCurAdjacencyLevel='..iCurAdjacencyLevel..'; iWaterZone='..iWaterZone..'; iOtherWaterZone='..iOtherWaterZone..'; iNextAdjacencyZone='..iNextAdjacencyZone) end
-                                table.insert(tAdjacencyEntriesByLevel[iCurAdjacencyLevel], iNextAdjacencyZone)
-                                if bNotAlreadyRecordedTravelDistance then
-                                    iCurEntryApproxTravelDist = (tiWaterZonePairsConsideredByLowestWZ[iOtherWaterZone][iNextAdjacencyZone] or tiWaterZonePairsConsideredByLowestWZ[iNextAdjacencyZone][iOtherWaterZone]) + (tiWaterZonePairsConsideredByLowestWZ[iWaterZone][iOtherWaterZone] or tiWaterZonePairsConsideredByLowestWZ[iOtherWaterZone][iWaterZone])
-                                    if not(tiShortestTravelToTargetZone[iNextAdjacencyZone]) or iCurEntryApproxTravelDist < tiShortestTravelToTargetZone[iNextAdjacencyZone] then
-                                        tiShortestTravelToTargetZone[iNextAdjacencyZone] = iCurEntryApproxTravelDist
-                                    end
+                        local iExtraStraightLineDist = 0
+                        tFullPath[0] = tStart
+                        tFullPath[iPathSize + 1] = tEnd
+                        for iPath = 1, iPathSize + 1 do
+                            if iPath == 1 or iPath > iPathSize then iExtraStraightLineDist = iExtraStraightLineDist + VDist2(tFullPath[iPath - 1][1], tFullPath[iPath - 1][3], tFullPath[iPath][1], tFullPath[iPath][3]) end
+                            iPathingPlateau, iPathingLandZone = GetPlateauAndLandZoneReferenceFromPosition(tFullPath[iPath])
+                            if iPathingLandZone > 0 then
+                                if not(tPathingLZConsidered[iPathingLandZone]) and not(iStartLandZone == iPathingLandZone) then
+                                    tPathingLZConsidered[iPathingLandZone] = true
+                                    table.insert(tPathingLZFromStartToTarget, iPathingLandZone)
                                 end
                             end
                         end
+                        iLandTravelDistance = iLandTravelDistance + iExtraStraightLineDist
                     end
-                    --Now record each entry
-                    if M28Utilities.IsTableEmpty(tiShortestTravelToTargetZone) == false then
-                        for iNextAdjacencyZone, iTravelDistance in tiShortestTravelToTargetZone do
-                            CalculateWaterZoneTravelDistance(iWaterZone, tWZData, iNextAdjacencyZone, tPondSubtable[subrefPondWaterZones][iNextAdjacencyZone], iTravelDistance)
-                        end
-                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Is full path empty='..tostring(M28Utilities.IsTableEmpty(tFullPath))..'; iLandTravelDistance='..(iLandTravelDistance or 'nil')) end
                 end
-            end
-        end
-        --Want to do this even if we have done the adjacency approach, to make sure we have got pathing in place for eveyr zone
-        local iReplacementDistIfUsingFastMethod
-        for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
-            --Cycle through each other water zone in this pond and determine pathing
-            if bDebugMessages == true then LOG(sFunctionRef..': Detailed pathing appraoch for ponds with fewer water zones - About to calculate pathing to each other water zone for iWaterZone='..iWaterZone..'; in iPond='..iPond..'; subrefWZSegments size='..table.getn(tWZData[subrefWZSegments])) end
-            for iOtherWaterZone, tOtherWZData in tPondSubtable[subrefPondWaterZones] do
-                if bUseFastestApproach then iReplacementDistIfUsingFastMethod = M28Utilities.GetDistanceBetweenPositions(tWZData[subrefMidpoint], tOtherWZData[subrefMidpoint]) end
-                CalculateWaterZoneTravelDistance(iWaterZone, tWZData, iOtherWaterZone, tOtherWZData, iReplacementDistIfUsingFastMethod)
-                --[[if not(iWaterZone == iOtherWaterZone) then
-                    if iWaterZone < iOtherWaterZone then
-                        iLowestWZ = iWaterZone
-                        iHighestWZ = iOtherWaterZone
+                if iLandTravelDistance then
+                    tiTempLandPathingDistanceForLZ[iPlateau][iLowestLZ][iHighestLZ] = iLandTravelDistance
+                    if not(tiTempLandPathingDistanceForLZ[iPlateau][iHighestLZ]) then tiTempLandPathingDistanceForLZ[iPlateau][iHighestLZ] = {} end
+                    tiTempLandPathingDistanceForLZ[iPlateau][iHighestLZ][iLowestLZ] = iLandTravelDistance
+
+                    --Record the travel distance
+                    if not(tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZTravelDistToOtherLandZones][iPlateau]) then tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZTravelDistToOtherLandZones][iPlateau] = {} end
+                    tAllPlateaus[iPlateau][subrefPlateauLandZones][iTargetLandZone][subrefLZTravelDistToOtherLandZones][iPlateau][iStartLandZone] = iLandTravelDistance
+                    if not(tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZTravelDistToOtherLandZones][iPlateau]) then tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZTravelDistToOtherLandZones][iPlateau] = {} end
+                    tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone][subrefLZTravelDistToOtherLandZones][iPlateau][iTargetLandZone] = iLandTravelDistance
+
+                    if bDebugMessages == true then
+                        --[[LOG(sFunctionRef..': Travel distance to iTargetLandZone '..iTargetLandZone..' from '..iStartLandZone..' = '..iLandTravelDistance..'; tiTempLandPathingDistanceForLZ[iPlateau]='..repru(tiTempLandPathingDistanceForLZ[iPlateau])..'; will draw path between LZs')
+                        if tFullPath and not(tOptionalLandZoneTravelPath) then M28Utilities.DrawPath(tFullPath, 1) end--]]
+                        LOG(sFunctionRef..': Travel distance to iTargetLandZone '..iTargetLandZone..' from '..iStartLandZone..' = '..iLandTravelDistance)
+                    end
+
+                    --Get position in new table
+                    local iPosition = 1
+                    if not(tLZData[subrefLZPathingToOtherLandZones]) then
+                        tLZData[subrefLZPathingToOtherLandZones] = {}
+                        tLZData[subrefLZPathingToOtherLZEntryRef] = {}
+                        iPosition = 1
                     else
-                        iLowestWZ = iOtherWaterZone
-                        iHighestWZ = iWaterZone
-                    end
-                    if not(tiWaterZonePairsConsideredByLowestWZ[iLowestWZ][iHighestWZ]) then
-                        if not(tiWaterZonePairsConsideredByLowestWZ[iLowestWZ]) then tiWaterZonePairsConsideredByLowestWZ[iLowestWZ] = {} end
-                        iNavalTravelDistance = M28Utilities.GetTravelDistanceBetweenPositions(tWZData[subrefMidpoint], tOtherWZData[subrefMidpoint], refPathingTypeNavy)
-                        if iNavalTravelDistance then
-                            iStartWZAdjacencyTablePosition = 1
-                            if M28Utilities.IsTableEmpty(tWZData[subrefWZOtherWaterZones]) then
-                                tWZData[subrefWZOtherWaterZones] = {}
+                        for iExistingLandZone, tExistingSubtable in tLZData[subrefLZPathingToOtherLandZones] do
+                            if tExistingSubtable[subrefLZTravelDist] <  iLandTravelDistance then
+                                iPosition = iPosition + 1
                             else
-                                for iEntry, tAdjacencySubtable in tWZData[subrefWZOtherWaterZones] do
-                                    if tAdjacencySubtable[subrefWZAWZDistance] < iNavalTravelDistance then
-                                        iStartWZAdjacencyTablePosition = iEntry + 1
-                                    else
-                                        --Since table is ordered by distance later entries should be furhter away
-                                        break
-                                    end
-                                end
-                            end
-                            table.insert(tWZData[subrefWZOtherWaterZones], iStartWZAdjacencyTablePosition, {[subrefWZAWZRef] = iOtherWaterZone, [subrefWZAWZDistance] = iNavalTravelDistance})
-
-                            iEndWZAdjacencyTablePosition = 1
-                            if M28Utilities.IsTableEmpty(tOtherWZData[subrefWZOtherWaterZones]) then
-                                tOtherWZData[subrefWZOtherWaterZones] = {}
-                            else
-                                for iEntry, tAdjacencySubtable in tOtherWZData[subrefWZOtherWaterZones] do
-                                    if tAdjacencySubtable[subrefWZAWZDistance] < iNavalTravelDistance then
-                                        iEndWZAdjacencyTablePosition = iEntry + 1
-                                    else
-                                        --Since table is ordered by distance later entries should be furhter away
-                                        break
-                                    end
-                                end
-                            end
-                            table.insert(tOtherWZData[subrefWZOtherWaterZones], iEndWZAdjacencyTablePosition, {[subrefWZAWZRef] = iWaterZone, [subrefWZAWZDistance] = iNavalTravelDistance})
-
-                            tiWaterZonePairsConsideredByLowestWZ[iLowestWZ][iHighestWZ] = true
-                        end
-                    end
-                end--]]
-            end
-            if bDebugMessages == true then LOG(sFunctionRef..': Finished considering all pathing for iWaterZone='..iWaterZone..'; tiWaterZonePairsConsideredByLowestWZ='..repru(tiWaterZonePairsConsideredByLowestWZ)..'; tWZData[subrefWZOtherWaterZones]='..repru(tWZData[subrefWZOtherWaterZones])) end
-        end
-
-        M28Profiler.FunctionProfiler(sFunctionRef..': Pond '..iPond, M28Profiler.refProfilerEnd)
-    end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-end
-
-function CheckIfLowMexMap()
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'CheckIfLowMexMap'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-    if not(bLowMexMapCheck) then
-        bLowMexMapCheck = true
-        local iTotalMexCount = 0
-        for iPlateau, tPlateauSubtable in tAllPlateaus do
-            iTotalMexCount = iTotalMexCount + (tPlateauSubtable[subrefPlateauTotalMexCount] or 0)
-        end
-        if bDebugMessages == true then LOG(sFunctionRef..': iTotalMexCount='..iTotalMexCount..'; Players at start='..M28Team.iPlayersAtGameStart) end
-
-        if iTotalMexCount <= M28Team.iPlayersAtGameStart * 2.5 then
-            --2.5 or fewer mexes per player - check total reclaim - cant rely on normal reclaiming tracking since likely hasnt been updated yet (and we need to know early on so we can decide whether to build a factory or not)
-            local rRect = Rect(rMapPlayableArea[1], rMapPlayableArea[2], rMapPlayableArea[3], rMapPlayableArea[4])
-            local iTotalReclaimMass = GetReclaimInRectangle(3, rRect)
-            if iTotalReclaimMass <= 200 then
-                bIsLowMexMap = true
-            end
-            if bDebugMessages == true then LOG(sFunctionRef..': iTotalReclaimMass='..iTotalReclaimMass..'; bIsLowMexMap='..tostring(bIsLowMexMap)) end
-        end
-    end
-
-
-
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-end
-
-function SetupMap()
-    --Sets up non-brain specific info on the map
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'SetupMap'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-    --Send a message warning players this could take a while - moved to M28Overseer
-    --[[for iBrain, oBrain in ArmyBrains do
-        if oBrain.M28AI then
-            M28Chat.SendForkedMessage(oBrain, 'LoadingMap', 'Analysing map, this usually takes 1-2 minutes...', 0, 10000, false)
-        end
-    end--]]
-
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    WaitTicks(4) --So chat message displays
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-    --Decide how accurate map related functions are to be based on the map size:
-    SetupPlayableAreaAndSegmentSizes()
-
-    --Generate pathing
-    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; system time='..GetSystemTimeSecondsOnlyForProfileUse()..'; will generate navmesh if it isnt already generated, NavUtils.IsGenerated()='..tostring(NavUtils.IsGenerated())) end
-    if not(NavUtils.IsGenerated()) then
-        --local NavGen = import("/lua/sim/navgenerator.lua")
-        --NavGen.Generate()
-        if bDebugMessages == true then LOG('Considering whether to generate map markers for map generation, GameTime='..GetGameTimeSeconds()..'; M28Overseer.bBeginSessionTriggered='..tostring(M28Overseer.bBeginSessionTriggered)) end
-        while (not(M28Overseer.bBeginSessionTriggered) and GetGameTimeSeconds() < 4) do
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-            WaitTicks(1)
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-        end
-        NavUtils.Generate()
-    end
-
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    WaitTicks(1) --Redundancy so chat message displays
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-    GetMapWaterHeight()
-
-    --Create table that stores details for each pathing group (e.g. land, amphibious) each mex in that group for easy reference later
-    RecordMexForPathingGroup()
-
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    WaitTicks(1) --want to make sure our chat message displays (redundancy as moved to earlier now)
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-    --Create table with details on all plateaus (initially just those with mexes, although the land zone logic may add to this)
-    RecordAllPlateaus() --Needed first since will organise land zones by plateau
-    if bDebugMessages == true then LOG(sFunctionRef..': After RecordAllPlateaus, system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
-
-    --Setup land zones
-    SetupLandZones()
-    if bDebugMessages == true then LOG(sFunctionRef..': After SetuplandZones, system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
-
-
-    RecordPondDetails()
-
-    bMapLandSetupComplete = true
-    if bDebugMessages == true then LOG(sFunctionRef..': Finished setting up land aspects of the map, will move on to water zones, time='..GetGameTimeSeconds()..'; system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
-    SetupWaterZones() --Includes a wait to make sure we have M28 brains
-    RecordIslands()
-    if bDebugMessages == true then LOG(sFunctionRef..': Finished setting up water zones, will also now clal forked threads for other aspects, time='..GetGameTimeSeconds()..'; system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
-    ForkThread(ClearTemporarySetupVariables)
-    ForkThread(ReclaimManager)
-
-    --Campaign specific - reduce playable area to the current playable area (once have setup all zones based on full map size)
-    if bIsCampaignMap then
-        SetupPlayableAreaAndSegmentSizes()
-    end
-
-    CheckIfLowMexMap()
-
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-end
-
---function GetDistanceFromStartAdjustedForDistanceFromMid()  end -- have replaced with GetModDistanceFromStart
-function GetModDistanceFromStart(aiBrain, tTarget, bUseEnemyStartInstead)
-    local sFunctionRef = 'GetModDistanceFromStart'
-    local bDebugMessages = false
-    if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if bDebugMessages == true then
-        LOG(sFunctionRef .. ': Start of code, GameTime=' .. GetGameTimeSeconds() .. '; aiBrain army index=' .. aiBrain:GetArmyIndex() .. '; tTarget=' .. repru(tTarget) .. '; bUseEnemyStartInstead=' .. tostring((bUseEnemyStartInstead or false)) .. '; will draw the location in white')
-        M28Utilities.DrawLocation(tTarget, false, 7, 20, nil)
-    end
-
-    local iEmergencyRangeToUse = 50
-
-    local tStartPos
-    local tEnemyBase
-    if bUseEnemyStartInstead then
-        tStartPos = GetPrimaryEnemyBaseLocation(aiBrain)
-        tEnemyBase = PlayerStartPoints[aiBrain:GetArmyIndex()]
-    else
-        tStartPos = PlayerStartPoints[aiBrain:GetArmyIndex()]
-        tEnemyBase = GetPrimaryEnemyBaseLocation(aiBrain)
-    end
-
-    local iDistStartToTarget = M28Utilities.GetDistanceBetweenPositions(tStartPos, tTarget)
-    if bDebugMessages == true then LOG(sFunctionRef .. ': tStartPos=' .. repru(tStartPos) .. '; iDistStartToTarget=' .. iDistStartToTarget .. '; iEmergencyRangeToUse=' .. iEmergencyRangeToUse) end
-
-    if iDistStartToTarget <= iEmergencyRangeToUse then
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        if bDebugMessages == true then LOG(sFunctionRef .. ': Are within emergency range so will just return actual dist, iDistStartToTarget=' .. iDistStartToTarget .. '; if instead we only had 1 enemy and got mod dist for this the result would be ' .. math.cos(math.abs(M28Utilities.ConvertAngleToRadians(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, GetPrimaryEnemyBaseLocation(aiBrain))))) * iDistStartToTarget) end
-
-        return iDistStartToTarget
-    else
-        --If only 1 enemy group then treat anywhere behind us as the emergency range
-        if bUseEnemyStartInstead then
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-            if bDebugMessages == true then LOG(sFunctionRef .. ': will ignore multiple enemies since have flagged to use enemy start instead, will return ' .. math.cos(M28Utilities.ConvertAngleToRadians(math.abs(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, PlayerStartPoints[aiBrain:GetArmyIndex()])))) * iDistStartToTarget) end
-
-            return iEmergencyRangeToUse, math.cos(math.abs(M28Utilities.ConvertAngleToRadians(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, tEnemyBase)))) * iDistStartToTarget
-        else
-            local bIsBehindUs = true
-            if bDebugMessages == true then LOG(sFunctionRef .. ': Is table of enemy brains empty=' .. tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains]))) end
-
-            if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains]) then
-                if M28Utilities.GetDistanceBetweenPositions(tTarget, tEnemyBase) < M28Utilities.GetDistanceBetweenPositions(tStartPos, tEnemyBase) or M28Utilities.GetDistanceBetweenPositions(tTarget, tStartPos) > M28Utilities.GetDistanceBetweenPositions(tStartPos, tEnemyBase) then
-                    bIsBehindUs = false
-                end
-            else
-                for iEnemyGroup, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains] do
-                    if bDebugMessages == true then LOG(sFunctionRef .. ': Distance from target to start=' .. M28Utilities.GetDistanceBetweenPositions(tTarget, tStartPos) .. '; Distance from start to enemy base=' .. M28Utilities.GetDistanceBetweenPositions(tStartPos, PlayerStartPoints[oBrain:GetArmyIndex()])) end
-
-                    if M28Utilities.GetDistanceBetweenPositions(tTarget, PlayerStartPoints[oBrain:GetArmyIndex()]) < M28Utilities.GetDistanceBetweenPositions(tStartPos, PlayerStartPoints[oBrain:GetArmyIndex()]) or M28Utilities.GetDistanceBetweenPositions(tTarget, tStartPos) > M28Utilities.GetDistanceBetweenPositions(tStartPos, PlayerStartPoints[oBrain:GetArmyIndex()]) then
-                        bIsBehindUs = false
-                        break
-                    end
-                end
-            end
-
-            if bIsBehindUs then
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                if bDebugMessages == true then LOG(sFunctionRef .. ': Will return emergency range as enemy is behind us, so returning ' .. iEmergencyRangeToUse) end
-
-                return iEmergencyRangeToUse
-            else
-                --Cycle through each enemy group and get lowest value, but stop if <= emergency range
-                local iCurDist
-                local iLowestDist = 10000
-                if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains]) then
-                    iLowestDist = math.cos(M28Utilities.ConvertAngleToRadians(math.abs(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, tEnemyBase)))) * iDistStartToTarget
-                else
-                    for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains] do
-                        iCurDist = math.cos(M28Utilities.ConvertAngleToRadians(math.abs(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, PlayerStartPoints[oBrain:GetArmyIndex()])))) * iDistStartToTarget
-                        if bDebugMessages == true then LOG(sFunctionRef .. ': iCurDist for enemy oBrain index ' .. oBrain:GetArmyIndex() .. ' = ' .. iCurDist .. '; Enemy base=' .. repru(PlayerStartPoints[oBrain:GetArmyIndex()]) .. '; tEnemyBase=' .. repru(tEnemyBase) .. '; Angle from start to target=' .. M28Utilities.GetAngleFromAToB(tStartPos, tTarget) .. '; Angle from Start to enemy base=' .. M28Utilities.GetAngleFromAToB(tStartPos, PlayerStartPoints[oBrain:GetArmyIndex()]) .. '; iDistStartToTarget=' .. iDistStartToTarget) end
-
-                        if iCurDist < iLowestDist then
-                            iLowestDist = iCurDist
-                            if iLowestDist < iEmergencyRangeToUse then
-                                iLowestDist = iEmergencyRangeToUse
                                 break
                             end
                         end
                     end
+
+                    local iOppositePosition = 1
+                    if not(tOtherLZData[subrefLZPathingToOtherLandZones]) then
+                        tOtherLZData[subrefLZPathingToOtherLandZones] = {}
+                        tOtherLZData[subrefLZPathingToOtherLZEntryRef] = {}
+                        iOppositePosition = 1
+                    else
+                        for iExistingLandZone, tExistingSubtable in tOtherLZData[subrefLZPathingToOtherLandZones] do
+                            if tExistingSubtable[subrefLZTravelDist] <  iLandTravelDistance then
+                                iOppositePosition = iOppositePosition + 1
+                            else
+                                break
+                            end
+                        end
+                    end
+
+                    --If this isn't the last position then need to shift subrefLZPathingToOtherLZEntryRef entries
+                    local iStartTableSize = table.getn(tLZData[subrefLZPathingToOtherLandZones])
+                    local iEndTableSize = table.getn(tOtherLZData[subrefLZPathingToOtherLandZones])
+
+                    if iStartTableSize < iPosition then
+                        for iLZRef, iTableRef in tLZData[subrefLZPathingToOtherLZEntryRef] do
+                            if iTableRef >= iPosition then
+                                tLZData[subrefLZPathingToOtherLZEntryRef][iLZRef] = iTableRef + 1
+                            end
+                        end
+                    end
+                    if iEndTableSize < iOppositePosition then
+                        for iLZRef, iTableRef in tOtherLZData[subrefLZPathingToOtherLZEntryRef] do
+                            if iTableRef >= iOppositePosition then
+                                tOtherLZData[subrefLZPathingToOtherLZEntryRef][iLZRef] = iTableRef + 1
+                            end
+                        end
+                    end
+
+                    table.insert(tLZData[subrefLZPathingToOtherLandZones], iPosition, {[subrefLZNumber] = iTargetLandZone, [subrefLZPath] = {}, [subrefLZTravelDist] = iLandTravelDistance})
+                    table.insert(tOtherLZData[subrefLZPathingToOtherLandZones], iOppositePosition, {[subrefLZNumber] = iStartLandZone, [subrefLZPath] = {}, [subrefLZTravelDist] = iLandTravelDistance})
+
+                    tLZData[subrefLZPathingToOtherLZEntryRef][iTargetLandZone] = iPosition
+                    tOtherLZData[subrefLZPathingToOtherLZEntryRef][iStartLandZone] = iOppositePosition
+
+                    --Will update subrefLZPathingToOtherLZEntryRef in UpdateLZPathingEntryReferences as a redundancy (previously was the main logic)
+
+                    --Record the land zone path from start to target
+                    for iEntry, iLZ in tPathingLZFromStartToTarget do
+                        table.insert(tLZData[subrefLZPathingToOtherLandZones][iPosition][subrefLZPath], iLZ)
+                    end
+                    --Record the land zone path from target to start (adding in the start as the final point)
+                    local iTotalEntries = table.getn(tPathingLZFromStartToTarget)
+                    for iEntry = iTotalEntries, 1, -1 do
+                        if not(tPathingLZFromStartToTarget[iEntry] == iTargetLandZone) then
+                            table.insert(tOtherLZData[subrefLZPathingToOtherLandZones][iOppositePosition][subrefLZPath], tPathingLZFromStartToTarget[iEntry])
+                        end
+                    end
+                    if not(tPathingLZFromStartToTarget[1] == iStartLandZone) then
+                        table.insert(tOtherLZData[subrefLZPathingToOtherLandZones][iOppositePosition][subrefLZPath], iStartLandZone)
+                    end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Finishrd subfunction, tLZData[subrefLZPathingToOtherLandZones][iPosition][subrefLZPath]='..repru(tLZData[subrefLZPathingToOtherLandZones][iPosition][subrefLZPath])..'; iPosition='..iPosition) end
+
                 end
-
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                if bDebugMessages == true then LOG(sFunctionRef .. ': iLowestDist=' .. iLowestDist) end
-
-                return iLowestDist
+                if tOptionalLandZoneTravelPath then M28Profiler.FunctionProfiler(sFunctionRef..': Adj Method', M28Profiler.refProfilerEnd)
+                else M28Profiler.FunctionProfiler(sFunctionRef..': Detailed Method', M28Profiler.refProfilerEnd)
+                end
             end
         end
-    end
-end
 
-function RecordAvailableMassStorageLocationsForLandZone(iPlateau, iLandZone)
-    local tLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
-    tLZData[subrefLZMassStorageLocationsAvailable] = {}
-    if M28Utilities.IsTableEmpty(tLZData[subrefLZMexLocations]) == false then
-        local tiXZOffset = {{-2,0}, {0, -2}, {0, 2}, {2, 0}}
-        local tCurPos
-        for iMex, tMex in tLZData[subrefLZMexLocations] do
-            for iOffset, tXZOffset in tiXZOffset do
-                tCurPos = {tMex[1] + tXZOffset[1], 0, tMex[3] + tXZOffset[2]}
-                tCurPos[2] = GetSurfaceHeight(tCurPos[1], tCurPos[3])
-                if M28Conditions.CanBuildStorageAtLocation(tCurPos) then
-                    table.insert(tLZData[subrefLZMassStorageLocationsAvailable], tCurPos)
+        for iPlateau, tPlateauSubtable in tAllPlateaus do
+            if tPlateauSubtable[subrefLandZoneCount] >= 5 then M28Profiler.FunctionProfiler(sFunctionRef..': iPlateau '..iPlateau, M28Profiler.refProfilerStart) end
+
+            tiTempLandPathingDistanceForLZ[iPlateau] = {}
+            tAdjacencyEntriesByZoneAndLevel = {}
+            tiZoneAdjacencyLevelByStartZone = {}
+            iDetailedAdjacencyLevel = iBaseDetailedAdjacencyLevel
+
+            if iMapSize >= 512 and tPlateauSubtable[subrefLandZoneCount] >= 14 then --i.e. calculations being done is effectively this number squared
+                bUseAdjacentApproach = true --I.e. will use a less accurate method of approximating land travel distance based on adjacent zones
+                if iDetailedAdjacencyLevel > 2 and tPlateauSubtable[subrefLandZoneCount] >= 50 then iDetailedAdjacencyLevel = 2 end
+            else bUseAdjacentApproach = false
+            end
+
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering iPlateau '..iPlateau..', LZ count='..tPlateauSubtable[subrefLandZoneCount]..'; bUseAdjacentApproach='..tostring(bUseAdjacentApproach)..'; iMapSize='..(iMapSize or 'nil')) end
+            if bUseAdjacentApproach then
+                --First record adjacncies for each zone
+                tAdjacencyEntriesByZoneAndLevel[1] = {}
+                for iStartLandZone, tLZData in tPlateauSubtable[subrefPlateauLandZones] do
+                    tAdjacencyEntriesByZoneAndLevel[iStartLandZone] = {}
+                    tAdjacencyEntriesByZoneAndLevel[iStartLandZone][1] = {}
+                    tiZoneAdjacencyLevelByStartZone[iStartLandZone] = {}
+                    for _, iTargetLandZone in tLZData[subrefLZAdjacentLandZones] do
+                        table.insert(tAdjacencyEntriesByZoneAndLevel[iStartLandZone][1], iTargetLandZone)
+                        local tOtherLZData = tPlateauSubtable[subrefPlateauLandZones][iTargetLandZone]
+                        tiZoneAdjacencyLevelByStartZone[iStartLandZone][iTargetLandZone] = 1
+                        CalculateLandZoneTravelDistance(iPlateau, iStartLandZone, tLZData, iTargetLandZone, tOtherLZData) --Detailed method
+                    end
+                end
+
+                local bNoNewEntries
+
+                for iCurAdjacencyLevel = 2, 100 do --redundancy, shouldnt need 100 adjacency levels
+                    bNoNewEntries = true
+                    tAdjacencyEntriesByZoneAndLevel[iCurAdjacencyLevel] = {}
+                    for iStartLandZone, tLZData in tPlateauSubtable[subrefPlateauLandZones] do
+                        tAdjacencyEntriesByZoneAndLevel[iStartLandZone][iCurAdjacencyLevel] = {}
+                        local tPrevAdjacencyZonesByTargetZone = {}
+                        for _, iPrevAdjacentZone in tAdjacencyEntriesByZoneAndLevel[iCurAdjacencyLevel - 1] do
+                            --Cycle through each zone adjacent to the previous adjacent zone, and consider if we haven't already calculated the pathing from startlandzone to this
+                            local tCurLZData = tPlateauSubtable[subrefPlateauLandZones][iPrevAdjacentZone]
+                            if M28Utilities.IsTableEmpty(tCurLZData[subrefLZAdjacentLandZones]) == false then
+                                for _, iTargetLandZone in tCurLZData[subrefLZAdjacentLandZones] do
+                                    if not(tiZoneAdjacencyLevelByStartZone[iStartLandZone][iTargetLandZone]) then
+                                        bNoNewEntries = false
+
+                                        if iCurAdjacencyLevel <= iDetailedAdjacencyLevel then
+                                            --Do detailed calculation instead (this has a check to make sure we dont do more than once)
+                                            CalculateLandZoneTravelDistance(iPlateau, iStartLandZone, tLZData, iTargetLandZone, tPlateauSubtable[subrefPlateauLandZones][iTargetLandZone])
+                                            tiZoneAdjacencyLevelByStartZone[iStartLandZone][iTargetLandZone] = iCurAdjacencyLevel
+                                            table.insert(tAdjacencyEntriesByZoneAndLevel[iStartLandZone][iCurAdjacencyLevel], iTargetLandZone)
+                                        else
+                                            --Do adjacency method
+                                            table.insert(tPrevAdjacencyZonesByTargetZone[iTargetLandZone], iPrevAdjacentZone)
+                                        end
+                                    end
+                                end
+                            end
+
+                        end
+
+                        --Determine any zones under the adjacency method
+                        if M28Utilities.IsTableEmpty(tPrevAdjacencyZonesByTargetZone) == false then
+                            for iTargetLandZone, tPrevZones in tPrevAdjacencyZonesByTargetZone do
+                                local iClosestPrevAdjacentZone
+
+                                local iCurDistance
+                                local iClosestDistance = 100000
+                                for iEntry, iPrevAdjacentZone in tPrevZones do
+                                    iCurDistance =  tiTempLandPathingDistanceForLZ[iPlateau][iStartLandZone][iPrevAdjacentZone] + tiTempLandPathingDistanceForLZ[iPlateau][iPrevAdjacentZone][iTargetLandZone]
+                                    if iCurDistance < iClosestDistance then
+                                        iClosestDistance = iCurDistance
+                                        iClosestPrevAdjacentZone = iPrevAdjacentZone
+                                    end
+                                end
+
+                                --Now work out the path based on iClosestPrevAdjacentZone
+                                local tiLZPath = {}
+                                tiPathFromStartToNextAdjZone[iClosestNextAdjacencyZone] = {}
+                                local iAdjacentRef = tLZData[subrefLZPathingToOtherLZEntryRef][iAdjacentLandZone]
+                                if bDebugMessages == true then LOG(sFunctionRef..': iStartLandZone='..iStartLandZone..'; iAdjacentLandZone='..iAdjacentLandZone..'; iClosestNextAdjacencyZone='..iClosestNextAdjacencyZone..'; Refs for start LZ to other LZs='..repru(tLZData[subrefLZPathingToOtherLZEntryRef])..'; iCurAdjacencyLevel='..iCurAdjacencyLevel..'; iAdjacentRef='..iAdjacentRef..'; tLZData[subrefLZPathingToOtherLandZones][iAdjacentRef][subrefLZPath]='..repru(tLZData[subrefLZPathingToOtherLandZones][iAdjacentRef][subrefLZPath])) end
+                                for iEntry, iPathingLandZone in tLZData[subrefLZPathingToOtherLandZones][iAdjacentRef][subrefLZPath] do
+                                    table.insert(tiLZPath, iPathingLandZone)
+                                end
+                                --Add the final destination
+                                table.insert(tiLZPath, iTargetLandZone)
+
+                                CalculateLandZoneTravelDistance(iPlateau, iStartLandZone, tLZData, iTargetLandZone, tPlateauSubtable[subrefPlateauLandZones][iTargetLandZone], iClosestDistance, tiLZPath)
+                            end
+                        end
+                    end
+                    if bNoNewEntries then break end
                 end
             end
+            --Want to do this even if we have done the adjacency approach, to make sure we have got pathing in place for eveyr zone
+            for iStartLandZone, tLZData in tPlateauSubtable[subrefPlateauLandZones] do
+                --Cycle through each other Land zone in this plateau and determine pathing
+                if bDebugMessages == true then LOG(sFunctionRef..': Detailed pathing appraoch for plateaus with fewer Land zones - About to calculate pathing to each other Land zone for iStartLandZone='..iStartLandZone..'; in iPlateau='..iPlateau..'; subrefLZSegments size='..table.getn(tLZData[subrefLZSegments])) end
+                for iTargetLandZone, tOtherLZData in tPlateauSubtable[subrefPlateauLandZones] do
+                    if not(iStartLandZone == iTargetLandZone) then
+                        CalculateLandZoneTravelDistance(iPlateau, iStartLandZone, tLZData, iTargetLandZone, tOtherLZData)
+                    end
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished considering all pathing for iStartLandZone='..iStartLandZone..'; tiTempLandPathingDistanceForLZ[iPlateau]='..repru(tiTempLandPathingDistanceForLZ[iPlateau])) end
+            end
+
+            if tPlateauSubtable[subrefLandZoneCount] >= 5 then M28Profiler.FunctionProfiler(sFunctionRef..': iPlateau '..iPlateau, M28Profiler.refProfilerEnd) end
         end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
-end
 
-function RecordMassStorageLocationsForEachLandZone()
-    for iPlateau, tPlateauSubtable in tAllPlateaus do
-        for iLandZone, tLZSubtable in tPlateauSubtable[subrefPlateauLandZones] do
-            RecordAvailableMassStorageLocationsForLandZone(iPlateau, iLandZone)
-        end
-    end
-end
+    function RecordWaterZonePathingToOtherWaterZones()
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'RecordWaterZonePathingToOtherWaterZones'
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+        local tiWaterZonePairsConsideredByLowestWZ = {}
+        local iLowestWZ, iHighestWZ
+        local iNavalTravelDistance
+        local iStartWZAdjacencyTablePosition
+        local iEndWZAdjacencyTablePosition
+        local bUseAdjacentApproach
+        local bUseFastestApproach --even faster/more simplified than adjacent approach, done because on e.g. frostmill it was taking 15m and still not finishing with doing 415 water zones
 
-function GetReclaimLocationFromSegment(iReclaimSegmentX, iReclaimSegmentZ)
-    --e.g. segment (1,1) will be 0 to ReclaimSegmentSizeX and 0 to ReclaimSegmentSizeZ in size
-    --This will return the midpoint
-    local iX = math.max(rMapPotentialPlayableArea[1], math.min(rMapPotentialPlayableArea[3], (iReclaimSegmentX - 0.5) * iReclaimSegmentSizeX))
-    local iZ = math.max(rMapPotentialPlayableArea[2], math.min(rMapPotentialPlayableArea[4], (iReclaimSegmentZ - 0.5) * iReclaimSegmentSizeZ))
-    return {iX, GetSurfaceHeight(iX, iZ), iZ}
-end
-
-function GetReclaimSegmentsFromLocation(tLocation)
-    return math.ceil(tLocation[1] / iReclaimSegmentSizeX), math.ceil(tLocation[3] / iReclaimSegmentSizeZ)
-end
-
-function ReclaimManager()
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end --set to true for certain positions where want logs to print
-    local sFunctionRef = 'ReclaimManager'
-
-    local tAreasToUpdateThisCycle
-    local iUpdateCount = 0
-    local iMaxUpdatesPerTick
-    local iWaitCount
-    local iLoopCount
-    if not(bReclaimManagerActive) then
-        bReclaimManagerActive = true
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart) --Want the profile coutn to reflect the number of times actually running the core code
-
-        while bReclaimManagerActive do
-            if bDebugMessages == true then LOG(sFunctionRef..': Start of main active loop') end
-
-            tAreasToUpdateThisCycle = {}
-            iUpdateCount = 0
-            iWaitCount = 0
-            if M28Utilities.IsTableEmpty(tReclaimSegmentsToUpdate) then
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                WaitTicks(10)
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        function CalculateWaterZoneTravelDistance(iWaterZone, tWZData, iOtherWaterZone, tOtherWZData, iOptionalNavalTravelDistance)
+            if iWaterZone < iOtherWaterZone then
+                iLowestWZ = iWaterZone
+                iHighestWZ = iOtherWaterZone
             else
-                --Copy table into tAreasToUpdateThisCycle
-                if bDebugMessages == true then
-                    LOG(sFunctionRef..': GameTime='..GetGameTimeSeconds()..'; Will list out all entries in tReclaimSegmentsToUpdate if it isnt nil')
-                    if tReclaimSegmentsToUpdate then LOG(repru(tReclaimSegmentsToUpdate)) end
+                iLowestWZ = iOtherWaterZone
+                iHighestWZ = iWaterZone
+            end
+            if not(tiWaterZonePairsConsideredByLowestWZ[iLowestWZ][iHighestWZ]) then
+                if not(tiWaterZonePairsConsideredByLowestWZ[iLowestWZ]) then tiWaterZonePairsConsideredByLowestWZ[iLowestWZ] = {} end
+                iNavalTravelDistance = iOptionalNavalTravelDistance or M28Utilities.GetTravelDistanceBetweenPositions(tWZData[subrefMidpoint], tOtherWZData[subrefMidpoint], refPathingTypeNavy)
+                if iNavalTravelDistance then
+                    iStartWZAdjacencyTablePosition = 1
+                    if M28Utilities.IsTableEmpty(tWZData[subrefWZOtherWaterZones]) then
+                        tWZData[subrefWZOtherWaterZones] = {}
+                    else
+                        for iEntry, tAdjacencySubtable in tWZData[subrefWZOtherWaterZones] do
+                            if tAdjacencySubtable[subrefWZAWZDistance] < iNavalTravelDistance then
+                                iStartWZAdjacencyTablePosition = iEntry + 1
+                            else
+                                --Since table is ordered by distance later entries should be furhter away
+                                break
+                            end
+                        end
+                    end
+                    table.insert(tWZData[subrefWZOtherWaterZones], iStartWZAdjacencyTablePosition, {[subrefWZAWZRef] = iOtherWaterZone, [subrefWZAWZDistance] = iNavalTravelDistance})
+
+                    iEndWZAdjacencyTablePosition = 1
+                    if M28Utilities.IsTableEmpty(tOtherWZData[subrefWZOtherWaterZones]) then
+                        tOtherWZData[subrefWZOtherWaterZones] = {}
+                    else
+                        for iEntry, tAdjacencySubtable in tOtherWZData[subrefWZOtherWaterZones] do
+                            if tAdjacencySubtable[subrefWZAWZDistance] < iNavalTravelDistance then
+                                iEndWZAdjacencyTablePosition = iEntry + 1
+                            else
+                                --Since table is ordered by distance later entries should be furhter away
+                                break
+                            end
+                        end
+                    end
+                    table.insert(tOtherWZData[subrefWZOtherWaterZones], iEndWZAdjacencyTablePosition, {[subrefWZAWZRef] = iWaterZone, [subrefWZAWZDistance] = iNavalTravelDistance})
+
+                    tiWaterZonePairsConsideredByLowestWZ[iLowestWZ][iHighestWZ] = iNavalTravelDistance
                 end
-                for iEntry, tSubtable in tReclaimSegmentsToUpdate do
-                    if (tSubtable[2] or 0) > 0 and (tSubtable[1] or 0) > 0 then --Dont bother updating places right on map edge in case pathfinding issue
-                        if not(tAreasToUpdateThisCycle[tSubtable[1]]) then tAreasToUpdateThisCycle[tSubtable[1]] = {} end
-                        if not(tAreasToUpdateThisCycle[tSubtable[1]][tSubtable[2]]) then
-                            iUpdateCount = iUpdateCount + 1
-                            tAreasToUpdateThisCycle[tSubtable[1]][tSubtable[2]] = true
+            end
+        end
+
+        for iPond, tPondSubtable in tPondDetails do
+            M28Profiler.FunctionProfiler(sFunctionRef..': Pond '..iPond, M28Profiler.refProfilerStart)
+            bUseFastestApproach = false
+            bUseAdjacentApproach = false
+            if tPondSubtable[subrefPondWZCount] >= 21 then --Would take c.70s on a 56 size water zone pond, which is 3.1k squared, so reducing to 21 which is 441 squraed (i.e. hopefully means if would take >10s for this pond under default approach will use less accurate but faster method)
+                if tPondSubtable[subrefPondWZCount] >= 50 and (iMapSize > 1024 or (tPondSubtable[subrefPondWZCount] >= 100 and iMapSize == 1024)) then
+                    bUseFastestApproach = true
+                else
+                    bUseAdjacentApproach = true
+                end
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering pond '..iPond..', WZ count='..tPondSubtable[subrefPondWZCount]..'; bUseAdjacentApproach='..tostring(bUseAdjacentApproach)..'; System time='..GetSystemTimeSecondsOnlyForProfileUse()..'; bUseFastestApproach='..tostring(bUseFastestApproach)) end
+            if bUseAdjacentApproach then
+                --First calculate detailed pathing for each adjacent water zone
+                for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
+                    for _, iOtherWaterZone in tWZData[subrefWZAdjacentWaterZones] do
+                        local tOtherWZData = tPondSubtable[subrefPondWaterZones][iOtherWaterZone]
+                        CalculateWaterZoneTravelDistance(iWaterZone, tWZData, iOtherWaterZone, tOtherWZData)
+                        if bDebugMessages == true then LOG(sFunctionRef..': Finished calculating adjacency for iWaterZone='..iWaterZone..'; iOtherWaterZone='..iOtherWaterZone) end
+                    end
+                end
+
+                local bKeepSearching
+                local iCurAdjacencyLevel
+                local tAdjacencyEntriesByLevel = {}
+                local iPrevAdjacencyLevel
+                local tiShortestTravelToTargetZone
+                local iCurEntryApproxTravelDist
+                local tbZoneConsideredForThisZone
+                local bNotAlreadyRecordedTravelDistance
+
+                for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
+                    bKeepSearching = true
+
+                    if bDebugMessages == true then LOG(sFunctionRef..': About to record all travel distances using adjacency method for iWaterZone='..iWaterZone) end
+                    iCurAdjacencyLevel = 1
+
+                    tAdjacencyEntriesByLevel = {}
+                    tAdjacencyEntriesByLevel[1] = {}
+                    tbZoneConsideredForThisZone = {}
+                    for _, iOtherWaterZone in tWZData[subrefWZAdjacentWaterZones] do
+                        table.insert(tAdjacencyEntriesByLevel[iCurAdjacencyLevel], iOtherWaterZone)
+                    end
+                    while bKeepSearching do
+                        bKeepSearching = false
+                        iPrevAdjacencyLevel = iCurAdjacencyLevel
+                        iCurAdjacencyLevel = iCurAdjacencyLevel + 1
+                        tAdjacencyEntriesByLevel[iCurAdjacencyLevel] = {}
+                        tiShortestTravelToTargetZone = {}
+
+                        for iEntry, iOtherWaterZone in tAdjacencyEntriesByLevel[iPrevAdjacencyLevel] do
+                            for _, iNextAdjacencyZone in tPondSubtable[subrefPondWaterZones][iOtherWaterZone][subrefWZAdjacentWaterZones] do
+                                --E.g. zone travel from zzone 1 to zone 5 - when we record 1 to 5, that means we also ahve travel from 5 to 1; however since we are using an adjacency search approach, we still want zone 5 to keep searching even if every adjacent zone has been recorded, in case there are further out zone sthat havent been recorded, hence the use of both tbZoneConsideredForThisZone and bNotAlreadyRecordedTravelDistance
+                                bNotAlreadyRecordedTravelDistance = (not(tiWaterZonePairsConsideredByLowestWZ[iWaterZone][iNextAdjacencyZone]) and not(tiWaterZonePairsConsideredByLowestWZ[iNextAdjacencyZone][iWaterZone]))
+                                --if bDebugMessages == true then LOG(sFunctionRef..': iOtherWaterZone='..iOtherWaterZone..'; iNextAdjacencyZone='..iNextAdjacencyZone..'; iPrevAdjacencyLevel='..iPrevAdjacencyLevel..'; iCurAdjacencyLevel='..iCurAdjacencyLevel..'; Is tbZoneConsideredForThisZone[iNextAdjacencyZone] nil='..tostring(tbZoneConsideredForThisZone[iNextAdjacencyZone] == nil)..'; bNotAlreadyRecordedTravelDistance='..tostring(bNotAlreadyRecordedTravelDistance)) end
+                                if not(tbZoneConsideredForThisZone[iNextAdjacencyZone]) or bNotAlreadyRecordedTravelDistance then
+                                    bKeepSearching = true
+                                    tbZoneConsideredForThisZone[iNextAdjacencyZone] = true
+                                    if bDebugMessages == true then LOG(sFunctionRef..': iCurAdjacencyLevel='..iCurAdjacencyLevel..'; iWaterZone='..iWaterZone..'; iOtherWaterZone='..iOtherWaterZone..'; iNextAdjacencyZone='..iNextAdjacencyZone) end
+                                    table.insert(tAdjacencyEntriesByLevel[iCurAdjacencyLevel], iNextAdjacencyZone)
+                                    if bNotAlreadyRecordedTravelDistance then
+                                        iCurEntryApproxTravelDist = (tiWaterZonePairsConsideredByLowestWZ[iOtherWaterZone][iNextAdjacencyZone] or tiWaterZonePairsConsideredByLowestWZ[iNextAdjacencyZone][iOtherWaterZone]) + (tiWaterZonePairsConsideredByLowestWZ[iWaterZone][iOtherWaterZone] or tiWaterZonePairsConsideredByLowestWZ[iOtherWaterZone][iWaterZone])
+                                        if not(tiShortestTravelToTargetZone[iNextAdjacencyZone]) or iCurEntryApproxTravelDist < tiShortestTravelToTargetZone[iNextAdjacencyZone] then
+                                            tiShortestTravelToTargetZone[iNextAdjacencyZone] = iCurEntryApproxTravelDist
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                        --Now record each entry
+                        if M28Utilities.IsTableEmpty(tiShortestTravelToTargetZone) == false then
+                            for iNextAdjacencyZone, iTravelDistance in tiShortestTravelToTargetZone do
+                                CalculateWaterZoneTravelDistance(iWaterZone, tWZData, iNextAdjacencyZone, tPondSubtable[subrefPondWaterZones][iNextAdjacencyZone], iTravelDistance)
+                            end
                         end
                     end
                 end
-                --Clear the table for the next cycle
-                tReclaimSegmentsToUpdate = {}
-                if iUpdateCount == 0 then
+            end
+            --Want to do this even if we have done the adjacency approach, to make sure we have got pathing in place for eveyr zone
+            local iReplacementDistIfUsingFastMethod
+            for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
+                --Cycle through each other water zone in this pond and determine pathing
+                if bDebugMessages == true then LOG(sFunctionRef..': Detailed pathing appraoch for ponds with fewer water zones - About to calculate pathing to each other water zone for iWaterZone='..iWaterZone..'; in iPond='..iPond..'; subrefWZSegments size='..table.getn(tWZData[subrefWZSegments])) end
+                for iOtherWaterZone, tOtherWZData in tPondSubtable[subrefPondWaterZones] do
+                    if bUseFastestApproach then iReplacementDistIfUsingFastMethod = M28Utilities.GetDistanceBetweenPositions(tWZData[subrefMidpoint], tOtherWZData[subrefMidpoint]) end
+                    CalculateWaterZoneTravelDistance(iWaterZone, tWZData, iOtherWaterZone, tOtherWZData, iReplacementDistIfUsingFastMethod)
+                    --[[if not(iWaterZone == iOtherWaterZone) then
+                        if iWaterZone < iOtherWaterZone then
+                            iLowestWZ = iWaterZone
+                            iHighestWZ = iOtherWaterZone
+                        else
+                            iLowestWZ = iOtherWaterZone
+                            iHighestWZ = iWaterZone
+                        end
+                        if not(tiWaterZonePairsConsideredByLowestWZ[iLowestWZ][iHighestWZ]) then
+                            if not(tiWaterZonePairsConsideredByLowestWZ[iLowestWZ]) then tiWaterZonePairsConsideredByLowestWZ[iLowestWZ] = {} end
+                            iNavalTravelDistance = M28Utilities.GetTravelDistanceBetweenPositions(tWZData[subrefMidpoint], tOtherWZData[subrefMidpoint], refPathingTypeNavy)
+                            if iNavalTravelDistance then
+                                iStartWZAdjacencyTablePosition = 1
+                                if M28Utilities.IsTableEmpty(tWZData[subrefWZOtherWaterZones]) then
+                                    tWZData[subrefWZOtherWaterZones] = {}
+                                else
+                                    for iEntry, tAdjacencySubtable in tWZData[subrefWZOtherWaterZones] do
+                                        if tAdjacencySubtable[subrefWZAWZDistance] < iNavalTravelDistance then
+                                            iStartWZAdjacencyTablePosition = iEntry + 1
+                                        else
+                                            --Since table is ordered by distance later entries should be furhter away
+                                            break
+                                        end
+                                    end
+                                end
+                                table.insert(tWZData[subrefWZOtherWaterZones], iStartWZAdjacencyTablePosition, {[subrefWZAWZRef] = iOtherWaterZone, [subrefWZAWZDistance] = iNavalTravelDistance})
+
+                                iEndWZAdjacencyTablePosition = 1
+                                if M28Utilities.IsTableEmpty(tOtherWZData[subrefWZOtherWaterZones]) then
+                                    tOtherWZData[subrefWZOtherWaterZones] = {}
+                                else
+                                    for iEntry, tAdjacencySubtable in tOtherWZData[subrefWZOtherWaterZones] do
+                                        if tAdjacencySubtable[subrefWZAWZDistance] < iNavalTravelDistance then
+                                            iEndWZAdjacencyTablePosition = iEntry + 1
+                                        else
+                                            --Since table is ordered by distance later entries should be furhter away
+                                            break
+                                        end
+                                    end
+                                end
+                                table.insert(tOtherWZData[subrefWZOtherWaterZones], iEndWZAdjacencyTablePosition, {[subrefWZAWZRef] = iWaterZone, [subrefWZAWZDistance] = iNavalTravelDistance})
+
+                                tiWaterZonePairsConsideredByLowestWZ[iLowestWZ][iHighestWZ] = true
+                            end
+                        end
+                    end--]]
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished considering all pathing for iWaterZone='..iWaterZone..'; tiWaterZonePairsConsideredByLowestWZ='..repru(tiWaterZonePairsConsideredByLowestWZ)..'; tWZData[subrefWZOtherWaterZones]='..repru(tWZData[subrefWZOtherWaterZones])) end
+            end
+
+            M28Profiler.FunctionProfiler(sFunctionRef..': Pond '..iPond, M28Profiler.refProfilerEnd)
+        end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    end
+
+    function CheckIfLowMexMap()
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'CheckIfLowMexMap'
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+        if not(bLowMexMapCheck) then
+            bLowMexMapCheck = true
+            local iTotalMexCount = 0
+            for iPlateau, tPlateauSubtable in tAllPlateaus do
+                iTotalMexCount = iTotalMexCount + (tPlateauSubtable[subrefPlateauTotalMexCount] or 0)
+            end
+            if bDebugMessages == true then LOG(sFunctionRef..': iTotalMexCount='..iTotalMexCount..'; Players at start='..M28Team.iPlayersAtGameStart) end
+
+            if iTotalMexCount <= M28Team.iPlayersAtGameStart * 2.5 then
+                --2.5 or fewer mexes per player - check total reclaim - cant rely on normal reclaiming tracking since likely hasnt been updated yet (and we need to know early on so we can decide whether to build a factory or not)
+                local rRect = Rect(rMapPlayableArea[1], rMapPlayableArea[2], rMapPlayableArea[3], rMapPlayableArea[4])
+                local iTotalReclaimMass = GetReclaimInRectangle(3, rRect)
+                if iTotalReclaimMass <= 200 then
+                    bIsLowMexMap = true
+                end
+                if bDebugMessages == true then LOG(sFunctionRef..': iTotalReclaimMass='..iTotalReclaimMass..'; bIsLowMexMap='..tostring(bIsLowMexMap)) end
+            end
+        end
+
+
+
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    end
+
+    function SetupMap()
+        --Sets up non-brain specific info on the map
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'SetupMap'
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+        --Send a message warning players this could take a while - moved to M28Overseer
+        --[[for iBrain, oBrain in ArmyBrains do
+            if oBrain.M28AI then
+                M28Chat.SendForkedMessage(oBrain, 'LoadingMap', 'Analysing map, this usually takes 1-2 minutes...', 0, 10000, false)
+            end
+        end--]]
+
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitTicks(4) --So chat message displays
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+        --Decide how accurate map related functions are to be based on the map size:
+        SetupPlayableAreaAndSegmentSizes()
+
+        --Generate pathing
+        if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; system time='..GetSystemTimeSecondsOnlyForProfileUse()..'; will generate navmesh if it isnt already generated, NavUtils.IsGenerated()='..tostring(NavUtils.IsGenerated())) end
+        if not(NavUtils.IsGenerated()) then
+            --local NavGen = import("/lua/sim/navgenerator.lua")
+            --NavGen.Generate()
+            if bDebugMessages == true then LOG('Considering whether to generate map markers for map generation, GameTime='..GetGameTimeSeconds()..'; M28Overseer.bBeginSessionTriggered='..tostring(M28Overseer.bBeginSessionTriggered)) end
+            while (not(M28Overseer.bBeginSessionTriggered) and GetGameTimeSeconds() < 4) do
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitTicks(1)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            end
+            NavUtils.Generate()
+        end
+
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitTicks(1) --Redundancy so chat message displays
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+        GetMapWaterHeight()
+
+        --Create table that stores details for each pathing group (e.g. land, amphibious) each mex in that group for easy reference later
+        RecordMexForPathingGroup()
+
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        WaitTicks(1) --want to make sure our chat message displays (redundancy as moved to earlier now)
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+        --Create table with details on all plateaus (initially just those with mexes, although the land zone logic may add to this)
+        RecordAllPlateaus() --Needed first since will organise land zones by plateau
+        if bDebugMessages == true then LOG(sFunctionRef..': After RecordAllPlateaus, system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
+
+        --Setup land zones
+        SetupLandZones()
+        if bDebugMessages == true then LOG(sFunctionRef..': After SetuplandZones, system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
+
+
+        RecordPondDetails()
+
+        bMapLandSetupComplete = true
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished setting up land aspects of the map, will move on to water zones, time='..GetGameTimeSeconds()..'; system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
+        SetupWaterZones() --Includes a wait to make sure we have M28 brains
+        RecordIslands()
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished setting up water zones, will also now clal forked threads for other aspects, time='..GetGameTimeSeconds()..'; system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
+        ForkThread(ClearTemporarySetupVariables)
+        ForkThread(ReclaimManager)
+
+        --Campaign specific - reduce playable area to the current playable area (once have setup all zones based on full map size)
+        if bIsCampaignMap then
+            SetupPlayableAreaAndSegmentSizes()
+        end
+
+        CheckIfLowMexMap()
+
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    end
+
+    --function GetDistanceFromStartAdjustedForDistanceFromMid()  end -- have replaced with GetModDistanceFromStart
+    function GetModDistanceFromStart(aiBrain, tTarget, bUseEnemyStartInstead)
+        local sFunctionRef = 'GetModDistanceFromStart'
+        local bDebugMessages = false
+        if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        if bDebugMessages == true then
+            LOG(sFunctionRef .. ': Start of code, GameTime=' .. GetGameTimeSeconds() .. '; aiBrain army index=' .. aiBrain:GetArmyIndex() .. '; tTarget=' .. repru(tTarget) .. '; bUseEnemyStartInstead=' .. tostring((bUseEnemyStartInstead or false)) .. '; will draw the location in white')
+            M28Utilities.DrawLocation(tTarget, false, 7, 20, nil)
+        end
+
+        local iEmergencyRangeToUse = 50
+
+        local tStartPos
+        local tEnemyBase
+        if bUseEnemyStartInstead then
+            tStartPos = GetPrimaryEnemyBaseLocation(aiBrain)
+            tEnemyBase = PlayerStartPoints[aiBrain:GetArmyIndex()]
+        else
+            tStartPos = PlayerStartPoints[aiBrain:GetArmyIndex()]
+            tEnemyBase = GetPrimaryEnemyBaseLocation(aiBrain)
+        end
+
+        local iDistStartToTarget = M28Utilities.GetDistanceBetweenPositions(tStartPos, tTarget)
+        if bDebugMessages == true then LOG(sFunctionRef .. ': tStartPos=' .. repru(tStartPos) .. '; iDistStartToTarget=' .. iDistStartToTarget .. '; iEmergencyRangeToUse=' .. iEmergencyRangeToUse) end
+
+        if iDistStartToTarget <= iEmergencyRangeToUse then
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            if bDebugMessages == true then LOG(sFunctionRef .. ': Are within emergency range so will just return actual dist, iDistStartToTarget=' .. iDistStartToTarget .. '; if instead we only had 1 enemy and got mod dist for this the result would be ' .. math.cos(math.abs(M28Utilities.ConvertAngleToRadians(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, GetPrimaryEnemyBaseLocation(aiBrain))))) * iDistStartToTarget) end
+
+            return iDistStartToTarget
+        else
+            --If only 1 enemy group then treat anywhere behind us as the emergency range
+            if bUseEnemyStartInstead then
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                if bDebugMessages == true then LOG(sFunctionRef .. ': will ignore multiple enemies since have flagged to use enemy start instead, will return ' .. math.cos(M28Utilities.ConvertAngleToRadians(math.abs(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, PlayerStartPoints[aiBrain:GetArmyIndex()])))) * iDistStartToTarget) end
+
+                return iEmergencyRangeToUse, math.cos(math.abs(M28Utilities.ConvertAngleToRadians(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, tEnemyBase)))) * iDistStartToTarget
+            else
+                local bIsBehindUs = true
+                if bDebugMessages == true then LOG(sFunctionRef .. ': Is table of enemy brains empty=' .. tostring(M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains]))) end
+
+                if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains]) then
+                    if M28Utilities.GetDistanceBetweenPositions(tTarget, tEnemyBase) < M28Utilities.GetDistanceBetweenPositions(tStartPos, tEnemyBase) or M28Utilities.GetDistanceBetweenPositions(tTarget, tStartPos) > M28Utilities.GetDistanceBetweenPositions(tStartPos, tEnemyBase) then
+                        bIsBehindUs = false
+                    end
+                else
+                    for iEnemyGroup, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains] do
+                        if bDebugMessages == true then LOG(sFunctionRef .. ': Distance from target to start=' .. M28Utilities.GetDistanceBetweenPositions(tTarget, tStartPos) .. '; Distance from start to enemy base=' .. M28Utilities.GetDistanceBetweenPositions(tStartPos, PlayerStartPoints[oBrain:GetArmyIndex()])) end
+
+                        if M28Utilities.GetDistanceBetweenPositions(tTarget, PlayerStartPoints[oBrain:GetArmyIndex()]) < M28Utilities.GetDistanceBetweenPositions(tStartPos, PlayerStartPoints[oBrain:GetArmyIndex()]) or M28Utilities.GetDistanceBetweenPositions(tTarget, tStartPos) > M28Utilities.GetDistanceBetweenPositions(tStartPos, PlayerStartPoints[oBrain:GetArmyIndex()]) then
+                            bIsBehindUs = false
+                            break
+                        end
+                    end
+                end
+
+                if bIsBehindUs then
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    if bDebugMessages == true then LOG(sFunctionRef .. ': Will return emergency range as enemy is behind us, so returning ' .. iEmergencyRangeToUse) end
+
+                    return iEmergencyRangeToUse
+                else
+                    --Cycle through each enemy group and get lowest value, but stop if <= emergency range
+                    local iCurDist
+                    local iLowestDist = 10000
+                    if M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains]) then
+                        iLowestDist = math.cos(M28Utilities.ConvertAngleToRadians(math.abs(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, tEnemyBase)))) * iDistStartToTarget
+                    else
+                        for iBrain, oBrain in M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftoEnemyBrains] do
+                            iCurDist = math.cos(M28Utilities.ConvertAngleToRadians(math.abs(M28Utilities.GetAngleFromAToB(tStartPos, tTarget) - M28Utilities.GetAngleFromAToB(tStartPos, PlayerStartPoints[oBrain:GetArmyIndex()])))) * iDistStartToTarget
+                            if bDebugMessages == true then LOG(sFunctionRef .. ': iCurDist for enemy oBrain index ' .. oBrain:GetArmyIndex() .. ' = ' .. iCurDist .. '; Enemy base=' .. repru(PlayerStartPoints[oBrain:GetArmyIndex()]) .. '; tEnemyBase=' .. repru(tEnemyBase) .. '; Angle from start to target=' .. M28Utilities.GetAngleFromAToB(tStartPos, tTarget) .. '; Angle from Start to enemy base=' .. M28Utilities.GetAngleFromAToB(tStartPos, PlayerStartPoints[oBrain:GetArmyIndex()]) .. '; iDistStartToTarget=' .. iDistStartToTarget) end
+
+                            if iCurDist < iLowestDist then
+                                iLowestDist = iCurDist
+                                if iLowestDist < iEmergencyRangeToUse then
+                                    iLowestDist = iEmergencyRangeToUse
+                                    break
+                                end
+                            end
+                        end
+                    end
+
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    if bDebugMessages == true then LOG(sFunctionRef .. ': iLowestDist=' .. iLowestDist) end
+
+                    return iLowestDist
+                end
+            end
+        end
+    end
+
+    function RecordAvailableMassStorageLocationsForLandZone(iPlateau, iLandZone)
+        local tLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
+        tLZData[subrefLZMassStorageLocationsAvailable] = {}
+        if M28Utilities.IsTableEmpty(tLZData[subrefLZMexLocations]) == false then
+            local tiXZOffset = {{-2,0}, {0, -2}, {0, 2}, {2, 0}}
+            local tCurPos
+            for iMex, tMex in tLZData[subrefLZMexLocations] do
+                for iOffset, tXZOffset in tiXZOffset do
+                    tCurPos = {tMex[1] + tXZOffset[1], 0, tMex[3] + tXZOffset[2]}
+                    tCurPos[2] = GetSurfaceHeight(tCurPos[1], tCurPos[3])
+                    if M28Conditions.CanBuildStorageAtLocation(tCurPos) then
+                        table.insert(tLZData[subrefLZMassStorageLocationsAvailable], tCurPos)
+                    end
+                end
+            end
+        end
+    end
+
+    function RecordMassStorageLocationsForEachLandZone()
+        for iPlateau, tPlateauSubtable in tAllPlateaus do
+            for iLandZone, tLZSubtable in tPlateauSubtable[subrefPlateauLandZones] do
+                RecordAvailableMassStorageLocationsForLandZone(iPlateau, iLandZone)
+            end
+        end
+    end
+
+
+    function GetReclaimLocationFromSegment(iReclaimSegmentX, iReclaimSegmentZ)
+        --e.g. segment (1,1) will be 0 to ReclaimSegmentSizeX and 0 to ReclaimSegmentSizeZ in size
+        --This will return the midpoint
+        local iX = math.max(rMapPotentialPlayableArea[1], math.min(rMapPotentialPlayableArea[3], (iReclaimSegmentX - 0.5) * iReclaimSegmentSizeX))
+        local iZ = math.max(rMapPotentialPlayableArea[2], math.min(rMapPotentialPlayableArea[4], (iReclaimSegmentZ - 0.5) * iReclaimSegmentSizeZ))
+        return {iX, GetSurfaceHeight(iX, iZ), iZ}
+    end
+
+    function GetReclaimSegmentsFromLocation(tLocation)
+        return math.ceil(tLocation[1] / iReclaimSegmentSizeX), math.ceil(tLocation[3] / iReclaimSegmentSizeZ)
+    end
+
+    function ReclaimManager()
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end --set to true for certain positions where want logs to print
+        local sFunctionRef = 'ReclaimManager'
+
+        local tAreasToUpdateThisCycle
+        local iUpdateCount = 0
+        local iMaxUpdatesPerTick
+        local iWaitCount
+        local iLoopCount
+        if not(bReclaimManagerActive) then
+            bReclaimManagerActive = true
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart) --Want the profile coutn to reflect the number of times actually running the core code
+
+            while bReclaimManagerActive do
+                if bDebugMessages == true then LOG(sFunctionRef..': Start of main active loop') end
+
+                tAreasToUpdateThisCycle = {}
+                iUpdateCount = 0
+                iWaitCount = 0
+                if M28Utilities.IsTableEmpty(tReclaimSegmentsToUpdate) then
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                     WaitTicks(10)
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                 else
-                    iMaxUpdatesPerTick = math.max(5, math.min(20, math.ceil(iUpdateCount / 10)))
-                    iLoopCount = 0
-                    if bDebugMessages == true then LOG(sFunctionRef..': About to update for iUpdateCount='..iUpdateCount..' entries; max updates per tick='..iMaxUpdatesPerTick..'; tAreasToUpdateThisCycle='..repru(tAreasToUpdateThisCycle)) end
-                    for iSegmentX, tSubtable1 in tAreasToUpdateThisCycle do
-                        for iSegmentZ, tSubtable2 in tAreasToUpdateThisCycle[iSegmentX] do
-                            iLoopCount = iLoopCount + 1
-                            if iLoopCount > iMaxUpdatesPerTick then
-                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                                WaitTicks(1)
-                                iWaitCount = iWaitCount + 1
-                                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-                                iLoopCount = 1
+                    --Copy table into tAreasToUpdateThisCycle
+                    if bDebugMessages == true then
+                        LOG(sFunctionRef..': GameTime='..GetGameTimeSeconds()..'; Will list out all entries in tReclaimSegmentsToUpdate if it isnt nil')
+                        if tReclaimSegmentsToUpdate then LOG(repru(tReclaimSegmentsToUpdate)) end
+                    end
+                    for iEntry, tSubtable in tReclaimSegmentsToUpdate do
+                        if (tSubtable[2] or 0) > 0 and (tSubtable[1] or 0) > 0 then --Dont bother updating places right on map edge in case pathfinding issue
+                            if not(tAreasToUpdateThisCycle[tSubtable[1]]) then tAreasToUpdateThisCycle[tSubtable[1]] = {} end
+                            if not(tAreasToUpdateThisCycle[tSubtable[1]][tSubtable[2]]) then
+                                iUpdateCount = iUpdateCount + 1
+                                tAreasToUpdateThisCycle[tSubtable[1]][tSubtable[2]] = true
                             end
-                            if bDebugMessages == true then LOG(sFunctionRef..': About to update reclaim data for segments '..iSegmentX..'-'..iSegmentZ) end
-                            UpdateReclaimDataNearSegments(iSegmentX, iSegmentZ, 0, nil)
                         end
                     end
-                    if iWaitCount < 10 then
+                    --Clear the table for the next cycle
+                    tReclaimSegmentsToUpdate = {}
+                    if iUpdateCount == 0 then
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                        WaitTicks(10 - iWaitCount)
+                        WaitTicks(10)
                         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-                    end
-                end
-            end
-        end
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    end
-end
-
-function CreateReclaimSegment(iReclaimSegmentX, iReclaimSegmentZ)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end --set to true for certain positions where want logs to print
-    local sFunctionRef = 'CreateReclaimSegment'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-
-
-    tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ] = {}
-    tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint] = GetReclaimLocationFromSegment(iReclaimSegmentX, iReclaimSegmentZ)
-    --tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refsSegmentMidpointLocationRef] = M28Utilities.ConvertLocationToReference(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint])
-    local iPlateau, iLandZone = GetPlateauAndLandZoneReferenceFromPosition(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint])
-    if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, iReclaimSegmentX='..iReclaimSegmentX..'Z'..iReclaimSegmentZ..'; Time of '..GetGameTimeSeconds()..'; iPlateau='..(iPlateau or 'nil')..'; iLandZOne='..(iLandZone or 'nil')) end
-    if (iPlateau or 0) == 0 then
-        --If we get the reclaim location, is it in a pathable area, or within 2 of a pathable area?
-        local rRect = M28Utilities.GetRectAroundLocation(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint], iReclaimSegmentSizeX * 0.5)
-        local tReclaimables = GetReclaimInRectangle(4, rRect)
-        if M28Utilities.IsTableEmpty(tReclaimables) == false then
-            local iCurPlateau, iCurLandZone
-            local tiXZOffset = {{-2,-2}, {-2, 2}, {2, -2}, {2, 2}}
-            for iReclaim, oReclaim in tReclaimables do
-                iCurPlateau, iCurLandZone = GetPlateauAndLandZoneReferenceFromPosition(oReclaim.CachePosition)
-                if (iCurPlateau or 0) == 0 then
-                    --Search nearby
-                    for _, tiXZAdjust in tiXZOffset do
-                        iCurPlateau, iCurLandZone = GetPlateauAndLandZoneReferenceFromPosition({oReclaim.CachePosition[1] + tiXZAdjust[1], oReclaim.CachePosition[2], oReclaim.CachePosition[3] + tiXZAdjust[2]})
-                        if (iCurPlateau or 0) > 0 then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Reclaim location '..repru(oReclaim.CachePosition)..' isnt pathable but if we adjust by '..repru(tiXZAdjust)..' then it becomes pathable, adjusted position='..repru({oReclaim.CachePosition[1] + tiXZAdjust[1], oReclaim.CachePosition[2], oReclaim.CachePosition[3] + tiXZAdjust[2]})..'; iCurPlateau='..iCurPlateau..'; iCurLandZone='..(iCurLandZone or 'nil')) end
-                            break
+                    else
+                        iMaxUpdatesPerTick = math.max(5, math.min(20, math.ceil(iUpdateCount / 10)))
+                        iLoopCount = 0
+                        if bDebugMessages == true then LOG(sFunctionRef..': About to update for iUpdateCount='..iUpdateCount..' entries; max updates per tick='..iMaxUpdatesPerTick..'; tAreasToUpdateThisCycle='..repru(tAreasToUpdateThisCycle)) end
+                        for iSegmentX, tSubtable1 in tAreasToUpdateThisCycle do
+                            for iSegmentZ, tSubtable2 in tAreasToUpdateThisCycle[iSegmentX] do
+                                iLoopCount = iLoopCount + 1
+                                if iLoopCount > iMaxUpdatesPerTick then
+                                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                                    WaitTicks(1)
+                                    iWaitCount = iWaitCount + 1
+                                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                                    iLoopCount = 1
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': About to update reclaim data for segments '..iSegmentX..'-'..iSegmentZ) end
+                                UpdateReclaimDataNearSegments(iSegmentX, iSegmentZ, 0, nil)
+                            end
                         end
-                    end
-                else
-                    if bDebugMessages == true then LOG(sFunctionRef..': Reclaim midpoint '..repru(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint])..' isnt pathable but the reclaim position itself, '..repru(oReclaim.CachePosition)..' is pathable, iCurPlateau='..iCurPlateau..'; iCurLandZone='..(iCurLandZone or 'nil')) end
-                end
-                if (iCurPlateau or 0) > 0 then
-                    iPlateau = iCurPlateau
-                    iLandZone = iCurLandZone
-                    break
-                end
-            end
-        end
-
-    end
-    if bDebugMessages == true then LOG(sFunctionRef..': Adding iReclaimSegmentX-Z'..iReclaimSegmentX..'-'..iReclaimSegmentZ..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
-    if (iLandZone or 0) > 0 then
-        --Record in the land zone
-        if not(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefReclaimSegments]) then
-            tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefReclaimSegments] = {}
-        end
-        table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefReclaimSegments], {iReclaimSegmentX, iReclaimSegmentZ})
-        if bDebugMessages == true then
-            LOG(sFunctionRef..': Finished adding reclaim segment to LZ, all reclaim segments for this LZ='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefReclaimSegments]))
-            local rCurRect = M28Utilities.GetRectAroundLocation(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint], iReclaimSegmentSizeX * 0.5)
-            M28Utilities.DrawRectangle(rCurRect, 4)
-        end
-    elseif (iPlateau or 0) > 0 then
-        --Record in the water zone
-        local iWaterZone = GetWaterZoneFromPosition(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint])
-        if (iWaterZone or 0) > 0 then
-            local iPond = tiPondByWaterZone[iWaterZone]
-            local tWZData = tPondDetails[iPond][subrefPondWaterZones][iWaterZone]
-            if not(tWZData[subrefReclaimSegments]) then tWZData[subrefReclaimSegments] = {} end
-            table.insert(tWZData[subrefReclaimSegments], {iReclaimSegmentX, iReclaimSegmentZ})
-            if bDebugMessages == true then
-                LOG(sFunctionRef..': Finished adding reclaim segment to WZ, all reclaim segments for this WZ='..repru(tWZData[subrefReclaimSegments]))
-                local rCurRect = M28Utilities.GetRectAroundLocation(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint], iReclaimSegmentSizeX * 0.5)
-                M28Utilities.DrawRectangle(rCurRect, 4)
-            end
-        end
-    end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-end
-
-function RefreshLandOrWaterZoneReclaimValue(iPlateauOrPond, iLandOrWaterZone, bIsWaterZone)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end --set to true for certain positions where want logs to print
-    local sFunctionRef = 'RefreshLandOrWaterZoneReclaimValue'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-    local tLZOrWZData
-    if bIsWaterZone then tLZOrWZData = tPondDetails[iPlateauOrPond][subrefPondWaterZones][iLandOrWaterZone]
-    else
-        tLZOrWZData = tAllPlateaus[iPlateauOrPond][subrefPlateauLandZones][iLandOrWaterZone]
-    end
-    tLZOrWZData[subrefLastReclaimRefresh] = GetGameTimeSeconds()
-    local iMassReclaim = 0
-    local iEnergyReclaim = 0
-    if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; bIsWaterZone='..tostring(bIsWaterZone or false)..'; Considering PlateauOrPond='..iPlateauOrPond..'; iLandOrWaterZone='..iLandOrWaterZone..'; Is table of LZ or WZ reclaim segments empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[subrefReclaimSegments]))) end
-    if M28Utilities.IsTableEmpty(tLZOrWZData[subrefReclaimSegments]) == false then
-        for iSegmentCount, tSegmentXZ in tLZOrWZData[subrefReclaimSegments] do
-            if bDebugMessages == true then LOG(sFunctionRef..': Considering tSegmentXZ='..tSegmentXZ[1]..'-'..tSegmentXZ[2]..'; total mass in this segment='..tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refReclaimTotalMass]) end
-            iMassReclaim = iMassReclaim + tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refReclaimTotalMass]
-            iEnergyReclaim = iEnergyReclaim + tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refSegmentReclaimTotalEnergy]
-        end
-    end
-    tLZOrWZData[subrefTotalMassReclaim] = iMassReclaim
-    tLZOrWZData[subrefLZTotalEnergyReclaim] = iEnergyReclaim
-    if bDebugMessages == true then LOG(sFunctionRef..': End of code, iMassReclaim='..iMassReclaim..'; LZ reclaim='..tLZOrWZData[subrefTotalMassReclaim]) end
-
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-end
-
-function GetReclaimablesMassAndEnergy(tReclaimables, iMinMass, iMinEnergy)
-    --Largely a copy of GetReclaimablesResourceValue, but focused specificaly on the reclaim segment update logic
-    --Must have at least iMinMass or iMinEnergy to be recorded
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'GetReclaimablesMassAndEnergy'
-    --V14 and earlier would modify total mass value to reduce it by 25% if its small, and 50% if its medium; v15 removed this
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-    local sMassRef = 'MaxMassReclaim'
-    local sEnergyRef = 'MaxEnergyReclaim'
-
-    local tWreckPos = {}
-    local iTotalMass = 0
-    local iTotalEnergy = 0
-
-    local iLargestCurReclaim = 0
-    local iLargestReclaimRef = 0
-
-    if tReclaimables and table.getn( tReclaimables ) > 0 then
-        for iReclaimRef, v in tReclaimables do
-            tWreckPos = v.CachePosition
-            if tWreckPos[1] then
-                --if v.MaxMassReclaim > iIgnoreReclaimIfNotMoreThanThis then
-                if v[sMassRef] > iMinMass or v[sEnergyRef] > iMinEnergy then
-                    if not(v:BeenDestroyed()) then
-                        iTotalMass = iTotalMass + v[sMassRef]
-                        iTotalEnergy = iTotalEnergy + v[sEnergyRef]
-                        if v[sMassRef] > iLargestCurReclaim then
-                            iLargestCurReclaim = v[sMassRef]
-                            iLargestReclaimRef = iReclaimRef
+                        if iWaitCount < 10 then
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                            WaitTicks(10 - iWaitCount)
+                            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
                         end
                     end
                 end
-            else
-                if not(v.MaxMassReclaim == nil) then
-                    if v.MaxMassReclaim > 0 then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Warning - have ignored wreck location despite it having a mass reclaim value') end
-                    end
-                end
             end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         end
     end
-    local tReclaimPos
-    if iLargestReclaimRef then tReclaimPos = {tReclaimables[iLargestReclaimRef][1], tReclaimables[iLargestReclaimRef][2], tReclaimables[iLargestReclaimRef][3]} end
 
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    return iTotalMass, tReclaimPos, iLargestCurReclaim, iTotalEnergy
-end
+    function CreateReclaimSegment(iReclaimSegmentX, iReclaimSegmentZ)
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end --set to true for certain positions where want logs to print
+        local sFunctionRef = 'CreateReclaimSegment'
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-function UpdateReclaimDataNearSegments(iBaseSegmentX, iBaseSegmentZ, iSegmentRange)
-    --Updates reclaim data for all segments within iSegmentRange of tLocation
 
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end --set to true for certain positions where want logs to print
-    local sFunctionRef = 'UpdateReclaimDataNearSegments'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart) --Want the profile coutn to reflect the number of times actually running the core code
 
-    local iMinValueOfIndividualReclaim = 2.5
-    local iMinEnergyValue = 15
-
-    local iTotalMassValue, tReclaimables, iLargestCurReclaim, tReclaimPos, iTotalEnergyValue
-    local iCumulativeMassValue = 0
-
-    if bDebugMessages == true then
-        LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; About to update for iBaseSegmentX='..(iBaseSegmentX or 'nil')..'; iSegmentRange='..(iSegmentRange or 'nil')..'; iBaseSegmentZ='..(iBaseSegmentZ or 'nil'))
-    end
-
-    local iPlateau, iLandZone
-
-    for iCurX = iBaseSegmentX - iSegmentRange, iBaseSegmentX + iSegmentRange do
-        for iCurZ = iBaseSegmentZ - iSegmentRange, iBaseSegmentZ + iSegmentRange do
-            iTotalMassValue = 0
-            tReclaimables = GetReclaimablesInRect(Rect((iCurX - 1) * iReclaimSegmentSizeX, (iCurZ - 1) * iReclaimSegmentSizeZ, iCurX * iReclaimSegmentSizeX, iCurZ * iReclaimSegmentSizeZ))
-            iLargestCurReclaim = 0
-
-            if bDebugMessages == true then LOG(sFunctionRef..': iCurX='..iCurX..'; iCurZ='..iCurZ..'; iReclaimSegmentSizeX='..iReclaimSegmentSizeX..'; iReclaimSegmentSizeZ='..iReclaimSegmentSizeZ..'; Reclaim search rect='..repru(Rect((iCurX - 1) * iReclaimSegmentSizeX, (iCurZ - 1) * iReclaimSegmentSizeZ, iCurX * iReclaimSegmentSizeX, iCurZ * iReclaimSegmentSizeZ))..'; Is tReclaimables empty='..tostring(M28Utilities.IsTableEmpty(tReclaimables))) end
-
-            if tReclaimables and table.getn( tReclaimables ) > 0 then
-                -- local iWreckCount = 0
-                --local bIsProp = nil  --only used for log/testing
-                if bDebugMessages == true then LOG('Have wrecks within the segment iCurXZ='..iCurX..'-'..iCurZ) end
-                iTotalMassValue, tReclaimPos, iLargestCurReclaim, iTotalEnergyValue = GetReclaimablesMassAndEnergy(tReclaimables, iMinValueOfIndividualReclaim, iMinEnergyValue)
-                --Record this table:
-                if tReclaimAreas[iCurX] == nil then
-                    tReclaimAreas[iCurX] = {}
-                    if bDebugMessages == true then LOG('Setting table to nothing as is currently nil; iCurX='..iCurX) end
-                end
-                if tReclaimAreas[iCurX][iCurZ] == nil then
-                    CreateReclaimSegment(iCurX, iCurZ)
-                end
-                --tReclaimAreas[iCurX][iCurZ][refiReclaimTotalPrev] = (tReclaimAreas[iCurX][iCurZ][refReclaimTotalMass] or 0)
-                tReclaimAreas[iCurX][iCurZ][refReclaimTotalMass] = iTotalMassValue
-                tReclaimAreas[iCurX][iCurZ][refReclaimHighestIndividualReclaim] = iLargestCurReclaim
-                --tReclaimAreas[iCurX][iCurZ][refReclaimHighestIndividualReclaim] = iLargestCurReclaim
-                --iHighestReclaimInASegment = math.max(iHighestReclaimInASegment, iTotalMassValue)
-                tReclaimAreas[iCurX][iCurZ][refSegmentReclaimTotalEnergy] = iTotalEnergyValue
-                iPlateau, iLandZone = GetPlateauAndLandZoneReferenceFromPosition(tReclaimAreas[iCurX][iCurZ][refReclaimSegmentMidpoint])
-                if bDebugMessages == true then LOG(sFunctionRef..': Reclaim segment midpoint='..repru(tReclaimAreas[iCurX][iCurZ][refReclaimSegmentMidpoint])..'; iPlateau for this='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
-                if iLandZone > 0 then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Time of last refresh for land zone '..iLandZone..'='.. (tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLastReclaimRefresh] or 0)) end
-                    if GetGameTimeSeconds() - (tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLastReclaimRefresh] or 0) >= 1 then
-                        if bDebugMessages == true then LOG(sFunctionRef..': Will refresh the reclaim value for land zone '..iLandZone) end
-                        RefreshLandOrWaterZoneReclaimValue(iPlateau, iLandZone)
-                    end
-                else
-                    local iWaterZone = GetWaterZoneFromPosition(tReclaimAreas[iCurX][iCurZ][refReclaimSegmentMidpoint])
-                    if (iWaterZone or 0) > 0 then
-                        local iPond = tiPondByWaterZone[iWaterZone]
-                        if bDebugMessages == true then LOG(sFunctionRef..': Time of last refresh for water zone '..iWaterZone..'='.. (tPondDetails[iPond][subrefPondWaterZones][iWaterZone][subrefLastReclaimRefresh] or 0)) end
-                        if GetGameTimeSeconds() - (tPondDetails[iPond][subrefPondWaterZones][iWaterZone][subrefLastReclaimRefresh] or 0) >= 1 then
-                            if bDebugMessages == true then LOG(sFunctionRef..': Will refresh the reclaim value for land zone '..iLandZone) end
-                            RefreshLandOrWaterZoneReclaimValue(iPond, iWaterZone, true)
+        tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ] = {}
+        tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint] = GetReclaimLocationFromSegment(iReclaimSegmentX, iReclaimSegmentZ)
+        --tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refsSegmentMidpointLocationRef] = M28Utilities.ConvertLocationToReference(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint])
+        local iPlateau, iLandZone = GetPlateauAndLandZoneReferenceFromPosition(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint])
+        if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, iReclaimSegmentX='..iReclaimSegmentX..'Z'..iReclaimSegmentZ..'; Time of '..GetGameTimeSeconds()..'; iPlateau='..(iPlateau or 'nil')..'; iLandZOne='..(iLandZone or 'nil')) end
+        if (iPlateau or 0) == 0 then
+            --If we get the reclaim location, is it in a pathable area, or within 2 of a pathable area?
+            local rRect = M28Utilities.GetRectAroundLocation(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint], iReclaimSegmentSizeX * 0.5)
+            local tReclaimables = GetReclaimInRectangle(4, rRect)
+            if M28Utilities.IsTableEmpty(tReclaimables) == false then
+                local iCurPlateau, iCurLandZone
+                local tiXZOffset = {{-2,-2}, {-2, 2}, {2, -2}, {2, 2}}
+                for iReclaim, oReclaim in tReclaimables do
+                    iCurPlateau, iCurLandZone = GetPlateauAndLandZoneReferenceFromPosition(oReclaim.CachePosition)
+                    if (iCurPlateau or 0) == 0 then
+                        --Search nearby
+                        for _, tiXZAdjust in tiXZOffset do
+                            iCurPlateau, iCurLandZone = GetPlateauAndLandZoneReferenceFromPosition({oReclaim.CachePosition[1] + tiXZAdjust[1], oReclaim.CachePosition[2], oReclaim.CachePosition[3] + tiXZAdjust[2]})
+                            if (iCurPlateau or 0) > 0 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Reclaim location '..repru(oReclaim.CachePosition)..' isnt pathable but if we adjust by '..repru(tiXZAdjust)..' then it becomes pathable, adjusted position='..repru({oReclaim.CachePosition[1] + tiXZAdjust[1], oReclaim.CachePosition[2], oReclaim.CachePosition[3] + tiXZAdjust[2]})..'; iCurPlateau='..iCurPlateau..'; iCurLandZone='..(iCurLandZone or 'nil')) end
+                                break
+                            end
                         end
+                    else
+                        if bDebugMessages == true then LOG(sFunctionRef..': Reclaim midpoint '..repru(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint])..' isnt pathable but the reclaim position itself, '..repru(oReclaim.CachePosition)..' is pathable, iCurPlateau='..iCurPlateau..'; iCurLandZone='..(iCurLandZone or 'nil')) end
                     end
-                end
-
-
-            end
-            iCumulativeMassValue = iCumulativeMassValue + iTotalMassValue
-        end
-    end
-    if bDebugMessages == true then LOG(sFunctionRef..': End of code, iCumulativeMassValue='..iCumulativeMassValue..'; SystemTime='..GetSystemTimeSecondsOnlyForProfileUse()) end
-
-    --M28Profiler.tiProfilerEndCountByFunction[sFunctionRef] = (M28Profiler.tiProfilerStartCountByFunction[sFunctionRef] or 0) + 1 LOG(sFunctionRef..': M28Profiler.tiProfilerEndCountByFunction[sFunctionRef]='..M28Profiler.tiProfilerEndCountByFunction[sFunctionRef])
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    return iCumulativeMassValue
-end
-
-function RecordThatWeWantToUpdateReclaimAtLocation(tLocation, iNearbySegmentsToUpdate)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end --set to true for certain positions where want logs to print
-    local sFunctionRef = 'RecordThatWeWantToUpdateReclaimAtLocation'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-    if iReclaimSegmentSizeX == 0 then
-        M28Utilities.ErrorHandler('Dont have a reclaim segment size specified, will set it to 8.5, but something else has likely gone wrong')
-        iReclaimSegmentSizeX = 8.5
-        iReclaimSegmentSizeZ = 8.5
-    end
-    local iReclaimSegmentX, iReclaimSegmentZ = GetReclaimSegmentsFromLocation(tLocation)
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time='..GetGameTimeSeconds()..'; tLocation='..repru(tLocation)..'; iReclaimSegmentX-Z='..iReclaimSegmentX..'-'..iReclaimSegmentZ) end
-    if iReclaimSegmentX >= 10000 or iNearbySegmentsToUpdate >= 10000 or iReclaimSegmentZ >= 10000 then M28Utilities.ErrorHandler('Likely infinite loop about to start. iReclaimSegmentX='..(iReclaimSegmentX or 'nil')..'; iNearbySegmentsToUpdate='..(iNearbySegmentsToUpdate or 'nil')..'; iReclaimSegmentSizeX='..(iReclaimSegmentSizeX or 'nil')..'; iReclaimSegmentSizeZ='..(iReclaimSegmentSizeX or 'nil')..'; rMapPotentialPlayableArea='..repru(rMapPotentialPlayableArea or {'nil'})..'; iMaxSegmentInterval='..(iMaxSegmentInterval or 'nil'))
-    else
-
-        if iNearbySegmentsToUpdate then
-            for iSegmentX = iReclaimSegmentX - iNearbySegmentsToUpdate, iReclaimSegmentX + iNearbySegmentsToUpdate do
-                for iSegmentZ = iReclaimSegmentZ - iNearbySegmentsToUpdate, iReclaimSegmentZ + iNearbySegmentsToUpdate do
-                    if bDebugMessages == true then LOG(sFunctionRef..': Will record that we want to update the reclaim segment XZ='..iSegmentX..'-'..iSegmentZ) end
-                    RecordThatWeWantToUpdateReclaimSegment(iSegmentX, iSegmentZ)
-                end
-            end
-        else
-            if bDebugMessages == true then LOG(sFunctionRef..': Will record that we want to update the base reclaim segment XZ='..iReclaimSegmentX..'-'..iReclaimSegmentZ) end
-            RecordThatWeWantToUpdateReclaimSegment(iReclaimSegmentX, iReclaimSegmentZ)
-        end
-    end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-end
-
-function RecordThatWeWantToUpdateReclaimSegment(iReclaimSegmentX, iReclaimSegmentZ)
-    if iReclaimSegmentX >= 0 and iReclaimSegmentZ >= 0 then table.insert(tReclaimSegmentsToUpdate, {iReclaimSegmentX, iReclaimSegmentZ}) end
-end
-
-
-function GetTravelDistanceBetweenLandZones(iPlateau, iStartLZ, iEndLZ)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'GetTravelDistanceBetweenLandZones'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-
-    local tStartLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLZ]
-
-
-    if not(tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ]) then
-        if not(tStartLZData[subrefLZTravelDistToOtherLandZones]) then tStartLZData[subrefLZTravelDistToOtherLandZones] = {} end
-        if not(tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau]) then tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau] = {} end
-        if not(tStartLZData[subrefMidpoint]) then RecordMidpointAndOtherDataForZone(iPlateau, iStartLZ, tStartLZData) end --redundancy
-        if bDebugMessages == true then LOG(sFunctionRef..': About to record travel distance for iPlateau '..(iPlateau or 'nil')..'; iStartLZ '..(iStartLZ or 'nil')..'; iEndLZ='..(iEndLZ or 'nil')..'; start midpoint='..repru(tStartLZData[subrefMidpoint])..'; End LZ midpoint='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iEndLZ][subrefMidpoint])) end
-        tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ] = M28Utilities.GetTravelDistanceBetweenPositions(tStartLZData[subrefMidpoint], tAllPlateaus[iPlateau][subrefPlateauLandZones][iEndLZ][subrefMidpoint], refPathingTypeLand)
-    end
-    if bDebugMessages == true then LOG(sFunctionRef..': Travel distance from iStartLZ='..iStartLZ..' to iEndLZ='..iEndLZ..' is '..(tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ] or 'nil')) end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    return tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ]
-end
-
-
-function GetPositionAtOrNearTargetInPathingGroup(tStartPos, tTargetPos, iDistanceFromTargetToStart, iAngleAdjust, oPathingUnit, bMoveCloserBeforeFurtherIfBlocked, bCheckIfExistingTargetIsBetter, iMinDistanceFromExistingCommandTarget)
-    --Intended as a rewriting of GetPositionNearTargetInSamePathingGroup due to some inconsistencies arising with the below, to make use of new logic that allows any angle; introduced from v15
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'GetPositionAtOrNearTargetInPathingGroup'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-
-
-    --Get angle from target to start
-    local iAngleFromTargetToStart = M28Utilities.GetAngleFromAToB(tTargetPos, tStartPos) + (iAngleAdjust or 0)
-    --Get initial desired position
-    local tPossibleTarget = M28Utilities.MoveInDirection(tTargetPos, iAngleFromTargetToStart, iDistanceFromTargetToStart, true, false, false)
-    local sPathing = M28UnitInfo.GetUnitPathingType(oPathingUnit)
-    local iPathingGroupWanted = NavUtils.GetTerrainLabel(sPathing, tTargetPos)
-    local iPathingGroupOfPossibleTarget = NavUtils.GetTerrainLabel(sPathing, tPossibleTarget)
-    local bCanPathToTarget = false
-
-    if bDebugMessages == true then LOG(sFunctionRef..': Start of code; oPathingUnit='..oPathingUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oPathingUnit)..'; tTargetPos='..repru(tTargetPos)..'; iAngleAdjust ='..iAngleAdjust..'; iDistanceFromTargetToStart='..iDistanceFromTargetToStart..'; tStartPos='..repru(tStartPos)..'; iPathingGroupOfPossibleTarget='..iPathingGroupOfPossibleTarget..'; iPathingGroupWanted='..iPathingGroupWanted..'; Angle from start to target='..M28Utilities.GetAngleFromAToB(tStartPos, tTargetPos)..'; iAngleFromTargetToStart='..iAngleFromTargetToStart..'; Amphibious group of target position='..NavUtils.GetTerrainLabel(refPathingTypeHover, tTargetPos)..'; Amphib group of our base='..NavUtils.GetTerrainLabel(refPathingTypeHover, PlayerStartPoints[oPathingUnit:GetAIBrain():GetArmyIndex()])..'; tPossibleTarget before adjust='..repru(tPossibleTarget)..'; Distance between possible target and tTargetPos='..M28Utilities.GetDistanceBetweenPositions(tPossibleTarget, tTargetPos)) end
-    --Find a target we can path to
-    if iPathingGroupOfPossibleTarget == iPathingGroupWanted then
-        bCanPathToTarget = true
-    else
-        --Dif pathing group, need to try alternatives; first try the target itself
-        if not(bMoveCloserBeforeFurtherIfBlocked == false) then
-            tPossibleTarget = {tTargetPos[1], tTargetPos[2], tTargetPos[3]}
-            iPathingGroupOfPossibleTarget = NavUtils.GetTerrainLabel(sPathing, tPossibleTarget)
-            if bDebugMessages == true then LOG(sFunctionRef..': Pathing group if just try target position='..iPathingGroupOfPossibleTarget) end
-            if iPathingGroupOfPossibleTarget == iPathingGroupWanted then
-                bCanPathToTarget = true
-            end
-        end
-
-        if bCanPathToTarget == false then
-            if bDebugMessages == true then LOG(sFunctionRef..': Cant path to the initial expected point so will try nearby points') end
-            local tDistanceFactors
-            if bMoveCloserBeforeFurtherIfBlocked then
-                tDistanceFactors = {0.5, 1.5, 3}
-            else tDistanceFactors = {1.25, 3}
-            end
-            local tAngleVariations = {-45, 0, 45}
-            --Make sure we have at least some distance we're moving away from
-            if iDistanceFromTargetToStart == 0 then iDistanceFromTargetToStart = 1 end
-
-            if math.abs(iDistanceFromTargetToStart) < 4 then
-                local iFactorIncrease = 4 / iDistanceFromTargetToStart
-                for iDistanceFactor = 1, table.getn(tDistanceFactors) do
-                    tDistanceFactors[iDistanceFactor] = tDistanceFactors[iDistanceFactor] * iFactorIncrease
-                end
-            end
-            for iDistanceFactor = 1, table.getn(tDistanceFactors) do
-                for iAngleAlternative = 1, table.getn(tAngleVariations) do
-                    tPossibleTarget = M28Utilities.MoveInDirection(tTargetPos, iAngleFromTargetToStart + tAngleVariations[iAngleAlternative], iDistanceFromTargetToStart * tDistanceFactors[iDistanceFactor], true, false, false)
-                    if NavUtils.GetTerrainLabel(sPathing, tPossibleTarget) == iPathingGroupWanted then
-                        bCanPathToTarget = true
+                    if (iCurPlateau or 0) > 0 then
+                        iPlateau = iCurPlateau
+                        iLandZone = iCurLandZone
                         break
                     end
                 end
-                if bCanPathToTarget then break end
-                if bDebugMessages == true then LOG(sFunctionRef..': iDistanceFactor='..iDistanceFactor..'; tPossibleTarget based on the last of the angle variations='..repru(tPossibleTarget)..'; still cant path to the target so will keep looking') end
             end
+
         end
-
-    end
-    if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if can path to target, bCanPathToTarget='..tostring(bCanPathToTarget)..'; tPossibleTarget='..repru(tPossibleTarget)) end
-
-    if bCanPathToTarget then
-        --Consider if the target meets any other values specified (e.g. if must be certain distance away from current target or unit)
-        if bCheckIfExistingTargetIsBetter == true or iMinDistanceFromExistingCommandTarget then
-            if bDebugMessages == true then LOG(sFunctionRef..': Checking against existing target to see if thats better') end
-            if oPathingUnit.GetNavigator then
-                local oNavigator = oPathingUnit:GetNavigator()
-                if oNavigator.GetCurrentTargetPos then
-                    local tExistingTargetPos = oNavigator:GetCurrentTargetPos()
-                    if M28Utilities.IsTableEmpty(tExistingTargetPos) == false then
-                        if bDebugMessages == true then LOG(sFunctionRef..': tExistingTargetPos='..repru(tExistingTargetPos)..'; Distance to possible target='..M28Utilities.GetDistanceBetweenPositions(tExistingTargetPos, tPossibleTarget)..'; iMinDistanceFromExistingCommandTarget='..(iMinDistanceFromExistingCommandTarget or 'nil')..'; Pathing group of this='..NavUtils.GetTerrainLabel(sPathing, tExistingTargetPos)..'; Pathing group wanted='..iPathingGroupWanted..'; sPathing='..sPathing..'; Distance of existing position toa ctual target='..M28Utilities.GetDistanceBetweenPositions(tExistingTargetPos, tTargetPos)) end
-                        if NavUtils.GetTerrainLabel(sPathing, tExistingTargetPos) == iPathingGroupWanted then
-
-                            --Do we have a minimum distance away from current target required?
-                            if iMinDistanceFromExistingCommandTarget and M28Utilities.GetDistanceBetweenPositions(tExistingTargetPos, tPossibleTarget) < iMinDistanceFromExistingCommandTarget then
-                                if bDebugMessages == true then LOG(sFunctionRef..': Distance between existing target position and possible target position is less than the min distance; tExistingTargetPos='..repru(tExistingTargetPos)..'; tPossibleTarget='..repru(tPossibleTarget)) end
-                                tPossibleTarget = tExistingTargetPos
-                            else
-                                --Is the existing target position closer to the distance required than the new position, factoring in if we want a negative position or not?
-                                local iDistanceFromQueuedMoveLocationToTarget = M28Utilities.GetDistanceBetweenPositions(tExistingTargetPos, tTargetPos)
-                                local iDistanceFromPossibleTargetToTarget = M28Utilities.GetDistanceBetweenPositions(tPossibleTarget, tTargetPos)
-                                --Are these further away from the start position than the actual target?
-                                if math.abs(iDistanceFromQueuedMoveLocationToTarget - iDistanceFromTargetToStart) < math.abs(iDistanceFromPossibleTargetToTarget - iDistanceFromTargetToStart) then
-                                    --Have we said we want to move closer if the initial point is blocked?
-                                    if not(bMoveCloserBeforeFurtherIfBlocked) or iDistanceFromQueuedMoveLocationToTarget <= iDistanceFromTargetToStart then
-                                        --Factor in we might be infront of the target and actually want to be behind
-                                        local iDistanceFromStartToTarget = M28Utilities.GetDistanceBetweenPositions(tStartPos, tTargetPos)
-                                        local iDistanceFromQueuedToStart = M28Utilities.GetDistanceBetweenPositions(tStartPos, tExistingTargetPos)
-                                        if bDebugMessages == true then LOG(sFunctionRef..': iDistanceFromQueuedMoveLocationToTarget='..iDistanceFromQueuedMoveLocationToTarget..'; iDistanceFromPossibleTargetToTarget='..iDistanceFromPossibleTargetToTarget..'; iDistanceFromQueuedToStart='..iDistanceFromQueuedToStart..'; iDistanceFromStartToTarget='..iDistanceFromStartToTarget..'; iDistanceFromTargetToStart='..iDistanceFromTargetToStart) end
-                                        if iDistanceFromQueuedToStart > 1 and ((iDistanceFromQueuedToStart < iDistanceFromStartToTarget and iDistanceFromTargetToStart > 0) or (iDistanceFromQueuedToStart > iDistanceFromStartToTarget and iDistanceFromTargetToStart < 0)) then
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Existing location is closer than the new possible location so go with this') end
-                                            --Existing location is closer than the new location so go with this
-                                            tPossibleTarget = tExistingTargetPos
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                    end
+        if bDebugMessages == true then LOG(sFunctionRef..': Adding iReclaimSegmentX-Z'..iReclaimSegmentX..'-'..iReclaimSegmentZ..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
+        if (iLandZone or 0) > 0 then
+            --Record in the land zone
+            if not(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefReclaimSegments]) then
+                tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefReclaimSegments] = {}
+            end
+            table.insert(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefReclaimSegments], {iReclaimSegmentX, iReclaimSegmentZ})
+            if bDebugMessages == true then
+                LOG(sFunctionRef..': Finished adding reclaim segment to LZ, all reclaim segments for this LZ='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefReclaimSegments]))
+                local rCurRect = M28Utilities.GetRectAroundLocation(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint], iReclaimSegmentSizeX * 0.5)
+                M28Utilities.DrawRectangle(rCurRect, 4)
+            end
+        elseif (iPlateau or 0) > 0 then
+            --Record in the water zone
+            local iWaterZone = GetWaterZoneFromPosition(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint])
+            if (iWaterZone or 0) > 0 then
+                local iPond = tiPondByWaterZone[iWaterZone]
+                local tWZData = tPondDetails[iPond][subrefPondWaterZones][iWaterZone]
+                if not(tWZData[subrefReclaimSegments]) then tWZData[subrefReclaimSegments] = {} end
+                table.insert(tWZData[subrefReclaimSegments], {iReclaimSegmentX, iReclaimSegmentZ})
+                if bDebugMessages == true then
+                    LOG(sFunctionRef..': Finished adding reclaim segment to WZ, all reclaim segments for this WZ='..repru(tWZData[subrefReclaimSegments]))
+                    local rCurRect = M28Utilities.GetRectAroundLocation(tReclaimAreas[iReclaimSegmentX][iReclaimSegmentZ][refReclaimSegmentMidpoint], iReclaimSegmentSizeX * 0.5)
+                    M28Utilities.DrawRectangle(rCurRect, 4)
                 end
             end
-        end
-    else
-        --This could be due to a pathfinding error, will just use the potential target
-    end
-    if bDebugMessages == true then LOG(sFunctionRef..': End of code; tPossibleTarget='..repru(tPossibleTarget or {'nil'})..'; bCanPathToTarget='..tostring(bCanPathToTarget)) end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    return tPossibleTarget
-end
-
-function InPlayableArea(tLocation) --NOTE - also have the same function in M28Conditions
-    if tLocation[1] >= rMapPlayableArea[1] and tLocation[1] <= rMapPlayableArea[3] and tLocation[3] >= rMapPlayableArea[2] and tLocation[3] <= rMapPlayableArea[4] then
-        return true
-    else
-        return false
-    end
-end
-
-function GetLandOrWaterZoneData(tLocation, bReturnTeamDataAsWell, iOptionalTeam)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'GetLandOrWaterZoneData'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-    local iPlateauOrZero, iLandOrWaterZone = GetClosestPlateauOrZeroAndZoneToPosition(tLocation)
-    if (iLandOrWaterZone or 0) > 0 then
-        if iPlateauOrZero == 0 then
-            --Water zone
-            if bReturnTeamDataAsWell then
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                return tPondDetails[tiPondByWaterZone[iLandOrWaterZone]][subrefPondWaterZones][iLandOrWaterZone], tPondDetails[tiPondByWaterZone[iLandOrWaterZone]][subrefPondWaterZones][iLandOrWaterZone][subrefWZTeamData][iOptionalTeam]
-            else
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                return tPondDetails[tiPondByWaterZone[iLandOrWaterZone]][subrefPondWaterZones][iLandOrWaterZone]
-            end
-        else
-            if bReturnTeamDataAsWell then
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                return tAllPlateaus[iPlateauOrZero][subrefPlateauLandZones][iLandOrWaterZone], tAllPlateaus[iPlateauOrZero][subrefPlateauLandZones][iLandOrWaterZone][subrefLZTeamData][iOptionalTeam]
-            else
-                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-                return tAllPlateaus[iPlateauOrZero][subrefPlateauLandZones][iLandOrWaterZone]
-            end
-        end
-    else
-        if bDebugMessages == true then LOG(sFunctionRef..': Unsable to find a valid zone for position '..repru(tLocation)..'; will draw in red')
-            M28Utilities.DrawLocation(tLocation, 2)
-        end
-    end
-end
-
-function RecordBrainStartPoint(oBrain)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'RecordBrainStartPoint'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
-    local iStartPositionX, iStartPositionZ = oBrain:GetArmyStartPos()
-    local tStartPoint = {iStartPositionX, GetSurfaceHeight(iStartPositionX, iStartPositionZ), iStartPositionZ}
-
-    if bDebugMessages == true then LOG(sFunctionRef..': Considering start position recorded for brain '..(oBrain.Nickname or 'nil')..' at time='..GetGameTimeSeconds()) end
-    --Adjust start point if it isn't on a valid plateau (e.g. means we should work on some coop maps)
-    if not(NavUtils.IsGenerated()) then
-        if bDebugMessages == true then LOG('Considering whether to generate map markers for oBrain='..oBrain.Nickname..'; GameTime='..GetGameTimeSeconds()) end
-        while (not(M28Overseer.bBeginSessionTriggered) and GetGameTimeSeconds() < 4) do
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-            WaitTicks(1)
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        M28Profiler.FunctionProfiler('NavUtilsGenerate', M28Profiler.refProfilerStart)
-        NavUtils.Generate()
-        M28Profiler.FunctionProfiler('NavUtilsGenerate', M28Profiler.refProfilerEnd)
+    end
+
+    function RefreshLandOrWaterZoneReclaimValue(iPlateauOrPond, iLandOrWaterZone, bIsWaterZone)
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end --set to true for certain positions where want logs to print
+        local sFunctionRef = 'RefreshLandOrWaterZoneReclaimValue'
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-        SetupPlayableAreaAndSegmentSizes()
-    end
 
-    if not(NavUtils.GetTerrainLabel(refPathingTypeHover, tStartPoint)) then
-        local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tStartPoint)
-        local bHaveValidStartPoint = false
-        local tAltStartPoint
-        for iAdjustBase = 1, 50 do
-            for iCurSegmentX = iSegmentX - iAdjustBase, iSegmentX + iAdjustBase, 1 do
-                for iCurSegmentZ = iSegmentZ - iAdjustBase, iSegmentZ + iAdjustBase, iAdjustBase * 2 do
-                    if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
-                        tAltStartPoint = GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering tAltStartPoint='..repru(tAltStartPoint)..'; rMapPotentialPlayableArea='..repru(rMapPotentialPlayableArea)..'; Hover label='..(NavUtils.GetTerrainLabel(refPathingTypeHover, tAltStartPoint) or 'nil')) end
-                        if tAltStartPoint[1] <= rMapPotentialPlayableArea[3] and tAltStartPoint[3] <= rMapPotentialPlayableArea[4] then
-                            if NavUtils.GetTerrainLabel(refPathingTypeHover, tAltStartPoint) then
-                                bHaveValidStartPoint = true
-                                break
-                            end
-                        end
-                    end
-                end
-                if bHaveValidStartPoint then break end
-            end
-            if bHaveValidStartPoint then break end
-            --Then do the left and right row (excl corners which ahve already done per the above)
-            for iCurSegmentX = iSegmentX - iAdjustBase, iSegmentX + iAdjustBase, iAdjustBase * 2 do
-                for iCurSegmentZ = iSegmentZ - iAdjustBase + 1, iSegmentZ + iAdjustBase - 1, 1 do
-                    if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
-                        tAltStartPoint = GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)
-                        if tAltStartPoint[1] <= rMapPotentialPlayableArea[3] and tAltStartPoint[3] <= rMapPotentialPlayableArea[4] then
-                            if NavUtils.GetTerrainLabel(refPathingTypeHover, tAltStartPoint) then
-                                bHaveValidStartPoint = true
-                                break
-                            end
-                        end
-                    end
-                end
-                if bHaveValidStartPoint then break end
-            end
-            if bHaveValidStartPoint then break end
-        end
-
-        if not(bIsCampaignMap) and not(M28Conditions.IsCivilianBrain(oBrain)) then M28Utilities.ErrorHandler('Non-civilian brain '..(oBrain.Nickname or 'nil')..' with index '..oBrain:GetArmyIndex()..' has a start position that doesnt have a plateau reference and this isnt a campaign map') end
-
-        if not(bHaveValidStartPoint) then M28Utilities.ErrorHandler('Have been through 50 adjacent segments and not found a valid start point for brain '..(oBrain.Nickname or 'nil')..' with start position '..repru(tStartPoint))
+        local tLZOrWZData
+        if bIsWaterZone then tLZOrWZData = tPondDetails[iPlateauOrPond][subrefPondWaterZones][iLandOrWaterZone]
         else
-            if bDebugMessages == true then LOG(sFunctionRef..': Changing start point for brain '..(oBrain.Nickname or 'nil')..' to be '..repru(tAltStartPoint)..' from tStartPoint of '..repru(tStartPoint)) end
-            tStartPoint = {tAltStartPoint[1], GetSurfaceHeight(tAltStartPoint[1], tAltStartPoint[3]), tAltStartPoint[3]}
+            tLZOrWZData = tAllPlateaus[iPlateauOrPond][subrefPlateauLandZones][iLandOrWaterZone]
         end
+        tLZOrWZData[subrefLastReclaimRefresh] = GetGameTimeSeconds()
+        local iMassReclaim = 0
+        local iEnergyReclaim = 0
+        if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; bIsWaterZone='..tostring(bIsWaterZone or false)..'; Considering PlateauOrPond='..iPlateauOrPond..'; iLandOrWaterZone='..iLandOrWaterZone..'; Is table of LZ or WZ reclaim segments empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZData[subrefReclaimSegments]))) end
+        if M28Utilities.IsTableEmpty(tLZOrWZData[subrefReclaimSegments]) == false then
+            for iSegmentCount, tSegmentXZ in tLZOrWZData[subrefReclaimSegments] do
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering tSegmentXZ='..tSegmentXZ[1]..'-'..tSegmentXZ[2]..'; total mass in this segment='..tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refReclaimTotalMass]) end
+                iMassReclaim = iMassReclaim + tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refReclaimTotalMass]
+                iEnergyReclaim = iEnergyReclaim + tReclaimAreas[tSegmentXZ[1]][tSegmentXZ[2]][refSegmentReclaimTotalEnergy]
+            end
+        end
+        tLZOrWZData[subrefTotalMassReclaim] = iMassReclaim
+        tLZOrWZData[subrefLZTotalEnergyReclaim] = iEnergyReclaim
+        if bDebugMessages == true then LOG(sFunctionRef..': End of code, iMassReclaim='..iMassReclaim..'; LZ reclaim='..tLZOrWZData[subrefTotalMassReclaim]) end
+
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
 
-    PlayerStartPoints[oBrain:GetArmyIndex()] = {tStartPoint[1], tStartPoint[2], tStartPoint[3]}
-    M28Overseer.tAllAIBrainsByArmyIndex[oBrain:GetArmyIndex()] = oBrain
+    function GetReclaimablesMassAndEnergy(tReclaimables, iMinMass, iMinEnergy)
+        --Largely a copy of GetReclaimablesResourceValue, but focused specificaly on the reclaim segment update logic
+        --Must have at least iMinMass or iMinEnergy to be recorded
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'GetReclaimablesMassAndEnergy'
+        --V14 and earlier would modify total mass value to reduce it by 25% if its small, and 50% if its medium; v15 removed this
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-end
+        local sMassRef = 'MaxMassReclaim'
+        local sEnergyRef = 'MaxEnergyReclaim'
 
-function GetNearestWaterToBuildNavalFactoryInPlayableArea(aiBrain, tStartPosition, iDistInterval, iOptionalPond, iOptionalAngleAdjust, bCheckInPlayableArea)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'GetNearestWaterToBuildNavalFactoryInPlayableArea'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        local tWreckPos = {}
+        local iTotalMass = 0
+        local iTotalEnergy = 0
+
+        local iLargestCurReclaim = 0
+        local iLargestReclaimRef = 0
+
+        if tReclaimables and table.getn( tReclaimables ) > 0 then
+            for iReclaimRef, v in tReclaimables do
+                tWreckPos = v.CachePosition
+                if tWreckPos[1] then
+                    --if v.MaxMassReclaim > iIgnoreReclaimIfNotMoreThanThis then
+                    if v[sMassRef] > iMinMass or v[sEnergyRef] > iMinEnergy then
+                        if not(v:BeenDestroyed()) then
+                            iTotalMass = iTotalMass + v[sMassRef]
+                            iTotalEnergy = iTotalEnergy + v[sEnergyRef]
+                            if v[sMassRef] > iLargestCurReclaim then
+                                iLargestCurReclaim = v[sMassRef]
+                                iLargestReclaimRef = iReclaimRef
+                            end
+                        end
+                    end
+                else
+                    if not(v.MaxMassReclaim == nil) then
+                        if v.MaxMassReclaim > 0 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Warning - have ignored wreck location despite it having a mass reclaim value') end
+                        end
+                    end
+                end
+            end
+        end
+        local tReclaimPos
+        if iLargestReclaimRef then tReclaimPos = {tReclaimables[iLargestReclaimRef][1], tReclaimables[iLargestReclaimRef][2], tReclaimables[iLargestReclaimRef][3]} end
+
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return iTotalMass, tReclaimPos, iLargestCurReclaim, iTotalEnergy
+    end
+
+    function UpdateReclaimDataNearSegments(iBaseSegmentX, iBaseSegmentZ, iSegmentRange)
+        --Updates reclaim data for all segments within iSegmentRange of tLocation
+
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end --set to true for certain positions where want logs to print
+        local sFunctionRef = 'UpdateReclaimDataNearSegments'
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart) --Want the profile coutn to reflect the number of times actually running the core code
+
+        local iMinValueOfIndividualReclaim = 2.5
+        local iMinEnergyValue = 15
+
+        local iTotalMassValue, tReclaimables, iLargestCurReclaim, tReclaimPos, iTotalEnergyValue
+        local iCumulativeMassValue = 0
+
+        if bDebugMessages == true then
+            LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; About to update for iBaseSegmentX='..(iBaseSegmentX or 'nil')..'; iSegmentRange='..(iSegmentRange or 'nil')..'; iBaseSegmentZ='..(iBaseSegmentZ or 'nil'))
+        end
+
+        local iPlateau, iLandZone
+
+        for iCurX = iBaseSegmentX - iSegmentRange, iBaseSegmentX + iSegmentRange do
+            for iCurZ = iBaseSegmentZ - iSegmentRange, iBaseSegmentZ + iSegmentRange do
+                iTotalMassValue = 0
+                tReclaimables = GetReclaimablesInRect(Rect((iCurX - 1) * iReclaimSegmentSizeX, (iCurZ - 1) * iReclaimSegmentSizeZ, iCurX * iReclaimSegmentSizeX, iCurZ * iReclaimSegmentSizeZ))
+                iLargestCurReclaim = 0
+
+                if bDebugMessages == true then LOG(sFunctionRef..': iCurX='..iCurX..'; iCurZ='..iCurZ..'; iReclaimSegmentSizeX='..iReclaimSegmentSizeX..'; iReclaimSegmentSizeZ='..iReclaimSegmentSizeZ..'; Reclaim search rect='..repru(Rect((iCurX - 1) * iReclaimSegmentSizeX, (iCurZ - 1) * iReclaimSegmentSizeZ, iCurX * iReclaimSegmentSizeX, iCurZ * iReclaimSegmentSizeZ))..'; Is tReclaimables empty='..tostring(M28Utilities.IsTableEmpty(tReclaimables))) end
+
+                if tReclaimables and table.getn( tReclaimables ) > 0 then
+                    -- local iWreckCount = 0
+                    --local bIsProp = nil  --only used for log/testing
+                    if bDebugMessages == true then LOG('Have wrecks within the segment iCurXZ='..iCurX..'-'..iCurZ) end
+                    iTotalMassValue, tReclaimPos, iLargestCurReclaim, iTotalEnergyValue = GetReclaimablesMassAndEnergy(tReclaimables, iMinValueOfIndividualReclaim, iMinEnergyValue)
+                    --Record this table:
+                    if tReclaimAreas[iCurX] == nil then
+                        tReclaimAreas[iCurX] = {}
+                        if bDebugMessages == true then LOG('Setting table to nothing as is currently nil; iCurX='..iCurX) end
+                    end
+                    if tReclaimAreas[iCurX][iCurZ] == nil then
+                        CreateReclaimSegment(iCurX, iCurZ)
+                    end
+                    --tReclaimAreas[iCurX][iCurZ][refiReclaimTotalPrev] = (tReclaimAreas[iCurX][iCurZ][refReclaimTotalMass] or 0)
+                    tReclaimAreas[iCurX][iCurZ][refReclaimTotalMass] = iTotalMassValue
+                    tReclaimAreas[iCurX][iCurZ][refReclaimHighestIndividualReclaim] = iLargestCurReclaim
+                    --tReclaimAreas[iCurX][iCurZ][refReclaimHighestIndividualReclaim] = iLargestCurReclaim
+                    --iHighestReclaimInASegment = math.max(iHighestReclaimInASegment, iTotalMassValue)
+                    tReclaimAreas[iCurX][iCurZ][refSegmentReclaimTotalEnergy] = iTotalEnergyValue
+                    iPlateau, iLandZone = GetPlateauAndLandZoneReferenceFromPosition(tReclaimAreas[iCurX][iCurZ][refReclaimSegmentMidpoint])
+                    if bDebugMessages == true then LOG(sFunctionRef..': Reclaim segment midpoint='..repru(tReclaimAreas[iCurX][iCurZ][refReclaimSegmentMidpoint])..'; iPlateau for this='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')) end
+                    if iLandZone > 0 then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Time of last refresh for land zone '..iLandZone..'='.. (tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLastReclaimRefresh] or 0)) end
+                        if GetGameTimeSeconds() - (tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLastReclaimRefresh] or 0) >= 1 then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Will refresh the reclaim value for land zone '..iLandZone) end
+                            RefreshLandOrWaterZoneReclaimValue(iPlateau, iLandZone)
+                        end
+                    else
+                        local iWaterZone = GetWaterZoneFromPosition(tReclaimAreas[iCurX][iCurZ][refReclaimSegmentMidpoint])
+                        if (iWaterZone or 0) > 0 then
+                            local iPond = tiPondByWaterZone[iWaterZone]
+                            if bDebugMessages == true then LOG(sFunctionRef..': Time of last refresh for water zone '..iWaterZone..'='.. (tPondDetails[iPond][subrefPondWaterZones][iWaterZone][subrefLastReclaimRefresh] or 0)) end
+                            if GetGameTimeSeconds() - (tPondDetails[iPond][subrefPondWaterZones][iWaterZone][subrefLastReclaimRefresh] or 0) >= 1 then
+                                if bDebugMessages == true then LOG(sFunctionRef..': Will refresh the reclaim value for land zone '..iLandZone) end
+                                RefreshLandOrWaterZoneReclaimValue(iPond, iWaterZone, true)
+                            end
+                        end
+                    end
+
+
+                end
+                iCumulativeMassValue = iCumulativeMassValue + iTotalMassValue
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': End of code, iCumulativeMassValue='..iCumulativeMassValue..'; SystemTime='..GetSystemTimeSecondsOnlyForProfileUse()) end
+
+        --M28Profiler.tiProfilerEndCountByFunction[sFunctionRef] = (M28Profiler.tiProfilerStartCountByFunction[sFunctionRef] or 0) + 1 LOG(sFunctionRef..': M28Profiler.tiProfilerEndCountByFunction[sFunctionRef]='..M28Profiler.tiProfilerEndCountByFunction[sFunctionRef])
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return iCumulativeMassValue
+    end
+
+    function RecordThatWeWantToUpdateReclaimAtLocation(tLocation, iNearbySegmentsToUpdate)
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end --set to true for certain positions where want logs to print
+        local sFunctionRef = 'RecordThatWeWantToUpdateReclaimAtLocation'
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+        if iReclaimSegmentSizeX == 0 then
+            M28Utilities.ErrorHandler('Dont have a reclaim segment size specified, will set it to 8.5, but something else has likely gone wrong')
+            iReclaimSegmentSizeX = 8.5
+            iReclaimSegmentSizeZ = 8.5
+        end
+        local iReclaimSegmentX, iReclaimSegmentZ = GetReclaimSegmentsFromLocation(tLocation)
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time='..GetGameTimeSeconds()..'; tLocation='..repru(tLocation)..'; iReclaimSegmentX-Z='..iReclaimSegmentX..'-'..iReclaimSegmentZ) end
+        if iReclaimSegmentX >= 10000 or iNearbySegmentsToUpdate >= 10000 or iReclaimSegmentZ >= 10000 then M28Utilities.ErrorHandler('Likely infinite loop about to start. iReclaimSegmentX='..(iReclaimSegmentX or 'nil')..'; iNearbySegmentsToUpdate='..(iNearbySegmentsToUpdate or 'nil')..'; iReclaimSegmentSizeX='..(iReclaimSegmentSizeX or 'nil')..'; iReclaimSegmentSizeZ='..(iReclaimSegmentSizeX or 'nil')..'; rMapPotentialPlayableArea='..repru(rMapPotentialPlayableArea or {'nil'})..'; iMaxSegmentInterval='..(iMaxSegmentInterval or 'nil'))
+        else
+
+            if iNearbySegmentsToUpdate then
+                for iSegmentX = iReclaimSegmentX - iNearbySegmentsToUpdate, iReclaimSegmentX + iNearbySegmentsToUpdate do
+                    for iSegmentZ = iReclaimSegmentZ - iNearbySegmentsToUpdate, iReclaimSegmentZ + iNearbySegmentsToUpdate do
+                        if bDebugMessages == true then LOG(sFunctionRef..': Will record that we want to update the reclaim segment XZ='..iSegmentX..'-'..iSegmentZ) end
+                        RecordThatWeWantToUpdateReclaimSegment(iSegmentX, iSegmentZ)
+                    end
+                end
+            else
+                if bDebugMessages == true then LOG(sFunctionRef..': Will record that we want to update the base reclaim segment XZ='..iReclaimSegmentX..'-'..iReclaimSegmentZ) end
+                RecordThatWeWantToUpdateReclaimSegment(iReclaimSegmentX, iReclaimSegmentZ)
+            end
+        end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    end
+
+    function RecordThatWeWantToUpdateReclaimSegment(iReclaimSegmentX, iReclaimSegmentZ)
+        if iReclaimSegmentX >= 0 and iReclaimSegmentZ >= 0 then table.insert(tReclaimSegmentsToUpdate, {iReclaimSegmentX, iReclaimSegmentZ}) end
+    end
+
+
+    function GetTravelDistanceBetweenLandZones(iPlateau, iStartLZ, iEndLZ)
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'GetTravelDistanceBetweenLandZones'
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+        local tStartLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLZ]
+
+
+        if not(tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ]) then
+            if not(tStartLZData[subrefLZTravelDistToOtherLandZones]) then tStartLZData[subrefLZTravelDistToOtherLandZones] = {} end
+            if not(tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau]) then tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau] = {} end
+            if not(tStartLZData[subrefMidpoint]) then RecordMidpointAndOtherDataForZone(iPlateau, iStartLZ, tStartLZData) end --redundancy
+            if bDebugMessages == true then LOG(sFunctionRef..': About to record travel distance for iPlateau '..(iPlateau or 'nil')..'; iStartLZ '..(iStartLZ or 'nil')..'; iEndLZ='..(iEndLZ or 'nil')..'; start midpoint='..repru(tStartLZData[subrefMidpoint])..'; End LZ midpoint='..repru(tAllPlateaus[iPlateau][subrefPlateauLandZones][iEndLZ][subrefMidpoint])) end
+            tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ] = M28Utilities.GetTravelDistanceBetweenPositions(tStartLZData[subrefMidpoint], tAllPlateaus[iPlateau][subrefPlateauLandZones][iEndLZ][subrefMidpoint], refPathingTypeLand)
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Travel distance from iStartLZ='..iStartLZ..' to iEndLZ='..iEndLZ..' is '..(tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ] or 'nil')) end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return tStartLZData[subrefLZTravelDistToOtherLandZones][iPlateau][iEndLZ]
+    end
+
+
+    function GetPositionAtOrNearTargetInPathingGroup(tStartPos, tTargetPos, iDistanceFromTargetToStart, iAngleAdjust, oPathingUnit, bMoveCloserBeforeFurtherIfBlocked, bCheckIfExistingTargetIsBetter, iMinDistanceFromExistingCommandTarget)
+        --Intended as a rewriting of GetPositionNearTargetInSamePathingGroup due to some inconsistencies arising with the below, to make use of new logic that allows any angle; introduced from v15
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'GetPositionAtOrNearTargetInPathingGroup'
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
 
-    local iAngleToCentre = (iOptionalAngleAdjust or 0)
-    local iMaxSearch = math.max(rMapPlayableArea[3] - rMapPlayableArea[1], rMapPlayableArea[4] - rMapPlayableArea[2])
-    iMaxSearch = math.floor(iMaxSearch / iDistInterval) * iDistInterval
-    local tPossibleLocationBase, tPossibleBuildLocation, tNavalBuildArea
-    local iBuildingInterval = 4
-    local iTerrainLabel
-    local bHaveValidLocation = false
-    local bDontCheckInPlayableArea = not(bCheckInPlayableArea)
-    for iDistToTravel = iDistInterval, iMaxSearch, iDistInterval do
-        for iAngleAdjust = 0, 170, 10 do
-            for iAngleFactor = -1, 1, 2 do
-                tPossibleLocationBase = M28Utilities.MoveInDirection(tStartPosition, iAngleToCentre + iAngleAdjust * iAngleFactor, iDistToTravel, true, true, false)
-                iTerrainLabel = NavUtils.GetTerrainLabel(refPathingTypeNavy, tPossibleLocationBase)
+        --Get angle from target to start
+        local iAngleFromTargetToStart = M28Utilities.GetAngleFromAToB(tTargetPos, tStartPos) + (iAngleAdjust or 0)
+        --Get initial desired position
+        local tPossibleTarget = M28Utilities.MoveInDirection(tTargetPos, iAngleFromTargetToStart, iDistanceFromTargetToStart, true, false, false)
+        local sPathing = M28UnitInfo.GetUnitPathingType(oPathingUnit)
+        local iPathingGroupWanted = NavUtils.GetTerrainLabel(sPathing, tTargetPos)
+        local iPathingGroupOfPossibleTarget = NavUtils.GetTerrainLabel(sPathing, tPossibleTarget)
+        local bCanPathToTarget = false
 
-                if iTerrainLabel and ((iOptionalPond and  iOptionalPond == iTerrainLabel) or not(iOptionalPond)) and (bDontCheckInPlayableArea or InPlayableArea(tPossibleLocationBase)) then
-                    --Try and find somewhere around here to build a naval factory
-                    for iBuildingAdjustX = 0, iBuildingInterval, 1 do
-                        for iBuildingAdjustZ = 0, iBuildingInterval, 1 do
-                            for iXFactor = -1, 1, 2 do
-                                for iZFactor = -1, 1, 2 do
-                                    tPossibleBuildLocation = {tPossibleLocationBase[1] + iBuildingAdjustX * iXFactor, 0, tPossibleLocationBase[3] + iBuildingAdjustZ * iZFactor}
-                                    tPossibleBuildLocation[2] = GetSurfaceHeight(tPossibleBuildLocation[1], tPossibleBuildLocation[3])
-                                    if bCheckInPlayableArea and not(InPlayableArea(tPossibleBuildLocation)) then
-                                        if bDebugMessages == true then LOG(sFunctionRef..': Possible build location isnt in playable area so abortin for this ZFactor') end
-                                        break
-                                    end
-                                    if aiBrain:CanBuildStructureAt('ueb0103', tPossibleBuildLocation) then
-                                        bHaveValidLocation = true
-                                        tNavalBuildArea = {tPossibleBuildLocation[1], tPossibleBuildLocation[2], tPossibleBuildLocation[3]}
-                                        if bDebugMessages == true then
-                                            LOG(sFunctionRef..': Have valid location='..repru(tPossibleBuildLocation)..'; will draw in white')
-                                            M28Utilities.DrawLocation(tPossibleBuildLocation, 1, 100, 2)
-                                        end
-                                        break
-                                    else
-                                        if bDebugMessages == true then
-                                            LOG(sFunctionRef..': Have invalid location='..repru(tPossibleBuildLocation)..'; will draw in red')
-                                            M28Utilities.DrawLocation(tPossibleBuildLocation, 2, 100, 2)
+        if bDebugMessages == true then LOG(sFunctionRef..': Start of code; oPathingUnit='..oPathingUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oPathingUnit)..'; tTargetPos='..repru(tTargetPos)..'; iAngleAdjust ='..iAngleAdjust..'; iDistanceFromTargetToStart='..iDistanceFromTargetToStart..'; tStartPos='..repru(tStartPos)..'; iPathingGroupOfPossibleTarget='..iPathingGroupOfPossibleTarget..'; iPathingGroupWanted='..iPathingGroupWanted..'; Angle from start to target='..M28Utilities.GetAngleFromAToB(tStartPos, tTargetPos)..'; iAngleFromTargetToStart='..iAngleFromTargetToStart..'; Amphibious group of target position='..NavUtils.GetTerrainLabel(refPathingTypeHover, tTargetPos)..'; Amphib group of our base='..NavUtils.GetTerrainLabel(refPathingTypeHover, PlayerStartPoints[oPathingUnit:GetAIBrain():GetArmyIndex()])..'; tPossibleTarget before adjust='..repru(tPossibleTarget)..'; Distance between possible target and tTargetPos='..M28Utilities.GetDistanceBetweenPositions(tPossibleTarget, tTargetPos)) end
+        --Find a target we can path to
+        if iPathingGroupOfPossibleTarget == iPathingGroupWanted then
+            bCanPathToTarget = true
+        else
+            --Dif pathing group, need to try alternatives; first try the target itself
+            if not(bMoveCloserBeforeFurtherIfBlocked == false) then
+                tPossibleTarget = {tTargetPos[1], tTargetPos[2], tTargetPos[3]}
+                iPathingGroupOfPossibleTarget = NavUtils.GetTerrainLabel(sPathing, tPossibleTarget)
+                if bDebugMessages == true then LOG(sFunctionRef..': Pathing group if just try target position='..iPathingGroupOfPossibleTarget) end
+                if iPathingGroupOfPossibleTarget == iPathingGroupWanted then
+                    bCanPathToTarget = true
+                end
+            end
+
+            if bCanPathToTarget == false then
+                if bDebugMessages == true then LOG(sFunctionRef..': Cant path to the initial expected point so will try nearby points') end
+                local tDistanceFactors
+                if bMoveCloserBeforeFurtherIfBlocked then
+                    tDistanceFactors = {0.5, 1.5, 3}
+                else tDistanceFactors = {1.25, 3}
+                end
+                local tAngleVariations = {-45, 0, 45}
+                --Make sure we have at least some distance we're moving away from
+                if iDistanceFromTargetToStart == 0 then iDistanceFromTargetToStart = 1 end
+
+                if math.abs(iDistanceFromTargetToStart) < 4 then
+                    local iFactorIncrease = 4 / iDistanceFromTargetToStart
+                    for iDistanceFactor = 1, table.getn(tDistanceFactors) do
+                        tDistanceFactors[iDistanceFactor] = tDistanceFactors[iDistanceFactor] * iFactorIncrease
+                    end
+                end
+                for iDistanceFactor = 1, table.getn(tDistanceFactors) do
+                    for iAngleAlternative = 1, table.getn(tAngleVariations) do
+                        tPossibleTarget = M28Utilities.MoveInDirection(tTargetPos, iAngleFromTargetToStart + tAngleVariations[iAngleAlternative], iDistanceFromTargetToStart * tDistanceFactors[iDistanceFactor], true, false, false)
+                        if NavUtils.GetTerrainLabel(sPathing, tPossibleTarget) == iPathingGroupWanted then
+                            bCanPathToTarget = true
+                            break
+                        end
+                    end
+                    if bCanPathToTarget then break end
+                    if bDebugMessages == true then LOG(sFunctionRef..': iDistanceFactor='..iDistanceFactor..'; tPossibleTarget based on the last of the angle variations='..repru(tPossibleTarget)..'; still cant path to the target so will keep looking') end
+                end
+            end
+
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished checking if can path to target, bCanPathToTarget='..tostring(bCanPathToTarget)..'; tPossibleTarget='..repru(tPossibleTarget)) end
+
+        if bCanPathToTarget then
+            --Consider if the target meets any other values specified (e.g. if must be certain distance away from current target or unit)
+            if bCheckIfExistingTargetIsBetter == true or iMinDistanceFromExistingCommandTarget then
+                if bDebugMessages == true then LOG(sFunctionRef..': Checking against existing target to see if thats better') end
+                if oPathingUnit.GetNavigator then
+                    local oNavigator = oPathingUnit:GetNavigator()
+                    if oNavigator.GetCurrentTargetPos then
+                        local tExistingTargetPos = oNavigator:GetCurrentTargetPos()
+                        if M28Utilities.IsTableEmpty(tExistingTargetPos) == false then
+                            if bDebugMessages == true then LOG(sFunctionRef..': tExistingTargetPos='..repru(tExistingTargetPos)..'; Distance to possible target='..M28Utilities.GetDistanceBetweenPositions(tExistingTargetPos, tPossibleTarget)..'; iMinDistanceFromExistingCommandTarget='..(iMinDistanceFromExistingCommandTarget or 'nil')..'; Pathing group of this='..NavUtils.GetTerrainLabel(sPathing, tExistingTargetPos)..'; Pathing group wanted='..iPathingGroupWanted..'; sPathing='..sPathing..'; Distance of existing position toa ctual target='..M28Utilities.GetDistanceBetweenPositions(tExistingTargetPos, tTargetPos)) end
+                            if NavUtils.GetTerrainLabel(sPathing, tExistingTargetPos) == iPathingGroupWanted then
+
+                                --Do we have a minimum distance away from current target required?
+                                if iMinDistanceFromExistingCommandTarget and M28Utilities.GetDistanceBetweenPositions(tExistingTargetPos, tPossibleTarget) < iMinDistanceFromExistingCommandTarget then
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Distance between existing target position and possible target position is less than the min distance; tExistingTargetPos='..repru(tExistingTargetPos)..'; tPossibleTarget='..repru(tPossibleTarget)) end
+                                    tPossibleTarget = tExistingTargetPos
+                                else
+                                    --Is the existing target position closer to the distance required than the new position, factoring in if we want a negative position or not?
+                                    local iDistanceFromQueuedMoveLocationToTarget = M28Utilities.GetDistanceBetweenPositions(tExistingTargetPos, tTargetPos)
+                                    local iDistanceFromPossibleTargetToTarget = M28Utilities.GetDistanceBetweenPositions(tPossibleTarget, tTargetPos)
+                                    --Are these further away from the start position than the actual target?
+                                    if math.abs(iDistanceFromQueuedMoveLocationToTarget - iDistanceFromTargetToStart) < math.abs(iDistanceFromPossibleTargetToTarget - iDistanceFromTargetToStart) then
+                                        --Have we said we want to move closer if the initial point is blocked?
+                                        if not(bMoveCloserBeforeFurtherIfBlocked) or iDistanceFromQueuedMoveLocationToTarget <= iDistanceFromTargetToStart then
+                                            --Factor in we might be infront of the target and actually want to be behind
+                                            local iDistanceFromStartToTarget = M28Utilities.GetDistanceBetweenPositions(tStartPos, tTargetPos)
+                                            local iDistanceFromQueuedToStart = M28Utilities.GetDistanceBetweenPositions(tStartPos, tExistingTargetPos)
+                                            if bDebugMessages == true then LOG(sFunctionRef..': iDistanceFromQueuedMoveLocationToTarget='..iDistanceFromQueuedMoveLocationToTarget..'; iDistanceFromPossibleTargetToTarget='..iDistanceFromPossibleTargetToTarget..'; iDistanceFromQueuedToStart='..iDistanceFromQueuedToStart..'; iDistanceFromStartToTarget='..iDistanceFromStartToTarget..'; iDistanceFromTargetToStart='..iDistanceFromTargetToStart) end
+                                            if iDistanceFromQueuedToStart > 1 and ((iDistanceFromQueuedToStart < iDistanceFromStartToTarget and iDistanceFromTargetToStart > 0) or (iDistanceFromQueuedToStart > iDistanceFromStartToTarget and iDistanceFromTargetToStart < 0)) then
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Existing location is closer than the new possible location so go with this') end
+                                                --Existing location is closer than the new location so go with this
+                                                tPossibleTarget = tExistingTargetPos
+                                            end
                                         end
                                     end
                                 end
+                            end
+                        end
+                    end
+                end
+            end
+        else
+            --This could be due to a pathfinding error, will just use the potential target
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': End of code; tPossibleTarget='..repru(tPossibleTarget or {'nil'})..'; bCanPathToTarget='..tostring(bCanPathToTarget)) end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return tPossibleTarget
+    end
+
+    function InPlayableArea(tLocation) --NOTE - also have the same function in M28Conditions
+        if tLocation[1] >= rMapPlayableArea[1] and tLocation[1] <= rMapPlayableArea[3] and tLocation[3] >= rMapPlayableArea[2] and tLocation[3] <= rMapPlayableArea[4] then
+            return true
+        else
+            return false
+        end
+    end
+
+    function GetLandOrWaterZoneData(tLocation, bReturnTeamDataAsWell, iOptionalTeam)
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'GetLandOrWaterZoneData'
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+        local iPlateauOrZero, iLandOrWaterZone = GetClosestPlateauOrZeroAndZoneToPosition(tLocation)
+        if (iLandOrWaterZone or 0) > 0 then
+            if iPlateauOrZero == 0 then
+                --Water zone
+                if bReturnTeamDataAsWell then
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    return tPondDetails[tiPondByWaterZone[iLandOrWaterZone]][subrefPondWaterZones][iLandOrWaterZone], tPondDetails[tiPondByWaterZone[iLandOrWaterZone]][subrefPondWaterZones][iLandOrWaterZone][subrefWZTeamData][iOptionalTeam]
+                else
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    return tPondDetails[tiPondByWaterZone[iLandOrWaterZone]][subrefPondWaterZones][iLandOrWaterZone]
+                end
+            else
+                if bReturnTeamDataAsWell then
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    return tAllPlateaus[iPlateauOrZero][subrefPlateauLandZones][iLandOrWaterZone], tAllPlateaus[iPlateauOrZero][subrefPlateauLandZones][iLandOrWaterZone][subrefLZTeamData][iOptionalTeam]
+                else
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    return tAllPlateaus[iPlateauOrZero][subrefPlateauLandZones][iLandOrWaterZone]
+                end
+            end
+        else
+            if bDebugMessages == true then LOG(sFunctionRef..': Unsable to find a valid zone for position '..repru(tLocation)..'; will draw in red')
+                M28Utilities.DrawLocation(tLocation, 2)
+            end
+        end
+    end
+
+    function RecordBrainStartPoint(oBrain)
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'RecordBrainStartPoint'
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+        local iStartPositionX, iStartPositionZ = oBrain:GetArmyStartPos()
+        local tStartPoint = {iStartPositionX, GetSurfaceHeight(iStartPositionX, iStartPositionZ), iStartPositionZ}
+
+        if bDebugMessages == true then LOG(sFunctionRef..': Considering start position recorded for brain '..(oBrain.Nickname or 'nil')..' at time='..GetGameTimeSeconds()) end
+        --Adjust start point if it isn't on a valid plateau (e.g. means we should work on some coop maps)
+        if not(NavUtils.IsGenerated()) then
+            if bDebugMessages == true then LOG('Considering whether to generate map markers for oBrain='..oBrain.Nickname..'; GameTime='..GetGameTimeSeconds()) end
+            while (not(M28Overseer.bBeginSessionTriggered) and GetGameTimeSeconds() < 4) do
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitTicks(1)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            M28Profiler.FunctionProfiler('NavUtilsGenerate', M28Profiler.refProfilerStart)
+            NavUtils.Generate()
+            M28Profiler.FunctionProfiler('NavUtilsGenerate', M28Profiler.refProfilerEnd)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            SetupPlayableAreaAndSegmentSizes()
+        end
+
+        if not(NavUtils.GetTerrainLabel(refPathingTypeHover, tStartPoint)) then
+            local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tStartPoint)
+            local bHaveValidStartPoint = false
+            local tAltStartPoint
+            for iAdjustBase = 1, 50 do
+                for iCurSegmentX = iSegmentX - iAdjustBase, iSegmentX + iAdjustBase, 1 do
+                    for iCurSegmentZ = iSegmentZ - iAdjustBase, iSegmentZ + iAdjustBase, iAdjustBase * 2 do
+                        if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
+                            tAltStartPoint = GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering tAltStartPoint='..repru(tAltStartPoint)..'; rMapPotentialPlayableArea='..repru(rMapPotentialPlayableArea)..'; Hover label='..(NavUtils.GetTerrainLabel(refPathingTypeHover, tAltStartPoint) or 'nil')) end
+                            if tAltStartPoint[1] <= rMapPotentialPlayableArea[3] and tAltStartPoint[3] <= rMapPotentialPlayableArea[4] then
+                                if NavUtils.GetTerrainLabel(refPathingTypeHover, tAltStartPoint) then
+                                    bHaveValidStartPoint = true
+                                    break
+                                end
+                            end
+                        end
+                    end
+                    if bHaveValidStartPoint then break end
+                end
+                if bHaveValidStartPoint then break end
+                --Then do the left and right row (excl corners which ahve already done per the above)
+                for iCurSegmentX = iSegmentX - iAdjustBase, iSegmentX + iAdjustBase, iAdjustBase * 2 do
+                    for iCurSegmentZ = iSegmentZ - iAdjustBase + 1, iSegmentZ + iAdjustBase - 1, 1 do
+                        if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
+                            tAltStartPoint = GetPositionFromPathingSegments(iCurSegmentX, iCurSegmentZ)
+                            if tAltStartPoint[1] <= rMapPotentialPlayableArea[3] and tAltStartPoint[3] <= rMapPotentialPlayableArea[4] then
+                                if NavUtils.GetTerrainLabel(refPathingTypeHover, tAltStartPoint) then
+                                    bHaveValidStartPoint = true
+                                    break
+                                end
+                            end
+                        end
+                    end
+                    if bHaveValidStartPoint then break end
+                end
+                if bHaveValidStartPoint then break end
+            end
+
+            if not(bIsCampaignMap) and not(M28Conditions.IsCivilianBrain(oBrain)) then M28Utilities.ErrorHandler('Non-civilian brain '..(oBrain.Nickname or 'nil')..' with index '..oBrain:GetArmyIndex()..' has a start position that doesnt have a plateau reference and this isnt a campaign map') end
+
+            if not(bHaveValidStartPoint) then M28Utilities.ErrorHandler('Have been through 50 adjacent segments and not found a valid start point for brain '..(oBrain.Nickname or 'nil')..' with start position '..repru(tStartPoint))
+            else
+                if bDebugMessages == true then LOG(sFunctionRef..': Changing start point for brain '..(oBrain.Nickname or 'nil')..' to be '..repru(tAltStartPoint)..' from tStartPoint of '..repru(tStartPoint)) end
+                tStartPoint = {tAltStartPoint[1], GetSurfaceHeight(tAltStartPoint[1], tAltStartPoint[3]), tAltStartPoint[3]}
+            end
+        end
+
+        PlayerStartPoints[oBrain:GetArmyIndex()] = {tStartPoint[1], tStartPoint[2], tStartPoint[3]}
+        M28Overseer.tAllAIBrainsByArmyIndex[oBrain:GetArmyIndex()] = oBrain
+
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    end
+
+    function GetNearestWaterToBuildNavalFactoryInPlayableArea(aiBrain, tStartPosition, iDistInterval, iOptionalPond, iOptionalAngleAdjust, bCheckInPlayableArea)
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'GetNearestWaterToBuildNavalFactoryInPlayableArea'
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+
+
+        local iAngleToCentre = (iOptionalAngleAdjust or 0)
+        local iMaxSearch = math.max(rMapPlayableArea[3] - rMapPlayableArea[1], rMapPlayableArea[4] - rMapPlayableArea[2])
+        iMaxSearch = math.floor(iMaxSearch / iDistInterval) * iDistInterval
+        local tPossibleLocationBase, tPossibleBuildLocation, tNavalBuildArea
+        local iBuildingInterval = 4
+        local iTerrainLabel
+        local bHaveValidLocation = false
+        local bDontCheckInPlayableArea = not(bCheckInPlayableArea)
+        for iDistToTravel = iDistInterval, iMaxSearch, iDistInterval do
+            for iAngleAdjust = 0, 170, 10 do
+                for iAngleFactor = -1, 1, 2 do
+                    tPossibleLocationBase = M28Utilities.MoveInDirection(tStartPosition, iAngleToCentre + iAngleAdjust * iAngleFactor, iDistToTravel, true, true, false)
+                    iTerrainLabel = NavUtils.GetTerrainLabel(refPathingTypeNavy, tPossibleLocationBase)
+
+                    if iTerrainLabel and ((iOptionalPond and  iOptionalPond == iTerrainLabel) or not(iOptionalPond)) and (bDontCheckInPlayableArea or InPlayableArea(tPossibleLocationBase)) then
+                        --Try and find somewhere around here to build a naval factory
+                        for iBuildingAdjustX = 0, iBuildingInterval, 1 do
+                            for iBuildingAdjustZ = 0, iBuildingInterval, 1 do
+                                for iXFactor = -1, 1, 2 do
+                                    for iZFactor = -1, 1, 2 do
+                                        tPossibleBuildLocation = {tPossibleLocationBase[1] + iBuildingAdjustX * iXFactor, 0, tPossibleLocationBase[3] + iBuildingAdjustZ * iZFactor}
+                                        tPossibleBuildLocation[2] = GetSurfaceHeight(tPossibleBuildLocation[1], tPossibleBuildLocation[3])
+                                        if bCheckInPlayableArea and not(InPlayableArea(tPossibleBuildLocation)) then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Possible build location isnt in playable area so abortin for this ZFactor') end
+                                            break
+                                        end
+                                        if aiBrain:CanBuildStructureAt('ueb0103', tPossibleBuildLocation) then
+                                            bHaveValidLocation = true
+                                            tNavalBuildArea = {tPossibleBuildLocation[1], tPossibleBuildLocation[2], tPossibleBuildLocation[3]}
+                                            if bDebugMessages == true then
+                                                LOG(sFunctionRef..': Have valid location='..repru(tPossibleBuildLocation)..'; will draw in white')
+                                                M28Utilities.DrawLocation(tPossibleBuildLocation, 1, 100, 2)
+                                            end
+                                            break
+                                        else
+                                            if bDebugMessages == true then
+                                                LOG(sFunctionRef..': Have invalid location='..repru(tPossibleBuildLocation)..'; will draw in red')
+                                                M28Utilities.DrawLocation(tPossibleBuildLocation, 2, 100, 2)
+                                            end
+                                        end
+                                    end
+                                    if bHaveValidLocation then break end
+                                end
                                 if bHaveValidLocation then break end
+
                             end
                             if bHaveValidLocation then break end
-
                         end
-                        if bHaveValidLocation then break end
+                        if iAngleAdjust == 0 or bHaveValidLocation then break end
+                    elseif bDebugMessages == true then
+                        LOG(sFunctionRef..': Failed tPossibleLocationBase pathing group, tPossibleLocationBase='..repru(tPossibleLocationBase)..'; naval label='..(NavUtils.GetTerrainLabel(refPathingTypeNavy, tPossibleLocationBase) or 'nil')..'; iOptionalPond='..(iOptionalPond or 'nil')..'; will draw in gold')
+                        M28Utilities.DrawLocation(tPossibleLocationBase, 4, 100, 2)
                     end
-                    if iAngleAdjust == 0 or bHaveValidLocation then break end
-                elseif bDebugMessages == true then
-                    LOG(sFunctionRef..': Failed tPossibleLocationBase pathing group, tPossibleLocationBase='..repru(tPossibleLocationBase)..'; naval label='..(NavUtils.GetTerrainLabel(refPathingTypeNavy, tPossibleLocationBase) or 'nil')..'; iOptionalPond='..(iOptionalPond or 'nil')..'; will draw in gold')
-                    M28Utilities.DrawLocation(tPossibleLocationBase, 4, 100, 2)
+                    if bHaveValidLocation then break end
                 end
                 if bHaveValidLocation then break end
             end
             if bHaveValidLocation then break end
         end
-        if bHaveValidLocation then break end
+        if bDebugMessages == true then LOG(sFunctionRef..': End of code, tNavalBuildArea='..repru(tNavalBuildArea)) end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return tNavalBuildArea
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': End of code, tNavalBuildArea='..repru(tNavalBuildArea)) end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-    return tNavalBuildArea
-end
 
-function ConsiderUnitAddingPositionToWaterZone(oUnit)
-    --Checks if unit appears to be on water and if so adds this segment to the nearest water zone
+    function ConsiderUnitAddingPositionToWaterZone(oUnit)
+        --Checks if unit appears to be on water and if so adds this segment to the nearest water zone
 
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'ConsiderUnitAddingPositionToWaterZone'
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+        local sFunctionRef = 'ConsiderUnitAddingPositionToWaterZone'
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    --Is this a naval unit that is on water?
-    if EntityCategoryContains(M28UnitInfo.refCategoryAllNavy, oUnit.UnitId) then
-        local tUnitPosition = oUnit:GetPosition()
-        if GetTerrainHeight(tUnitPosition[1], tUnitPosition[3]) < GetSurfaceHeight(tUnitPosition[1], tUnitPosition[3]) then
-            --Find the nearest water zone to this position
-            local iWaterZone
-            local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tUnitPosition)
-            if not(tWaterZoneBySegment[iSegmentX][iSegmentZ]) then
-                for iAdjustBase = 1, 10 do
-                    for iCurSegmentX = iSegmentX - iAdjustBase, iSegmentX + iAdjustBase, 1 do
-                        for iCurSegmentZ = iSegmentZ - iAdjustBase, iSegmentZ + iAdjustBase, iAdjustBase * 2 do
-                            if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
-                                if tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] then iWaterZone = tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] break end
+        --Is this a naval unit that is on water?
+        if EntityCategoryContains(M28UnitInfo.refCategoryAllNavy, oUnit.UnitId) then
+            local tUnitPosition = oUnit:GetPosition()
+            if GetTerrainHeight(tUnitPosition[1], tUnitPosition[3]) < GetSurfaceHeight(tUnitPosition[1], tUnitPosition[3]) then
+                --Find the nearest water zone to this position
+                local iWaterZone
+                local iSegmentX, iSegmentZ = GetPathingSegmentFromPosition(tUnitPosition)
+                if not(tWaterZoneBySegment[iSegmentX][iSegmentZ]) then
+                    for iAdjustBase = 1, 10 do
+                        for iCurSegmentX = iSegmentX - iAdjustBase, iSegmentX + iAdjustBase, 1 do
+                            for iCurSegmentZ = iSegmentZ - iAdjustBase, iSegmentZ + iAdjustBase, iAdjustBase * 2 do
+                                if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
+                                    if tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] then iWaterZone = tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] break end
+                                end
                             end
+                            if iWaterZone then break end
+                        end
+                        if iWaterZone then break end
+                        --Then do the left and right row (excl corners which ahve already done per the above)
+                        for iCurSegmentX = iSegmentX - iAdjustBase, iSegmentX + iAdjustBase, iAdjustBase * 2 do
+                            for iCurSegmentZ = iSegmentZ - iAdjustBase + 1, iSegmentZ + iAdjustBase - 1, 1 do
+                                if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
+                                    if tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] then iWaterZone = tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] break end
+                                end
+                            end
+                            if iWaterZone then break end
                         end
                         if iWaterZone then break end
                     end
-                    if iWaterZone then break end
-                    --Then do the left and right row (excl corners which ahve already done per the above)
-                    for iCurSegmentX = iSegmentX - iAdjustBase, iSegmentX + iAdjustBase, iAdjustBase * 2 do
-                        for iCurSegmentZ = iSegmentZ - iAdjustBase + 1, iSegmentZ + iAdjustBase - 1, 1 do
-                            if iCurSegmentX >= 0 and iCurSegmentZ >= 0 then
-                                if tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] then iWaterZone = tWaterZoneBySegment[iCurSegmentX][iCurSegmentZ] break end
-                            end
-                        end
-                        if iWaterZone then break end
-                    end
-                    if iWaterZone then break end
-                end
 
-                if iWaterZone then
-                    if bDebugMessages == true then LOG(sFunctionRef..': Recording location '..repru(oUnit:GetPosition())..' as being a water zone based on nearby iWaterZone='..iWaterZone) end
-                    AddSegmentToWaterZone(tiPondByWaterZone[iWaterZone], iWaterZone, iSegmentX, iSegmentZ)
+                    if iWaterZone then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Recording location '..repru(oUnit:GetPosition())..' as being a water zone based on nearby iWaterZone='..iWaterZone) end
+                        AddSegmentToWaterZone(tiPondByWaterZone[iWaterZone], iWaterZone, iSegmentX, iSegmentZ)
+                    end
                 end
             end
         end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
     end
-    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-end
 
-function DrawLandZonePath(iPlateau, iStartLandZone, iEndLandZone)
-    local tLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone]
-    local iTargetLZRef = tLZData[subrefLZPathingToOtherLZEntryRef][iEndLandZone]
-    local tPathToOtherLZ = tLZData[subrefLZPathingToOtherLandZones][iTargetLZRef][subrefLZPath]
-    local iPrevLZRef = iStartLandZone
-    for iEntry, iLZ in tPathToOtherLZ do
-        local tPrevLZData =      tAllPlateaus[iPlateau][subrefPlateauLandZones][iPrevLZRef]
-        local tAltLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLZ]
-        ForkThread(M28Utilities.ForkedDrawLine, tPrevLZData[subrefMidpoint], tAltLZData[subrefMidpoint], 2, 100)
-        iPrevLZRef = iLZ
+    function DrawLandZonePath(iPlateau, iStartLandZone, iEndLandZone)
+        local tLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iStartLandZone]
+        local iTargetLZRef = tLZData[subrefLZPathingToOtherLZEntryRef][iEndLandZone]
+        local tPathToOtherLZ = tLZData[subrefLZPathingToOtherLandZones][iTargetLZRef][subrefLZPath]
+        local iPrevLZRef = iStartLandZone
+        for iEntry, iLZ in tPathToOtherLZ do
+            local tPrevLZData =      tAllPlateaus[iPlateau][subrefPlateauLandZones][iPrevLZRef]
+            local tAltLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLZ]
+            ForkThread(M28Utilities.ForkedDrawLine, tPrevLZData[subrefMidpoint], tAltLZData[subrefMidpoint], 2, 100)
+            iPrevLZRef = iLZ
+        end
     end
-end

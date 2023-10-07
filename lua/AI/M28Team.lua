@@ -53,6 +53,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefiTeamLowestMassPercentStored = 'M28TeamLowestMassPercent'
     subrefbTeamIsStallingEnergy = 'M28TeamStallingEnergy'
     subrefbTeamIsStallingMass = 'M28TeamStallingMass'
+    subrefbStallingMassFlaggedFromTeamEconomy = 'M28TmStlFrE' --If our economy refresh flags we are stalling this is true, meaning we will then realise change is required for the mass stall
     refiTimeOfLastMassStall = 'M28TeamTimeLastMassStall' --Gametimeseconds that we were last stalling mass
     subrefbTooLittleEnergyForUpgrade = 'M28TeamTooLittleEnergyForUpgrade' --true if we havent got an upgrade due to lack of power
     subrefbActiveT1PowerReclaimer = 'M28TeamActiveT1PowerReclaimer'
@@ -151,6 +152,7 @@ tTeamData = {} --[x] is the aiBrain.M28Team number - stores certain team-wide in
     subrefiRallyPointWaterZonesByPond = 'M28TeamWZRallyPoint' --[x] is the pond ref, then returns a table orderd 1, 2... of water zones that are rally points
     refiTimeLastNoSurfaceCombatTargetByPond = 'M28TeamLastTimeNoSurfTarget' --[x] is the pond ref, returns gametimeseconds that had surface bomat units with no target
     refiTimeLastNoSubCombatTargetByPond = 'M28TeamLastTimeNoSubTarget' --[x] is the pond ref, returns gametimeseconds that had submersible combat units with no target
+    refiTimeLastHadBombardmentModeByPond = 'M28TeamLastTimeBombardment' --[x] is the pond ref, returns gametimeseconds that had a bombardment target activate (that wasnt for raiders)
 
     --Air related
     reftoAllEnemyAir = 'M28TeamEnemyAirAll'
@@ -2148,24 +2150,27 @@ function AddPotentialUnitsToShortlist(toUnitShortlist, tPotentialUnits, bDontChe
     if M28Utilities.IsTableEmpty(tPotentialUnits) == false then
         for iUnit, oUnit in tPotentialUnits do
             if M28UnitInfo.IsUnitValid(oUnit) and not(oUnit:IsUnitState('Upgrading')) and oUnit:GetFractionComplete() == 1 then
-                local bUnitIsHighestTechFactoryForOptionalCount = false
-                if not(iOptionalHighestTechBuildCountRequirement) then bUnitIsHighestTechFactoryForOptionalCount = true
-                else
-                    local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnit)
-                    if iUnitTechLevel >= 3 then bUnitIsHighestTechFactoryForOptionalCount = true
+                --Extra check for factories
+                if not(M28Conditions.CheckIfNeedMoreEngineersBeforeUpgrading(oUnit)) then
+                    local bUnitIsHighestTechFactoryForOptionalCount = false
+                    if not(iOptionalHighestTechBuildCountRequirement) then bUnitIsHighestTechFactoryForOptionalCount = true
                     else
-                        if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) then
-                            if iUnitTechLevel >= oUnit:GetAIBrain()[M28Economy.refiOurHighestLandFactoryTech] then bUnitIsHighestTechFactoryForOptionalCount = true end
+                        local iUnitTechLevel = M28UnitInfo.GetUnitTechLevel(oUnit)
+                        if iUnitTechLevel >= 3 then bUnitIsHighestTechFactoryForOptionalCount = true
+                        else
+                            if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory, oUnit.UnitId) then
+                                if iUnitTechLevel >= oUnit:GetAIBrain()[M28Economy.refiOurHighestLandFactoryTech] then bUnitIsHighestTechFactoryForOptionalCount = true end
 
-                        elseif EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oUnit.UnitId) then
-                            if iUnitTechLevel >= oUnit:GetAIBrain()[M28Economy.refiOurHighestAirFactoryTech] then bUnitIsHighestTechFactoryForOptionalCount = true end
-                        elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oUnit.UnitId) then
-                            if iUnitTechLevel >= oUnit:GetAIBrain()[M28Economy.refiOurHighestNavalFactoryTech] then bUnitIsHighestTechFactoryForOptionalCount = true end
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryAirFactory, oUnit.UnitId) then
+                                if iUnitTechLevel >= oUnit:GetAIBrain()[M28Economy.refiOurHighestAirFactoryTech] then bUnitIsHighestTechFactoryForOptionalCount = true end
+                            elseif EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oUnit.UnitId) then
+                                if iUnitTechLevel >= oUnit:GetAIBrain()[M28Economy.refiOurHighestNavalFactoryTech] then bUnitIsHighestTechFactoryForOptionalCount = true end
+                            end
                         end
                     end
-                end
-                if (not(bUnitIsHighestTechFactoryForOptionalCount) or iOptionalHighestTechBuildCountRequirement <= (oUnit[M28Factory.refiTotalBuildCount] or 0)) and (bDontCheckIfSafe or M28Conditions.SafeToUpgradeUnit(oUnit)) then
-                    table.insert(toUnitShortlist, oUnit)
+                    if (not(bUnitIsHighestTechFactoryForOptionalCount) or iOptionalHighestTechBuildCountRequirement <= (oUnit[M28Factory.refiTotalBuildCount] or 0)) and (bDontCheckIfSafe or M28Conditions.SafeToUpgradeUnit(oUnit)) then
+                        table.insert(toUnitShortlist, oUnit)
+                    end
                 end
             end
         end
@@ -2656,6 +2661,7 @@ function TeamEconomyRefresh(iM28Team)
 
         if tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] <= 0.05 and (GetGameTimeSeconds() >= 120 or tTeamData[iM28Team][subrefiTeamLowestEnergyPercentStored] <= 0.001) then tTeamData[iM28Team][subrefbTeamIsStallingEnergy] = true end
         if tTeamData[iM28Team][subrefiTeamLowestMassPercentStored] == 0 and tTeamData[iM28Team][subrefiTeamMassStored] < tTeamData[iM28Team][subrefiActiveM28BrainCount] * 25 then
+            if not(tTeamData[iM28Team][subrefbTeamIsStallingMass]) then tTeamData[iM28Team][subrefbStallingMassFlaggedFromTeamEconomy] = true end
             tTeamData[iM28Team][subrefbTeamIsStallingMass] = true
             tTeamData[iM28Team][refiTimeOfLastMassStall] = GetGameTimeSeconds()
         end
@@ -2853,6 +2859,7 @@ function WaterZoneTeamInitialisation(iTeam)
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatAlliedSubmersible] = 0
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatAlliedSurface] = 0
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatAlliedAA] = 0
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZThreatAlliedMAA] = 0
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZBestAlliedDFRange] = 0
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZBestAlliedSubmersibleRange] = 0
 
