@@ -120,7 +120,7 @@ function CheckIfUnitWantsFixedShield(oUnit, bCheckForNearbyShields, iOptionalShi
     if bCheckForNearbyShields and iShieldsWanted > 0 then
         local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit:GetPosition())
         if iPlateau > 0 and iLandZone > 0 then
-            local tNearbyShields = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.subrefLZTAlliedUnits])
+            local tNearbyShields = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield, M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][oUnit:GetAIBrain().M28Team][M28Map.subreftoLZOrWZAlliedUnits])
             if M28Utilities.IsTableEmpty(tNearbyShields) == false then
                 if not(oUnit[reftoShieldsProvidingCoverage]) then oUnit[reftoShieldsProvidingCoverage] = {} end
 
@@ -1063,7 +1063,7 @@ function GetUnitWantingTMD(tLZData, tLZTeamData, iTeam, iOptionalLandZone)
         end
     end
     --Cap on number of TMD to prvent massiveo verbuilding - dont have more than 10 in a LZ
-    local tExistingTMD = EntityCategoryFilterDown(M28UnitInfo.refCategoryTMD, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+    local tExistingTMD = EntityCategoryFilterDown(M28UnitInfo.refCategoryTMD, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
     if bDebugMessages == true then LOG(sFunctionRef..': Is table of existing TMD empty='..tostring(M28Utilities.IsTableEmpty(tExistingTMD))) end
     if M28Utilities.IsTableEmpty(tExistingTMD) == false then
         local iExistingValidTMD = table.getn(tExistingTMD)
@@ -1100,7 +1100,7 @@ function RecordPriorityShields(iTeam, tLZTeamData)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if GetGameTimeSeconds() - (tLZTeamData[M28Map.refiTimeOfLastShieldPriorityRefresh] or -100) >= 10 then
         tLZTeamData[M28Map.refiTimeOfLastShieldPriorityRefresh] = GetGameTimeSeconds()
-        local tShieldsToAssist = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+        local tShieldsToAssist = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
         --First clear any engineers assigned to shields that arent listed as a priority shield from the last update
         if bDebugMessages == true then LOG(sFunctionRef..': WIll refresh list of shields. Is table empty='..tostring(M28Utilities.IsTableEmpty(tShieldsToAssist))..'; do we already have any priority shields when when last ran this? is table empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftPriorityShieldsToAssist]))) end
         if M28Utilities.IsTableEmpty(tShieldsToAssist) == false then
@@ -2784,7 +2784,7 @@ function ReserveLocationsForGameEnder(oUnit)
 
 
                 --CLear any engineers with queued orders that will conflict with a shield location
-                local tEngineersInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                local tEngineersInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                 if M28Utilities.IsTableEmpty(tEngineersInZone) == false then
                     local bClearEngineer
                     local tEngineersToClear = {}

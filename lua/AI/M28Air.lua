@@ -4718,12 +4718,12 @@ function UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam)
                             if bDebugMessages == true then LOG(sFunctionRef..': bBPWanted='..tostring(bBPWanted)) end
                             if bBPWanted then
                                 --Do we have any engineers or factories in this zone?
-                                if bDebugMessages == true then LOG(sFunctionRef..': Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]))) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))) end
                                 local bHaveUnattachedEngineersOrFactories = false
-                                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) then
+                                if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) then
                                     --Do nothing - no allied units there so no engineers or factories will be there
                                 else
-                                    local tFactoriesAndEngineers = M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryEngineer + categories.COMMAND + categories.SUBCOMMANDER, tLZTeamData[M28Map.subrefLZTAlliedUnits]))
+                                    local tFactoriesAndEngineers = M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryEngineer + categories.COMMAND + categories.SUBCOMMANDER, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))
                                     if M28Utilities.IsTableEmpty(tFactoriesAndEngineers) == false then
                                         --This will include transport if it is about to land
                                         for iUnit, oUnit in tFactoriesAndEngineers do
@@ -4733,20 +4733,20 @@ function UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam)
                                         end
                                     end
                                 end
-                                if bDebugMessages == true then LOG(sFunctionRef..': Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]))..'; bHaveUnattachedEngineersOrFactories='..tostring(bHaveUnattachedEngineersOrFactories)) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))..'; bHaveUnattachedEngineersOrFactories='..tostring(bHaveUnattachedEngineersOrFactories)) end
                                 if not(bHaveUnattachedEngineersOrFactories) then
                                     --Do we have engineers in an adjacent zone?
                                     local bHaveNearbyFactoriesOrLargeThreat = false
                                     if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZAdjacentLandZones]) == false then
                                         for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                                             local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
-                                            if bDebugMessages == true then LOG(sFunctionRef..': iAdjLZ='..iAdjLZ..'; tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..(tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefLZTAlliedUnits]))) end
+                                            if bDebugMessages == true then LOG(sFunctionRef..': iAdjLZ='..iAdjLZ..'; tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..(tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))) end
                                             if tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 100 then
                                                 bHaveNearbyFactoriesOrLargeThreat = true
                                                 break
                                             else
-                                                if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
-                                                    local tFactoriesAndEngineers = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryEngineer + categories.COMMAND + categories.SUBCOMMANDER, tAdjLZTeamData[M28Map.subrefLZTAlliedUnits])
+                                                if M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                                                    local tFactoriesAndEngineers = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryEngineer + categories.COMMAND + categories.SUBCOMMANDER, tAdjLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                                                     if M28Utilities.IsTableEmpty(tFactoriesAndEngineers) == false then
                                                         for iUnit, oUnit in tFactoriesAndEngineers do
                                                             if not(oUnit:IsUnitState('Attached')) and oUnit:GetFractionComplete() == 1 then
@@ -4993,9 +4993,9 @@ function UpdateTransportLocationShortlist(iTeam)
                         if tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] >= 175 or M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEngineersTravelingHere]) == false then
                             bTooMuchThreatOrEngisTraveling = true
                             break
-                        elseif M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
+                        elseif M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
                             --(we already checked for factories earlier so this is partially a redundancy, as well as expanding to include engineers
-                            local tEngineersAndFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                            local tEngineersAndFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer + M28UnitInfo.refCategoryFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                             if M28Utilities.IsTableEmpty(tEngineersAndFactories) == false then
                                 for iUnit, oUnit in tEngineersAndFactories do
                                     if not(oUnit:IsUnitState('Attached')) and oUnit:GetFractionComplete() >= 1 then
@@ -5442,7 +5442,7 @@ function ManageTransports(iTeam, iAirSubteam)
                                     local oClosestLoadingEngineer
                                     local iClosestLoadingEngineerDist = 1000
                                     local iCurEngiDist
-                                    local tEngineersInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tCurLZOrWZTeamData[M28Map.subrefLZTAlliedUnits])
+                                    local tEngineersInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tCurLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                                     for iEngineer, oEngineer in tEngineersInZone do
                                         if M28UnitInfo.IsUnitValid(oEngineer) and oEngineer[M28Engineer.refiAssignedAction] == M28Engineer.refActionLoadOntoTransport and not(oEngineer:IsUnitState('Attached')) then
                                             local tEngineerLastOrder = oEngineer[M28Orders.reftiLastOrders][oEngineer[M28Orders.refiOrderCount]]

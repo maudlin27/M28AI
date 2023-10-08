@@ -404,7 +404,7 @@ function OnUnitDeath(oUnit)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will check if upgrade tracking needs updating, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                                 M28Team.UpdateUpgradeTrackingOfUnit(oUnit, true)
                                 if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
-                                    M28Economy.UpdateLandZoneM28MexByTechCount(oUnit, true)
+                                    M28Economy.UpdateZoneM28MexByTechCount(oUnit, true)
                                     --Update upgrading mexes
                                     M28Economy.UpdateTableOfUpgradingMexesForTeam(oUnit:GetAIBrain().M28Team)
                                 end
@@ -1114,11 +1114,11 @@ function OnConstructed(oEngineer, oJustBuilt)
                             if iPlateauOrZero == 0 then
                                 tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
                                 tLZOrWZTeamData = tLZOrWZData[M28Map.subrefWZTeamData][iTeam]
-                                sUnitTableRef = M28Map.subrefWZTAlliedUnits
+                                sUnitTableRef = M28Map.subreftoLZOrWZAlliedUnits
                             else
                                 tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
                                 tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
-                                sUnitTableRef = M28Map.subrefLZTAlliedUnits
+                                sUnitTableRef = M28Map.subreftoLZOrWZAlliedUnits
                             end
                             if M28Utilities.IsTableEmpty(tLZOrWZTeamData[sUnitTableRef]) == false then
                                 for iUnit, oUnit in tLZOrWZTeamData[sUnitTableRef] do
@@ -1144,7 +1144,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                         M28Economy.UpdateHighestFactoryTechLevelForBuiltUnit(oJustBuilt) --includes a check to see if are dealing with a factory HQ
                         if EntityCategoryContains(M28UnitInfo.refCategoryMex, oJustBuilt.UnitId) then
                             M28Team.tTeamData[iTeam][M28Team.refiUpgradedMexCount] = (M28Team.tTeamData[iTeam][M28Team.refiUpgradedMexCount] or 0) + 1
-                            ForkThread(M28Economy.UpdateLandZoneM28MexByTechCount, oJustBuilt, false, 10)
+                            ForkThread(M28Economy.UpdateZoneM28MexByTechCount, oJustBuilt, false, 10)
                             --If have storage owned by M28 on same team by this mex, gift it over
                             --All mexes - on construction check if we have allied M28 mass storage nearby (e.g. we have rebuilt on a mex that they used to have) and if so then have that M28 gift over their mass storage
                             M28Team.GiftAdjacentStorageToMexOwner(oJustBuilt)
@@ -1203,7 +1203,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                                     --First generate list of other engineers to also help with wall building (as theyll potentially get cleared when we clear the original engineer)
                                     local tOtherEngineersHelpingConstruction = {}
                                     local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, oEngineer:GetAIBrain().M28Team)
-                                    local tEngineersInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                                    local tEngineersInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                                     if M28Utilities.IsTableEmpty(tEngineersInZone) == false then
                                         for iUnit, oUnit in tEngineersInZone do
                                             if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() == 1 then
@@ -1636,7 +1636,7 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                     M28Economy.UpdateHighestFactoryTechLevelForBuiltUnit(oUnit) --this includes a check to see if are dealing with a factory HQ
                     M28Economy.UpdateGrossIncomeForUnit(oUnit, false) --This both includes a check of the unit type, and cehcks we havent already recorded
                     if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) and not(oUnit.M28OnConstructedCalled) then
-                        ForkThread(M28Economy.UpdateLandZoneM28MexByTechCount, oUnit) --we run the same logic via onconstructed
+                        ForkThread(M28Economy.UpdateZoneM28MexByTechCount, oUnit) --we run the same logic via onconstructed
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryParagon, oUnit.UnitId) and not(oUnit.M28OnConstructedCalled) then
                         ForkThread(M28Building.JustBuiltParagon, oUnit)
                     end

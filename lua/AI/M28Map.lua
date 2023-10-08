@@ -137,7 +137,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             --subrefBlacklistType = 3
                 --BlacklistTimeout = 1 --i.e. we have tried building something for ages and have failed
                 --BlacklistReserved = 2 --i.e. we dont want to build anything here because it's being saved for something--]]
-        subrefLZMassStorageLocationsAvailable = 'MassStorageLocations' --Against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], Returns table of locations which should be valid to build on for mass storage
+        subrefLZOrWZMassStorageLocationsAvailable = 'MassStorageLocations' --Against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], Returns table of locations which should be valid to build on for mass storage
         subrefLZSegments = 'Segments' --Contains a table which returns the X and Z segment values for every segment assigned to this land zone
         subrefLZTotalSegmentCount = 'SegCount' --Number of segments in a land zone, against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
         subrefLZAdjacentLandZones = 'AdjLZ' --table containing all adjacent land zone references for the plateau in question, against tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone], i.e. ordered 1,2,3,...; and returns the LZ ref (based on the order it was added)
@@ -196,7 +196,7 @@ iLandZoneSegmentSize = 5 --Gets updated by the SetupLandZones - the size of one 
             subrefLZFortify = 'ZFor' --True if we want to fortify this firebase, e.g. for scenarios like M2 UEF
             subrefAlliedACU = 'AACU' --table of ACU units for the land zone (so can factor into decisions on support and attack)
             refbACUInTrouble = 'AACTr' --true if we have acu in this zone that we are worreid might be about to die to tanks
-            subrefLZTAlliedUnits = 'Allies' --USE SAME REF AS FOR WATER ZONES - table of all allied units in the land zone, tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam][subrefLZTAlliedUnits]
+            subreftoLZOrWZAlliedUnits = 'Allies' --USE SAME REF AS FOR WATER ZONES - table of all allied units in the land zone, tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone][subrefLZTeamData][iTeam][subreftoLZOrWZAlliedUnits]
             subrefLZTAlliedCombatUnits = 'AllComb' --table of allied units that are to be considered for combat orders
             subrefiTimeOfLastEnemyUnitPosUpdate = 'EnPosTim' --Gametimeseconds that we updated the last known position of enemy units in this zone
             subrefTEnemyUnits = 'Enemies' --table of all enemy units in the land zone or water zone (same ref used for WZ)
@@ -389,7 +389,7 @@ tPondDetails = {}
             --subreftPatrolPath - use same ref as for land zone
             --subrefOtherLandAndWaterZonesByDistance - use same ref as for land zone
 
-            subrefWZTAlliedUnits = 'Allies' --USE SAME REF AS FOR LAND ZONE - table of all allied units in the water zone
+            --subreftoLZOrWZAlliedUnits = 'Allies' --USEs SAME REF AS FOR LAND ZONE - table of all allied units in the water zone
             subrefWZTAlliedCombatUnits = 'AllComb' --table of allied units that are to be considered for combat orders
             --subrefTEnemyUnits = 'Enemies' --table of all enemy units in the water zone - uses same ref as for land zone
             reftWZEnemyAirUnits = 'EnAir' --All enemy air units that are currently in the water zone
@@ -5797,6 +5797,7 @@ function SetupWaterZones()
         if bDebugMessages == true then LOG(sFunctionRef..': Finished recording water zone pathing to other water zones, system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
         RecordWaterZonePatrolPaths()
         if bDebugMessages == true then LOG(sFunctionRef..': Finished recording water zone patrol paths for land scouts, system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
+        RecordMassStorageLocationsForEachWaterZone()
     end
     bWaterZoneInitialCreation = true
     if bDebugMessages == true then LOG(sFunctionRef..': End of code, system time='..GetSystemTimeSecondsOnlyForProfileUse()) end
@@ -6908,7 +6909,7 @@ end
 
 function RecordAvailableMassStorageLocationsForLandZone(iPlateau, iLandZone)
     local tLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLandZone]
-    tLZData[subrefLZMassStorageLocationsAvailable] = {}
+    tLZData[subrefLZOrWZMassStorageLocationsAvailable] = {}
     if M28Utilities.IsTableEmpty(tLZData[subrefLZMexLocations]) == false then
         local tiXZOffset = {{-2,0}, {0, -2}, {0, 2}, {2, 0}}
         local tCurPos
@@ -6917,7 +6918,24 @@ function RecordAvailableMassStorageLocationsForLandZone(iPlateau, iLandZone)
                 tCurPos = {tMex[1] + tXZOffset[1], 0, tMex[3] + tXZOffset[2]}
                 tCurPos[2] = GetSurfaceHeight(tCurPos[1], tCurPos[3])
                 if M28Conditions.CanBuildStorageAtLocation(tCurPos) then
-                    table.insert(tLZData[subrefLZMassStorageLocationsAvailable], tCurPos)
+                    table.insert(tLZData[subrefLZOrWZMassStorageLocationsAvailable], tCurPos)
+                end
+            end
+        end
+    end
+end
+
+function RecordAvailableMassStorageLocationsForWaterZone(iWaterZone, tWZData)
+    if M28Utilities.IsTableEmpty(tWZData[subrefWZMexLocations]) == false then
+        local tiXZOffset = {{-2,0}, {0, -2}, {0, 2}, {2, 0}}
+        local tCurPos
+        for iMex, tMex in tWZData[subrefWZMexLocations] do
+            for iOffset, tXZOffset in tiXZOffset do
+                tCurPos = {tMex[1] + tXZOffset[1], 0, tMex[3] + tXZOffset[2]}
+                tCurPos[2] = GetSurfaceHeight(tCurPos[1], tCurPos[3])
+                if M28Conditions.CanBuildStorageAtLocation(tCurPos) then
+                    if not(tWZData[subrefLZOrWZMassStorageLocationsAvailable]) then tWZData[subrefLZOrWZMassStorageLocationsAvailable] = {} end
+                    table.insert(tWZData[subrefLZOrWZMassStorageLocationsAvailable], tCurPos)
                 end
             end
         end
@@ -6928,6 +6946,16 @@ function RecordMassStorageLocationsForEachLandZone()
     for iPlateau, tPlateauSubtable in tAllPlateaus do
         for iLandZone, tLZSubtable in tPlateauSubtable[subrefPlateauLandZones] do
             RecordAvailableMassStorageLocationsForLandZone(iPlateau, iLandZone)
+        end
+    end
+end
+
+function RecordMassStorageLocationsForEachWaterZone()
+    if M28Utilities.IsTableEmpty(tPondDetails) == false then
+        for iPond, tPondSubtable in tPondDetails do
+            for iWaterZone, tWZData in tPondSubtable[subrefPondWaterZones] do
+                RecordAvailableMassStorageLocationsForWaterZone(iWaterZone, tWZData)
+            end
         end
     end
 end

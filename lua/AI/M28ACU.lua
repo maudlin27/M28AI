@@ -131,11 +131,11 @@ function ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLandOrWaterZone, 
     local iMaxAreaToSearch = 35
     local iCategoryToBuild
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code for aiBrain '..aiBrain.Nickname..' at time '..GetGameTimeSeconds()) end
-    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) and GetGameTimeSeconds() >= 60 and iPlateauOrZero > 0 and tLZTeamData[M28Map.subrefLZbCoreBase] then M28Utilities.ErrorHandler('Empty allied units table, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; Is LZTeamData empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData))) end
+    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) and GetGameTimeSeconds() >= 60 and iPlateauOrZero > 0 and tLZTeamData[M28Map.subrefLZbCoreBase] then M28Utilities.ErrorHandler('Empty allied units table, iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; Is LZTeamData empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData))) end
     if iFactoryCategoryOverride then iCategoryToBuild = iFactoryCategoryOverride
     else
         local iTeam = oACU:GetAIBrain().M28Team
-        if bDebugMessages == true then LOG(sFunctionRef..': Checking if we want to build an air factory, do we want air instead of land='..tostring(M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData))..'; Is tLZTeamData[M28Map.subrefLZTAlliedUnits] empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]))..'; tLZTeamData[CoreBase]='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Checking if we want to build an air factory, do we want air instead of land='..tostring(M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData))..'; Is tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits] empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))..'; tLZTeamData[CoreBase]='..tostring(tLZTeamData[M28Map.subrefLZbCoreBase])) end
         if M28Conditions.DoWeWantAirFactoryInsteadOfLandFactory(iTeam, tLZData, tLZTeamData) then iCategoryToBuild = M28UnitInfo.refCategoryAirFactory
         else iCategoryToBuild = M28UnitInfo.refCategoryLandFactory
         end
@@ -192,7 +192,7 @@ function ACUActionAssistHydro(aiBrain, oACU, tLZOrWZData, tLZOrWZTeamData, oOpti
                     if iCurDist < iNearestHydro then iNearestHydro = iCurDist tNearestHydro = tHydro end
                 end
             end
-            local tNearbyHydro = EntityCategoryFilterDown(M28UnitInfo.refCategoryHydro, tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits])
+            local tNearbyHydro = EntityCategoryFilterDown(M28UnitInfo.refCategoryHydro, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
             if M28Utilities.IsTableEmpty(tNearbyHydro) == false then
                 for iHydro, oHydro in tNearbyHydro do
                     if M28UnitInfo.IsUnitValid(oHydro) then
@@ -670,7 +670,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                             if bDebugMessages == true then LOG(sFunctionRef..': Hydro is nearby, Gross mass income='..aiBrain[M28Economy.refiGrossMassBaseIncome]..'; iMexInLandZone='..iMexInLandZone..'; Gross base energy income='..aiBrain[M28Economy.refiGrossEnergyBaseIncome]..'; Dist of closest hydro='..iHydroDistToStart) end
                             --Do we have a hydro underconstruction in this land zone?
                             if aiBrain[M28Economy.refiGrossEnergyBaseIncome] < 12 * iResourceMod then
-                                local tHydroInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryHydro, tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits])
+                                local tHydroInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryHydro, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                                 if M28Utilities.IsTableEmpty(tHydroInZone) == false then
                                     bHaveUnderConstructionFirstHydro = true
                                     for iHydro, oHydro in tHydroInZone do
@@ -910,7 +910,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                 if M28UnitInfo.IsUnitValid(oACUFocusUnit) then LOG(sFunctionRef..': Focus unit='..oACUFocusUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oACUFocusUnit)..'; Fraction complete='..oACUFocusUnit:GetFractionComplete()..'; ACU work progress='..oACU:GetWorkProgress()) end
             end
             --If about to overflow mass, dont have a valid unit being built, and we have at least 1 factory in the zone, then build power or do nothing
-            if not(M28UnitInfo.IsUnitValid(oACUFocusUnit)) and aiBrain:GetEconomyStoredRatio('MASS') >= 0.95 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits])) == false then
+            if not(M28UnitInfo.IsUnitValid(oACUFocusUnit)) and aiBrain:GetEconomyStoredRatio('MASS') >= 0.95 and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false and M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false then
                 --Are overflowing mass presumably from trying to build on a wreck - either build power or (if we have lots of power) clear orders
                 if bDebugMessages == true then LOG(sFunctionRef..': Will try either clearing commands or building power') end
                 if aiBrain[M28Economy.refiGrossEnergyBaseIncome] >= 80 then
@@ -919,7 +919,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                     --Is there an under construction hydro in this zone? if so assist it, otherwise build a pgen
                     local bHaveUnderConstructionFirstHydro = false
                     local oOptionalUnderConstructionHydro
-                    local tHydroInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryHydro, tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits])
+                    local tHydroInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryHydro, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                     if M28Utilities.IsTableEmpty(tHydroInZone) == false then
                         for iHydro, oHydro in tHydroInZone do
                             if oHydro:GetFractionComplete() < 1 and oHydro:GetAIBrain() == aiBrain then
@@ -943,7 +943,7 @@ function GetACUEarlyGameOrders(aiBrain, oACU)
                 local tNearbyPower = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryPower * categories.TECH1, oACU:GetPosition(), oACU:GetBlueprint().Economy.MaxBuildDistance + M28UnitInfo.GetBuildingSize(oACUFocusUnit.UnitId), 'Ally')
                 if bDebugMessages == true then LOG(sFunctionRef..': Is table of nearby power empty='..tostring(M28Utilities.IsTableEmpty(tNearbyPower))) end
                 if M28Utilities.IsTableEmpty(tNearbyPower) == false and table.getn(tNearbyPower) >= 2 then
-                    local tEngineers = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits])
+                    local tEngineers = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                     local tPowerBuiltByEngineers = {}
                     local oCurFocusUnit
                     if M28Utilities.IsTableEmpty(tEngineers) == false then
@@ -1948,7 +1948,7 @@ function ConsiderBuildingMex(tLZOrWZData, tLZOrWZTeamData, oACU, iOptionalMaxDis
                 if bHaveMexWithinACUBuildRange then iSearchRange = iACUBuildRange end
 
                 local bHaveEngineersAssignedAlready = false
-                local tEngisInLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits])
+                local tEngisInLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
 
                 if M28Utilities.IsTableEmpty(tEngisInLZ) == false then
                     for iEngi, oEngi in tEngisInLZ do
@@ -2102,7 +2102,7 @@ function MoveToOtherLandZone(iPlateau, tLZData, iLandZone, oACU)
                         if not(oACU[refiLastPlateauAndZoneToAttackUnitIn][2] == iAdjLZ) or not(oACU[refiLastPlateauAndZoneToAttackUnitIn][1] == iPlateau) or GetGameTimeSeconds() - (oACU[refiTimeLastToldToAttackUnitInOtherZone] or -100) > 30 then
                             local tAdjLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ]
                             local tAdjLZTeamData = tAdjLZData[M28Map.subrefLZTeamData][iTeam]
-                            if (tAdjLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] and M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]) == false) or (M28Utilities.IsTableEmpty(tAdjLZData[M28Map.subrefMexUnbuiltLocations]) == false and (not(tAdjLZTeamData[M28Map.subrefLZbCoreBase]) or M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefLZTAlliedUnits]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryEngineer, tAdjLZTeamData[M28Map.subrefLZTAlliedUnits])))) then
+                            if (tAdjLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ] and M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subrefTEnemyUnits]) == false) or (M28Utilities.IsTableEmpty(tAdjLZData[M28Map.subrefMexUnbuiltLocations]) == false and (not(tAdjLZTeamData[M28Map.subrefLZbCoreBase]) or M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryEngineer, tAdjLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])))) then
                                 iLZToMoveTo = iAdjLZ
                                 iPlannedTargetDist = tPathingDetails[M28Map.subrefLZTravelDist]
                             elseif not(iNearestPotentialExpansionPoint) and (tAdjLZData[M28Map.subrefTotalMassReclaim] >= 1000 or (M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefMexUnbuiltLocations]) == false and M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZMexCount] >= 3 and not(tAdjLZTeamData[M28Map.subrefLZbCoreBase]))) then
@@ -2253,7 +2253,7 @@ function ConsiderGettingExtraLandFactory(tLZData, tLZTeamData, oACU, iPlateau, i
             --DO nothing for now
         else
             if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] <= 1 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= -0.5 then
-                local tExistingFactoriesInLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                local tExistingFactoriesInLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                 local iExistingFactories = 0
                 if tExistingFactoriesInLZ then iExistingFactories = table.getn(tExistingFactoriesInLZ) end
                 if bDebugMessages == true then LOG(sFunctionRef..': iExistingFactories='..iExistingFactories..'; If < 4 then will try and build another') end
@@ -2381,8 +2381,8 @@ function ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
     --Go to core base
     local tRallyPoint
 
-    if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
-        local tFixedShields = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield, tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits])
+    if tLZOrWZTeamData[M28Map.subrefLZbCoreBase] and M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+        local tFixedShields = EntityCategoryFilterDown(M28UnitInfo.refCategoryFixedShield, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
         if M28Utilities.IsTableEmpty(tFixedShields) == false then
             local iNearestDist = 10000
             local iCurDist
@@ -2466,8 +2466,8 @@ function ReturnACUToCoreBase(oACU, tLZOrWZData, tLZOrWZTeamData, aiBrain, iTeam,
                                 end
                                 if not(oUnitToAssist) and not(bOnlyGetMexToAssist) then
                                     --Do we have any part-complete buildings and dont have low mass? if so assist these
-                                    if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
-                                        local tStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryExperimentalLevel, tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits])
+                                    if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+                                        local tStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure + M28UnitInfo.refCategoryExperimentalLevel, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                                         if M28Utilities.IsTableEmpty(tStructures) == false then
                                             for iUnit, oUnit in tStructures do
                                                 if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() < 1 and oUnit:GetFractionComplete() > iHighestFractionComplete and not(oUnit[M28Engineer.refbDontIncludeAsPartCompleteBuildingForConstruction]) then
@@ -3098,15 +3098,15 @@ function GetACUOrder(aiBrain, oACU)
             --Cant just use factory count in case we have plateaus/islands that have factories on them
             if bDebugMessages == true then LOG(sFunctionRef..': Considerinb brain '..aiBrain.Nickname..' at time '..GetGameTimeSeconds()..'; Current factories='..aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryFactory)..'; In core LZ='..tostring(tLZOrWZTeamData[M28Map.subrefLZbCoreBase])..'; Enemies in this LZ='..tostring(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ])..'; aiBrain[M28Economy.refiOurHighestAirFactoryTech]='..(aiBrain[M28Economy.refiOurHighestAirFactoryTech] or 'nil')) end
             if (iPlateauOrZero > 0 and not(tLZOrWZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and (tLZOrWZTeamData[M28Map.subrefLZbCoreBase] or not(tLZOrWZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ])) and aiBrain[M28Economy.refiOurHighestLandFactoryTech] == 0) then
-                if bDebugMessages == true then LOG(sFunctionRef..': Do we have factories of any type in this LZ? Is table empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits])))..'; aiBrain[M28Economy.refiOurHighestLandFactoryTech]='..aiBrain[M28Economy.refiOurHighestLandFactoryTech]) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Do we have factories of any type in this LZ? Is table empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])))..'; aiBrain[M28Economy.refiOurHighestLandFactoryTech]='..aiBrain[M28Economy.refiOurHighestLandFactoryTech]) end
                 local bWantAnotherFactory
                 if aiBrain[M28Economy.refiOurHighestLandFactoryTech] == 0 then bWantAnotherFactory = true
-                    --elseif M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits]) then bWantAnotherFactory = true
-                elseif M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
+                    --elseif M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) then bWantAnotherFactory = true
+                elseif M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
                     local bHaveHQFactoriesInZone = false
                     --local bHaveHQFactoriesWeOwnInZone = false
 
-                    local tFactoriesInLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory - categories.SUPPORTFACTORY, tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits])
+                    local tFactoriesInLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory - categories.SUPPORTFACTORY, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
 
                     if M28Utilities.IsTableEmpty(tFactoriesInLZ) == false then
                         for iFactory, oFactory in tFactoriesInLZ do
@@ -3130,7 +3130,7 @@ function GetACUOrder(aiBrain, oACU)
                     if not(M28Conditions.DoesACUHaveValidOrder(oACU)) then
                         --Do we want to build an air fac?
                         local bHaveHQFactoriesInZone = false
-                        local tFactoriesInLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory - categories.SUPPORTFACTORY, tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits])
+                        local tFactoriesInLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryFactory - categories.SUPPORTFACTORY, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
 
                         if M28Utilities.IsTableEmpty(tFactoriesInLZ) == false then
                             for iFactory, oFactory in tFactoriesInLZ do

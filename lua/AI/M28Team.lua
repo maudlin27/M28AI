@@ -721,7 +721,7 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
                 end
             elseif IsAlly(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
                 local tLZData = M28Map.tAllPlateaus[iPlateauRef][M28Map.subrefPlateauLandZones][iLandZoneRef]
-                table.insert(tLZData[M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTAlliedUnits], oUnit)
+                table.insert(tLZData[M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subreftoLZOrWZAlliedUnits], oUnit)
                 if M28Config.M28ShowUnitNames then oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'New P'..iPlateauRef..'LZ'..iLandZoneRef) end
                 --Reset assigned value (if it has one) if the zone it last had orders from is no longer adjacent
                 if oUnit[M28Land.refiCurrentAssignmentValue] then
@@ -745,7 +745,7 @@ function AddUnitToLandZoneForBrain(aiBrain, oUnit, iPlateau, iLandZone, bIsEnemy
                 if EntityCategoryContains(M28UnitInfo.refCategoryTMD, oUnit.UnitId) then
                     M28Building.AlliedTMDFirstRecorded(aiBrain.M28Team, oUnit)
                 end
-                if bDebugMessages == true then LOG(sFunctionRef..': Add unit as a friendly unit to Plateau-LZ='..iPlateauRef..'-'..iLandZoneRef..' and team='..aiBrain.M28Team..'; Is table of friendly units empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauRef][M28Map.subrefPlateauLandZones][iLandZoneRef][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTAlliedUnits]))) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Add unit as a friendly unit to Plateau-LZ='..iPlateauRef..'-'..iLandZoneRef..' and team='..aiBrain.M28Team..'; Is table of friendly units empty='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateauRef][M28Map.subrefPlateauLandZones][iLandZoneRef][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subreftoLZOrWZAlliedUnits]))) end
             end
         elseif iPlateauRef == 0 and iLandZoneRef then
             if bDebugMessages == true then LOG(sFunctionRef..': Will try adding to water zone instead') end
@@ -821,7 +821,7 @@ function AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone, bIsEnemyAirUnit)
             end
         elseif IsAlly(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex()) then
             oUnit[M28Navy.refiCurrentWZAssignmentValue] = 0 --dont want to retain orders in case it was from an adjacent zone
-            table.insert(tWZTeamData[M28Map.subrefWZTAlliedUnits], oUnit)
+            table.insert(tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits], oUnit)
             if M28Config.M28ShowUnitNames then oUnit:SetCustomName(oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'New WZ'..iWaterZone) end
 
 
@@ -848,7 +848,7 @@ function AddUnitToWaterZoneForBrain(aiBrain, oUnit, iWaterZone, bIsEnemyAirUnit)
             if EntityCategoryContains(M28UnitInfo.refCategoryTMD, oUnit.UnitId) then
                 M28Building.AlliedTMDFirstRecorded(aiBrain.M28Team, oUnit)
             end
-            if bDebugMessages == true then LOG(sFunctionRef..': Add unit as a friendly unit to iWaterZone='..iWaterZone..' and team='..aiBrain.M28Team..'; Is table of friendly units empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subrefWZTAlliedUnits]))) end
+            if bDebugMessages == true then LOG(sFunctionRef..': Add unit as a friendly unit to iWaterZone='..iWaterZone..' and team='..aiBrain.M28Team..'; Is table of friendly units empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))) end
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -868,7 +868,7 @@ function UpdateUnitLastKnownPosition(aiBrain, oUnit, bDontCheckIfCanSeeUnit, bIn
             --Below to try and approximate scenarios where enemy retreats temporarily with the unit and we end up with units thinking the enemy is right infront of them (even though they can see the location it used to be to confirm it isnt there); will approximate by saying if we have friendly units in the same land zone as the last known position, then we can refresh its position
             if not(bInWaterZone) then
                 local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oUnit[M28UnitInfo.reftLastKnownPositionByTeam][aiBrain.M28Team])
-                if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefLZTAlliedUnits]) == false then
+                if M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subreftoLZOrWZAlliedUnits]) == false then
                     local tCurPosition = oUnit:GetPosition()
                     oUnit[M28UnitInfo.reftLastKnownPositionByTeam][aiBrain.M28Team] = {tCurPosition[1], tCurPosition[2], tCurPosition[3]}
                 end
@@ -877,7 +877,7 @@ function UpdateUnitLastKnownPosition(aiBrain, oUnit, bDontCheckIfCanSeeUnit, bIn
                 local iWaterZone = M28Map.tWaterZoneBySegment[iLastSegmentX][iLastSegmentZ]
                 if iWaterZone then
                     local iPond = M28Map.tiPondByWaterZone[iWaterZone]
-                    if M28Utilities.IsTableEmpty(M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subrefWZTAlliedUnits]) == false then
+                    if M28Utilities.IsTableEmpty(M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iWaterZone][M28Map.subrefLZTeamData][aiBrain.M28Team][M28Map.subreftoLZOrWZAlliedUnits]) == false then
                         local tCurPosition = oUnit:GetPosition()
                         oUnit[M28UnitInfo.reftLastKnownPositionByTeam][aiBrain.M28Team] = {tCurPosition[1], tCurPosition[2], tCurPosition[3]}
                     end
@@ -1349,9 +1349,9 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                         for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
                                             local tStartLZData, tStartLZTeamData = M28Map.GetLandOrWaterZoneData(M28Map.PlayerStartPoints[oBrain:GetArmyIndex()], true, iTeam)
                                             if not(tStartLZTeamData == tLZTeamData) then
-                                                if M28Utilities.IsTableEmpty(tStartLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
+                                                if M28Utilities.IsTableEmpty(tStartLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
                                                     local bHaveAirStagingUnderConstruction = false
-                                                    local tAirStaging = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirStaging, tStartLZTeamData[M28Map.subrefLZTAlliedUnits])
+                                                    local tAirStaging = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirStaging, tStartLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                                                     if M28Utilities.IsTableEmpty(tAirStaging) == false then
                                                         for iAirStaging, oAirStaging in tAirStaging do
                                                             if M28UnitInfo.IsUnitValid(oAirStaging) and oAirStaging:GetFractionComplete() < 1 then
@@ -1362,7 +1362,7 @@ function AssignUnitToLandZoneOrPond(aiBrain, oUnit, bAlreadyUpdatedPosition, bAl
                                                     end
                                                     if bDebugMessages == true then LOG(sFunctionRef..': oBrain='..oBrain.Nickname..'; bHaveAirStagingUnderConstruction='..tostring(bHaveAirStagingUnderConstruction)) end
                                                     if not(bHaveAirStagingUnderConstruction) then
-                                                        local tEngineers = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tStartLZTeamData[M28Map.subrefLZTAlliedUnits])
+                                                        local tEngineers = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tStartLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                                                         if bDebugMessages == true then LOG(sFunctionRef..': Is table of units of cateogyr empty for brain '..oBrain.Nickname..'='..tostring(M28Utilities.IsTableEmpty(tEngineers))..'; oUnit fraction complete='..oUnit:GetFractionComplete()) end
                                                         if M28Utilities.IsTableEmpty(tEngineers) == false then
                                                             local toEngineersToClear = {}
@@ -2112,7 +2112,7 @@ function ConsiderPriorityMexUpgrades(iM28Team)
                             for iMexTech = 1, iTechLevelToUpgrade do
                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering mexes for iMexTech='..iMexTech..'; count='..tLZOrWZTeamData[M28Map.subrefMexCountByTech][iMexTech]) end
                                 if tLZOrWZTeamData[M28Map.subrefMexCountByTech][iMexTech] > 0 then
-                                    tMexesToConsiderUpgrading = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex * M28UnitInfo.ConvertTechLevelToCategory(iMexTech), tLZOrWZTeamData[M28Map.subrefLZTAlliedUnits])
+                                    tMexesToConsiderUpgrading = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex * M28UnitInfo.ConvertTechLevelToCategory(iMexTech), tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                                     if M28Utilities.IsTableEmpty(tMexesToConsiderUpgrading) == false then
                                         for iMex, oMex in tMexesToConsiderUpgrading do
                                             if not(oMex:IsUnitState('Upgrading')) and oMex:GetFractionComplete() == 1 then
@@ -2756,7 +2756,7 @@ function TeamInitialisation(iM28Team)
             if bDebugMessages == true then LOG(sFunctionRef..': Recording team data for iPlateau='..iPlateau..'; iLZ='..iLZ..'; iTeam='..iM28Team) end
             if not(tLZData[M28Map.subrefLZTeamData]) then tLZData[M28Map.subrefLZTeamData] = {} end
             tLZData[M28Map.subrefLZTeamData][iM28Team] = {}
-            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZTAlliedUnits] = {}
+            tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subreftoLZOrWZAlliedUnits] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefTEnemyUnits] = {}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefMexCountByTech] = {[1]=0,[2]=0,[3]=0}
             tLZData[M28Map.subrefLZTeamData][iM28Team][M28Map.subrefLZTValue] = 0
@@ -2836,7 +2836,7 @@ function WaterZoneTeamInitialisation(iTeam)
             --tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refiModDistancePercent] --Updated separately
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.refbWantLandScout] = false
 
-            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTAlliedUnits] = {}
+            tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subreftoLZOrWZAlliedUnits] = {}
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefWZTAlliedCombatUnits] = {}
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.subrefTEnemyUnits] = {}
             tWZData[M28Map.subrefWZTeamData][iTeam][M28Map.reftWZEnemyAirUnits] = {}
