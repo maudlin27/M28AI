@@ -159,6 +159,20 @@ function ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLandOrWaterZone, 
             end
         end --Issue on Aeon mission 1 where ACU doesnt build because it hasnt searched through enough of the segments
     end
+    --Start of game - first factory - massively increase search segments
+    if M28Conditions.GetLifetimeBuildCount(aiBrain, M28UnitInfo.refCategoryFactory) == 0 and GetGameTimeSeconds() <= 10 then
+        local iSegmentRef
+        if iPlateauOrZero == 0 then
+            iSegmentRef = M28Map.subrefWZSegments
+        else
+            iSegmentRef = M28Map.subrefLZSegments
+        end
+        local iTotalSegments = table.getn(tLZData[iSegmentRef])
+        local iSegmentStart = (tLZData[M28Map.subrefiLastSegmentEntryConsideredForBuilding] or 0)
+        if iSegmentStart < iTotalSegments * 0.75 then
+            iSearchSegments = math.max(iSearchSegments, iTotalSegments * 0.75 - iSegmentStart)
+        end
+    end
     if M28Overseer.refiRoughTotalUnitsInGame <= 500 then iSearchSegments = iSearchSegments * 2 end
 
     if bDebugMessages == true then LOG(sFunctionRef..': Will try and search for '..iSearchSegments..' in iLandOrWaterZone='..iLandOrWaterZone..' so ACU is picking from best location for factory') end
