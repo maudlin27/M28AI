@@ -5,6 +5,28 @@
 ---
 --In theory the below shouldt be needed once the FAF-Develop changes are integrated into FAF (expected June 2023), although probably no harm leaving for backwards compatibility
 --Commented out for v24 due to compatibility concerns following new approach (where need to wait until after OnCreateAI before generating map)
+
+local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
+local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
+local M28OldAIBrain = AIBrain
+AIBrain = Class(M28OldAIBrain) {
+
+
+
+    OnCreateAI = function(self, planName)
+        LOG('OnCreateAI for campaign is running')
+        if (ScenarioInfo.ArmySetup[self.Name].AIPersonality == 'm28ai' or ScenarioInfo.ArmySetup[self.Name].AIPersonality == 'm28aicheat') then
+            self.M28AI = true
+            M28Utilities.bM28AIInGame = true
+        end
+        if not(self.M28AI) then
+            LOG('Running normal aiBrain creation code for brain '..(self.Nickname or 'nil'))
+            M28OldAIBrain.OnCreateAI(self, planName)
+        end
+        ForkThread(M28Events.OnCreateBrain, self, planName, false)
+    end,
+}
+
 --[[
 local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
