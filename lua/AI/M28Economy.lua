@@ -43,6 +43,7 @@ refoBrainRecordedForEconomy = 'M28EconomyBrainRecordedUnit' --Stores the M28 bra
 refiLastEnergyUsage = 'M28EconomyLastEnergyUsage' --per tick energy usage of the unit (set when the unit is paused)
 refiLastMassUsage = 'M28EconomyLastMassUsage' --per tick massu sage of the unit set when unit is paused
 refiStorageMassAdjacencyBonus = 'M28EMassStorAdj' --Adjacency bonus from a mass storage
+refbSpecialUpgradeMonitor = 'M28ESpecUM' --true if special upgrade monitor (used for hydros) is active
 
 --global variables
 tiMinEnergyPerTech = {[1]=16,[2]=55,[3]=150,[3]=150}
@@ -514,6 +515,46 @@ function UpdateMassStorageAdjacencyValues(oStorage, bDestroyed)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function ConsiderHydroUpgradeLoop(oUnit)
+    --Every 10s consider upgrading unit
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderHydroUpgradeLoop'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Special upgrade monitor already active='..tostring(oUnit[refbSpecialUpgradeMonitor] or false)..'; Unit owner='..oUnit:GetAIBrain().Nickname..'; Time='..GetGameTimeSeconds()) end
+    if not(oUnit[refbSpecialUpgradeMonitor]) then
+        --Does the blueprint have an upgrade option?
+        local oBP = oUnit:GetBlueprint()
+        if bDebugMessages == true then LOG(sFunctionRef..': Unit upgrades to='..(oBP.GeneralUpgradesTo or 'nil')) end
+        if oBP.GeneralUpgradesTo then
+            oUnit[refbSpecialUpgradeMonitor] = true
+            local aiBrain = oUnit:GetAIBrain()
+            local iTeam = aiBrain.M28Team
+            local oUpgradedBP = __blueprints[oBP.General.UpgradesTo]
+            local iBuildPower = oBP.Economy.BuildRate * aiBrain[refiBrainBuildRateMultiplier]
+            local iBrainCount = M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]
+            local iMassPerTickWanted = 0.1 * (oUpgradedBP.Economy.BuildCostMass / iBuildPower) * iBrainCount * 2
+            local iEnergyPerTickWanted = 0.1 * (oUpgradedBP.Economy.BuildCostEnergy / iBuildPower) * iBrainCount * 2
+
+            if bDebugMessages == true then LOG(sFunctionRef..': iBuildPower='..iBuildPower..'; iMasPerTickWanted='..iMassPerTickWanted..'; iEnergyPerTickWanted='..iEnergyPerTickWanted) end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitSeconds(10)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            while M28UnitInfo.IsUnitValid(oUnit) do
+                if bDebugMessages == true then LOG(sFunctionRef..': Deciding if want to upgrade at time='..GetGameTimeSeconds()..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Brain='..aiBrain.Nickname..'; Want more power='..tostring(M28Conditions.WantMorePower(iTeam)..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; iEnergyPerTickWanted='..iEnergyPerTickWanted..'; Net mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]..'; iMassPerTickWanted='..iMassPerTickWanted)) end
+                if M28Conditions.WantMorePower(iTeam) and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= iEnergyPerTickWanted and M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= iMassPerTickWanted then
+                    UpgradeUnit(oUnit, false)
+                    break
+                end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitSeconds(10)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function UpdateGrossIncomeForUnit(oUnit, bDestroyed, bIgnoreEnhancements)
     --Logs are enabled below
     if oUnit.GetAIBrain and EntityCategoryContains(M28UnitInfo.refCategoryResourceUnit + M28UnitInfo.refCategoryMassStorage, oUnit.UnitId) then
@@ -649,6 +690,11 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed, bIgnoreEnhancements)
 
                 if iEnergyGen >= 25 then
                     ForkThread(ConsiderReclaimingPower, aiBrain.M28Team, oUnit)
+                end
+
+                --Upgrading hydro
+                if not(bDestroyed) and EntityCategoryContains(M28UnitInfo.refCategoryHydro, oUnit.UnitId) then
+                    ForkThread(ConsiderHydroUpgradeLoop,oUnit)
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..': Updated gross and net resources for iMassGen='..iMassGen..'; iEnergyGen='..iEnergyGen..'; aiBrain[refiNetMassBaseIncome]='..aiBrain[refiNetMassBaseIncome]..'; aiBrain[refiGrossMassBaseIncome]='..aiBrain[refiGrossMassBaseIncome]) end
             end
