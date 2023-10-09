@@ -1285,7 +1285,8 @@ function OnConstructed(oEngineer, oJustBuilt)
                             end
                             M28Orders.IssueTrackedMove(oJustBuilt, oEngineer[M28Factory.reftFactoryRallyPoint], 0.1, true, 'RollOff', false)
                             M28Micro.TrackTemporaryUnitMicro(oJustBuilt, 1.5) --i.e. want to increase likelihood that a unit has exited the land factory before it starts being given orders
-                            if oEngineer.UnitId == 'uel0401ef' or oEngineer.UnitId == 'uel0401' then
+                            if bDebugMessages == true then LOG(sFunctionRef..': Engineer parent='..reprs(oEngineer.Parent)..'; Unit ID = or parent'..(oEngineer.Parent.UnitId or 'nil')) end
+                            if oEngineer.UnitId == 'uel0401ef' or (oEngineer.Parent.UnitId and EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oEngineer.Parent.UnitId)) then
                                 --Want some MAA to stick by fatboy so theyre protected by its shield
                                 if EntityCategoryContains(M28UnitInfo.refCategoryMAA, oJustBuilt.UnitId) then
                                     ForkThread(M28Land.ConsiderAssigningMAABodyguardToFatboy,oJustBuilt, oEngineer)
