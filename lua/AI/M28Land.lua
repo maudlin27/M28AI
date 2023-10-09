@@ -35,6 +35,8 @@ reftiRadarPlateauAndLandZonesCoveredByOmni = 'M28LandOmniLZs' --Returns talbes o
 refoSREnemyTarget = 'M28LndSRTrg' --If we have a SR unit told to target an enemy, this tracks it so we dont switch to retreat logic when we move into a new zone in pursuit
 refiTimeOfSREnemyTarget = 'M28LndSRTTim' --Gametimeseconds
 reftoUnitsToKillOnCompletion = 'M28RadCtrlK' --Table of units to ctrlk when this unit finishes construction
+reftoAssignedMAAGuards = 'M28LAMAAGrd' --Table of MAA assigned to cover a unit (e.g. a fatboy)
+refoAssignedUnitToGuard = 'M28LAMAAToG' --Unit that is being guarded/assisted (e.g. MAA assisting a fatboy)
 
 --See M28navy for sonar equivalent
 refoAssignedMobileShield = 'M28LandAssignedMobileShield' --Gives the mobile shield assigned ot this unit
@@ -289,8 +291,6 @@ function UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam, iRecordedPlateau
 
 
     for iOrigIndex=1, iTableSize do
-        if bDebugMessages == true then LOG(sFunctionRef..': Updating for unit '..(tUnits[iOrigIndex].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tUnits[iOrigIndex]) or 'nil')) end
-        --if (tUnits[iOrigIndex].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tUnits[iOrigIndex]) or 'nil') == 'url01071' then bDebugMessages = true else bDebugMessages = false end
         if not(tUnits[iOrigIndex]) or tUnits[iOrigIndex].Dead then
             --Remove the entry
             tUnits[iOrigIndex] = nil
@@ -4424,47 +4424,54 @@ function ManageSpecificLandZone(aiBrain, iTeam, iPlateau, iLandZone)
                         bLandZoneOrAdjHasUnitsWantingScout = true
                         --Is the unit available for use by this land zone?
                         if oUnit:GetFractionComplete() == 1 then
-                            --Is the unit's priority lower than this?
-                            if bDebugMessages == true then LOG(sFunctionRef..': Considering if have available combat unit, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oUnit[refiCurrentAssignmentValue]='..(oUnit[refiCurrentAssignmentValue] or 'nil')..'; oUnit[refiCurrentAssignmentPlateauAndLZ]='..repru(oUnit[refiCurrentAssignmentPlateauAndLZ])..'; iCurLZValue='..iCurLZValue) end
-                            if (oUnit[refiCurrentAssignmentValue] or 0) < iCurLZValue or (oUnit[refiCurrentAssignmentPlateauAndLZ][1] == iPlateau and (oUnit[refiCurrentAssignmentPlateauAndLZ][2] == iLandZone or (GetGameTimeSeconds() - (oUnit[refiTimeOfLastAssignment] or 0) >= 5))) then
-                                --Is it a unit with a shield that wants to retreat so its shield can regen?
-                                iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, true)
-                                if bDebugMessages == true then LOG(sFunctionRef..': iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; Unit max health='..oUnit:GetMaxHealth()) end
-                                if iMaxShield > 0 and iCurShield < iMaxShield * 0.35 and (iCurShield == 0 or iMaxShield > oUnit:GetMaxHealth() * 0.8 or iCurShield < iMaxShield * 0.05) then --Fatboy and in theory SACUs retreat when shield is low; titans etc. retreat when shield is almost gone
-                                    table.insert(tOtherUnitsToRetreat, oUnit)
-                                    RecordUnitAsReceivingLandZoneAssignment(oUnit, iPlateau, iLandZone, 100000)
-                                else
-                                    if EntityCategoryContains(M28UnitInfo.refCategoryMAA, oUnit.UnitId) then
-                                        table.insert(tAvailableMAA, oUnit)
-                                        bIncludeUnit =  true
-                                    elseif ((oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or (oUnit[M28UnitInfo.refiIndirectRange] or 0) > 0) then
-                                        table.insert(tAvailableCombatUnits, oUnit)
-                                        table.insert(tLZTeamData[M28Map.subrefLZTAlliedCombatUnits], oUnit)
-                                        if oUnit[M28UnitInfo.refiDFRange] > iOurBestDFRange then iOurBestDFRange = oUnit[M28UnitInfo.refiDFRange] end
-                                        if oUnit[M28UnitInfo.refiIndirectRange] > iOurBestIndirectRange then iOurBestIndirectRange = oUnit[M28UnitInfo.refiIndirectRange] end
-                                        bIncludeUnit = true
-                                    end
-                                    if bIncludeUnit then
-                                        RecordUnitAsReceivingLandZoneAssignment(oUnit, iPlateau, iLandZone, iCurLZValue)
-                                    end
-                                end
+                            if bDebugMessages == true then LOG(sFunctionRef..': Does unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' have a valid guard? Guard='..(oUnit[refoAssignedUnitToGuard].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oUnit[refoAssignedUnitToGuard]) or 'nil')) end
+                            if oUnit[refoAssignedUnitToGuard] and M28UnitInfo.IsUnitValid(oUnit[refoAssignedUnitToGuard]) and (EntityCategoryContains(categories.AMPHIBIOUS + categories.HOVER, oUnit.UnitId) or not(M28UnitInfo.IsUnitUnderwater(oUnit[refoAssignedUnitToGuard]))) then
+                                --Guard actually causes MAA to move a bit too far away so will just move towards the unit; currently are just using this for MAA covering a fatboy so moving directly to the unit means it works out well since they wont block the fatboy and will rotate instead to be to the fatboy's rear at all times
+                                M28Orders.IssueTrackedMove(oUnit, oUnit[refoAssignedUnitToGuard]:GetPosition(), 3, false, 'SpecG', false)
+                                --M28Orders.IssueTrackedGuard(oUnit, oUnit[refoAssignedUnitToGuard], false, 'SpecG', false)
                             else
-                                table.insert(tUnavailableUnitsInThisLZ, oUnit)
-                            end
-                            iUnitMassCost = oUnit:GetBlueprint().Economy.BuildCostMass
-                            if iUnitMassCost >= iMobileShieldMassThreshold and (iUnitMassCost >= iMobileShieldHigherMAAMassThreshold or iMobileShieldHigherMAAMassThreshold == iMobileShieldMassThreshold or not(EntityCategoryContains(M28UnitInfo.refCategoryMAA, oUnit.UnitId))) then
-                                table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
-                            end
-                            if iEnemyOmniCoverage <= 20 then
-                                if iUnitMassCost >= iMobileStealthHigherMassThreshold then
-                                    table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth], oUnit)
-                                elseif iUnitMassCost >= iMobileStealthMassThreshold and EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryIndirect - categories.TECH1, oUnit.UnitId) then
-                                    --Only say we want a mobile shield if the unit doesnt have one assigned
-                                    iMobileStealthLowerThresholdCount = iMobileStealthLowerThresholdCount + 1
-
-                                    if iMobileStealthLowerThresholdCount >= 3 or oUnit[refoAssignedMobileStealth] then
-                                        iMobileStealthLowerThresholdCount = 0
+                                --Is the unit's priority lower than this?
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering if have available combat unit, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oUnit[refiCurrentAssignmentValue]='..(oUnit[refiCurrentAssignmentValue] or 'nil')..'; oUnit[refiCurrentAssignmentPlateauAndLZ]='..repru(oUnit[refiCurrentAssignmentPlateauAndLZ])..'; iCurLZValue='..iCurLZValue) end
+                                if (oUnit[refiCurrentAssignmentValue] or 0) < iCurLZValue or (oUnit[refiCurrentAssignmentPlateauAndLZ][1] == iPlateau and (oUnit[refiCurrentAssignmentPlateauAndLZ][2] == iLandZone or (GetGameTimeSeconds() - (oUnit[refiTimeOfLastAssignment] or 0) >= 5))) then
+                                    --Is it a unit with a shield that wants to retreat so its shield can regen?
+                                    iCurShield, iMaxShield = M28UnitInfo.GetCurrentAndMaximumShield(oUnit, true)
+                                    if bDebugMessages == true then LOG(sFunctionRef..': iCurShield='..iCurShield..'; iMaxShield='..iMaxShield..'; Unit max health='..oUnit:GetMaxHealth()) end
+                                    if iMaxShield > 0 and iCurShield < iMaxShield * 0.35 and (iCurShield == 0 or iMaxShield > oUnit:GetMaxHealth() * 0.8 or iCurShield < iMaxShield * 0.05) then --Fatboy and in theory SACUs retreat when shield is low; titans etc. retreat when shield is almost gone
+                                        table.insert(tOtherUnitsToRetreat, oUnit)
+                                        RecordUnitAsReceivingLandZoneAssignment(oUnit, iPlateau, iLandZone, 100000)
+                                    else
+                                        if EntityCategoryContains(M28UnitInfo.refCategoryMAA, oUnit.UnitId) then
+                                            table.insert(tAvailableMAA, oUnit)
+                                            bIncludeUnit =  true
+                                        elseif ((oUnit[M28UnitInfo.refiDFRange] or 0) > 0 or (oUnit[M28UnitInfo.refiIndirectRange] or 0) > 0) then
+                                            table.insert(tAvailableCombatUnits, oUnit)
+                                            table.insert(tLZTeamData[M28Map.subrefLZTAlliedCombatUnits], oUnit)
+                                            if oUnit[M28UnitInfo.refiDFRange] > iOurBestDFRange then iOurBestDFRange = oUnit[M28UnitInfo.refiDFRange] end
+                                            if oUnit[M28UnitInfo.refiIndirectRange] > iOurBestIndirectRange then iOurBestIndirectRange = oUnit[M28UnitInfo.refiIndirectRange] end
+                                            bIncludeUnit = true
+                                        end
+                                        if bIncludeUnit then
+                                            RecordUnitAsReceivingLandZoneAssignment(oUnit, iPlateau, iLandZone, iCurLZValue)
+                                        end
+                                    end
+                                else
+                                    table.insert(tUnavailableUnitsInThisLZ, oUnit)
+                                end
+                                iUnitMassCost = oUnit:GetBlueprint().Economy.BuildCostMass
+                                if iUnitMassCost >= iMobileShieldMassThreshold and (iUnitMassCost >= iMobileShieldHigherMAAMassThreshold or iMobileShieldHigherMAAMassThreshold == iMobileShieldMassThreshold or not(EntityCategoryContains(M28UnitInfo.refCategoryMAA, oUnit.UnitId))) then
+                                    table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileShield], oUnit)
+                                end
+                                if iEnemyOmniCoverage <= 20 then
+                                    if iUnitMassCost >= iMobileStealthHigherMassThreshold then
                                         table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth], oUnit)
+                                    elseif iUnitMassCost >= iMobileStealthMassThreshold and EntityCategoryContains(M28UnitInfo.refCategorySkirmisher + M28UnitInfo.refCategoryIndirect - categories.TECH1, oUnit.UnitId) then
+                                        --Only say we want a mobile shield if the unit doesnt have one assigned
+                                        iMobileStealthLowerThresholdCount = iMobileStealthLowerThresholdCount + 1
+
+                                        if iMobileStealthLowerThresholdCount >= 3 or oUnit[refoAssignedMobileStealth] then
+                                            iMobileStealthLowerThresholdCount = 0
+                                            table.insert(tLZTeamData[M28Map.reftoLZUnitsWantingMobileStealth], oUnit)
+                                        end
                                     end
                                 end
                             end
@@ -5653,4 +5660,28 @@ function ConsiderIfAnyEnemyTeamsStillHaveFirebaseOnT2ArtiDeath(oT2Arti)
             M28Team.RecordEnemyT2ArtiAgainstNearbyZones(iTeam, oT2Arti, true)
         end
     end
+end
+
+function ConsiderAssigningMAABodyguardToFatboy(oMAA, oFatboy)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderAssigningMAABodyguardToFatboy'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    local aiBrain = oMAA:GetAIBrain()
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oMAA='..oMAA.UnitId..M28UnitInfo.GetUnitLifetimeCount(oMAA)..'; oFatboy='..oFatboy.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFatboy)..'; Brain='..aiBrain.Nickname..'; Time='..GetGameTimeSeconds()) end
+    if aiBrain.M28AI then
+        local iExistingMAA = 0
+        if not(M28Conditions.IsTableOfUnitsStillValid(oFatboy[reftoAssignedMAAGuards])) then
+            oFatboy[reftoAssignedMAAGuards] = {}
+        else
+            iExistingMAA = table.getn(oFatboy[reftoAssignedMAAGuards])
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': iExistingMAA='..iExistingMAA) end
+        if iExistingMAA < 5 then
+            table.insert(oFatboy[reftoAssignedMAAGuards], oMAA)
+            oMAA[refoAssignedUnitToGuard] = oFatboy
+            if bDebugMessages == true then LOG(sFunctionRef..': Assigned MAA to guard the fatboy') end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
