@@ -17,6 +17,7 @@ local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 local NavUtils = import("/lua/sim/navutils.lua")
 local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
+local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 
 --Variables against aiBrain:
 --ECONOMY VARIABLES - below 4 are to track values based on base production, ignoring reclaim. Provide per tick values so 10% of per second)
@@ -758,6 +759,13 @@ function EconomyMainLoop(aiBrain)
 end
 
 function EconomyInitialisation(aiBrain)
+    while not(aiBrain[M28Overseer.refbInitialised]) do
+        WaitTicks(1)
+        if GetGameTimeSeconds() >= 5 then
+            M28Utilities.ErrorHandler('Waited 5 seconds and brain '..aiBrain.Nickname..' doesnt seem to have initialised M28 code')
+            break
+        end
+    end
     if not(aiBrain[refiGrossEnergyBaseIncome]) then aiBrain[refiGrossEnergyBaseIncome] = 0 end
     if not(aiBrain[refiNetEnergyBaseIncome]) then aiBrain[refiNetEnergyBaseIncome] = 0 end
     if not(aiBrain[refiGrossMassBaseIncome]) then aiBrain[refiGrossMassBaseIncome] = 0 end

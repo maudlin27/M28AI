@@ -8,6 +8,9 @@
 
 local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
+local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
+
+local StandardBrain = import("/lua/aibrain.lua").AIBrain
 local M28OldAIBrain = AIBrain
 AIBrain = Class(M28OldAIBrain) {
 
@@ -15,16 +18,34 @@ AIBrain = Class(M28OldAIBrain) {
 
     OnCreateAI = function(self, planName)
         LOG('OnCreateAI for campaign is running')
-        if (ScenarioInfo.ArmySetup[self.Name].AIPersonality == 'm28ai' or ScenarioInfo.ArmySetup[self.Name].AIPersonality == 'm28aicheat') then
+        if M28Conditions.ApplyM28ToOtherAI(self) then
             self.M28AI = true
             M28Utilities.bM28AIInGame = true
+            LOG('Setting AI to use M28, self.Nickname='..(self.Nickname or 'nil'))
+            M28OldAIBrain.OnCreateAI(self, planName)
         end
         if not(self.M28AI) then
             LOG('Running normal aiBrain creation code for brain '..(self.Nickname or 'nil'))
-            M28OldAIBrain.OnCreateAI(self, planName)
+
         end
         ForkThread(M28Events.OnCreateBrain, self, planName, false)
     end,
+
+    OnBeginSession = function(self)
+        StandardBrain.OnBeginSession(self)
+        import('/mods/M28AI/lua/AI/M28Overseer.lua').bBeginSessionTriggered = true
+        if not(self.M28AI) then
+            -- requires navigational mesh
+            import("/lua/sim/NavUtils.lua").Generate()
+
+            -- requires these datastructures to understand the game
+            self.GridReclaim = import("/lua/ai/gridreclaim.lua").Setup(self)
+            self.GridBrain = import("/lua/ai/gridbrain.lua").Setup()
+            self.GridRecon = import("/lua/ai/gridrecon.lua").Setup(self)
+            self.GridPresence = import("/lua/AI/GridPresence.lua").Setup(self)
+        end
+    end,
+
 }
 
 --[[

@@ -2056,3 +2056,19 @@ function GetHighestTechInZone(iTeam, tLZTeamData)
     end
     return iHighestTech
 end
+
+function ApplyM28ToOtherAI(aiBrain)
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ApplyM28ToOtherAI'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': aiBrain.BrainType='..(aiBrain.BrainType or 'nil')..'; aiBrain nickname='..(aiBrain.Nickname or 'nil')..'; Is civilian='..tostring(IsCivilianBrain(aiBrain))..'; Is scenario type skirmish='..tostring(ScenarioInfo.type == "skirmish")) end
+    --Hostile brains in campaign (i.e. non-player brains) should return true to the IsCivilianBrain check
+    if (aiBrain.BrainType == "AI" or not(aiBrain.BrainType)) and not(ScenarioInfo.type == "skirmish") and IsCivilianBrain(aiBrain) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Will apply M28 override to the brain') end
+        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+        return true
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Wont apply M28 override to the brain') end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+
+end

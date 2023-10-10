@@ -4430,9 +4430,10 @@ end
 function SetWhetherCanPathToEnemy(aiBrain)
     --Set flag for whether AI can path to enemy base
     --Also updates other values that are based on the nearest enemy
-
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SetWhetherCanPathToEnemy'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for aiBrain index'..aiBrain:GetArmyIndex()..'; Nickname='..(aiBrain.Nickname or 'nil')..'; Team='..(aiBrain.M28Team or 'nil')..'; Are all enemies defeated='..tostring(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbAllEnemiesDefeated] or false)..'; Time='..GetGameTimeSeconds()) end
     if not(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbAllEnemiesDefeated]) then
         local tEnemyStartPosition = GetPrimaryEnemyBaseLocation(aiBrain)
         local tOurBase = PlayerStartPoints[aiBrain:GetArmyIndex()]
@@ -4451,8 +4452,9 @@ function SetWhetherCanPathToEnemy(aiBrain)
 
         --Record mitpoint between base (makes it easier to calc mod distance
         aiBrain[reftMidpointToPrimaryEnemyBase] = M28Utilities.MoveInDirection(PlayerStartPoints[aiBrain:GetArmyIndex()], M28Utilities.GetAngleFromAToB(PlayerStartPoints[aiBrain:GetArmyIndex()], tEnemyStartPosition), aiBrain[M28Overseer.refiDistanceToNearestEnemyBase], false, false, false)
+        if bDebugMessages == true then LOG(sFunctionRef..': Set enemy base and whether we can path there, dist to nearest enem ybase='..(aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] or 'nil')) end
     end
-
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code') end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -4905,7 +4907,7 @@ end
 
 function RecordPondToExpandTo(aiBrain)
     --Calculates which pond we think is most important to hold; assumes we have already recorded all segments and ponds (but havent yet setup water zones)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end --set to true for certain positions where want logs to print
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end --set to true for certain positions where want logs to print
     local sFunctionRef = 'RecordPondToExpandTo'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -4924,7 +4926,10 @@ function RecordPondToExpandTo(aiBrain)
         local bStartLocationIsUnderwater = false
         local tStartPos = PlayerStartPoints[aiBrain:GetArmyIndex()]
         if GetTerrainHeight(tStartPos[1], tStartPos[3]) < GetSurfaceHeight(tStartPos[1], tStartPos[3]) then bStartLocationIsUnderwater = true end
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering aiBrain '..aiBrain.Nickname..' location for naval fac, bStartLocationIsUnderwater='..tostring(bStartLocationIsUnderwater)..'; tStartPos='..repru(tStartPos)..'; Terrain height='..GetTerrainHeight(tStartPos[1], tStartPos[3])..'; Surface height='..GetSurfaceHeight(tStartPos[1], tStartPos[3])) end
+        if bDebugMessages == true then
+            local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
+            LOG(sFunctionRef..': Considering aiBrain '..aiBrain.Nickname..' location for naval fac, bStartLocationIsUnderwater='..tostring(bStartLocationIsUnderwater)..'; tStartPos='..repru(tStartPos)..'; Terrain height='..GetTerrainHeight(tStartPos[1], tStartPos[3])..'; Surface height='..GetSurfaceHeight(tStartPos[1], tStartPos[3])..'; aiBrain[M28Overseer.refiDistanceToNearestEnemyBase]='..(aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] or 'nil')..'; Brain index='..aiBrain:GetArmyIndex()..'; reprs of start poitns='..reprs(PlayerStartPoints)..'; refbInitialised='..tostring(aiBrain[M28Overseer.refbInitialised] or false)..'; GameTime='..GetGameTimeSeconds())
+        end
         local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
         aiBrain[M28Navy.reftiPondThreatToUs] = {}
         aiBrain[M28Navy.reftiPondValueToUs] = {}

@@ -1466,7 +1466,7 @@ function OnCreateWreck(tPosition, iMass, iEnergy)
                 while not(M28Map.bReclaimManagerActive) do
                     WaitTicks(1)
                     iWaitCount = iWaitCount + 1
-                    if iWaitCount >= 20 then M28Utilities.ErrorHandler('Map setup not complete') break end
+                    if iWaitCount >= 50 then M28Utilities.ErrorHandler('Map setup not complete') break end
                 end
             end
         end

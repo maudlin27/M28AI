@@ -43,6 +43,7 @@ tiPacifistZonesByPlateau = {} --[iPlateau], returns iLandOrWaterZone, for any zo
 bBeginSessionTriggered = false
 
 --aiBrain variables
+refbInitialised = 'M28OvInt' --true if brain has started the main initialisation logic
 refiDistanceToNearestEnemyBase = 'M28OverseerDistToNearestEnemyBase'
 refoNearestEnemyBrain = 'M28OverseerNearestEnemyBrain'
 refbCloseToUnitCap = 'M28OverseerCloseToUnitCap'
@@ -378,11 +379,11 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
 end
 
 function M28BrainCreated(aiBrain)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'M28BrainCreated'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bDebugMessages == true then LOG(sFunctionRef..': M28 Brain has just been created for aiBrain '..aiBrain.Nickname..'; Index='..aiBrain:GetArmyIndex()) end
+    if bDebugMessages == true then LOG(sFunctionRef..': M28 Brain has just been created for aiBrain '..aiBrain.Nickname..'; Index='..aiBrain:GetArmyIndex()..'; bInitialSetup='..tostring(bInitialSetup or false)..'; Time='..GetGameTimeSeconds()) end
 
     aiBrain.M28AI = true
     table.insert(tAllActiveM28Brains, aiBrain)
@@ -671,6 +672,7 @@ function Initialisation(aiBrain)
         WaitTicks(1)
     end
     WaitTicks(1) --make sure brain setup will have run
+    aiBrain[refbInitialised] = true
     LOG('About to proceed with initialisation, aiBrain='..aiBrain.Nickname..'; bBeginSessionTriggered='..tostring(bBeginSessionTriggered or false)..'; Navmesh generated='..tostring(import("/lua/sim/navgenerator.lua").IsGenerated()))
     ForkThread(SetupNoRushDetails, aiBrain)
     ForkThread(M28UnitInfo.CalculateBlueprintThreatsByType) --Records air and ground threat values for every blueprint
