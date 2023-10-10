@@ -102,7 +102,6 @@ function IsCivilianBrain(aiBrain)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'IsCivilianBrain'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
     if aiBrain.M28IsCivilian == nil then
         local bIsCivilian = false
         if bDebugMessages == true then
@@ -132,10 +131,12 @@ function IsCivilianBrain(aiBrain)
         end
         if bDebugMessages == true then LOG(sFunctionRef..': bIsCivilian after campaign adjust (if relevant)='..tostring(bIsCivilian)) end
         aiBrain.M28IsCivilian = bIsCivilian
+    elseif aiBrain.M28AI then
+        aiBrain.M28IsCivilian = false
     end
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        return aiBrain.M28IsCivilian
-    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+    return aiBrain.M28IsCivilian
+end
 
 function GetLifetimeBuildCount(aiBrain, category)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
@@ -2062,7 +2063,7 @@ function ApplyM28ToOtherAI(aiBrain)
     local sFunctionRef = 'ApplyM28ToOtherAI'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': aiBrain.BrainType='..(aiBrain.BrainType or 'nil')..'; aiBrain nickname='..(aiBrain.Nickname or 'nil')..'; Is civilian='..tostring(IsCivilianBrain(aiBrain))..'; Is scenario type skirmish='..tostring(ScenarioInfo.type == "skirmish")) end
-    --Hostile brains in campaign (i.e. non-player brains) should return true to the IsCivilianBrain check
+    --Hostile brains in campaign (i.e. non-player brains) should return true to the IsCivilianBrain check if theyve not yet been set as being a M28AI brain
     if (aiBrain.BrainType == "AI" or not(aiBrain.BrainType)) and not(ScenarioInfo.type == "skirmish") and IsCivilianBrain(aiBrain) then
         if bDebugMessages == true then LOG(sFunctionRef..': Will apply M28 override to the brain') end
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
