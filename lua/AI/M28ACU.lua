@@ -3269,7 +3269,7 @@ function GetACUOrder(aiBrain, oACU)
                                 if bDebugMessages == true then LOG(sFunctionRef..':Too much threat in this zone') end
                             else
                                 --Enemy has small threat, so might want to build mex rather than attack
-                                if math.max(tLZOrWZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange], tLZOrWZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange], tLZOrWZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange]) >= oACU[M28UnitInfo.refiDFRange] then
+                                if math.max((tLZOrWZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0), (tLZOrWZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0), (tLZOrWZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] or 0)) >= (oACU[M28UnitInfo.refiDFRange] or 0) then
                                     bConsiderBuildingNearbyMex = false
                                     if bDebugMessages == true then LOG(sFunctionRef..'; We dont outrange enemy so wont consider building mex') end
                                 else

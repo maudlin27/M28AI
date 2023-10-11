@@ -624,7 +624,10 @@ function AddAssignedAttacker(oTarget, oNewBomber)
     local sFunctionRef = 'AddAssignedAttacker'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-
+    if not(oNewBomber[M28UnitInfo.refiStrikeDamage]) then
+        --Redundancy for campaign where presumably there's a slight delay in recording a unit that gets cheated in by the map script
+        M28UnitInfo.RecordUnitRange(oNewBomber)
+    end
     local bRecordNewStrikeDamage = true
     if oNewBomber[refoStrikeDamageAssigned] then
         if not(oNewBomber[refoStrikeDamageAssigned] == oTarget) then --redundancy - M28Orders should already clear when issuing a clear commands
@@ -634,6 +637,8 @@ function AddAssignedAttacker(oTarget, oNewBomber)
         end
     end
     if bRecordNewStrikeDamage then
+        bDebugMessages = true
+        if bDebugMessages == true then LOG(sFunctionRef..': oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; Existing strike damage='..(oTarget[refiStrikeDamageAssigned] or 0)..'; oNewBomber='..oNewBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNewBomber)..'; oNewBomber strike damage='..(oNewBomber[M28UnitInfo.refiStrikeDamage] or 'nil')..'; Bomber brain owner='..oNewBomber:GetAIBrain().Nickname) end
         oTarget[refiStrikeDamageAssigned] = (oTarget[refiStrikeDamageAssigned] or 0) + oNewBomber[M28UnitInfo.refiStrikeDamage]
         oNewBomber[refoStrikeDamageAssigned] = oTarget
     end
