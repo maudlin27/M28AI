@@ -637,7 +637,6 @@ function AddAssignedAttacker(oTarget, oNewBomber)
         end
     end
     if bRecordNewStrikeDamage then
-        bDebugMessages = true
         if bDebugMessages == true then LOG(sFunctionRef..': oTarget='..oTarget.UnitId..M28UnitInfo.GetUnitLifetimeCount(oTarget)..'; Existing strike damage='..(oTarget[refiStrikeDamageAssigned] or 0)..'; oNewBomber='..oNewBomber.UnitId..M28UnitInfo.GetUnitLifetimeCount(oNewBomber)..'; oNewBomber strike damage='..(oNewBomber[M28UnitInfo.refiStrikeDamage] or 'nil')..'; Bomber brain owner='..oNewBomber:GetAIBrain().Nickname) end
         oTarget[refiStrikeDamageAssigned] = (oTarget[refiStrikeDamageAssigned] or 0) + oNewBomber[M28UnitInfo.refiStrikeDamage]
         oNewBomber[refoStrikeDamageAssigned] = oTarget
@@ -4995,7 +4994,7 @@ function UpdateTransportLocationShortlist(iTeam)
                                     end
                                 end
                                 if bDebugMessages == true then LOG(sFunctionRef..': Considering island '..iIsland..'; iClosestLZToBase='..iClosestLZToBase..'; iClosestBasePlateau='..(iClosestBasePlateau or 'nil')..'; iClosestLZToBase='..(iClosestLZToBase or 'nil')..'; Island mex count='..tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland]) end
-                                if iClosestLZToBase >= 190 or (iClosestLZToBase >= 140 and tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland] >= 7) then
+                                if iClosestLZToBase >= 190 or (iClosestLZToBase >= 140 and tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland] >= 7) or (not(iClosestBasePlateau == iPlateau) and (tPlateauSubtable[M28Map.subrefPlateauIslandMexCount][iIsland] or 0) > 0) then
                                     bAlreadyIncluded = false
                                     if not(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau][iPlateau]) then M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau][iPlateau] = {}
                                     else
@@ -5008,6 +5007,7 @@ function UpdateTransportLocationShortlist(iTeam)
                                     end
                                     if not(bAlreadyIncluded) then
                                         --this is a 1-off at game start that records locations we might conceivably want to drop during the game - see later loop which factors in things like friendly units
+                                        if bDebugMessages == true then LOG(sFunctionRef..': Including iIsland='..iIsland..' on iPlateau='..iPlateau..' in potential drop locations') end
                                         table.insert(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropIslandsByPlateau][iPlateau], iIsland)
                                         tbPlateausWithPlayerStartOrIslandDrop[iPlateau] = true
                                     end
@@ -5051,6 +5051,7 @@ function UpdateTransportLocationShortlist(iTeam)
                         local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
                         local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
                         if bDontHaveLocationInPlayableArea then bDontHaveLocationInPlayableArea = not(M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint])) end
+                        iMexesAlreadyBuiltOn = 0
                         iRecentDropCount = iRecentDropCount + (tLZTeamData[M28Map.refiTransportRecentUnloadCount] or 0)
                         iMexesAlreadyBuiltOn = iMexesAlreadyBuiltOn + tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3]
                         if bDebugMessages == true then LOG(sFunctionRef..': Considering iLandZone='..iLandZone..' in the island, enemy threat='..tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]..'; Is table of enemy engineers traveling here empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefTEngineersTravelingHere]))..'; iMexesAlreadyBuiltOn='..iMexesAlreadyBuiltOn) end

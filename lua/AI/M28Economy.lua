@@ -169,6 +169,8 @@ function UpdateZoneM28AllMexByTech(aiBrain, iPlateauOrZero, iLandOrWaterZone, oO
     local sFunctionRef = 'UpdateZoneM28AllMexByTech'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+    if iPlateauOrZero == 1290 then bDebugMessages = true end
+
     local tLZOrWZTeamData
     local tLZOrWZData
     if iPlateauOrZero == 0 then
@@ -517,7 +519,7 @@ end
 
 function ConsiderHydroUpgradeLoop(oUnit)
     --Every 10s consider upgrading unit
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderHydroUpgradeLoop'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
