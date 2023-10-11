@@ -517,7 +517,7 @@ end
 
 function ConsiderHydroUpgradeLoop(oUnit)
     --Every 10s consider upgrading unit
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'ConsiderHydroUpgradeLoop'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -525,33 +525,37 @@ function ConsiderHydroUpgradeLoop(oUnit)
     if not(oUnit[refbSpecialUpgradeMonitor]) then
         --Does the blueprint have an upgrade option?
         local oBP = oUnit:GetBlueprint()
-        if bDebugMessages == true then LOG(sFunctionRef..': Unit upgrades to='..(oBP.General.UpgradesTo or 'nil')) end
-        if oBP.General.UpgradesTo then
+        if bDebugMessages == true then LOG(sFunctionRef..': Unit upgrades to='..(oBP.General.UpgradesTo or 'nil')..'; Does this equal empty string='..tostring(oBP.General.UpgradesTo == '')) end
+        if oBP.General.UpgradesTo and not(oBP.General.UpgradesTo == '') then
             oUnit[refbSpecialUpgradeMonitor] = true
             local aiBrain = oUnit:GetAIBrain()
             local iTeam = aiBrain.M28Team
             local oUpgradedBP = __blueprints[oBP.General.UpgradesTo]
-            local iBuildPower = oBP.Economy.BuildRate * aiBrain[refiBrainBuildRateMultiplier]
-            local iBrainCount = M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]
-            local iMassPerTickWanted = 0.1 * (oUpgradedBP.Economy.BuildCostMass * iBuildPower / oUpgradedBP.Economy.BuildTime) * iBrainCount * 2
-            local iEnergyPerTickWanted = 0.1 * (oUpgradedBP.Economy.BuildCostEnergy * iBuildPower / oUpgradedBP.Economy.BuildTime ) * iBrainCount * 2
-            local iGrossMassPerTickAlternative = iMassPerTickWanted * 20
-            local iGrossEnergyPerTickAlternative = iEnergyPerTickWanted * 20
-            local iStoredMassAlternative = oUpgradedBP.Economy.BuildCostMass * 4
+            if oUpgradedBP then
+                local iBuildPower = oBP.Economy.BuildRate * aiBrain[refiBrainBuildRateMultiplier]
+                local iBrainCount = M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]
+                if bDebugMessages == true then LOG(sFunctionRef..': oUpgradedBP='..reprs(oUpgradedBP)) end
+                local iMassPerTickWanted = 0.1 * (oUpgradedBP.Economy.BuildCostMass * iBuildPower / oUpgradedBP.Economy.BuildTime) * iBrainCount * 2
+                local iEnergyPerTickWanted = 0.1 * (oUpgradedBP.Economy.BuildCostEnergy * iBuildPower / oUpgradedBP.Economy.BuildTime ) * iBrainCount * 2
+                local iGrossMassPerTickAlternative = iMassPerTickWanted * 20
+                local iGrossEnergyPerTickAlternative = iEnergyPerTickWanted * 20
+                local iStoredMassAlternative = oUpgradedBP.Economy.BuildCostMass * 4
 
-            if bDebugMessages == true then LOG(sFunctionRef..': iBuildPower='..iBuildPower..'; iMasPerTickWanted='..iMassPerTickWanted..'; iEnergyPerTickWanted='..iEnergyPerTickWanted) end
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-            WaitSeconds(10)
-            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-            while M28UnitInfo.IsUnitValid(oUnit) do
-                if bDebugMessages == true then LOG(sFunctionRef..': Deciding if want to upgrade at time='..GetGameTimeSeconds()..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Brain='..aiBrain.Nickname..'; Want more power='..tostring(M28Conditions.WantMorePower(iTeam))..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; iEnergyPerTickWanted='..iEnergyPerTickWanted..'; Net mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]..'; iMassPerTickWanted='..iMassPerTickWanted..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) end
-                if M28Conditions.WantMorePower(iTeam) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= iEnergyPerTickWanted or (iEnergyPerTickWanted > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= iGrossEnergyPerTickAlternative) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= iMassPerTickWanted or ((aiBrain:GetEconomyStored('MASS') >= iStoredMassAlternative and (aiBrain:GetEconomyStored('MASS') >= iStoredMassAlternative * 2 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= -1)) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= iGrossMassPerTickAlternative)))) then
-                    UpgradeUnit(oUnit, false)
-                    break
-                end
+                if bDebugMessages == true then LOG(sFunctionRef..': iBuildPower='..iBuildPower..'; iMasPerTickWanted='..iMassPerTickWanted..'; iEnergyPerTickWanted='..iEnergyPerTickWanted) end
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
                 WaitSeconds(10)
                 M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                while M28UnitInfo.IsUnitValid(oUnit) do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Deciding if want to upgrade at time='..GetGameTimeSeconds()..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Brain='..aiBrain.Nickname..'; Want more power='..tostring(M28Conditions.WantMorePower(iTeam))..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; iEnergyPerTickWanted='..iEnergyPerTickWanted..'; Net mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]..'; iMassPerTickWanted='..iMassPerTickWanted..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) end
+                    if M28Conditions.WantMorePower(iTeam) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= iEnergyPerTickWanted or (iEnergyPerTickWanted > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= iGrossEnergyPerTickAlternative) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= iMassPerTickWanted or ((aiBrain:GetEconomyStored('MASS') >= iStoredMassAlternative and (aiBrain:GetEconomyStored('MASS') >= iStoredMassAlternative * 2 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= -1)) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= iGrossMassPerTickAlternative)))) then
+                        UpgradeUnit(oUnit, false)
+                        break
+                    end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    WaitSeconds(10)
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                end
+            elseif bDebugMessages == true then LOG(sFunctionRef..': Couldnt locate an actual blueprint')
             end
         end
     end
