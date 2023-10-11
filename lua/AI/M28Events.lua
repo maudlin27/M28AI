@@ -1692,9 +1692,18 @@ end
 
 function OnCreateBrain(aiBrain, planName, bIsHuman)
     local sFunctionRef = 'OnCreateBrain'
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if bDebugMessages == true then LOG(sFunctionRef..': aiBrain has just been created at time '..GetGameTimeSeconds()..'; Brain nickname='..(aiBrain.Nickname or 'nil')..'; Has setup been run='..tostring(aiBrain['M28BrainSetupRun'] or false)..'; Brain type='..(aiBrain.BrainType or 'nil')..'; M28Team (if brain setup)='..(aiBrain.M28Team or 'nil')..'; aiBrain.Civilian='..tostring(aiBrain.Civilian or false)..'; .M28AI='..tostring(aiBrain.M28AI or false)..'; .M27AI='..tostring(aiBrain.M27AI or false)) end
+
+    if bDebugMessages == true then LOG(sFunctionRef..': aiBrain has just been created at time '..GetGameTimeSeconds()..'; Brain nickname='..(aiBrain.Nickname or 'nil')..'; Has setup been run='..tostring(aiBrain['M28BrainSetupRun'] or false)..'; Brain type='..(aiBrain.BrainType or 'nil')..'; M28Team (if brain setup)='..(aiBrain.M28Team or 'nil')..'; aiBrain.Civilian='..tostring(aiBrain.Civilian or false)..'; .M28AI='..tostring(aiBrain.M28AI or false)..'; .M27AI='..tostring(aiBrain.M27AI or false)..'; M28Overseer.iTimeOfLatestBrainToCheckForM28Logic='..(M28Overseer.iTimeOfLatestBrainToCheckForM28Logic or 'nil')) end
+    if M28Overseer.iTimeOfLatestBrainToCheckForM28Logic >= 0 then
+        while GetGameTimeSeconds() < M28Overseer.iTimeOfLatestBrainToCheckForM28Logic + 1 do
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitTicks(1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting for M28Overseer.iTimeOfLatestBrainToCheckForM28Logic (if applicable), Brain='..(aiBrain.Nickname or 'nil')..'; .M28AI='..tostring(aiBrain.M28AI or false)) end
     if not(aiBrain['M28BrainSetupRun']) then
         if M28Config.M28RunProfiling then ForkThread(M28Profiler.ProfilerActualTimePerTick) end
         if bIsHuman == nil then

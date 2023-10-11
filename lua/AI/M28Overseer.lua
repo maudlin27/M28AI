@@ -27,6 +27,7 @@ bInitialSetup = false
 tAllActiveM28Brains = {} --[x] is just a unique integer starting with 1 (so table.getn works on this), not the armyindex; returns the aiBrain object
 tAllAIBrainsByArmyIndex = {} --[x] is the brain army index, returns the aibrain
 bDebugTickCheckerActive = false
+iTimeOfLatestBrainToCheckForM28Logic = -1
 
 --Special settings - restrictions and norush
 bUnitRestrictionsArePresent = false
@@ -1764,12 +1765,12 @@ end
 
 function DecideWhetherToApplyM28ToCampaignAI(aiBrain, planName)
     --Wait a second so hopefully isenemy is more accurate
-    WaitSeconds(1)
+    WaitSeconds(1) --also need to update references to iTimeOfLatestBrainToCheckForM28Logic if changing this
     if M28Conditions.ApplyM28ToOtherAI(aiBrain) then
         local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
         aiBrain.M28AI = true
         M28Utilities.bM28AIInGame = true
-        LOG('Setting AI to use M28, aiBrain.Nickname='..(aiBrain.Nickname or 'nil'))
+        LOG('Setting AI to use M28, aiBrain.Nickname='..(aiBrain.Nickname or 'nil')..'; aiBrain[M28BrainSetupRun] before being cleared='..tostring(aiBrain['M28BrainSetupRun'] or false))
         ForkThread(M28Events.OnCreateBrain, aiBrain, planName, false)
     end
 end

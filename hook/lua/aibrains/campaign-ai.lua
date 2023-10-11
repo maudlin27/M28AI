@@ -20,6 +20,7 @@ AIBrain = Class(M28OldAIBrain) {
     OnCreateAI = function(self, planName)
         LOG('OnCreateAI for campaign is running for brain '..(self.Nickname or 'nil'))
         --Delalyed check of if should apply M28 logic to the brain
+        M28Overseer.iTimeOfLatestBrainToCheckForM28Logic = GetGameTimeSeconds()
         ForkThread(M28Overseer.DecideWhetherToApplyM28ToCampaignAI, self, planName)
 
         M28OldAIBrain.OnCreateAI(self, planName)
