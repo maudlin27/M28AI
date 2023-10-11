@@ -468,8 +468,11 @@ function NoRushMonitor()
 end
 
 function TestCustom(aiBrain)
+    --ScenarioInfo.Options
+    --LOG('scenario info.options='..reprs(ScenarioInfo.Options))
+
     --Rerun adj zones so can see what is happening
-    M28Map.RecordWaterZoneAdjacentLandZones()
+    --M28Map.RecordWaterZoneAdjacentLandZones()
 
     --Spawn in a novax for testing:
     --[[local oACU = aiBrain:GetListOfUnits(categories.COMMAND)[1]

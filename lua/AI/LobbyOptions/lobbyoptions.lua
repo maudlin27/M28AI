@@ -50,5 +50,35 @@ AIOpts = {
             '10.0',
         },
     },
+    {
+        default = 1,
+        label = "Use M28 for campaign AI (WIP)",
+        help = "Apply M28 to non-player AIs in campaign missions. WARNING: this can break the mission",
+        key = 'CampAI', --refer to this with ScenarioInfo.Options.CampAI, which will return the key value below
+        value_text = "",
+        value_help = "Which AI to apply M28 to",
+        values = {
+            {
+                text = 'None (i.e. only M28 players)',
+                help = 'None (i.e. only M28 players)',
+                key = 1,
+            },
+            {
+                text = 'Allied AI Only',
+                help = 'Allied AI Only',
+                key = 2,
+            },
+            {
+                text = 'Enemy AI Only',
+                help = 'Enemy AI Only',
+                key = 3,
+            },
+            {
+                text = 'Allied and Enemy AI',
+                help = 'Allied and Enemy AI',
+                key = 4,
+            },
+        },
+    },
 
 }
