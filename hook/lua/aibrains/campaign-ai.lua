@@ -9,6 +9,7 @@
 local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
 local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
+local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 
 local StandardBrain = import("/lua/aibrain.lua").AIBrain
 local M28OldAIBrain = AIBrain
@@ -17,18 +18,13 @@ AIBrain = Class(M28OldAIBrain) {
 
 
     OnCreateAI = function(self, planName)
-        LOG('OnCreateAI for campaign is running')
-        if M28Conditions.ApplyM28ToOtherAI(self) then
-            self.M28AI = true
-            M28Utilities.bM28AIInGame = true
-            LOG('Setting AI to use M28, self.Nickname='..(self.Nickname or 'nil'))
-            M28OldAIBrain.OnCreateAI(self, planName)
-        end
-        if not(self.M28AI) then
-            LOG('Running normal aiBrain creation code for brain '..(self.Nickname or 'nil'))
+        LOG('OnCreateAI for campaign is running for brain '..(self.Nickname or 'nil'))
+        --Delalyed check of if should apply M28 logic to the brain
+        ForkThread(M28Overseer.DecideWhetherToApplyM28ToCampaignAI, self, planName)
 
-        end
-        ForkThread(M28Events.OnCreateBrain, self, planName, false)
+        M28OldAIBrain.OnCreateAI(self, planName)
+
+
     end,
 
     OnBeginSession = function(self)

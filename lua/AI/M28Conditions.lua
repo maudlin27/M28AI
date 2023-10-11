@@ -2064,12 +2064,26 @@ function ApplyM28ToOtherAI(aiBrain)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': aiBrain.BrainType='..(aiBrain.BrainType or 'nil')..'; aiBrain nickname='..(aiBrain.Nickname or 'nil')..'; Is civilian='..tostring(IsCivilianBrain(aiBrain))..'; Is scenario type skirmish='..tostring(ScenarioInfo.type == "skirmish")) end
     --Hostile brains in campaign (i.e. non-player brains) should return true to the IsCivilianBrain check if theyve not yet been set as being a M28AI brain
-    if (aiBrain.BrainType == "AI" or not(aiBrain.BrainType)) and not(ScenarioInfo.type == "skirmish") and IsCivilianBrain(aiBrain) then
-        if bDebugMessages == true then LOG(sFunctionRef..': Will apply M28 override to the brain') end
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        return true
+    if (aiBrain.BrainType == "AI" or not(aiBrain.BrainType)) and not(ScenarioInfo.type == "skirmish") then
+        --Do we have any brains that are hostile to this?
+        local iBrainIndex = aiBrain:GetArmyIndex()
+        local bHaveEnemy = false
+        local bHaveAlly = false
+        for iBrain, oBrain in ArmyBrains do
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering if oBrain '..oBrain.Nickname..' is an enemy to aiBrain '..aiBrain.Nickname..'; IsEnemy='..tostring(IsEnemy(iBrainIndex, oBrain:GetArmyIndex()))) end
+            if IsEnemy(oBrain:GetArmyIndex(), iBrainIndex) then bHaveEnemy = true break end
+            --if IsAlly(oBrain:GetArmyIndex(), iBrainIndex) then bHaveAlly = true end
+        end
+        --Removedl ogic re IsAlly, since even if it is an ally to one of us if it has no enemies there's nothign to attack
+        if bHaveEnemy then --or bHaveAlly then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will apply M28 override to the brain') end
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            return true
+        else
+            if bDebugMessages == true then LOG(sFunctionRef..': Brain doesnt have an ally or enemy so wont give M28 logic to it') end
+        end
     end
-    if bDebugMessages == true then LOG(sFunctionRef..': Wont apply M28 override to the brain') end
+    if bDebugMessages == true then LOG(sFunctionRef..': Wont apply M28 override to the brain '..aiBrain.Nickname) end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 
 end

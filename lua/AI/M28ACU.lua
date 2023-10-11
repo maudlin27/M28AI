@@ -3566,45 +3566,49 @@ function ManageACU(aiBrain, oACUOverride)
         end
     end
 
-    --Wait until ok for us to give orders
-    if bDebugMessages == true then LOG(sFunctionRef..': Will wait until after 4.5s before giving ACU orders, gametime='..GetGameTimeSeconds()) end
-    while (GetGameTimeSeconds() <= 4.5) do
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        WaitTicks(1)
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    end
+    if oACU then
 
-    --Campaign specific - check if friendly units should gift to M28AI
-    if M28Map.bIsCampaignMap then
-        ForkThread(M28Overseer.CheckForAlliedCampaignUnitsToShareAtGameStart, oACU:GetAIBrain())
-    end
-
-    if M28UnitInfo.IsUnitValid(oACU) and not(M28UnitInfo.IsUnitValid(aiBrain[refoPrimaryACU])) then
-        aiBrain[refoPrimaryACU] = oACU
-    end
-
-    --Make sure ACU is recorded
-    M28Team.AssignUnitToLandZoneOrPond(aiBrain, oACU, false, false, true)
-
-    --Make sure we have recorded this zone as a core zone
-    local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
-    if iPlateauOrZero > 0 and (iLandOrWaterZone or 0) > 0 then
-
-    end
-
-    oACU[refiUpgradeCount] = 0
-    oACU[refbUseACUAggressively] = true
-    while M28UnitInfo.IsUnitValid(oACU) do
-        oACU[refbTreatingAsACU] = true
-        if oACU[refbUseACUAggressively] then
-            oACU[refbUseACUAggressively] = DoWeStillWantToBeAggressiveWithACU(oACU)
+        --Wait until ok for us to give orders
+        if bDebugMessages == true then LOG(sFunctionRef..': Will wait until after 4.5s before giving ACU orders, gametime='..GetGameTimeSeconds()) end
+        while (GetGameTimeSeconds() <= 4.5) do
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitTicks(1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         end
 
-        ForkThread(GetACUOrder, aiBrain, oACU)
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        WaitSeconds(1)
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        --Campaign specific - check if friendly units should gift to M28AI
+        if M28Map.bIsCampaignMap then
+            ForkThread(M28Overseer.CheckForAlliedCampaignUnitsToShareAtGameStart, oACU:GetAIBrain())
+        end
+
+        if M28UnitInfo.IsUnitValid(oACU) and not(M28UnitInfo.IsUnitValid(aiBrain[refoPrimaryACU])) then
+            aiBrain[refoPrimaryACU] = oACU
+        end
+
+        --Make sure ACU is recorded
+        M28Team.AssignUnitToLandZoneOrPond(aiBrain, oACU, false, false, true)
+
+        --Make sure we have recorded this zone as a core zone
+        local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
+        if iPlateauOrZero > 0 and (iLandOrWaterZone or 0) > 0 then
+
+        end
+
+        oACU[refiUpgradeCount] = 0
+        oACU[refbUseACUAggressively] = true
+        while M28UnitInfo.IsUnitValid(oACU) do
+            oACU[refbTreatingAsACU] = true
+            if oACU[refbUseACUAggressively] then
+                oACU[refbUseACUAggressively] = DoWeStillWantToBeAggressiveWithACU(oACU)
+            end
+
+            ForkThread(GetACUOrder, aiBrain, oACU)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitSeconds(1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 

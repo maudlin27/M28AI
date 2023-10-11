@@ -55,7 +55,7 @@ refiTemporarilySetAsAllyForTeam = 'M28TempSetAsAlly' --against brain, e.g. a civ
 refiRoughTotalUnitsInGame = 0 --Very rough count of units in game, so can use more optimised code if this gets high
 
 function GetNearestEnemyBrain(aiBrain)
-    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'GetNearestEnemyBrain'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
@@ -68,6 +68,7 @@ function GetNearestEnemyBrain(aiBrain)
         if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbAllEnemiesDefeated] then
             --All enemies defeated so will consider civilians as enemy brains
             local oCivilianBrain
+            if bDebugMessages == true then LOG(sFunctionRef..': All enemies defeated so will consider all brains including civilians') end
             for iCurBrain, oBrain in ArmyBrains do
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering obrain '..(oBrain.Nickname or 'nil')..'; is enemy to us='..tostring(IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()))) end
                 if IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) then
@@ -89,7 +90,7 @@ function GetNearestEnemyBrain(aiBrain)
             if bDebugMessages == true then LOG(sFunctionRef .. ': Start before looping through brains; aiBrain personality=' .. ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality .. '; brain.Name=' .. aiBrain.Name) end
 
             for iCurBrain, oBrain in ArmyBrains do
-                if bDebugMessages == true then LOG(sFunctionRef .. ': Start of brain loop, iCurBrain=' .. iCurBrain .. '; brain personality=' .. ScenarioInfo.ArmySetup[oBrain.Name].AIPersonality .. '; brain Nickname=' .. oBrain.Nickname .. '; Brain index=' .. oBrain:GetArmyIndex() .. '; if brain isnt equal to our AI brain then will get its start position etc. IsCivilian='..tostring(M28Conditions.IsCivilianBrain(oBrain))..'; IsEnemy='..tostring(IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()))) end
+                if bDebugMessages == true then LOG(sFunctionRef .. ': Start of brain loop, iCurBrain=' .. iCurBrain .. '; brain personality=' .. ScenarioInfo.ArmySetup[oBrain.Name].AIPersonality .. '; brain Nickname=' .. oBrain.Nickname .. '; Brain index=' .. oBrain:GetArmyIndex() .. '; if brain isnt equal to our AI brain then will get its start position etc. IsCivilian='..tostring(M28Conditions.IsCivilianBrain(oBrain))..'; IsEnemy='..tostring(IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()))..'; Is oBrain a .M28AI brain='..tostring(oBrain.M28AI or false)) end
                 if not (oBrain == aiBrain) and (not (M28Conditions.IsCivilianBrain(oBrain)) and IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex())) then
                     if bDebugMessages == true then LOG(sFunctionRef .. ': Brain is dif to aiBrain and a non civilian enemy so will record its start position number if it doesnt have one already') end
 
@@ -1759,4 +1760,16 @@ function DelayedM27M28BrainCheck(aiBrain)
     WaitSeconds(1)
     LOG('Delayed brain check, brain nickname='..aiBrain.Nickname..'; .M27AI='..tostring(aiBrain.M27AI or false)..'; .M28AI='..tostring(aiBrain.M28AI or false))
     if aiBrain.M27AI and aiBrain.M28AI then aiBrain.M28AI = false end
+end
+
+function DecideWhetherToApplyM28ToCampaignAI(aiBrain, planName)
+    --Wait a second so hopefully isenemy is more accurate
+    WaitSeconds(1)
+    if M28Conditions.ApplyM28ToOtherAI(aiBrain) then
+        local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
+        aiBrain.M28AI = true
+        M28Utilities.bM28AIInGame = true
+        LOG('Setting AI to use M28, aiBrain.Nickname='..(aiBrain.Nickname or 'nil'))
+        ForkThread(M28Events.OnCreateBrain, aiBrain, planName, false)
+    end
 end
