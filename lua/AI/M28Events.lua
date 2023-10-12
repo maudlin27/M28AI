@@ -1648,6 +1648,10 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                         ForkThread(M28Economy.UpdateZoneM28MexByTechCount, oUnit) --we run the same logic via onconstructed
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryParagon, oUnit.UnitId) and not(oUnit.M28OnConstructedCalled) then
                         ForkThread(M28Building.JustBuiltParagon, oUnit)
+                    --Campaign specific - expand core zones for campaign AI
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryLandHQ + M28UnitInfo.refCategoryAirHQ, oUnit.UnitId) and M28Map.bIsCampaignMap and oUnit:GetAIBrain().CampaignAI then
+                        local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, oUnit:GetAIBrain().M28Team)
+                        tLZTeamData[M28Map.subrefbCoreBaseOverride] = true
                     end
 
                 end
@@ -1804,6 +1808,7 @@ function OnMissileImpact(self, targetType, targetEntity)
     end
 end
 
+function OnMapResizeFORSEARCHONLY()  end --So can find onplayableareachange easier
 function OnPlayableAreaChange(rect, voFlag)
 
     local ScenarioUtils = import("/lua/sim/scenarioutilities.lua")
@@ -1815,6 +1820,8 @@ function OnPlayableAreaChange(rect, voFlag)
     ForkThread(M28Engineer.CheckForSpecialCampaignCaptureTargets)
     --Wait 5s then consider campaign special objectives
     ForkThread(M28Overseer.ConsiderSpecialCampaignObjectives, nil, nil, nil, nil, nil, nil, nil, nil,  5)
+    --Update location of nearest friendly base (intended to help if we are applying M28AI to hostile AI)
+    ForkThread(M28Map.RefreshCampaignStartPositionsAfterDelay, 5)
 end
 
 function CaptureTriggerAdded(FunctionForOldUnit, FunctionForNewUnit, oUnit)

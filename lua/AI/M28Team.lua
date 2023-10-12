@@ -2889,7 +2889,7 @@ function WaterZoneTeamInitialisation(iTeam)
     --Record any start positions of friendly M28AI that are on water as waterstartposition for team data
     local tUnderwaterM28StartPoints = {}
     for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
-        local iStartPositionX, iStartPositionZ = oBrain:GetArmyStartPos()
+        local iStartPositionX, iStartPositionZ = M28Map.GetPlayerStartPosition(oBrain, true)
         local tStartPoint = {iStartPositionX, GetSurfaceHeight(iStartPositionX, iStartPositionZ), iStartPositionZ}
         if bDebugMessages == true then LOG(sFunctionRef..': tStartPoint='..repru(tStartPoint)..'; iStartPositionX='..iStartPositionX..'; iStartPositionZ='..iStartPositionZ..'; Surface height='..GetSurfaceHeight(iStartPositionX, iStartPositionZ)..'; Terrain height='..GetTerrainHeight(iStartPositionX, iStartPositionZ)) end
         if GetTerrainHeight(iStartPositionX, iStartPositionZ) < tStartPoint[2] then

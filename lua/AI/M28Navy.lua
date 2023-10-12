@@ -3596,6 +3596,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
     local bDontCheckIfUnitInPlayableArea = not(M28Map.bIsCampaignMap)
     --If enemy has air units in this zone then send the MAA to advance units towards it, but avoid enemy land units
     if M28Utilities.IsTableEmpty(tMAAToAdvance) == false then
+        local bDontCheckIfInCampaignArea = not(M28Map.bIsCampaignMap)
         if bDebugMessages == true then LOG(sFunctionRef..': Number of MAA units to advance='..table.getn(tMAAToAdvance)..'; Is table of enemy air units for this WZ '..iWaterZone..' empty='..tostring(M28Utilities.IsTableEmpty(tWZTeamData[M28Map.reftWZEnemyAirUnits]))) end
 
         --Do we have missile based MAA in this list, and if so does the enemy have nearby structures of interest? (i.e. T2+ structures)
@@ -3663,7 +3664,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering entry '..iEntry..'; Is water zone='..tostring(tSubtable[M28Map.subrefbIsWaterZone])..'; PlateauOrPond='..tSubtable[M28Map.subrefiPlateauOrPond]..'; Zone ref='..tSubtable[M28Map.subrefiLandOrWaterZoneRef]..'; In playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tAltLZOrWZData[M28Map.subrefMidpoint]))..'; Enemy structure value='..(tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0)) end
                     --Get the closest enemy unit to thie midpoint of this zone if we have combat aa:
-                    if iBestRange >= 80 and (tSubtable[M28Map.subrefiPlateauOrPond] == iPond or not(tSubtable[M28Map.subrefbIsWaterZone])) and iZoneCountFromFirstBuilding <= 8 then
+                    if (bDontCheckIfInCampaignArea or M28Map.IsLocationInPlayableArea(tAltLZOrWZData[M28Map.subrefMidpoint])) and iBestRange >= 80 and (tSubtable[M28Map.subrefiPlateauOrPond] == iPond or not(tSubtable[M28Map.subrefbIsWaterZone])) and iZoneCountFromFirstBuilding <= 8 then
                         if (bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tAltLZOrWZData[M28Map.subrefMidpoint])) and (tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) >= 200 then
                             if oClosestEnemyStructureOfInterest then iZoneCountFromFirstBuilding = iZoneCountFromFirstBuilding + 1 end
                             tClosestEnemyBuildingsOfInterest = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure - categories.TECH1, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits])
@@ -3901,9 +3902,12 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
                         if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZOtherWaterZones]) == false then
                             for iEntry, tWZSubtable in tWZData[M28Map.subrefWZOtherWaterZones] do
                                 iAltWZ = tWZSubtable[M28Map.subrefWZAWZRef]
-                                local tAltWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAltWZ][M28Map.subrefWZTeamData][iTeam]
-                                if M28Utilities.IsTableEmpty(tAltWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false and tAltWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < tAltWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] and tAltWZTeamData[M28Map.subrefWZThreatAlliedAA] < tAltWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] * 0.4 then
-                                    SendMAAToSupportWaterZone(tMAAToAdvance, iPond, iTeam, iAltWZ, nil, iWaterZone)
+                                local tAltWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAltWZ]
+                                if (bDontCheckIfInCampaignArea or M28Map.IsLocationInPlayableArea(tAltWZData[M28Map.subrefMidpoint])) then
+                                    local tAltWZTeamData = tAltWZData[M28Map.subrefWZTeamData][iTeam]
+                                    if M28Utilities.IsTableEmpty(tAltWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false and tAltWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < tAltWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] and tAltWZTeamData[M28Map.subrefWZThreatAlliedAA] < tAltWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] * 0.4 then
+                                        SendMAAToSupportWaterZone(tMAAToAdvance, iPond, iTeam, iAltWZ, nil, iWaterZone)
+                                    end
                                 end
                             end
                         end
@@ -3919,12 +3923,15 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
                     if M28Utilities.IsTableEmpty(tWZData[M28Map.subrefWZOtherWaterZones]) == false then
                         for iEntry, tWZSubtable in tWZData[M28Map.subrefWZOtherWaterZones] do
                             iAltWZ = tWZSubtable[M28Map.subrefWZAWZRef]
-                            local tAltWZTeamData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAltWZ][M28Map.subrefWZTeamData][iTeam]
-                            if tAltWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] > 10 or tAltWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < 10 then
-                                iFactorAdjust = 2
-                                if tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 then iFactorAdjust = 4 end
-                                SendMAAToSupportWaterZone(tMAAToAdvance, iPond, iTeam, iAltWZ, iFactorAdjust, iWaterZone)
-                                if M28Utilities.IsTableEmpty(tMAAToAdvance) then break end
+                            local tAltWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAltWZ]
+                            if (bDontCheckIfInCampaignArea or M28Map.IsLocationInPlayableArea(tAltWZData[M28Map.subrefMidpoint])) then
+                                local tAltWZTeamData = tAltWZData[M28Map.subrefWZTeamData][iTeam]
+                                if tAltWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] > 10 or tAltWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < 10 then
+                                    iFactorAdjust = 2
+                                    if tWZTeamData[M28Map.refiEnemyAirToGroundThreat] > 0 then iFactorAdjust = 4 end
+                                    SendMAAToSupportWaterZone(tMAAToAdvance, iPond, iTeam, iAltWZ, iFactorAdjust, iWaterZone)
+                                    if M28Utilities.IsTableEmpty(tMAAToAdvance) then break end
+                                end
                             end
                         end
                     end

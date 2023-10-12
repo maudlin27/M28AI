@@ -103,7 +103,7 @@ function GetNearestEnemyBrain(aiBrain)
                         end
                         if bDebugMessages == true then
                             LOG(sFunctionRef .. ': Considering nearest enemy for our brain index '..aiBrain:GetArmyIndex()..'; enemy brain with index' .. oBrain:GetArmyIndex() .. ' and nickname '..(oBrain.Nickname or 'nil')..' is not defeated and is an enemy; M28Map.PlayerStartPoints='..repru( M28Map.PlayerStartPoints))
-                            local iX, iZ = oBrain:GetArmyStartPos()
+                            local iX, iZ = M28Map.GetPlayerStartPosition(oBrain, true)
                             LOG(sFunctionRef..': Enemy Start iX='..(iX or 'nil')..'; Start iZ+'..(iZ or 'nil'))
                         end
                         iCurDist = M28Utilities.GetDistanceBetweenPositions(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()], M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
