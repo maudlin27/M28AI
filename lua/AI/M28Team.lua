@@ -629,7 +629,7 @@ end
 function RecordAllPlayers()
 
     --Call via ForkThread from initialisation, so 1 tick after the first brain will have been created
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'RecordAllPlayers'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if not(bRecordedAllPlayers) then
@@ -2734,7 +2734,7 @@ end
 function TeamInitialisation(iM28Team)
     --First check if we have any M28 brains in this team (otherwise dont do anything further)
     --NOTE: CreateNewTeam function includes various team setup variables
-    local bDebugMessages = true if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'TeamInitialisation'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if bDebugMessages == true then LOG(sFunctionRef..': Will initialise team based logic for the team '..iM28Team..'; Is the table of friendly active M28 brains empty='..tostring(M28Utilities.IsTableEmpty(tTeamData[iM28Team][subreftoFriendlyActiveM28Brains]))..'; Do we already have an active team cycler='..tostring(tTeamData[iM28Team]['M28TeamActiveTeamCycler'] or false)) end

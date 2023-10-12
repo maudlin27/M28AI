@@ -1367,7 +1367,6 @@ function GetNearestLandRallyPoint(tLZData, iTeam, iPlateau, iLandZone, iMaxLZTow
         return {M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iClosestLZRef][M28Map.subrefMidpoint][1], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iClosestLZRef][M28Map.subrefMidpoint][2], M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iClosestLZRef][M28Map.subrefMidpoint][3]}
     else
         M28Utilities.ErrorHandler('No rally point for P'..(iPlateau or 'nil')..' LZ'..(iLandZone or 'nil')..' for team '..iTeam..'; will return current midpoint')
-        bDebugMessages = true
         if bDebugMessages == true then
             LOG(sFunctionRef..': Will draw specific land zone in gold, midpoint='..repru(tLZData[M28Map.subrefMidpoint])..'; Closest friendly base='..repru(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.reftClosestFriendlyBase])..'; iTeam='..iTeam)
             M28Map.DrawSpecificLandZone(iPlateau, iLandZone, 4)
