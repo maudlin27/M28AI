@@ -3664,7 +3664,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': Considering entry '..iEntry..'; Is water zone='..tostring(tSubtable[M28Map.subrefbIsWaterZone])..'; PlateauOrPond='..tSubtable[M28Map.subrefiPlateauOrPond]..'; Zone ref='..tSubtable[M28Map.subrefiLandOrWaterZoneRef]..'; In playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tAltLZOrWZData[M28Map.subrefMidpoint]))..'; Enemy structure value='..(tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0)) end
                     --Get the closest enemy unit to thie midpoint of this zone if we have combat aa:
-                    if (bDontCheckIfInCampaignArea or M28Map.IsLocationInPlayableArea(tAltLZOrWZData[M28Map.subrefMidpoint])) and iBestRange >= 80 and (tSubtable[M28Map.subrefiPlateauOrPond] == iPond or not(tSubtable[M28Map.subrefbIsWaterZone])) and iZoneCountFromFirstBuilding <= 8 then
+                    if (bDontCheckIfInCampaignArea or M28Conditions.IsLocationInPlayableArea(tAltLZOrWZData[M28Map.subrefMidpoint])) and iBestRange >= 80 and (tSubtable[M28Map.subrefiPlateauOrPond] == iPond or not(tSubtable[M28Map.subrefbIsWaterZone])) and iZoneCountFromFirstBuilding <= 8 then
                         if (bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tAltLZOrWZData[M28Map.subrefMidpoint])) and (tAltLZOrWZTeamData[M28Map.subrefThreatEnemyStructureTotalMass] or 0) >= 200 then
                             if oClosestEnemyStructureOfInterest then iZoneCountFromFirstBuilding = iZoneCountFromFirstBuilding + 1 end
                             tClosestEnemyBuildingsOfInterest = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure - categories.TECH1, tAltLZOrWZTeamData[M28Map.subrefTEnemyUnits])
@@ -3903,7 +3903,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
                             for iEntry, tWZSubtable in tWZData[M28Map.subrefWZOtherWaterZones] do
                                 iAltWZ = tWZSubtable[M28Map.subrefWZAWZRef]
                                 local tAltWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAltWZ]
-                                if (bDontCheckIfInCampaignArea or M28Map.IsLocationInPlayableArea(tAltWZData[M28Map.subrefMidpoint])) then
+                                if (bDontCheckIfInCampaignArea or M28Conditions.IsLocationInPlayableArea(tAltWZData[M28Map.subrefMidpoint])) then
                                     local tAltWZTeamData = tAltWZData[M28Map.subrefWZTeamData][iTeam]
                                     if M28Utilities.IsTableEmpty(tAltWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false and tAltWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < tAltWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] and tAltWZTeamData[M28Map.subrefWZThreatAlliedAA] < tAltWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] * 0.4 then
                                         SendMAAToSupportWaterZone(tMAAToAdvance, iPond, iTeam, iAltWZ, nil, iWaterZone)
@@ -3924,7 +3924,7 @@ function ManageMAAInWaterZone(tWZData, tWZTeamData, iTeam, iPond, iWaterZone, tA
                         for iEntry, tWZSubtable in tWZData[M28Map.subrefWZOtherWaterZones] do
                             iAltWZ = tWZSubtable[M28Map.subrefWZAWZRef]
                             local tAltWZData = M28Map.tPondDetails[iPond][M28Map.subrefPondWaterZones][iAltWZ]
-                            if (bDontCheckIfInCampaignArea or M28Map.IsLocationInPlayableArea(tAltWZData[M28Map.subrefMidpoint])) then
+                            if (bDontCheckIfInCampaignArea or M28Conditions.IsLocationInPlayableArea(tAltWZData[M28Map.subrefMidpoint])) then
                                 local tAltWZTeamData = tAltWZData[M28Map.subrefWZTeamData][iTeam]
                                 if tAltWZTeamData[M28Map.subrefWZTThreatAllyCombatTotal] > 10 or tAltWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] < 10 then
                                     iFactorAdjust = 2
