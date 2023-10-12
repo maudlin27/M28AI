@@ -562,6 +562,7 @@ function FindBuildableLocationsForSegment(aiBrain, iPlateauOrZero, iLandOrWaterZ
     if iPlateauOrZero == 0 then sBlueprintTable = tsWZBlueprintsBySize
     else sBlueprintTable = tsBlueprintsBySize
     end
+    if bDebugMessages == true then LOG(sFunctionRef..': iSegmentX='..(iSegmentX or 'nil')..'; iSegmentZ='..(iSegmentZ or 'nil')) end
     local tCurPosition = M28Map.GetPositionFromPathingSegments(iSegmentX, iSegmentZ)
     local iHighestCurSize = (tLZOrWZData[M28Map.subrefBuildableSizeBySegment][iSegmentX][iSegmentZ] or 0)
     if bDebugMessages == true then LOG(sFunctionRef..': Near start of code, Time='..GetGameTimeSeconds()..'; Brain='..aiBrain.Nickname..'; iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; iSegmentX='..iSegmentX..'; iSegmentZ='..iSegmentZ..'; iHighestCurSize='..iHighestCurSize) end
@@ -727,31 +728,31 @@ function SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, 
             else
                 if GetGameTimeSeconds() >= 150 and (GetGameTimeSeconds() >= 900 or M28Overseer.refiRoughTotalUnitsInGame >= 500) then
                     if iPlateauOrZero == 0 then
-                        iSegmentsToConsider = math.min(10, iOptionalMaxSegmentsToConsider)
+                        iSegmentsToConsider = math.min(10, math.floor(iOptionalMaxSegmentsToConsider))
                     else
-                        iSegmentsToConsider = math.min(5, iOptionalMaxSegmentsToConsider)
+                        iSegmentsToConsider = math.min(5, math.floor(iOptionalMaxSegmentsToConsider))
                     end
                 else
                     if iPlateauOrZero == 0 then
-                        iSegmentsToConsider = math.max(10, iOptionalMaxSegmentsToConsider)
+                        iSegmentsToConsider = math.max(10, math.floor(iOptionalMaxSegmentsToConsider))
                     else
-                        iSegmentsToConsider = math.max(5, iOptionalMaxSegmentsToConsider)
+                        iSegmentsToConsider = math.max(5, math.floor(iOptionalMaxSegmentsToConsider))
                     end
                 end
             end
         else
             if M28Overseer.refiRoughTotalUnitsInGame >= 500 then
-                iSegmentsToConsider = math.max((iOptionalMaxSegmentsToConsider or 0), 20)
+                iSegmentsToConsider = math.max(math.floor((iOptionalMaxSegmentsToConsider or 0)), 20)
             else
-                iSegmentsToConsider = math.max((iOptionalMaxSegmentsToConsider or 0), 50)
+                iSegmentsToConsider = math.max(math.floor((iOptionalMaxSegmentsToConsider or 0)), 50)
             end
         end
 
         local iTotalSegments = table.getn(tLZOrWZData[iSegmentRef])
-        local iSegmentStart = (tLZOrWZData[M28Map.subrefiLastSegmentEntryConsideredForBuilding] or 0) + 1
+        local iSegmentStart = math.floor((tLZOrWZData[M28Map.subrefiLastSegmentEntryConsideredForBuilding] or 0) + 1)
         if iSegmentStart > iTotalSegments then iSegmentStart = 1 end
         local tSegmentXZ
-        local iSegmentEnd = math.min(iTotalSegments, iSegmentStart + iSegmentsToConsider)
+        local iSegmentEnd = math.floor(math.min(iTotalSegments, iSegmentStart + iSegmentsToConsider))
 
         --Cycle through every segment in the land/water zone and see if we can build the desired unit at the segment midpoint
         if bDebugMessages == true then
@@ -762,7 +763,7 @@ function SearchForBuildableLocationsForLandOrWaterZone(aiBrain, iPlateauOrZero, 
         end
         for iSegmentCount = iSegmentStart, iSegmentEnd do
             tSegmentXZ = tLZOrWZData[iSegmentRef][iSegmentCount]
-            if bDebugMessages == true then LOG(sFunctionRef..': About to find buildable locations for segment X'..tSegmentXZ[1]..' Z'..tSegmentXZ[2]..'; iSegmentCount='..iSegmentCount) end
+            if bDebugMessages == true then LOG(sFunctionRef..': About to find buildable locations for segment X'..(tSegmentXZ[1] or 'nil')..' Z'..(tSegmentXZ[2] or 'nil')..'; iSegmentCount='..(iSegmentCount or 'nil')..'; iSegmentStart='..(iSegmentStart or 'nil')..'; iSegmentEnd='..(iSegmentEnd or 'nil')) end
             FindBuildableLocationsForSegment(aiBrain, iPlateauOrZero, iLandOrWaterZone, tLZOrWZData, tSegmentXZ[1], tSegmentXZ[2])
             tLZOrWZData[M28Map.subrefSegmentsConsideredThisTick] = (tLZOrWZData[M28Map.subrefSegmentsConsideredThisTick] or 0) + 1
         end
