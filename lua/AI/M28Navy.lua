@@ -1450,7 +1450,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
                         --Structure logic - handled separately e.g. via M28Factory for factories
                     else
                         table.insert(tTempOtherUnits, oUnit)
-                        LOG('Adding unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' to table of temp other units - need to add logic to handle such a unit - likely just a pathfinding error')
+                        M28Utilities.ErrorHandler('Adding unit ID '..oUnit.UnitId..' to table of temp other units - either the unit is a land unit really close to water that we incorrectly think is in water, or it is an amphibious/hover unit that has incorrect caterisation; if the unit runs out of orders then will send it to the rally point', true)
                     end
                 end
             end

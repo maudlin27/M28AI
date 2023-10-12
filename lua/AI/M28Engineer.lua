@@ -3771,7 +3771,7 @@ function ClearBlacklistForUnitConstructed(oUnit)
                 tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
             end
             for iEntry, tiSegmentXZ in oUnit[reftUnitBlacklistSegmentXZ] do
-                tLZOrWZData[M28Map.subrefBuildLocationBlacklistByPosition][tiSegmentXZ[1]][tiSegmentXZ[2]] = nil
+                if tLZOrWZData[M28Map.subrefBuildLocationBlacklistByPosition][tiSegmentXZ[1]][tiSegmentXZ[2]] then tLZOrWZData[M28Map.subrefBuildLocationBlacklistByPosition][tiSegmentXZ[1]][tiSegmentXZ[2]] = nil end
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Finished clearing the blacklisted locations, iPlateau='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; repru of blacklisted locations for zone='..repru(tLZOrWZData[M28Map.subrefBuildLocationBlacklistByPosition])) end
         end
