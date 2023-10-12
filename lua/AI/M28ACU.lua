@@ -1682,7 +1682,7 @@ function DoesACUWantToReturnToCoreBase(iPlateauOrZero, iLandOrWaterZone, tLZOrWZ
                 else
                     --Use our start position
                     local aiBrain = oACU:GetAIBrain()
-                    local iStartPositionX, iStartPositionZ = aiBrain:GetArmyStartPos()
+                    local iStartPositionX, iStartPositionZ = M28Map.GetPlayerStartPosition(aiBrain, true)
                     tNearestFriendlyBase = { iStartPositionX, GetTerrainHeight(iStartPositionX, iStartPositionZ), iStartPositionZ }
                     tNearestEnemyBase = aiBrain[M28Overseer.refoNearestEnemyBrain][M28Overseer.refoNearestEnemyBrain]
                 end
@@ -3330,7 +3330,7 @@ function GetACUOrder(aiBrain, oACU)
                                 else
 
                                     --Check if our economy is so good that we want to run next cycle if enemy has T3 land or air
-                                    if not(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]) and (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] >= 30 or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 16 or (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 11 + oACU[refiUpgradeCount] and (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 or M28UnitInfo.GetUnitHealthPercent(oACU) < 0.8))) then
+                                    if not(M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs]) and (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamGrossMass] >= 30 or aiBrain[M28Economy.refiGrossMassBaseIncome] >= 16 or (aiBrain[M28Economy.refiGrossMassBaseIncome] >= 11 + (oACU[refiUpgradeCount] or 0) and (M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount] > 1 or M28UnitInfo.GetUnitHealthPercent(oACU) < 0.8))) then
                                         --Consider running if enemy is at T3 or has large air to ground threat, or we have built ltos of T3
                                         if M28Team.tTeamData[iTeam][M28Team.subrefiHighestEnemyGroundTech] >= 3 or M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiHighestEnemyAirTech] >= 3 or M28Team.tTeamData[aiBrain.M28Team][M28Team.refbBuiltLotsOfT3Combat] or M28Utilities.IsTableEmpty(M28Team.tTeamData[aiBrain.M28Team][M28Team.subreftTeamEngineersBuildingExperimentals]) == false then
                                             M28Team.tTeamData[iTeam][M28Team.refbDangerousForACUs] = true
@@ -3566,45 +3566,49 @@ function ManageACU(aiBrain, oACUOverride)
         end
     end
 
-    --Wait until ok for us to give orders
-    if bDebugMessages == true then LOG(sFunctionRef..': Will wait until after 4.5s before giving ACU orders, gametime='..GetGameTimeSeconds()) end
-    while (GetGameTimeSeconds() <= 4.5) do
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        WaitTicks(1)
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    end
+    if oACU then
 
-    --Campaign specific - check if friendly units should gift to M28AI
-    if M28Map.bIsCampaignMap then
-        ForkThread(M28Overseer.CheckForAlliedCampaignUnitsToShareAtGameStart, oACU:GetAIBrain())
-    end
-
-    if M28UnitInfo.IsUnitValid(oACU) and not(M28UnitInfo.IsUnitValid(aiBrain[refoPrimaryACU])) then
-        aiBrain[refoPrimaryACU] = oACU
-    end
-
-    --Make sure ACU is recorded
-    M28Team.AssignUnitToLandZoneOrPond(aiBrain, oACU, false, false, true)
-
-    --Make sure we have recorded this zone as a core zone
-    local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
-    if iPlateauOrZero > 0 and (iLandOrWaterZone or 0) > 0 then
-
-    end
-
-    oACU[refiUpgradeCount] = 0
-    oACU[refbUseACUAggressively] = true
-    while M28UnitInfo.IsUnitValid(oACU) do
-        oACU[refbTreatingAsACU] = true
-        if oACU[refbUseACUAggressively] then
-            oACU[refbUseACUAggressively] = DoWeStillWantToBeAggressiveWithACU(oACU)
+        --Wait until ok for us to give orders
+        if bDebugMessages == true then LOG(sFunctionRef..': Will wait until after 4.5s before giving ACU orders, gametime='..GetGameTimeSeconds()) end
+        while (GetGameTimeSeconds() <= 4.5) do
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitTicks(1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
         end
 
-        ForkThread(GetACUOrder, aiBrain, oACU)
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
-        WaitSeconds(1)
-        M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        --Campaign specific - check if friendly units should gift to M28AI
+        if M28Map.bIsCampaignMap then
+            ForkThread(M28Overseer.CheckForAlliedCampaignUnitsToShareAtGameStart, oACU:GetAIBrain())
+        end
+
+        if M28UnitInfo.IsUnitValid(oACU) and not(M28UnitInfo.IsUnitValid(aiBrain[refoPrimaryACU])) then
+            aiBrain[refoPrimaryACU] = oACU
+        end
+
+        --Make sure ACU is recorded
+        M28Team.AssignUnitToLandZoneOrPond(aiBrain, oACU, false, false, true)
+
+        --Make sure we have recorded this zone as a core zone
+        local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oACU:GetPosition())
+        if iPlateauOrZero > 0 and (iLandOrWaterZone or 0) > 0 then
+
+        end
+
+        oACU[refiUpgradeCount] = 0
+        oACU[refbUseACUAggressively] = true
+        while M28UnitInfo.IsUnitValid(oACU) do
+            oACU[refbTreatingAsACU] = true
+            if oACU[refbUseACUAggressively] then
+                oACU[refbUseACUAggressively] = DoWeStillWantToBeAggressiveWithACU(oACU)
+            end
+
+            ForkThread(GetACUOrder, aiBrain, oACU)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitSeconds(1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 

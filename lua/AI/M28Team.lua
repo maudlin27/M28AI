@@ -635,7 +635,8 @@ function RecordAllPlayers()
     if not(bRecordedAllPlayers) then
         bRecordedAllPlayers = true
         for iBrain, oBrain in ArmyBrains do
-            if not(M28Conditions.IsCivilianBrain(oBrain)) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Considering iBrain '..iBrain..'; oBrain.Nickname='..(oBrain.Nickname or 'nil')..'; Is civilian='..tostring(M28Conditions.IsCivilianBrain(oBrain))..'; Is M28AI='..tostring(oBrain.M28AI or false)..'; Time='..GetGameTimeSeconds()) end
+            if not(M28Conditions.IsCivilianBrain(oBrain)) then --Compatibility with making civilian brains use M28 logic - means they need to be part of a team
                 iPlayersAtGameStart = iPlayersAtGameStart + 1
                 if not(oBrain.M28Team) then
                     CreateNewTeam(oBrain)
@@ -2888,7 +2889,7 @@ function WaterZoneTeamInitialisation(iTeam)
     --Record any start positions of friendly M28AI that are on water as waterstartposition for team data
     local tUnderwaterM28StartPoints = {}
     for iBrain, oBrain in tTeamData[iTeam][subreftoFriendlyActiveM28Brains] do
-        local iStartPositionX, iStartPositionZ = oBrain:GetArmyStartPos()
+        local iStartPositionX, iStartPositionZ = M28Map.GetPlayerStartPosition(oBrain, true)
         local tStartPoint = {iStartPositionX, GetSurfaceHeight(iStartPositionX, iStartPositionZ), iStartPositionZ}
         if bDebugMessages == true then LOG(sFunctionRef..': tStartPoint='..repru(tStartPoint)..'; iStartPositionX='..iStartPositionX..'; iStartPositionZ='..iStartPositionZ..'; Surface height='..GetSurfaceHeight(iStartPositionX, iStartPositionZ)..'; Terrain height='..GetTerrainHeight(iStartPositionX, iStartPositionZ)) end
         if GetTerrainHeight(iStartPositionX, iStartPositionZ) < tStartPoint[2] then

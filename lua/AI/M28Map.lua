@@ -2191,8 +2191,10 @@ local function AssignMexesALandZone()
     local tRelevantStartPointsByIndex = {}
     for iBrain, oBrain in ArmyBrains do
         if not(M28Conditions.IsCivilianBrain(oBrain)) then
-            local iStartPositionX, iStartPositionZ = oBrain:GetArmyStartPos()
-            tRelevantStartPointsByIndex[oBrain:GetArmyIndex()] = {iStartPositionX, GetSurfaceHeight(iStartPositionX, iStartPositionZ), iStartPositionZ}
+            local iStartPositionX, iStartPositionZ = GetPlayerStartPosition(oBrain, true)
+            if iStartPositionX and iStartPositionZ then
+                tRelevantStartPointsByIndex[oBrain:GetArmyIndex()] = {iStartPositionX, GetSurfaceHeight(iStartPositionX, iStartPositionZ), iStartPositionZ}
+            end
         end
     end
 
@@ -4430,9 +4432,10 @@ end
 function SetWhetherCanPathToEnemy(aiBrain)
     --Set flag for whether AI can path to enemy base
     --Also updates other values that are based on the nearest enemy
-
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'SetWhetherCanPathToEnemy'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code for aiBrain index'..aiBrain:GetArmyIndex()..'; Nickname='..(aiBrain.Nickname or 'nil')..'; Team='..(aiBrain.M28Team or 'nil')..'; Are all enemies defeated='..tostring(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbAllEnemiesDefeated] or false)..'; Time='..GetGameTimeSeconds()) end
     if not(M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbAllEnemiesDefeated]) then
         local tEnemyStartPosition = GetPrimaryEnemyBaseLocation(aiBrain)
         local tOurBase = PlayerStartPoints[aiBrain:GetArmyIndex()]
@@ -4451,8 +4454,9 @@ function SetWhetherCanPathToEnemy(aiBrain)
 
         --Record mitpoint between base (makes it easier to calc mod distance
         aiBrain[reftMidpointToPrimaryEnemyBase] = M28Utilities.MoveInDirection(PlayerStartPoints[aiBrain:GetArmyIndex()], M28Utilities.GetAngleFromAToB(PlayerStartPoints[aiBrain:GetArmyIndex()], tEnemyStartPosition), aiBrain[M28Overseer.refiDistanceToNearestEnemyBase], false, false, false)
+        if bDebugMessages == true then LOG(sFunctionRef..': Set enemy base and whether we can path there, dist to nearest enem ybase='..(aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] or 'nil')) end
     end
-
+    if bDebugMessages == true then LOG(sFunctionRef..': End of code') end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -4924,7 +4928,10 @@ function RecordPondToExpandTo(aiBrain)
         local bStartLocationIsUnderwater = false
         local tStartPos = PlayerStartPoints[aiBrain:GetArmyIndex()]
         if GetTerrainHeight(tStartPos[1], tStartPos[3]) < GetSurfaceHeight(tStartPos[1], tStartPos[3]) then bStartLocationIsUnderwater = true end
-        if bDebugMessages == true then LOG(sFunctionRef..': Considering aiBrain '..aiBrain.Nickname..' location for naval fac, bStartLocationIsUnderwater='..tostring(bStartLocationIsUnderwater)..'; tStartPos='..repru(tStartPos)..'; Terrain height='..GetTerrainHeight(tStartPos[1], tStartPos[3])..'; Surface height='..GetSurfaceHeight(tStartPos[1], tStartPos[3])) end
+        if bDebugMessages == true then
+            local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
+            LOG(sFunctionRef..': Considering aiBrain '..aiBrain.Nickname..' location for naval fac, bStartLocationIsUnderwater='..tostring(bStartLocationIsUnderwater)..'; tStartPos='..repru(tStartPos)..'; Terrain height='..GetTerrainHeight(tStartPos[1], tStartPos[3])..'; Surface height='..GetSurfaceHeight(tStartPos[1], tStartPos[3])..'; aiBrain[M28Overseer.refiDistanceToNearestEnemyBase]='..(aiBrain[M28Overseer.refiDistanceToNearestEnemyBase] or 'nil')..'; Brain index='..aiBrain:GetArmyIndex()..'; reprs of start poitns='..reprs(PlayerStartPoints)..'; refbInitialised='..tostring(aiBrain[M28Overseer.refbInitialised] or false)..'; GameTime='..GetGameTimeSeconds())
+        end
         local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
         aiBrain[M28Navy.reftiPondThreatToUs] = {}
         aiBrain[M28Navy.reftiPondValueToUs] = {}
@@ -5478,27 +5485,29 @@ function CreateWaterZones()
     local bHadUnderwaterStart = false
     for iCurBrain, oBrain in ArmyBrains do
         if not(M28Conditions.IsCivilianBrain(oBrain)) then
-            local iStartPositionX, iStartPositionZ = oBrain:GetArmyStartPos()
-            local tStartPosition = {iStartPositionX, GetSurfaceHeight(iStartPositionX, iStartPositionZ), iStartPositionZ}
-            if GetTerrainHeight(iStartPositionX, iStartPositionZ) < tStartPosition[2] then
-                --COnfirm it is pathable by water
-                if (NavUtils.GetTerrainLabel(refPathingTypeNavy, tStartPosition) or 0) > 0 then
-                    RecordWaterZoneAtPosition(tStartPosition)
+            local iStartPositionX, iStartPositionZ = GetPlayerStartPosition(oBrain, true)
+            if iStartPositionX and iStartPositionZ then
+                local tStartPosition = {iStartPositionX, GetSurfaceHeight(iStartPositionX, iStartPositionZ), iStartPositionZ}
+                if GetTerrainHeight(iStartPositionX, iStartPositionZ) < tStartPosition[2] then
+                    --COnfirm it is pathable by water
+                    if (NavUtils.GetTerrainLabel(refPathingTypeNavy, tStartPosition) or 0) > 0 then
+                        RecordWaterZoneAtPosition(tStartPosition)
 
-                    --Get the segments and include an area around this in the same water zone; area needs to be more than half of the interval for the grid based approach for water zones used later
-                    iBaseSegmentX, iBaseSegmentZ = GetPathingSegmentFromPosition(tStartPosition)
-                    local iPond = NavUtils.GetTerrainLabel(refPathingTypeNavy, GetPositionFromPathingSegments(iBaseSegmentX, iBaseSegmentZ))
-                    if (iPond or 0) > 0 then
-                        tWaterZonePondAndStartSegmentsByZone[iTotalWaterZoneCount] = {iPond, iBaseSegmentX, iBaseSegmentZ}
+                        --Get the segments and include an area around this in the same water zone; area needs to be more than half of the interval for the grid based approach for water zones used later
+                        iBaseSegmentX, iBaseSegmentZ = GetPathingSegmentFromPosition(tStartPosition)
+                        local iPond = NavUtils.GetTerrainLabel(refPathingTypeNavy, GetPositionFromPathingSegments(iBaseSegmentX, iBaseSegmentZ))
+                        if (iPond or 0) > 0 then
+                            tWaterZonePondAndStartSegmentsByZone[iTotalWaterZoneCount] = {iPond, iBaseSegmentX, iBaseSegmentZ}
+                        end
+                        table.insert(tBaseWaterStartPositionTable, {iBaseSegmentX, iBaseSegmentZ, tStartPosition, iTotalWaterZoneCount})
+                        bHadUnderwaterStart = true
+
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef..': Added start position to the table of water zones to include, position='..repru(tStartPosition)..'; Will draw in gold, oBrain='..oBrain.Nickname)
+                            M28Utilities.DrawLocation(tStartPosition, 4, nil, 6)
+                        end
+
                     end
-                    table.insert(tBaseWaterStartPositionTable, {iBaseSegmentX, iBaseSegmentZ, tStartPosition, iTotalWaterZoneCount})
-                    bHadUnderwaterStart = true
-            
-                    if bDebugMessages == true then
-                        LOG(sFunctionRef..': Added start position to the table of water zones to include, position='..repru(tStartPosition)..'; Will draw in gold, oBrain='..oBrain.Nickname)
-                        M28Utilities.DrawLocation(tStartPosition, 4, nil, 6)
-                    end
-            
                 end
             end
         end
@@ -7490,7 +7499,7 @@ function RecordBrainStartPoint(oBrain)
     local sFunctionRef = 'RecordBrainStartPoint'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    local iStartPositionX, iStartPositionZ = oBrain:GetArmyStartPos()
+    local iStartPositionX, iStartPositionZ = oBrain:GetArmyStartPos() --(Nb: For most references use M28Map.GetPlayerStartPosition(aiBrain, true) to get this instead)
     local tStartPoint = {iStartPositionX, GetSurfaceHeight(iStartPositionX, iStartPositionZ), iStartPositionZ}
 
     if bDebugMessages == true then LOG(sFunctionRef..': Considering start position recorded for brain '..(oBrain.Nickname or 'nil')..' at time='..GetGameTimeSeconds()) end
@@ -7692,5 +7701,131 @@ function DrawLandZonePath(iPlateau, iStartLandZone, iEndLandZone)
         local tAltLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iLZ]
         ForkThread(M28Utilities.ForkedDrawLine, tPrevLZData[subrefMidpoint], tAltLZData[subrefMidpoint], 2, 100)
         iPrevLZRef = iLZ
+    end
+end
+
+function RefreshCampaignStartPositionsAfterDelay(iDelayInSeconds)
+    --Intended to be called after the map is resized
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RefreshCampaignStartPositionsAfterDelay'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    WaitSeconds(iDelayInSeconds)
+    if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to update positions, bIsCampaignMap='..tostring(bIsCampaignMap)..'; CampAI setting='..(ScenarioInfo.Options.CampAI or 'nil')..'; Time='..GetGameTimeSeconds()) end
+    if bIsCampaignMap and not(ScenarioInfo.Options.CampAI == 1) then --We are applying M28 to either an ally or enemy
+        local tbTeamsToUpdate = {}
+        for iBrain, oBrain in ArmyBrains do
+            if oBrain.CampaignAI and oBrain.M28AI then
+                tbTeamsToUpdate[oBrain.M28Team] = true
+            end
+        end
+        if bDebugMessages == true then LOG(sFunctionRef..': Teams to update='..repru(tbTeamsToUpdate)) end
+        if M28Utilities.IsTableEmpty(tbTeamsToUpdate) == false then
+            function DoesZoneContainHQ(tLZData, iTeam)
+                local tCurZoneTeamData = tLZData[subrefLZTeamData][iTeam]
+                if M28Utilities.IsTableEmpty(tCurZoneTeamData[subreftoLZOrWZAlliedUnits]) == false then
+                    local tFriendlyFactoryHQs = EntityCategoryFilterDown(M28UnitInfo.refCategoryAllHQFactories, tCurZoneTeamData[subreftoLZOrWZAlliedUnits])
+                    if M28Utilities.IsTableEmpty(tFriendlyFactoryHQs) == false then
+                        return true
+                    end
+                end
+                return false
+            end
+            for iTeam, bUpdate in tbTeamsToUpdate do
+                for iBrain, oBrain in ArmyBrains do
+                    if oBrain.M28Team == iTeam and oBrain.M28AI and oBrain.CampaignAI then
+                        --Have a campaign AI on this team and map has just expanded, so consider if we should change the start position of this AI
+                        local tCurStartPosition = GetPlayerStartPosition(oBrain)
+                        local iStartPlateauOrZero, iStartLandZone = GetClosestPlateauOrZeroAndZoneToPosition(tCurStartPosition)
+                        local tCurStartLZData, tCurStartLZTeamData = GetLandOrWaterZoneData(tCurStartPosition, true, iTeam)
+                        local bStartNoLongerAppropriate = false
+                        if (tCurStartLZTeamData[subrefLZSValue] or 0) <= 5000 then
+                            bStartNoLongerAppropriate = not(DoesZoneContainHQ(tCurStartLZData, iTeam))
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Checking if brain '..oBrain.Nickname..' still has an appropriate start point, bStartNoLongerAppropriate='..tostring(bStartNoLongerAppropriate)..'; LZ S value='..(tCurStartLZTeamData[subrefLZSValue] or 'nil')..'; Does it contain an HQ='..tostring(DoesZoneContainHQ(tCurStartLZData, iTeam))) end
+                        if bStartNoLongerAppropriate then
+                            --Cycle through every plateau and land zone looking for a core base, and see if the core base has factory HQs in it
+                            local tbPlateauAndZoneShortlist = {}
+                            for iPlateau, tPlateauSubtable in tAllPlateaus do
+                                if M28Utilities.IsTableEmpty(tAllPlateaus[iPlateau][subrefPlateauLandZones]) == false then
+                                    for iLandZone, tLZData in tAllPlateaus[iPlateau][subrefPlateauLandZones] do
+                                        if tLZData[subrefLZTeamData][iTeam][subrefLZbCoreBase] then
+                                            if bDebugMessages == true then LOG(sFunctionRef..': Found a core base, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iStartPlateauOrZero='..iStartPlateauOrZero..'; iStartLandZone='..iStartLandZone..'; Does zone contain HQ='..tostring(DoesZoneContainHQ(tLZData, iTeam))) end
+                                            --Check it contains HQ (otherwise we might be considering the existing one/similar)
+                                            if not (iPlateau == iStartPlateauOrZero and iLandZone == iStartLandZone) and DoesZoneContainHQ(tLZData, iTeam) then
+                                                if not(tbPlateauAndZoneShortlist[iPlateau]) then tbPlateauAndZoneShortlist[iPlateau] = {} end
+                                                tbPlateauAndZoneShortlist[iPlateau][iLandZone] = true
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                            if bDebugMessages == true then LOG(sFunctionRef..': is plateau and zone shortlist empty='..tostring(M28Utilities.IsTableEmpty(tbPlateauAndZoneShortlist))) end
+                            if M28Utilities.IsTableEmpty(tbPlateauAndZoneShortlist) == false then
+                                --Get the closest zone on the same plateau, or failing that the closest zone on any plateau
+                                local iClosestDistSamePlateau = 100000
+                                local tiClosestPlateauAndZoneSamePlateau = {}
+                                local iClosestDistAnyPlateau = 100000
+                                local tiClosestplateauAndZoneAnyPlateau = {}
+                                local iCurDist
+                                for iPlateau, tZones in tbPlateauAndZoneShortlist do
+                                    for iZone, bInclude in tZones do
+                                        local tLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone]
+                                        iCurDist = M28Utilities.GetDistanceBetweenPositions(tLZData[subrefMidpoint], tStartLZData[subrefMidpoint])
+                                        if iCurDist < iClosestDistAnyPlateau then
+                                            iClosestDistAnyPlateau = iCurDist
+                                            tiClosestplateauAndZoneAnyPlateau = {iPlateau, iZone}
+                                        end
+                                        if iCurDist < iClosestDistSamePlateau and iPlateau == iStartPlateauOrZero then
+                                            iClosestDistSamePlateau = iCurDist
+                                            tiClosestPlateauAndZoneSamePlateau = {iPlateau, iZone}
+                                        end
+                                    end
+                                end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering changing the start position for campaign oBrain='..oBrain.Nickname..'; iClosestDistSamePlateau='..iClosestDistSamePlateau..'; iClosestDistAnyPlateau='..iClosestDistAnyPlateau) end
+                                local bChangedStart = false
+                                if M28Utilities.IsTableEmpty(tiClosestPlateauAndZoneSamePlateau) == false then
+                                    --Set new start position to this zone midpoint
+                                    local tLZData = tAllPlateaus[tiClosestPlateauAndZoneSamePlateau[1]][subrefPlateauLandZones][tiClosestPlateauAndZoneSamePlateau[2]]
+                                    PlayerStartPoints[oBrain:GetArmyIndex()] = {tLZData[subrefMidpoint][1], tLZData[subrefMidpoint][2], tLZData[subrefMidpoint][3]}
+                                    bChangedStart = true
+                                elseif M28Utilities.IsTableEmpty(tiClosestplateauAndZoneAnyPlateau) == false then
+                                    local tLZData = tAllPlateaus[tiClosestplateauAndZoneAnyPlateau[1]][subrefPlateauLandZones][tiClosestplateauAndZoneAnyPlateau[2]]
+                                    PlayerStartPoints[oBrain:GetArmyIndex()] = {tLZData[subrefMidpoint][1], tLZData[subrefMidpoint][2], tLZData[subrefMidpoint][3]}
+                                    bChangedStart = true
+                                end
+                                if bChangedStart then
+                                    --Clear core zone flag from old zone
+                                    tCurStartLZTeamData[subrefLZbCoreBase] = nil
+                                    tCurStartLZTeamData[subrefbCoreBaseOverride] = nil
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
+function GetPlayerStartPosition(aiBrain, bJustReturnXAndZ)
+    local tStartPosition = {}
+    local X, Z
+    local iIndex = aiBrain:GetArmyIndex()
+    if PlayerStartPoints[iIndex] then
+        if bJustReturnXAndZ then
+            X = PlayerStartPoints[iIndex][1]
+            Z = PlayerStartPoints[iIndex][3]
+        else
+            tStartPosition = {PlayerStartPoints[iIndex][1], PlayerStartPoints[iIndex][2], PlayerStartPoints[iIndex][3]}
+        end
+    else
+        X, Z = aiBrain:GetArmyStartPos() --(foro ther refs use this function instead of getarmystartpos, i.e. M28Map.GetPlayerStartPosition(aiBrain, true))
+        if not(bJustReturnXAndZ) then tStartPosition = {X, GetSurfaceHeight(X, Z), Z} end
+    end
+    --LOG('GetPlayerStartposition: aiBrain='..aiBrain.Nickname..'; X='..(X or 'nil')..'; Z='..(Z or 'nil')..'; bJustReturnXAndZ='..tostring(bJustReturnXAndZ or false)..'; Army start pos='..repru(aiBrain:GetArmyStartPos()))
+    if bJustReturnXAndZ then return X, Z
+    else return tStartPosition
     end
 end

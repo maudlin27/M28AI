@@ -295,7 +295,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
             if not(M28Conditions.TeamHasLowMass(aiBrain.M28Team)) then
                 iMaxSpareWanted = math.max(2, 1 + math.floor((M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamLowestMassPercentStored] or 0) * 10)) * M28Engineer.tiBPByTech[iFactoryTechLevel]
             end
-            if (tLZTeamData[M28Map.subrefSpareBPByTech][iFactoryTechLevel] or 0) > iMaxSpareWanted then
+            if (tLZTeamData[M28Map.subrefSpareBPByTech][iFactoryTechLevel] or 0) > iMaxSpareWanted or (tLZTeamData[M28Map.subrefSpareBPByTech][M28UnitInfo.GetUnitTechLevel(sBPIDToBuild)] or 0) > iMaxSpareWanted then
                 if bDebugMessages == true then LOG(sFunctionRef..': Have sufficient spare engineers, iMaxSpareWanted='..iMaxSpareWanted) end
                 sBPIDToBuild = nil
             end

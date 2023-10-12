@@ -1466,7 +1466,7 @@ function OnCreateWreck(tPosition, iMass, iEnergy)
                 while not(M28Map.bReclaimManagerActive) do
                     WaitTicks(1)
                     iWaitCount = iWaitCount + 1
-                    if iWaitCount >= 20 then M28Utilities.ErrorHandler('Map setup not complete') break end
+                    if iWaitCount >= 50 then M28Utilities.ErrorHandler('Map setup not complete') break end
                 end
             end
         end
@@ -1648,6 +1648,10 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                         ForkThread(M28Economy.UpdateZoneM28MexByTechCount, oUnit) --we run the same logic via onconstructed
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryParagon, oUnit.UnitId) and not(oUnit.M28OnConstructedCalled) then
                         ForkThread(M28Building.JustBuiltParagon, oUnit)
+                    --Campaign specific - expand core zones for campaign AI
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryLandHQ + M28UnitInfo.refCategoryAirHQ, oUnit.UnitId) and M28Map.bIsCampaignMap and oUnit:GetAIBrain().CampaignAI then
+                        local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, oUnit:GetAIBrain().M28Team)
+                        tLZTeamData[M28Map.subrefbCoreBaseOverride] = true
                     end
 
                 end
@@ -1694,7 +1698,16 @@ function OnCreateBrain(aiBrain, planName, bIsHuman)
     local sFunctionRef = 'OnCreateBrain'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if bDebugMessages == true then LOG(sFunctionRef..': aiBrain has just been created at time '..GetGameTimeSeconds()..'; Brain nickname='..(aiBrain.Nickname or 'nil')..'; Has setup been run='..tostring(aiBrain['M28BrainSetupRun'] or false)..'; Brain type='..(aiBrain.BrainType or 'nil')..'; M28Team (if brain setup)='..(aiBrain.M28Team or 'nil')..'; aiBrain.Civilian='..tostring(aiBrain.Civilian or false)..'; .M28AI='..tostring(aiBrain.M28AI or false)..'; .M27AI='..tostring(aiBrain.M27AI or false)) end
+
+    if bDebugMessages == true then LOG(sFunctionRef..': aiBrain has just been created at time '..GetGameTimeSeconds()..'; Brain nickname='..(aiBrain.Nickname or 'nil')..'; Has setup been run='..tostring(aiBrain['M28BrainSetupRun'] or false)..'; Brain type='..(aiBrain.BrainType or 'nil')..'; M28Team (if brain setup)='..(aiBrain.M28Team or 'nil')..'; aiBrain.Civilian='..tostring(aiBrain.Civilian or false)..'; .M28AI='..tostring(aiBrain.M28AI or false)..'; .M27AI='..tostring(aiBrain.M27AI or false)..'; M28Overseer.iTimeOfLatestBrainToCheckForM28Logic='..(M28Overseer.iTimeOfLatestBrainToCheckForM28Logic or 'nil')) end
+    if M28Overseer.iTimeOfLatestBrainToCheckForM28Logic >= 0 then
+        while GetGameTimeSeconds() < M28Overseer.iTimeOfLatestBrainToCheckForM28Logic + 1 do
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitTicks(1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting for M28Overseer.iTimeOfLatestBrainToCheckForM28Logic (if applicable), Brain='..(aiBrain.Nickname or 'nil')..'; .M28AI='..tostring(aiBrain.M28AI or false)) end
     if not(aiBrain['M28BrainSetupRun']) then
         if M28Config.M28RunProfiling then ForkThread(M28Profiler.ProfilerActualTimePerTick) end
         if bIsHuman == nil then
@@ -1795,6 +1808,7 @@ function OnMissileImpact(self, targetType, targetEntity)
     end
 end
 
+function OnMapResizeFORSEARCHONLY()  end --So can find onplayableareachange easier
 function OnPlayableAreaChange(rect, voFlag)
 
     local ScenarioUtils = import("/lua/sim/scenarioutilities.lua")
@@ -1806,6 +1820,8 @@ function OnPlayableAreaChange(rect, voFlag)
     ForkThread(M28Engineer.CheckForSpecialCampaignCaptureTargets)
     --Wait 5s then consider campaign special objectives
     ForkThread(M28Overseer.ConsiderSpecialCampaignObjectives, nil, nil, nil, nil, nil, nil, nil, nil,  5)
+    --Update location of nearest friendly base (intended to help if we are applying M28AI to hostile AI)
+    ForkThread(M28Map.RefreshCampaignStartPositionsAfterDelay, 5)
 end
 
 function CaptureTriggerAdded(FunctionForOldUnit, FunctionForNewUnit, oUnit)
