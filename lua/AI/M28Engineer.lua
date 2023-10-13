@@ -5045,13 +5045,24 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                 if bDebugMessages == true then LOG(sFunctionRef..': Just got blueprint and location to build for oFirstEngineer='..oFirstEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFirstEngineer)..'; iActionTOAssign='..iActionToAssign..'; sBlueprint='..(sBlueprint or 'nil')..'; tBuildLocation='..repru(tBuildLocation)..'; Is tiActionAdjacentCategory[iActionToAssign] nil='..tostring(tiActionAdjacentCategory[iActionToAssign] == nil)) end
                                 if M28Utilities.IsTableEmpty(tBuildLocation) then
                                     if not(iActionToAssign == refActionBuildShield or iActionToAssign == refActionBuildSecondShield) then
-                                        if sBlueprint and GetGameTimeSeconds() <= 300 or GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastShowedBuildLocationFailure] or -300) >= 300 then
+                                        if sBlueprint and (GetGameTimeSeconds() <= 300 or GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastShowedBuildLocationFailure] or -300) >= 300) then
                                             --Couldnt find a build locaiton, but might be valid particularly later in the game or on small island maps, so only show as a warning message every 5m
                                             local Game = import("/lua/game.lua")
                                             if not(Game.IsRestricted(sBlueprint, M28Team.GetFirstActiveM28Brain(iTeam))) then
-                                                M28Utilities.ErrorHandler('Unable to find build location, iActionToAssign='..(iActionToAssign or 'nil')..'; P'..(iPlateauOrPond or 'nil')..'Z'..(iLandOrWaterZone or 'nil')..'; sBlueprint='..(sBlueprint or 'nil'), true)
-                                                --Note - campaign maps where building mex - reason may be that all the mex locations remaining are outside of the playable area
-                                                tLZOrWZTeamData[M28Map.refiTimeLastShowedBuildLocationFailure] = GetGameTimeSeconds()
+                                                local bShowError = true
+                                                if M28Map.bIsCampaignMap and EntityCategoryContains(M28UnitInfo.refCategoryMex, sBlueprint) then
+                                                    --Is the first unbuilt mex location outside the playable area?
+                                                    if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefMexUnbuiltLocations][1]) == false and not(M28Conditions.IsLocationInPlayableArea(tLZOrWZData[M28Map.subrefMexUnbuiltLocations][1])) then
+                                                        --Mex is outside playable area so dont show error, and dont flag location as needing engis for mexes
+                                                        tLZOrWZTeamData[M28Map.refbAdjZonesWantEngiForUnbuiltMex] = false
+                                                        bShowError = false
+                                                    end
+                                                end
+                                                if bShowError then
+                                                    M28Utilities.ErrorHandler('Unable to find build location, iActionToAssign='..(iActionToAssign or 'nil')..'; P'..(iPlateauOrPond or 'nil')..'Z'..(iLandOrWaterZone or 'nil')..'; sBlueprint='..(sBlueprint or 'nil'), true)
+                                                    --Note - campaign maps where building mex - reason may be that all the mex locations remaining are outside of the playable area
+                                                    tLZOrWZTeamData[M28Map.refiTimeLastShowedBuildLocationFailure] = GetGameTimeSeconds()
+                                                end
                                             end
                                         end
                                     end

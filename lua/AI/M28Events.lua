@@ -1195,7 +1195,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                             ForkThread(M28Building.GetT3ArtiTarget, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryPD * categories.TECH1 + M28UnitInfo.refCategoryWall, oJustBuilt.UnitId) then
                             --Build T1 walls around T1 PD
-                                                    --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition,                                           oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
+                            --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition,                                           oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
                             local sWallBP = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28Engineer.tiActionCategory[M28Engineer.refActionBuildWall], oEngineer)
                             if sWallBP then
                                 local tWallBuildLocation = M28Engineer.GetLocationToBuildWall(oEngineer, oJustBuilt, sWallBP)
@@ -1339,6 +1339,21 @@ function OnConstructed(oEngineer, oJustBuilt)
                     --Unit cap - refresh if are within 25 of the cap since it isnt accurate if have current units
                     if M28UnitInfo.IsUnitValid(oJustBuilt) and aiBrain[M28Overseer.refbCloseToUnitCap] and aiBrain[M28Overseer.refiExpectedRemainingCap] <= 25 then
                         M28Overseer.CheckUnitCap(aiBrain)
+                    end
+
+                    --air fac restriction - review if campaign in case things have changed if are dealing with the player (dont do for campaign AI though as they sometimes have different settings)
+                    if M28Overseer.bAirFactoriesCantBeBuilt and M28Map.bIsCampaignMap and not(aiBrain.CampaignAI) then
+                        local tACUs = aiBrain:GetListOfUnits(categories.COMMAND, false, true)
+                        if M28Utilities.IsTableEmpty(tACUs) == false then
+                            local sAirFac = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryAirFactory, tACUs[1])
+                            if bDebugMessages == true then
+                                LOG(sFunctionRef..': Just built '..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..'; Time='..GetGameTimeSeconds()..'; sAirFac='..(sAirFac or 'nil'))
+                                if sAirFac then LOG(sFunctionRef..': Is sAirFac restricted='..tostring(import("/lua/game.lua").IsRestricted(sAirFac, aiBrain:GetArmyIndex()))) end
+                            end
+                            if sAirFac and not(import("/lua/game.lua").IsRestricted(sAirFac, aiBrain:GetArmyIndex())) then
+                                M28Overseer.bAirFactoriesCantBeBuilt = false
+                            end
+                        end
                     end
 
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)

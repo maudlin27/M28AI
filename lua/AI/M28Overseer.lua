@@ -187,16 +187,32 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
     --Check if we can build air factories
     local tFriendlyACU = aiBrain:GetListOfUnits(categories.COMMAND, false, true)
     if bDebugMessages == true then LOG(sFunctionRef..': Is table of friendly ACU empty='..tostring(M28Utilities.IsTableEmpty(tFriendlyACU))) end
+    while M28Utilities.IsTableEmpty(tFriendlyACU) and GetGameTimeSeconds() < 20 do --UEF Campaign M1 - ACU spawns just after 10s
+        WaitTicks(1)
+        tFriendlyACU = aiBrain:GetListOfUnits(categories.COMMAND, false, true)
+        if bDebugMessages == true then LOG(sFunctionRef..': Is tFriendlyACU empty='..tostring( M28Utilities.IsTableEmpty(tFriendlyACU))..'; Brain='..aiBrain.Nickname..'; Time='..GetGameTimeSeconds()..'; Is allunits empty='..tostring(M28Utilities.IsTableEmpty(aiBrain:GetListOfUnits(categories.ALLUNITS, false, true)))) end
+    end
     if M28Utilities.IsTableEmpty(tFriendlyACU) == false then
-                                    --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition,               oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
+        --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition,               oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
         local sBlueprint = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryAirFactory, tFriendlyACU[1])
         if bDebugMessages == true then LOG(sFunctionRef..': If ACU '..tFriendlyACU[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(tFriendlyACU[1])..' tries to build an air factory, sBLueprint is '..(sBlueprint or 'nil')) end
+        local bCantBuild
         if not(sBlueprint) then
+            bCantBuild = true
+            if bDebugMessages == true then LOG(sFunctionRef..': Blueprint is nil so will set that cant build') end
+        else
+            if bDebugMessages == true then LOG(sFunctionRef..': Is blueprint '..sBlueprint..' restricted for brain '..aiBrain.Nickname..'='..tostring(import("/lua/game.lua").IsRestricted(sBlueprint, aiBrain:GetArmyIndex()))) end
+            if import("/lua/game.lua").IsRestricted(sBlueprint, aiBrain:GetArmyIndex()) then
+                bCantBuild = true
+            end
+        end
+        if bCantBuild then
             bAirFactoriesCantBeBuilt = true
             if not(bUnitRestrictionsArePresent) then
                 bUnitRestrictionsArePresent = true
                 sIncompatibleMessage = sIncompatibleMessage .. ' Custom map script or mod preventing air factories'
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': Setting bAirFactoriesCantBeBuilt to true, bAirFactoriesCantBeBuilt='..tostring(bAirFactoriesCantBeBuilt)) end
         end
     end
     if not(bUnitRestrictionsArePresent) then

@@ -3752,7 +3752,23 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             end
                             sRetreatMessage = 'ConsRP'
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': We are outranged by enemy and dont have enough threat to press the attack, will either retreat to prev LZ, or this LZ midpoint; bConsolidateAtMidpoint='..tostring(bConsolidateAtMidpoint)..'; bConsiderAttackingExperimental='..tostring(bConsiderAttackingExperimental)) end
+                        if M28Map.bIsCampaignMap and not(M28Conditions.IsLocationInPlayableArea(tRallyPoint)) then
+                            --If closest friendly base is in playable area go here
+                            if M28Conditions.IsLocationInPlayableArea(tLZTeamData[M28Map.reftClosestFriendlyBase]) then
+                                tRallyPoint = {tLZTeamData[M28Map.reftClosestFriendlyBase][1], tLZTeamData[M28Map.reftClosestFriendlyBase][2], tLZTeamData[M28Map.reftClosestFriendlyBase][3]}
+                            else
+                                local tMoveTowardsBase = M28Utilities.MoveInDirection(tLZData[M28Map.subrefMidpoint], M28Utilities.GetAngleFromAToB(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestFriendlyBase]), 60, true, false, true)
+                                if tMoveTowardsBase then
+                                    tRallyPoint = tMoveTowardsBase
+                                elseif M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint]) then
+                                    tRallyPoint = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
+                                elseif oNearestEnemyToMidpoint then
+                                    --Just go to the closest enemy unit
+                                    tRallyPoint = oNearestEnemyToMidpoint:GetPosition()
+                                end
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': We are outranged by enemy and dont have enough threat to press the attack, will either retreat to prev LZ, or this LZ midpoint; bConsolidateAtMidpoint='..tostring(bConsolidateAtMidpoint)..'; bConsiderAttackingExperimental='..tostring(bConsiderAttackingExperimental)..'; tRallyPoint='..repru(tRallyPoint)) end
 
                         for iUnit, oUnit in tAvailableCombatUnits do
                             --If we are close to the last known position such that we will be able to see there is no longer a unit there, then update this unit's position for next cycle
