@@ -1183,7 +1183,7 @@ function GetBomberAOEAndStrikeDamage(oUnit)
         end
     end
     if iStrikeDamage == 0 then
-        M28Utilities.ErrorHandler('Couldnt identify strike damage for bomber '..oUnit.UnitId..GetUnitLifetimeCount(oUnit)..'; will refer to predefined value instead')
+        M28Utilities.ErrorHandler('Couldnt identify strike damage for bomber with ID '..oUnit.UnitId..'; will refer to predefined value instead')
     end
 
     --Manual floor for strike damage due to complexity of some bomber calculations

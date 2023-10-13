@@ -295,7 +295,7 @@ function AdjustBlueprintForOverrides(aiBrain, oFactory, sBPIDToBuild, tLZTeamDat
             if not(M28Conditions.TeamHasLowMass(aiBrain.M28Team)) then
                 iMaxSpareWanted = math.max(2, 1 + math.floor((M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefiTeamLowestMassPercentStored] or 0) * 10)) * M28Engineer.tiBPByTech[iFactoryTechLevel]
             end
-            if (tLZTeamData[M28Map.subrefSpareBPByTech][iFactoryTechLevel] or 0) > iMaxSpareWanted then
+            if (tLZTeamData[M28Map.subrefSpareBPByTech][iFactoryTechLevel] or 0) > iMaxSpareWanted or (tLZTeamData[M28Map.subrefSpareBPByTech][M28UnitInfo.GetUnitTechLevel(sBPIDToBuild)] or 0) > iMaxSpareWanted then
                 if bDebugMessages == true then LOG(sFunctionRef..': Have sufficient spare engineers, iMaxSpareWanted='..iMaxSpareWanted) end
                 sBPIDToBuild = nil
             end
@@ -649,7 +649,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
     local iLandFactoriesInLZ = 0
     local bHaveHighestLZTech = true
     --if iFactoryTechLevel < 3 and iFactoryTechLevel < M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyFactoryTech] then
-    local tLandFactoriesInLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+    local tLandFactoriesInLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
     for iLZFactory, oLZFactory in tLandFactoriesInLZ do
         if not (oLZFactory == oFactory) and oLZFactory:GetFractionComplete() == 1 and M28UnitInfo.GetUnitTechLevel(oLZFactory) > iFactoryTechLevel then
             bHaveHighestLZTech = false
@@ -728,7 +728,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         --If factory is at T1 and we have lots of T1 MAA then dont get more MAA assuming no enemy air threat in this zone
         if iFactoryTechLevel == 1 and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.reftLZEnemyAirUnits]) then
             local iCurT1MAA =  aiBrain:GetCurrentUnits(M28UnitInfo.refCategoryMAA)
-            if iCurT1MAA >= 80 or (aiBrain[M28Economy.refiOurHighestLandFactoryTech] > 1 and iCurT1MAA >= 20 and (tLZTeamData[M28Map.subrefLZbCoreBase] or iCurT1MAA >= 50 or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory - categories.TECH1, tLZTeamData[M28Map.subrefLZTAlliedUnits])) == false)) then
+            if iCurT1MAA >= 80 or (aiBrain[M28Economy.refiOurHighestLandFactoryTech] > 1 and iCurT1MAA >= 20 and (tLZTeamData[M28Map.subrefLZbCoreBase] or iCurT1MAA >= 50 or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory - categories.TECH1, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])) == false)) then
                 bDontConsiderBuildingMAA = true
                 if bDebugMessages == true then LOG(sFunctionRef..': T1 factory and have enough MAA threat so dont want more') end
             end
@@ -819,7 +819,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
             if not(M28Conditions.CheckIfNeedMoreEngineersBeforeUpgrading(oFactory)) then
                 local iUpgradingLandFactories = 0
                 local iAvailableLandFactories = 0
-                local tLandFactoriesInLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                local tLandFactoriesInLZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                 if M28Utilities.IsTableEmpty(tLandFactoriesInLZ) == false then
                     for iFactory, oFactory in tLandFactoriesInLZ do
                         if oFactory:GetFractionComplete() == 1 then
@@ -1526,7 +1526,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                 if iLifetimeEngineers > 15 or not(tLZTeamData[M28Map.subrefTbWantBP]) or not(bHaveLowPower) or tLZTeamData[M28Map.subrefbEnemiesInThisOrAdjacentLZ] then
                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat) then return sBPIDToBuild end
                 else
-                    local tEngisInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                    local tEngisInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                     if M28Utilities.IsTableEmpty(tEngisInZone) == false and table.getn(tEngisInZone) > math.min(6, aiBrain[M28Economy.refiGrossMassBaseIncome] * 3) then
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryLandCombat) then return sBPIDToBuild end
                     end
@@ -1553,7 +1553,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
         iCurrentConditionToTry = iCurrentConditionToTry + 1
         if bDebugMessages == true then LOG(sFunctionRef .. ': iCurrentConditionToTry=' .. iCurrentConditionToTry .. '; Will consider if we want more engis due to only having a few in the land zone, bNeedCurTech=' .. tostring(bNeedCurTech) .. '; tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]=' .. tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]) end
         if bNeedCurTech and not (tLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 10) and (iFactoryTechLevel >= 3 or not(bHaveLowMass) or not(M28Map.bIsLowMexMap)) then
-            local tLZEngineers = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+            local tLZEngineers = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
             local iEngisInLZ = 0
             if M28Utilities.IsTableEmpty(tLZEngineers) == false then
                 iEngisInLZ = table.getn(tLZEngineers)
@@ -1895,7 +1895,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                             end
                         elseif M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.02 and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamLowestMassPercentStored] >= 0.15 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0) and M28Conditions.GetLifetimeBuildCount(aiBrain, categories.LAND * categories.MOBILE * M28UnitInfo.ConvertTechLevelToCategory(aiBrain[M28Economy.refiOurHighestLandFactoryTech])) >= 6 then
                             --Still consider upgrading if we have a T2 land factory but no t2 support factory in the LZ and have built some T2 units already
-                            local tLandFactoriesInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                            local tLandFactoriesInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                             local iHQAndSupportCount = 0
                             for iUnit, oUnit in tLandFactoriesInZone do
                                 if M28UnitInfo.GetUnitTechLevel(oUnit) >= aiBrain[M28Economy.refiOurHighestLandFactoryTech] then
@@ -2121,7 +2121,7 @@ function GetBlueprintToBuildForLandFactory(aiBrain, oFactory)
                     end
                     if iCurT1FactoryUpgrades == 0 and iCurMexUpgrades >= 2 then
                         --Do we have more than 1 T1 land factory in this land zone?
-                        local tT1LandFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory * categories.TECH1, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                        local tT1LandFactories = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory * categories.TECH1, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                         if table.getn(tT1LandFactories) >= 2 then
                             if ConsiderUpgrading() then
                                 return sBPIDToBuild
@@ -2453,7 +2453,7 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
                             local tLZTeamData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam]
                             local iFactoryType = M28UnitInfo.GetFactoryType(oFactory)
                             if iFactoryType == refiFactoryTypeLand then
-                                local tExistingT3Factories = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory * categories.TECH3, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                                local tExistingT3Factories = EntityCategoryFilterDown(M28UnitInfo.refCategoryLandFactory * categories.TECH3, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                                 if bDebugMessages == true then
                                     LOG(sFunctionRef .. ': Is table of existing T3 land factories empty=' .. tostring(M28Utilities.IsTableEmpty(tExistingT3Factories)) .. '; Total T3 land owned by this brain=' .. oBrain:GetCurrentUnits(M28UnitInfo.refCategoryLandFactory * categories.TECH3))
                                 end
@@ -2464,7 +2464,7 @@ function DecideAndBuildUnitForFactory(aiBrain, oFactory, bDontWait, bConsiderDes
 
                             elseif iFactoryType == refiFactoryTypeAir then
                                 if M28UnitInfo.GetUnitTechLevel(oFactory) == 1 then
-                                    local tExistingT3Factories = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory * categories.TECH3, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                                    local tExistingT3Factories = EntityCategoryFilterDown(M28UnitInfo.refCategoryAirFactory * categories.TECH3, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                                     if bDebugMessages == true then
                                         LOG(sFunctionRef .. ': Is table of existing T3 air factories empty=' .. tostring(M28Utilities.IsTableEmpty(tExistingT3Factories)) .. ' Brain cur T3 factories=' .. oBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirFactory * categories.TECH3))
                                     end
@@ -2717,7 +2717,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
             --Do we have fewer than 5 engineers of this tech level in this zone and we have some mass stored? if so then build another engineer (also build another engineer if we have fewer than 3 engineers even with low mass)
             local iEngisOfTechInZone = 0
             local iBPWanted = tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][1] + tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][2] + tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][3]
-            local tEngisOfTechInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel), tLZTeamData[M28Map.subrefLZTAlliedUnits])
+            local tEngisOfTechInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel), tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
             if M28Utilities.IsTableEmpty(tEngisOfTechInZone) == false then
                 iEngisOfTechInZone = table.getn(tEngisOfTechInZone)
             end
@@ -2919,7 +2919,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                     if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA * categories.TECH3) then return sBPIDToBuild end
                 elseif M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] <= 10000 then
                     --Are we building an ahwassa that is 50%+ constructed?
-                    local tAhwassaInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                    local tAhwassaInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryBomber * categories.EXPERIMENTAL, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                     if bDebugMessages == true then LOG(sFunctionRef..': Is table of ahwassa in zone empty='..tostring(M28Utilities.IsTableEmpty(tAhwassaInZone))) end
                     if M28Utilities.IsTableEmpty(tAhwassaInZone) == false then
                         if M28Team.tTeamData[iTeam][M28Team.subrefiOurAirAAThreat] <= 5000 then
@@ -3011,7 +3011,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                     --Do we have fewer than 5 engineers of this tech level in this zone and we have some mass stored? if so then build another engineer (also build another engineer if we have fewer than 3 engineers even with low mass)
                     local iEngisOfTechInZone = 0
                     local iBPWanted = tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][1] + tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][2] + tLZTeamData[M28Map.subrefTBuildPowerByTechWanted][3]
-                    local tEngisOfTechInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel), tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                    local tEngisOfTechInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer * M28UnitInfo.ConvertTechLevelToCategory(iFactoryTechLevel), tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                     if M28Utilities.IsTableEmpty(tEngisOfTechInZone) == false then
                         iEngisOfTechInZone = table.getn(tEngisOfTechInZone)
                     end
@@ -3563,7 +3563,7 @@ function GetBlueprintToBuildForNavalFactory(aiBrain, oFactory)
             bConsiderUpgrading = true
         else
             local iFactoriesInWZ = 0
-            local tFactoriesInWZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tWZTeamData[M28Map.subrefLZTAlliedUnits])
+            local tFactoriesInWZ = EntityCategoryFilterDown(M28UnitInfo.refCategoryNavalFactory, tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
             if M28Utilities.IsTableEmpty(tFactoriesInWZ) == false then
                 iFactoriesInWZ = table.getn(tFactoriesInWZ)
             end
@@ -4076,7 +4076,7 @@ function GetBlueprintToBuildForMobileLandFactory(aiBrain, oFactory)
 
         --Build engineer if have unclaimed mexes in zone and no engineers
         iCurrentConditionToTry = iCurrentConditionToTry + 1
-        if tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] <= 10 and tLZTeamData[M28Map.subrefTbWantBP] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefMexUnbuiltLocations]) == false and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subrefLZTAlliedUnits]))) then
+        if tLZTeamData[M28Map.subrefLZThreatEnemyMobileDFTotal] <= 10 and tLZTeamData[M28Map.subrefTbWantBP] and M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefMexUnbuiltLocations]) == false and (M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))) then
             if bDebugMessages == true then LOG(sFunctionRef..': Unclaimed mexes, will try and get engineer') end
             if ConsiderBuildingCategory(M28UnitInfo.refCategoryEngineer) then return sBPIDToBuild end
         end

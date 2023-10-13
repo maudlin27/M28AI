@@ -5,6 +5,47 @@
 ---
 --In theory the below shouldt be needed once the FAF-Develop changes are integrated into FAF (expected June 2023), although probably no harm leaving for backwards compatibility
 --Commented out for v24 due to compatibility concerns following new approach (where need to wait until after OnCreateAI before generating map)
+
+local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
+local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')
+local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
+local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
+
+local StandardBrain = import("/lua/aibrain.lua").AIBrain
+local M28OldAIBrain = AIBrain
+AIBrain = Class(M28OldAIBrain) {
+
+
+
+    OnCreateAI = function(self, planName)
+        LOG('OnCreateAI for campaign is running for brain '..(self.Nickname or 'nil'))
+        --Delalyed check of if should apply M28 logic to the brain
+        self.CampaignAI = true
+        M28Overseer.iTimeOfLatestBrainToCheckForM28Logic = GetGameTimeSeconds()
+        ForkThread(M28Overseer.DecideWhetherToApplyM28ToCampaignAI, self, planName)
+
+        M28OldAIBrain.OnCreateAI(self, planName)
+
+
+    end,
+
+    OnBeginSession = function(self)
+        StandardBrain.OnBeginSession(self)
+        import('/mods/M28AI/lua/AI/M28Overseer.lua').bBeginSessionTriggered = true
+        if not(self.M28AI) then
+            -- requires navigational mesh
+            import("/lua/sim/NavUtils.lua").Generate()
+
+            -- requires these datastructures to understand the game
+            self.GridReclaim = import("/lua/ai/gridreclaim.lua").Setup(self)
+            self.GridBrain = import("/lua/ai/gridbrain.lua").Setup()
+            self.GridRecon = import("/lua/ai/gridrecon.lua").Setup(self)
+            self.GridPresence = import("/lua/AI/GridPresence.lua").Setup(self)
+        end
+    end,
+
+}
+
 --[[
 local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
 local M28Utilities = import('/mods/M28AI/lua/AI/M28Utilities.lua')

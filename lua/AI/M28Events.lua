@@ -404,7 +404,7 @@ function OnUnitDeath(oUnit)
                                 if bDebugMessages == true then LOG(sFunctionRef..': Will check if upgrade tracking needs updating, unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
                                 M28Team.UpdateUpgradeTrackingOfUnit(oUnit, true)
                                 if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) then
-                                    M28Economy.UpdateLandZoneM28MexByTechCount(oUnit, true)
+                                    M28Economy.UpdateZoneM28MexByTechCount(oUnit, true)
                                     --Update upgrading mexes
                                     M28Economy.UpdateTableOfUpgradingMexesForTeam(oUnit:GetAIBrain().M28Team)
                                 end
@@ -1114,11 +1114,11 @@ function OnConstructed(oEngineer, oJustBuilt)
                             if iPlateauOrZero == 0 then
                                 tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
                                 tLZOrWZTeamData = tLZOrWZData[M28Map.subrefWZTeamData][iTeam]
-                                sUnitTableRef = M28Map.subrefWZTAlliedUnits
+                                sUnitTableRef = M28Map.subreftoLZOrWZAlliedUnits
                             else
                                 tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
                                 tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][iTeam]
-                                sUnitTableRef = M28Map.subrefLZTAlliedUnits
+                                sUnitTableRef = M28Map.subreftoLZOrWZAlliedUnits
                             end
                             if M28Utilities.IsTableEmpty(tLZOrWZTeamData[sUnitTableRef]) == false then
                                 for iUnit, oUnit in tLZOrWZTeamData[sUnitTableRef] do
@@ -1144,7 +1144,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                         M28Economy.UpdateHighestFactoryTechLevelForBuiltUnit(oJustBuilt) --includes a check to see if are dealing with a factory HQ
                         if EntityCategoryContains(M28UnitInfo.refCategoryMex, oJustBuilt.UnitId) then
                             M28Team.tTeamData[iTeam][M28Team.refiUpgradedMexCount] = (M28Team.tTeamData[iTeam][M28Team.refiUpgradedMexCount] or 0) + 1
-                            ForkThread(M28Economy.UpdateLandZoneM28MexByTechCount, oJustBuilt, false, 10)
+                            ForkThread(M28Economy.UpdateZoneM28MexByTechCount, oJustBuilt, false, 10)
                             --If have storage owned by M28 on same team by this mex, gift it over
                             --All mexes - on construction check if we have allied M28 mass storage nearby (e.g. we have rebuilt on a mex that they used to have) and if so then have that M28 gift over their mass storage
                             M28Team.GiftAdjacentStorageToMexOwner(oJustBuilt)
@@ -1203,7 +1203,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                                     --First generate list of other engineers to also help with wall building (as theyll potentially get cleared when we clear the original engineer)
                                     local tOtherEngineersHelpingConstruction = {}
                                     local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oJustBuilt:GetPosition(), true, oEngineer:GetAIBrain().M28Team)
-                                    local tEngineersInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+                                    local tEngineersInZone = EntityCategoryFilterDown(M28UnitInfo.refCategoryEngineer, tLZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
                                     if M28Utilities.IsTableEmpty(tEngineersInZone) == false then
                                         for iUnit, oUnit in tEngineersInZone do
                                             if M28UnitInfo.IsUnitValid(oUnit) and oUnit:GetFractionComplete() == 1 then
@@ -1272,7 +1272,9 @@ function OnConstructed(oEngineer, oJustBuilt)
                     if EntityCategoryContains(categories.COMMAND, oEngineer.UnitId) then
                         M28ACU.GetACUOrder(oEngineer:GetAIBrain(), oEngineer)
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryFactory + M28UnitInfo.refCategoryQuantumGateway + M28UnitInfo.refCategoryMobileLandFactory + M28UnitInfo.refCategorySpecialFactory, oEngineer.UnitId) then
-                        if bDebugMessages == true then LOG(sFunctionRef..': A factory has just built a unit so will get the next order for the factory') end
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef..': A factory has just built a unit so will get the next order for the factory, oEngineer='..oEngineer.UnitId..M28UnitInfo.GetUnitLifetimeCount(oEngineer))
+                        end
                         ForkThread(M28Factory.DecideAndBuildUnitForFactory, oEngineer:GetAIBrain(), oEngineer)
                         --Treat the unit just built as having micro active so it doesn't receive orders for a couple of seconds (so it can clear the factory)
                         if EntityCategoryContains(M28UnitInfo.refCategoryLandFactory + M28UnitInfo.refCategoryNavalFactory + M28UnitInfo.refCategoryMobileLandFactory, oEngineer.UnitId) and EntityCategoryContains(categories.MOBILE - categories.AIR, oJustBuilt.UnitId) then
@@ -1282,6 +1284,13 @@ function OnConstructed(oEngineer, oJustBuilt)
                             end
                             M28Orders.IssueTrackedMove(oJustBuilt, oEngineer[M28Factory.reftFactoryRallyPoint], 0.1, true, 'RollOff', false)
                             M28Micro.TrackTemporaryUnitMicro(oJustBuilt, 1.5) --i.e. want to increase likelihood that a unit has exited the land factory before it starts being given orders
+                            if bDebugMessages == true then LOG(sFunctionRef..': Engineer parent='..reprs(oEngineer.Parent)..'; Unit ID = or parent'..(oEngineer.Parent.UnitId or 'nil')) end
+                            if oEngineer.UnitId == 'uel0401ef' or (oEngineer.Parent.UnitId and EntityCategoryContains(M28UnitInfo.refCategoryFatboy, oEngineer.Parent.UnitId)) then
+                                --Want some MAA to stick by fatboy so theyre protected by its shield
+                                if EntityCategoryContains(M28UnitInfo.refCategoryMAA, oJustBuilt.UnitId) then
+                                    ForkThread(M28Land.ConsiderAssigningMAABodyguardToFatboy,oJustBuilt, oEngineer)
+                                end
+                            end
                         end
 
 
@@ -1457,7 +1466,7 @@ function OnCreateWreck(tPosition, iMass, iEnergy)
                 while not(M28Map.bReclaimManagerActive) do
                     WaitTicks(1)
                     iWaitCount = iWaitCount + 1
-                    if iWaitCount >= 20 then M28Utilities.ErrorHandler('Map setup not complete') break end
+                    if iWaitCount >= 50 then M28Utilities.ErrorHandler('Map setup not complete') break end
                 end
             end
         end
@@ -1636,9 +1645,13 @@ function OnCreate(oUnit, bIgnoreMapSetup)
                     M28Economy.UpdateHighestFactoryTechLevelForBuiltUnit(oUnit) --this includes a check to see if are dealing with a factory HQ
                     M28Economy.UpdateGrossIncomeForUnit(oUnit, false) --This both includes a check of the unit type, and cehcks we havent already recorded
                     if EntityCategoryContains(M28UnitInfo.refCategoryMex, oUnit.UnitId) and not(oUnit.M28OnConstructedCalled) then
-                        ForkThread(M28Economy.UpdateLandZoneM28MexByTechCount, oUnit) --we run the same logic via onconstructed
+                        ForkThread(M28Economy.UpdateZoneM28MexByTechCount, oUnit) --we run the same logic via onconstructed
                     elseif EntityCategoryContains(M28UnitInfo.refCategoryParagon, oUnit.UnitId) and not(oUnit.M28OnConstructedCalled) then
                         ForkThread(M28Building.JustBuiltParagon, oUnit)
+                    --Campaign specific - expand core zones for campaign AI
+                    elseif EntityCategoryContains(M28UnitInfo.refCategoryLandHQ + M28UnitInfo.refCategoryAirHQ, oUnit.UnitId) and M28Map.bIsCampaignMap and oUnit:GetAIBrain().CampaignAI then
+                        local tLZData, tLZTeamData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, oUnit:GetAIBrain().M28Team)
+                        tLZTeamData[M28Map.subrefbCoreBaseOverride] = true
                     end
 
                 end
@@ -1685,7 +1698,16 @@ function OnCreateBrain(aiBrain, planName, bIsHuman)
     local sFunctionRef = 'OnCreateBrain'
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-    if bDebugMessages == true then LOG(sFunctionRef..': aiBrain has just been created at time '..GetGameTimeSeconds()..'; Brain nickname='..(aiBrain.Nickname or 'nil')..'; Has setup been run='..tostring(aiBrain['M28BrainSetupRun'] or false)..'; Brain type='..(aiBrain.BrainType or 'nil')..'; M28Team (if brain setup)='..(aiBrain.M28Team or 'nil')..'; aiBrain.Civilian='..tostring(aiBrain.Civilian or false)..'; .M28AI='..tostring(aiBrain.M28AI or false)..'; .M27AI='..tostring(aiBrain.M27AI or false)) end
+
+    if bDebugMessages == true then LOG(sFunctionRef..': aiBrain has just been created at time '..GetGameTimeSeconds()..'; Brain nickname='..(aiBrain.Nickname or 'nil')..'; Has setup been run='..tostring(aiBrain['M28BrainSetupRun'] or false)..'; Brain type='..(aiBrain.BrainType or 'nil')..'; M28Team (if brain setup)='..(aiBrain.M28Team or 'nil')..'; aiBrain.Civilian='..tostring(aiBrain.Civilian or false)..'; .M28AI='..tostring(aiBrain.M28AI or false)..'; .M27AI='..tostring(aiBrain.M27AI or false)..'; M28Overseer.iTimeOfLatestBrainToCheckForM28Logic='..(M28Overseer.iTimeOfLatestBrainToCheckForM28Logic or 'nil')) end
+    if M28Overseer.iTimeOfLatestBrainToCheckForM28Logic >= 0 then
+        while GetGameTimeSeconds() < M28Overseer.iTimeOfLatestBrainToCheckForM28Logic + 1 do
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+            WaitTicks(1)
+            M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+        end
+    end
+    if bDebugMessages == true then LOG(sFunctionRef..': Finished waiting for M28Overseer.iTimeOfLatestBrainToCheckForM28Logic (if applicable), Brain='..(aiBrain.Nickname or 'nil')..'; .M28AI='..tostring(aiBrain.M28AI or false)) end
     if not(aiBrain['M28BrainSetupRun']) then
         if M28Config.M28RunProfiling then ForkThread(M28Profiler.ProfilerActualTimePerTick) end
         if bIsHuman == nil then
@@ -1786,6 +1808,7 @@ function OnMissileImpact(self, targetType, targetEntity)
     end
 end
 
+function OnMapResizeFORSEARCHONLY()  end --So can find onplayableareachange easier
 function OnPlayableAreaChange(rect, voFlag)
 
     local ScenarioUtils = import("/lua/sim/scenarioutilities.lua")
@@ -1797,6 +1820,8 @@ function OnPlayableAreaChange(rect, voFlag)
     ForkThread(M28Engineer.CheckForSpecialCampaignCaptureTargets)
     --Wait 5s then consider campaign special objectives
     ForkThread(M28Overseer.ConsiderSpecialCampaignObjectives, nil, nil, nil, nil, nil, nil, nil, nil,  5)
+    --Update location of nearest friendly base (intended to help if we are applying M28AI to hostile AI)
+    ForkThread(M28Map.RefreshCampaignStartPositionsAfterDelay, 5)
 end
 
 function CaptureTriggerAdded(FunctionForOldUnit, FunctionForNewUnit, oUnit)

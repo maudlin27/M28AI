@@ -27,6 +27,7 @@ bInitialSetup = false
 tAllActiveM28Brains = {} --[x] is just a unique integer starting with 1 (so table.getn works on this), not the armyindex; returns the aiBrain object
 tAllAIBrainsByArmyIndex = {} --[x] is the brain army index, returns the aibrain
 bDebugTickCheckerActive = false
+iTimeOfLatestBrainToCheckForM28Logic = -1
 
 --Special settings - restrictions and norush
 bUnitRestrictionsArePresent = false
@@ -43,6 +44,7 @@ tiPacifistZonesByPlateau = {} --[iPlateau], returns iLandOrWaterZone, for any zo
 bBeginSessionTriggered = false
 
 --aiBrain variables
+refbInitialised = 'M28OvInt' --true if brain has started the main initialisation logic
 refiDistanceToNearestEnemyBase = 'M28OverseerDistToNearestEnemyBase'
 refoNearestEnemyBrain = 'M28OverseerNearestEnemyBrain'
 refbCloseToUnitCap = 'M28OverseerCloseToUnitCap'
@@ -67,6 +69,7 @@ function GetNearestEnemyBrain(aiBrain)
         if M28Team.tTeamData[aiBrain.M28Team][M28Team.subrefbAllEnemiesDefeated] then
             --All enemies defeated so will consider civilians as enemy brains
             local oCivilianBrain
+            if bDebugMessages == true then LOG(sFunctionRef..': All enemies defeated so will consider all brains including civilians') end
             for iCurBrain, oBrain in ArmyBrains do
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering obrain '..(oBrain.Nickname or 'nil')..'; is enemy to us='..tostring(IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()))) end
                 if IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()) then
@@ -88,7 +91,7 @@ function GetNearestEnemyBrain(aiBrain)
             if bDebugMessages == true then LOG(sFunctionRef .. ': Start before looping through brains; aiBrain personality=' .. ScenarioInfo.ArmySetup[aiBrain.Name].AIPersonality .. '; brain.Name=' .. aiBrain.Name) end
 
             for iCurBrain, oBrain in ArmyBrains do
-                if bDebugMessages == true then LOG(sFunctionRef .. ': Start of brain loop, iCurBrain=' .. iCurBrain .. '; brain personality=' .. ScenarioInfo.ArmySetup[oBrain.Name].AIPersonality .. '; brain Nickname=' .. oBrain.Nickname .. '; Brain index=' .. oBrain:GetArmyIndex() .. '; if brain isnt equal to our AI brain then will get its start position etc. IsCivilian='..tostring(M28Conditions.IsCivilianBrain(oBrain))..'; IsEnemy='..tostring(IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()))) end
+                if bDebugMessages == true then LOG(sFunctionRef .. ': Start of brain loop, iCurBrain=' .. iCurBrain .. '; brain personality=' .. ScenarioInfo.ArmySetup[oBrain.Name].AIPersonality .. '; brain Nickname=' .. oBrain.Nickname .. '; Brain index=' .. oBrain:GetArmyIndex() .. '; if brain isnt equal to our AI brain then will get its start position etc. IsCivilian='..tostring(M28Conditions.IsCivilianBrain(oBrain))..'; IsEnemy='..tostring(IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex()))..'; Is oBrain a .M28AI brain='..tostring(oBrain.M28AI or false)) end
                 if not (oBrain == aiBrain) and (not (M28Conditions.IsCivilianBrain(oBrain)) and IsEnemy(oBrain:GetArmyIndex(), aiBrain:GetArmyIndex())) then
                     if bDebugMessages == true then LOG(sFunctionRef .. ': Brain is dif to aiBrain and a non civilian enemy so will record its start position number if it doesnt have one already') end
 
@@ -100,7 +103,7 @@ function GetNearestEnemyBrain(aiBrain)
                         end
                         if bDebugMessages == true then
                             LOG(sFunctionRef .. ': Considering nearest enemy for our brain index '..aiBrain:GetArmyIndex()..'; enemy brain with index' .. oBrain:GetArmyIndex() .. ' and nickname '..(oBrain.Nickname or 'nil')..' is not defeated and is an enemy; M28Map.PlayerStartPoints='..repru( M28Map.PlayerStartPoints))
-                            local iX, iZ = oBrain:GetArmyStartPos()
+                            local iX, iZ = M28Map.GetPlayerStartPosition(oBrain, true)
                             LOG(sFunctionRef..': Enemy Start iX='..(iX or 'nil')..'; Start iZ+'..(iZ or 'nil'))
                         end
                         iCurDist = M28Utilities.GetDistanceBetweenPositions(M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()], M28Map.PlayerStartPoints[oBrain:GetArmyIndex()])
@@ -382,7 +385,7 @@ function M28BrainCreated(aiBrain)
     local sFunctionRef = 'M28BrainCreated'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
-    if bDebugMessages == true then LOG(sFunctionRef..': M28 Brain has just been created for aiBrain '..aiBrain.Nickname..'; Index='..aiBrain:GetArmyIndex()) end
+    if bDebugMessages == true then LOG(sFunctionRef..': M28 Brain has just been created for aiBrain '..aiBrain.Nickname..'; Index='..aiBrain:GetArmyIndex()..'; bInitialSetup='..tostring(bInitialSetup or false)..'; Time='..GetGameTimeSeconds()) end
 
     aiBrain.M28AI = true
     table.insert(tAllActiveM28Brains, aiBrain)
@@ -465,8 +468,11 @@ function NoRushMonitor()
 end
 
 function TestCustom(aiBrain)
+    --ScenarioInfo.Options
+    --LOG('scenario info.options='..reprs(ScenarioInfo.Options))
+
     --Rerun adj zones so can see what is happening
-    M28Map.RecordWaterZoneAdjacentLandZones()
+    --M28Map.RecordWaterZoneAdjacentLandZones()
 
     --Spawn in a novax for testing:
     --[[local oACU = aiBrain:GetListOfUnits(categories.COMMAND)[1]
@@ -671,6 +677,7 @@ function Initialisation(aiBrain)
         WaitTicks(1)
     end
     WaitTicks(1) --make sure brain setup will have run
+    aiBrain[refbInitialised] = true
     LOG('About to proceed with initialisation, aiBrain='..aiBrain.Nickname..'; bBeginSessionTriggered='..tostring(bBeginSessionTriggered or false)..'; Navmesh generated='..tostring(import("/lua/sim/navgenerator.lua").IsGenerated()))
     ForkThread(SetupNoRushDetails, aiBrain)
     ForkThread(M28UnitInfo.CalculateBlueprintThreatsByType) --Records air and ground threat values for every blueprint
@@ -1447,7 +1454,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                 for iUnit, oUnit in ScenarioInfo.PlayerCDRs do
                     if M28UnitInfo.IsUnitValid(oUnit) then
                         LOG(sFunctionRef..': Considering ACU owned by brain '..oUnit:GetAIBrain().Nickname..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; if M28 then will set objective to tMidpoint='..repru(tMidpoint))
-                        if oUnit:GetAIBrain().M28AI then
+                        if oUnit:GetAIBrain().M28AI and not(oUnit:GetAIBrain().CampaignAI) then
                             oUnit[M28ACU.reftSpecialObjectiveMoveLocation] = {tMidpoint[1], tMidpoint[2], tMidpoint[3]}
                         end
                     end
@@ -1483,11 +1490,13 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
             --Cybran mission 2 - move to gate
         elseif ScenarioInfo.M3P2.Active and ScenarioInfo.M3Gate and M28UnitInfo.IsUnitValid(ScenarioInfo.M3Gate) then
             for iBrain, oBrain in tAllActiveM28Brains do
-                local tACUs = oBrain:GetListOfUnits(categories.COMMAND, false, true)
-                if M28Utilities.IsTableEmpty(tACUs) == false then
-                    for iUnit, oUnit in tACUs do
-                        LOG(sFunctionRef..': Considering ACU owned by brain '..oUnit:GetAIBrain().Nickname..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; if M28 then will set objective to gate position='..repru(ScenarioInfo.M3Gate:GetPosition()))
-                        oUnit[M28ACU.reftSpecialObjectiveMoveLocation] = ScenarioInfo.M3Gate:GetPosition()
+                if not(oBrain.CampaignAI) then
+                    local tACUs = oBrain:GetListOfUnits(categories.COMMAND, false, true)
+                    if M28Utilities.IsTableEmpty(tACUs) == false then
+                        for iUnit, oUnit in tACUs do
+                            LOG(sFunctionRef..': Considering ACU owned by brain '..oUnit:GetAIBrain().Nickname..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; if M28 then will set objective to gate position='..repru(ScenarioInfo.M3Gate:GetPosition()))
+                            oUnit[M28ACU.reftSpecialObjectiveMoveLocation] = ScenarioInfo.M3Gate:GetPosition()
+                        end
                     end
                 end
             end
@@ -1757,4 +1766,16 @@ function DelayedM27M28BrainCheck(aiBrain)
     WaitSeconds(1)
     LOG('Delayed brain check, brain nickname='..aiBrain.Nickname..'; .M27AI='..tostring(aiBrain.M27AI or false)..'; .M28AI='..tostring(aiBrain.M28AI or false))
     if aiBrain.M27AI and aiBrain.M28AI then aiBrain.M28AI = false end
+end
+
+function DecideWhetherToApplyM28ToCampaignAI(aiBrain, planName)
+    --Wait a second so hopefully isenemy is more accurate
+    WaitSeconds(1) --also need to update references to iTimeOfLatestBrainToCheckForM28Logic if changing this
+    if M28Conditions.ApplyM28ToOtherAI(aiBrain) then
+        local M28Events = import('/mods/M28AI/lua/AI/M28Events.lua')
+        aiBrain.M28AI = true
+        M28Utilities.bM28AIInGame = true
+        LOG('Setting AI to use M28, aiBrain.Nickname='..(aiBrain.Nickname or 'nil')..'; aiBrain[M28BrainSetupRun] before being cleared='..tostring(aiBrain['M28BrainSetupRun'] or false))
+        ForkThread(M28Events.OnCreateBrain, aiBrain, planName, false)
+    end
 end

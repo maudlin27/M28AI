@@ -16,6 +16,8 @@ local M28Conditions = import('/mods/M28AI/lua/AI/M28Conditions.lua')
 local M28Engineer = import('/mods/M28AI/lua/AI/M28Engineer.lua')
 local M28Building = import('/mods/M28AI/lua/AI/M28Building.lua')
 local NavUtils = import("/lua/sim/navutils.lua")
+local M28Navy = import('/mods/M28AI/lua/AI/M28Navy.lua')
+local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
 
 --Variables against aiBrain:
 --ECONOMY VARIABLES - below 4 are to track values based on base production, ignoring reclaim. Provide per tick values so 10% of per second)
@@ -42,6 +44,7 @@ refoBrainRecordedForEconomy = 'M28EconomyBrainRecordedUnit' --Stores the M28 bra
 refiLastEnergyUsage = 'M28EconomyLastEnergyUsage' --per tick energy usage of the unit (set when the unit is paused)
 refiLastMassUsage = 'M28EconomyLastMassUsage' --per tick massu sage of the unit set when unit is paused
 refiStorageMassAdjacencyBonus = 'M28EMassStorAdj' --Adjacency bonus from a mass storage
+refbSpecialUpgradeMonitor = 'M28ESpecUM' --true if special upgrade monitor (used for hydros) is active
 
 --global variables
 tiMinEnergyPerTech = {[1]=16,[2]=55,[3]=150,[3]=150}
@@ -162,27 +165,39 @@ function GetBestUnitToUpgrade(toPotentialUnits, bPrioritiseFactoryHQ)
     return oClosestUnitToBase
 end
 
-function UpdateLandZoneM28AllMexByTech(aiBrain, iPlateau, iLandZone, oOptionalUnitThatDied, iOptionalWait)
+function UpdateZoneM28AllMexByTech(aiBrain, iPlateauOrZero, iLandOrWaterZone, oOptionalUnitThatDied, iOptionalWait)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'UpdateLandZoneM28AllMexByTech'
+    local sFunctionRef = 'UpdateZoneM28AllMexByTech'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
 
 
-    local tLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZTeamData][aiBrain.M28Team]
+    local tLZOrWZTeamData
+    local tLZOrWZData
+    if iPlateauOrZero == 0 then
+        tLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iLandOrWaterZone]][M28Map.subrefPondWaterZones][iLandOrWaterZone]
+        tLZOrWZTeamData = tLZOrWZData[M28Map.subrefWZTeamData][aiBrain.M28Team]
+    else
+        tLZOrWZData = M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone]
+        tLZOrWZTeamData = tLZOrWZData[M28Map.subrefLZTeamData][aiBrain.M28Team]
+    end
     if iOptionalWait then
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
         WaitTicks(iOptionalWait)
         M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     end
 
-    tLZTeamData[M28Map.subrefMexCountByTech] = {[1]=0,[2]=0,[3]=0} --starting point
-    if bDebugMessages == true then LOG(sFunctionRef..': Time of game='..GetGameTimeSeconds()..'; Is table of allied units for iPlateau '..iPlateau..' iLandZone '..iLandZone..' empty='..tostring(M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]))) end
-    if M28Utilities.IsTableEmpty(tLZTeamData[M28Map.subrefLZTAlliedUnits]) == false then
-        local tAllMexes = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tLZTeamData[M28Map.subrefLZTAlliedUnits])
+    tLZOrWZTeamData[M28Map.subrefMexCountByTech] = {[1]=0,[2]=0,[3]=0} --starting point
+    if bDebugMessages == true then LOG(sFunctionRef..': Time of game='..GetGameTimeSeconds()..'; Is table of allied units for iPlateauOrZero '..iPlateauOrZero..' iLandOrWaterZone '..iLandOrWaterZone..' empty='..tostring(M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))) end
+    if M28Utilities.IsTableEmpty(tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits]) == false then
+        local tAllMexes = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tLZOrWZTeamData[M28Map.subreftoLZOrWZAlliedUnits])
         --Update list of allied mex units in this LZ in case some of the mexes are dead now
-        --UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam,    iRecordedPlateau, iRecordedLandZone, bUseLastKnownPosition, bAreAirUnits, tLZTeamData, bUpdateTimeOfLastEnemyPositionCheck, bAreEnemyUnits)
-        M28Land.UpdateUnitPositionsAndLandZone(aiBrain, tAllMexes, aiBrain.M28Team, iPlateau, iLandZone,            false)
+        --UpdateUnitPositionsAndLandZone(aiBrain, tUnits, iTeam,    iRecordedPlateau, iRecordedLandZone, bUseLastKnownPosition, bAreAirUnits, tLZOrWZTeamData, bUpdateTimeOfLastEnemyPositionCheck, bAreEnemyUnits)
+        if iPlateauOrZero > 0 then
+            M28Land.UpdateUnitPositionsAndLandZone(aiBrain, tAllMexes, aiBrain.M28Team, iPlateauOrZero, iLandOrWaterZone,            false)
+        else
+            M28Navy.UpdateUnitPositionsAndWaterZone(aiBrain, tAllMexes, aiBrain.M28Team, iLandOrWaterZone, false, false, tLZOrWZTeamData, false, false)
+        end
 
         local tMexesByTech = {}
         local iMexCount = 0
@@ -195,11 +210,11 @@ function UpdateLandZoneM28AllMexByTech(aiBrain, iPlateau, iLandZone, oOptionalUn
             if bDebugMessages == true then LOG(sFunctionRef..': Updating for iTech='..iTech..'; Is table of mexes by tech empty='..tostring(M28Utilities.IsTableEmpty(tMexesByTech[iTech]))) end
             if M28Utilities.IsTableEmpty(tMexesByTech[iTech]) == false then
                 for iMex, oCurMex in tMexesByTech[iTech] do
-                    if bDebugMessages == true then LOG(sFunctionRef..': Plateau='..iPlateau..'; iLandZone='..iLandZone..'; oCurMex='..oCurMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oCurMex)..'; Unit state='..M28UnitInfo.GetUnitState(oCurMex)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oCurMex))..'; Position='..repru(oCurMex:GetPosition())..'; iTech='..iTech..'; iMexCount pre increase='..iMexCount..'; tLZTeamData[M28Map.subrefMexCountByTech] pre increase='..repru(tLZTeamData[M28Map.subrefMexCountByTech])) end
+                    if bDebugMessages == true then LOG(sFunctionRef..': Plateau='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; oCurMex='..oCurMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oCurMex)..'; Unit state='..M28UnitInfo.GetUnitState(oCurMex)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oCurMex))..'; Position='..repru(oCurMex:GetPosition())..'; iTech='..iTech..'; iMexCount pre increase='..iMexCount..'; tLZOrWZTeamData[M28Map.subrefMexCountByTech] pre increase='..repru(tLZOrWZTeamData[M28Map.subrefMexCountByTech])) end
                     if oCurMex:GetAIBrain().M28AI and M28UnitInfo.IsUnitValid(oCurMex) and oCurMex:GetFractionComplete() == 1 and not(oOptionalUnitThatDied == oCurMex) then
                         if iTech == 3 or not(tiRecordedMexPositionsXZ[oCurMex:GetPosition()[1]]) or not(tiRecordedMexPositionsXZ[oCurMex:GetPosition()[1]][oCurMex:GetPosition()[3]]) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Adding iMex '..iMex..'; oCurMex='..oCurMex.UnitId..M28UnitInfo.GetUnitLifetimeCount(oCurMex)..' to mex count, Unit state='..M28UnitInfo.GetUnitState(oCurMex)..'; Position='..repru(oCurMex:GetPosition())) end
-                            tLZTeamData[M28Map.subrefMexCountByTech][iTech] = tLZTeamData[M28Map.subrefMexCountByTech][iTech] + 1
+                            tLZOrWZTeamData[M28Map.subrefMexCountByTech][iTech] = tLZOrWZTeamData[M28Map.subrefMexCountByTech][iTech] + 1
                             if not(tiRecordedMexPositionsXZ[oCurMex:GetPosition()[1]]) then tiRecordedMexPositionsXZ[oCurMex:GetPosition()[1]] = {} end
                             tiRecordedMexPositionsXZ[oCurMex:GetPosition()[1]][oCurMex:GetPosition()[3]] = true
                             iMexCount = iMexCount + 1
@@ -208,43 +223,43 @@ function UpdateLandZoneM28AllMexByTech(aiBrain, iPlateau, iLandZone, oOptionalUn
                 end
             end
         end
-        if bDebugMessages == true then LOG(sFunctionRef..': Finished updating mex count, tLZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZTeamData[M28Map.subrefMexCountByTech])..'; iMexCount='..iMexCount..'; Table size of mex locations for this LZ='..table.getn( M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations])..'; iMexCount from this function='..iMexCount..'; iOptionalWait='..(iOptionalWait or 'nil')..'; tiRecordedMexPositionsXZ='..repru(tiRecordedMexPositionsXZ)) end
+        if bDebugMessages == true then LOG(sFunctionRef..': Finished updating mex count, tLZOrWZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZOrWZTeamData[M28Map.subrefMexCountByTech])..'; iMexCount='..iMexCount..'; Table size of mex locations for this LZ='..table.getn( M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZMexLocations])..'; iMexCount from this function='..iMexCount..'; iOptionalWait='..(iOptionalWait or 'nil')..'; tiRecordedMexPositionsXZ='..repru(tiRecordedMexPositionsXZ)) end
         --If have somehow ended up with more mexes than there are locations, then redo the check in 1 second
-        if iMexCount > table.getn( M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone][M28Map.subrefLZMexLocations]) then
+        if iMexCount > table.getn( tLZOrWZData[M28Map.subrefLZMexLocations]) then
             if (iOptionalWait or 0) >= 10 then
-                M28Utilities.ErrorHandler('Somehow we have more mexes than we should even after waiting '..iOptionalWait..' first, iPlateau='..iPlateau..'; iLandZone='..iLandZone..'; iMexCount='..iMexCount..'; tLZTeamData[M28Map.subrefMexCountByTech]='..reprs(tLZTeamData[M28Map.subrefMexCountByTech]))
+                M28Utilities.ErrorHandler('Somehow we have more mexes than we should even after waiting '..iOptionalWait..' first, iPlateauOrZero='..iPlateauOrZero..'; iLandOrWaterZone='..iLandOrWaterZone..'; iMexCount='..iMexCount..'; tLZOrWZTeamData[M28Map.subrefMexCountByTech]='..reprs(tLZOrWZTeamData[M28Map.subrefMexCountByTech]))
             end
             if bDebugMessages == true then LOG(sFunctionRef..': Have an inconsistent number of mexes so will call this function again with a wait, time='..GetGameTimeSeconds()) end
-            ForkThread(UpdateLandZoneM28AllMexByTech, aiBrain, iPlateau, iLandZone, oOptionalUnitThatDied, 15)
+            ForkThread(UpdateZoneM28AllMexByTech, aiBrain, iPlateauOrZero, iLandOrWaterZone, oOptionalUnitThatDied, 15)
         end
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function UpdateLandZoneM28MexByTechCount(oMexJustBuiltOrDied, bJustDied, iOptionalWait)
+function UpdateZoneM28MexByTechCount(oMexJustBuiltOrDied, bJustDied, iOptionalWait)
     --Call via fork thread on mex creation due to potential timing issue with an upgrading mex being destroyed and replaced with the new (upgraded) mex
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
-    local sFunctionRef = 'UpdateLandZoneM28MexByTechCount'
+    local sFunctionRef = 'UpdateZoneM28MexByTechCount'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
     if oMexJustBuiltOrDied.GetAIBrain then
         local aiBrain = oMexJustBuiltOrDied:GetAIBrain()
         if aiBrain.M28AI then
-            local iPlateau, iLandZone = M28Map.GetPlateauAndLandZoneReferenceFromPosition(oMexJustBuiltOrDied:GetPosition())
+            local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(oMexJustBuiltOrDied:GetPosition())
             --should be called whenever a mex is created or destroyed in a land zone; ideally call via fork thread so reduced risk of it being called inbetween a mex say upgrading from one to another and being claled before both the creation and destroy events have happened
-            if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; oMexJustBuiltOrDied='..(oMexJustBuiltOrDied.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oMexJustBuiltOrDied) or 'nil')..'; iPlateau='..(iPlateau or 'nil')..'; iLandZone='..(iLandZone or 'nil')..'; Mex position='..repru(oMexJustBuiltOrDied:GetPosition())..'; iMapWaterHeight='..M28Map.iMapWaterHeight..'; iOptionalWait='..(iOptionalWait or 'nil')..'; bJustDied='..tostring(bJustDied or false)) end
-            if (iLandZone or 0) > 0 then
+            if bDebugMessages == true then LOG(sFunctionRef..': Time='..GetGameTimeSeconds()..'; oMexJustBuiltOrDied='..(oMexJustBuiltOrDied.UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(oMexJustBuiltOrDied) or 'nil')..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; Mex position='..repru(oMexJustBuiltOrDied:GetPosition())..'; iMapWaterHeight='..M28Map.iMapWaterHeight..'; iOptionalWait='..(iOptionalWait or 'nil')..'; bJustDied='..tostring(bJustDied or false)) end
+            if (iLandOrWaterZone or 0) > 0 then
                 if not(iOptionalWait) then
                     if bJustDied then
-                        UpdateLandZoneM28AllMexByTech(aiBrain, iPlateau, iLandZone, oMexJustBuiltOrDied)
+                        UpdateZoneM28AllMexByTech(aiBrain, iPlateauOrZero, iLandOrWaterZone, oMexJustBuiltOrDied)
                     else
-                        UpdateLandZoneM28AllMexByTech(aiBrain, iPlateau, iLandZone, nil)
+                        UpdateZoneM28AllMexByTech(aiBrain, iPlateauOrZero, iLandOrWaterZone, nil)
                     end
                 else
                     if bJustDied then
-                        ForkThread(UpdateLandZoneM28AllMexByTech, aiBrain, iPlateau, iLandZone, oMexJustBuiltOrDied, iOptionalWait)
+                        ForkThread(UpdateZoneM28AllMexByTech, aiBrain, iPlateauOrZero, iLandOrWaterZone, oMexJustBuiltOrDied, iOptionalWait)
                     else
-                        ForkThread(UpdateLandZoneM28AllMexByTech, aiBrain, iPlateau, iLandZone, nil, iOptionalWait)
+                        ForkThread(UpdateZoneM28AllMexByTech, aiBrain, iPlateauOrZero, iLandOrWaterZone, nil, iOptionalWait)
                     end
                 end
             end
@@ -503,6 +518,53 @@ function UpdateMassStorageAdjacencyValues(oStorage, bDestroyed)
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
+function ConsiderHydroUpgradeLoop(oUnit)
+    --Every 10s consider upgrading unit
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ConsiderHydroUpgradeLoop'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if bDebugMessages == true then LOG(sFunctionRef..': Start of code, oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Special upgrade monitor already active='..tostring(oUnit[refbSpecialUpgradeMonitor] or false)..'; Unit owner='..oUnit:GetAIBrain().Nickname..'; Time='..GetGameTimeSeconds()) end
+    if not(oUnit[refbSpecialUpgradeMonitor]) then
+        --Does the blueprint have an upgrade option?
+        local oBP = oUnit:GetBlueprint()
+        if bDebugMessages == true then LOG(sFunctionRef..': Unit upgrades to='..(oBP.General.UpgradesTo or 'nil')..'; Does this equal empty string='..tostring(oBP.General.UpgradesTo == '')) end
+        if oBP.General.UpgradesTo and not(oBP.General.UpgradesTo == '') then
+            oUnit[refbSpecialUpgradeMonitor] = true
+            local aiBrain = oUnit:GetAIBrain()
+            local iTeam = aiBrain.M28Team
+            local oUpgradedBP = __blueprints[oBP.General.UpgradesTo]
+            if oUpgradedBP then
+                local iBuildPower = oBP.Economy.BuildRate * aiBrain[refiBrainBuildRateMultiplier]
+                local iBrainCount = M28Team.tTeamData[iTeam][M28Team.subrefiActiveM28BrainCount]
+                if bDebugMessages == true then LOG(sFunctionRef..': oUpgradedBP='..reprs(oUpgradedBP)) end
+                local iMassPerTickWanted = 0.1 * (oUpgradedBP.Economy.BuildCostMass * iBuildPower / oUpgradedBP.Economy.BuildTime) * iBrainCount * 2
+                local iEnergyPerTickWanted = 0.1 * (oUpgradedBP.Economy.BuildCostEnergy * iBuildPower / oUpgradedBP.Economy.BuildTime ) * iBrainCount * 2
+                local iGrossMassPerTickAlternative = iMassPerTickWanted * 20
+                local iGrossEnergyPerTickAlternative = iEnergyPerTickWanted * 20
+                local iStoredMassAlternative = oUpgradedBP.Economy.BuildCostMass * 4
+
+                if bDebugMessages == true then LOG(sFunctionRef..': iBuildPower='..iBuildPower..'; iMasPerTickWanted='..iMassPerTickWanted..'; iEnergyPerTickWanted='..iEnergyPerTickWanted) end
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                WaitSeconds(10)
+                M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                while M28UnitInfo.IsUnitValid(oUnit) do
+                    if bDebugMessages == true then LOG(sFunctionRef..': Deciding if want to upgrade at time='..GetGameTimeSeconds()..'; Unit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Brain='..aiBrain.Nickname..'; Want more power='..tostring(M28Conditions.WantMorePower(iTeam))..'; Net energy='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy]..'; iEnergyPerTickWanted='..iEnergyPerTickWanted..'; Net mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass]..'; iMassPerTickWanted='..iMassPerTickWanted..'; M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy]..'; Gross mass='..M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass]) end
+                    if M28Conditions.WantMorePower(iTeam) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetEnergy] >= iEnergyPerTickWanted or (iEnergyPerTickWanted > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossEnergy] >= iGrossEnergyPerTickAlternative) and (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= iMassPerTickWanted or ((aiBrain:GetEconomyStored('MASS') >= iStoredMassAlternative and (aiBrain:GetEconomyStored('MASS') >= iStoredMassAlternative * 2 or M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] >= -1)) or (M28Team.tTeamData[iTeam][M28Team.subrefiTeamNetMass] > 0 and M28Team.tTeamData[iTeam][M28Team.subrefiTeamGrossMass] >= iGrossMassPerTickAlternative)))) then
+                        UpgradeUnit(oUnit, false)
+                        break
+                    end
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+                    WaitSeconds(10)
+                    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+                end
+            elseif bDebugMessages == true then LOG(sFunctionRef..': Couldnt locate an actual blueprint')
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
+end
+
 function UpdateGrossIncomeForUnit(oUnit, bDestroyed, bIgnoreEnhancements)
     --Logs are enabled below
     if oUnit.GetAIBrain and EntityCategoryContains(M28UnitInfo.refCategoryResourceUnit + M28UnitInfo.refCategoryMassStorage, oUnit.UnitId) then
@@ -639,6 +701,11 @@ function UpdateGrossIncomeForUnit(oUnit, bDestroyed, bIgnoreEnhancements)
                 if iEnergyGen >= 25 then
                     ForkThread(ConsiderReclaimingPower, aiBrain.M28Team, oUnit)
                 end
+
+                --Upgrading hydro
+                if not(bDestroyed) and EntityCategoryContains(M28UnitInfo.refCategoryHydro, oUnit.UnitId) then
+                    ForkThread(ConsiderHydroUpgradeLoop,oUnit)
+                end
                 if bDebugMessages == true then LOG(sFunctionRef..': Updated gross and net resources for iMassGen='..iMassGen..'; iEnergyGen='..iEnergyGen..'; aiBrain[refiNetMassBaseIncome]='..aiBrain[refiNetMassBaseIncome]..'; aiBrain[refiGrossMassBaseIncome]='..aiBrain[refiGrossMassBaseIncome]) end
             end
 
@@ -698,6 +765,13 @@ function EconomyMainLoop(aiBrain)
 end
 
 function EconomyInitialisation(aiBrain)
+    while not(aiBrain[M28Overseer.refbInitialised]) do
+        WaitTicks(1)
+        if GetGameTimeSeconds() >= 5 then
+            M28Utilities.ErrorHandler('Waited 5 seconds and brain '..aiBrain.Nickname..' doesnt seem to have initialised M28 code')
+            break
+        end
+    end
     if not(aiBrain[refiGrossEnergyBaseIncome]) then aiBrain[refiGrossEnergyBaseIncome] = 0 end
     if not(aiBrain[refiNetEnergyBaseIncome]) then aiBrain[refiNetEnergyBaseIncome] = 0 end
     if not(aiBrain[refiGrossMassBaseIncome]) then aiBrain[refiGrossMassBaseIncome] = 0 end
@@ -720,7 +794,7 @@ function RecordUnitsOfCategoryToBeReclaimed(iTeam, iCategory)
         if M28Utilities.IsTableEmpty(tPlateauData[M28Map.subrefPlateauLandZones]) == false then
             for iLandZone, tLZData in tPlateauData[M28Map.subrefPlateauLandZones] do
                 if bDebugMessages == true then LOG(sFunctionRef..': Considering if iPlateau-LZ '..iPlateau..'-'..iLandZone..' has units of the category wanted') end
-                if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedUnits]) == false then
+                if M28Utilities.IsTableEmpty(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subreftoLZOrWZAlliedUnits]) == false then
                     if not(tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subreftoUnitsToReclaim]) then
                         bCheckForExistingUnits = false
                         tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subreftoUnitsToReclaim] = {}
@@ -729,7 +803,7 @@ function RecordUnitsOfCategoryToBeReclaimed(iTeam, iCategory)
                             bCheckForExistingUnits = true
                         end
                     end
-                    local tUnitsToReclaim = EntityCategoryFilterDown(iCategory, tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZTAlliedUnits])
+                    local tUnitsToReclaim = EntityCategoryFilterDown(iCategory, tLZData[M28Map.subrefLZTeamData][iTeam][M28Map.subreftoLZOrWZAlliedUnits])
                     if bDebugMessages == true then LOG(sFunctionRef..': Is table of untis of category wanted empty='..tostring(M28Utilities.IsTableEmpty(tUnitsToReclaim))) end
                     if M28Utilities.IsTableEmpty(tUnitsToReclaim) == false then
                         for iUnit, oUnit in tUnitsToReclaim do
