@@ -4726,7 +4726,6 @@ function ManageWaterZoneRaiders(iFactoryWaterZone, iTeam, tFactoryWZData, tFacto
                 --Clear raiders
                 local tRaiderTable = tFactoryWZTeamData[M28Map.reftoWZRaiders]
                 for iCurRaider = table.getn(tFactoryWZTeamData[M28Map.reftoWZRaiders]), 1, -1 do
-                    bDebugMessages = true
                     if bDebugMessages == true then LOG(sFunctionRef..'; Removing unit '..(tFactoryWZTeamData[M28Map.reftoWZRaiders][iCurRaider].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tFactoryWZTeamData[M28Map.reftoWZRaiders][iCurRaider]) or 'nil')..' from table of active raiders') end
                     RemoveUnitFromRaiders(tFactoryWZTeamData[M28Map.reftoWZRaiders], iCurRaider)
                 end

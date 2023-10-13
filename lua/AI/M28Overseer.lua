@@ -1454,7 +1454,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
                 for iUnit, oUnit in ScenarioInfo.PlayerCDRs do
                     if M28UnitInfo.IsUnitValid(oUnit) then
                         LOG(sFunctionRef..': Considering ACU owned by brain '..oUnit:GetAIBrain().Nickname..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; if M28 then will set objective to tMidpoint='..repru(tMidpoint))
-                        if oUnit:GetAIBrain().M28AI then
+                        if oUnit:GetAIBrain().M28AI and not(oUnit:GetAIBrain().CampaignAI) then
                             oUnit[M28ACU.reftSpecialObjectiveMoveLocation] = {tMidpoint[1], tMidpoint[2], tMidpoint[3]}
                         end
                     end
@@ -1490,11 +1490,13 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
             --Cybran mission 2 - move to gate
         elseif ScenarioInfo.M3P2.Active and ScenarioInfo.M3Gate and M28UnitInfo.IsUnitValid(ScenarioInfo.M3Gate) then
             for iBrain, oBrain in tAllActiveM28Brains do
-                local tACUs = oBrain:GetListOfUnits(categories.COMMAND, false, true)
-                if M28Utilities.IsTableEmpty(tACUs) == false then
-                    for iUnit, oUnit in tACUs do
-                        LOG(sFunctionRef..': Considering ACU owned by brain '..oUnit:GetAIBrain().Nickname..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; if M28 then will set objective to gate position='..repru(ScenarioInfo.M3Gate:GetPosition()))
-                        oUnit[M28ACU.reftSpecialObjectiveMoveLocation] = ScenarioInfo.M3Gate:GetPosition()
+                if not(oBrain.CampaignAI) then
+                    local tACUs = oBrain:GetListOfUnits(categories.COMMAND, false, true)
+                    if M28Utilities.IsTableEmpty(tACUs) == false then
+                        for iUnit, oUnit in tACUs do
+                            LOG(sFunctionRef..': Considering ACU owned by brain '..oUnit:GetAIBrain().Nickname..'; oUnit='..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; if M28 then will set objective to gate position='..repru(ScenarioInfo.M3Gate:GetPosition()))
+                            oUnit[M28ACU.reftSpecialObjectiveMoveLocation] = ScenarioInfo.M3Gate:GetPosition()
+                        end
                     end
                 end
             end

@@ -1205,6 +1205,7 @@ function GetBlueprintAndLocationToBuild(aiBrain, oEngineer, iOptionalEngineerAct
                 else M28Utilities.ErrorHandler('Unrecognised resource category')
                 end
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': Finished getting resource locations, tResourceLocations='..repru(tResourceLocations)) end
             if tResourceLocations then
                 --Cycle through and include any that are buildable
                 local bCheckForQueuedBuildings = true
@@ -5046,8 +5047,12 @@ function ConsiderActionToAssign(iActionToAssign, iMinTechWanted, iTotalBuildPowe
                                     if not(iActionToAssign == refActionBuildShield or iActionToAssign == refActionBuildSecondShield) then
                                         if sBlueprint and GetGameTimeSeconds() <= 300 or GetGameTimeSeconds() - (tLZOrWZTeamData[M28Map.refiTimeLastShowedBuildLocationFailure] or -300) >= 300 then
                                             --Couldnt find a build locaiton, but might be valid particularly later in the game or on small island maps, so only show as a warning message every 5m
-                                            M28Utilities.ErrorHandler('Unable to find build location, iActionToAssign='..(iActionToAssign or 'nil')..'; P'..(iPlateauOrPond or 'nil')..'Z'..(iLandOrWaterZone or 'nil')..'; sBlueprint='..(sBlueprint or 'nil'), true)
-                                            tLZOrWZTeamData[M28Map.refiTimeLastShowedBuildLocationFailure] = GetGameTimeSeconds()
+                                            local Game = import("/lua/game.lua")
+                                            if not(Game.IsRestricted(sBlueprint, M28Team.GetFirstActiveM28Brain(iTeam))) then
+                                                M28Utilities.ErrorHandler('Unable to find build location, iActionToAssign='..(iActionToAssign or 'nil')..'; P'..(iPlateauOrPond or 'nil')..'Z'..(iLandOrWaterZone or 'nil')..'; sBlueprint='..(sBlueprint or 'nil'), true)
+                                                --Note - campaign maps where building mex - reason may be that all the mex locations remaining are outside of the playable area
+                                                tLZOrWZTeamData[M28Map.refiTimeLastShowedBuildLocationFailure] = GetGameTimeSeconds()
+                                            end
                                         end
                                     end
                                 elseif sBlueprint then
