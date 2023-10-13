@@ -173,6 +173,7 @@ function ACUActionBuildFactory(aiBrain, oACU, iPlateauOrZero, iLandOrWaterZone, 
             iSearchSegments = math.max(iSearchSegments, iTotalSegments * 0.75 - iSegmentStart)
         end
     end
+    iSearchSegments = math.floor(iSearchSegments)
     if M28Overseer.refiRoughTotalUnitsInGame <= 500 then iSearchSegments = iSearchSegments * 2 end
 
     if bDebugMessages == true then LOG(sFunctionRef..': Will try and search for '..iSearchSegments..' in iLandOrWaterZone='..iLandOrWaterZone..' so ACU is picking from best location for factory') end

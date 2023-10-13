@@ -1375,6 +1375,7 @@ function ManageSpecificWaterZone(aiBrain, iTeam, iPond, iWaterZone)
 
         for iUnit, oUnit in tWZTeamData[M28Map.subreftoLZOrWZAlliedUnits] do
             if oUnit:GetFractionComplete() == 1 then
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Active raider='..tostring((oUnit[refbActiveRaider] or false))..'; oUnit[M28ACU.refbTreatingAsACU]='..tostring((oUnit[M28ACU.refbTreatingAsACU] or false))..'; Water zone='..iWaterZone..'; Time='..GetGameTimeSeconds()) end
                 if oUnit[refbActiveRaider] then
                     --Consider if want shielding or stealth
                     RecordIfUnitWantsShieldOrStealth(oUnit)
@@ -4474,7 +4475,7 @@ function RefreshRaidingNavalLocations(iFactoryWaterZone, iTeam)
         local iHighestAcceptableRange = tAcceptableRangesByTech[(tStartWZTeamData[M28Map.refiRaidTechLevel] or 0)]
         local iMaxNavalThreat = tiMaxThreatByTech[(tStartWZTeamData[M28Map.refiRaidTechLevel] or 0)]
         local aiBrain = M28Team.GetFirstActiveM28Brain(iTeam)
-
+        local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
         function GetAdjacentZoneToTarget(iWaterZone)
             if bDebugMessages == true then LOG(sFunctionRef..': Considering land zones adjacent to iWaterZone '..iWaterZone..'; Pond for this zone='..M28Map.tiPondByWaterZone[iWaterZone]..'; iStartPond='..iStartPond) end
             if M28Map.tiPondByWaterZone[iWaterZone] == iStartPond then
@@ -4491,84 +4492,90 @@ function RefreshRaidingNavalLocations(iFactoryWaterZone, iTeam)
                                 if not(tbPlateauAndLandZonesConsidered[iCurPlateau]) then tbPlateauAndLandZonesConsidered[iCurPlateau] = {} end
                                 tbPlateauAndLandZonesConsidered[iCurPlateau][iCurLandZone] = true
                                 local tCurLZData = M28Map.tAllPlateaus[iCurPlateau][M28Map.subrefPlateauLandZones][iCurLandZone]
-                                local tCurLZTeamData = tCurLZData[M28Map.subrefLZTeamData][iTeam]                                
-                                local iZoneEnemyStructureMassValue = 0
-                                local tZoneStructures
-                                if M28Utilities.IsTableEmpty(tCurLZTeamData[M28Map.subrefTEnemyUnits]) == false then
-                                    tZoneStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tCurLZTeamData[M28Map.subrefTEnemyUnits])
-                                    if M28Utilities.IsTableEmpty(tZoneStructures) == false then
-                                        iZoneEnemyStructureMassValue = M28UnitInfo.GetCombatThreatRating(tZoneStructures, true, true)
-                                        local tMexes = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tZoneStructures)
-                                        if M28Utilities.IsTableEmpty(tMexes) == false then
-                                            iZoneEnemyStructureMassValue = iZoneEnemyStructureMassValue + 300 * table.getn(tMexes)
+                                if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tCurLZData[M28Map.subrefMidpoint]) then
+                                    local tCurLZTeamData = tCurLZData[M28Map.subrefLZTeamData][iTeam]
+                                    local iZoneEnemyStructureMassValue = 0
+                                    local tZoneStructures
+                                    if M28Utilities.IsTableEmpty(tCurLZTeamData[M28Map.subrefTEnemyUnits]) == false then
+                                        tZoneStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tCurLZTeamData[M28Map.subrefTEnemyUnits])
+                                        if M28Utilities.IsTableEmpty(tZoneStructures) == false then
+                                            iZoneEnemyStructureMassValue = M28UnitInfo.GetCombatThreatRating(tZoneStructures, true, true)
+                                            local tMexes = EntityCategoryFilterDown(M28UnitInfo.refCategoryMex, tZoneStructures)
+                                            if M28Utilities.IsTableEmpty(tMexes) == false then
+                                                iZoneEnemyStructureMassValue = iZoneEnemyStructureMassValue + 300 * table.getn(tMexes)
+                                            end
                                         end
                                     end
-                                end
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to target plateau '..iCurPlateau..'; LZ'..iCurLandZone..'; Friendly LZ S value='..(tCurLZTeamData[M28Map.subrefLZSValue] or 0)..'; Is table of mex locations empty='..tostring(M28Utilities.IsTableEmpty(tCurLZData[M28Map.subrefLZMexLocations]))..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tCurLZTeamData[M28Map.subrefTEnemyUnits]))..'; iZoneEnemyStructureMassValue='..iZoneEnemyStructureMassValue..'; iStructureValueWanted='..iStructureValueWanted) end
-                                if iZoneEnemyStructureMassValue >= 10 and iStructureValueWanted then
-                                    --Check enemy has mexes or high S value
-                                    if iZoneEnemyStructureMassValue >= iStructureValueWanted or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryPD, tCurLZTeamData[M28Map.subrefTEnemyUnits])) == false then
-                                        --Check the enemy range isn't too much
-                                        local iShortestRangeRequired = math.max((tCurLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0), (tCurLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] or 0), (tCurLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0))
-                                        if bDebugMessages == true then LOG(sFunctionRef..': iShortestRangeRequired='..iShortestRangeRequired..'; Best mobile DF range='..tCurLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange]..'; Best indirect='..tCurLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange]..'; Best structureDF='..tCurLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange]..'; iHighestAcceptableRange='..iHighestAcceptableRange) end
-                                        if iShortestRangeRequired <= iHighestAcceptableRange then
-                                            --Determine the water zone path to get here, and the enemy water threat along that path
-                                            local tWZPath = GetWaterZonePathToWaterOrAdjacentLandZone(iFactoryWaterZone, iCurPlateau, iCurLandZone)
-                                            if bDebugMessages == true then LOG(sFunctionRef..': Is  tWZPath empty='..tostring(M28Utilities.IsTableEmpty(tWZPath))) end
-                                            if M28Utilities.IsTableEmpty(tWZPath) == false then
-                                                local iEnemyThreat = (tCurWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
-                                                for iEntry, iPathZone in tWZPath do
-                                                    local tWZPathData = M28Map.tPondDetails[iStartPond][M28Map.subrefPondWaterZones][iPathZone]
-                                                    local tWZPathTeamData = tWZPathData[M28Map.subrefWZTeamData][iTeam]
-                                                    iEnemyThreat = iEnemyThreat + (tWZPathTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
-                                                    if iEnemyThreat > iMaxNavalThreat then break end
-
-                                                end
-                                                if bDebugMessages == true then LOG(sFunctionRef..'; iEnemyThreat='..iEnemyThreat..'; iMaxNavalThreat='..iMaxNavalThreat) end
-                                                if iEnemyThreat <= iMaxNavalThreat then
-                                                    --No significant water threat, consider the closest enemy building to the last water zone path entry, and the max range required to attack.  To keep things simple, for now will only consider the closest unit and if shot is blocked for it (rather than every unit)
-                                                    local tEnemyStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tCurLZTeamData[M28Map.subrefTEnemyUnits])
-                                                    if M28Conditions.IsTableOfUnitsStillValid(tEnemyStructures) then
-                                                        --Want both the closest and furthest unti since on some islands units might be at the rear of the island so furthest from our water zone, yet close to water, hence still worth considering as a target
-                                                        local oClosestEnemyStructure -- = M28Utilities.GetNearestUnit(tEnemyStructures, tCurWZData[M28Map.subrefMidpoint])
-                                                        local oFurthestEnemyStructure, iCurDist
-                                                        local iClosestDist = 10000
-                                                        local iFurthestDist = 0
-                                                        for iUnit, oUnit in tEnemyStructures do
-                                                            iCurDist = M28Utilities.GetDistanceBetweenPositions(tCurWZData[M28Map.subrefMidpoint], oUnit:GetPosition())
-                                                            if iCurDist < iClosestDist then
-                                                                oClosestEnemyStructure = oUnit
-                                                                iClosestDist = iCurDist
-                                                            end
-                                                            if iCurDist > iFurthestDist then
-                                                                iFurthestDist = iCurDist
-                                                                oFurthestEnemyStructure = oUnit
-                                                            end
+                                    if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to target plateau '..iCurPlateau..'; LZ'..iCurLandZone..'; Friendly LZ S value='..(tCurLZTeamData[M28Map.subrefLZSValue] or 0)..'; Is table of mex locations empty='..tostring(M28Utilities.IsTableEmpty(tCurLZData[M28Map.subrefLZMexLocations]))..'; Is table of enemy units empty='..tostring(M28Utilities.IsTableEmpty(tCurLZTeamData[M28Map.subrefTEnemyUnits]))..'; iZoneEnemyStructureMassValue='..iZoneEnemyStructureMassValue..'; iStructureValueWanted='..iStructureValueWanted) end
+                                    if iZoneEnemyStructureMassValue >= 10 and iStructureValueWanted then
+                                        --Check enemy has mexes or high S value
+                                        if iZoneEnemyStructureMassValue >= iStructureValueWanted or M28Utilities.IsTableEmpty(EntityCategoryFilterDown(M28UnitInfo.refCategoryMex + M28UnitInfo.refCategoryPD, tCurLZTeamData[M28Map.subrefTEnemyUnits])) == false then
+                                            --Check the enemy range isn't too much
+                                            local iShortestRangeRequired = math.max((tCurLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange] or 0), (tCurLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange] or 0), (tCurLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange] or 0))
+                                            if bDebugMessages == true then LOG(sFunctionRef..': iShortestRangeRequired='..iShortestRangeRequired..'; Best mobile DF range='..tCurLZTeamData[M28Map.subrefLZThreatEnemyBestMobileDFRange]..'; Best indirect='..tCurLZTeamData[M28Map.subrefLZThreatEnemyBestMobileIndirectRange]..'; Best structureDF='..tCurLZTeamData[M28Map.subrefLZThreatEnemyBestStructureDFRange]..'; iHighestAcceptableRange='..iHighestAcceptableRange) end
+                                            if iShortestRangeRequired <= iHighestAcceptableRange then
+                                                --Determine the water zone path to get here, and the enemy water threat along that path
+                                                local tWZPath = GetWaterZonePathToWaterOrAdjacentLandZone(iFactoryWaterZone, iCurPlateau, iCurLandZone)
+                                                if bDebugMessages == true then LOG(sFunctionRef..': Is  tWZPath empty='..tostring(M28Utilities.IsTableEmpty(tWZPath))) end
+                                                if M28Utilities.IsTableEmpty(tWZPath) == false then
+                                                    local iEnemyThreat = (tCurWZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
+                                                    local bPathInPlayableArea = true
+                                                    for iEntry, iPathZone in tWZPath do
+                                                        local tWZPathData = M28Map.tPondDetails[iStartPond][M28Map.subrefPondWaterZones][iPathZone]
+                                                        local tWZPathTeamData = tWZPathData[M28Map.subrefWZTeamData][iTeam]
+                                                        iEnemyThreat = iEnemyThreat + (tWZPathTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 0)
+                                                        if iEnemyThreat > iMaxNavalThreat then break end
+                                                        if not(bDontCheckPlayableArea) and not(M28Conditions.IsLocationInPlayableArea(tWZPathData[M28Map.subrefMidpoint])) then
+                                                            bPathInPlayableArea = false
+                                                            break
                                                         end
-                                                        if M28UnitInfo.IsUnitValid(oClosestEnemyStructure) then
-                                                            iWZForShot = nil
-                                                            if oClosestEnemyStructure == oFurthestEnemyStructure then
-                                                                iAltMinRangeRequired, iWZForShot = GetMinDFDistanceForShotFromWaterToHitUnit(aiBrain, tCurWZData[M28Map.subrefMidpoint], iStartPond, oClosestEnemyStructure, iHighestAcceptableRange)
-                                                                iShortestRangeRequired = math.max(iShortestRangeRequired, iAltMinRangeRequired)
-                                                            else
-                                                                iAltMinRangeRequired, iWZForShot = GetMinDFDistanceForShotFromWaterToHitUnit(aiBrain, tCurWZData[M28Map.subrefMidpoint], iStartPond, oClosestEnemyStructure, iHighestAcceptableRange)
-                                                                iSecondAltMinRangeRequired, iSecondWZForShot = GetMinDFDistanceForShotFromWaterToHitUnit(aiBrain, tCurWZData[M28Map.subrefMidpoint], iStartPond, oFurthestEnemyStructure, iHighestAcceptableRange)
-                                                                if iWZForShot == iSecondWZForShot then
-                                                                    --Want the lowest range of the two options
-                                                                    iShortestRangeRequired = math.max(iShortestRangeRequired, math.min(iAltMinRangeRequired, iSecondAltMinRangeRequired))
-                                                                elseif (iAltMinRangeRequired <= 150 and iSecondAltMinRangeRequired > 150) then
-                                                                    --Want the first choice
-                                                                    iShortestRangeRequired = math.max(iShortestRangeRequired, iAltMinRangeRequired)
-                                                                elseif (iSecondAltMinRangeRequired <= 150 and iAltMinRangeRequired > 150) then
-                                                                    iWZForShot = iSecondWZForShot
-                                                                    iShortestRangeRequired = math.max(iShortestRangeRequired, iSecondAltMinRangeRequired)
+                                                    end
+                                                    if bDebugMessages == true then LOG(sFunctionRef..'; iEnemyThreat='..iEnemyThreat..'; iMaxNavalThreat='..iMaxNavalThreat) end
+                                                    if iEnemyThreat <= iMaxNavalThreat and bPathInPlayableArea then
+                                                        --No significant water threat, consider the closest enemy building to the last water zone path entry, and the max range required to attack.  To keep things simple, for now will only consider the closest unit and if shot is blocked for it (rather than every unit)
+                                                        local tEnemyStructures = EntityCategoryFilterDown(M28UnitInfo.refCategoryStructure, tCurLZTeamData[M28Map.subrefTEnemyUnits])
+                                                        if M28Conditions.IsTableOfUnitsStillValid(tEnemyStructures) then
+                                                            --Want both the closest and furthest unti since on some islands units might be at the rear of the island so furthest from our water zone, yet close to water, hence still worth considering as a target
+                                                            local oClosestEnemyStructure -- = M28Utilities.GetNearestUnit(tEnemyStructures, tCurWZData[M28Map.subrefMidpoint])
+                                                            local oFurthestEnemyStructure, iCurDist
+                                                            local iClosestDist = 10000
+                                                            local iFurthestDist = 0
+                                                            for iUnit, oUnit in tEnemyStructures do
+                                                                iCurDist = M28Utilities.GetDistanceBetweenPositions(tCurWZData[M28Map.subrefMidpoint], oUnit:GetPosition())
+                                                                if iCurDist < iClosestDist then
+                                                                    oClosestEnemyStructure = oUnit
+                                                                    iClosestDist = iCurDist
+                                                                end
+                                                                if iCurDist > iFurthestDist then
+                                                                    iFurthestDist = iCurDist
+                                                                    oFurthestEnemyStructure = oUnit
                                                                 end
                                                             end
-                                                            if bDebugMessages == true then LOG(sFunctionRef..': oClosestEnemyStructure='..oClosestEnemyStructure.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemyStructure)..'; iShortestRangeRequired='..iShortestRangeRequired..'; iHighestAcceptableRange='..iHighestAcceptableRange..'; oFurthestEnemyStructure='..oFurthestEnemyStructure.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFurthestEnemyStructure)) end
-                                                            if iShortestRangeRequired <= iHighestAcceptableRange then
-                                                                tStartWZTeamData[M28Map.refoLastRaidTarget] = oClosestEnemyStructure
-                                                                if bDebugMessages == true then LOG(sFunctionRef..': Have a valid target for raiding, iWZForShot='..iWZForShot) end
-                                                                return iCurPlateau, iCurLandZone, iShortestRangeRequired, iWZForShot
+                                                            if M28UnitInfo.IsUnitValid(oClosestEnemyStructure) and (bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(oClosestEnemyStructure:GetPosition())) then
+                                                                iWZForShot = nil
+                                                                if oClosestEnemyStructure == oFurthestEnemyStructure then
+                                                                    iAltMinRangeRequired, iWZForShot = GetMinDFDistanceForShotFromWaterToHitUnit(aiBrain, tCurWZData[M28Map.subrefMidpoint], iStartPond, oClosestEnemyStructure, iHighestAcceptableRange)
+                                                                    iShortestRangeRequired = math.max(iShortestRangeRequired, iAltMinRangeRequired)
+                                                                else
+                                                                    iAltMinRangeRequired, iWZForShot = GetMinDFDistanceForShotFromWaterToHitUnit(aiBrain, tCurWZData[M28Map.subrefMidpoint], iStartPond, oClosestEnemyStructure, iHighestAcceptableRange)
+                                                                    iSecondAltMinRangeRequired, iSecondWZForShot = GetMinDFDistanceForShotFromWaterToHitUnit(aiBrain, tCurWZData[M28Map.subrefMidpoint], iStartPond, oFurthestEnemyStructure, iHighestAcceptableRange)
+                                                                    if iWZForShot == iSecondWZForShot then
+                                                                        --Want the lowest range of the two options
+                                                                        iShortestRangeRequired = math.max(iShortestRangeRequired, math.min(iAltMinRangeRequired, iSecondAltMinRangeRequired))
+                                                                    elseif (iAltMinRangeRequired <= 150 and iSecondAltMinRangeRequired > 150) then
+                                                                        --Want the first choice
+                                                                        iShortestRangeRequired = math.max(iShortestRangeRequired, iAltMinRangeRequired)
+                                                                    elseif (iSecondAltMinRangeRequired <= 150 and iAltMinRangeRequired > 150) then
+                                                                        iWZForShot = iSecondWZForShot
+                                                                        iShortestRangeRequired = math.max(iShortestRangeRequired, iSecondAltMinRangeRequired)
+                                                                    end
+                                                                end
+                                                                if bDebugMessages == true then LOG(sFunctionRef..': oClosestEnemyStructure='..oClosestEnemyStructure.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemyStructure)..'; iShortestRangeRequired='..iShortestRangeRequired..'; iHighestAcceptableRange='..iHighestAcceptableRange..'; oFurthestEnemyStructure='..oFurthestEnemyStructure.UnitId..M28UnitInfo.GetUnitLifetimeCount(oFurthestEnemyStructure)) end
+                                                                if iShortestRangeRequired <= iHighestAcceptableRange then
+                                                                    tStartWZTeamData[M28Map.refoLastRaidTarget] = oClosestEnemyStructure
+                                                                    if bDebugMessages == true then LOG(sFunctionRef..': Have a valid target for raiding, iWZForShot='..iWZForShot) end
+                                                                    return iCurPlateau, iCurLandZone, iShortestRangeRequired, iWZForShot
+                                                                end
                                                             end
                                                         end
                                                     end
@@ -4719,10 +4726,9 @@ function ManageWaterZoneRaiders(iFactoryWaterZone, iTeam, tFactoryWZData, tFacto
                 --Clear raiders
                 local tRaiderTable = tFactoryWZTeamData[M28Map.reftoWZRaiders]
                 for iCurRaider = table.getn(tFactoryWZTeamData[M28Map.reftoWZRaiders]), 1, -1 do
+                    bDebugMessages = true
+                    if bDebugMessages == true then LOG(sFunctionRef..'; Removing unit '..(tFactoryWZTeamData[M28Map.reftoWZRaiders][iCurRaider].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tFactoryWZTeamData[M28Map.reftoWZRaiders][iCurRaider]) or 'nil')..' from table of active raiders') end
                     RemoveUnitFromRaiders(tFactoryWZTeamData[M28Map.reftoWZRaiders], iCurRaider)
-                end
-                for iRaider, oRaider in tFactoryWZTeamData[M28Map.reftoWZRaiders] do
-                    oRaider[refbActiveRaider] = false
                 end
                 tFactoryWZTeamData[M28Map.reftoWZRaiders] = { }
                 if bDebugMessages == true then LOG(sFunctionRef..': Cleared table of raiders') end
@@ -4834,13 +4840,15 @@ function AddUnitToRaiders(oRaider, iFactoryWaterZone, iTeam, tFactoryWZTeamData)
     local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
     local sFunctionRef = 'AddUnitToRaiders'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
-
     oRaider[refbActiveRaider] = true
     oRaider[refiWZOfFactory] = iFactoryWaterZone --redundancy (are already setting when unit is created)
     if not(tFactoryWZTeamData[M28Map.reftoWZRaiders]) then
         tFactoryWZTeamData[M28Map.reftoWZRaiders] = {}
     end
     table.insert(tFactoryWZTeamData[M28Map.reftoWZRaiders], oRaider)
+    if bDebugMessages == true then
+        LOG(sFunctionRef..': Just added raider '..oRaider.UnitId..M28UnitInfo.GetUnitLifetimeCount(oRaider)..' to table of raiders for iFactoryWaterZone='..iFactoryWaterZone..'; Time='..GetGameTimeSeconds())
+    end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
@@ -4857,21 +4865,23 @@ function ConsiderAssigningRaidingNavalUnit(oRaider, oFactory)
         local tFactoryWZTeamData = tFactoryWZData[M28Map.subrefWZTeamData][iTeam]
         RefreshRaidingNavalLocations(iFactoryWaterZone, iTeam)
         local iLifetimeCount = M28UnitInfo.GetUnitLifetimeCount(oRaider)
-        --Assign every 4th unit to bombardment
+        --Assign every 4th unit to bombardment if we have somewhere to bombard
         if math.floor(iLifetimeCount / 4) == iLifetimeCount / 4 then
             tFactoryWZTeamData[M28Map.refiRaidTechLevel] = math.max((tFactoryWZTeamData[M28Map.refiRaidTechLevel] or 0), M28UnitInfo.GetUnitTechLevel(oRaider))
             oRaider[refiWZOfFactory] = iFactoryWaterZone --so this unit will be considered for raiding later if its range becomes sufficient
             --Does this unit have sufficient range to be a bombardment unit?
             --[[refiClosestRaidingPlateauAndLandZone = 'WZClRLZ' --returns {Plateau, LandZone} if htere is a land zone we want to consider as a raiding target
             --            refiMinRangeRaidingZone = 'WZClRng' --returns the min range we want raiding naval units to have to join the raid on the land zone--]]
-            if tFactoryWZTeamData[M28Map.refiClosestRaidingPlateauAndLandZone] and oRaider[M28UnitInfo.refiCombatRange] >= tFactoryWZTeamData[M28Map.refiMinRangeRaidingZone] then
+            if M28Utilities.IsTableEmpty(tFactoryWZTeamData[M28Map.refiClosestRaidingPlateauAndLandZone]) == false and oRaider[M28UnitInfo.refiCombatRange] >= tFactoryWZTeamData[M28Map.refiMinRangeRaidingZone] then
                 AddUnitToRaiders(oRaider, iFactoryWaterZone, iTeam, tFactoryWZTeamData)
             end
         end
-        ManageWaterZoneRaiders(iFactoryWaterZone, iTeam, tFactoryWZData, tFactoryWZTeamData) --So we can pick up any former raiders that are now available for raiding
-        if not(tFactoryWZTeamData[M28Map.refbActiveRaiderLogic]) then --check units in this zone in case we have overlooked any (e.g. due to logic previously resetting)
+        if not(tFactoryWZTeamData[M28Map.refbActiveRaiderLogic]) and M28Utilities.IsTableEmpty(tFactoryWZTeamData[M28Map.refiClosestRaidingPlateauAndLandZone]) == false then --check units in this zone in case we have overlooked any (e.g. due to logic previously resetting)
             CheckWaterZoneForRaiders(iFactoryWaterZone, tFactoryWZTeamData, iFactoryWaterZone, tFactoryWZTeamData, iTeam)
         end
+
+        ManageWaterZoneRaiders(iFactoryWaterZone, iTeam, tFactoryWZData, tFactoryWZTeamData) --So we can pick up any former raiders that are now available for raiding
+
     end
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end

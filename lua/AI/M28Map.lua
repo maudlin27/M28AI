@@ -7771,7 +7771,7 @@ function RefreshCampaignStartPositionsAfterDelay(iDelayInSeconds)
                                 for iPlateau, tZones in tbPlateauAndZoneShortlist do
                                     for iZone, bInclude in tZones do
                                         local tLZData = tAllPlateaus[iPlateau][subrefPlateauLandZones][iZone]
-                                        iCurDist = M28Utilities.GetDistanceBetweenPositions(tLZData[subrefMidpoint], tStartLZData[subrefMidpoint])
+                                        iCurDist = M28Utilities.GetDistanceBetweenPositions(tLZData[subrefMidpoint], tCurStartLZData[subrefMidpoint])
                                         if iCurDist < iClosestDistAnyPlateau then
                                             iClosestDistAnyPlateau = iCurDist
                                             tiClosestplateauAndZoneAnyPlateau = {iPlateau, iZone}
