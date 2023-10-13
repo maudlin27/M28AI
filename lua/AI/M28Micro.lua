@@ -568,23 +568,32 @@ function TrackTemporaryUnitMicro(oUnit, iSecondsActiveFor, sAdditionalTrackingVa
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
-function ForkedResetMicroFlag(oUnit, iTimeToWait, sAdditionalTrackingVar)
+function ForkedResetMicroFlag(oUnit, iTimeToWait, sAdditionalTrackingVar, bCalledFromResetChecker)
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'ForkedResetMicroFlag'
+
+
     oUnit[M28UnitInfo.refbSpecialMicroActive] = true --As if we are calling an action for the micro that clears commands, then that will reset the micro flag
     WaitSeconds(iTimeToWait)
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
     if M28UnitInfo.IsUnitValid(oUnit) then
+        if bDebugMessages == true then LOG(sFunctionRef..': Checking if micro flag can be reset to false for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time='..GetGameTimeSeconds()..'; Time to reset flag='..(oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] or 'nil')) end
         if GetGameTimeSeconds() + 0.02 > oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] or not(oUnit[M28UnitInfo.refbSpecialMicroActive]) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Have reset flag') end
             oUnit[refbMicroResetChecker] = nil
             oUnit[M28UnitInfo.refbSpecialMicroActive] = false
             if sAdditionalTrackingVar then
                 oUnit[sAdditionalTrackingVar] = false
             end
         else
-            if not(oUnit[refbMicroResetChecker]) then
+            if bDebugMessages == true then LOG(sFunctionRef..': Will try waiting one more cycle to see if we need to reset the flag unless already got an active reset checker, MicroResetChecker='..tostring(oUnit[refbMicroResetChecker] or false)) end
+            if not(oUnit[refbMicroResetChecker]) or bCalledFromResetChecker then
                 oUnit[refbMicroResetChecker] = true
-                ForkThread(ForkedResetMicroFlag,oUnit, oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] - GetGameTimeSeconds() + 0.01, sAdditionalTrackingVar)
+                ForkThread(ForkedResetMicroFlag,oUnit, math.max(oUnit[M28UnitInfo.refiGameTimeToResetMicroActive] - GetGameTimeSeconds() - 0.01, 0.2), sAdditionalTrackingVar, true)
             end
         end
     end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
 
 function ForkedMoveInCircle(oUnit, iTimeToRun, bDontTreatAsMicroAction, bDontClearCommandsFirst, iCircleSizeOverride, iTickWaitOverride)
