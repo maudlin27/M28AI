@@ -3187,7 +3187,7 @@ function GetBlueprintToBuildForAirFactory(aiBrain, oFactory)
                 --AirAA if far behind on air (lower priority since we are alreayd building in proportion to gunships above; i.e. dont want to get stuck only building airaa if have lost air control
                 iCurrentConditionToTry = iCurrentConditionToTry + 1
                 if bDebugMessages == true then LOG(sFunctionRef..': AirAA if far behind on air, iCurrentConditionToTry='..iCurrentConditionToTry..'; are we far behind='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir])) end
-                if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] and (iAirAACountOfSearchCategory < 20 or (iCurGunships >= iAirAACountOfSearchCategory * 0.25 and (not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies]) or M28Team.tAirSubteam[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] >= 2500))) then
+                if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbFarBehindOnAir] and (iAirAACountOfSearchCategory < 20 or (iCurGunships >= iAirAACountOfSearchCategory * 0.25 and (not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbNoAvailableTorpsForEnemies]) or (M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurTorpBomberThreat] or 0) >= 2500))) then
                     if iFactoryTechLevel >= 3 or not(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOnlyGetASFs]) then
                         if ConsiderBuildingCategory(M28UnitInfo.refCategoryAirAA) then return sBPIDToBuild end
                     end

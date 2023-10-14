@@ -145,7 +145,7 @@ function IssueTrackedClearCommands(oUnit)
     end
 
     --Clear orders:
-    --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'url01058' then --and oUnit:GetAIBrain():GetArmyIndex() == 2 then --and oUnit:GetAIBrain():GetArmyIndex() == 6 then
+    --[[if oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit) == 'ual0001' and oUnit:IsUnitState('Upgrading') then --and oUnit:GetAIBrain():GetArmyIndex() == 2 then --and oUnit:GetAIBrain():GetArmyIndex() == 6 then
         LOG('Just about to issuedclearcommands to unit'..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' at time '..GetGameTimeSeconds()..'; Unit state before clearing='..M28UnitInfo.GetUnitState(oUnit))
         M28Utilities.ErrorHandler('Audit trail', true, true)
     end--]]
@@ -693,6 +693,17 @@ function IssueTrackedEnhancement(oUnit, sUpgradeRef, bAddToExistingQueue, sOptio
             M28Team.UpdateUpgradeTrackingOfUnit(oUnit, false, sUpgradeRef)
             if oUnit[refiTimeOfLastRemovalUpgrade] and GetGameTimeSeconds() - oUnit[refiTimeOfLastRemovalUpgrade] <= 1 then
                 ForkThread(DelayedUpgradeTracking, oUnit, sUpgradeRef)
+            end
+
+            --Campaign specific - remove unit from platoon if it has one
+            if M28Map.bIsCampaignMap and oUnit:GetAIBrain().CampaignAI then
+                local oExistingPlatoon = oUnit.PlatoonHandle
+                if bDebugMessages == true then LOG(sFunctionRef..': Considering if have existing platoon for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; oExistingPlatoon is nil?='..tostring(oExistingPlatoon == nil)..'; Is getplan nil='..tostring(oExistingPlatoon.GetPlan == nil)) end
+                if oExistingPlatoon then
+                    local M28Overseer = import('/mods/M28AI/lua/AI/M28Overseer.lua')
+                    M28Overseer.RemoveUnitsFromPlatoon(oExistingPlatoon, { oUnit }, false, nil)
+                    if bDebugMessages == true then LOG(sFunctionRef..': Tried to remove unit from existing platoon') end
+                end
             end
         end
 

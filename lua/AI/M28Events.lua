@@ -1195,7 +1195,7 @@ function OnConstructed(oEngineer, oJustBuilt)
                             ForkThread(M28Building.GetT3ArtiTarget, oJustBuilt)
                         elseif EntityCategoryContains(M28UnitInfo.refCategoryPD * categories.TECH1 + M28UnitInfo.refCategoryWall, oJustBuilt.UnitId) then
                             --Build T1 walls around T1 PD
-                                                    --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition,                                           oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
+                            --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition,                                           oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
                             local sWallBP = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28Engineer.tiActionCategory[M28Engineer.refActionBuildWall], oEngineer)
                             if sWallBP then
                                 local tWallBuildLocation = M28Engineer.GetLocationToBuildWall(oEngineer, oJustBuilt, sWallBP)
@@ -1339,6 +1339,21 @@ function OnConstructed(oEngineer, oJustBuilt)
                     --Unit cap - refresh if are within 25 of the cap since it isnt accurate if have current units
                     if M28UnitInfo.IsUnitValid(oJustBuilt) and aiBrain[M28Overseer.refbCloseToUnitCap] and aiBrain[M28Overseer.refiExpectedRemainingCap] <= 25 then
                         M28Overseer.CheckUnitCap(aiBrain)
+                    end
+
+                    --air fac restriction - review if campaign in case things have changed if are dealing with the player (dont do for campaign AI though as they sometimes have different settings)
+                    if M28Overseer.bAirFactoriesCantBeBuilt and M28Map.bIsCampaignMap and not(aiBrain.CampaignAI) then
+                        local tACUs = aiBrain:GetListOfUnits(categories.COMMAND, false, true)
+                        if M28Utilities.IsTableEmpty(tACUs) == false then
+                            local sAirFac = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryAirFactory, tACUs[1])
+                            if bDebugMessages == true then
+                                LOG(sFunctionRef..': Just built '..oJustBuilt.UnitId..M28UnitInfo.GetUnitLifetimeCount(oJustBuilt)..'; Time='..GetGameTimeSeconds()..'; sAirFac='..(sAirFac or 'nil'))
+                                if sAirFac then LOG(sFunctionRef..': Is sAirFac restricted='..tostring(import("/lua/game.lua").IsRestricted(sAirFac, aiBrain:GetArmyIndex()))) end
+                            end
+                            if sAirFac and not(import("/lua/game.lua").IsRestricted(sAirFac, aiBrain:GetArmyIndex())) then
+                                M28Overseer.bAirFactoriesCantBeBuilt = false
+                            end
+                        end
                     end
 
                     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
@@ -1838,6 +1853,7 @@ function CaptureTriggerAdded(FunctionForOldUnit, FunctionForNewUnit, oUnit)
             if M28Utilities.IsTableEmpty(M28Overseer.tAllActiveM28Brains) == false then
                 for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
                     aiBrain = oBrain
+                    if not(oBrain.CampaignAI) then break end
                 end
                 if not(IsAlly(aiBrain:GetArmyIndex(), oUnit:GetAIBrain():GetArmyIndex())) then
                     if bDebugMessages == true then LOG(sFunctionRef..': Unit is not an ally so will record as a capture target') end
@@ -1883,13 +1899,14 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                     local oFirstM28Brain
                     for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
                         oFirstM28Brain = oBrain
-                        break
+                        if not(oBrain.CampaignAI) then
+                            break
+                        end
                     end
                     local iTeam = oFirstM28Brain.M28Team
-
                     local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(Target.Units[1]:GetPosition(), true, iTeam)
                     tUnitLZTeamData[M28Map.subrefLZFortify] = true
-                    if bDebugMessages == true then LOG(sFunctionRef..': flagged to fortify zone') end
+                    if bDebugMessages == true then LOG(sFunctionRef..': flagged to fortify zone for unit '..Target.Units[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(Target.Units[1])..' at position '..repru(Target.Units[1]:GetPosition())..'; iTeam='..iTeam) end
                 end
             end
         elseif M28Utilities.IsTableEmpty(Target.Units) == false then
@@ -1898,7 +1915,9 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
             local oFirstM28Brain
             for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
                 oFirstM28Brain = oBrain
-                break
+                if not(oBrain.CampaignAI) then
+                    break
+                end
             end
             local iTeam = oFirstM28Brain.M28Team
             local tUnitsToRepair = {}
@@ -1945,7 +1964,9 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                 for iBrain, oBrain in ArmyBrains do
                     if oBrain.M28AI then
                         iTeam = oBrain.M28Team
-                        break
+                        if not(oBrain.CampaignAI) then
+                            break
+                        end
                     end
                 end
                 for iEntry, oUnit in tUnitsToRepair do
@@ -1983,7 +2004,7 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                                         end
                                     end
                                 end
-                                if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to add location as a drop zone target, bAdjacentToCoreBase='..tostring(bAdjacentToCoreBase)) end
+                                if bDebugMessages == true then LOG(sFunctionRef..': Considering whether to add location as a drop zone target, bAdjacentToCoreBase='..tostring(bAdjacentToCoreBase)..'; iTeam='..iTeam) end
                                 if not(bAdjacentToCoreBase) then
                                     --Add to locations for priority transport drop
                                     M28Air.UpdateTransportLocationShortlist(iTeam) --incase not already run
@@ -1999,13 +2020,18 @@ function ObjectiveAdded(Type, Complete, Title, Description, ActionImage, Target,
                     local oFirstM28Brain
                     for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
                         oFirstM28Brain = oBrain
-                        break
+                        if not(oFirstM28Brain.CampaignAI) then
+                            break
+                        end
                     end
                     local iTeam = oFirstM28Brain.M28Team
 
                     local tUnitLZData, tUnitLZTeamData = M28Map.GetLandOrWaterZoneData(Target.Units[1]:GetPosition(), true, iTeam)
                     tUnitLZTeamData[M28Map.subrefLZFortify] = true
-                    if bDebugMessages == true then LOG(sFunctionRef..': flagged to fortify zone for repair target') end
+                    if bDebugMessages == true then
+                        local iPlateauOrZero, iLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(Target.Units[1]:GetPosition())
+                        LOG(sFunctionRef..': flagged to fortify zone for repair target, ='..Target.Units[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(Target.Units[1])..' at position '..repru(Target.Units[1]:GetPosition())..'; iPlateauOrZero='..(iPlateauOrZero or 'nil')..'; iLandOrWaterZone='..(iLandOrWaterZone or 'nil')..'; Fortify zone flag='..tostring(M28Map.tAllPlateaus[iPlateauOrZero][M28Map.subrefPlateauLandZones][iLandOrWaterZone][M28Map.subrefLZTeamData][iTeam][M28Map.subrefLZFortify] or false))
+                    end
                 end
             elseif bOnlyHaveAllies then
                 if bDebugMessages == true then LOG(sFunctionRef..': Only have allies so setting priority air defence target') end
@@ -2049,7 +2075,9 @@ function ReclaimTargetObjectiveAdded(Type, Complete, Title, Description, Target)
             local oFirstM28Brain
             for iBrain, oBrain in M28Overseer.tAllActiveM28Brains do
                 oFirstM28Brain = oBrain
-                break
+                if not(oBrain.CampaignAI) then
+                    break
+                end
             end
             local iPlateauOrZero, iLandOrWaterZone
             local iTeam = oFirstM28Brain.M28Team

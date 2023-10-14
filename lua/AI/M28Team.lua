@@ -214,6 +214,7 @@ tAirSubteamData = {}
     refbTooMuchGroundNavalAAForTorpBombers = 'M28TooMuchAAForTorps' --true if have avoided targeting a water zone with torps due to groundAA threat in a water zone
     refbNoAvailableTorpsForEnemies = 'M28NoAvailTorps' --true if have enemy naval unit in a wz we want to defend, and we lack available torp bombers
     reftAirSubRallyPoint = 'M28ASTRally' --Contains the location of the air subteam's rally point
+    refbOrigRallyOutsidePlayableArea = 'M28AROPa' --true if are outside playable area for air rally point
     reftAirSubSupportPoint = 'M28ASTSuppR' --Contains the location for airaa units to go to support a priority unit
     reftiTorpedoDefenceWaterZones = 'M28ASTTorpDef' --Contains water zones that want torpedo bombers to consider defending
     refoFrontGunship = 'M28ASTFrntGshp' --Front available gunship

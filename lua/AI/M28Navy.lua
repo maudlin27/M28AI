@@ -2568,7 +2568,7 @@ function AssignBombardmentActions(tWZData, iPond, iWaterZone, iTeam, tPotentialB
                                     if oClosestEnemyUnit then LOG(sFunctionRef..': oClosestEnemyUnit position='..repru(oClosestEnemyUnit:GetPosition())..'; oClosestEnemyUnit='..oClosestEnemyUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oClosestEnemyUnit)) end
                                 end
                                 if (bIgnoreLowThreats or (oUnit[M28UnitInfo.refbLastShotBlocked] and (GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastUnblockedShot] or -100)) >= 10 and GetGameTimeSeconds() - (oUnit[M28UnitInfo.refiTimeOfLastCheck] or -100) < 6)) and (not(bEnemyUnitsNearlyInRange) or M28UnitInfo.GetUnitHealthPercent(oUnit) >= 0.75) then
-                                    if oUnit[M28UnitInfo.refbLastShotBlocked] and tBlockedShotBaseMoveLocation then
+                                    if oUnit[M28UnitInfo.refbLastShotBlocked] and M28Utilities.IsTableEmpty(tBlockedShotBaseMoveLocation) == false then
                                         if bDebugMessages == true then LOG(sFunctionRef..': Checking Dist to move location='..M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBlockedShotActualMoveLocation)) end
                                         if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), tBlockedShotActualMoveLocation) <= 1.5 then --tried with <=1 but had issues with frigate on betrayal ocean not firing
                                             --Otherwise will just keep repeating order to move and end up not firing, when there's a chance firing shots might hit something (i.e. might be marginal whether hit cliff or not)

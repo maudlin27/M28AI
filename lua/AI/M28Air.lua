@@ -673,6 +673,23 @@ function GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, iCategory, bRecordInTo
     local tUnitsForRefueling = {}
     local tInUseUnits = {}
     local tSpecialLogicUnits = {}
+    local iLowFuelThreshold = 0.25
+    local iLowHealthThreshold = 0.55
+    if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOrigRallyOutsidePlayableArea] then
+
+        local oFirstBrain
+        local bHaveAirStaging = false
+        for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
+            if oBrain:GetCurrentUnits(M28UnitInfo.refCategoryAirStaging) > 0 then
+                bHaveAirStaging = true
+                break
+            end
+        end
+        if not(bHaveAirStaging) then
+            iLowFuelThreshold = 0
+            iLowHealthThreshold = 0
+        end
+    end
     for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
         if oBrain.M28AI then
             local tCurUnits = oBrain:GetListOfUnits(iCategory, false, true)
@@ -736,14 +753,14 @@ function GetAvailableLowFuelAndInUseAirUnits(iAirSubteam, iCategory, bRecordInTo
                                         iFuelPercent = oUnit:GetFuelRatio()
                                     else iFuelPercent = 1
                                     end
-                                    if iFuelPercent < 0.25 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.55 then
+                                    if iFuelPercent < iLowFuelThreshold or M28UnitInfo.GetUnitHealthPercent(oUnit) <= iLowHealthThreshold then
                                         --Send unit to refuel unless it is attacking a nearby enemy and isnt a gunship
                                         if EntityCategoryContains(M28UnitInfo.refCategoryGunship, oUnit.UnitId) or not(IsAirUnitInCombat(oUnit, iTeam)) then
                                             bSendUnitForRefueling = true
                                         end
                                     end
                                 else
-                                    if EntityCategoryContains(M28UnitInfo.refCategoryTransport, oUnit.UnitId) and oUnit:GetFuelRatio() < 0.25 and (oUnit:GetFuelRatio() < 0.05 or M28Utilities.IsTableEmpty(oUnit:GetCargo())) then
+                                    if EntityCategoryContains(M28UnitInfo.refCategoryTransport, oUnit.UnitId) and oUnit:GetFuelRatio() < iLowFuelThreshold and (oUnit:GetFuelRatio() < 0.05 or M28Utilities.IsTableEmpty(oUnit:GetCargo())) then
                                         bSendUnitForRefueling = true --will unload and ctrl-K transports that are low on fuel
                                     end
                                 end
@@ -1281,6 +1298,7 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
     --If no land zone start points, then pick the first water zone as a backup
 
     if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains]) == false then
+        local bDontCheckPlayableArea = not(M28Map.bIsCampaignMap)
         local tPreferredRallyPoint
         local iPlateau, iLandZone, iWaterZone
         local iPossibleWaterZone
@@ -1296,29 +1314,100 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                 if bDebugMessages == true then LOG(sFunctionRef..': iWaterZone='..(iWaterZone or 'nil')) end
                 if (iWaterZone or 0) > 0 then
                     local tWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iWaterZone]][M28Map.subrefPondWaterZones][iWaterZone]
-                    local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
-                    iCurRallyValue = GetRallyPointValueOfWaterZone(iTeam, tWZData, tWZTeamData)
-                    if bDebugMessages == true then LOG(sFunctionRef..': iCurRallyValue='..(iCurRallyValue)) end
-                    if iCurRallyValue > iBestRallyValue then
-                        iBestRallyValue = iCurRallyValue
-                        tPreferredRallyPoint = {tWZData[M28Map.subrefMidpoint][1], tWZData[M28Map.subrefMidpoint][2], tWZData[M28Map.subrefMidpoint][3]}
-                        if bDebugMessages == true then LOG(sFunctionRef..': Updating preferred rally point to water zone '..iWaterZone..' start point, rally point='..repru(tPreferredRallyPoint)) end
+                    if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tWZData[M28Map.subrefMidpoint]) then
+                        local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
+                        iCurRallyValue = GetRallyPointValueOfWaterZone(iTeam, tWZData, tWZTeamData)
+                        if bDebugMessages == true then LOG(sFunctionRef..': iCurRallyValue='..(iCurRallyValue)) end
+                        if iCurRallyValue > iBestRallyValue then
+                            iBestRallyValue = iCurRallyValue
+                            tPreferredRallyPoint = {tWZData[M28Map.subrefMidpoint][1], tWZData[M28Map.subrefMidpoint][2], tWZData[M28Map.subrefMidpoint][3]}
+                            if bDebugMessages == true then LOG(sFunctionRef..': Updating preferred rally point to water zone '..iWaterZone..' start point, rally point='..repru(tPreferredRallyPoint)) end
+                        end
                     end
                 end
             else
                 --Have a land zone - check for groundAA
                 local tLZData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iLandZone]
-                local tLZTeamData = tLZData[M28Map.subrefLZTeamData][oBrain.M28Team]
-                iCurRallyValue = GetRallyPointValueOfLandZone(oBrain.M28Team, tLZData, tLZTeamData, iPlateau)
-                if iCurRallyValue > iBestRallyValue then
-                    iBestRallyValue = iCurRallyValue
-                    tPreferredRallyPoint = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
-                    if bDebugMessages == true then LOG(sFunctionRef..': Updating preferred rally point to land zone start point '..repru(tPreferredRallyPoint)) end
+                if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint]) then
+                    local tLZTeamData = tLZData[M28Map.subrefLZTeamData][oBrain.M28Team]
+                    iCurRallyValue = GetRallyPointValueOfLandZone(oBrain.M28Team, tLZData, tLZTeamData, iPlateau)
+                    if iCurRallyValue > iBestRallyValue then
+                        iBestRallyValue = iCurRallyValue
+                        tPreferredRallyPoint = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
+                        if bDebugMessages == true then LOG(sFunctionRef..': Updating preferred rally point to land zone start point '..repru(tPreferredRallyPoint)) end
+                    end
                 end
             end
         end
+        M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOrigRallyOutsidePlayableArea] = false
+        if M28Utilities.IsTableEmpty(tPreferredRallyPoint) == false then
+            M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint] = tPreferredRallyPoint
+        else
+            --Dont have a rally point, find the zone closest to our base that is in the playable area
+            local oFirstBrain = M28Team.GetFirstActiveM28Brain(iTeam)
+            local tPlayerStartPosition = M28Map.PlayerStartPoints[oFirstBrain:GetArmyIndex()]
+            if M28Conditions.IsLocationInPlayableArea(tPlayerStartPosition) then
+                M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint] = {tPlayerStartPosition[1], tPlayerStartPosition[2], tPlayerStartPosition[3]}
+            else
+                local iStartPlateauOrZero, iStartLandOrWaterZone = M28Map.GetClosestPlateauOrZeroAndZoneToPosition(tPlayerStartPosition)
+                local tStartLZOrWZData
+                if iStartPlateauOrZero == 0 then
+                    tStartLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iStartLandOrWaterZone]][M28Map.subrefPondWaterZones][iStartLandOrWaterZone]
+                else
+                    tStartLZOrWZData = M28Map.tAllPlateaus[iStartPlateauOrZero][M28Map.subrefPlateauLandZones][iStartLandOrWaterZone]
+                end
+                if M28Conditions.IsLocationInPlayableArea(tStartLZOrWZData[M28Map.subrefMidpoint]) then
+                    M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint] = {tStartLZOrWZData[M28Map.subrefMidpoint][1], tStartLZOrWZData[M28Map.subrefMidpoint][2], tStartLZOrWZData[M28Map.subrefMidpoint][3]}
+                else
+                    --Check if we have air staging or factory HQs anywhere on the team, and if so then set this as the air rally point
+                    local oUnitAsRallyPoint
+                    local iHighestLandTech = 0
+                    local iCurLandTech
+                    for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
+                        local tFactoriesAndAirStaging = oBrain:GetListOfUnits(M28UnitInfo.refCategoryAllHQFactories + M28UnitInfo.refCategoryAirStaging, false, true)
+                        if M28Utilities.IsTableEmpty(tFactoriesAndAirStaging) == false then
 
-        M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint] = tPreferredRallyPoint
+                            for iUnit, oUnit in tFactoriesAndAirStaging do
+                                if EntityCategoryContains(M28UnitInfo.refCategoryNavalFactory, oUnit.UnitId) then iCurLandTech = 0.5 else iCurLandTech = M28UnitInfo.GetUnitTechLevel(oUnit) end
+                                if iCurLandTech > iHighestLandTech then
+                                    iHighestLandTech = iCurLandTech
+                                    oUnitAsRallyPoint = oUnit
+                                    if iCurLandTech >= 3 then break end
+                                end
+                            end
+                        end
+                        if iCurLandTech >= 3 then break end
+                    end
+                    if oUnitAsRallyPoint then
+                        M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOrigRallyOutsidePlayableArea] = oUnitAsRallyPoint:GetPosition()
+                    else
+                        M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOrigRallyOutsidePlayableArea] = true
+                        RecordOtherLandAndWaterZonesByDistance(tStartLZOrWZData, tStartLZOrWZData[M28Map.subrefMidpoint])
+                        if M28Utilities.IsTableEmpty(tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
+                            for iEntry, tSubtable in tStartLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do
+                                local tAltLZOrWZData
+                                local iCurLZOrWZRef = tSubtable[M28Map.subrefiLandOrWaterZoneRef]
+                                if tSubtable[M28Map.subrefbIsWaterZone] then
+                                    tAltLZOrWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iCurLZOrWZRef]][M28Map.subrefPondWaterZones][iCurLZOrWZRef]
+                                else
+                                    tAltLZOrWZData = M28Map.tAllPlateaus[tSubtable[M28Map.subrefiPlateauOrPond]][M28Map.subrefPlateauLandZones][iCurLZOrWZRef]
+                                end
+                                if M28Conditions.IsLocationInPlayableArea(tAltLZOrWZData[M28Map.subrefMidpoint]) then
+                                    M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint] = {tAltLZOrWZData[M28Map.subrefMidpoint][1], tAltLZOrWZData[M28Map.subrefMidpoint][2], tAltLZOrWZData[M28Map.subrefMidpoint][3]}
+                                    break
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+
+            --[[M28Air.RecordOtherLandAndWaterZonesByDistance(tLZOrWZData, tLZOrWZData[M28Map.subrefMidpoint])
+            if M28Utilities.IsTableEmpty(tLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) then
+                M28Utilities.ErrorHandler('No other zones found')
+            else
+                for iEntry, tSubtable in tLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance] do--]]
+        end
 
         if bDebugMessages == true then LOG(sFunctionRef..': Set air rally point to rpeferred rally point for now='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint])) end
 
@@ -1352,25 +1441,29 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
                 if (iCurPlateauOrZero or 0) == 0 then
                     if (iCurLZOrWZ or 0) > 0 then
                         local tWZData = M28Map.tPondDetails[M28Map.tiPondByWaterZone[iCurLZOrWZ]][M28Map.subrefPondWaterZones][iCurLZOrWZ]
-                        local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
-                        iCurDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], tWZTeamData[M28Map.reftClosestEnemyBase])
-                        if bDebugMessages == true then LOG(sFunctionRef..': Unit is in a water zone, iCurDistToEnemyBase='..(iCurDistToEnemyBase or 'nil')..'; tWZTeamData[M28Map.reftClosestEnemyBase]='..repru(tWZTeamData[M28Map.reftClosestEnemyBase])..'; WZ midpoint='..repru(tWZData[M28Map.subrefMidpoint])) end
-                        if iCurDistToEnemyBase <   iClosestDistToEnemyBase then
-                            iClosestDistToEnemyBase = iCurDistToEnemyBase
-                            tClosestMidpoint = {tWZData[M28Map.subrefMidpoint][1], tWZData[M28Map.subrefMidpoint][2], tWZData[M28Map.subrefMidpoint][3]}
-                            tClosestBase = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
+                        if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tWZData[M28Map.subrefMidpoint]) then
+                            local tWZTeamData = tWZData[M28Map.subrefWZTeamData][iTeam]
+                            iCurDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(tWZData[M28Map.subrefMidpoint], tWZTeamData[M28Map.reftClosestEnemyBase])
+                            if bDebugMessages == true then LOG(sFunctionRef..': Unit is in a water zone, iCurDistToEnemyBase='..(iCurDistToEnemyBase or 'nil')..'; tWZTeamData[M28Map.reftClosestEnemyBase]='..repru(tWZTeamData[M28Map.reftClosestEnemyBase])..'; WZ midpoint='..repru(tWZData[M28Map.subrefMidpoint])) end
+                            if iCurDistToEnemyBase <   iClosestDistToEnemyBase then
+                                iClosestDistToEnemyBase = iCurDistToEnemyBase
+                                tClosestMidpoint = {tWZData[M28Map.subrefMidpoint][1], tWZData[M28Map.subrefMidpoint][2], tWZData[M28Map.subrefMidpoint][3]}
+                                tClosestBase = {tWZTeamData[M28Map.reftClosestFriendlyBase][1], tWZTeamData[M28Map.reftClosestFriendlyBase][2], tWZTeamData[M28Map.reftClosestFriendlyBase][3]}
+                            end
                         end
                     end
                 else
                     --Have a valid land zone
                     local tLZData = M28Map.tAllPlateaus[iCurPlateauOrZero][M28Map.subrefPlateauLandZones][iCurLZOrWZ]
-                    local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
-                    if bDebugMessages == true then LOG(sFunctionRef..': Have a valid land zone, iCurLZ='..(iCurLZOrWZ or 'nil')..'; iCurPlateau='..(iCurPlateauOrZero or 'nil')..'; LZ midpoint='..repru(tLZData[M28Map.subrefMidpoint])..'; Closest enemy base='..repru(tLZTeamData[M28Map.reftClosestEnemyBase])..'; iTeam='..(iTeam or 'nil')) end
-                    iCurDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])
-                    if iCurDistToEnemyBase <   iClosestDistToEnemyBase then
-                        iClosestDistToEnemyBase = iCurDistToEnemyBase
-                        tClosestMidpoint = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
-                        tClosestBase = {tLZTeamData[M28Map.reftClosestFriendlyBase][1], tLZTeamData[M28Map.reftClosestFriendlyBase][2], tLZTeamData[M28Map.reftClosestFriendlyBase][3]}
+                    if bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint]) then
+                        local tLZTeamData = tLZData[M28Map.subrefLZTeamData][iTeam]
+                        if bDebugMessages == true then LOG(sFunctionRef..': Have a valid land zone, iCurLZ='..(iCurLZOrWZ or 'nil')..'; iCurPlateau='..(iCurPlateauOrZero or 'nil')..'; LZ midpoint='..repru(tLZData[M28Map.subrefMidpoint])..'; Closest enemy base='..repru(tLZTeamData[M28Map.reftClosestEnemyBase])..'; iTeam='..(iTeam or 'nil')) end
+                        iCurDistToEnemyBase = M28Utilities.GetDistanceBetweenPositions(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestEnemyBase])
+                        if iCurDistToEnemyBase < iClosestDistToEnemyBase then
+                            iClosestDistToEnemyBase = iCurDistToEnemyBase
+                            tClosestMidpoint = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
+                            tClosestBase = {tLZTeamData[M28Map.reftClosestFriendlyBase][1], tLZTeamData[M28Map.reftClosestFriendlyBase][2], tLZTeamData[M28Map.reftClosestFriendlyBase][3]}
+                        end
                     end
                 end
                 if bDebugMessages == true then LOG(sFunctionRef..' Finished considering unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..'; Unit position='..repru(oUnit:GetPosition())..'; iCurPlateau='..(iCurPlateauOrZero or 'nil')..'; iCurWZ='..(iCurLZOrWZ or 'nil')..'; iCurDistToEnemyBase='..(iCurDistToEnemyBase or 'nil')..'; iClosestDistToEnemyBase='..(iClosestDistToEnemyBase or 'nil')..'; tClosestMidpoint='..repru(tClosestMidpoint)) end
@@ -1537,7 +1630,11 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
         --Check that we have a location with a valid zone (if we have a support rally point)
         if bDebugMessages == true then LOG(sFunctionRef..': tSupportRallyPoint='..repru(tSupportRallyPoint)..'; tPreferredRallyPoint='..repru(tPreferredRallyPoint)) end
         if not(tSupportRallyPoint) then
-            M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint] = tPreferredRallyPoint
+            if M28Utilities.IsTableEmpty(tPreferredRallyPoint) == false and (bDontCheckPlayableArea or M28Conditions.IsLocationInPlayableArea(tPreferredRallyPoint)) then
+                M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint] = tPreferredRallyPoint
+            else
+                M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint] = {M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint][1], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint][2], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint][3]}
+            end
         else
             --Move the support rally point if not on a land or water zone
             local iSupportPlateau, iSupportLZOrWZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tSupportRallyPoint)
@@ -1600,8 +1697,8 @@ function UpdateAirRallyAndSupportPoints(iTeam, iAirSubteam)
         local tStartLZOrWZData
         if bDebugMessages == true then LOG(sFunctionRef..': About to get the plateau and zone for air support point='..repru(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint])..'; Zone midpoint='..repru(tStartLZOrWZData[M28Map.subrefMidpoint])..'; ') end
         if M28Utilities.IsTableEmpty(M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]) then
-            M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint] = {tStartLZOrWZData[M28Map.subrefMidpoint][1], tStartLZOrWZData[M28Map.subrefMidpoint][2], tStartLZOrWZData[M28Map.subrefMidpoint][3]}
-            if bDebugMessages == true then LOG(sFunctionRef..': Updated air support point to zone midpoint') end
+            M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint] = {M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint][1], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint][2], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint][3]}
+            if bDebugMessages == true then LOG(sFunctionRef..': Updated air support point to be the rally point') end
         end
         local tStartMidpoint = {M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint][1], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint][2], M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint][3]}
         local iStartPlateau, iStartLZOrWZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tStartMidpoint)
@@ -1888,7 +1985,7 @@ function SendUnitsForRefueling(tUnitsForRefueling, iTeam, iAirSubteam)
         local tRallyPoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]
         local tRallyLZData, tRallyLZTeamData = M28Map.GetLandOrWaterZoneData(tRallyPoint, true, iTeam)
         local tRefuelBase
-        if tRallyLZTeamData[M28Map.reftClosestFriendlyBase] then tRefuelBase = tRallyLZTeamData[M28Map.reftClosestFriendlyBase] else tRefuelBase = tRallyPoint end
+        if tRallyLZTeamData[M28Map.reftClosestFriendlyBase] and (not(M28Map.bIsCampaignMap) or M28Conditions.IsLocationInPlayableArea(tRallyLZTeamData[M28Map.reftClosestFriendlyBase])) then tRefuelBase = tRallyLZTeamData[M28Map.reftClosestFriendlyBase] else tRefuelBase = tRallyPoint end
         --If close to unit cap consider ctrl-King unit if it is close to the rally point
         if (M28Team.tTeamData[iTeam][M28Team.refiLowestUnitCapAdjustmentLevel] or 0) == 0 and GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeLastNearUnitCap] or -100) <= 10 then
             --Ctrlk units if close to rally point and aibrain owner is close to unit cap
@@ -2767,39 +2864,54 @@ function ManageAirAAUnits(iTeam, iAirSubteam)
 
 
                 --If still have available air send them to the support location (unless they could do with a fuel or health top-up); if theyre already there and have low mass consider ctrl-king inties
-                if bDebugMessages == true then LOG(sFunctionRef..': Finished considering AirAA targets for all land and water zones, is tAvailableAirAA empty='..tostring(M28Utilities.IsTableEmpty(tAvailableAirAA))) end
+                if bDebugMessages == true then LOG(sFunctionRef..': Finished considering AirAA targets for all land and water zones, is tAvailableAirAA empty='..tostring(M28Utilities.IsTableEmpty(tAvailableAirAA))..'; Is air rally outside playable area='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOrigRallyOutsidePlayableArea])) end
                 if M28Utilities.IsTableEmpty(tAvailableAirAA) == false then
-                    local tMovePoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]
-                    local bConsiderCtrlK = false
-                    if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] >= 1750 and M28Conditions.TeamHasLowMass(iTeam) then
-                        local tInties = EntityCategoryFilterDown(categories.TECH1, tAvailableAirAA)
-                        if M28Utilities.IsTableEmpty(tInties) == false then
-                            local tASFs = EntityCategoryFilterDown(categories.TECH3, tAvailableAirAA)
-                            if M28Utilities.IsTableEmpty(tASFs) == false and table.getn(tASFs) >= 6 then
-                                bConsiderCtrlK = true
+                    if M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOrigRallyOutsidePlayableArea] then
+                        --First check for enemy units near the revised rally point instead
+                        local aiBrain
+                        for iBrain, oBrain in M28Team.tAirSubteamData[iAirSubteam][M28Team.subreftoFriendlyM28Brains] do
+                            if oBrain.M28AI then aiBrain = oBrain break end
+                        end
+                        local tEnemiesNearRally = aiBrain:GetUnitsAroundPoint(M28UnitInfo.refCategoryAllAir, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], 150, 'Enemy')
+                        if bDebugMessages == true then LOG(sFunctionRef..': Is tEnemiesNearRally empty for backup given outside playable area='..tostring( M28Utilities.IsTableEmpty(tEnemiesNearRally))) end
+                        if M28Utilities.IsTableEmpty(tEnemiesNearRally) == false then
+                            AssignAirAATargets(tAvailableAirAA, tEnemiesNearRally)
+                        end
+
+                    end
+                    if M28Utilities.IsTableEmpty(tAvailableAirAA) == false then
+                        local tMovePoint = M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubSupportPoint]
+                        local bConsiderCtrlK = false
+                        if M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] >= 3 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurAirAAThreat] >= 1750 and M28Conditions.TeamHasLowMass(iTeam) then
+                            local tInties = EntityCategoryFilterDown(categories.TECH1, tAvailableAirAA)
+                            if M28Utilities.IsTableEmpty(tInties) == false then
+                                local tASFs = EntityCategoryFilterDown(categories.TECH3, tAvailableAirAA)
+                                if M28Utilities.IsTableEmpty(tASFs) == false and table.getn(tASFs) >= 6 then
+                                    bConsiderCtrlK = true
+                                end
                             end
                         end
-                    end
-                    for iUnit, oUnit in tAvailableAirAA do
-                        if bDebugMessages == true then LOG(sFunctionRef..': Considering idle airAA order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' Unit fuel='..oUnit:GetFuelRatio()..'; Unit health%='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; support point='..repru(tMovePoint)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; bConsiderCtrlK='..tostring(bConsiderCtrlK)) end
-                        if bConsiderCtrlK and EntityCategoryContains(categories.TECH1, oUnit.UnitId) then
-                            bConsiderCtrlK = false
-                            local bMoveUnitToRally = false
-                            if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]) >= 10 then
-                                local tUnitZoneData, tUnitTeamZoneData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
-                                if not(tUnitTeamZoneData[M28Map.subrefLZbCoreBase]) then bMoveUnitToRally = true end
-                            end
-                            if bMoveUnitToRally then
-                                M28Orders.IssueTrackedMove(oUnit, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], 10, false, 'AACtrlKI', false)
+                        for iUnit, oUnit in tAvailableAirAA do
+                            if bDebugMessages == true then LOG(sFunctionRef..': Considering idle airAA order for unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)..' Unit fuel='..oUnit:GetFuelRatio()..'; Unit health%='..M28UnitInfo.GetUnitHealthPercent(oUnit)..'; support point='..repru(tMovePoint)..'; Is unit valid='..tostring(M28UnitInfo.IsUnitValid(oUnit))..'; bConsiderCtrlK='..tostring(bConsiderCtrlK)) end
+                            if bConsiderCtrlK and EntityCategoryContains(categories.TECH1, oUnit.UnitId) then
+                                bConsiderCtrlK = false
+                                local bMoveUnitToRally = false
+                                if M28Utilities.GetDistanceBetweenPositions(oUnit:GetPosition(), M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint]) >= 10 then
+                                    local tUnitZoneData, tUnitTeamZoneData = M28Map.GetLandOrWaterZoneData(oUnit:GetPosition(), true, iTeam)
+                                    if not(tUnitTeamZoneData[M28Map.subrefLZbCoreBase]) then bMoveUnitToRally = true end
+                                end
+                                if bMoveUnitToRally then
+                                    M28Orders.IssueTrackedMove(oUnit, M28Team.tAirSubteamData[iAirSubteam][M28Team.reftAirSubRallyPoint], 10, false, 'AACtrlKI', false)
+                                else
+                                    M28Orders.IssueTrackedKillUnit(oUnit)
+                                    M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOnlyGetASFs] = true
+                                    if bDebugMessages == true then LOG(sFunctionRef..': CtrlKing unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                                end
+                            elseif (oUnit:GetFuelRatio() < 0.6 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.85) and not(EntityCategoryContains(categories.CANNOTUSEAIRSTAGING, oUnit.UnitId)) then
+                                table.insert(tAirForRefueling, oUnit)
                             else
-                                M28Orders.IssueTrackedKillUnit(oUnit)
-                                M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOnlyGetASFs] = true
-                                if bDebugMessages == true then LOG(sFunctionRef..': CtrlKing unit '..oUnit.UnitId..M28UnitInfo.GetUnitLifetimeCount(oUnit)) end
+                                M28Orders.IssueTrackedMove(oUnit, tMovePoint, 10, false, 'AAIdle', false)
                             end
-                        elseif (oUnit:GetFuelRatio() < 0.6 or M28UnitInfo.GetUnitHealthPercent(oUnit) <= 0.85) and not(EntityCategoryContains(categories.CANNOTUSEAIRSTAGING, oUnit.UnitId)) then
-                            table.insert(tAirForRefueling, oUnit)
-                        else
-                            M28Orders.IssueTrackedMove(oUnit, tMovePoint, 10, false, 'AAIdle', false)
                         end
                     end
                 end
@@ -3075,9 +3187,9 @@ function ManageBombers(iTeam, iAirSubteam)
                             end
                         end
 
-                        --If have air control and lots of bombers available consider further away targets
+                        --If have air control and lots of bombers available consider further away targets; also consider if rally point is outside the playable area
                         if bDebugMessages == true then LOG(sFunctionRef..': Is table of available bombers empty='..tostring(M28Utilities.IsTableEmpty(tAvailableBombers))..'; Do we have air control='..tostring(M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl])..'; iAvailableBombers='..iAvailableBombers..'; iOurBomberThreat='..M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat]) end
-                        if M28Utilities.IsTableEmpty(tAvailableBombers) == false and M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and iAvailableBombers >= 8 and M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] >= 2500 and (iAvailableBombers >= 80 or M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] >= 20000) then
+                        if M28Utilities.IsTableEmpty(tAvailableBombers) == false and (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbOrigRallyOutsidePlayableArea] or (M28Team.tAirSubteamData[iAirSubteam][M28Team.refbHaveAirControl] and iAvailableBombers >= 8 and (iAvailableBombers >= 60 or M28Team.tAirSubteamData[iAirSubteam][M28Team.subrefiOurBomberThreat] >= 20000 or M28Team.tTeamData[iTeam][M28Team.subrefiHighestFriendlyAirFactoryTech] < 3 or (M28Map.bIsCampaignMap and iAvailableBombers >= 12)))) then
                             if bDebugMessages == true then LOG(sFunctionRef..': Is table of pathing to other zones empty='..tostring(M28Utilities.IsTableEmpty(tRallyLZOrWZData[M28Map.subrefLZPathingToOtherLandZones]))) end
                             if M28Utilities.IsTableEmpty(tRallyLZOrWZData[M28Map.subrefOtherLandAndWaterZonesByDistance]) == false then
                                 local bDontCheckForPacifism = not(M28Overseer.bPacifistModeActive)
@@ -4641,6 +4753,8 @@ function UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam)
     local sFunctionRef = 'UpdateTransportShortlistForFarAwayLandZoneDrops'
     M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
 
+
+
     --Dont even consider for small maps
     if bDebugMessages == true then LOG(sFunctionRef..': Start of code at time '..GetGameTimeSeconds()..' for team '..iTeam..'; iMapSize='..M28Map.iMapSize) end
     if M28Map.iMapSize > 256 then
@@ -4742,6 +4856,7 @@ function UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam)
     local tShortlist = M28Team.tTeamData[iTeam][M28Team.reftTransportFarAwaySameIslandPlateauLandZoneDropShortlist]
     if M28Utilities.IsTableEmpty(M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropZonesByPlateau]) == false then
         local tiPlateauAndZoneWithAdjacentEngineers = {}
+        local bCampaignMap = M28Map.bIsCampaignMap
         --Dont drop if we have engineers in this zone or adjacent, or there are dangerous enemy units
         for iPlateau, tLandZones in M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropZonesByPlateau] do
             for iEntry, iLandZone in tLandZones do
@@ -4752,8 +4867,12 @@ function UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam)
                     --Check we havent already got mexes on any of the positions
                     if bDebugMessages == true then LOG(sFunctionRef..': tLZTeamData[M28Map.subrefMexCountByTech]='..repru(tLZTeamData[M28Map.subrefMexCountByTech])) end
                     if tLZTeamData[M28Map.subrefMexCountByTech][1] + tLZTeamData[M28Map.subrefMexCountByTech][2] + tLZTeamData[M28Map.subrefMexCountByTech][3] == 0 then
-                        if bDebugMessages == true then LOG(sFunctionRef..': tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ])..'; tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA]='..(tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 'nil')) end
-                        if not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and (tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) == 0 then
+                        if bDebugMessages == true then
+                            LOG(sFunctionRef..': tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]='..tostring(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ])..'; tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA]='..(tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 'nil')..'; Is table of units to repair empty='..tostring(M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToRepair]))..'; Is midpoint in playable area='..tostring(M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint]))..'; bCampaignMap='..tostring(bCampaignMap)..'; First unit to repair='..(tLZData[M28Map.subreftoUnitsToRepair][1].UnitId or 'nil')..(M28UnitInfo.GetUnitLifetimeCount(tLZData[M28Map.subreftoUnitsToRepair][1]) or 'nil'))
+                            if tLZData[M28Map.subreftoUnitsToRepair][1] then LOG(sFunctionRef..': Health percent of first unit to repair='..M28UnitInfo.GetUnitHealthPercent(tLZData[M28Map.subreftoUnitsToRepair][1])) end
+                        end
+
+                        if (not(tLZTeamData[M28Map.subrefbDangerousEnemiesInThisLZ]) and (tLZTeamData[M28Map.subrefLZThreatEnemyGroundAA] or 0) == 0) or (bCampaignMap and M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint]) and M28Utilities.IsTableEmpty(tLZData[M28Map.subreftoUnitsToRepair]) == false and M28UnitInfo.GetUnitHealthPercent(tLZData[M28Map.subreftoUnitsToRepair][1]) <= 0.15) then
                             --Do we want BP for this zone?
                             if bDebugMessages == true then LOG(sFunctionRef..': tLZTeamData[M28Map.subrefTbWantBP]='..tostring(tLZTeamData[M28Map.subrefTbWantBP] or false)..'; tLZTeamData[M28Map.subrefTBuildPowerByTechWanted]='..repru(tLZTeamData[M28Map.subrefTBuildPowerByTechWanted])) end
                             local bBPWanted = tLZTeamData[M28Map.subrefTbWantBP]
@@ -4804,7 +4923,7 @@ function UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam)
                                         for _, iAdjLZ in tLZData[M28Map.subrefLZAdjacentLandZones] do
                                             local tAdjLZTeamData = M28Map.tAllPlateaus[iPlateau][M28Map.subrefPlateauLandZones][iAdjLZ][M28Map.subrefLZTeamData][iTeam]
                                             if bDebugMessages == true then LOG(sFunctionRef..': iAdjLZ='..iAdjLZ..'; tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal]='..(tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] or 'nil')..'; Is table of allied units empty='..tostring(M28Utilities.IsTableEmpty(tAdjLZTeamData[M28Map.subreftoLZOrWZAlliedUnits]))) end
-                                            if tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 100 then
+                                            if tAdjLZTeamData[M28Map.subrefTThreatEnemyCombatTotal] > 100 and not(bCampaignMap) then
                                                 bHaveNearbyFactoriesOrLargeThreat = true
                                                 break
                                             else
@@ -5087,8 +5206,8 @@ function UpdateTransportLocationShortlist(iTeam)
     --Now consider adding land zonesi n same island:
     local bFirstTimeConsidering = false
     if not( M28Team.tTeamData[iTeam][M28Team.reftiPotentialDropZonesByPlateau]) and not(M28Team.tTeamData[iTeam][M28Team.reftiPotentialPondDropZones]) then bFirstTimeConsidering = true end
+    UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam) --want to run every time, has code in it to make sure one part only runs at start of game
     if bFirstTimeConsidering then
-        UpdateTransportShortlistForFarAwayLandZoneDrops(iTeam)
         --Also drop locations for ponds
         UpdateTransportShortlistForPondDrops(iTeam, tbPlateausWithPlayerStartOrIslandDrop)
     end
@@ -5387,7 +5506,7 @@ function ManageTransports(iTeam, iAirSubteam)
                     end
                     if bDebugMessages == true then LOG(sFunctionRef..': bRemovedEntry='..tostring(bRemovedEntry or false)) end
                     --if bRemovedEntry then
-                        table.remove(tAvailableTransports, iCurTransportEntry)
+                    table.remove(tAvailableTransports, iCurTransportEntry)
                     --end
                 end
             end

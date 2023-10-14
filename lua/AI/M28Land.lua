@@ -3752,7 +3752,23 @@ function ManageCombatUnitsInLandZone(tLZData, tLZTeamData, iTeam, iPlateau, iLan
                             end
                             sRetreatMessage = 'ConsRP'
                         end
-                        if bDebugMessages == true then LOG(sFunctionRef..': We are outranged by enemy and dont have enough threat to press the attack, will either retreat to prev LZ, or this LZ midpoint; bConsolidateAtMidpoint='..tostring(bConsolidateAtMidpoint)..'; bConsiderAttackingExperimental='..tostring(bConsiderAttackingExperimental)) end
+                        if M28Map.bIsCampaignMap and not(M28Conditions.IsLocationInPlayableArea(tRallyPoint)) then
+                            --If closest friendly base is in playable area go here
+                            if M28Conditions.IsLocationInPlayableArea(tLZTeamData[M28Map.reftClosestFriendlyBase]) then
+                                tRallyPoint = {tLZTeamData[M28Map.reftClosestFriendlyBase][1], tLZTeamData[M28Map.reftClosestFriendlyBase][2], tLZTeamData[M28Map.reftClosestFriendlyBase][3]}
+                            else
+                                local tMoveTowardsBase = M28Utilities.MoveInDirection(tLZData[M28Map.subrefMidpoint], M28Utilities.GetAngleFromAToB(tLZData[M28Map.subrefMidpoint], tLZTeamData[M28Map.reftClosestFriendlyBase]), 60, true, false, true)
+                                if tMoveTowardsBase then
+                                    tRallyPoint = tMoveTowardsBase
+                                elseif M28Conditions.IsLocationInPlayableArea(tLZData[M28Map.subrefMidpoint]) then
+                                    tRallyPoint = {tLZData[M28Map.subrefMidpoint][1], tLZData[M28Map.subrefMidpoint][2], tLZData[M28Map.subrefMidpoint][3]}
+                                elseif oNearestEnemyToMidpoint then
+                                    --Just go to the closest enemy unit
+                                    tRallyPoint = oNearestEnemyToMidpoint:GetPosition()
+                                end
+                            end
+                        end
+                        if bDebugMessages == true then LOG(sFunctionRef..': We are outranged by enemy and dont have enough threat to press the attack, will either retreat to prev LZ, or this LZ midpoint; bConsolidateAtMidpoint='..tostring(bConsolidateAtMidpoint)..'; bConsiderAttackingExperimental='..tostring(bConsiderAttackingExperimental)..'; tRallyPoint='..repru(tRallyPoint)) end
 
                         for iUnit, oUnit in tAvailableCombatUnits do
                             --If we are close to the last known position such that we will be able to see there is no longer a unit there, then update this unit's position for next cycle
@@ -4925,7 +4941,6 @@ function ManageAllLandZones(aiBrain, iTeam)
             local iACUPlateau, iACULZ = M28Map.GetPlateauAndLandZoneReferenceFromPosition(tOurACU[1]:GetPosition(), true, tOurACU[1])
             LOG(sFunctionRef..': ACU is at plateau '..iACUPlateau..'; LZ='..iACULZ)
         end
-        LOG(sFunctionRef..': Is plateau 12 LZ 2 empty of allies for team 2='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[12][M28Map.subrefPlateauLandZones][2][M28Map.subrefLZTeamData][2][M28Map.subreftoLZOrWZAlliedUnits])))
     end
 
     if GetGameTimeSeconds() - (M28Team.tTeamData[iTeam][M28Team.refiTimeOfLastRallyPointRefresh] or -100) >= 10 then
@@ -4940,7 +4955,6 @@ function ManageAllLandZones(aiBrain, iTeam)
         if M28Utilities.IsTableEmpty(tPlateauData[M28Map.subrefPlateauLandZones]) == false then
             if bDebugMessages == true then
                 LOG(sFunctionRef..': About to cycle through every land zone in plateau '..iPlateau..'; subrefLandZoneCount='..tPlateauData[M28Map.subrefLandZoneCount])
-                LOG(sFunctionRef..': Is plateau 12 LZ 2 empty of allies for team 2='..tostring(M28Utilities.IsTableEmpty(M28Map.tAllPlateaus[12][M28Map.subrefPlateauLandZones][2][M28Map.subrefLZTeamData][2][M28Map.subreftoLZOrWZAlliedUnits])))
             end
             for iLandZone, tLandZoneDataByTeam in tPlateauData[M28Map.subrefPlateauLandZones] do
                 local tLZTeamData = tLandZoneDataByTeam[M28Map.subrefLZTeamData][iTeam]

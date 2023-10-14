@@ -187,16 +187,32 @@ function GameSettingWarningsChecksAndInitialChatMessages(aiBrain)
     --Check if we can build air factories
     local tFriendlyACU = aiBrain:GetListOfUnits(categories.COMMAND, false, true)
     if bDebugMessages == true then LOG(sFunctionRef..': Is table of friendly ACU empty='..tostring(M28Utilities.IsTableEmpty(tFriendlyACU))) end
+    while M28Utilities.IsTableEmpty(tFriendlyACU) and GetGameTimeSeconds() < 20 do --UEF Campaign M1 - ACU spawns just after 10s
+        WaitTicks(1)
+        tFriendlyACU = aiBrain:GetListOfUnits(categories.COMMAND, false, true)
+        if bDebugMessages == true then LOG(sFunctionRef..': Is tFriendlyACU empty='..tostring( M28Utilities.IsTableEmpty(tFriendlyACU))..'; Brain='..aiBrain.Nickname..'; Time='..GetGameTimeSeconds()..'; Is allunits empty='..tostring(M28Utilities.IsTableEmpty(aiBrain:GetListOfUnits(categories.ALLUNITS, false, true)))) end
+    end
     if M28Utilities.IsTableEmpty(tFriendlyACU) == false then
-                                    --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition,               oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
+        --GetBlueprintThatCanBuildOfCategory(aiBrain, iCategoryCondition,               oFactory, bGetSlowest, bGetFastest, bGetCheapest, iOptionalCategoryThatMustBeAbleToBuild, bIgnoreTechDifferences)
         local sBlueprint = M28Factory.GetBlueprintThatCanBuildOfCategory(aiBrain, M28UnitInfo.refCategoryAirFactory, tFriendlyACU[1])
         if bDebugMessages == true then LOG(sFunctionRef..': If ACU '..tFriendlyACU[1].UnitId..M28UnitInfo.GetUnitLifetimeCount(tFriendlyACU[1])..' tries to build an air factory, sBLueprint is '..(sBlueprint or 'nil')) end
+        local bCantBuild
         if not(sBlueprint) then
+            bCantBuild = true
+            if bDebugMessages == true then LOG(sFunctionRef..': Blueprint is nil so will set that cant build') end
+        else
+            if bDebugMessages == true then LOG(sFunctionRef..': Is blueprint '..sBlueprint..' restricted for brain '..aiBrain.Nickname..'='..tostring(import("/lua/game.lua").IsRestricted(sBlueprint, aiBrain:GetArmyIndex()))) end
+            if import("/lua/game.lua").IsRestricted(sBlueprint, aiBrain:GetArmyIndex()) then
+                bCantBuild = true
+            end
+        end
+        if bCantBuild then
             bAirFactoriesCantBeBuilt = true
             if not(bUnitRestrictionsArePresent) then
                 bUnitRestrictionsArePresent = true
                 sIncompatibleMessage = sIncompatibleMessage .. ' Custom map script or mod preventing air factories'
             end
+            if bDebugMessages == true then LOG(sFunctionRef..': Setting bAirFactoriesCantBeBuilt to true, bAirFactoriesCantBeBuilt='..tostring(bAirFactoriesCantBeBuilt)) end
         end
     end
     if not(bUnitRestrictionsArePresent) then
@@ -1428,7 +1444,7 @@ function ConsiderSpecialCampaignObjectives(Type, Complete, Title, Description, A
 
     local aiBrain
     for iBrain, oBrain in tAllActiveM28Brains do
-        if oBrain.M28AI then aiBrain = oBrain break end
+        if oBrain.M28AI and not(oBrain.CampaignAI) then aiBrain = oBrain break end
     end
     if aiBrain then
         local iTeam = aiBrain.M28Team
@@ -1778,4 +1794,82 @@ function DecideWhetherToApplyM28ToCampaignAI(aiBrain, planName)
         LOG('Setting AI to use M28, aiBrain.Nickname='..(aiBrain.Nickname or 'nil')..'; aiBrain[M28BrainSetupRun] before being cleared='..tostring(aiBrain['M28BrainSetupRun'] or false))
         ForkThread(M28Events.OnCreateBrain, aiBrain, planName, false)
     end
+end
+
+
+function RemoveUnitsFromPlatoon(oPlatoon, tUnits, bReturnToBase, oPlatoonToAddTo)
+    --Intended to remove a particular unit from a platoon e.g. to avoid campaign AI overriding M28 AI
+    --if bReturnToBase is true then units will be told to move to aiBrain's base
+    --if tUnits isnt in oPlatoon then does nothing
+    --oPlatoonToAddTo - optional, if empty, then will try to assign to army pool instead
+    local bDebugMessages = false if M28Profiler.bGlobalDebugOverride == true then   bDebugMessages = true end
+    local sFunctionRef = 'RemoveUnitsFromPlatoon'
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerStart)
+
+    if oPlatoon and oPlatoon.GetBrain and oPlatoon.GetPlan and not(oPlatoon.Dead) then
+        local aiBrain = oPlatoon:GetBrain()
+
+        if bDebugMessages == true then
+            LOG(sFunctionRef..': About to list out every unit that is about to be removed')
+            for iUnit, oUnit in tUnits do
+                if oUnit.GetUnitId then LOG('iUnit='..iUnit..'; oUnitId='..oUnit.UnitId)
+                else LOG('iUnit='..iUnit..'; Unit has no unitId') end
+            end
+        end
+        if not(oPlatoonToAddTo == oPlatoon) then
+            local oArmyPool = aiBrain:GetPlatoonUniquelyNamed('ArmyPool')
+            --if not(oPlatoon==oArmyPool) then if oPlatoon:GetPlan() == 'M27ACUMain' then bDebugMessages = true end end
+            local sName
+            if oPlatoonToAddTo == nil then
+                if bDebugMessages == true then LOG(sFunctionRef..': Will add units to army pool') end
+                oPlatoonToAddTo = oArmyPool
+                sName = 'ArmyPool'
+            else
+                if oPlatoonToAddTo == oArmyPool then sName = 'ArmyPool'
+                else
+                    if oPlatoonToAddTo.GetPlan then
+                        sName = oPlatoonToAddTo:GetPlan()
+                    end
+                    if sName == nil then sName = 'nil' end
+
+                    if bDebugMessages == true then LOG(sFunctionRef..': Adding unit to '..sName) end
+                end
+            end
+            if oPlatoonToAddTo == nil then
+                LOG(sFunctionRef..': WARNING: oPlatoonToAddTo is nil')
+            else
+                local sCurPlatoonName
+                if oPlatoon == oArmyPool then
+                    sCurPlatoonName = 'ArmyPool'
+                else
+                    sCurPlatoonName = oPlatoon:GetPlan()
+                    if sCurPlatoonName == nil then sCurPlatoonName = 'None' end
+                    if bDebugMessages == true then LOG(sFunctionRef..': sCurPlatoonName='..sCurPlatoonName) end
+                end
+
+                if not(sCurPlatoonName == sName) then
+                    if bDebugMessages == true then
+                        if oPlatoon == oArmyPool then
+                            M28Utilities.ErrorHandler('ideally shouldnt have any units using armypool platoon now, see if can figure out where this came from')
+                            LOG(sFunctionRef..': About to remove units from ArmyPool platoon and add to platoon '..sName)
+                        else
+                            LOG(sFunctionRef..': About to remove units from platoon '..oPlatoon:GetPlan())
+                        end
+                    end
+
+                    if bReturnToBase == true then
+                        if bDebugMessages == true then LOG(sFunctionRef..': Issuing move command to tUnits') end
+                        if bDebugMessages == true then LOG(sFunctionRef..': Clearing commands; Gametime='..GetGameTimeSeconds()) end
+                        local tBase = M28Map.PlayerStartPoints[aiBrain:GetArmyIndex()]
+                        for iUnit, oUnit in tUnits do
+                            M28Orders.IssueTrackedClearCommands(oUnit)
+                            M28Orders.IssueTrackedMove(oUnit, tBase, 10, false, 'PlatRB', false)
+                        end
+                    end
+                    aiBrain:AssignUnitsToPlatoon(oPlatoonToAddTo, tUnits, 'Support', 'GrowthFormation')
+                end
+            end
+        end
+    end
+    M28Profiler.FunctionProfiler(sFunctionRef, M28Profiler.refProfilerEnd)
 end
