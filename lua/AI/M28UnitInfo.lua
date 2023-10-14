@@ -1317,6 +1317,8 @@ function RecordUnitRange(oUnit)
                         else
                             M28Utilities.ErrorHandler('Unrecognised bomb weapon for unit '..oUnit.UnitId)
                         end
+                    elseif oCurWeapon.WeaponCategory == 'Anti Navy' then
+                        oUnit[refiAntiNavyRange] = math.max((oUnit[refiAntiNavyRange] or 0), oCurWeapon.MaxRadius)
                     else
                         M28Utilities.ErrorHandler('Unrecognised range category for unit '..oUnit.UnitId..'='..(oCurWeapon.WeaponCategory or 'nil'))
                         --If this triggers do a reprs of the weapon to figure out why (i.e. uncomment out the below)
